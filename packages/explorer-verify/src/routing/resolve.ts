@@ -7,6 +7,7 @@ import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
+import { readChainId } from "../internal/read-fields.ts";
 import type { Hex, RouteOverride } from "../types.ts";
 
 /**
@@ -174,7 +175,7 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
 export function resolveRoute(chainId: number, override?: RouteOverride): Route {
   const issues: InputIssue[] = [];
   let hint: string | undefined;
-  if (!(Number.isSafeInteger(chainId) && chainId > 0)) {
+  if (readChainId(chainId) === undefined) {
     issues.push({ field: "chainId", message: "must be a positive integer" });
   }
 

@@ -43,6 +43,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                                           |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                  |
 | `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                            |
+| `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                    |
 | `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                    |
 
 ## Backend interface

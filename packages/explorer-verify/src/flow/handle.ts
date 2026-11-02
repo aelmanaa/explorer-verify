@@ -1,25 +1,13 @@
 import { toBackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
+import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Handle, Hex } from "../types.ts";
 
 const FIELDS: readonly string[] = ["version", "backend", "chainId", "address", "jobId"];
-const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 // No `:`, `.`, `/`, `%`, `?`, `#` or `\`: a job id can never parse as a URL scheme or a path
 // segment when a client puts it in a request URL, and the one-line form splits on `:`.
 const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
-
-/** Own enumerable fields of `value`, or `undefined` when reading them throws (a hostile Proxy). */
-function readFields(value: object): Map<string, unknown> | undefined {
-  try {
-    if (Array.isArray(value)) {
-      return undefined;
-    }
-    return new Map<string, unknown>(Object.entries(value));
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Reads a handle from untrusted input, such as a URL parameter, local storage or a request body,
@@ -42,7 +30,7 @@ function readFields(value: object): Map<string, unknown> | undefined {
  * @experimental
  */
 export function parseHandle(value: unknown): Handle {
-  const fields = typeof value === "object" && value !== null ? readFields(value) : undefined;
+  const fields = readFields(value);
   if (fields === undefined) {
     throw invalid([{ field: "handle", message: "must be a plain object" }]);
   }
@@ -57,19 +45,12 @@ export function parseHandle(value: unknown): Handle {
   if (backend === undefined) {
     issues.push({ field: "backend", message: "must name a known backend" });
   }
-  const rawChainId = fields.get("chainId");
-  const chainId =
-    typeof rawChainId === "number" && Number.isSafeInteger(rawChainId) && rawChainId > 0
-      ? rawChainId
-      : undefined;
+  const chainId = readChainId(fields.get("chainId"));
   if (chainId === undefined) {
     issues.push({ field: "chainId", message: "must be a positive integer" });
   }
-  const rawAddress = fields.get("address");
-  const address: Hex | undefined =
-    typeof rawAddress === "string" && ADDRESS.test(rawAddress)
-      ? `0x${rawAddress.slice(2)}`
-      : undefined;
+  const digits = addressDigits(fields.get("address"));
+  const address: Hex | undefined = digits === undefined ? undefined : `0x${digits}`;
   if (address === undefined) {
     issues.push({ field: "address", message: "must be 0x followed by 40 hex digits" });
   }
