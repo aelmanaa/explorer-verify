@@ -116,6 +116,9 @@ function invalid(issues: InputIssue[]): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `The handle is invalid: ${fields}.`,
-    { hint: "Pass the handle exactly as verify() or a not-confirmed error returned it." },
+    {
+      hint: "Pass the handle exactly as verify() or a not-confirmed error returned it.",
+      secrets: [],
+    },
   );
 }

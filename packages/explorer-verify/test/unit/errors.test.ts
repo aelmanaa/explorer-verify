@@ -4,7 +4,14 @@ import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
-import type { ErrorCode, ErrorDetails, ErrorJson, ExitCode, Handle } from "../../src/index.ts";
+import type {
+  ErrorCode,
+  ErrorDetails,
+  ErrorJson,
+  ExitCode,
+  ExplorerVerifyErrorOptions,
+  Handle,
+} from "../../src/index.ts";
 
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -25,7 +32,7 @@ function notConfirmed(): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "not-confirmed", handle: handle() },
     "Sourcify was still verifying when the time budget ran out.",
-    { cause: new Error(`GET https://api.example.org/?apikey=${DUMMY_KEY} timed out`) },
+    { secrets: [], cause: new Error(`GET https://api.example.org/?apikey=${DUMMY_KEY} timed out`) },
   );
 }
 
@@ -36,6 +43,7 @@ function invalidInput(): ExplorerVerifyError {
       issues: [{ field: "chainId", message: "must be a positive integer" }],
     },
     "The input is invalid: chainId.",
+    { secrets: [] },
   );
 }
 
@@ -120,14 +128,14 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "unexpected-response": {
-    hint: "Check the explorer's status page. If the error persists, report details.status and details.excerpt.",
-    retryable: false,
+    hint: "Call again later. If the error persists, check the explorer's status page and report details.status and details.excerpt.",
+    retryable: true,
     exitCode: 5,
   },
   "in-progress": {
-    hint: "Wait for the explorer to finish its current verification of this contract, then check the contract again.",
+    hint: "Wait for the explorer to finish its current verification of this contract, then call again.",
     retryable: true,
-    exitCode: 4,
+    exitCode: 5,
   },
   "unknown-state": {
     hint: "Do not retry automatically. Check the contract on the explorer and report details.excerpt.",
@@ -135,9 +143,9 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 6,
   },
   "job-not-found": {
-    hint: "Call verify() again to submit the contract again.",
+    hint: "Do not retry automatically. Check the contract on the explorer; if it is not verified, call verify() again.",
     retryable: false,
-    exitCode: 5,
+    exitCode: 6,
   },
 };
 
@@ -192,7 +200,7 @@ describe("ExplorerVerifyError", () => {
     it(`throws ${code} with its code, hint, docsUrl, retryable flag and details (R-DX-3, R-AX-10)`, () => {
       let thrown: unknown;
       try {
-        throw new ExplorerVerifyError(SAMPLE_DETAILS[code], `A ${code} error.`);
+        throw new ExplorerVerifyError(SAMPLE_DETAILS[code], `A ${code} error.`, { secrets: [] });
       } catch (error) {
         thrown = error;
       }
@@ -209,6 +217,7 @@ describe("ExplorerVerifyError", () => {
 
   it("takes a specific hint in place of the code's default (R-DX-3)", () => {
     const error = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "message", {
+      secrets: [],
       hint: "Use sourcify.",
     });
     assert.equal(error.hint, "Use sourcify.");
@@ -219,7 +228,7 @@ describe("ExplorerVerifyError", () => {
       code: "invalid-input",
       issues: [{ field: "chainId", message: "must be a positive integer" }],
     };
-    const error = new ExplorerVerifyError(details, "message");
+    const error = new ExplorerVerifyError(details, "message", { secrets: [] });
     details.issues.push({ field: "address", message: "late" });
     assert.ok(error.details.code === "invalid-input");
     assert.equal(error.details.issues.length, 1);
@@ -228,6 +237,7 @@ describe("ExplorerVerifyError", () => {
   it("keeps cause as a copy with the same name, message and stack, and has none when not given", () => {
     const cause = new TypeError("socket closed");
     const withCause = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "m", {
+      secrets: [],
       cause,
     });
     assert.notEqual(withCause.cause, cause);
@@ -263,10 +273,12 @@ describe("ExplorerVerifyError", () => {
     const unexpected = new ExplorerVerifyError(
       { code: "unexpected-response", backend: "sourcify", status: 500, excerpt: long },
       "m",
+      { secrets: [] },
     );
     const unknown = new ExplorerVerifyError(
       { code: "unknown-state", handle: handle(), excerpt: long },
       "m",
+      { secrets: [] },
     );
     for (const error of [unexpected, unknown]) {
       assert.ok(
@@ -308,6 +320,32 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
     assert.equal(ERROR_EXIT_CODES.network, 5);
     assert.equal(ERROR_EXIT_CODES["not-confirmed"], 4);
   });
+
+  it("sends in-progress to 5 and job-not-found to 6, and unexpected-response is retryable (R-AX-7)", () => {
+    assert.equal(ERROR_EXIT_CODES["in-progress"], 5);
+    assert.equal(ERROR_EXIT_CODES["job-not-found"], 6);
+    assert.equal(ERROR_EXIT_CODES["unexpected-response"], 5);
+    const unexpected = new ExplorerVerifyError(SAMPLE_DETAILS["unexpected-response"], "m", {
+      secrets: [],
+    });
+    assert.equal(unexpected.retryable, true);
+  });
+
+  it("maps to 4 and 6 only codes whose details carry the handle, as R-AX-7 promises", () => {
+    for (const code of ERROR_CODES) {
+      const exit = ERROR_EXIT_CODES[code];
+      if (exit === 4 || exit === 6) {
+        assert.ok(HANDLE_CODES.includes(code), `${code} exits ${String(exit)} without a handle`);
+      }
+    }
+  });
+
+  it("reads exit code 2 in R-AX-7 as including a chain the backend does not support", () => {
+    assert.match(
+      section,
+      /\| 2 +\| Usage or input error, including a chain the backend does not support; nothing was submitted for verification/,
+    );
+  });
 });
 
 describe("ExplorerVerifyError.toJSON", () => {
@@ -343,7 +381,7 @@ describe("ExplorerVerifyError.toJSON", () => {
   for (const code of ERROR_CODES) {
     const carries = HANDLE_CODES.includes(code);
     it(`${code}: has the R-AX-5 fields${carries ? " and the handle string" : " and no handle"} (R-AX-5)`, () => {
-      const json = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m").toJSON();
+      const json = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] }).toJSON();
       const keys = ["code", "message", "hint", "docsUrl", "retryable"];
       assert.deepEqual(Object.keys(json), carries ? [...keys, "handle"] : keys);
       if (carries) {
@@ -390,7 +428,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     const error = new ExplorerVerifyError(
       { code: "network", backend: "sourcify", attempts: 3 },
       "Sourcify could not be reached.",
-      { cause: new TypeError(`fetch failed for ${LEAKY_URL}`) },
+      { secrets: [], cause: new TypeError(`fetch failed for ${LEAKY_URL}`) },
     );
     assertNoKey(error);
     assert.ok(error.cause instanceof Error);
@@ -438,6 +476,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
 
   it("turns a string cause into a redacted string", () => {
     const fromString = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+      secrets: [],
       cause: `GET ${LEAKY_URL}`,
     });
     assert.equal(
@@ -453,6 +492,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     };
     for (const cause of [leaky, () => DUMMY_KEY, Symbol(DUMMY_KEY), 1n, [DUMMY_KEY]]) {
       const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+        secrets: [],
         cause,
       });
       assert.equal(error.cause, "[cause omitted]");
@@ -463,6 +503,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
   it("keeps an undefined, null, number or boolean cause as it is", () => {
     for (const cause of [undefined, null, 42, false]) {
       const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+        secrets: [],
         cause,
       });
       assert.equal(Object.hasOwn(error, "cause"), true);
@@ -487,6 +528,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     );
     for (const cause of [hostileError, hostileProxy]) {
       const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+        secrets: [],
         cause,
       });
       assert.equal(error.cause, "[unreadable cause]");
@@ -594,18 +636,326 @@ describe("error reference page", () => {
     );
     assert.deepEqual([...rows.keys()], [0, 1, 2, 3, 4, 5, 6, 130]);
     for (const code of ERROR_CODES) {
-      assert.ok(
-        rows.get(ERROR_EXIT_CODES[code])?.includes(`\`${code}\``),
-        `${code} is not in the row for exit code ${String(ERROR_EXIT_CODES[code])}`,
+      const holding = [...rows].filter(([, cell]) => cell.includes(`\`${code}\``));
+      assert.deepEqual(
+        holding.map(([exit]) => exit),
+        [ERROR_EXIT_CODES[code]],
+        `${code} must appear in exactly the row for exit code ${String(ERROR_EXIT_CODES[code])}`,
       );
     }
   });
 
   it("links every docsUrl to an anchor that exists on the page (R-AX-10)", () => {
     for (const code of ERROR_CODES) {
-      const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m");
+      const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
       const anchor = new URL(error.docsUrl).hash.slice(1);
       assert.ok(headings.includes(anchor), `no heading for #${anchor}`);
     }
+  });
+});
+
+describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
+  // A fake 34-character Etherscan-style key. Never a real one.
+  const BARE_KEY = "FAKEKEY0HARDENING0TEST0Z9Y8X7W6V5U";
+
+  it("drops an extra details field that holds a key, at full inspect depth", () => {
+    const details: ErrorDetails = { code: "network", backend: "sourcify", attempts: 3 };
+    Reflect.set(details, "url", LEAKY_URL);
+    Reflect.set(details, "headers", { authorization: DUMMY_KEY });
+    const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+    assert.deepEqual(Object.keys(error.details), ["code", "backend", "attempts"]);
+    assertNoKey(error);
+  });
+
+  it("builds the handle from its five fields, dropping an extra url that holds a key", () => {
+    const leaky = handle();
+    Reflect.set(leaky, "url", LEAKY_URL);
+    const all: ErrorDetails[] = [
+      { code: "not-confirmed", handle: leaky },
+      { code: "unknown-state", handle: leaky, excerpt: "x" },
+      { code: "job-not-found", handle: leaky },
+    ];
+    for (const details of all) {
+      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      assert.ok("handle" in error.details);
+      assert.deepEqual(Object.keys(error.details.handle), [
+        "version",
+        "backend",
+        "chainId",
+        "address",
+        "jobId",
+      ]);
+      assertNoKey(error);
+    }
+  });
+
+  it("drops extra fields of every details variant and of an issue", () => {
+    for (const code of ERROR_CODES) {
+      const details = { ...SAMPLE_DETAILS[code] };
+      Reflect.set(details, "url", LEAKY_URL);
+      if (details.code === "invalid-input") {
+        const issue = { field: "chainId", message: "bad" };
+        Reflect.set(issue, "value", DUMMY_KEY);
+        details.issues = [issue];
+      }
+      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      assert.ok(!Object.keys(error.details).includes("url"), code);
+      assertNoKey(error);
+    }
+  });
+
+  it("replaces a backend name outside BACKEND_NAMES and coerces numbers and strings by type", () => {
+    const details: ErrorDetails = {
+      code: "unexpected-response",
+      backend: "sourcify",
+      status: 500,
+      excerpt: "x",
+    };
+    Reflect.set(details, "backend", LEAKY_URL);
+    Reflect.set(details, "status", "500");
+    Reflect.set(details, "excerpt", { toString: () => DUMMY_KEY });
+    const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+    assert.deepEqual(error.details, {
+      code: "unexpected-response",
+      backend: "etherscan-compatible",
+      status: Number.NaN,
+      excerpt: "",
+    });
+    assertNoKey(error);
+  });
+
+  it("keeps every known field of every variant, rate-limited with and without retryAfterMs", () => {
+    for (const code of ERROR_CODES) {
+      const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
+      assert.deepEqual(error.details, SAMPLE_DETAILS[code], code);
+    }
+    const bare = new ExplorerVerifyError({ code: "rate-limited", backend: "blockscout" }, "m", {
+      secrets: [],
+    });
+    assert.deepEqual(bare.details, { code: "rate-limited", backend: "blockscout" });
+  });
+
+  it("requires secrets in ExplorerVerifyErrorOptions, so a forgotten key list fails to compile", () => {
+    type Required = undefined extends ExplorerVerifyErrorOptions["secrets"] ? false : true;
+    const required: Required = true;
+    assert.equal(required, true);
+  });
+
+  it("redacts a bare 34-character key in the message and a string cause without secrets", () => {
+    const error = new ExplorerVerifyError(
+      { code: "network", backend: "sourcify", attempts: 1 },
+      `Invalid API Key ${BARE_KEY} rejected`,
+      { cause: `key was ${BARE_KEY}`, secrets: [] },
+    );
+    assert.equal(error.message, "Invalid API Key [redacted] rejected");
+    assert.equal(error.cause, "key was [redacted]");
+    assertNoKey(error, BARE_KEY);
+  });
+
+  it("falls back to the code's hint when the hint is empty or blank", () => {
+    for (const hint of ["", "   ", "\n\t"]) {
+      const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { hint, secrets: [] });
+      assert.equal(error.hint, EXPECTED.network.hint, JSON.stringify(hint));
+    }
+  });
+
+  it("redacts the cause's name", () => {
+    const cause = new Error("m");
+    cause.name = `Error ${DUMMY_KEY}`;
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+      cause,
+      secrets: [DUMMY_KEY],
+    });
+    assert.ok(error.cause instanceof Error);
+    assert.equal(error.cause.name, "Error [redacted]");
+    assertNoKey(error);
+  });
+
+  it("copies the cause as a plain Error with the original name, not the original class", () => {
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+      cause: new TypeError("x"),
+      secrets: [],
+    });
+    assert.ok(error.cause instanceof Error);
+    assert.ok(!(error.cause instanceof TypeError));
+    assert.equal(error.cause.name, "TypeError");
+  });
+
+  it("keeps primitive code, errno and syscall, redacted, and drops other fields", () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), {
+      code: `E_${DUMMY_KEY}`,
+      errno: -111,
+      syscall: `connect ${LEAKY_URL}`,
+      url: LEAKY_URL,
+    });
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+      cause,
+      secrets: [DUMMY_KEY],
+    });
+    assert.ok(error.cause instanceof Error);
+    assert.equal(Reflect.get(error.cause, "code"), "E_[redacted]");
+    assert.equal(Reflect.get(error.cause, "errno"), -111);
+    assert.equal(
+      Reflect.get(error.cause, "syscall"),
+      "connect https://api.example.org/v2/api?chainid=1&apikey=[redacted]&module=contract",
+    );
+    assert.equal(Reflect.get(error.cause, "url"), undefined);
+    assertNoKey(error);
+  });
+
+  it("drops code, errno and syscall that are not primitives", () => {
+    const cause = Object.assign(new Error("m"), {
+      code: { key: DUMMY_KEY },
+      errno: [DUMMY_KEY],
+      syscall: 7,
+    });
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    for (const field of ["code", "errno", "syscall"]) {
+      assert.equal(Object.hasOwn(error.cause, field), false, field);
+    }
+    assertNoKey(error);
+  });
+
+  it("summarises an AggregateError's errors on one line, redacted", () => {
+    const named = new Error("plain");
+    Reflect.set(named, "name", 42);
+    Reflect.set(named, "message", { key: DUMMY_KEY });
+    const errors = [
+      new TypeError(`fetch failed\n${LEAKY_URL}`),
+      `string ${DUMMY_KEY}`,
+      { key: DUMMY_KEY },
+      named,
+      new Error("fifth"),
+      new Error("sixth, not listed"),
+    ];
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+      cause: new AggregateError(errors, "all failed"),
+      secrets: [DUMMY_KEY],
+    });
+    assert.ok(error.cause instanceof Error);
+    assert.equal(
+      Reflect.get(error.cause, "errors"),
+      "6 errors: TypeError: fetch failed https://api.example.org/v2/api?chainid=1&apikey=[redacted]&module=contract; string [redacted]; object; Error: ; Error: fifth",
+    );
+    assertNoKey(error);
+  });
+
+  it("reads each cause field once, so a getter cannot return a key on a second read", () => {
+    let reads = 0;
+    const cause = new Error("m");
+    Object.defineProperty(cause, "stack", {
+      get(): unknown {
+        reads++;
+        return reads === 1 ? "first read" : { toString: () => DUMMY_KEY };
+      },
+    });
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.equal(reads, 1);
+    assert.ok(error.cause instanceof Error);
+    assert.equal(error.cause.stack, "Error: m");
+    assertNoKey(error);
+  });
+
+  it("builds the stack from its own header and the original frame lines only", () => {
+    const cause = new Error("m");
+    Reflect.set(cause, "message", { toString: () => DUMMY_KEY });
+    // V8 formats the stack header when the stack is first read, from the message set above.
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    const lines = (error.cause.stack ?? "").split("\n");
+    assert.equal(lines[0], "Error");
+    assert.ok(lines.length > 1);
+    assert.ok(lines.slice(1).every((line) => line.startsWith("    at ")));
+    assertNoKey(error);
+  });
+
+  it("keeps Firefox and Safari frames, redacted, and drops other and over-long lines", () => {
+    const cause = new Error("boom");
+    cause.stack = [
+      `boom ${DUMMY_KEY}`,
+      `fetchJson@https://app.example/main.js?apikey=${DUMMY_KEY}:10:5`,
+      "@debugger eval code:1:1",
+      `note ${DUMMY_KEY}`,
+      `long@${"x".repeat(1_000)}:1:1`,
+    ].join("\n");
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    assert.equal(
+      error.cause.stack,
+      [
+        "Error: boom",
+        // The value runs to the line end: a colon can be part of a key.
+        "fetchJson@https://app.example/main.js?apikey=[redacted]",
+        "@debugger eval code:1:1",
+      ].join("\n"),
+    );
+  });
+
+  it("redacts only strings: a message or name that is not a string is dropped", () => {
+    const cause = new Error("m");
+    Reflect.set(cause, "message", { toString: () => DUMMY_KEY });
+    Reflect.set(cause, "name", { toString: () => DUMMY_KEY });
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    assert.equal(error.cause.message, "");
+    assert.equal(error.cause.name, "Error");
+    assertNoKey(error);
+  });
+});
+
+describe("ExplorerVerifyError excerpts", () => {
+  it("cuts a 1 MB excerpt to 300 characters quickly", () => {
+    const body = "0x" + "6080604052".repeat(100_000);
+    const start = performance.now();
+    const error = new ExplorerVerifyError(
+      { code: "unexpected-response", backend: "sourcify", status: 500, excerpt: body },
+      "m",
+      { secrets: [DUMMY_KEY] },
+    );
+    assert.ok(performance.now() - start < 100);
+    assert.ok(error.details.code === "unexpected-response");
+    assert.equal(error.details.excerpt, body.slice(0, 300));
+  });
+
+  it("never shows part of a key that the redaction window cuts", () => {
+    // Long known secrets before the cut shrink the text, which pulls later text forward.
+    const long = "LONGSECRET".repeat(10);
+    for (let offset = 250; offset < 520; offset++) {
+      const body = `${long} ${"x".repeat(offset)}${DUMMY_KEY}${"y".repeat(400)}`;
+      const error = new ExplorerVerifyError(
+        { code: "unknown-state", handle: handle(), excerpt: body },
+        "m",
+        { secrets: [DUMMY_KEY, long] },
+      );
+      assert.ok(error.details.code === "unknown-state");
+      assert.ok(!error.details.excerpt.includes(DUMMY_KEY.slice(0, 8)), `offset ${String(offset)}`);
+      assert.ok(error.details.excerpt.length <= 300);
+    }
+  });
+
+  it("cuts a short excerpt only after redacting it", () => {
+    const error = new ExplorerVerifyError(
+      { code: "unknown-state", handle: handle(), excerpt: `ok ${DUMMY_KEY}` },
+      "m",
+      { secrets: [DUMMY_KEY] },
+    );
+    assert.ok(error.details.code === "unknown-state");
+    assert.equal(error.details.excerpt, "ok [redacted]");
+  });
+});
+
+describe("error reference page, exit code rows", () => {
+  const page = readFileSync(
+    new URL("../../../../docs/user/reference/errors.md", import.meta.url),
+    "utf8",
+  );
+
+  it("says the explorer definitively rejected a failed submission (R-AX-7)", () => {
+    assert.match(page, /^\| 1 +\| `failed`: the explorer definitively rejected the submission/m);
+  });
+
+  it("states the boundary between unexpected-response and unknown-state", () => {
+    assert.match(page, /`unexpected-response` and `unknown-state` differ in who answered/);
   });
 });

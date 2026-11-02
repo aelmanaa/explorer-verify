@@ -41,30 +41,52 @@ try {
 The error removes API keys before it stores anything. The message, the hint, every string in
 `details` and the cause all show `[redacted]` in place of:
 
-- the API key of the call;
-- the value of a key-like URL or form parameter, such as `apikey`, `api_key`, `key` or `token`, in
-  any case, in the query string or the fragment;
+- the API key of the call, in any case, also URL-encoded or form-encoded;
+- the value of a key-like URL or form parameter, in any case, in the query string or the
+  fragment, also percent-encoded inside another URL: `apikey`, `api_key`, `api-key`, `x-api-key`,
+  `key`, `token`, `access_token`, `refresh_token`, `client_secret`, `auth`, `secret` and
+  `password`;
+- `apikey: value` and a JSON member such as `"apiKey": "value"`;
 - the user name and password of a URL;
-- a bearer token.
+- a bearer token;
+- a bare 34-character Etherscan-style key: upper-case letters and digits, with at least one of
+  each.
 
-The `cause` is a copy of the underlying error with its name, message, stack and own cause redacted.
-So `console.log(error)` does not print a key, even when `fetch` failed with a URL that held one. A
-cause that is an object but not an `Error` reads `[cause omitted]`.
+The error builds `details` again from the fields its code declares, so an extra field never
+reaches the error.
+
+The `cause` is a copy of the underlying error. It is a plain `Error` with the original name. Its
+message, stack, `code`, `errno` and `syscall`, a one-line summary of an `AggregateError`'s errors,
+and its own cause are redacted. Other fields of the original are left out. So `console.log(error)`
+does not print a key, even when `fetch` failed with a URL that held one. A cause that is an object
+but not an `Error` reads `[cause omitted]`.
+
+Redaction does not cover these cases. Keep such values out of errors:
+
+- request headers other than a bearer token;
+- base64 text, and a URL encoded three or more times;
+- seed phrases, and private keys written as 64 hex digits. A rule for those would also redact
+  every transaction hash.
 
 ## Exit codes
 
 The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code to its exit code.
 
-| Exit code | Meaning                                                          | Error codes                                                                  |
-| --------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                                 | None                                                                         |
-| 1         | `failed`: the explorer rejected the submission                   | None. A `failed` result is not an error                                      |
-| 2         | Invalid input, or a chain the backend does not serve             | `invalid-input`, `unsupported-chain`                                         |
-| 3         | Missing, invalid or under-privileged API key                     | None yet. Key errors arrive with the first keyed backend                     |
-| 4         | Still pending; the output carries the handle when there is one   | `not-confirmed`, `in-progress`                                               |
-| 5         | Network or explorer unavailable after retries                    | `network`, `rate-limited`, `timeout`, `unexpected-response`, `job-not-found` |
-| 6         | Unknown state; the output carries the handle. A person checks it | `unknown-state`                                                              |
-| 130       | Cancelled                                                        | None. An abort rejects with `signal.reason`                                  |
+| Exit code | Meaning                                                                                                      | Error codes                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| 0         | `verified` or `already-verified`                                                                             | None                                                                       |
+| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                    |
+| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`                                       |
+| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                   |
+| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                            |
+| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress` |
+| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                           |
+| 130       | Cancelled                                                                                                    | None. An abort rejects with `signal.reason`                                |
+
+`unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
+answer did not come from the explorer's API, or not in its format: a 5xx status, an HTML page or a
+wrong content type, after retries. `unknown-state` means the explorer's API answered in its format,
+for a submission with a job id, with a status the library cannot classify.
 
 ## Codes
 
@@ -146,32 +168,33 @@ Exit code: 5
 
 ### unexpected-response
 
-Cause: the backend answered with an HTTP status or a body the library does not recognise.
-`details.status` holds the status and `details.excerpt` the first 300 characters of the body,
-redacted.
+Cause: the answer did not come from the explorer's API, or not in its format, after retries: a 5xx
+status, an HTML page or a wrong content type. `details.status` holds the status and
+`details.excerpt` the first 300 characters of the body, redacted.
 
-Fix: check the explorer's status page. If the error persists, report `details.status` and
-`details.excerpt` in an issue.
+Fix: call again later. If the error persists, check the explorer's status page and report
+`details.status` and `details.excerpt` in an issue.
 
-Retryable: no.
+Retryable: yes.
 
 Exit code: 5
 
 ### in-progress
 
-Cause: the backend is already verifying this contract from another submission.
+Cause: the backend is already verifying this contract from another submission. This call has no
+job id, so the error carries no handle.
 
-Fix: wait for the explorer to finish that verification, then check the contract again.
+Fix: wait for the explorer to finish that verification, then call again.
 
 Retryable: yes.
 
-Exit code: 4
+Exit code: 5
 
 ### unknown-state
 
-Cause: the explorer reported a final state the library cannot classify. The library does not
-report it as verified. `details.handle` identifies the verification and `details.excerpt` holds the
-first 300 characters of the answer, redacted.
+Cause: the explorer's API answered for a submission with a job id, in its format, with a status the
+library cannot classify. The library does not report it as verified. `details.handle` identifies
+the verification and `details.excerpt` holds the first 300 characters of the answer, redacted.
 
 Fix: do not retry automatically. Check the contract on the explorer, then report `details.excerpt`
 in an issue.
@@ -184,8 +207,9 @@ Exit code: 6
 
 Cause: the explorer no longer knows the job id in `details.handle`. Explorers drop old jobs.
 
-Fix: call `verify()` again to submit the contract again.
+Fix: do not retry automatically. Check the contract on the explorer. If it is not verified, call
+`verify()` again to submit it again.
 
 Retryable: no. Checking the same handle again fails the same way.
 
-Exit code: 5
+Exit code: 6

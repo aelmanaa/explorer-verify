@@ -224,7 +224,9 @@ describe("blackbox #11: error object (R-DX-3, R-AX-10)", () => {
   it("docsUrl is an https URL whose hash is the code, for every code", () => {
     const errors = [
       expectInvalid({ ...validHandle(), chainId: -1 }),
-      new ExplorerVerifyError({ code: "not-confirmed", handle: validHandle() }, "Still pending."),
+      new ExplorerVerifyError({ code: "not-confirmed", handle: validHandle() }, "Still pending.", {
+        secrets: [],
+      }),
     ];
     for (const error of errors) {
       const url = new URL(error.docsUrl);

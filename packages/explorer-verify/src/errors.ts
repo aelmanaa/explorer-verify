@@ -3,9 +3,10 @@
  * a fix hint, an entry in docs/user/reference/errors.md and a CLI exit code (R-DX-3, R-AX-7,
  * R-AX-10). The constructor redacts API keys from everything the error holds (R-SEC-1).
  */
+import { toBackendName } from "./backend-names.ts";
 import type { BackendName } from "./backend-names.ts";
 import { formatHandle } from "./flow/format-handle.ts";
-import { redact } from "./redact.ts";
+import { redact, redactExcerpt } from "./redact.ts";
 import type { Handle } from "./types.ts";
 
 /**
@@ -200,9 +201,9 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "rate-limited": 5,
   timeout: 5,
   "unexpected-response": 5,
-  "in-progress": 4,
+  "in-progress": 5,
   "unknown-state": 6,
-  "job-not-found": 5,
+  "job-not-found": 6,
 };
 
 /**
@@ -239,13 +240,15 @@ export interface ErrorJson {
 }
 
 /**
- * Options for {@link ExplorerVerifyError}.
+ * Options for {@link ExplorerVerifyError}. `secrets` is required, so code that builds an error
+ * cannot forget the key list; pass `[]` when the call has no key.
  *
  * @example
  * ```ts
  * import { ExplorerVerifyError } from "explorer-verify";
  * import type { ExplorerVerifyErrorOptions } from "explorer-verify";
  *
+ * const apiKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
  * const options: ExplorerVerifyErrorOptions = {
  *   hint: "Only sourcify is available in this version.",
  *   cause: new Error("unsupported backend"),
@@ -256,16 +259,24 @@ export interface ErrorJson {
  * @experimental
  */
 export interface ExplorerVerifyErrorOptions {
-  /** Replaces the code's default hint when the fix is more specific. */
+  /**
+   * Replaces the code's default hint when the fix is more specific. An empty or blank hint keeps
+   * the default.
+   */
   hint?: string;
   /**
-   * The underlying error, kept for debugging as a redacted copy: its name, message, stack and own
-   * cause, up to four levels deep. A string is redacted; an object that is not an `Error` is
-   * replaced by `[cause omitted]`. `toJSON()` leaves it out.
+   * The underlying error, kept for debugging as a redacted copy: a plain `Error` with the
+   * original name, message and stack, the primitive `code`, `errno` and `syscall`, a one-line
+   * summary of an `AggregateError`'s errors, and its own cause, up to four levels deep. A string
+   * is redacted; an object that is not an `Error` is replaced by `[cause omitted]`. `toJSON()`
+   * leaves it out.
    */
   cause?: unknown;
-  /** Key values to remove from the message, hint, details and cause, such as this call's API key. */
-  secrets?: readonly string[];
+  /**
+   * Key values to remove from the message, hint, details and cause, such as this call's API key.
+   * Pass `[]` when there is none.
+   */
+  secrets: readonly string[];
 }
 
 const ERRORS_PAGE =
@@ -275,8 +286,13 @@ const ERRORS_PAGE =
 const EXCERPT_LENGTH = 300;
 // How many levels of `cause` an error keeps, its own cause included.
 const CAUSE_DEPTH = 4;
+// How many errors of an AggregateError the cause summary names.
+const AGGREGATE_ERRORS = 5;
 const UNREADABLE_CAUSE = "[unreadable cause]";
 const OMITTED_CAUSE = "[cause omitted]";
+// Stands in for a backend name that is not in BACKEND_NAMES, which only code that bypasses the
+// types can pass.
+const UNKNOWN_BACKEND: BackendName = "etherscan-compatible";
 
 const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
   "invalid-input": {
@@ -304,11 +320,11 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     retryable: true,
   },
   "unexpected-response": {
-    hint: "Check the explorer's status page. If the error persists, report details.status and details.excerpt.",
-    retryable: false,
+    hint: "Call again later. If the error persists, check the explorer's status page and report details.status and details.excerpt.",
+    retryable: true,
   },
   "in-progress": {
-    hint: "Wait for the explorer to finish its current verification of this contract, then check the contract again.",
+    hint: "Wait for the explorer to finish its current verification of this contract, then call again.",
     retryable: true,
   },
   "unknown-state": {
@@ -316,65 +332,172 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     retryable: false,
   },
   "job-not-found": {
-    hint: "Call verify() again to submit the contract again.",
+    hint: "Do not retry automatically. Check the contract on the explorer; if it is not verified, call verify() again.",
     retryable: false,
   },
 };
 
-/** A copy of `details` with every string redacted and every excerpt cut to 300 characters. */
+/**
+ * A new `details`, built field by field from the fields its code declares, so an extra field
+ * never reaches the error. Every string is redacted and every excerpt cut to 300 characters.
+ */
 function redactDetails(details: ErrorDetails, secrets: readonly string[]): ErrorDetails {
   // Every code is listed, so a new code fails the exhaustiveness lint until it is added here.
   let copy: ErrorDetails;
   switch (details.code) {
     case "invalid-input":
       copy = {
-        code: details.code,
+        code: "invalid-input",
         issues: details.issues.map((issue) => ({
-          field: redact(issue.field, secrets),
-          message: redact(issue.message, secrets),
+          field: text(issue.field, secrets),
+          message: text(issue.message, secrets),
         })),
       };
       break;
     case "not-confirmed":
+      copy = { code: "not-confirmed", handle: redactHandle(details.handle, secrets) };
+      break;
     case "job-not-found":
-      copy = { ...details, handle: redactHandle(details.handle, secrets) };
+      copy = { code: "job-not-found", handle: redactHandle(details.handle, secrets) };
       break;
     case "unknown-state":
       copy = {
-        ...details,
+        code: "unknown-state",
         handle: redactHandle(details.handle, secrets),
-        excerpt: excerpt(details.excerpt, secrets),
+        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
       };
       break;
     case "unexpected-response":
-      copy = { ...details, excerpt: excerpt(details.excerpt, secrets) };
+      copy = {
+        code: "unexpected-response",
+        backend: backendOf(details.backend),
+        status: numberOf(details.status),
+        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
+      };
       break;
     case "unsupported-chain":
+      copy = {
+        code: "unsupported-chain",
+        chainId: numberOf(details.chainId),
+        backend: backendOf(details.backend),
+      };
+      break;
     case "network":
+      copy = {
+        code: "network",
+        backend: backendOf(details.backend),
+        attempts: numberOf(details.attempts),
+      };
+      break;
     case "rate-limited":
+      copy = { code: "rate-limited", backend: backendOf(details.backend) };
+      if (details.retryAfterMs !== undefined) {
+        copy.retryAfterMs = numberOf(details.retryAfterMs);
+      }
+      break;
     case "timeout":
+      copy = {
+        code: "timeout",
+        backend: backendOf(details.backend),
+        timeoutMs: numberOf(details.timeoutMs),
+      };
+      break;
     case "in-progress":
-      copy = { ...details };
+      copy = { code: "in-progress", backend: backendOf(details.backend) };
       break;
   }
   return copy;
 }
 
-function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
-  return { ...handle, jobId: redact(handle.jobId, secrets) };
+// The helpers below take `unknown`: the types say what callers pass, but an error must never throw
+// or leak when code that bypasses the types passes something else.
+
+/** A known backend name, or {@link UNKNOWN_BACKEND}. */
+function backendOf(value: unknown): BackendName {
+  return (typeof value === "string" ? toBackendName(value) : undefined) ?? UNKNOWN_BACKEND;
 }
 
-// Redacts before cutting, so a cut never leaves part of a known key behind.
-function excerpt(text: string, secrets: readonly string[]): string {
-  return redact(text, secrets).slice(0, EXCERPT_LENGTH);
+/** A number, or `NaN` for anything else. */
+function numberOf(value: unknown): number {
+  return typeof value === "number" ? value : Number.NaN;
+}
+
+/** A string, or `""` for anything else. */
+function stringOf(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/** A string, redacted, or `""` for anything else. */
+function text(value: unknown, secrets: readonly string[]): string {
+  return redact(stringOf(value), secrets);
+}
+
+/** A new handle built from its five fields, with the job id and address redacted. */
+function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
+  return {
+    version: 1,
+    backend: backendOf(handle.backend),
+    chainId: numberOf(handle.chainId),
+    address: `0x${text(stringOf(handle.address).slice(2), secrets)}`,
+    jobId: text(handle.jobId, secrets),
+  };
+}
+
+/** A cause copy: a plain `Error` with the redacted fields that help debugging. */
+type CauseCopy = Error & {
+  code?: string | number;
+  errno?: string | number;
+  syscall?: string;
+  errors?: string;
+};
+
+/** A string is redacted, a number kept, anything else dropped. */
+function primitive(value: unknown, secrets: readonly string[]): string | number | undefined {
+  if (typeof value === "string") {
+    return redact(value, secrets);
+  }
+  return typeof value === "number" ? value : undefined;
+}
+
+// A stack frame line: V8's `    at fn (file:1:2)`, or `fn@file:1:2` in Firefox and Safari.
+const V8_FRAME = /^\s+at /;
+const AT_FRAME = /@.*:\d+:\d+$/;
+// Longer lines are not frames; the limit also bounds the frame check.
+const FRAME_LENGTH = 1_000;
+
+/**
+ * The copy's stack: its own redacted `name: message` header, then the frame lines of the original
+ * stack, redacted. The original header is dropped: an engine may build it when the stack is first
+ * read, from a name or message that is not a string and that the copy refused to read.
+ */
+function stackOf(copy: Error, stack: string, secrets: readonly string[]): string {
+  const header = copy.message === "" ? copy.name : `${copy.name}: ${copy.message}`;
+  const frames = stack
+    .split("\n")
+    .filter((line) => line.length <= FRAME_LENGTH && (V8_FRAME.test(line) || AT_FRAME.test(line)));
+  return [header, ...frames.map((line) => redact(line, secrets))].join("\n");
+}
+
+/** `Name: message` of one error in an AggregateError, read once each. */
+function oneLine(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!(value instanceof Error)) {
+    return typeof value;
+  }
+  const name: unknown = value.name;
+  const message: unknown = value.message;
+  return `${typeof name === "string" ? name : "Error"}: ${typeof message === "string" ? message : ""}`;
 }
 
 /**
- * A copy of `cause` that is safe to print. An `Error` becomes a new `Error` with the redacted
- * name, message and stack, and its own cause copied the same way. A string is redacted.
- * `undefined`, `null`, numbers and booleans stay as they are. Any other value, which could print
- * a key through its own fields or `toString`, becomes `[cause omitted]`. A cause that throws when
- * read becomes `[unreadable cause]`.
+ * A copy of `cause` that is safe to print. An `Error` becomes a plain `Error` with the original
+ * name, and with the message, stack, primitive `code`, `errno` and `syscall`, a one-line summary
+ * of an `AggregateError`'s errors and its own cause, each read once and redacted. A string is
+ * redacted. `undefined`, `null`, numbers and booleans stay as they are. Any other value, which
+ * could print a key through its own fields or `toString`, becomes `[cause omitted]`. A cause that
+ * throws when read becomes `[unreadable cause]`.
  */
 function redactCause(cause: unknown, secrets: readonly string[], depth: number): unknown {
   if (
@@ -392,13 +515,37 @@ function redactCause(cause: unknown, secrets: readonly string[], depth: number):
     if (!(cause instanceof Error)) {
       return OMITTED_CAUSE;
     }
-    const copy = new Error(redact(cause.message, secrets));
-    copy.name = redact(cause.name, secrets);
-    if (typeof cause.stack === "string") {
-      copy.stack = redact(cause.stack, secrets);
+    const name: unknown = cause.name;
+    const message: unknown = cause.message;
+    const stack: unknown = cause.stack;
+    const copy: CauseCopy = new Error(typeof message === "string" ? redact(message, secrets) : "");
+    copy.name = typeof name === "string" ? redact(name, secrets) : "Error";
+    if (typeof stack === "string") {
+      copy.stack = stackOf(copy, stack, secrets);
+    }
+    const code = primitive("code" in cause ? cause.code : undefined, secrets);
+    if (code !== undefined) {
+      copy.code = code;
+    }
+    const errno = primitive("errno" in cause ? cause.errno : undefined, secrets);
+    if (errno !== undefined) {
+      copy.errno = errno;
+    }
+    const syscall = "syscall" in cause ? cause.syscall : undefined;
+    if (typeof syscall === "string") {
+      copy.syscall = redact(syscall, secrets);
+    }
+    const errors = "errors" in cause ? cause.errors : undefined;
+    if (Array.isArray(errors)) {
+      const listed = errors.slice(0, AGGREGATE_ERRORS).map(oneLine).join("; ");
+      copy.errors = redact(
+        `${String(errors.length)} errors: ${listed}`.replace(/\s+/g, " "),
+        secrets,
+      );
     }
     if ("cause" in cause && depth < CAUSE_DEPTH) {
-      copy.cause = redactCause(cause.cause, secrets, depth + 1);
+      const inner: unknown = cause.cause;
+      copy.cause = redactCause(inner, secrets, depth + 1);
     }
     return copy;
   } catch {
@@ -453,29 +600,29 @@ export class ExplorerVerifyError extends Error {
    *
    * @param details - The code and its data.
    * @param message - What went wrong.
-   * @param options - A specific hint, the underlying cause and the key values to redact.
+   * @param options - The key values to redact, and optionally a specific hint and the cause.
    * @example
    * ```ts
    * throw new ExplorerVerifyError(
    *   { code: "invalid-input", issues: [{ field: "chainId", message: "must be a positive integer" }] },
    *   "The input is invalid: chainId.",
+   *   { secrets: [] },
    * );
    * ```
    */
-  constructor(details: ErrorDetails, message: string, options: ExplorerVerifyErrorOptions = {}) {
+  constructor(details: ErrorDetails, message: string, options: ExplorerVerifyErrorOptions) {
     // The message is redacted before `super`, which builds the stack from it.
     super(
       redact(message, options.secrets),
-      "cause" in options
-        ? { cause: redactCause(options.cause, options.secrets ?? [], 1) }
-        : undefined,
+      "cause" in options ? { cause: redactCause(options.cause, options.secrets, 1) } : undefined,
     );
-    const secrets = options.secrets ?? [];
     const entry = CATALOGUE[details.code];
+    const hint =
+      options.hint !== undefined && options.hint.trim() !== "" ? options.hint : entry.hint;
     this.code = details.code;
-    this.hint = redact(options.hint ?? entry.hint, secrets);
+    this.hint = redact(hint, options.secrets);
     this.retryable = entry.retryable;
-    this.details = redactDetails(details, secrets);
+    this.details = redactDetails(details, options.secrets);
     this.docsUrl = `${ERRORS_PAGE}#${details.code}`;
   }
 
