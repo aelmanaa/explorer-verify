@@ -24,12 +24,12 @@ Closes #
 - [ ] **Docs.** Each new or changed user page is listed in `llms.txt`, links `llms.txt` near the top and states the version it describes (R-AX-1 to R-AX-3).
 - [ ] **Skill.** The shipped skill and its examples cover the changed user-visible behaviour (R-AX-4).
 - [ ] **JSON.** `--json` prints the versioned envelope; a schema change only adds fields (R-AX-5).
-- [ ] **Streams.** stdout carries only the result, nothing prompts, and piped output has no colour (R-AX-6).
+- [ ] **Streams.** stdout carries only the result, progress goes to stderr, nothing prompts, and a stream that is not a terminal has no colour (R-AX-6, R-AX-14).
 - [ ] **Exit codes.** Each new outcome or error code maps to a documented exit code (R-AX-7).
 - [ ] **Dry run.** `--dry-run` covers the new path, stops before the submit and needs no key (R-AX-8).
-- [ ] **Key input.** The CLI reads keys from the environment or `--api-key-file`, never from a flag value (R-AX-9).
+- [ ] **Key input.** The CLI reads keys from the environment, `--api-key-file` or `--api-key-stdin`, never from a flag value (R-AX-9).
 - [ ] **Help.** `--help` shows an example for the new command or flag; a typo suggests the closest match (R-AX-10, R-AX-11).
-- [ ] **Determinism.** The same input gives the same output: stable key order, no timestamps unless requested (R-AX-12).
+- [ ] **Determinism.** The same input gives the same stdout: stable key order, no timestamps unless requested (R-AX-12).
 
 ## Security checklist
 
