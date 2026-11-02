@@ -54,7 +54,7 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "not-confirmed": { code: "not-confirmed", handle: handle() },
   "unsupported-chain": { code: "unsupported-chain", chainId: 999_999, backend: "sourcify" },
   network: { code: "network", backend: "sourcify", attempts: 3 },
-  "rate-limited": { code: "rate-limited", backend: "sourcify", retryAfterMs: 1_000 },
+  "rate-limited": { code: "rate-limited", backend: "sourcify", retryAfterMs: 1_000, attempts: 5 },
   timeout: { code: "timeout", backend: "sourcify", timeoutMs: 120_000 },
   "unexpected-response": {
     code: "unexpected-response",
@@ -767,7 +767,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     assertNoKey(error);
   });
 
-  it("keeps every known field of every variant, rate-limited with and without retryAfterMs", () => {
+  it("keeps every known field of every variant, rate-limited with and without retryAfterMs and attempts", () => {
     for (const code of ERROR_CODES) {
       const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
       assert.deepEqual(error.details, SAMPLE_DETAILS[code], code);

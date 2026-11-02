@@ -137,6 +137,42 @@ to stderr (R-AX-14, R-AX-15), and prints the result or the error as one envelope
 to its telemetry. The core has no OpenTelemetry dependency; the event names follow OpenTelemetry's
 naming rules, so an `onEvent` callback can emit them as OpenTelemetry events.
 
+## HTTP layer
+
+`http/fetch.ts` exports `request(ctx, req)`, which every backend client calls, and `sleep(ms,
+signal)`, which polling uses (R-FLOW-6).
+
+- Every request goes through `ctx.fetch`, or `globalThis.fetch` when it is absent (R-SRV-5). The
+  function is called on its own, not as a method of `ctx`, because a browser's `fetch` throws
+  "Illegal invocation" when called on another object.
+- One attempt is the fetch and the body read. It races the caller's signal and a timer set to the
+  per-request timeout (default 30 s) or the budget's deadline, whichever comes first. The
+  returned `Response` holds the body already read, so reading it cannot hang.
+- Retries: at most 5 attempts, backoff from 1 s doubled per attempt with jitter that keeps between
+  half and all of each step, and at least the `Retry-After` wait. A `Retry-After` above 30 s, or a
+  wait that would reach the deadline, ends the retries with the last failure. Sourcify asks
+  clients to back off this way on 429 and 5xx
+  ([research](research/2026-11-02-explorer-apis.md#sourcify-api-v2)).
+- `retry: "safe"` retries network errors, timeouts, 429, 502, 503 and 504. `retry: "submit"`
+  retries network errors, timeouts, 429 and 503 only, so a submit the explorer may have processed
+  is not sent again after a 500, 502 or 504.
+- A 429 whose JSON body has `customCode` `duplicate_verification_request` is returned without a
+  retry; the backend maps it to `in-progress`.
+- Giving up throws `network` (no response, with `attempts`), `rate-limited` (with `attempts` and
+  `retryAfterMs`), `unexpected-response` (a 5xx, with the status and an excerpt) or `timeout` (the
+  budget ran out). Every error gets the call's keys as `secrets`.
+- Log lines show the URL's origin and path, with `?REDACTED` for a query, through the redacting
+  logger. A retry is logged at `warn`; a failure that is thrown is not logged at `error`.
+  `ctx.onRetry` reports each retry with the next attempt number, the reason and the wait, for the
+  `verify.retry` event (R-DX-6).
+- The timers are `setTimeout`, which keeps a Node process alive. `AbortSignal.timeout()` is not
+  used: its timer does not keep Node alive (on Node 24.21.0, on 2026-11-02, a script that waits
+  only on it exits with code 0 before the abort fires), and the node:test mock timers do not drive
+  it. `AbortSignal.any()` is not used either: Safari added it in 17.4
+  ([MDN compatibility data](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static#browser_compatibility),
+  read on 2026-11-02). A unit test runs a child Node process to check that `sleep` keeps it
+  alive.
+
 ## Routing in M1
 
 `routing/resolve.ts` is a stub in M1. `resolveRoute(chainId, override)` sends every chain id to

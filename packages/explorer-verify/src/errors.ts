@@ -136,6 +136,8 @@ export type ErrorDetails =
       backend: BackendName | "unknown";
       /** How long the backend asked to wait, when it said (`Retry-After`). */
       retryAfterMs?: number;
+      /** How many requests were tried, when the HTTP layer gave up after retries. */
+      attempts?: number;
     }
   | {
       /** The time budget ran out before the explorer accepted the submission: there is no handle. */
@@ -435,6 +437,9 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       copy = { code: "rate-limited", backend: backendOf(details.backend) };
       if (details.retryAfterMs !== undefined) {
         copy.retryAfterMs = numberOf(details.retryAfterMs);
+      }
+      if (details.attempts !== undefined) {
+        copy.attempts = numberOf(details.attempts);
       }
       break;
     case "timeout":

@@ -64,6 +64,15 @@ Source: [Sourcify API docs](https://docs.sourcify.dev/docs/api/). The v1 API was
   2.1.0); the monitor also schedules it after contract creation on monitored chains
   ([docs](https://docs.sourcify.dev/docs/similarity-verification/)).
 - No key. Rate limits and terms: not found on that page on 2026-11-02 (open question).
+- Rate limits and errors, from the OpenAPI spec (version 2.1.0), read on 2026-11-02. The
+  description's "Bulk access and fair use" section says requests are rate limited per client, and
+  that a client that gets a 429 or a 5xx should use exponential backoff and, when the response has
+  a `Retry-After` header, wait at least that long. It gives no numeric limit. Error bodies have
+  the shape `{ customCode, message, errorId }`. The 429 of the submit, metadata submit and lookup
+  routes is documented as "You are sending too many requests to the server", with the example
+  `customCode` `too_many_requests`. The 429 of the similarity route is documented as "The contract
+  is already being verified", with the example `customCode` `duplicate_verification_request`. The
+  same section asks clients to send a descriptive `User-Agent`.
 
 ## Languages other than Solidity
 
@@ -145,3 +154,4 @@ Local runs, curl 8.7.1, 2026-11-02:
   similarity endpoint path; changed the Similar Match sentence to what the Etherscan page says (no
   tool upgrades it to Exact Match for now; re-verification is enabled for whitelisted users);
   added the section on languages other than Solidity.
+- 2026-11-02: added Sourcify's rate-limit guidance and 429 error codes from the OpenAPI spec.

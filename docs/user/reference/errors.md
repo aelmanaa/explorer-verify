@@ -91,6 +91,27 @@ answer did not come from the explorer's API, or not in its format: a 5xx status,
 wrong content type, after retries. `unknown-state` means the explorer's API answered in its format,
 for a submission with a job id, with a status the library cannot classify.
 
+## Retries
+
+Before it throws `network`, `rate-limited` or `unexpected-response`, the library retries the
+request with the same URL and body:
+
+- at most 5 attempts, the first one included;
+- after a wait that starts at 1 second and doubles each time, with jitter that keeps between half
+  and all of it;
+- at least as long as the `Retry-After` header asks, in seconds or as a date. A `Retry-After`
+  above 30 seconds ends the retries at once;
+- for a lookup or a poll: after a network error, a request that took longer than 30 seconds, and
+  HTTP 429, 502, 503 or 504;
+- for a submit: only after a network error, a request that took longer than 30 seconds, and HTTP
+  429 or 503. A submit that got a 500, 502 or 504 is not sent again, because the explorer may have
+  received it.
+
+A Sourcify 429 whose `customCode` is `duplicate_verification_request` means the contract is
+already being verified. It is not retried. A wait that would end after the time budget
+(`timeoutMs`) ends the retries with the last error. An abort stops every request and wait at once,
+and the call rejects with `signal.reason`.
+
 ## Codes
 
 Each entry below gives the cause, the fix, whether to retry and the exit code.
@@ -148,7 +169,9 @@ Exit code: 5
 ### rate-limited
 
 Cause: the backend answered HTTP 429 on every try. `details.retryAfterMs` holds the wait the
-backend asked for, when it sent a `Retry-After` header.
+backend asked for, when it sent a `Retry-After` header. `details.attempts` gives the number of
+requests tried, when the library gave up after retries. The library stops at once when
+`Retry-After` asks for more than 30 seconds.
 
 Fix: wait `details.retryAfterMs`, or a few seconds when it is not set, then call again. Lower the
 request rate if this happens often.
