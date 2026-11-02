@@ -24,9 +24,10 @@ for (const file of files) {
   } catch {
     continue;
   }
-  text.split("\n").forEach((line, index) => {
+  text.split(/\r?\n/).forEach((line, index) => {
+    const lower = line.toLowerCase();
     for (const host of BLOCKED_HOSTS) {
-      if (line.includes(host)) {
+      if (lower.includes(host)) {
         findings.push(`${file}:${String(index + 1)}: links ${host}; use github.com`);
       }
     }
