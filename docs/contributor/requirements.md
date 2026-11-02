@@ -11,11 +11,10 @@ implemented yet.
 ## Problem
 
 A team that deploys contracts from a dapp, a backend service or a script wants the source verified on
-the chain's block explorer right after the deployment. Today the options are tied to a deploy tool:
-`forge verify-contract`, `@nomicfoundation/hardhat-verify` and `@rocketh/verifier` run on Node inside
-their tool, and thirdweb's `verifyContract` needs compiler metadata pinned on IPFS and a thirdweb
-client. No library takes a contract's compiler input and verifies it on every explorer from any
-JavaScript runtime. See [research/2026-11-02-landscape.md](research/2026-11-02-landscape.md).
+the chain's block explorer right after the deployment. Verification today usually runs inside one
+deploy tool, on a developer machine or in CI. This library takes a contract's compiler input and
+verifies it on every major explorer from any JavaScript runtime, with one result format. See
+[research/2026-11-02-landscape.md](research/2026-11-02-landscape.md).
 
 Explorers already verify repeat deployments of identical bytecode on their own (Etherscan Similar
 Match, Blockscout's bytecode database, Sourcify similarity). This library targets what that does not

@@ -5,36 +5,34 @@ Audience: the maintainer deciding scope and positioning. npm registry searches a
 
 ## Packages that verify contracts
 
-| Package                                                   | What it is                                            | Runs in a browser?                                                           |
-| --------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `@nomicfoundation/hardhat-verify` 3.1.4                   | Hardhat plugin: Etherscan-style, Blockscout, Sourcify | No: Hardhat and Node                                                         |
-| `@rocketh/verifier` 0.19.34, about 3,000 downloads a week | Etherscan, Sourcify and compatible explorers          | No: Node CLI, imports `fs` and `path`, depends on `fs-extra` and `commander` |
-| `@deployoor/sourcify` 0.3.0                               | Sourcify v2, keyless                                  | Tied to the deployoor deploy tool                                            |
-| `etherscan-api` 12.2.0, about 2,400 downloads a week      | Thin Etherscan v2 API wrapper, no dependencies        | Building block only: no routing, no other explorers, no polling flow         |
-| `@ethereum-sourcify/lib-sourcify` 3.7.4                   | Sourcify's server-side recompilation library          | Not a client                                                                 |
-| `thirdweb` 5.122.1 `verifyContract`                       | See below                                             | Yes, inside the thirdweb SDK                                                 |
+| Package                                                   | What it does                                                      | Where it runs                              |
+| --------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------ |
+| `@nomicfoundation/hardhat-verify` 3.1.4                   | Hardhat plugin: verifies on Etherscan-style, Blockscout, Sourcify | Hardhat on Node                            |
+| `@rocketh/verifier` 0.19.34, about 3,000 downloads a week | Verifies on Etherscan, Sourcify and compatible explorers          | Node CLI; imports `fs` and `path`          |
+| `@deployoor/sourcify` 0.3.0                               | Verifies on Sourcify v2, keyless, when deployoor deploys          | With the deployoor deploy tool             |
+| `etherscan-api` 12.2.0, about 2,400 downloads a week      | Etherscan v2 API wrapper                                          | JavaScript package with no dependencies    |
+| `@ethereum-sourcify/lib-sourcify` 3.7.4                   | Sourcify's recompilation library                                  | Sourcify's server                          |
+| `thirdweb` 5.122.1                                        | `verifyContract` and `checkVerificationStatus`; see below         | Browser and Node, through the thirdweb SDK |
 
-Remix verifies in the browser against Etherscan, Blockscout, Sourcify and Routescan, but as an IDE
-plugin, not an installable library. No package found is a runtime-neutral verification client with
-a server-side key handler.
+Remix verifies in the browser against Etherscan, Blockscout, Sourcify and Routescan through an IDE
+plugin. The searches found no package that is a runtime-neutral verification client with a
+server-side key handler.
 
 ## thirdweb `verifyContract`
 
-Read from the published package source (`src/contract/verification/index.ts`, thirdweb 5.122.1) and
-the GitHub history of that file:
+Read on 2026-11-02 from thirdweb-dev/js at commit 940b3745 (thirdweb 5.122.1),
+`packages/thirdweb/src/contract/verification/index.ts`:
 
 - Input is a `ThirdwebContract` (requires a thirdweb client), an explorer API URL and key, optional
   encoded constructor arguments, and a type: `etherscan`, `blockscoutV1`, `blockscoutV2` or
   `routescan`.
-- Sources come only from the IPFS metadata hash in the deployed bytecode; it throws "Contract
-  bytecode does not contain IPFS URI, cannot verify" otherwise. In practice that means contracts
-  whose metadata is pinned on IPFS, as thirdweb's own deploy flow does.
-- No Sourcify. Submission only; `checkVerificationStatus` is a separate call that polls every 3
-  seconds without a deadline.
-- Last functional change 2024-07-03 (Blockscout v2). Two issues or pull requests ever mention it.
-- The status URL appended a stray `"` to the API key; reported as thirdweb-dev/js#9049 with a fix in
-  thirdweb-dev/js#9050.
-- The package has 31 runtime dependencies (wallet SDKs, React, WalletConnect) and a 99 MB `dist`.
+- Sources come from the IPFS metadata hash in the deployed bytecode; it throws "Contract bytecode
+  does not contain IPFS URI, cannot verify" otherwise. This fits contracts whose metadata is pinned
+  on IPFS, as thirdweb's own deploy flow does.
+- `verifyContract` submits and returns the explorer's result. The exported `checkVerificationStatus`
+  polls the explorer every 3 seconds until the status is no longer pending or in progress.
+- At this commit the status URL ends with an extra `"` after the API key. Reported as
+  thirdweb-dev/js#9049, with a proposed fix in thirdweb-dev/js#9050.
 
 ## Demand signals
 

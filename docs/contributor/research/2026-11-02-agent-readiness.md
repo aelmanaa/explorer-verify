@@ -94,9 +94,9 @@ command (see Sources); it was not run.
 | Requirement                | Rubric checks | Reason                                                                                          |
 | -------------------------- | ------------- | ----------------------------------------------------------------------------------------------- |
 | R-AX-1 `llms.txt`          | D1, D3        | Benchmark: an index cuts failed requests; Markdown without an index does worse than HTML.       |
-| R-AX-2 Docs in the package | D5, C11       | Gorilla: version-matched docs; observed pages for commands the installed version lacks.         |
+| R-AX-2 Docs in the package | D5, C11       | Gorilla: version-matched docs; observed a docs page for a subcommand 1.8.7 does not recognise.  |
 | R-AX-3 Agent page          | D6, D3        | Names the one outward step (submit) and the key rules.                                          |
-| R-AX-4 Shipped skill       | C12           | A skill in the package stays in step; a separate repository drifted.                            |
+| R-AX-4 Shipped skill       | C12           | A skill shipped in the package is released with the code it describes.                          |
 | R-AX-5 `--json` envelope   | C1            | clig.dev; gh `--json`; Terraform's versioned format and its compatibility rule.                 |
 | R-AX-6 Streams, no prompt  | C3, C4, C5    | clig.dev; gh's non-terminal behaviour; observed prompts that fail without naming a flag.        |
 | R-AX-7 Exit codes          | C7, C6        | Observed "every failure exits 1" and "no match exits 0"; Pulumi and gh document codes.          |
