@@ -38,11 +38,13 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./envelope.schema.json": "./schema/envelope.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dist/src/",
     "src/",
+    "schema/",
     "!**/*.test.*",
     "docs/",
     "llms.txt",

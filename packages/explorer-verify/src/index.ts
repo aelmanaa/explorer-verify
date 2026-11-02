@@ -9,6 +9,8 @@ export type {
   ExplorerVerifyErrorOptions,
   InputIssue,
 } from "./errors.ts";
+export { exitCodeOf, toEnvelope } from "./envelope.ts";
+export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";
 export { parseHandle } from "./flow/handle.ts";
 export { validateInput } from "./input/validate.ts";
 export type {
