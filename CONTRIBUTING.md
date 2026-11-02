@@ -59,8 +59,8 @@ requirement the change does not meet is named in the pull request with the reaso
   a documented exit code for each outcome, `--dry-run`, keys from the environment or a file, errors
   with a fix, help that leads with examples, stable output.
 
-`llms.txt` and the skill do not exist yet. Their items apply once the issues that create them land:
-#4 for `llms.txt` and the docs check, #6 for the skill.
+`pnpm run check` enforces the `llms.txt` item (see [tooling](docs/contributor/tooling.md#agent-docs)).
+The skill does not exist yet; its item applies once #6 lands.
 
 ## Changesets
 

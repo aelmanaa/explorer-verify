@@ -31,17 +31,19 @@ maintainer's.
 10. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
-[docs/README.md](docs/README.md).
+[docs/README.md](docs/README.md). The index for agents is [llms.txt](llms.txt), and
+[docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
+are safe and which one submits.
 
 ## Commands
 
 | Command              | What it does                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`       | Installs dependencies and the git hooks                                       |
-| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape check, host check     |
-| `pnpm test`          | Builds, then runs the unit tests with `node --test`                           |
+| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape, host and docs checks |
+| `pnpm test`          | Builds, then runs the unit tests and the script tests with `node --test`      |
 | `pnpm run coverage`  | Unit tests under c8; fails below 95% lines, branches, functions or statements |
-| `pnpm run pkg:check` | publint, are-the-types-wrong and knip on the built package                    |
+| `pnpm run pkg:check` | publint, are-the-types-wrong, packed docs and knip on the built package       |
 | `pnpm changeset`     | Adds a changeset for a user-facing change under `packages/`                   |
 
 Node 24 for development (`.nvmrc`); the floor is 22.18.0, because scripts and tests run TypeScript
@@ -49,15 +51,16 @@ natively. pnpm 12.16.1 (`packageManager`).
 
 ## Where things are
 
-| Path                                  | Contents                                                                                                   |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it) |
-| `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                    |
-| `scripts/`                            | Repository scripts run with plain `node`: git hooks, type-escape check, host check, test runner            |
-| `docs/user/`                          | User documentation (Diátaxis layout, written as features land)                                             |
-| `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                    |
-| `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                               |
-| `.changeset/`                         | Pending release notes                                                                                      |
+| Path                                  | Contents                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                |
+| `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                                   |
+| `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/` |
+| `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                           |
+| `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                         |
+| `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                   |
+| `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                              |
+| `.changeset/`                         | Pending release notes                                                                                                     |
 
 ## Rules for every change
 

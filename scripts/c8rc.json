@@ -1,0 +1,19 @@
+{
+  "all": true,
+  "src": ["scripts"],
+  "include": [
+    "scripts/agent-docs.ts",
+    "scripts/check-agent-docs.ts",
+    "scripts/check-packed-files.ts",
+    "scripts/package-docs.ts"
+  ],
+  "reporter": ["text"],
+  "reports-dir": "node_modules/.cache/c8-scripts",
+  "temp-directory": "node_modules/.cache/c8-scripts/tmp",
+  "check-coverage": true,
+  "per-file": true,
+  "lines": 95,
+  "branches": 95,
+  "functions": 95,
+  "statements": 95
+}

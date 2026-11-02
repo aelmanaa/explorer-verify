@@ -11,3 +11,7 @@ coverage/
 
 # Local agent context (machine paths, working rules)
 CLAUDE.local.md
+
+# Build output: the user docs and llms.txt copied into the package (scripts/package-docs.ts)
+packages/explorer-verify/docs/
+packages/explorer-verify/llms.txt
