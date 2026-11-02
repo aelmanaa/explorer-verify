@@ -20,6 +20,8 @@ describe("readFields", () => {
         ["c", "x"],
       ]),
     );
+    assert.deepEqual([...(fields?.keys() ?? [])], ["b", "a", "c"]);
+    assert.deepEqual([...(readFields({ b: 1, 2: 0 })?.keys() ?? [])], ["2", "b"]);
   });
 
   it("returns an empty map for an empty object and a null-prototype object", () => {
