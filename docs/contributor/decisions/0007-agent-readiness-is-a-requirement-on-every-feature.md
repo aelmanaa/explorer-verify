@@ -53,9 +53,9 @@ properties against agent success. The checks are testable, so they become requir
   library. The R-AX-13 evaluation gives data to decide on.
 - Docs on a website only. Rejected for now: a website shows the latest version, which can differ
   from the installed one. Versioned docs in the package need no hosting.
-- A skill in a separate repository. Rejected: a separate repository drifts from releases (observed in
-  one of the tools compared in the research note), while a skill in the package is tested against
-  the same build (R-AX-4).
+- A skill in a separate repository. Rejected: a separate repository needs its own release step to
+  stay in step with the package, while a skill in the package is tested against the same build
+  (R-AX-4).
 
 ## Consequences
 
