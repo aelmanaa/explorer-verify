@@ -493,8 +493,11 @@ function invalid({ issues, hints }: Problems): ExplorerVerifyError {
   const [hint] = hints;
   const options =
     hint === undefined
-      ? {}
-      : { hint: issues.length > 1 ? `${hint} Then fix the other fields in details.issues.` : hint };
+      ? { secrets: [] }
+      : {
+          hint: issues.length > 1 ? `${hint} Then fix the other fields in details.issues.` : hint,
+          secrets: [],
+        };
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `The input is invalid: ${fields}.`,

@@ -91,7 +91,10 @@ export function parseHandle(value: unknown): Handle {
   if (unknown > 0) {
     issues.push({
       field: "handle",
-      message: `has ${String(unknown)} fields that are not handle fields`,
+      message:
+        unknown === 1
+          ? "has 1 field that is not a handle field"
+          : `has ${String(unknown)} fields that are not handle fields`,
     });
   }
 
@@ -113,6 +116,9 @@ function invalid(issues: InputIssue[]): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `The handle is invalid: ${fields}.`,
-    { hint: "Pass the handle exactly as verify() or a not-confirmed error returned it." },
+    {
+      hint: "Pass the handle exactly as verify() or a not-confirmed error returned it.",
+      secrets: [],
+    },
   );
 }

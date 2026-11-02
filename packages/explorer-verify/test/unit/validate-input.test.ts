@@ -592,7 +592,9 @@ describe("validateInput collects every problem (R-IN-6)", () => {
 
   it("uses the catalogue hint and docs URL when no rule has a specific hint (R-AX-10)", () => {
     const error = rejection({ ...input(), chainId: 0 });
-    const reference = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "x");
+    const reference = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "x", {
+      secrets: [],
+    });
     assert.equal(error.hint, reference.hint);
     assert.equal(error.docsUrl, reference.docsUrl);
     assert.equal(error.message, "The input is invalid: chainId.");

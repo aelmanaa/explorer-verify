@@ -243,6 +243,6 @@ function invalid(
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `${summary}: ${names}.`,
-    hint === undefined ? {} : { hint },
+    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
   );
 }

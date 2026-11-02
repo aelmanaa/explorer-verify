@@ -79,6 +79,7 @@ describe("public entry point", () => {
     assert.deepEqual(Object.keys(api).toSorted(), [
       "BACKEND_NAMES",
       "ERROR_CODES",
+      "ERROR_EXIT_CODES",
       "ExplorerVerifyError",
       "parseHandle",
       "toBackendName",
@@ -86,8 +87,20 @@ describe("public entry point", () => {
     ]);
   });
 
-  it("lists the M1 error codes (R-DX-3)", () => {
-    assert.deepEqual(api.ERROR_CODES, ["invalid-input", "not-confirmed"]);
+  it("lists the M1 error codes, the two from decision 0009 first (R-DX-3)", () => {
+    assert.deepEqual(api.ERROR_CODES, [
+      "invalid-input",
+      "not-confirmed",
+      "unsupported-chain",
+      "network",
+      "rate-limited",
+      "timeout",
+      "unexpected-response",
+      "in-progress",
+      "unknown-state",
+      "job-not-found",
+      "cancelled",
+    ]);
   });
 
   it("accepts every VerifyOptions field, all optional (decision 0009)", () => {
