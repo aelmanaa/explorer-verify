@@ -46,20 +46,34 @@ function readFields(value: unknown): Map<string, unknown> | undefined {
 /**
  * A deep copy of `value` through JSON, so the result shares no object with the caller. Each getter
  * and `toJSON` runs once. `"not-json"` when `value` is not JSON data: a cycle, a BigInt, a
- * function or a Proxy that throws. `"too-deep"` when an object or array sits more than
- * {@link MAX_DEPTH} levels deep: the replacer stops the copy at that level, so the result never
- * depends on the runtime's stack size.
+ * function, a symbol, NaN or an infinity, an object that is not a plain object or array (a Map, a
+ * Set, a class instance), or a Proxy that throws. JSON would drop or change these silently, so the
+ * caller's data would not reach the explorer as given. The checks apply after `toJSON`, so a Date
+ * becomes its ISO string. `"too-deep"` when an object or array sits more than {@link MAX_DEPTH}
+ * levels deep: the replacer stops the copy at that level, so the result never depends on the
+ * runtime's stack size.
  */
 function copyJson(value: unknown): { value: unknown } | "not-json" | "too-deep" {
   // The depth of each object or array the copy has entered. The root's holder is not in the map.
   const depths = new Map<unknown, number>();
   let tooDeep = false;
   function replacer(this: unknown, _key: string, current: unknown): unknown {
+    if (
+      typeof current === "function" ||
+      typeof current === "symbol" ||
+      (typeof current === "number" && !Number.isFinite(current))
+    ) {
+      throw new TypeError("not JSON data");
+    }
     if (typeof current === "object" && current !== null) {
       const parent = depths.get(this) ?? 0;
       if (parent >= MAX_DEPTH) {
         tooDeep = true;
         throw new RangeError("nested too deeply");
+      }
+      const prototype: unknown = Object.getPrototypeOf(current);
+      if (prototype !== Object.prototype && prototype !== Array.prototype && prototype !== null) {
+        throw new TypeError("not JSON data");
       }
       depths.set(current, parent + 1);
     }
@@ -382,16 +396,21 @@ function checkOptionalHex(
  *
  * The result is a deep copy that shares no object with the input, so changing the input later does
  * not change it. Sources, settings and any extra Standard JSON fields go through a JSON round trip:
- * their values are kept, each getter and `toJSON` runs once, and a value that is not JSON data
- * (a cycle, a BigInt, a function, a Proxy that throws) is rejected. So is a value nested more than
- * 64 levels deep, on every runtime; real Standard JSON is about 5 levels deep. Fields that
- * `VerifyInput` does not declare are left out.
+ * their values are kept, and each getter and `toJSON` runs once. A value that JSON would drop or
+ * change is rejected rather than changed: a cycle, a BigInt, a function, a symbol, NaN or an
+ * infinity, a Map, a Set, a class instance or a Proxy that throws. A Date is kept as the ISO string
+ * its `toJSON` returns. A value nested more than 64 levels deep is rejected on every runtime;
+ * real Standard JSON is about 5 levels deep. Fields that `VerifyInput` does not declare are left
+ * out.
  *
  * It finds every problem, not only the first. Each issue names its field with a dotted path, such
  * as `compiler.version`, so a form can show it next to the field. Messages never repeat a value,
  * a source path or anything else the input chose. The address check is format only: the EIP-55
  * checksum is not checked. Source paths and the path in `contractName` are at most 1024 characters
  * with no control characters. It sends nothing and calls no `fetch`.
+ *
+ * `compiler.version` needs an 8-character commit hash, so solc 0.1.1 and 0.1.2, whose long
+ * versions carry a 7-character hash, are rejected.
  *
  * `constructorArgs` and `creationTxHash` are optional, not nullable: leave them out or set them to
  * `undefined`; `null` is rejected. `constructorArgs: "0x"` means the constructor takes no arguments.

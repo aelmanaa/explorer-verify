@@ -1157,3 +1157,74 @@ describe("compiler.input.sources position list (R-IN-6)", () => {
     );
   });
 });
+
+describe("validateInput rejects values JSON would drop or change (R-IN-6)", () => {
+  class Point {
+    x = 1;
+  }
+  const values: [string, () => unknown][] = [
+    ["a nested function", () => ({ x: () => 1 })],
+    ["a symbol", () => ({ x: Symbol("s") })],
+    ["a function in an array", () => [() => 1]],
+    ["NaN", () => Number.NaN],
+    ["Infinity", () => Number.POSITIVE_INFINITY],
+    ["-Infinity", () => Number.NEGATIVE_INFINITY],
+    ["a Map", () => new Map([["a", 1]])],
+    ["a Set", () => new Set([1])],
+    ["a class instance", () => new Point()],
+  ];
+
+  for (const [label, make] of values) {
+    it(`rejects ${label} in settings, a source entry and an extra field (R-IN-6)`, () => {
+      assertIssue(
+        withStandardJson({ settings: { optimizer: { x: make() } } }),
+        "compiler.input.settings",
+        MESSAGES.settingsJson,
+      );
+      assertIssue(
+        withStandardJson({
+          sources: { "src/Token.sol": { content: "" }, "src/A.sol": { content: "", x: make() } },
+        }),
+        "compiler.input.sources",
+        "has 1 file that cannot be read as JSON data, at position 2",
+      );
+      assertIssue(
+        withStandardJson({ extra: { x: make() } }),
+        "compiler.input",
+        "has 1 field that is not JSON data",
+      );
+    });
+  }
+
+  it("accepts an object with a null prototype (R-IN-6)", () => {
+    const settings: Record<string, unknown> = Object.create(null);
+    settings["evmVersion"] = "cancun";
+    assert.deepEqual(
+      { ...validateInput(withStandardJson({ settings })).compiler.input.settings },
+      { evmVersion: "cancun" },
+    );
+  });
+
+  it("accepts a Date as the string its toJSON returns (R-IN-6)", () => {
+    const date = new Date(Date.UTC(2026, 10, 2));
+    const iso = "2026-11-02T00:00:00.000Z";
+    const result = validateInput(
+      withStandardJson({
+        sources: { "src/Token.sol": { content: "", date } },
+        settings: { date },
+        extra: date,
+      }),
+    );
+    assert.deepEqual(result.compiler.input.settings, { date: iso });
+    assert.deepEqual(result.compiler.input.sources["src/Token.sol"], { content: "", date: iso });
+    assert.equal(Object.entries(result.compiler.input).find(([key]) => key === "extra")?.[1], iso);
+  });
+
+  it("reports an undefined source entry as a file without a string content (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({ sources: { "src/Token.sol": { content: "" }, "src/A.sol": undefined } }),
+      "compiler.input.sources",
+      "has 1 file without a string content, at position 2",
+    );
+  });
+});
