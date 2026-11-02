@@ -25,10 +25,9 @@ Source: [verifysourcecode](https://docs.etherscan.io/api-reference/endpoint/veri
 - Body fields: `contractaddress`, `sourceCode` (the Standard JSON string), `contractname`
   (`path:Name`), `compilerversion` (`v0.8.24+commit.e11b9ed9`), `codeformat=solidity-standard-json-input`,
   optional `constructorArguments` and `licenseType`.
-- Constructor-argument spelling: the docs say `constructorArguments`. hardhat-verify v2 sent only the
-  misspelled `constructorArguements`, v3 sends only the correct one, and Foundry sends both. Both
-  prior-art implementations send both spellings (bare hex, no `0x`, omitted for a constructor
-  without arguments). Keep that.
+- Constructor-argument spelling: Etherscan's docs name the field `constructorArguments`. Both
+  prior-art implementations send both spellings, `constructorArguments` and `constructorArguements`
+  (bare hex, no `0x`, omitted for a constructor without arguments). Keep that.
 - Success: `{ "status": "1", "message": "OK", "result": "<guid>" }`. On failure `message` is a
   generic `NOTOK` and the reason is in `result` (for example `Unable to locate ContractCode at …`,
   `Invalid API Key`, `Missing/unsupported chainid`).
@@ -54,7 +53,7 @@ Source: [Sourcify API docs](https://docs.sourcify.dev/docs/api/). The v1 API was
   `https://sourcify.dev/server/api-docs/swagger.json`; read it before mapping `exact`/`partial`.
 - Similarity: `POST /v2/verify/similarity/...`; the monitor also runs it after contract creation on
   monitored chains.
-- No key. Rate limits and terms: not documented on that page (open question).
+- No key. Rate limits and terms: not found on that page on 2026-11-02 (open question).
 
 ## Blockscout
 

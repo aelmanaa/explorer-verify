@@ -31,8 +31,8 @@ properties against agent success. The checks are testable, so they become requir
   checklist.
 - The CLI prints human output on a terminal and a stable, versioned JSON envelope with `--json`
   (R-AX-5). It does not print JSON by default. Reason: people run the CLI by hand after a deploy,
-  and gh, Terraform and clig.dev follow the same pattern. Cloudflare's `cf` defaults to JSON; its
-  docs address agents and scripts first. Agents learn to pass `--json` from `--help`, the shipped skill and the agent page.
+  and gh, Terraform and clig.dev follow the same pattern. Cloudflare's `cf` defaults to JSON.
+  Agents learn to pass `--json` from `--help`, the shipped skill and the agent page.
 - Agent guidance ships as the CLI plus a skill inside the npm package (R-AX-4), not as an MCP server
   for now. Revisit after the agent evaluation (R-AX-13).
 - The npm package ships `docs/user/` as `docs/`, plus an `llms.txt` whose links are relative to the
@@ -53,9 +53,9 @@ properties against agent success. The checks are testable, so they become requir
   library. The R-AX-13 evaluation gives data to decide on.
 - Docs on a website only. Rejected for now: a website shows the latest version, which can differ
   from the installed one. Versioned docs in the package need no hosting.
-- A skill in a separate repository. Rejected: a separate repository drifts from releases (observed in
-  one of the tools compared in the research note), while a skill in the package is tested against
-  the same build (R-AX-4).
+- A skill in a separate repository. Rejected: a separate repository needs its own release step to
+  stay in step with the package, while a skill in the package is tested against the same build
+  (R-AX-4).
 
 ## Consequences
 

@@ -7,7 +7,7 @@ a new record that names the one it supersedes. Format: `NNNN-slug.md` with `# NN
 
 | #                                                                 | Decision                                                                                                                    | Status   |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [0001](0001-build-a-standalone-library.md)                        | Build a standalone library instead of extending thirdweb or a deploy tool                                                   | Accepted |
+| [0001](0001-build-a-standalone-library.md)                        | Build a standalone verification library                                                                                     | Accepted |
 | [0002](0002-runtime-neutral-core.md)                              | The core runs in any JavaScript runtime; Node-only code stays out of the core entry point                                   | Accepted |
 | [0003](0003-etherscan-only-through-a-self-hosted-handler.md)      | Etherscan keys stay on the operator's server; no hosted relay                                                               | Accepted |
 | [0004](0004-solidity-first-pluggable-compilers.md)                | Solidity first; the compiler is a discriminated union                                                                       | Accepted |

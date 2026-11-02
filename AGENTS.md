@@ -25,7 +25,7 @@ maintainer's.
 6. [docs/contributor/prior-art.md](docs/contributor/prior-art.md): the two working implementations
    this library starts from, and what to port from each.
 7. [docs/contributor/research/](docs/contributor/research/): dated evidence behind the decisions
-   (explorer APIs, Etherscan terms, competing packages, agent readiness).
+   (explorer APIs, Etherscan terms, existing packages, agent readiness).
 8. [docs/contributor/testing.md](docs/contributor/testing.md): test layers and fixture rules.
 9. [docs/contributor/tooling.md](docs/contributor/tooling.md): toolchain and the type-checking layout.
 10. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
