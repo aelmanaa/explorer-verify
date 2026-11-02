@@ -1,0 +1,27 @@
+# explorer-verify
+
+> explorer-verify verifies the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet, and no explorer client exists. The user docs grow with each feature. The npm package ships these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
+
+Submitting a verification is outward and permanent. Read the agent page before you call the library or the CLI on someone's behalf.
+
+## User docs
+
+- [User documentation](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/README.md): index of the user pages and the planned ones
+- [Using explorer-verify from an agent](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/using-from-an-agent.md): which calls are safe, which one submits, where keys come from
+
+## Contributor docs
+
+- [AGENTS.md](https://github.com/aelmanaa/explorer-verify/blob/main/AGENTS.md): start here to work on the repository
+- [Requirements](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/requirements.md): what the library must do, with stable IDs
+- [Architecture](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/architecture.md): packages, modules, the verification flow and extension points
+- [Decisions](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/decisions/README.md): numbered decision records
+- [Roadmap](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/roadmap.md): milestones and the first issues
+- [Testing](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/testing.md): test layers and fixture rules
+- [Tooling](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/tooling.md): toolchain, type checks and the docs check
+- [Contributing](https://github.com/aelmanaa/explorer-verify/blob/main/CONTRIBUTING.md): issues, workflow, definition of done
+
+## Optional
+
+- [Prior art](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/prior-art.md): the two implementations this library starts from
+- [Research](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/README.md): dated evidence behind the decisions
+- [Releasing](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/releasing.md): release plan and first publish
