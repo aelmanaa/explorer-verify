@@ -1,7 +1,9 @@
 # Research
 
-Audience: contributors who need the evidence behind a requirement or decision. One note per research date,
-named `YYYY-MM-DD-topic.md`, never rewritten: newer findings go in a newer note that links the old one.
+Audience: contributors who need the evidence behind a requirement or decision. One note per
+research date, named `YYYY-MM-DD-topic.md`. A note is corrected only with a dated entry under a
+`## Corrections` heading at its end, which says what changed. New findings go in a new dated note
+that links the old one.
 
 Each note has a `## Sources` section with at least one http or https URL, as a Markdown link or a
 bare URL outside code. Each factual claim in

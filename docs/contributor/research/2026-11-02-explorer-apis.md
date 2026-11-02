@@ -1,9 +1,9 @@
 # 2026-11-02: Explorer verification APIs
 
 Audience: whoever implements a backend client. Checked on 2026-11-02 from the explorers' public
-docs and with live requests. Re-check an API before building its client; record changes here as a
-new dated note. Each claim names its source; the links and the local runs are listed under
-[Sources](#sources).
+docs and with live requests. Re-check an API before building its client. Record API changes in a
+new dated note; fix a mistake in this note with an entry under [Corrections](#corrections). Each
+claim names its source; the links and the local runs are listed under [Sources](#sources).
 
 ## Browser reachability (live, 2026-11-02)
 
@@ -65,6 +65,16 @@ Source: [Sourcify API docs](https://docs.sourcify.dev/docs/api/). The v1 API was
   ([docs](https://docs.sourcify.dev/docs/similarity-verification/)).
 - No key. Rate limits and terms: not found on that page on 2026-11-02 (open question).
 
+## Languages other than Solidity
+
+- Sourcify: the `language` field of the Standard JSON input accepts `Solidity`, `Vyper` and `Fe`
+  (enum in the OpenAPI spec, version 2.1.0).
+- Blockscout hosted API: `action=verify_vyper_contract` takes `addressHash`, `name`,
+  `compilerVersion`, `contractSourceCode` and an optional `constructorArguments`. The docs confirm
+  only single-file Vyper on this route, and point to the per-instance API for Vyper Standard JSON.
+- Etherscan: the `codeformat` values in the verifysourcecode docs are `solidity-single-file` and
+  `solidity-standard-json-input`; no Vyper value is listed there.
+
 ## Blockscout
 
 Source: [Blockscout verification API](https://docs.blockscout.com/devs/verification/blockscout-smart-contract-verification-api).
@@ -125,3 +135,11 @@ Local runs, curl 8.7.1, 2026-11-02:
 - The `access-control-allow-origin` checks in the table above.
 - Etherscan v2 `getabi` with an invalid key, a missing key, a valid key with a trailing `"`, and an
   unknown `chainid`; a `verifysourcecode` submit for an address with no code on Sepolia.
+
+## Corrections
+
+- 2026-11-02: added the source of each claim and the `## Sources` section; named curl 8.7.1 for
+  the live checks; replaced the `chainid` error example with the exact text seen live; named the
+  similarity endpoint path; changed the Similar Match sentence to what the Etherscan page says (no
+  tool upgrades it to Exact Match for now; re-verification is enabled for whitelisted users);
+  added the section on languages other than Solidity.

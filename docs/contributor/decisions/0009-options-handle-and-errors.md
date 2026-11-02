@@ -18,7 +18,10 @@ A handle often comes from untrusted storage: a URL parameter, local storage or a
 library must not let that data choose where it sends requests, because on keyed backends the API key
 goes with them (R-SEC-2).
 
-Research: none (maintainer choice).
+Research: [agent readiness](../research/2026-11-02-agent-readiness.md) for the JSON error
+object, exit codes and fix hints (R-AX-5, R-AX-7, R-AX-10);
+[explorer APIs](../research/2026-11-02-explorer-apis.md) for the job id formats (Sourcify
+`verificationId`, Etherscan `guid`).
 
 ## Decision
 

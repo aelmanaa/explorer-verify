@@ -6,16 +6,16 @@ readme` (npm 11.19.0, 2026-11-02).
 
 ## Packages that verify contracts
 
-| Package                                 | What it does                                                      | Where it runs                              |
-| --------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------ |
-| `@nomicfoundation/hardhat-verify` 3.1.4 | Hardhat plugin: verifies on Etherscan-style, Blockscout, Sourcify | Hardhat on Node                            |
-| `@rocketh/verifier` 0.19.34             | Verifies on Etherscan, Sourcify and compatible explorers          | Node CLI (`rocketh-verify` bin)            |
-| `@deployoor/sourcify` 0.3.0             | Verifies on Sourcify v2, keyless, when deployoor deploys          | With the deployoor deploy tool             |
-| `etherscan-api` 12.2.0                  | Etherscan v2 API wrapper                                          | Node.js 20 or later (README)               |
-| `@ethereum-sourcify/lib-sourcify` 3.7.4 | Sourcify's verification library                                   | Node and browser (README)                  |
-| `thirdweb` 5.122.1                      | `verifyContract` and `checkVerificationStatus`; see below         | Browser and Node, through the thirdweb SDK |
+| Package                                 | What it does                                                      | Where it runs                                      |
+| --------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
+| `@nomicfoundation/hardhat-verify` 3.1.4 | Hardhat plugin: verifies on Etherscan-style, Blockscout, Sourcify | Hardhat on Node                                    |
+| `@rocketh/verifier` 0.19.34             | Verifies on Etherscan, Sourcify and compatible explorers          | Node CLI (`rocketh-verify` bin)                    |
+| `@deployoor/sourcify` 0.3.0             | Verifies on Sourcify v2, keyless, when deployoor deploys          | With the deployoor deploy tool                     |
+| `etherscan-api` 12.2.0                  | Etherscan v2 API wrapper                                          | Node.js 20 or later (README)                       |
+| `@ethereum-sourcify/lib-sourcify` 3.7.4 | Sourcify's verification library                                   | Node (`engines.node` `v26.10.0`); browser (README) |
+| `thirdweb` 5.122.1                      | `verifyContract` and `checkVerificationStatus`; see below         | Browser and Node, through the thirdweb SDK         |
 
-Remix verifies in the browser against Etherscan, Blockscout, Sourcify and Routescan through its
+Remix IDE (a web IDE) verifies on Sourcify, Etherscan, Blockscout and Routescan through its
 Contract Verification plugin
 ([Remix docs](https://remix-ide.readthedocs.io/en/latest/contract_verification.html), read
 2026-11-02).
@@ -58,3 +58,10 @@ Read on 2026-11-02 from thirdweb-dev/js at commit 940b3745 (thirdweb 5.122.1),
   read on 2026-11-02.
 - The demand signals rest on [explorer APIs](2026-11-02-explorer-apis.md) and
   [prior art](../prior-art.md).
+
+## Corrections
+
+- 2026-11-02: added the `## Sources` section and the npm version used. Removed "thirdweb's
+  deploy flow pins that metadata on IPFS", for which no source was found, and described what
+  `verifyContract` does with the IPFS URI instead. Changed where lib-sourcify runs from "Sourcify's
+  server" to its `engines.node` field and README. Reworded the Remix sentence to the docs.
