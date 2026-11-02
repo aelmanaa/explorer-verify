@@ -26,8 +26,8 @@ Source: [verifysourcecode](https://docs.etherscan.io/api-reference/endpoint/veri
   (`path:Name`), `compilerversion` (`v0.8.24+commit.e11b9ed9`), `codeformat=solidity-standard-json-input`,
   optional `constructorArguments` and `licenseType`.
 - Constructor-argument spelling: Etherscan's docs name the field `constructorArguments`. Both
-  prior-art implementations also send the older spelling `constructorArguements` (bare hex, no
-  `0x`, omitted for a constructor without arguments). Keep that.
+  prior-art implementations send both spellings, `constructorArguments` and `constructorArguements`
+  (bare hex, no `0x`, omitted for a constructor without arguments). Keep that.
 - Success: `{ "status": "1", "message": "OK", "result": "<guid>" }`. On failure `message` is a
   generic `NOTOK` and the reason is in `result` (for example `Unable to locate ContractCode at …`,
   `Invalid API Key`, `Missing/unsupported chainid`).

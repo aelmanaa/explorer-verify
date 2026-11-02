@@ -10,9 +10,10 @@ it without a terminal, read the result, check that it worked and recover from a 
 
 No peer-reviewed study isolates CLI design properties (JSON or text output, help quality, exit
 codes) against agent success. [Terminal-Bench](https://arxiv.org/abs/2601.11868) measures agent
-capability in a shell, not the design of the tools it calls. The evidence below is practitioner guidance from CLI authors and model
-vendors, one controlled docs benchmark run by a docs vendor, and academic work on retrieved
-documentation. The rubric checks are testable, which is why they became requirements.
+capability in a shell, not the design of the tools it calls. The evidence below is practitioner
+guidance from CLI authors and model vendors, one controlled docs benchmark run by a docs vendor,
+and academic work on retrieved documentation. The rubric checks are testable, which is why they
+became requirements.
 
 ## Sources
 
