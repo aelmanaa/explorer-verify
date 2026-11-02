@@ -57,7 +57,9 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
   copies the Standard JSON input of a contract already verified on Sourcify. Resolvers are
   pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
-  Standard JSON, version format. Validation errors name the field.
+  Standard JSON, version format. Validation errors name the field. The address check is format only:
+  `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: it needs a Keccak-256
+  implementation, which the core does not ship, and explorers accept any case.
 
 ### Backends (R-BE)
 

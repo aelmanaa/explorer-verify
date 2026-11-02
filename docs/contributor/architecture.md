@@ -79,6 +79,10 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
 - `Handle` is `{ version: 1, backend, chainId, address, jobId }`: plain JSON with no URL.
   `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
   handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.
+- `validateInput(input: unknown): VerifyInput` checks the input before any request (R-IN-6) and
+  returns it normalised: the version without a leading `v`, and the address, constructor
+  arguments and creation transaction hash in lower case. The result is a deep copy. It throws
+  `invalid-input` with every problem found. `verify()` will call it first.
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
   `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope
   (R-AX-5).
@@ -88,8 +92,8 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
 - Abort rejects with `signal.reason` unchanged. `verify()` logs the handle through `logger.info` as
   soon as the submit is accepted, so an aborted call can still be resumed.
 
-`types.ts` holds the option and handle types, `errors.ts` the error class and `flow/handle.ts`
-`parseHandle`. `verify` and `checkStatus` do not exist yet.
+`types.ts` holds the option and handle types, `errors.ts` the error class, `flow/handle.ts`
+`parseHandle` and `input/validate.ts` `validateInput`. `verify` and `checkStatus` do not exist yet.
 
 ## Routing in M1
 
