@@ -37,6 +37,31 @@ Every issue gets a milestone (`M0` to `M4`, `Later`). An epic lists its work as 
    The commit-msg hook checks it.
 5. Push the branch and open a pull request with the template. The title becomes the squash commit.
 
+## Definition of done
+
+A pull request is done when every item that applies holds. The agent-readiness items cite
+[requirements R-AX](docs/contributor/requirements.md#agent-readiness-r-ax) and apply to any change
+that adds or changes a public function, error, CLI command or user page (decision 0007). A
+requirement the change does not meet is named in the pull request with the reason.
+
+- Tests ship with the change, and coverage stays at or above 95%.
+- Docs ship with the code. A new page is linked from [AGENTS.md](AGENTS.md) and
+  [docs/README.md](docs/README.md).
+- A user-facing change under `packages/` adds a changeset (see below).
+- `pnpm run check`, `pnpm test`, `pnpm run coverage` and, for package changes, `pnpm run pkg:check`
+  pass.
+- A new or changed error has a stable code, a hint that names the fix and a docs entry
+  (R-DX-3, R-AX-10).
+- A new or changed user page is listed in `llms.txt`, links `llms.txt` near the top and states the
+  version it describes (R-AX-1 to R-AX-3).
+- The shipped skill is updated when a user-visible behaviour changes (R-AX-4).
+- A new or changed CLI command meets R-AX-5 to R-AX-12: `--json` envelope, clean stdout, no prompt,
+  a documented exit code for each outcome, `--dry-run`, keys from the environment or a file, errors
+  with a fix, help that leads with examples, stable output.
+
+`llms.txt` and the skill do not exist yet. Their items apply once the issues that create them land:
+#4 for `llms.txt` and the docs check, #6 for the skill.
+
 ## Changesets
 
 Every user-facing change under `packages/` adds a changeset (`pnpm changeset`). A change that touches

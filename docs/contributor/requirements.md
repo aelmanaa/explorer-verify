@@ -118,12 +118,79 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 
 ### Developer experience (R-DX)
 
-- **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`
-  with JSON output for scripts, reading keys from the environment.
+- **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`.
+  Its machine contract (JSON output, streams, exit codes, dry run, key input) is R-AX-5 to R-AX-12.
 - **R-DX-2** Build helpers that emit the Standard JSON input and full compiler version from Foundry
   (`out/` build-info) and Hardhat 3 (artifacts build-info).
-- **R-DX-3** Typed errors from one catalogue, each with a stable code and a fix hint.
+- **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
+  The CLI and the library share the catalogue (R-AX-10).
 - **R-DX-4** TSDoc on every export, with an example that compiles.
+
+### Agent readiness (R-AX)
+
+Coding agents call explorer-verify as often as people do: they add it to a dapp, run the CLI in CI
+and read the docs to answer a question. These requirements apply to every pull request that adds or
+changes a public function, error, CLI command or user page. A pull request in that scope meets them, or
+names the requirement it does not meet and the reason (decision 0007). Evidence: [research/2026-11-02-agent-readiness.md](research/2026-11-02-agent-readiness.md).
+
+Docs:
+
+- **R-AX-1** `llms.txt` at the repository root, per [llmstxt.org](https://llmstxt.org/): an H1, a
+  one-paragraph summary, H2 sections, and absolute links to the Markdown source of every user page
+  and of the reference.
+- **R-AX-2** User docs ship inside the npm package (`docs/`), so the docs in `node_modules` match the
+  installed version. Each page states the version it describes. The API reference is generated from
+  TSDoc and the CLI reference from the CLI's own help, so neither drifts from the code.
+- **R-AX-3** A page "Using explorer-verify from an agent" says which calls are outward and permanent
+  (submit) and which are safe (validate, dry run, lookup, status), where keys come from, and the
+  Etherscan plan rule (R-SEC-3). Every user page links `llms.txt` near the top.
+- **R-AX-4** A skill (`skills/explorer-verify/SKILL.md`) ships in the npm package. CI runs its
+  examples against the built package, so a release cannot ship a stale skill.
+
+CLI:
+
+- **R-AX-5** `--json` on every command. The output is one versioned envelope:
+  `{ "schemaVersion": 1, "ok": true, "result": ... }` or
+  `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "handle"? } }`.
+  `result` has the shape of `VerifyResult`. The error `code` tells an unknown explorer state
+  (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, changes
+  only add fields. A JSON Schema for the envelope ships with the package.
+- **R-AX-6** stdout carries only the result, and progress and logs go to stderr. When stdout is not a
+  terminal, the CLI prints no colour, spinner or pager; it honours `NO_COLOR` always. The CLI never
+  prompts.
+- **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
+
+  | Code | Meaning                                                                                                                                                   |
+  | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0    | `verified` or `already-verified`                                                                                                                          |
+  | 1    | `failed`: the explorer definitively rejected the submission                                                                                               |
+  | 2    | Usage or input error (bad flag, invalid input); nothing was sent                                                                                          |
+  | 3    | Missing, invalid or under-privileged API key                                                                                                              |
+  | 4    | Still pending at the time budget; the output carries the handle                                                                                           |
+  | 5    | Network or explorer unavailable after retries                                                                                                             |
+  | 6    | Unknown state: the explorer answered something the library cannot classify; the output carries the handle. Do not retry automatically; a person checks it |
+  | 130  | Cancelled                                                                                                                                                 |
+
+  Every code in the error catalogue maps to one of these exit codes. `explorer-verify status <handle>`
+  resumes a pending verification and uses the same codes (R-FLOW-5).
+
+- **R-AX-8** `--dry-run` validates the input, resolves the route, builds the request and checks
+  whether the contract is already verified, then stops before the submit. It needs no API key.
+- **R-AX-9** Keys come from environment variables or `--api-key-file`, never from a flag value. Tests
+  assert that a dummy key never appears on stdout, on stderr or in JSON (extends R-SEC-1).
+- **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
+  the library share one catalogue (R-DX-3). An unknown command or flag suggests the single closest
+  match.
+- **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
+  the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
+- **R-AX-12** The same input gives the same output: stable key order, no timestamps unless requested.
+
+Measurement:
+
+- **R-AX-13** Before 0.1.0, a small recorded agent evaluation: a fixed task set (verify from a Foundry
+  build, verify from shipped artifacts, resume a pending handle, handle a rejection, refuse to submit
+  without a key), run by at least two models. It records success, turns and any unsafe action
+  attempted. The docs carry the dated results, and the evaluation reruns before each minor release.
 
 ## Non-functional requirements
 
