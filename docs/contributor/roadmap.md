@@ -61,7 +61,7 @@ Test rules: #32 sets a per-file coverage floor and written rules for regression 
 - Format-detecting input builder (R-IN-7), in two issues: build-info and detection (#20), then
   Solidity metadata (#21).
 - Scheduled live check across explorers (R-QA-4, #23).
-- #29: mutation testing for result mapping and key redaction (R-QA-1, R-FLOW-3, R-SEC-1).
+- #29: mutation testing for result mapping and key redaction (R-QA-1, R-FLOW-4, R-SEC-1).
 
 ## M3: Blockscout, server handler and proxies
 
