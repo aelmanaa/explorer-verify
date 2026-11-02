@@ -246,12 +246,11 @@ Measurement:
 - **R-QA-2** A live test matrix per backend on public testnets, run by the maintainer, with dated
   results in the docs.
 - **R-QA-3** The CLI and the server handler have integration tests.
-- **R-QA-4** A scheduled live check runs weekly from CI using recorded testnet contracts: lookups on every
-  backend with a client, and one keyless submit on
-  Sourcify of a recorded, already-verified contract, expecting `already-verified`. It reads keys
-  only from repository secrets in an environment limited to `main`, never runs on forks or pull
-  requests, never prints a key, and opens or updates one issue when a check fails. Its dated
-  results update the routing table's date (R-RT-1, R-AX-11).
+- **R-QA-4** A scheduled live check runs weekly from CI using recorded testnet contracts: lookups on
+  every backend with a client, and one keyless submit on Sourcify of a recorded, already-verified
+  contract, expecting `already-verified`. It reads keys only from repository secrets in an
+  environment limited to `main`, never runs on forks or pull requests, never prints a key, and
+  opens or updates one issue when a check fails. Its dated results update the routing table's date (R-RT-1, R-AX-11).
 
 ### Extensibility (R-EXT)
 
