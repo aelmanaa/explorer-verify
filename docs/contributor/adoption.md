@@ -7,7 +7,7 @@ Audience: the maintainer and contributors deciding what to build for whom. Requi
 
 One SDK and one CLI for verifying contracts, usable by any tooling: dapps in a browser, backends and
 edge runtimes, CI jobs, deploy tools and frameworks, and SDKs that ship contract artifacts. Each
-kind of user calls the same core. Plugins for deploy tools are thin layers on that core.
+kind of user calls the same core. Build helpers for deploy tools are thin layers on that core.
 
 ## Users and what they need
 
@@ -41,9 +41,10 @@ a pending verification with `explorer-verify status <handle>` (R-AX-5 to R-AX-7)
 
 ### Deploy tools and frameworks
 
-A deploy tool or framework adds verification as a plugin built on the core. The plugin locates its
-build files and passes them to the input builder (R-IN-7); it holds no explorer logic. The M4 build
-helpers for Foundry and Hardhat 3 (R-DX-2) are the first such plugins.
+A deploy tool or framework adds verification through a build helper on the core. The build helper
+locates the build files and passes them to the input builder (R-IN-7); it holds no explorer logic.
+The M4 build helpers `@explorer-verify/foundry` and `@explorer-verify/hardhat` (Hardhat 3, R-DX-2)
+are the first.
 
 ### SDKs that ship contract artifacts
 
