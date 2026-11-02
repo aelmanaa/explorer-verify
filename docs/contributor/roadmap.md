@@ -2,7 +2,8 @@
 
 Audience: the maintainer and agents choosing the next piece of work. Each milestone becomes a GitHub
 milestone; each bullet becomes an issue labelled as in [CONTRIBUTING.md](../../CONTRIBUTING.md).
-Requirement IDs refer to [requirements.md](requirements.md).
+Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists who
+could adopt the library and the milestone where each target becomes possible.
 
 ## M0: Repository and names (maintainer)
 
@@ -55,6 +56,9 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - Constructor-argument derivation (R-IN-3), library links (R-IN-4).
 - Live matrix on Sepolia and one more testnet per backend (R-QA-2). Test Etherscan Similar Match on
   a factory deployment (open question).
+- Format-detecting input builder (R-IN-7), in two issues: build-info and detection (#20), then
+  Solidity metadata (#21).
+- Scheduled live check across explorers (R-QA-4, #23).
 
 ## M3: Blockscout, server handler and proxies
 
@@ -62,11 +66,17 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for
   Next.js and one edge runtime.
 - Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
+- Bytecode-metadata input resolver (R-IN-5). Reason: thirdweb's `verifyContract` (thirdweb
+  5.122.1, read on 2026-11-02) takes its input from the bytecode's IPFS metadata hash and supports
+  Etherscan-style explorers, Blockscout and Routescan. With R-IN-5 and the Blockscout clients in the
+  same milestone, 0.1.0 (M4) ships with that coverage, and the integration offer (#24) can follow
+  the release.
 
 ## M4: Developer experience and 0.1.0
 
 - CLI as `@explorer-verify/cli` (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry
-  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat` (R-DX-2).
+  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat`. They locate the
+  files and call the R-IN-7 builder (R-DX-2).
 - #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-13).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
@@ -75,9 +85,17 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - Release pipeline copied from [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
   of 0.1.0.
 
+## Adoption
+
+Mirrors the GitHub milestone "Adoption". Each item starts after the release that gives the target
+what it needs ([adoption.md](adoption.md)), and each depends on the other project's agreement.
+
+- #24: offer explorer-verify as the engine of thirdweb `verifyContract`, keeping its signature.
+  Needs 0.1.0, R-IN-5 and the M2 and M3 backends.
+- #25: replace the Chainlink CCT SDK verification prototypes in
+  [smartcontractkit/ccip-tools-ts](https://github.com/smartcontractkit/ccip-tools-ts) with one
+  `verify()` call. Needs 0.1.0 and the R-IN-7 builder.
+
 ## Later
 
-- Bytecode-metadata input resolver (R-IN-5).
 - Vyper (R-EXT-1).
-- Adoption: offer the core to SDKs that ship contract artifacts (a protocol SDK can depend on the
-  core and keep only its artifacts and glue, see [prior-art.md](prior-art.md)).
