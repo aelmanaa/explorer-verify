@@ -133,8 +133,13 @@ R-AX-6, R-AX-14 and R-AX-15.
   as decision 0009 states. The CLI creates the error, and the envelope's `error` object is its
   `toJSON()`.
 - Usage error: `invalid-input`, exit code 2.
-- Unexpected exception inside the CLI: an envelope with code `unknown-state`, no handle and a
-  redacted message, exit code 6. No new error code.
+- Unexpected exception inside the CLI: a new catalogue code, `internal-error`, with exit code 6,
+  `retryable` false, no handle, a redacted message and the hint "This is a bug in
+  explorer-verify. Report it with the command you ran, without your API key."
+  `unknown-state` is not used here: it requires a handle and means an explorer answer for a
+  submitted job that the library cannot classify. The CLI issue
+  ([#7](https://github.com/aelmanaa/explorer-verify/issues/7)) adds `internal-error` to
+  `ERROR_CODES` and to the errors page.
 
 ## Alternatives considered
 

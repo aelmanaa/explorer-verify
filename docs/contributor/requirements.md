@@ -207,8 +207,10 @@ CLI:
   catalogue with `retryable` false and its own errors-page entry, and carries a handle when the
   explorer accepted a submission before the cancel; the CLI creates it and the core never throws
   it (decision 0010). An unexpected exception inside the CLI gives an envelope with the code
-  `unknown-state`, no handle and a redacted message, and exit code 6. stderr may also carry a
-  one-line human summary.
+  `internal-error`: exit code 6, `retryable` false, no handle, a redacted message and the hint
+  "This is a bug in explorer-verify. Report it with the command you ran, without your API key."
+  The CLI issue (#7) adds `internal-error` to `ERROR_CODES` and to the errors page. stderr may
+  also carry a one-line human summary.
 
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
   colour, spinners and pagers per stream, from that stream's own terminal state:
@@ -223,16 +225,16 @@ CLI:
 
 - **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
 
-  | Code | Meaning                                                                                                                                                   |
-  | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0    | `verified` or `already-verified`                                                                                                                          |
-  | 1    | `failed`: the explorer definitively rejected the submission                                                                                               |
-  | 2    | Usage or input error (bad flag, invalid input); nothing was sent                                                                                          |
-  | 3    | Missing, invalid or under-privileged API key                                                                                                              |
-  | 4    | Still pending at the time budget; the output carries the handle                                                                                           |
-  | 5    | Network or explorer unavailable after retries                                                                                                             |
-  | 6    | Unknown state: the explorer answered something the library cannot classify; the output carries the handle. Do not retry automatically; a person checks it |
-  | 130  | Cancelled                                                                                                                                                 |
+  | Code | Meaning                                                                                                                                                                                                                          |
+  | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0    | `verified` or `already-verified`                                                                                                                                                                                                 |
+  | 1    | `failed`: the explorer definitively rejected the submission                                                                                                                                                                      |
+  | 2    | Usage or input error (bad flag, invalid input); nothing was sent                                                                                                                                                                 |
+  | 3    | Missing, invalid or under-privileged API key                                                                                                                                                                                     |
+  | 4    | Still pending at the time budget; the output carries the handle                                                                                                                                                                  |
+  | 5    | Network or explorer unavailable after retries                                                                                                                                                                                    |
+  | 6    | `unknown-state`: the explorer answered something the library cannot classify; the output carries the handle. `internal-error`: an unexpected exception inside the CLI; no handle. Do not retry automatically; a person checks it |
+  | 130  | Cancelled                                                                                                                                                                                                                        |
 
   Every code in the error catalogue maps to one of these exit codes. `explorer-verify status <handle>`
   resumes a pending verification and uses the same codes (R-FLOW-5).
@@ -258,8 +260,9 @@ CLI:
 - **R-AX-14** Progress goes to stderr, never to stdout. By default it is human-readable lines.
   With `--log-format json` each stderr line is one JSON object with `schemaVersion`, `level`,
   `message` and `type`: an R-DX-6 event type with that event's fields, or `log` with the logger's
-  fields. These four names are reserved; an event or logger field with one of those names goes
-  under a nested `fields` object. `schemaVersion` is the same as the envelope's (R-AX-5). A reader
+  fields. These four names and `fields` are reserved; an event or logger field with a reserved
+  name goes under a nested `fields` object, so a field named `fields` appears as
+  `fields.fields`. `schemaVersion` is the same as the envelope's (R-AX-5). A reader
   parses the lines that start with `{`. The `verify.submitted` line, with the handle, prints at
   level `info` or more verbose (R-AX-15).
 - **R-AX-15** A log level chooses what reaches stderr. `-q`/`--quiet` sets `error`, the default is
@@ -268,15 +271,17 @@ CLI:
   | Mode        | Level   | stderr                                                                                  |
   | ----------- | ------- | --------------------------------------------------------------------------------------- |
   | `--quiet`   | `error` | Errors only                                                                             |
-  | Default     | `info`  | Errors, warnings, `verify.retry`, `verify.submitted` and `verify.result`                |
+  | Default     | `info`  | Errors, warnings, info logs, `verify.retry`, `verify.submitted` and `verify.result`     |
   | `--verbose` | `debug` | Adds `verify.validated`, `verify.routed`, `verify.lookup`, `verify.poll` and debug logs |
 
   Event lines take these levels: `verify.submitted` and `verify.result` are `info`,
   `verify.retry` is `warn`, and every other event is `debug`. Levels `error` and `off` suppress
   everything below `error`, the `verify.submitted` line included; `off` also suppresses errors on
   stderr, while the stdout envelope is unchanged. `EXPLORER_VERIFY_LOG=debug|info|warn|error|off`
-  sets the level when no flag does. Any other value is ignored, with one `warn` line on stderr
-  that names the variable and never its value. `--quiet` with `--verbose` exits 2
+  sets the level when no flag does; `warn` shows errors, warnings and `verify.retry`, without the
+  `verify.submitted` and `verify.result` lines. Any other value is ignored, with one `warn` line
+  on stderr that names the variable and never its value; the warning appears even when a flag
+  sets the level. `--quiet` with `--verbose` exits 2
   (`invalid-input`). The CLI reads the variable; the core never reads the environment. stdout is
   byte-identical at every level. `-v` is not bound.
 

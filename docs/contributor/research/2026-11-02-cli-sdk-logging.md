@@ -109,8 +109,8 @@ Two cases need a rule of their own:
 
 - A usage error found before the parser has read `--json`. Terraform's docs describe the same case
   for `validate -json` [S9]. The CLI scans the arguments for `--json` before parsing them.
-- A cancelled run (exit 130). Decision 0009 keeps abort out of the error catalogue, so the CLI
-  writes its own error code for it.
+- A cancelled run (exit 130). Decision 0010, section 5, puts `cancelled` in the shared error
+  catalogue; the CLI creates it.
 
 ### A4. Terminals, colour and prompts
 
@@ -323,7 +323,6 @@ date the source states.
 | --- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------- |
 | S1  | POSIX stdin, stdout, stderr                     | https://pubs.opengroup.org/onlinepubs/9799919799/functions/stdin.html                              | IEEE Std 1003.1-2024            |
 | S2  | GNU Coding Standards, `--help`                  | https://www.gnu.org/prep/standards/html_node/_002d_002dhelp.html                                   | Updated 2026-04-27              |
-| S3  | GNU Coding Standards, errors                    | https://www.gnu.org/prep/standards/html_node/Errors.html                                           | Updated 2026-04-27              |
 | S4  | Command Line Interface Guidelines               | https://clig.dev/                                                                                  | Undated                         |
 | S5  | NO_COLOR                                        | https://no-color.org/                                                                              | Updated 2026-10-12              |
 | S6  | FORCE_COLOR                                     | https://force-color.org/                                                                           | Undated                         |
@@ -336,11 +335,10 @@ date the source states.
 | S13 | Vercel global options                           | https://vercel.com/docs/cli/global-options                                                         | Updated 2026-05-28              |
 | S14 | Wrangler environment variables                  | https://developers.cloudflare.com/workers/wrangler/system-environment-variables/                   | Undated                         |
 | S15 | Stripe CLI `listen`                             | https://docs.stripe.com/cli/listen                                                                 | Undated                         |
-| S16 | Docker buildx build                             | https://docs.docker.com/reference/cli/docker/buildx/build/                                         | buildx v0.36.1                  |
+| S16 | Docker buildx build                             | https://docs.docker.com/reference/cli/docker/buildx/build/                                         | buildx v0.36.1 [L4]             |
 | S17 | GitHub Actions variables                        | https://docs.github.com/en/actions/reference/workflows-and-actions/variables                       | Undated                         |
 | S18 | Google Workspace CLI                            | https://github.com/googleworkspace/cli                                                             | No release shown                |
 | S19 | Salesforce CLI output and scripting             | https://developer.salesforce.com/blogs/2020/02/using-salesforce-cli-output-and-scripting           | 2020-02                         |
-| S20 | kubectl reference                               | https://kubernetes.io/docs/reference/kubectl/                                                      | Undated                         |
 | S21 | Anthropic, "Writing effective tools for agents" | https://www.anthropic.com/engineering/writing-tools-for-agents                                     | 2025-09-11                      |
 | S22 | Claude API, Define tools                        | https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use                   | Undated                         |
 | S23 | Claude Code MCP                                 | https://code.claude.com/docs/en/mcp                                                                | Undated                         |
