@@ -13,13 +13,19 @@ const PACKAGE_JSON = "packages/explorer-verify/package.json";
 
 let root = "";
 
+// Node 24.0 still warns that type stripping is experimental; the warning would land on
+// stderr.
 function run(
   script: string,
   ...args: string[]
 ): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, [path.join(scripts, script), ...args], {
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    process.execPath,
+    ["--disable-warning=ExperimentalWarning", path.join(scripts, script), ...args],
+    {
+      encoding: "utf8",
+    },
+  );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
