@@ -56,15 +56,37 @@ export interface VerifyInput {
  * submission; any unknown or ambiguous state throws instead, so a caller never mistakes it for
  * success. `match` is `partial` when the explorer matched the code but not its metadata hash.
  *
+ * `explorerUrl` is the public page of the verified contract. It is absent when the library knows
+ * no such page, for example when `VerifyOptions.route` points at a self-hosted Sourcify server or
+ * a local test server: the public Sourcify repository does not show what those servers verified.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyResult } from "explorer-verify";
+ *
+ * function describe(result: VerifyResult): string {
+ *   if (result.status === "failed") {
+ *     return `rejected: ${result.reason}`;
+ *   }
+ *   return result.explorerUrl ?? `${result.status} on ${result.backend}`;
+ * }
+ * ```
  * @experimental
  */
 export type VerifyResult =
-  | { status: "verified"; backend: BackendName; match: "exact" | "partial"; explorerUrl: string }
+  | {
+      status: "verified";
+      backend: BackendName;
+      match: "exact" | "partial";
+      /** The public page of the contract. Absent when the library knows none. */
+      explorerUrl?: string;
+    }
   | {
       status: "already-verified";
       backend: BackendName;
       match: "exact" | "partial";
-      explorerUrl: string;
+      /** The public page of the contract. Absent when the library knows none. */
+      explorerUrl?: string;
     }
   | { status: "failed"; backend: BackendName; reason: string };
 
@@ -110,12 +132,19 @@ export interface Logger {
  * @experimental
  */
 export interface RouteOverride {
-  /** The backend to use instead of the one the routing table names. */
+  /**
+   * The backend to use instead of the one the routing table names. This release supports only
+   * `sourcify`; any other name throws `invalid-input` naming `route.backend`.
+   */
   backend?: BackendName;
   /**
-   * The API base URL. This release only declares the field; nothing reads it yet. The routing
-   * change (issue #15) validates it: `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`,
-   * no user name or password in the URL, and the query string redacted in logs.
+   * The API base URL. It must be a string of at most 8192 characters: an absolute `https:` URL,
+   * or an `http:` URL whose host is exactly `localhost`, `127.0.0.1` or `[::1]`, with no user
+   * name, password or fragment. Trailing slashes are removed. A query string is sent with every
+   * request and redacted in logs. Only the query is redacted, so never put a key in the host or
+   * path. Any other value throws `invalid-input` naming `route.apiUrl`, without repeating the
+   * value. Setting it to a server other than the public Sourcify API means results carry no
+   * `explorerUrl`.
    */
   apiUrl?: string;
 }
