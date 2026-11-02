@@ -34,9 +34,9 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
    2026-07-07: rewrite against v2, do not port a v1 client.
 8. Flow engine with lookup, submit, poll, result mapping (R-FLOW-1 to R-FLOW-4).
 9. Resumable handle and `checkStatus` (R-FLOW-5).
-10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1. It also measures the
-    `verify` bundle and replaces the provisional 10 kB ceiling from decision 0008 with the measured
-    size plus 20%, checked in CI (R-RUN-3).
+10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1. It also measures
+    the `verify` bundle and replaces the provisional 10 kB ceiling in `size-budget.json` with the
+    measured size plus 20%, checked in CI (R-RUN-3).
 
 Agent readiness (epic #2) runs beside that list, so later features meet R-AX from the start:
 
@@ -59,7 +59,8 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 ## M3: Blockscout, server handler and proxies
 
 - Blockscout clients (R-BE-3), including the partial-match and empty-response cases (R-FLOW-7).
-- `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for Next.js and one edge runtime.
+- `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for
+  Next.js and one edge runtime.
 - Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
 
 ## M4: Developer experience and 0.1.0

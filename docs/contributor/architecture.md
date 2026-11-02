@@ -11,13 +11,13 @@ Its identifier type is `BackendName`.
 Decided in [decision 0008](decisions/0008-package-split-and-bundle-budget.md): an unscoped core that
 also carries the server handler, and scoped add-ons for Node-only code.
 
-| Package                    | Entry points               | Contents                                                                                                        | Runtime                      |
-| -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine, input resolvers                           | Any (browser, Node, edge)    |
+| Package                    | Entry points               | Contents                                                                                                        | Runtime                                      |
+| -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine, input resolvers                           | Any (browser, Node, edge)                    |
 | `explorer-verify`          | `explorer-verify/server`   | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key. Uses only `Request` and `Response` | Node, edge runtimes and serverless platforms |
-| `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                         |
-| `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                         |
-| `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 3 build-info and emits `VerifyInput` parts                                      | Node                         |
+| `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                                         |
+| `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                                         |
+| `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 3 build-info and emits `VerifyInput` parts                                      | Node                                         |
 
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
