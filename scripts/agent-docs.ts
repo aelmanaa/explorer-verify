@@ -134,28 +134,61 @@ export function packageVersion(root: string): string {
 }
 
 /**
- * Calls `visit` for each line outside fenced code blocks, with inline code spans blanked. A fence
- * closes only on the marker that opened it.
+ * Blanks the HTML comments of one line with spaces, so columns keep their place. `open` says
+ * whether the line starts inside a comment; the result says whether it ends inside one.
  */
-function forEachProseLine(
+function blankComments(raw: string, open: boolean): { text: string; open: boolean } {
+  // Markers are searched in a copy with inline code spans blanked, so `<!--` in code opens nothing.
+  const masked = blankCode(raw);
+  let text = "";
+  let from = 0;
+  let inside = open;
+  while (from < raw.length) {
+    const marker = inside ? "-->" : "<!--";
+    const at = masked.indexOf(marker, from);
+    if (at === -1) {
+      text += inside ? " ".repeat(raw.length - from) : raw.slice(from);
+      break;
+    }
+    const end = at + marker.length;
+    text += inside ? " ".repeat(end - from) : raw.slice(from, at) + " ".repeat(marker.length);
+    from = end;
+    inside = !inside;
+  }
+  return { text, open: inside };
+}
+
+/** A line with its inline code spans blanked with spaces. */
+function blankCode(line: string): string {
+  return line.replace(/`[^`]*`/g, (span) => " ".repeat(span.length));
+}
+
+/**
+ * Calls `visit` for each line outside fenced code blocks, with HTML comments blanked. `line` also
+ * has inline code spans blanked; `raw` keeps them. Blanking keeps every column in place. A fence
+ * closes only on the marker that opened it, and a fence marker inside a comment does not count.
+ */
+export function forEachProseLine(
   text: string,
   visit: (line: string, index: number, raw: string) => void,
 ): void {
   let fence: string | undefined;
-  for (const [index, raw] of text.split("\n").entries()) {
-    const marker = FENCE.exec(raw)?.[1];
-    if (marker !== undefined) {
-      if (fence === undefined) {
-        fence = marker;
-      } else if (marker === fence) {
+  let comment = false;
+  for (const [index, original] of text.split("\n").entries()) {
+    if (fence !== undefined) {
+      if (FENCE.exec(original)?.[1] === fence) {
         fence = undefined;
       }
-    } else if (fence === undefined) {
-      visit(
-        raw.replace(/`[^`]*`/g, (span) => " ".repeat(span.length)),
-        index,
-        raw,
-      );
+      continue;
+    }
+    const blanked = blankComments(original, comment);
+    comment = blanked.open;
+    const raw = blanked.text;
+    const marker = FENCE.exec(raw)?.[1];
+    if (marker === undefined) {
+      visit(blankCode(raw), index, raw);
+    } else {
+      fence = marker;
     }
   }
 }
@@ -489,7 +522,8 @@ export function rewriteForPackage(file: string, text: string): string {
     return `${RAW_MAIN}${relative}${rest}`;
   };
   const lines = text.split("\n");
-  forEachProseLine(text, (line, index, raw) => {
+  forEachProseLine(text, (line, index) => {
+    const raw = String(lines[index]);
     let output = "";
     let last = 0;
     const matches = [...line.matchAll(INLINE_LINK)];

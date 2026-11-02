@@ -44,3 +44,13 @@ Open point: whether a narrow verify-only handler is a "proxy ... that passes API
 third parties". The handler returns only the verification status of the user's own deployment, as
 part of a broader application. The docs should state this reading and point operators to Etherscan
 for a definitive answer.
+
+## Sources
+
+- [Etherscan API terms](https://etherscan.io/apiterms), "Last updated: 1 October 2026", read on
+  2026-11-02. Every quote and clause above comes from this page. The table and the open point are
+  this project's reading of it.
+
+## Corrections
+
+- 2026-11-02: added the `## Sources` section. No claim changed.

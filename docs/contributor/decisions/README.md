@@ -5,6 +5,16 @@ a new record that names the one it supersedes. Format: `NNNN-slug.md` with `# NN
 `Status:`, then `## Context`, `## Decision`, an optional `## Alternatives considered`, and
 `## Consequences`.
 
+Each record links the research it relies on: a relative link to a note in
+[research/](../research/README.md), in the Context or in a `Research:` line. A record with no
+research behind it carries this exact line, on its own:
+
+```text
+Research: none (maintainer choice).
+```
+
+`pnpm run check` fails when a record has neither, or links a research note that does not exist.
+
 | #                                                                 | Decision                                                                                                                       | Status                                                                                     |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | [0001](0001-build-a-standalone-library.md)                        | Build a standalone verification library                                                                                        | Accepted                                                                                   |

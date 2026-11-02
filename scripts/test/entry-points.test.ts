@@ -6,7 +6,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { AGENT, edit, makeFixture, read, README, removeFixture } from "./fixture.ts";
+import { AGENT, edit, makeFixture, read, README, removeFixture, writeFiles } from "./fixture.ts";
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_JSON = "packages/explorer-verify/package.json";
@@ -43,6 +43,18 @@ describe("check-agent-docs.ts", () => {
     assert.equal(result.stderr, "");
     assert.equal(result.status, 0);
     assert.match(result.stdout, /llms\.txt, 2 user pages and the links of 4 docs pages pass/);
+  });
+
+  it("checks the sources of decisions and research", () => {
+    const passing = run("check-agent-docs.ts", root);
+    assert.match(passing.stdout, /sources: 0 decision pages and 0 research pages pass/);
+    writeFiles(root, { "docs/contributor/decisions/0001-bare.md": "# 0001: Bare\n" });
+    const result = run("check-agent-docs.ts", root);
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /^docs\/contributor\/decisions\/0001-bare\.md: links no research note/m,
+    );
   });
 
   it("exits 1 and names the file and line of each problem", () => {

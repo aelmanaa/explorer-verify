@@ -16,6 +16,12 @@ Closes #
 
 <!-- Which user or contributor pages changed? New pages are linked from AGENTS.md and docs/README.md. Write "None" if nothing user- or contributor-visible changed. -->
 
+## Sources checklist
+
+<!-- Applies when the change adds or edits a decision record or a research note. -->
+
+- [ ] **Sources.** Each changed decision links its research or says `Research: none (maintainer choice).`; each factual claim in a changed research note names a URL and the date read, or the tool, version and date of a local run.
+
 ## Agent readiness checklist
 
 <!-- Applies when the change adds or changes a public function, error, CLI command or user page (R-AX, decision 0007). Keep the items that apply, tick them, and delete the rest. Name any R-AX requirement the change does not meet, and why, under "Requirements". -->

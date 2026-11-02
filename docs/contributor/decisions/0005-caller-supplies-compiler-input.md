@@ -7,6 +7,8 @@ Status: Accepted (2026-11-02)
 Compiling in the library would mean shipping or downloading solc, which is heavy in a browser and
 risks a build that differs from the deployed one. Teams that deploy already have their build output.
 
+Research: none (maintainer choice).
+
 ## Decision
 
 The library takes the Standard JSON input and the full compiler version as given. Where that input
