@@ -12,6 +12,7 @@ import type {
   ExplorerVerifyErrorOptions,
   Handle,
 } from "../../src/index.ts";
+import { assertLinear, assertSameCost } from "./linear.ts";
 
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -947,17 +948,51 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
 });
 
 describe("ExplorerVerifyError excerpts", () => {
-  it("cuts a 1 MB excerpt to 300 characters quickly", () => {
+  it("cuts a long excerpt to 300 characters, in linear time", () => {
     const body = "0x" + "6080604052".repeat(100_000);
-    const start = performance.now();
     const error = new ExplorerVerifyError(
       { code: "unexpected-response", backend: "sourcify", status: 500, excerpt: body },
       "m",
       { secrets: [DUMMY_KEY] },
     );
-    assert.ok(performance.now() - start < 100);
     assert.ok(error.details.code === "unexpected-response");
     assert.equal(error.details.excerpt, body.slice(0, 300));
+    assertLinear(
+      "excerpt",
+      (size) => "6080604052".repeat(size / 10),
+      (excerpt) =>
+        new ExplorerVerifyError(
+          { code: "unexpected-response", backend: "sourcify", status: 500, excerpt },
+          "m",
+          { secrets: [DUMMY_KEY] },
+        ),
+    );
+  });
+
+  // 256 KB of lines full of `@`: 999-character lines cost the same as 63-character lines only when
+  // the frame check is linear in the line length.
+  const SIZE = 1 << 18;
+  const lines = (length: number): string => `${"@".repeat(length - 1)}\n`.repeat(SIZE / length);
+
+  it("copies a cause whose stack is full of long @ lines as fast as short ones", () => {
+    assertSameCost("cause stack", lines(63), lines(999), (stack) => {
+      const cause = new Error("m");
+      cause.stack = stack;
+      return new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    });
+  });
+
+  it("copies a cause whose message is full of long @ lines as fast as short ones", () => {
+    assertSameCost(
+      "cause message",
+      lines(63),
+      lines(999),
+      (message) =>
+        new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+          cause: new Error(message),
+          secrets: [],
+        }),
+    );
   });
 
   it("never shows part of a key that the redaction window cuts", () => {
@@ -1046,5 +1081,33 @@ describe("cancelled (R-AX-7)", () => {
     );
     assert.match(page, /^\| 130 +\| Cancelled +\| `cancelled`/m);
     assert.match(page, /The CLI creates this error/);
+  });
+});
+
+/** A V8 stack frame line of exactly `length` characters. */
+function frame(length: number): string {
+  return `    at f (${"x".repeat(length - 15)}:1:1)`;
+}
+
+describe("ExplorerVerifyError bounds", () => {
+  it("turns a handle address that is not a string into 0x, without calling its toString", () => {
+    for (const address of [5, { toString: () => `0x${DUMMY_KEY}` }]) {
+      const bad = handle();
+      Reflect.set(bad, "address", address);
+      const error = new ExplorerVerifyError({ code: "job-not-found", handle: bad }, "m", {
+        secrets: [],
+      });
+      assert.ok(error.details.code === "job-not-found");
+      assert.equal(error.details.handle.address, "0x");
+    }
+  });
+
+  it("keeps a cause stack frame line of 1000 characters and drops one of 1001", () => {
+    assert.equal(frame(1_000).length, 1_000);
+    const cause = new Error("boom");
+    cause.stack = ["Error: boom", frame(1_000), frame(1_001)].join("\n");
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    assert.deepEqual(error.cause.stack?.split("\n"), ["Error: boom", frame(1_000)]);
   });
 });

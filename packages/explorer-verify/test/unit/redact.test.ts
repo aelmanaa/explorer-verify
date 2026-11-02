@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import type { Logger } from "../../src/index.ts";
 import {
+  EXCERPT_MARGIN,
   MIN_SECRET_LENGTH,
   REDACTED,
   REDACTION_PATTERNS,
@@ -10,6 +11,7 @@ import {
   redactExcerpt,
   redactingLogger,
 } from "../../src/redact.ts";
+import { assertLinear } from "./linear.ts";
 
 // Fake keys. Never real ones (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -249,54 +251,47 @@ describe("redact: bare Etherscan-style keys", () => {
   });
 });
 
-// The fastest of three runs, so another test process on the same machine cannot fail the check.
-function fastest(run: () => void): number {
-  let best = Number.POSITIVE_INFINITY;
-  for (let round = 0; round < 3; round++) {
-    const start = performance.now();
-    run();
-    best = Math.min(best, performance.now() - start);
-  }
-  return best;
-}
 describe("redact: linear time on adversarial input (R-SEC-1)", () => {
-  const adversarial: [string, string][] = [
-    ["hex", `0x${"6080604052a1b2c3d4e5f6".repeat(MB / 22)}`],
-    ["upper hex", "ABCDEF0123456789".repeat(MB / 16)],
-    ["a", "a".repeat(MB)],
-    ["https:// + x", `https://${"x".repeat(MB)}`],
-    ["a://", "a://".repeat(MB / 4)],
-    ["a.a", "a.".repeat(MB / 2)],
-    ["&key=", "&key=".repeat(MB / 5)],
-    ["&apikey", "&apikey".repeat(MB / 7)],
-    ["apikey + spaces", `apikey${" ".repeat(MB)}`],
-    ["%", "%".repeat(MB)],
-    ["%26key%3D", "%26key%3D".repeat(MB / 9)],
-    ["%2525", `%${"25".repeat(MB / 2)}`],
-    ["bearer ", "bearer ".repeat(MB / 7)],
-    ["bearer + spaces", `bearer${" ".repeat(MB)}`],
-    ['"apikey":"', `"apikey":"${"x".repeat(MB)}`],
-    ["\\n", String.raw`\n`.repeat(MB / 2)],
+  // Each input, built at a given size. Linear code takes about 16 times as long on 1 MB as on
+  // 64 KB; quadratic code takes about 256 times as long.
+  const adversarial: [string, (size: number) => string][] = [
+    ["hex", (size) => `0x${"6080604052a1b2c3d4e5f6".repeat(size / 22)}`],
+    ["upper hex", (size) => "ABCDEF0123456789".repeat(size / 16)],
+    ["a", (size) => "a".repeat(size)],
+    ["https:// + x", (size) => `https://${"x".repeat(size)}`],
+    ["a://", (size) => "a://".repeat(size / 4)],
+    ["a.a", (size) => "a.".repeat(size / 2)],
+    ["&key=", (size) => "&key=".repeat(size / 5)],
+    ["&apikey", (size) => "&apikey".repeat(size / 7)],
+    ["apikey + spaces", (size) => `apikey${" ".repeat(size)}`],
+    ["%", (size) => "%".repeat(size)],
+    ["%26key%3D", (size) => "%26key%3D".repeat(size / 9)],
+    ["%2525", (size) => `%${"25".repeat(size / 2)}`],
+    ["bearer ", (size) => "bearer ".repeat(size / 7)],
+    ["bearer + spaces", (size) => `bearer${" ".repeat(size)}`],
+    ['"apikey":"', (size) => `"apikey":"${"x".repeat(size)}`],
+    ["\\n", (size) => String.raw`\n`.repeat(size / 2)],
+    ["@ lines", (size) => `${"@".repeat(998)}\n`.repeat(size / 999)],
   ];
 
-  it("runs every pattern on every 1 MB adversarial input in under 100 ms", () => {
+  it("runs every pattern in linear time on every adversarial input", () => {
     for (const { pattern, replacement } of REDACTION_PATTERNS) {
-      for (const [name, text] of adversarial) {
-        const took = fastest(() => text.replace(pattern, replacement));
-        assert.ok(took < 100, `${pattern.source.slice(0, 40)} on ${name}: ${took.toFixed(0)} ms`);
+      for (const [name, make] of adversarial) {
+        assertLinear(`${pattern.source.slice(0, 40)} on ${name}`, make, (text) =>
+          text.replace(pattern, replacement),
+        );
       }
     }
   });
 
-  const inputs: [string, string][] = [
-    ["1 MB of hex", `0x${"6080604052a1b2c3d4e5f6".repeat(MB / 22)}`],
-    ["1 MB of a", "a".repeat(MB)],
-    ["https:// and 1 MB of x", `https://${"x".repeat(MB)}`],
+  const inputs: [string, (size: number) => string][] = [
+    ["hex", (size) => `0x${"6080604052a1b2c3d4e5f6".repeat(size / 22)}`],
+    ["a", (size) => "a".repeat(size)],
+    ["https:// and x", (size) => `https://${"x".repeat(size)}`],
   ];
-  for (const [name, text] of inputs) {
-    it(`redacts ${name} in under 100 ms`, () => {
-      const took = fastest(() => redact(text, [DUMMY_KEY]));
-      assert.ok(took < 100, `${took.toFixed(0)} ms`);
+  for (const [name, make] of inputs) {
+    it(`redacts ${name} in linear time`, () => {
+      assertLinear(name, make, (text) => redact(text, [DUMMY_KEY]));
     });
   }
 });
@@ -415,5 +410,125 @@ describe("redactingLogger (R-SEC-1)", () => {
     };
     redactingLogger(logger).debug("x");
     assert.equal(boundToLogger, true);
+  });
+});
+
+describe("redactExcerpt: window bounds (R-SEC-1)", () => {
+  it("never shows part of a long URL password cut at the window end", () => {
+    for (let pad = 0; pad <= 727; pad++) {
+      const text = `${`${BARE_KEY} `.repeat(17)}${"z".repeat(pad)} https://u:${"p".repeat(200)}@h.example/`;
+      const out = redactExcerpt(text, [], 300);
+      assert.doesNotMatch(out, /pppp/, `pad ${String(pad)}`);
+    }
+  });
+
+  it("never shows part of a bare key cut at the window end", () => {
+    const out = redactExcerpt(`${BARE_KEY} `.repeat(100), [], 300);
+    assert.doesNotMatch(out, /[A-Z0-9]{4,}/);
+  });
+
+  it("never shows part of a long known secret cut at the window end", () => {
+    const secret = "S".repeat(200);
+    assert.equal(redactExcerpt(secret.repeat(10), [secret], 10), "");
+    // A secret longer than the margin: the tail must grow with it.
+    const longer = "S".repeat(400);
+    assert.doesNotMatch(redactExcerpt(longer.repeat(10), [longer], 300), /S/);
+  });
+
+  it("gives an empty excerpt, not the start of the text, when the cut is negative", () => {
+    const secret = "S".repeat(100);
+    for (let pad = 0; pad < 400; pad++) {
+      const out = redactExcerpt("z".repeat(pad) + secret.repeat(10), [secret], 10);
+      assert.doesNotMatch(out, /S/, String(pad));
+    }
+  });
+
+  it("never shows part of a URL-encoded non-ASCII secret cut at the window end", () => {
+    const secret = "€€€€€€€€";
+    assert.equal(encodeURIComponent(secret).length, 72);
+    const out = redactExcerpt(encodeURIComponent(secret).repeat(40), [secret], 10);
+    assert.doesNotMatch(out, /%E2/);
+  });
+});
+
+describe("redact: known secrets in any case, Unicode included (R-SEC-1)", () => {
+  it("replaces a secret whose upper-case and lower-case forms differ in length or letter", () => {
+    assert.equal(redact("x ABCDEFGΣX y", ["ABCDEFGΣ"]), `x ${R}X y`);
+    assert.equal(redact("x abcdefgς y", ["ABCDEFGΣ"]), `x ${R} y`);
+  });
+
+  it("matches regex metacharacters in a known secret only as themselves", () => {
+    assert.equal(redact("abcXdefgh abc.defgh", ["abc.defgh"]), `abcXdefgh ${R}`);
+  });
+});
+
+describe("redact: pattern bounds", () => {
+  it("redacts a bearer token after a tab", () => {
+    assert.equal(redact("Bearer\tabcdefgh12"), `Bearer\t${R}`);
+  });
+
+  it("accepts up to 16 spaces around the colon after apikey, not 17", () => {
+    const s16 = " ".repeat(16);
+    assert.equal(redact(`apikey${s16}:${s16}v4lue1`), `apikey${s16}:${s16}${R}`);
+    const s17 = " ".repeat(17);
+    assert.equal(redact(`apikey${s17}: v4lue1`), `apikey${s17}: v4lue1`);
+  });
+
+  it("accepts up to 16 spaces around the colon of a JSON apiKey member", () => {
+    const s16 = " ".repeat(16);
+    assert.equal(redact(`{"apiKey"${s16}:${s16}"v4lue1"}`), `{"apiKey"${s16}:${s16}"${R}"}`);
+  });
+
+  it("accepts a URL scheme of up to 32 characters, not 33", () => {
+    const scheme = `a${"b".repeat(31)}`;
+    assert.equal(redact(`${scheme}://u:p@h`), `${scheme}://${R}@h`);
+    const longer = `a${"b".repeat(32)}`;
+    assert.equal(redact(`${longer}://u:p@h`), `${longer}://u:p@h`);
+  });
+
+  it("accepts URL user info of up to 256 characters, not 257", () => {
+    const userinfo = "u".repeat(256);
+    assert.equal(redact(`https://${userinfo}@h`), `https://${R}@h`);
+    const longer = "u".repeat(257);
+    assert.equal(redact(`https://${longer}@h`), `https://${longer}@h`);
+  });
+
+  it("redacts a bearer token of 8 characters after 16 spaces, and keeps one of 7", () => {
+    assert.equal(redact(`bearer${" ".repeat(16)}abcdefgh`), `bearer${" ".repeat(16)}${R}`);
+    assert.equal(redact("Bearer abcdefgh"), `Bearer ${R}`);
+    assert.equal(redact("Bearer abcdefg"), "Bearer abcdefg");
+  });
+
+  it("redacts a bare key whose only letter or only digit is last", () => {
+    assert.equal(redact(`${"1".repeat(33)}A`), R);
+    assert.equal(redact(`${"A".repeat(33)}1`), R);
+  });
+
+  it("redacts every apikey parameter, JSON member and bare key", () => {
+    assert.equal(redact("apikey=v4lue1&apikey=v4lue2"), `apikey=${R}&apikey=${R}`);
+    assert.equal(
+      redact('{"apiKey":"v1","b":{"apiKey":"v2"}}'),
+      `{"apiKey":"${R}","b":{"apiKey":"${R}"}}`,
+    );
+    assert.equal(redact(`${BARE_KEY} ${BARE_KEY}`), `${R} ${R}`);
+  });
+});
+
+describe("redactExcerpt: window size", () => {
+  it("covers URL user info, the longest bounded pattern span", () => {
+    assert.equal(EXCERPT_MARGIN, 32 + "://".length + 256 + "@".length);
+  });
+
+  it("redacts a text exactly as long as the window whole, without dropping a tail", () => {
+    const window = 2 * (300 + EXCERPT_MARGIN);
+    // Redaction shrinks the window below 300 plus the tail, so dropping a tail would show.
+    const start = `${BARE_KEY} `.repeat(33);
+    const text = start + "z".repeat(window - start.length);
+    assert.equal(text.length, window);
+    const whole = redact(text);
+    assert.ok(whole.length - EXCERPT_MARGIN < 300);
+    assert.equal(redactExcerpt(text, [], 300), whole.slice(0, 300));
+    const longer = `${text}z`;
+    assert.equal(redactExcerpt(longer, [], 300), whole.slice(0, whole.length - EXCERPT_MARGIN));
   });
 });

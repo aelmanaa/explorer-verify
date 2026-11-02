@@ -24,6 +24,19 @@ const VALUE = String.raw`(?:[^%&#;\s"'<>\\]|%(?!(?:25)*(?:26|23|3b|22|27|20))(?:
 // `=`, raw or percent-encoded any number of times.
 const EQUALS = "(?:=|%(?:25)*3d)";
 
+// The bounds of the patterns below. The excerpt margin is derived from them, so they cannot drift.
+// The most spaces or tabs around `:` or `=`, and after `bearer`.
+const SPACING = 16;
+// The longest URL scheme, such as `https`.
+const SCHEME = 32;
+// The longest URL user info, `user:password`.
+const USERINFO = 256;
+// The fewest characters of a bearer token.
+const BEARER_TOKEN = 8;
+// The length of a bare Etherscan-style key.
+const BARE_KEY = 34;
+const JSON_NAME = '"x-api-key"';
+
 /**
  * The redaction patterns, in the order they run. A pattern runs only when the lower-cased text
  * holds one of its `needs` (or always, when `needs` is empty), so text with nothing to redact,
@@ -38,7 +51,7 @@ export const REDACTION_PATTERNS: readonly {
   // `apikey`, `api_key`, `api-key` and `x-api-key`, followed by `=`, or by `:` with spaces.
   {
     pattern: new RegExp(
-      String.raw`${NAME_START}((?:x-)?api[_-]?key(?:[ \t]{0,16}[:=][ \t]{0,16}|%(?:25)*3d))${VALUE}`,
+      String.raw`${NAME_START}((?:x-)?api[_-]?key(?:[ \t]{0,${String(SPACING)}}[:=][ \t]{0,${String(SPACING)}}|%(?:25)*3d))${VALUE}`,
       "gi",
     ),
     replacement: `$1${REDACTED}`,
@@ -55,27 +68,38 @@ export const REDACTION_PATTERNS: readonly {
   },
   // A JSON member such as `"apiKey": "..."`.
   {
-    pattern: /("(?:x-)?api[_-]?key"[ \t]{0,16}:[ \t]{0,16}")[^"\\]*/gi,
+    pattern: new RegExp(
+      String.raw`("(?:x-)?api[_-]?key"[ \t]{0,${String(SPACING)}}:[ \t]{0,${String(SPACING)}}")[^"\\]*`,
+      "gi",
+    ),
     replacement: `$1${REDACTED}`,
     needs: ["key"],
   },
   // The user name and password of a URL, such as `https://user:pass@host`. The scheme starts at
   // most once per URL and both parts are bounded.
   {
-    pattern: /(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,31}:\/\/)[^/\s?#@]{1,256}@/gi,
+    pattern: new RegExp(
+      String.raw`(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,${String(SCHEME - 1)}}:\/\/)[^/\s?#@]{1,${String(USERINFO)}}@`,
+      "gi",
+    ),
     replacement: `$1${REDACTED}@`,
     needs: ["://"],
   },
   // An HTTP bearer token. The value must look like a token, so "bearer of bad news" stays.
   {
-    pattern: /(?<![A-Za-z0-9])(bearer[ \t]{1,16})[A-Za-z0-9._~+/=-]{8,}/gi,
+    pattern: new RegExp(
+      String.raw`(?<![A-Za-z0-9])(bearer[ \t]{1,${String(SPACING)}})[A-Za-z0-9._~+/=-]{${String(BEARER_TOKEN)},}`,
+      "gi",
+    ),
     replacement: `$1${REDACTED}`,
     needs: ["bearer"],
   },
   // A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
   {
-    pattern:
-      /(?<![A-Za-z0-9])(?=[A-Z0-9]{0,33}[A-Z])(?=[A-Z0-9]{0,33}[0-9])[A-Z0-9]{34}(?![A-Za-z0-9])/g,
+    pattern: new RegExp(
+      String.raw`(?<![A-Za-z0-9])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[A-Z])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[0-9])[A-Z0-9]{${String(BARE_KEY)}}(?![A-Za-z0-9])`,
+      "g",
+    ),
     replacement: REDACTED,
     needs: [],
   },
@@ -93,15 +117,16 @@ function forms(secret: string): string[] {
 }
 
 /**
- * One pattern that matches every form of every known secret that `lower` holds, longest first,
- * in any case.
+ * One pattern that matches every form of every known secret that `upper` holds, longest first,
+ * in any case. The check upper-cases both sides, as the `i` flag does character by character;
+ * lower-casing would differ, for example on a Greek final sigma.
  */
-function secretPattern(secrets: readonly string[], lower: string): RegExp | undefined {
+function secretPattern(secrets: readonly string[], upper: string): RegExp | undefined {
   const all = new Set<string>();
   for (const secret of secrets) {
     if (secret.length >= MIN_SECRET_LENGTH) {
       for (const form of forms(secret)) {
-        if (lower.includes(form.toLowerCase())) {
+        if (upper.includes(form.toUpperCase())) {
           all.add(form);
         }
       }
@@ -138,13 +163,15 @@ function secretPattern(secrets: readonly string[], lower: string): RegExp | unde
  * ```
  */
 export function redact(text: string, secrets: readonly string[] = []): string {
-  let lower = text.toLowerCase();
-  const known = secretPattern(secrets, lower);
+  const known = secretPattern(secrets, text.toUpperCase());
+  const result = known === undefined ? text : text.replace(known, REDACTED);
+  return redactPatterns(result);
+}
+
+/** `text` with every pattern in {@link REDACTION_PATTERNS} applied. */
+function redactPatterns(text: string): string {
+  const lower = text.toLowerCase();
   let result = text;
-  if (known !== undefined) {
-    result = text.replace(known, REDACTED);
-    lower = result.toLowerCase();
-  }
   for (const { pattern, replacement, needs } of REDACTION_PATTERNS) {
     if (needs.length === 0 || needs.some((need) => lower.includes(need))) {
       result = result.replace(pattern, replacement);
@@ -153,13 +180,26 @@ export function redact(text: string, secrets: readonly string[] = []): string {
   return result;
 }
 
-// Covers a pattern-based secret, such as a bare 34-character key, cut at the end of the window.
-const EXCERPT_MARGIN = 64;
+/**
+ * The longest text a pattern can need to see before it matches. When the excerpt window ends
+ * inside such a text, the part before the cut stays unredacted, so the excerpt drops this many
+ * characters from the window's end. The longest is URL user info: the scheme, `://`, the user
+ * name and password, and `@`.
+ */
+export const EXCERPT_MARGIN: number = Math.max(
+  SCHEME + "://".length + USERINFO + "@".length,
+  "bearer".length + SPACING + BEARER_TOKEN,
+  JSON_NAME.length + SPACING + ":".length + SPACING + '"'.length,
+  BARE_KEY + 1,
+);
 
 /**
  * The first `length` characters of `text`, redacted. Only a window of `text` is redacted, so a
  * long answer costs no more than a short one. Redaction runs before the final cut, and the
- * window's last part is dropped, so a cut can never leave part of a key behind.
+ * window's last part, as long as the longest known secret plus {@link EXCERPT_MARGIN}, is
+ * dropped. So the excerpt never shows part of a known secret or of a text that a pattern would
+ * have redacted in the full answer. A key with no pattern, such as a key in a URL path that the
+ * caller did not pass, is not covered.
  *
  * @param text - An explorer's answer, of any length.
  * @param secrets - Key values known to the caller.

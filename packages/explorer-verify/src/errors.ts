@@ -506,11 +506,20 @@ function primitive(value: unknown, secrets: readonly string[]): string | number 
   return typeof value === "number" ? value : undefined;
 }
 
-// A stack frame line: V8's `    at fn (file:1:2)`, or `fn@file:1:2` in Firefox and Safari.
+// A stack frame line: V8's `    at fn (file:1:2)`, or `fn@file:1:2` in Firefox and Safari. The
+// Firefox check is a line-end pattern plus `includes("@")`: a pattern such as `@.*:\d+:\d+$` takes
+// time quadratic in the line length on a line full of `@`.
 const V8_FRAME = /^\s+at /;
-const AT_FRAME = /@.*:\d+:\d+$/;
-// Longer lines are not frames; the limit also bounds the frame check.
+const LINE_AND_COLUMN = /:\d+:\d+$/;
+// Longer lines are not frames.
 const FRAME_LENGTH = 1_000;
+
+function isFrame(line: string): boolean {
+  return (
+    line.length <= FRAME_LENGTH &&
+    (V8_FRAME.test(line) || (LINE_AND_COLUMN.test(line) && line.includes("@")))
+  );
+}
 
 /**
  * The copy's stack: its own redacted `name: message` header, then the frame lines of the original
@@ -519,9 +528,7 @@ const FRAME_LENGTH = 1_000;
  */
 function stackOf(copy: Error, stack: string, secrets: readonly string[]): string {
   const header = copy.message === "" ? copy.name : `${copy.name}: ${copy.message}`;
-  const frames = stack
-    .split("\n")
-    .filter((line) => line.length <= FRAME_LENGTH && (V8_FRAME.test(line) || AT_FRAME.test(line)));
+  const frames = stack.split("\n").filter((line) => isFrame(line));
   return [header, ...frames.map((line) => redact(line, secrets))].join("\n");
 }
 
