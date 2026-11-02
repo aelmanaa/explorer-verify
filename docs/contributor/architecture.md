@@ -63,19 +63,20 @@ interface Backend {
 }
 ```
 
-`Context` carries `fetch`, `AbortSignal`, the API key (when the backend needs one), a logger and
-the route. A `Handle` is plain JSON (version, backend name, chain id, address, explorer job id) so
-`checkStatus` can resume it in another process. It carries no URL.
+`Context` carries `fetch`, `AbortSignal`, the API key (when the backend needs one), a logger, the
+event callback and the route. A `Handle` is plain JSON (version, backend name, chain id, address,
+explorer job id) so `checkStatus` can resume it in another process. It carries no URL.
 
 ## Public entry points
 
-Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
+Decided in [decision 0009](decisions/0009-options-handle-and-errors.md); the logging parts are
+amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-default.md).
 
 - `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
   `checkStatus(handle: Handle, options?: VerifyOptions): Promise<VerifyResult>`.
 - `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
-  `pollIntervalMs`, `logger` and `route`. Every field is optional. M2 adds `apiKeys`, keyed by
-  backend name, and `rpcUrl`.
+  `pollIntervalMs`, `logger`, `onEvent` and `route`. Every field is optional. M2 adds `apiKeys`,
+  keyed by backend name, and `rpcUrl`.
 - `Handle` is `{ version: 1, backend, chainId, address, jobId }`: plain JSON with no URL.
   `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
   handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.
@@ -89,11 +90,45 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
 - A time budget that runs out after the explorer accepted the submission throws `not-confirmed`,
   whose `details.handle` `checkStatus` accepts. One that runs out before then throws a timeout error
   without a handle; its code arrives in #12, and the CLI maps it to exit code 5.
-- Abort rejects with `signal.reason` unchanged. `verify()` logs the handle through `logger.info` as
-  soon as the submit is accepted, so an aborted call can still be resumed.
+- Abort rejects with `signal.reason` unchanged. `verify()` emits a `verify.submitted` event with
+  the handle as soon as the submit is accepted, so an aborted call can still be resumed (R-DX-6).
 
 `types.ts` holds the option and handle types, `errors.ts` the error class, `flow/handle.ts`
 `parseHandle` and `input/validate.ts` `validateInput`. `verify` and `checkStatus` do not exist yet.
+
+## Logging and events
+
+Decided in [decision 0010](decisions/0010-logger-fields-events-and-silent-default.md). The core has
+two output channels, both optional and both off by default:
+
+- `logger` (R-DX-5): `debug`, `info`, `warn` and `error`, each `(message, fields?)` with flat
+  JSON-safe fields. Messages are diagnostics and may change in any release.
+- `onEvent` (R-DX-6): typed stage events with stable names, from `verify.validated` to
+  `verify.result`. `verify.submitted` carries the handle. Programs read events, not log text.
+
+Every value passes one redaction step before it leaves the core, whether it goes to the logger, to
+`onEvent`, into an `ExplorerVerifyError` or into a result. A failure the core throws is not also
+logged at `error`.
+
+The diagram shows where each output goes in the CLI.
+
+```mermaid
+flowchart LR
+  F[flow engine] --> R[redact]
+  R --> L[logger]
+  R --> E[onEvent]
+  R --> X[thrown error or result]
+  L --> S2[CLI: stderr, text or JSON Lines]
+  E --> S2
+  X --> S1[CLI: stdout, one envelope]
+```
+
+The core writes to no stream and reads no environment variable. The CLI turns `--quiet`,
+`--verbose`, `EXPLORER_VERIFY_LOG` and `--log-format` into a logger and an event callback that write
+to stderr (R-AX-14, R-AX-15), and prints the result or the error as one envelope on stdout
+(R-AX-5). A browser or server caller passes `console`, its own logger, or an `onEvent` that forwards
+to its telemetry. The core has no OpenTelemetry dependency; the event names follow OpenTelemetry's
+naming rules, so an `onEvent` callback can emit them as OpenTelemetry events.
 
 ## Routing in M1
 

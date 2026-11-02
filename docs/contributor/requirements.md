@@ -124,12 +124,43 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 ### Developer experience (R-DX)
 
 - **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`.
-  Its machine contract (JSON output, streams, exit codes, dry run, key input) is R-AX-5 to R-AX-12.
+  Its machine contract (JSON output, streams, exit codes, dry run, key input, progress, verbosity
+  and JSON input) is R-AX-5 to R-AX-12 and R-AX-14 to R-AX-16.
 - **R-DX-2** Build helpers that emit the Standard JSON input and full compiler version from Foundry
   (`out/` build-info) and Hardhat 3 (artifacts build-info).
 - **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
   The CLI and the library share the catalogue (R-AX-10).
 - **R-DX-4** TSDoc on every export, with an example that compiles.
+- **R-DX-5** `VerifyOptions.logger` takes four methods, `debug`, `info`, `warn` and `error`, each
+  `(message: string, fields?: LogFields) => void`. `LogFields` is a flat record whose values are
+  `string`, `number`, `boolean` or `null`, and `console` satisfies the type. Without a logger the
+  library writes nothing, in every runtime, and never calls `console` on its own. The library never
+  logs at `error` a failure it throws. Every message and field value passes the one redaction
+  step of decision 0010 first (R-SEC-1). Messages and field names are diagnostics and may change
+  in any release.
+- **R-DX-6** `VerifyOptions.onEvent` receives typed stage events, each a flat object with a `type`
+  and JSON-safe values. The types follow OpenTelemetry's event naming rules (lowercase,
+  dot-separated, no dynamic values):
+
+  | `type`             | Fields besides `type`                                       |
+  | ------------------ | ----------------------------------------------------------- |
+  | `verify.validated` | `chainId`, `address`                                        |
+  | `verify.routed`    | `backend`, `apiHost` (host only, no path or query)          |
+  | `verify.lookup`    | `backend`, `match`: `exact`, `partial`, `none` or `skipped` |
+  | `verify.submitted` | `backend`, `handle` in its one-line string form             |
+  | `verify.poll`      | `backend`, `attempt`, `state`                               |
+  | `verify.retry`     | `backend`, `attempt`, `reason`, `delayMs`                   |
+  | `verify.result`    | `backend`, `status`, and `match` when the status has one    |
+
+  `verify()` emits them in stage order and emits `verify.submitted` as soon as the explorer accepts
+  the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
+  `verify.poll`, `verify.retry` and `verify.result`. A call that throws emits no `verify.result`.
+  `verify.poll` `state` is one of `pending`, `queued` or `completed`; `verify.retry` `reason` is
+  one of `rate-limited`, `network`, `server-error` or `duplicate-submission`. An exception thrown
+  by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
+  outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
+  the same redaction step. Within a schema version, releases only add event types and fields.
+  `event.schema.json` ships with the package and lists `state` and `reason` as enums.
 
 ### Agent readiness (R-AX)
 
@@ -157,7 +188,8 @@ Docs:
 
 CLI:
 
-- **R-AX-5** `--json` on every command. The output is one versioned envelope, in one of three forms:
+- **R-AX-5** `--json` on every command. stdout holds exactly one versioned envelope for every exit
+  code, errors included, in one of three forms:
   - `{ "schemaVersion": 1, "ok": true, "result": ... }`
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
@@ -168,21 +200,41 @@ CLI:
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, changes
   only add fields. A JSON Schema for the envelope ships with the package.
 
-- **R-AX-6** stdout carries only the result, and progress and logs go to stderr. When stdout is not a
-  terminal, the CLI prints no colour, spinner or pager; it honours `NO_COLOR` always. The CLI never
-  prompts.
+  The CLI reads `--json` before it parses the other arguments, so a usage error still gives an
+  envelope with the code `invalid-input` and exit code 2. A `--json` after `--`, or given as the
+  value of another flag, does not count as the flag. A cancelled run (exit code 130) gives an
+  envelope whose `error` is the `toJSON()` of a `cancelled` error. `cancelled` is in the shared
+  catalogue with `retryable` false and its own errors-page entry, and carries a handle when the
+  explorer accepted a submission before the cancel; the CLI creates it and the core never throws
+  it (decision 0010). An unexpected exception inside the CLI gives an envelope with the code
+  `internal-error`: exit code 6, `retryable` false, no handle, a redacted message and the hint
+  "This is a bug in explorer-verify. Report it with the command you ran, without your API key."
+  The CLI issue (#7) adds `internal-error` to `ERROR_CODES` and to the errors page. stderr may
+  also carry a one-line human summary.
+
+- **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
+  colour, spinners and pagers per stream, from that stream's own terminal state:
+  - `--color=always` colours both streams; `--color=never` colours neither.
+  - Otherwise (`--color=auto`, the default), a non-empty `NO_COLOR` or `TERM=dumb` turns colour
+    off on both streams, and each stream is coloured only when it is a terminal.
+  - Spinners and line redraws appear only when stderr is a terminal, `CI` is unset or empty,
+    `--log-format` is `text` and `--quiet` is not set.
+  - A pager runs only when stdout is a terminal and `CI` is unset or empty.
+
+  The CLI never prompts.
+
 - **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
 
-  | Code | Meaning                                                                                                                                                   |
-  | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0    | `verified` or `already-verified`                                                                                                                          |
-  | 1    | `failed`: the explorer definitively rejected the submission                                                                                               |
-  | 2    | Usage or input error (bad flag, invalid input); nothing was sent                                                                                          |
-  | 3    | Missing, invalid or under-privileged API key                                                                                                              |
-  | 4    | Still pending at the time budget; the output carries the handle                                                                                           |
-  | 5    | Network or explorer unavailable after retries                                                                                                             |
-  | 6    | Unknown state: the explorer answered something the library cannot classify; the output carries the handle. Do not retry automatically; a person checks it |
-  | 130  | Cancelled                                                                                                                                                 |
+  | Code | Meaning                                                                                                                                                                                                                          |
+  | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0    | `verified` or `already-verified`                                                                                                                                                                                                 |
+  | 1    | `failed`: the explorer definitively rejected the submission                                                                                                                                                                      |
+  | 2    | Usage or input error (bad flag, invalid input); nothing was sent                                                                                                                                                                 |
+  | 3    | Missing, invalid or under-privileged API key                                                                                                                                                                                     |
+  | 4    | Still pending at the time budget; the output carries the handle                                                                                                                                                                  |
+  | 5    | Network or explorer unavailable after retries                                                                                                                                                                                    |
+  | 6    | `unknown-state`: the explorer answered something the library cannot classify; the output carries the handle. `internal-error`: an unexpected exception inside the CLI; no handle. Do not retry automatically; a person checks it |
+  | 130  | Cancelled                                                                                                                                                                                                                        |
 
   Every code in the error catalogue maps to one of these exit codes. `explorer-verify status <handle>`
   resumes a pending verification and uses the same codes (R-FLOW-5).
@@ -191,14 +243,56 @@ CLI:
   whether the contract is already verified, then stops before the submit. It needs no API key: when
   the route's backend requires a key and none is set, it skips the already-verified lookup and says
   so in the output.
-- **R-AX-9** Keys come from environment variables or `--api-key-file`, never from a flag value. Tests
-  assert that a dummy key never appears on stdout, on stderr or in JSON (extends R-SEC-1).
+- **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
+  a flag value. `--api-key-stdin` reads the key from stdin and trims one trailing newline. It
+  cannot be combined with `--input-json -` (exit code 2). When stdin is a terminal,
+  `--api-key-stdin` and `--input-json -` exit 2 at once instead of waiting. Until M2, a key given
+  this way applies to the Etherscan-family backend of the route; M2's key issue names the
+  per-backend keys. Tests assert that a dummy key never appears on stdout, on stderr
+  or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). An unknown command or flag suggests the single closest
   match.
 - **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
   the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
-- **R-AX-12** The same input gives the same output: stable key order, no timestamps unless requested.
+- **R-AX-12** The same input gives the same stdout: stable key order, no timestamps unless
+  requested. The rule covers stdout only; stderr progress and logs (R-AX-14) are not covered.
+- **R-AX-14** Progress goes to stderr, never to stdout. By default it is human-readable lines.
+  With `--log-format json` each stderr line is one JSON object with `schemaVersion`, `level`,
+  `message` and `type`: an R-DX-6 event type with that event's fields, or `log` with the logger's
+  fields. These four names and `fields` are reserved; an event or logger field with a reserved
+  name goes under a nested `fields` object, so a field named `fields` appears as
+  `fields.fields`. `schemaVersion` is the same as the envelope's (R-AX-5). A reader
+  parses the lines that start with `{`. The `verify.submitted` line, with the handle, prints at
+  level `info` or more verbose (R-AX-15).
+- **R-AX-15** A log level chooses what reaches stderr. `-q`/`--quiet` sets `error`, the default is
+  `info`, and `--verbose` sets `debug`:
+
+  | Mode        | Level   | stderr                                                                                  |
+  | ----------- | ------- | --------------------------------------------------------------------------------------- |
+  | `--quiet`   | `error` | Errors only                                                                             |
+  | Default     | `info`  | Errors, warnings, info logs, `verify.retry`, `verify.submitted` and `verify.result`     |
+  | `--verbose` | `debug` | Adds `verify.validated`, `verify.routed`, `verify.lookup`, `verify.poll` and debug logs |
+
+  Event lines take these levels: `verify.submitted` and `verify.result` are `info`,
+  `verify.retry` is `warn`, and every other event is `debug`. Levels `error` and `off` suppress
+  everything below `error`, the `verify.submitted` line included; `off` also suppresses errors on
+  stderr, while the stdout envelope is unchanged. `EXPLORER_VERIFY_LOG=debug|info|warn|error|off`
+  sets the level when no flag does; `warn` shows errors, warnings and `verify.retry`, without the
+  `verify.submitted` and `verify.result` lines. Any other value is ignored, with one `warn` line
+  on stderr that names the variable and never its value; the warning appears even when a flag
+  sets the level. `--quiet` with `--verbose` exits 2
+  (`invalid-input`). The CLI reads the variable; the core never reads the environment. stdout is
+  byte-identical at every level. `-v` is not bound.
+
+- **R-AX-16** `verify` and `status` accept `--input-json <file|->`: the whole request as JSON,
+  validated against a JSON Schema that ships with the package. Only these flags may accompany it:
+  `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
+  `--api-key-stdin` and `--timeout`. Any other request flag with it exits 2 (`invalid-input`).
+  Malformed JSON is `invalid-input`, exit code 2. Unknown properties are one `invalid-input`
+  issue with their count, never their names or values, as `parseHandle` does (decision 0009). The
+  schema has no key field, so a key never travels in the input. The package ships JSON Schemas for the input, the envelope (R-AX-5) and the
+  events (R-AX-14, R-DX-6).
 
 Measurement:
 
