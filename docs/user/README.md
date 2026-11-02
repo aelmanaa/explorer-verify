@@ -21,4 +21,6 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | `explanation/` | Background        | Match types (exact, partial, similar); Etherscan plans and attribution     |
 
 Each user page states the version it describes in a `Version:` line and links
-[llms.txt](../../llms.txt) near the top. The npm package ships these pages as `docs/`.
+[llms.txt](../../llms.txt) near the top. Once published, the npm package will ship these pages
+under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the
+installed version.

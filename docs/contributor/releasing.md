@@ -12,7 +12,9 @@ Copy the [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) release pipeline
 2. The maintainer pushes a GPG-signed `vX.Y.Z` tag.
 3. A release workflow packs the tarballs, checks them, and publishes with
    `npm publish --provenance` through npm trusted publishing (OIDC, no token), behind an approval
-   environment, first to the `beta` dist-tag.
+   environment, first to the `beta` dist-tag. The workflow runs `pnpm run pkg:check`, which builds
+   the package, before `npm publish`: the package has no `prepack` script, so the build copies the
+   user docs and `llms.txt` into it.
 4. A promote workflow moves `latest` to the same tarballs after a check.
 
 ## First publish

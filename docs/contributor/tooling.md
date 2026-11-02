@@ -45,23 +45,32 @@ the package's `repository` field. Link GitHub as `https://github.com/...`.
 `node scripts/check-agent-docs.ts` enforces requirements R-AX-1 to R-AX-3, and `pnpm run check`
 runs it. The rules live in `scripts/agent-docs.ts`. The check fails when:
 
-- `llms.txt` at the repository root lacks an H1, a summary blockquote (`> ...`) or an H2 section,
-  or holds a relative link;
-- a Markdown file under `docs/user/` is not listed in `llms.txt`, or `llms.txt` links a file in
-  this repository that does not exist;
-- `docs/user/guides/using-from-an-agent.md` is missing;
+- `llms.txt` at the repository root lacks an H1, a summary blockquote (`> ...`) before the first
+  section, or the sections `## User docs` and `## Contributor docs`;
+- `llms.txt` holds a relative link, or a link into this repository that is not a raw link to
+  `main`, leaves the repository or names a file that does not exist;
+- a Markdown file under `docs/user/` is not listed in `llms.txt`;
+- `docs/user/` holds a symbolic link;
+- `docs/user/guides/using-from-an-agent.md` is missing, or lacks one of the headings "Submit is
+  permanent", "Safe steps", "API keys" and "Etherscan plan rule";
 - a user page has no relative link to the root `llms.txt` in its first 10 lines;
 - a user page has no version line in its first 10 lines, or the line names another version than
   `packages/explorer-verify/package.json`;
 - a relative link in a Markdown file under `docs/` points to a missing file, or to a heading the
-  target file does not have. Anchors follow GitHub's slug rules: lower case, punctuation dropped,
-  each space a hyphen, `-1` and `-2` for repeated headings.
+  target file does not have.
 
-Links in `llms.txt` are absolute: `https://github.com/aelmanaa/explorer-verify/blob/main/<path>`.
+File names must match with the same case, so a link that works on macOS but not on Linux fails
+everywhere. Anchors follow GitHub's slug rules: the rendered heading text (emphasis markers and
+backticks dropped, entities decoded), lower case, punctuation other than `-` and `_` dropped, each
+space a hyphen without collapsing runs, and `-1`, `-2` for repeated headings. Setext headings
+count.
+
+Links in `llms.txt` are raw links, so an agent gets Markdown, not HTML:
+`https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/<path>`.
 
 ### Version line
 
-Each user page has this line, alone, within its first 10 lines:
+Each user page has this line, alone, within its first 10 lines and outside a code block:
 
 ```text
 Version: explorer-verify 0.0.0
@@ -73,18 +82,22 @@ version`, which sets the line on every user page. Do not edit the version by han
 
 ### Docs in the package
 
-The package's `build` script runs `scripts/package-docs.ts`. It copies `docs/user/` to
-`packages/explorer-verify/docs/` and writes `packages/explorer-verify/llms.txt` from the root one,
-with links to user pages made relative (`docs/<page>`). In the copied pages, a link inside
-`docs/user/` stays as written, a link to the root `llms.txt` points to the packaged one, and any
-other relative link becomes a GitHub URL. Both copies are build output and are gitignored. The
-`files` field of the package lists them.
+The package's `build` script runs `scripts/package-docs.ts`. It copies every file under
+`docs/user/` to `packages/explorer-verify/docs/` and writes `packages/explorer-verify/llms.txt`
+from the root one, with links to user pages made relative (`docs/<page>`). In the copied pages, a
+link inside `docs/user/` stays as written, a link to the root `llms.txt` points to the packaged
+one, and any other relative link becomes a raw GitHub URL. Both copies are build output and are
+gitignored. The `files` field of the package lists them.
 
-`pkg:check` runs `scripts/check-packed-files.ts`, which reads `npm pack --dry-run --json` and fails
-when the tarball lacks `llms.txt` or a user page under `docs/`.
+`pkg:check` runs `scripts/check-packed-files.ts`. It reads `npm pack --dry-run --json` and fails
+when the tarball lacks `llms.txt` or a file from `docs/user/`, or when a relative link in a packaged
+page or the packaged `llms.txt` points to a file that is not in the tarball.
 
 ## Tests for scripts
 
 Tests for the repository scripts live in `scripts/test/*.test.ts`. `pnpm run test:scripts` runs
-them, and `pnpm test` and `pnpm run test:unit` run them after the package tests. They build small
-fixture trees in a temporary folder. The coverage floor applies to the packages only.
+them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package tests. They build
+small fixture trees in a temporary folder, and run the entry points as child processes against
+them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts` and the three scripts that use
+it) with a 95% floor per file on lines, branches, functions and statements. The older scripts have
+no tests yet and are not in the coverage list; a script gets added when it gets tests.
