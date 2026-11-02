@@ -135,8 +135,14 @@ describe("checkDecisionSources", () => {
     });
 
     it("does not count a protocol-relative link", () => {
-      edit(root, BACKED, NOTE_LINK, "//example.com/docs/contributor/research/2026-01-01-topic.md");
+      // Without the guard, path.posix.join would resolve this into the research folder.
+      edit(root, BACKED, NOTE_LINK, "//../research/2026-01-01-topic.md");
       assertProblems(/0001-backed\.md: links no research note/);
+    });
+
+    it("still finds the none line after `<!--` in inline code", () => {
+      edit(root, CHOICE, NO_RESEARCH_LINE, `Comments start with \`<!--\`.\n\n${NO_RESEARCH_LINE}`);
+      assertProblems();
     });
 
     it("does not count the none line inside a fence", () => {
@@ -210,6 +216,18 @@ describe("checkDecisionSources", () => {
       assertProblems(
         /^docs\/contributor\/research\/2026-01-01-topic\.md: has no `## Sources` section/,
       );
+    });
+
+    it("still finds the Sources section after `<!--` in inline code", () => {
+      edit(root, NOTE, "## Sources", "Comments start with `<!--`.\n\n## Sources");
+      assertProblems();
+      edit(
+        root,
+        NOTE,
+        "- [Example docs](https://example.com/docs), read 2026-01-01.",
+        "- [Prior art](../prior-art.md), read 2026-01-01.",
+      );
+      assertProblems(/the `## Sources` section has no http or https URL/);
     });
 
     it("matches the Sources heading by case", () => {

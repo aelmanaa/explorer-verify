@@ -70,8 +70,10 @@ Source: [Sourcify API docs](https://docs.sourcify.dev/docs/api/). The v1 API was
 - Sourcify: the `language` field of the Standard JSON input accepts `Solidity`, `Vyper` and `Fe`
   (enum in the OpenAPI spec, version 2.1.0).
 - Blockscout hosted API: `action=verify_vyper_contract` takes `addressHash`, `name`,
-  `compilerVersion`, `contractSourceCode` and an optional `constructorArguments`. The docs confirm
-  only single-file Vyper on this route, and point to the per-instance API for Vyper Standard JSON.
+  `compilerVersion`, `contractSourceCode` and an optional `constructorArguments`. The
+  [docs](https://docs.blockscout.com/devs/verification/blockscout-smart-contract-verification-api)
+  confirm only single-file Vyper on this route, and point to the per-instance API for Vyper
+  Standard JSON.
 - Etherscan: the `codeformat` values in the verifysourcecode docs are `solidity-single-file` and
   `solidity-standard-json-input`; no Vyper value is listed there.
 

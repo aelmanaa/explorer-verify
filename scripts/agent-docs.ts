@@ -138,22 +138,29 @@ export function packageVersion(root: string): string {
  * whether the line starts inside a comment; the result says whether it ends inside one.
  */
 function blankComments(raw: string, open: boolean): { text: string; open: boolean } {
+  // Markers are searched in a copy with inline code spans blanked, so `<!--` in code opens nothing.
+  const masked = blankCode(raw);
   let text = "";
-  let rest = raw;
+  let from = 0;
   let inside = open;
-  while (rest !== "") {
+  while (from < raw.length) {
     const marker = inside ? "-->" : "<!--";
-    const at = rest.indexOf(marker);
+    const at = masked.indexOf(marker, from);
     if (at === -1) {
-      text += inside ? " ".repeat(rest.length) : rest;
+      text += inside ? " ".repeat(raw.length - from) : raw.slice(from);
       break;
     }
     const end = at + marker.length;
-    text += inside ? " ".repeat(end) : rest.slice(0, at) + " ".repeat(marker.length);
-    rest = rest.slice(end);
+    text += inside ? " ".repeat(end - from) : raw.slice(from, at) + " ".repeat(marker.length);
+    from = end;
     inside = !inside;
   }
   return { text, open: inside };
+}
+
+/** A line with its inline code spans blanked with spaces. */
+function blankCode(line: string): string {
+  return line.replace(/`[^`]*`/g, (span) => " ".repeat(span.length));
 }
 
 /**
@@ -179,11 +186,7 @@ export function forEachProseLine(
     const raw = blanked.text;
     const marker = FENCE.exec(raw)?.[1];
     if (marker === undefined) {
-      visit(
-        raw.replace(/`[^`]*`/g, (span) => " ".repeat(span.length)),
-        index,
-        raw,
-      );
+      visit(blankCode(raw), index, raw);
     } else {
       fence = marker;
     }

@@ -8,7 +8,8 @@ Every target explorer verifies Solidity from Standard JSON input. Vyper support 
 explorer, and zkSync uses its own compiler. The maintainer wants to start with Solidity and add
 others later without breaking callers.
 
-Research: [explorer verification APIs](../research/2026-11-02-explorer-apis.md).
+Research:
+[explorer verification APIs](../research/2026-11-02-explorer-apis.md#languages-other-than-solidity).
 
 ## Decision
 

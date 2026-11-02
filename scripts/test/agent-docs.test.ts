@@ -127,6 +127,15 @@ describe("checkAgentDocs", () => {
       assertProblems(/no section `## Contributor docs`/);
     });
 
+    it("still checks links after `<!--` in inline code", () => {
+      edit(root, "llms.txt", "## User docs\n", "## User docs\n\nComments start with `<!--`.\n");
+      edit(root, "llms.txt", `${RAW_MAIN}${README}`, README);
+      assertProblems(
+        /^llms\.txt:9: link docs\/user\/README\.md is relative/,
+        /does not list docs\/user\/README\.md/,
+      );
+    });
+
     it("fails on a relative link", () => {
       edit(root, "llms.txt", `${RAW_MAIN}${README}`, README);
       assertProblems(
@@ -299,6 +308,19 @@ describe("checkAgentDocs", () => {
   describe("relative links under docs/", () => {
     const NOTES = "docs/contributor/notes.md";
 
+    it("still checks links after `<!--` in inline code in a user page", () => {
+      edit(
+        root,
+        README,
+        "See [the agent page]",
+        "Comments start with `<!--`.\n\nSee [the agent page]",
+      );
+      edit(root, README, "../../AGENTS.md", "../../MISSING.md");
+      assertProblems(
+        /^docs\/user\/README\.md:9: link \.\.\/\.\.\/MISSING\.md points to MISSING\.md, which does not exist$/,
+      );
+    });
+
     it("fails on a link to a missing file", () => {
       edit(root, NOTES, "requirements.md", "roadmap.md");
       assertProblems(
@@ -450,6 +472,13 @@ describe("headings and anchors", () => {
       ],
     );
     assert.deepEqual(headings(text), []);
+  });
+
+  it("rewrites a link after `<!--` in inline code", () => {
+    assert.equal(
+      rewriteForPackage(README, "Use `<!--`.\n[y](../../AGENTS.md)"),
+      `Use \`<!--\`.\n[y](${RAW_MAIN}AGENTS.md)`,
+    );
   });
 
   it("keeps the comments of a page it rewrites for the package", () => {
