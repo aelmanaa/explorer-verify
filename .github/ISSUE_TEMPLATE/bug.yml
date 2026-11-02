@@ -1,0 +1,51 @@
+name: Bug report
+description: Something verifies wrongly, fails, or reports the wrong result.
+labels: ["type:bug", "status:needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got. Paste the result object or error.
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Explorer backend
+      options:
+        [
+          Etherscan v2,
+          Blockscout,
+          Sourcify,
+          Routescan,
+          Another Etherscan-style explorer,
+          Not backend-specific,
+        ]
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Where it runs
+      options: [Browser, Node.js backend, Edge runtime, CLI, Other]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: explorer-verify, Node.js or browser, and the compiler version of the contract.
+      placeholder: explorer-verify 0.1.0, Node.js 24.16.0, solc 0.8.24
+    validations:
+      required: true
+  - type: input
+    id: chain
+    attributes:
+      label: Chain and contract
+      description: Chain id and the contract address on a public explorer, if you can share it.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest code that shows the problem. Never paste API keys.

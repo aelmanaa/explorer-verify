@@ -1,0 +1,175 @@
+# Requirements
+
+Audience: contributors and agents planning or reviewing work. Each requirement has a stable ID. Cite
+it in issues, pull requests and test names (`R-FLOW-3`). Change a requirement in the same pull
+request that changes the behaviour, and record a reversal as a decision.
+
+Status of the whole set: drafted 2026-11-02 from two working implementations
+([prior-art.md](prior-art.md)) and the research in [research/](research/README.md). Nothing is
+implemented yet.
+
+## Problem
+
+A team that deploys contracts from a dapp, a backend service or a script wants the source verified on
+the chain's block explorer right after the deployment. Today the options are tied to a deploy tool:
+`forge verify-contract`, `@nomicfoundation/hardhat-verify` and `@rocketh/verifier` run on Node inside
+their tool, and thirdweb's `verifyContract` needs compiler metadata pinned on IPFS and a thirdweb
+client. No library takes a contract's compiler input and verifies it on every explorer from any
+JavaScript runtime. See [research/2026-11-02-landscape.md](research/2026-11-02-landscape.md).
+
+Explorers already verify repeat deployments of identical bytecode on their own (Etherscan Similar
+Match, Blockscout's bytecode database, Sourcify similarity). This library targets what that does not
+cover: exact or full matches with constructor arguments, the first deployment of a contract or a new
+version on each chain, explorers without automatic matching, and one result format across explorers.
+
+## Users
+
+| User                                      | Runtime                                  | Example                                                                       |
+| ----------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| Dapp that deploys contracts for its users | Browser, with or without its own backend | Token launcher, pool factory UI                                               |
+| Backend service that deploys contracts    | Node or an edge runtime                  | Deployment pipeline, custody platform                                         |
+| Developer or CI job                       | CLI                                      | Verify after `forge create` or a script deploy                                |
+| SDK that ships contract artifacts         | Any                                      | A protocol SDK that deploys its own contracts and wants one-call verification |
+
+## Scope
+
+In scope for 1.0: Solidity contracts on EVM chains, verified on Etherscan v2, Etherscan-compatible
+standalone explorers, Blockscout, Sourcify and Routescan.
+
+Out of scope for 1.0, with the design kept open for them (R-EXT): Vyper and other compilers,
+non-EVM chains, zkSync's zksolc, compiling sources inside the library.
+
+## Functional requirements
+
+### Inputs (R-IN)
+
+- **R-IN-1** The caller passes the chain id, the contract address, the fully qualified contract name
+  (`path:Name`), the compiler version (full form, `0.8.24+commit.e11b9ed9`) and the compiler's
+  Standard JSON input.
+- **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
+  (decision 0005). A build helper (R-DX-2) makes it easy to produce.
+- **R-IN-3** Constructor arguments are optional. When absent, the library derives them from the
+  creation code: it fetches the creation transaction input through a JSON-RPC URL or the explorer, and removes the
+  compiled creation bytecode from its start; the remainder is the ABI-encoded arguments. When the caller supplies them, they win.
+- **R-IN-4** Library link addresses are accepted for contracts that use external libraries.
+- **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
+  metadata hash in the deployed bytecode and fetches sources from Sourcify or an IPFS gateway.
+  Resolvers are pluggable (R-EXT-2).
+- **R-IN-6** Input is validated before any request: address format, chain id, name present in the
+  Standard JSON, version format. Validation errors name the field.
+
+### Backends (R-BE)
+
+- **R-BE-1** Etherscan API v2: one endpoint for every chain it covers, `chainid` per request, API key
+  required.
+- **R-BE-2** Etherscan-compatible standalone explorers (their own host, Etherscan request format).
+- **R-BE-3** Blockscout: per-instance `/api` (Etherscan-compatible) and the v2 REST standard-input
+  endpoint; the hosted multichain API with a key.
+- **R-BE-4** Sourcify API v2 (`/v2/verify/{chainId}/{address}`, job polling, `/v2/contract/...`
+  lookup). No key.
+- **R-BE-5** Routescan (Etherscan-compatible host per network).
+- **R-BE-6** Each backend is a separate module with the same interface (architecture.md), so a new
+  backend is one new module plus routing-table rows.
+
+### Routing (R-RT)
+
+- **R-RT-1** A routing table maps a chain id to its backend(s), API URL and explorer URL. It is data
+  (JSON), versioned with the package, and covers at least the 60 chains the prior art routes to a
+  known backend (67 rows, 7 with no backend).
+- **R-RT-2** The caller can override the route per call, add chains, or pick a backend by name.
+- **R-RT-3** A chain missing from the table falls back to Sourcify when the caller allows it, and
+  otherwise fails with an error naming the chain.
+- **R-RT-4** Optional fan-out: verify on several backends in one call (for example Etherscan and
+  Sourcify), with one result per backend.
+
+### Flow (R-FLOW)
+
+- **R-FLOW-1** Check first: if the contract is already verified on the target backend, return
+  `already-verified` without submitting.
+- **R-FLOW-2** Submit, then poll until a terminal state, within a time budget the caller sets.
+- **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
+  `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
+  URL on success.
+- **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
+  ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
+- **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
+  later, from another process or after a page reload.
+- **R-FLOW-6** Cancellation through `AbortSignal`, and retries with backoff on rate limits and
+  transient errors.
+- **R-FLOW-7** Known explorer behaviour is handled, not reported as failure: Blockscout's partial
+  match when the bytecode carries no metadata hash; Blockscout's empty submit response right after a
+  deployment (retry the whole submit); Etherscan's "already verified" answers.
+- **R-FLOW-8** Proxies: after the implementation verifies, link the proxy to it where the backend
+  supports that (Etherscan `verifyproxycontract`).
+
+### Server handler (R-SRV)
+
+- **R-SRV-1** `createVerifyHandler(options)` returns a standard function that takes a `Request` and
+  returns a `Response`, and runs in Node, edge runtimes and serverless platforms. Framework adapters stay thin.
+- **R-SRV-2** The handler holds the Etherscan key. The browser calls the handler; the handler calls
+  Etherscan.
+- **R-SRV-3** It forwards only the verify-submit and status actions, never arbitrary explorer API
+  calls (Etherscan terms forbid a general proxy, see
+  [research/2026-11-02-etherscan-terms.md](research/2026-11-02-etherscan-terms.md)).
+- **R-SRV-4** Guards: chain allowlist, request size limit, per-client rate limit hook, and an
+  optional check that the address was created by an allowed deployer or factory.
+- **R-SRV-5** The client side uses the handler by injecting a `fetch` that targets it. No other
+  code path changes between direct and proxied use.
+
+### Developer experience (R-DX)
+
+- **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`
+  with JSON output for scripts, reading keys from the environment.
+- **R-DX-2** Build helpers that emit the Standard JSON input and full compiler version from Foundry
+  (`out/` build-info) and Hardhat 3 (artifacts build-info).
+- **R-DX-3** Typed errors from one catalogue, each with a stable code and a fix hint.
+- **R-DX-4** TSDoc on every export, with an example that compiles.
+
+## Non-functional requirements
+
+### Runtime (R-RUN)
+
+- **R-RUN-1** The core runs unchanged in current browsers, Node 22.18 and later, Deno, Bun and edge
+  runtimes. It uses only web-platform globals (`fetch`, `URL`, `AbortSignal`, `TextEncoder`,
+  `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`) and a build without Node types.
+- **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
+- **R-RUN-3** Bundle budget for the core in a browser build: set in M1 from measurement, then
+  enforced in CI. The routing table loads as data and does not grow code size.
+- **R-RUN-4** Runtime dependencies: none in the core unless one removes real risk (for example a
+  vetted ABI encoder). Each one needs a decision record.
+
+### Security (R-SEC)
+
+- **R-SEC-1** API keys never appear in logs, errors, results or thrown messages. Redaction is
+  tested.
+- **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
+- **R-SEC-3** Docs state the Etherscan plan requirement: a public dapp or any business, protocol,
+  foundation or DAO use needs an Advanced or higher plan and its own key, and must show "Powered by
+  Etherscan.io APIs" when it displays Etherscan data.
+- **R-SEC-4** Published with npm provenance from CI through trusted publishing; signed release tags.
+
+### Quality (R-QA)
+
+- **R-QA-1** Unit tests with recorded explorer responses for every backend and every status string
+  the prior art met. Coverage at or above 95%.
+- **R-QA-2** A live test matrix per backend on public testnets, run by the maintainer, with dated
+  results in the docs.
+- **R-QA-3** The CLI and the server handler have integration tests.
+
+### Extensibility (R-EXT)
+
+- **R-EXT-1** The compiler is a discriminated union (`{ kind: "solc", ... }`). Adding Vyper is a new
+  member plus backend mappings, with no change for Solidity callers (decision 0004).
+- **R-EXT-2** Input resolvers, backends and the routing table are extension points with documented
+  interfaces.
+
+## Open questions
+
+| Question                                                                                                      | Owner      | Needed by |
+| ------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?                    | Maintainer | M3        |
+| Sourcify rate limits and terms for high-volume use                                                            | Maintainer | M2        |
+| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live              | Maintainer | M2        |
+| Bundle budget for the core                                                                                    | Maintainer | M1        |
+| Package split: one package with subpath exports, or `@explorer-verify/*` add-ons (server, cli, build helpers) | Maintainer | M1        |
+| Routescan API host per network, key policy and CORS (not researched yet)                                      | Maintainer | M2        |
