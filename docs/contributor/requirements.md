@@ -124,12 +124,40 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 ### Developer experience (R-DX)
 
 - **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`.
-  Its machine contract (JSON output, streams, exit codes, dry run, key input) is R-AX-5 to R-AX-12.
+  Its machine contract (JSON output, streams, exit codes, dry run, key input, progress, verbosity
+  and JSON input) is R-AX-5 to R-AX-12 and R-AX-14 to R-AX-16.
 - **R-DX-2** Build helpers that emit the Standard JSON input and full compiler version from Foundry
   (`out/` build-info) and Hardhat 3 (artifacts build-info).
 - **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
   The CLI and the library share the catalogue (R-AX-10).
 - **R-DX-4** TSDoc on every export, with an example that compiles.
+- **R-DX-5** `VerifyOptions.logger` takes four methods, `debug`, `info`, `warn` and `error`, each
+  `(message: string, fields?: LogFields) => void`. `LogFields` is a flat record whose values are
+  `string`, `number`, `boolean` or `null`, and `console` satisfies the type. Without a logger the
+  library writes nothing, in every runtime, and never calls `console` on its own. The library never
+  logs at `error` a failure it throws. Every message and field value passes the one redaction
+  step of decision 0010 first (R-SEC-1). Messages and field names are diagnostics and may change
+  in any release.
+- **R-DX-6** `VerifyOptions.onEvent` receives typed stage events, each a flat object with a `type`
+  and JSON-safe values. The types follow OpenTelemetry's event naming rules (lowercase,
+  dot-separated, no dynamic values):
+
+  | `type`             | Fields besides `type`                                       |
+  | ------------------ | ----------------------------------------------------------- |
+  | `verify.validated` | `chainId`, `address`                                        |
+  | `verify.routed`    | `backend`, `apiHost` (host only, no path or query)          |
+  | `verify.lookup`    | `backend`, `match`: `exact`, `partial`, `none` or `skipped` |
+  | `verify.submitted` | `backend`, `handle` in its one-line string form             |
+  | `verify.poll`      | `backend`, `attempt`, `state`                               |
+  | `verify.retry`     | `backend`, `attempt`, `reason`, `delayMs`                   |
+  | `verify.result`    | `backend`, `status`, and `match` when the status has one    |
+
+  `verify()` emits them in stage order and emits `verify.submitted` as soon as the explorer accepts
+  the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
+  `verify.poll`, `verify.retry` and `verify.result`. A call that throws emits no `verify.result`.
+  An exception thrown by `onEvent` is caught and does not change the outcome. Events pass the
+  same redaction step. Within a schema version, releases only add event types and fields;
+  `event.schema.json` ships with the package.
 
 ### Agent readiness (R-AX)
 
@@ -157,7 +185,8 @@ Docs:
 
 CLI:
 
-- **R-AX-5** `--json` on every command. The output is one versioned envelope, in one of three forms:
+- **R-AX-5** `--json` on every command. stdout holds exactly one versioned envelope for every exit
+  code, errors included, in one of three forms:
   - `{ "schemaVersion": 1, "ok": true, "result": ... }`
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
@@ -168,9 +197,20 @@ CLI:
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, changes
   only add fields. A JSON Schema for the envelope ships with the package.
 
-- **R-AX-6** stdout carries only the result, and progress and logs go to stderr. When stdout is not a
-  terminal, the CLI prints no colour, spinner or pager; it honours `NO_COLOR` always. The CLI never
-  prompts.
+  The CLI reads `--json` before it parses the other arguments, so a usage error still gives an
+  envelope and exit code 2. A cancelled run (exit code 130) gives an envelope with the error code
+  `cancelled`. stderr may also carry a one-line human summary.
+
+- **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
+  colour, spinners and pagers per stream, from that stream's own terminal state:
+  - `--color=always` colours both streams; `--color=never` colours neither.
+  - Otherwise (`--color=auto`, the default), a non-empty `NO_COLOR` or `TERM=dumb` turns colour
+    off on both streams, and each stream is coloured only when it is a terminal.
+  - Spinners and line redraws appear only when stderr is a terminal and `CI` is unset or empty.
+  - A pager runs only when stdout is a terminal and `CI` is unset or empty.
+
+  The CLI never prompts.
+
 - **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
 
   | Code | Meaning                                                                                                                                                   |
@@ -191,14 +231,40 @@ CLI:
   whether the contract is already verified, then stops before the submit. It needs no API key: when
   the route's backend requires a key and none is set, it skips the already-verified lookup and says
   so in the output.
-- **R-AX-9** Keys come from environment variables or `--api-key-file`, never from a flag value. Tests
-  assert that a dummy key never appears on stdout, on stderr or in JSON (extends R-SEC-1).
+- **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
+  a flag value. `--api-key-stdin` reads the key from stdin and cannot be combined with
+  `--input-json -` (exit code 2). Tests assert that a dummy key never appears on stdout, on stderr
+  or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). An unknown command or flag suggests the single closest
   match.
 - **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
   the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
-- **R-AX-12** The same input gives the same output: stable key order, no timestamps unless requested.
+- **R-AX-12** The same input gives the same stdout: stable key order, no timestamps unless
+  requested. The rule covers stdout only; stderr progress and logs (R-AX-14) are not covered.
+- **R-AX-14** Progress goes to stderr, never to stdout. By default it is human-readable lines.
+  With `--log-format json` each stderr line is one JSON object with `schemaVersion`, `level`,
+  `message` and `type`: an R-DX-6 event type with that event's fields, or `log` with the logger's
+  fields. A reader parses the lines that start with `{`. The `verify.submitted` line, with the
+  handle, prints in every mode except `--quiet`.
+- **R-AX-15** `-q`/`--quiet` and `--verbose` choose what reaches stderr:
+
+  | Mode        | stderr                                                                                       |
+  | ----------- | -------------------------------------------------------------------------------------------- |
+  | `--quiet`   | Errors only                                                                                  |
+  | Default     | Warnings, errors, the `verify.submitted` line, and one result line when stderr is a terminal |
+  | `--verbose` | Adds every stage event, each poll, retries with their delay, and redacted request URLs       |
+
+  `EXPLORER_VERIFY_LOG=debug|info|warn|error|off` sets the level when no flag does. The CLI reads
+  it; the core never reads the environment. stdout is byte-identical at every verbosity. `-v` is
+  not bound.
+
+- **R-AX-16** `verify` and `status` accept `--input-json <file|->`: the whole request as JSON,
+  validated against a JSON Schema that ships with the package. It cannot be combined with request
+  flags (exit code 2, `invalid-input`). An unknown property is an `invalid-input` error that names
+  the property path and does not repeat its value. The schema has no key field, so a key never
+  travels in the input. The package ships JSON Schemas for the input, the envelope (R-AX-5) and the
+  events (R-AX-14, R-DX-6).
 
 Measurement:
 
