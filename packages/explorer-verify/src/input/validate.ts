@@ -1,8 +1,8 @@
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
+import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Hex, SolidityStandardJsonInput, VerifyInput } from "../types.ts";
 
-const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 // Group 1 is the version without the optional `v`. Nightly builds carry `-nightly.YYYY.M.D`,
 // official pre-releases `-pre.N`.
 const VERSION =
@@ -24,24 +24,6 @@ const SHORT_VERSION_HINT =
 const PLATFORM_HINT =
   "Remove the platform suffix after the commit hash from compiler.version, such as .Linux.g++.";
 const KIND_HINT = 'Set compiler.kind to "solc", the only supported compiler kind.';
-
-/**
- * Own enumerable fields of `value`, read once. `undefined` when `value` is not a non-array object
- * or when reading it throws, as a hostile Proxy or getter does.
- */
-function readFields(value: unknown): Map<string, unknown> | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  try {
-    if (Array.isArray(value)) {
-      return undefined;
-    }
-    return new Map<string, unknown>(Object.entries(value));
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * A deep copy of `value` through JSON, so the result shares no object with the caller. Each getter
@@ -121,15 +103,14 @@ class Problems {
 }
 
 function checkChainId(value: unknown, problems: Problems): number | undefined {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
-    ? value
-    : problems.add("chainId", "must be a positive integer");
+  return readChainId(value) ?? problems.add("chainId", "must be a positive integer");
 }
 
 function checkAddress(value: unknown, problems: Problems): Hex | undefined {
-  return typeof value === "string" && ADDRESS.test(value)
-    ? `0x${value.slice(2).toLowerCase()}`
-    : problems.add("address", "must be 0x followed by 40 hex digits");
+  const digits = addressDigits(value);
+  return digits === undefined
+    ? problems.add("address", "must be 0x followed by 40 hex digits")
+    : `0x${digits.toLowerCase()}`;
 }
 
 function checkKind(value: unknown, problems: Problems): "solc" | undefined {
