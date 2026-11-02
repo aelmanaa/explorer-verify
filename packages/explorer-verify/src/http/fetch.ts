@@ -3,9 +3,9 @@
  * caller's `fetch`, retries transient failures with backoff, enforces a per-request timeout and
  * the call's time budget, and stops at once on abort.
  *
- * Only web-platform globals are used: `fetch`, `Response`, `AbortController`, `AbortSignal`,
- * `DOMException`, `URL`, `Date` and `setTimeout` (decision 0002, R-RUN-1). Two newer helpers are
- * avoided on purpose:
+ * Only web-platform globals are used: `fetch`, `Response`, `Headers`, `TextDecoder`,
+ * `AbortController`, `AbortSignal`, `DOMException`, `URL`, `Date` and `setTimeout` (decision 0002,
+ * R-RUN-1). Two newer helpers are avoided on purpose:
  *
  * - `AbortSignal.timeout()`: in Node its timer does not keep the process alive, so a script that
  *   waits only on it exits with neither a result nor an error. The `node:test` mock timers do not
@@ -15,6 +15,7 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
+import type { ErrorDetails } from "../errors.ts";
 import { redactingLogger } from "../redact.ts";
 import type { Logger } from "../types.ts";
 
@@ -26,25 +27,42 @@ export const BASE_DELAY_MS = 1_000;
 export const MAX_DELAY_MS = 30_000;
 /** The default limit for one request, body included, in milliseconds. */
 export const REQUEST_TIMEOUT_MS = 30_000;
+/** The default limit for one response body, in bytes as received: 16 MiB. */
+export const MAX_RESPONSE_BYTES: number = 16 * 1024 * 1024;
+/** The largest `retryAfterMs` an error reports: one hour. */
+export const MAX_RETRY_AFTER_MS = 3_600_000;
+/**
+ * The longest delay `setTimeout` takes, in milliseconds. A longer one overflows and fires at once
+ * in browsers and Node, so every timer is clamped to it.
+ */
+export const MAX_TIMER_MS = 2_147_483_647;
 
 // Sourcify's code for a 429 that means "a job for this contract is already running". It is not a
 // rate limit, so it is returned to the backend, which maps it to `in-progress`. Source: the
 // Sourcify OpenAPI spec, version 2.1.0 (docs/contributor/research/2026-11-02-explorer-apis.md).
 const DUPLICATE_CODE = "duplicate_verification_request";
-// Statuses whose body must be empty: `new Response` rejects a body with them.
-const NULL_BODY_STATUSES: readonly number[] = [204, 205, 304];
+// Statuses whose body must be empty: `new Response` rejects a body with them. 304 is handled as
+// a redirect, like every 3xx.
+const NULL_BODY_STATUSES: readonly number[] = [204, 205];
+// Headers that describe the body as it was sent. The returned response holds the decoded text, so
+// they would be wrong on it.
+const BODY_HEADERS: readonly string[] = ["content-encoding", "content-length", "transfer-encoding"];
 // The day name that starts every HTTP date format: `Sun, 06 Nov 1994 08:49:37 GMT`,
 // `Sunday, 06-Nov-94 08:49:37 GMT` and `Sun Nov  6 08:49:37 1994`.
+// Case-insensitive on purpose: RFC 9110 dates are case-sensitive, but a recipient may be lenient,
+// and reading `mon, ...` as a date costs nothing.
 const HTTP_DATE_START = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i;
+const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
 
 /**
  * What a request is allowed to retry.
  *
  * - `safe`: a read, or a write the explorer treats as idempotent. Retries network errors,
  *   timeouts, 429, 502, 503 and 504.
- * - `submit`: a verification submit. Retries only when no response arrived (a network error or a
- *   timeout), 429 and 503. Never a 500, 502 or 504, so a submit the explorer may have processed is
- *   not repeated blindly.
+ * - `submit`: a verification submit. Retries only 429 and 503, the answers that refuse a request
+ *   before processing it. A network error, a timeout, a 500, a 502 or a 504 is not retried: the
+ *   explorer may have received the submit, so the backend checks the contract's state (a lookup)
+ *   before it submits again.
  */
 export type RetryMode = "safe" | "submit";
 
@@ -112,8 +130,16 @@ export interface HttpContext {
   readonly logger?: Logger;
   /** Key values to remove from log lines and errors. Pass `[]` when the call has no key. */
   readonly secrets: readonly string[];
-  /** The limit for one request, body included. Defaults to {@link REQUEST_TIMEOUT_MS}. */
+  /**
+   * The limit for one request, body included, in milliseconds. A positive number; values above
+   * {@link MAX_TIMER_MS} are clamped. Defaults to {@link REQUEST_TIMEOUT_MS}.
+   */
   readonly requestTimeoutMs?: number;
+  /**
+   * The largest response body read, in bytes as received. A positive number. Defaults to
+   * {@link MAX_RESPONSE_BYTES}.
+   */
+  readonly maxResponseBytes?: number;
   /** The call's time budget. Without it, only the per-request timeout applies. */
   readonly budget?: Budget;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. Tests fix it. */
@@ -161,36 +187,55 @@ type Attempt =
       body: string;
       retryAfterMs: number | undefined;
     }
-  | { kind: "unreadable"; status: number; body: string }
+  | Fatal
   | { kind: "budget"; timeoutMs: number };
 
+/** A response that arrived but cannot be used. It is never retried. */
+interface Fatal {
+  kind: "fatal";
+  status: number;
+  excerpt: string;
+  message: string;
+  cause?: unknown;
+}
+
 type Failure = Extract<Attempt, { kind: "retry" }>;
+
+/** What one attempt has seen so far, shared between the exchange and its timer. */
+interface Progress {
+  status: number | undefined;
+}
 
 /**
  * Sends one request through the caller's `fetch`, with retries, a per-request timeout, the call's
  * time budget and abort (R-FLOW-6).
  *
- * - Retries with exponential backoff and jitter: base 1 s, doubled per attempt, capped at 30 s,
- *   at most 5 attempts. The jitter keeps between half and all of each step.
- * - Retries network errors, timeouts, 429 and, for `safe`, 502, 503 and 504; for `submit`, only
- *   network errors, timeouts, 429 and 503. Every other status is returned to the caller.
+ * - Retries with exponential backoff and jitter: base 1 s, doubled per attempt, at most 5
+ *   attempts. The jitter keeps between half and all of each step.
+ * - For `safe`, retries network errors, timeouts, 429, 502, 503 and 504. For `submit`, retries
+ *   only 429 and 503. Every other status is returned to the caller.
  * - Waits at least as long as `Retry-After` asks, in seconds or as an HTTP date. A `Retry-After`
  *   above 30 s, or a wait that would pass the budget's deadline, ends the retries at once.
  * - Returns a 429 whose JSON body has `customCode` `duplicate_verification_request` without a
  *   retry: a job for this contract is already running, and the backend maps it to `in-progress`.
- * - Sends every attempt to the same URL, so a retry never changes the host (R-SEC-2).
+ * - Never follows a redirect, and sends every attempt to the same URL, so a request never reaches
+ *   a host the caller did not configure (R-SEC-2).
+ * - Reads at most `maxResponseBytes` of a body. Once the headers arrived, a body that is too large,
+ *   fails or stalls past the timeout is `unexpected-response`, never retried.
  * - Logs only the URL's origin and path, with `?REDACTED` in place of a query string, through the
  *   redacting logger (R-SEC-1, decision 0010).
  *
  * The returned response's body is already read into memory, inside the timeout and the abort, so
- * reading it cannot hang.
+ * reading it cannot hang. It has no `content-encoding`, `content-length` or `transfer-encoding`
+ * header.
  *
  * @param ctx - What the call's requests share: `fetch`, signal, logger, keys and budget.
  * @param req - The request.
  * @returns The first response that is not retried.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
- * @throws ExplorerVerifyError `network` when no attempt got a response, `rate-limited` when the
- *   last one got a 429, `unexpected-response` when it got a 5xx or a response that cannot be read,
+ * @throws ExplorerVerifyError `invalid-input` when `requestTimeoutMs` or `maxResponseBytes` is not
+ *   a positive number; `network` when no attempt got a response; `rate-limited` when the last one
+ *   got a 429; `unexpected-response` when it got a 5xx, a redirect or a body that cannot be read;
  *   and `timeout` when the budget ran out.
  * @example
  * ```ts
@@ -203,6 +248,7 @@ type Failure = Extract<Attempt, { kind: "retry" }>;
  */
 export async function request(ctx: HttpContext, req: HttpRequest): Promise<Response> {
   ctx.signal?.throwIfAborted();
+  checkLimits(ctx);
   // Read once, then called as a plain function: a browser's fetch called as a method of another
   // object throws "Illegal invocation".
   const send = ctx.fetch ?? globalThis.fetch;
@@ -227,6 +273,8 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
       throw timeoutError(ctx, target, budget.timeoutMs);
     }
     log?.debug(`${target}: attempt ${String(attempt)} of ${String(MAX_ATTEMPTS)}`);
+    // The logger or onRetry may have aborted the signal; an attempt must not start after that.
+    ctx.signal?.throwIfAborted();
     const result = await attemptOnce(send, ctx, req);
     if (result.kind === "response") {
       return result.response;
@@ -234,20 +282,25 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
     if (result.kind === "budget") {
       throw timeoutError(ctx, target, result.timeoutMs);
     }
-    if (result.kind === "unreadable") {
+    if (result.kind === "fatal") {
+      const options =
+        result.cause === undefined
+          ? { secrets: ctx.secrets }
+          : { secrets: ctx.secrets, cause: result.cause };
       throw new ExplorerVerifyError(
         {
           code: "unexpected-response",
           backend: ctx.backend,
           status: result.status,
-          excerpt: result.body,
+          excerpt: result.excerpt,
         },
-        `${target} returned a response with status ${String(result.status)}, which cannot be read.`,
-        { secrets: ctx.secrets },
+        `${target} ${result.message} (status ${String(result.status)}).`,
+        options,
       );
     }
     failure = result;
-    delayMs = attempt < MAX_ATTEMPTS ? retryDelay(budget, attempt, result, random) : undefined;
+    delayMs =
+      attempt < MAX_ATTEMPTS ? retryDelay(budget, req.retry, attempt, result, random) : undefined;
   } while (delayMs !== undefined);
   throw giveUp(ctx, target, attempt, failure);
 }
@@ -257,6 +310,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
  * `setTimeout`, whose timer keeps a Node process alive while it waits; a timer that does not, such
  * as the one behind `AbortSignal.timeout()`, let the process exit mid-poll with neither a result
  * nor an error. The abort listener is removed on both paths, so a long-lived signal collects none.
+ * A wait above {@link MAX_TIMER_MS} is clamped to it, because a longer `setTimeout` fires at once.
  *
  * @param ms - How long to wait, in milliseconds.
  * @param signal - Stops the wait.
@@ -277,9 +331,31 @@ export async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
     const timer = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
       resolve();
-    }, ms);
+    }, timerMs(ms));
     signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+/** `ms` clamped to what `setTimeout` takes without overflowing. */
+function timerMs(ms: number): number {
+  return Math.min(ms, MAX_TIMER_MS);
+}
+
+/** Throws `invalid-input` when a limit in the context is not a positive number. */
+function checkLimits(ctx: HttpContext): void {
+  const issues = [
+    { field: "requestTimeoutMs", value: ctx.requestTimeoutMs },
+    { field: "maxResponseBytes", value: ctx.maxResponseBytes },
+  ]
+    .filter(({ value }) => value !== undefined && !(Number.isFinite(value) && value > 0))
+    .map(({ field }) => ({ field, message: "must be a positive finite number" }));
+  if (issues.length > 0) {
+    throw new ExplorerVerifyError(
+      { code: "invalid-input", issues },
+      `The HTTP limits are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
+      { secrets: ctx.secrets },
+    );
+  }
 }
 
 /**
@@ -295,11 +371,13 @@ async function attemptOnce(
   const requestTimeoutMs = ctx.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   const budget = ctx.budget;
   const budgetLeft = budget === undefined ? Infinity : budget.deadline - Date.now();
+  const limitMs = timerMs(Math.min(requestTimeoutMs, budgetLeft));
   // Set when the budget ends before the per-request timeout: the timer then means `timeout`.
   const budgetTimeoutMs =
     budget !== undefined && budgetLeft <= requestTimeoutMs ? budget.timeoutMs : undefined;
   const controller = new AbortController();
   const caller = ctx.signal;
+  const progress: Progress = { status: undefined };
 
   return await new Promise<Attempt>((resolve, reject) => {
     let settled = false;
@@ -319,30 +397,23 @@ async function attemptOnce(
         reject(reason);
       }
     };
-    const timer = setTimeout(
-      () => {
-        if (settle()) {
-          const ms = Math.min(requestTimeoutMs, budgetLeft);
-          const cause = new DOMException(
-            `The request took longer than ${String(ms)} ms.`,
-            "TimeoutError",
-          );
-          controller.abort(cause);
-          resolve(
-            budgetTimeoutMs === undefined
-              ? { kind: "retry", reason: "network", cause }
-              : { kind: "budget", timeoutMs: budgetTimeoutMs },
-          );
-        }
-      },
-      Math.min(requestTimeoutMs, budgetLeft),
-    );
+    const timer = setTimeout(() => {
+      if (settle()) {
+        // Only a per-request timeout uses this message; a budget timeout becomes `timeout`.
+        const cause = new DOMException(
+          `The request took longer than ${String(timerMs(requestTimeoutMs))} ms.`,
+          "TimeoutError",
+        );
+        controller.abort(cause);
+        resolve(timedOut(budgetTimeoutMs, progress, cause));
+      }
+    }, limitMs);
     caller?.addEventListener("abort", onAbort, { once: true });
 
     const run = async (): Promise<void> => {
       let result: Attempt;
       try {
-        result = await exchange(send, req, controller.signal);
+        result = await exchange(send, req, controller.signal, progress, maxBytes(ctx));
       } catch (error: unknown) {
         result = { kind: "retry", reason: "network", cause: error };
       }
@@ -354,13 +425,45 @@ async function attemptOnce(
   });
 }
 
-/** The fetch and the body read, classified. Throws when no complete response arrived. */
+/** The configured body limit, or the default. */
+function maxBytes(ctx: HttpContext): number {
+  return ctx.maxResponseBytes ?? MAX_RESPONSE_BYTES;
+}
+
+/**
+ * What a fired timer means: `timeout` when the budget ran out, `unexpected-response` when the
+ * headers had arrived (the body stalled), and a network failure when nothing arrived.
+ */
+function timedOut(budgetTimeoutMs: number | undefined, progress: Progress, cause: Error): Attempt {
+  if (budgetTimeoutMs !== undefined) {
+    return { kind: "budget", timeoutMs: budgetTimeoutMs };
+  }
+  if (progress.status !== undefined) {
+    return {
+      kind: "fatal",
+      status: progress.status,
+      excerpt: "",
+      message: "sent its headers but not its whole body in time",
+      cause,
+    };
+  }
+  return { kind: "retry", reason: "network", cause };
+}
+
+/**
+ * The fetch and the body read, classified. Throws only when no response arrived; once the
+ * headers arrived, every problem is a {@link Fatal}.
+ */
 async function exchange(
   send: typeof fetch,
   req: HttpRequest,
   signal: AbortSignal,
+  progress: Progress,
+  limit: number,
 ): Promise<Attempt> {
-  const init: RequestInit = { method: req.method, signal };
+  // "manual": a redirect is not followed, so the request never reaches a host the caller did not
+  // configure (R-SEC-2). A browser then returns an "opaqueredirect" response with status 0.
+  const init: RequestInit = { method: req.method, signal, redirect: "manual" };
   if (req.body !== undefined) {
     init.body = req.body;
   }
@@ -368,8 +471,33 @@ async function exchange(
     init.headers = { ...req.headers };
   }
   const response = await send(req.url, init);
-  const body = await response.text();
   const { status } = response;
+  progress.status = status;
+
+  if (isRedirect(response, req.url)) {
+    discard(response);
+    return { kind: "fatal", status, excerpt: "", message: REDIRECT_MESSAGE };
+  }
+  const declared = Number(response.headers.get("content-length") ?? "0");
+  if (declared > limit) {
+    discard(response);
+    return { kind: "fatal", status, excerpt: "", message: tooLarge(limit) };
+  }
+  let body: string | undefined;
+  try {
+    body = await readBody(response, limit);
+  } catch (error: unknown) {
+    return {
+      kind: "fatal",
+      status,
+      excerpt: "",
+      message: "sent a body that could not be read",
+      cause: error,
+    };
+  }
+  if (body === undefined) {
+    return { kind: "fatal", status, excerpt: "", message: tooLarge(limit) };
+  }
 
   if (status === 429 && !isDuplicate(body)) {
     return {
@@ -392,16 +520,85 @@ async function exchange(
   // `new Response` accepts only 200 to 599. A fetch answers with another status only for an
   // error or opaque response, such as `Response.error()`, which holds no usable answer.
   if (status < 200 || status > 599) {
-    return { kind: "unreadable", status, body };
+    return {
+      kind: "fatal",
+      status,
+      excerpt: body,
+      message: "returned a response that cannot be read",
+    };
+  }
+  const headers = new Headers(response.headers);
+  for (const name of BODY_HEADERS) {
+    headers.delete(name);
   }
   return {
     kind: "response",
     response: new Response(NULL_BODY_STATUSES.includes(status) ? null : body, {
       status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers,
     }),
   };
+}
+
+/**
+ * Whether the response is a redirect or came from somewhere else: an opaque redirect, a 3xx, a
+ * response that says it was redirected, or one whose URL has another origin. The last two catch an
+ * injected `fetch` that ignores `redirect: "manual"`. The `Location` header is never read.
+ */
+function isRedirect(response: Response, url: string): boolean {
+  const { status } = response;
+  if (
+    response.type === "opaqueredirect" ||
+    response.redirected ||
+    (status >= 300 && status < 400)
+  ) {
+    return true;
+  }
+  if (response.url === "") {
+    return false;
+  }
+  try {
+    return new URL(response.url).origin !== new URL(url).origin;
+  } catch {
+    return true;
+  }
+}
+
+/** Cancels a body that will not be read, so the connection is released. Never throws. */
+function discard(response: Response): void {
+  response.body?.cancel().catch(() => {});
+}
+
+function tooLarge(limit: number): string {
+  return `sent a body larger than ${String(limit)} bytes`;
+}
+
+/**
+ * The body as text, read chunk by chunk. Returns `undefined`, after cancelling the stream, as soon
+ * as more than `limit` bytes arrived, so a huge or endless body never fills memory.
+ */
+async function readBody(response: Response, limit: number): Promise<string | undefined> {
+  const stream = response.body;
+  if (stream === null) {
+    return "";
+  }
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) {
+      return text + decoder.decode();
+    }
+    received += chunk.value.byteLength;
+    if (received > limit) {
+      reader.cancel().catch(() => {});
+      return undefined;
+    }
+    text += decoder.decode(chunk.value, { stream: true });
+  }
 }
 
 /** Whether a 5xx status is retried in this mode. A 500 never is. */
@@ -426,37 +623,49 @@ function isDuplicate(body: string): boolean {
 }
 
 /**
- * `Retry-After` in milliseconds: whole seconds, or an HTTP date relative to `Date.now()`, at
- * least 0. `undefined` when the header is absent or cannot be read.
+ * `Retry-After` in milliseconds: whole seconds, or an HTTP date relative to `Date.now()`, from 0
+ * to {@link MAX_RETRY_AFTER_MS}. `undefined` when the header is absent or cannot be read.
  */
 function retryAfter(response: Response): number | undefined {
   const value = response.headers.get("retry-after")?.trim();
   if (value === undefined || value === "") {
     return undefined;
   }
+  let ms: number;
   if (/^\d+$/.test(value)) {
-    return Number(value) * 1_000;
+    ms = Number(value) * 1_000;
+  } else if (HTTP_DATE_START.test(value)) {
+    // An HTTP date starts with the day name in all three formats of RFC 9110, section 5.6.7. The
+    // check keeps `Date.parse` from reading a value such as `1.5` or `-1` as a date.
+    ms = Math.max(0, Date.parse(value) - Date.now());
+  } else {
+    return undefined;
   }
-  // An HTTP date starts with the day name in all three formats of RFC 9110, section 5.6.7. The
-  // check keeps `Date.parse` from reading a value such as `1.5` or `-1` as a date.
-  const at = HTTP_DATE_START.test(value) ? Date.parse(value) : Number.NaN;
-  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
+  return Number.isFinite(ms) ? Math.min(ms, MAX_RETRY_AFTER_MS) : undefined;
 }
 
 /**
  * The wait before the next attempt: exponential backoff with jitter, at least `Retry-After`.
- * `undefined` when the retries must stop: `Retry-After` is above {@link MAX_DELAY_MS}, or the wait
- * would end at or after the budget's deadline.
+ * `undefined` when the retries must stop: a `submit` got no response, `Retry-After` is above
+ * {@link MAX_DELAY_MS}, or the wait would end at or after the budget's deadline.
  */
 function retryDelay(
   budget: Budget | undefined,
+  mode: RetryMode,
   attempt: number,
   failure: Failure,
   random: () => number,
 ): number | undefined {
+  // The cap is a guard: with 5 attempts the largest step is 8 s. It keeps the wait bounded if
+  // MAX_ATTEMPTS grows.
   const step = Math.min(MAX_DELAY_MS, BASE_DELAY_MS * 2 ** (attempt - 1));
   let delayMs = Math.round(step / 2 + (random() * step) / 2);
-  if (failure.reason !== "network" && failure.retryAfterMs !== undefined) {
+  if (failure.reason === "network") {
+    // The explorer may have received a submit that got no response: never send it blindly again.
+    if (mode === "submit") {
+      return undefined;
+    }
+  } else if (failure.retryAfterMs !== undefined) {
     if (failure.retryAfterMs > MAX_DELAY_MS) {
       return undefined;
     }
@@ -487,11 +696,7 @@ function giveUp(
       );
       break;
     case "rate-limited": {
-      const details: ExplorerVerifyError["details"] = {
-        code: "rate-limited",
-        backend: ctx.backend,
-        attempts,
-      };
+      const details: ErrorDetails = { code: "rate-limited", backend: ctx.backend, attempts };
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
@@ -502,18 +707,23 @@ function giveUp(
       );
       break;
     }
-    case "server-error":
+    case "server-error": {
+      const details: ErrorDetails = {
+        code: "unexpected-response",
+        backend: ctx.backend,
+        status: failure.status,
+        excerpt: failure.body,
+      };
+      if (failure.retryAfterMs !== undefined) {
+        details.retryAfterMs = failure.retryAfterMs;
+      }
       error = new ExplorerVerifyError(
-        {
-          code: "unexpected-response",
-          backend: ctx.backend,
-          status: failure.status,
-          excerpt: failure.body,
-        },
+        details,
         `${target} answered ${String(failure.status)} after ${tries}.`,
         options,
       );
       break;
+    }
   }
   return error;
 }

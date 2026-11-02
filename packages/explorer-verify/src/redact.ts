@@ -107,9 +107,24 @@ export const REDACTION_PATTERNS: readonly {
   },
 ];
 
-/** The ways a secret can appear in text: as is, URL-encoded and form-encoded. */
+/**
+ * The ways a secret can appear in text: as is, URL-encoded, form-encoded, and as the WHATWG URL
+ * parser encodes it in a query string and in a path. The parser leaves characters such as `'` and
+ * `~` raw that `encodeURIComponent` encodes, so an explorer that echoes a parsed URL shows a form
+ * the others miss.
+ */
 function forms(secret: string): string[] {
   const all = [secret, new URLSearchParams({ s: secret }).toString().slice(2)];
+  // Encoding never shortens a value, so a shorter result means the parser cut the secret at a `#`
+  // or `?`. That piece is dropped: a short piece would match unrelated text.
+  for (const parsed of [
+    new URL(`http://h/?q=${secret}`).search.slice(3),
+    new URL(`http://h/${secret}`).pathname.slice(1),
+  ]) {
+    if (parsed.length >= secret.length) {
+      all.push(parsed);
+    }
+  }
   try {
     all.push(encodeURIComponent(secret));
   } catch {

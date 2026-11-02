@@ -293,8 +293,8 @@ describe("request: retries (R-FLOW-6)", () => {
     });
   }
 
-  for (const step of [json(429, TOO_MANY), json(503, {}), new TypeError("socket hang up")]) {
-    const name = step instanceof Response ? String(step.status) : "a network error";
+  for (const step of [json(429, TOO_MANY), json(503, {})]) {
+    const name = String(step.status);
     it(`retries ${name} on retry submit (R-FLOW-6)`, async () => {
       const { fetch, calls } = fakeFetch(step, json(200, { verificationId: "x" }));
       const { outcome } = await drive(request(context({ fetch }), submit()));
@@ -303,6 +303,24 @@ describe("request: retries (R-FLOW-6)", () => {
       assert.equal(calls.length, 2);
     });
   }
+
+  it("does not retry a network error on retry submit: the explorer may have received it (R-FLOW-6)", async () => {
+    const { fetch, calls } = fakeFetch(new TypeError(`socket hang up ${KEYED_URL}`), json(200, {}));
+    const error = await driveToError(request(context({ fetch }), submit(KEYED_URL)));
+    assert.deepEqual(error.details, { code: "network", backend: "sourcify", attempts: 1 });
+    assert.equal(calls.length, 1);
+    assertNoKey(error);
+  });
+
+  it("does not retry a per-request timeout on retry submit (R-FLOW-6)", async () => {
+    const { fetch, calls } = fakeFetch("hang", json(200, {}));
+    const { outcome, elapsed } = await drive(request(context({ fetch }), submit()));
+    assert.ok(!outcome.ok);
+    assert.ok(outcome.error instanceof ExplorerVerifyError);
+    assert.equal(outcome.error.code, "network");
+    assert.equal(calls.length, 1);
+    assert.equal(elapsed, REQUEST_TIMEOUT_MS);
+  });
 
   it("does not retry duplicate_verification_request and returns the 429 to the backend (R-FLOW-6)", async () => {
     const { fetch, calls } = fakeFetch(json(429, DUPLICATE), json(200, {}));
@@ -323,7 +341,7 @@ describe("request: retries (R-FLOW-6)", () => {
   }
 
   it("sends every attempt to the same URL with the same method, headers and body (R-SEC-2)", async () => {
-    const { fetch, calls } = fakeFetch(json(503, {}), new TypeError("reset"), json(200, {}));
+    const { fetch, calls } = fakeFetch(json(503, {}), json(429, TOO_MANY), json(200, {}));
     const req = submit(KEYED_URL);
     await drive(request(context({ fetch }), req));
     assert.equal(calls.length, 3);
@@ -442,10 +460,14 @@ describe("request: Retry-After (R-FLOW-6)", () => {
     assert.equal(elapsed, MAX_DELAY_MS);
   });
 
-  it("stops a 503 with a long Retry-After with unexpected-response (R-FLOW-6)", async () => {
-    const { fetch } = fakeFetch(json(503, {}, { "retry-after": "31" }));
-    const error = await driveToError(request(context({ fetch }), get()));
-    assert.equal(error.code, "unexpected-response");
+  it("stops a 503 with a long Retry-After at once with unexpected-response (R-FLOW-6)", async () => {
+    const { fetch, calls } = fakeFetch(json(503, {}, { "retry-after": "31" }));
+    const { outcome, elapsed } = await drive(request(context({ fetch }), get()));
+    assert.ok(!outcome.ok);
+    assert.ok(outcome.error instanceof ExplorerVerifyError);
+    assert.equal(outcome.error.code, "unexpected-response");
+    assert.equal(calls.length, 1);
+    assert.equal(elapsed, 0);
   });
 });
 
@@ -543,7 +565,7 @@ describe("request: timeouts and the time budget (R-FLOW-6)", () => {
   it("treats a timeout as no response: network after 5 attempts, with the timeout as cause (R-FLOW-6)", async () => {
     const { fetch, calls } = fakeFetch("ignore-signal");
     const error = await driveToError(
-      request(context({ fetch, requestTimeoutMs: 1_000 }), submit(KEYED_URL)),
+      request(context({ fetch, requestTimeoutMs: 1_000 }), get(KEYED_URL)),
     );
     assert.equal(error.code, "network");
     assert.equal(calls.length, MAX_ATTEMPTS);
@@ -553,14 +575,21 @@ describe("request: timeouts and the time budget (R-FLOW-6)", () => {
     assertNoKey(error);
   });
 
-  it("covers the body read: a body that never ends times out (R-FLOW-6)", async () => {
+  it("covers the body read: a body that stalls after the headers is unexpected-response, not retried (R-FLOW-6)", async () => {
     const stalled = new Response(new ReadableStream({ start: () => {} }), { status: 200 });
     const { fetch, calls } = fakeFetch(stalled, json(200, { ok: 1 }));
     const { outcome, elapsed } = await drive(request(context({ fetch }), get()));
-    assert.ok(outcome.ok);
-    assert.deepEqual(await outcome.value.json(), { ok: 1 });
-    assert.equal(calls.length, 2);
-    assert.equal(elapsed, REQUEST_TIMEOUT_MS + 500);
+    assert.ok(!outcome.ok);
+    assert.ok(outcome.error instanceof ExplorerVerifyError);
+    assert.deepEqual(outcome.error.details, {
+      code: "unexpected-response",
+      backend: "sourcify",
+      status: 200,
+      excerpt: "",
+    });
+    assert.match(outcome.error.message, /headers but not its whole body in time/);
+    assert.equal(calls.length, 1);
+    assert.equal(elapsed, REQUEST_TIMEOUT_MS);
   });
 
   it("throws timeout with the budget when the deadline passes during a request (R-FLOW-6)", async () => {
@@ -645,7 +674,7 @@ describe("request: the caller's fetch (R-FLOW-6, R-SRV-5)", () => {
     assert.equal(await outcome.value.text(), "{}");
   });
 
-  for (const status of [204, 205, 304]) {
+  for (const status of [204, 205]) {
     it(`returns a ${String(status)} with an empty body`, async () => {
       const { fetch } = fakeFetch(new Response(null, { status }));
       const { outcome } = await drive(request(context({ fetch }), get()));
@@ -797,4 +826,119 @@ describe("sleep keeps the Node event loop alive (R-FLOW-6, R-RUN-1)", () => {
     );
     assert.deepEqual(result, { stdout: "", code: 13 });
   });
+});
+
+describe("request: boundaries and redaction on every error path (R-FLOW-6, R-SEC-1)", () => {
+  // A key in the URL path matches no key-like parameter pattern, so only `secrets` redacts it.
+  const PATH_KEY_URL = `https://rpc.example.org/v2/${DUMMY_KEY}/x`;
+
+  it("pins the limits: 30 s request timeout, 30 s longest wait, 1 s base, 5 attempts", () => {
+    assert.equal(REQUEST_TIMEOUT_MS, 30_000);
+    assert.equal(MAX_DELAY_MS, 30_000);
+    assert.equal(BASE_DELAY_MS, 1_000);
+    assert.equal(MAX_ATTEMPTS, 5);
+  });
+
+  it("stops at once on a Retry-After date 30.001 s away (R-FLOW-6)", async () => {
+    mock.timers.setTime(2_999);
+    const { fetch, calls } = fakeFetch(
+      json(429, TOO_MANY, { "retry-after": "Thu, 01 Jan 1970 00:00:33 GMT" }),
+    );
+    const { outcome, elapsed } = await drive(request(context({ fetch }), get()));
+    assert.ok(!outcome.ok);
+    assert.ok(outcome.error instanceof ExplorerVerifyError);
+    assert.ok(outcome.error.details.code === "rate-limited");
+    assert.equal(outcome.error.details.retryAfterMs, 30_001);
+    assert.equal(calls.length, 1);
+    assert.equal(elapsed, 0);
+  });
+
+  it("reports a Retry-After date in the past as 0 ms (R-FLOW-6)", async () => {
+    mock.timers.setTime(10_000);
+    const { fetch } = fakeFetch(json(429, TOO_MANY, { "retry-after": new Date(0).toUTCString() }));
+    const error = await driveToError(request(context({ fetch }), get()));
+    assert.ok(error.details.code === "rate-limited");
+    assert.equal(error.details.retryAfterMs, 0);
+  });
+
+  it("reads a Retry-After date whose day name is lower case (R-FLOW-6)", async () => {
+    const { fetch } = fakeFetch(
+      json(503, {}, { "retry-after": "thu, 01 jan 1970 00:00:03 gmt" }),
+      json(200, {}),
+    );
+    const { elapsed } = await drive(request(context({ fetch }), get()));
+    assert.equal(elapsed, 3_000);
+  });
+
+  it("ignores a Retry-After date that does not start with the day name (R-FLOW-6)", async () => {
+    const { fetch } = fakeFetch(
+      json(503, {}, { "retry-after": "x Thu, 01 Jan 1970 00:00:03 GMT" }),
+      json(200, {}),
+    );
+    const { elapsed } = await drive(request(context({ fetch }), get()));
+    assert.equal(elapsed, 500);
+  });
+
+  it("throws timeout when the budget ends exactly at the per-request timeout (R-FLOW-6)", async () => {
+    const { fetch, calls } = fakeFetch("hang");
+    const budget = { deadline: REQUEST_TIMEOUT_MS, timeoutMs: 45_000 };
+    const error = await driveToError(request(context({ fetch, budget }), get()));
+    assert.deepEqual(error.details, { code: "timeout", backend: "sourcify", timeoutMs: 45_000 });
+    assert.equal(calls.length, 1);
+  });
+
+  it("returns a 599 to the caller without a retry", async () => {
+    const { fetch, calls } = fakeFetch(new Response("x", { status: 599 }));
+    const { outcome } = await drive(request(context({ fetch }), get()));
+    assert.ok(outcome.ok);
+    assert.equal(outcome.value.status, 599);
+    assert.equal(calls.length, 1);
+  });
+
+  it("throws unexpected-response for a 1xx status", async () => {
+    let count = 0;
+    const fetch = (): Promise<Response> => {
+      count += 1;
+      const response = new Response("x", { status: 200 });
+      Object.defineProperty(response, "status", { value: 101 });
+      return Promise.resolve(response);
+    };
+    const error = await driveToError(request(context({ fetch }), get()));
+    assert.deepEqual(error.details, {
+      code: "unexpected-response",
+      backend: "sourcify",
+      status: 101,
+      excerpt: "x",
+    });
+    assert.equal(count, 1);
+  });
+
+  const paths: [string, () => Partial<HttpContext>, (Step | "ignore-signal")[]][] = [
+    ["network give-up", () => ({}), [new TypeError(`fetch failed: ${PATH_KEY_URL}`)]],
+    ["5xx give-up", () => ({}), [new Response(`down ${DUMMY_KEY}`, { status: 503 })]],
+    ["budget timeout", () => ({ budget: { deadline: 5_000, timeoutMs: 5_000 } }), ["hang"]],
+    ["unreadable response", () => ({}), [Response.error()]],
+    [
+      "redirect",
+      () => ({}),
+      [new Response(null, { status: 302, headers: { location: PATH_KEY_URL } })],
+    ],
+    ["over-cap body", () => ({ maxResponseBytes: 8 }), [new Response(`too long ${DUMMY_KEY}`)]],
+    ["stalled body", () => ({}), [new Response(new ReadableStream({ start: () => {} }))]],
+  ];
+  for (const [name, extra, steps] of paths) {
+    it(`${name}: a key in the URL path is redacted through secrets, and nothing is logged at error (R-SEC-1, R-DX-5)`, async () => {
+      const { logger, lines } = recorder();
+      const { fetch } = fakeFetch(...steps);
+      const error = await driveToError(
+        request(context({ fetch, logger, ...extra() }), get(PATH_KEY_URL)),
+      );
+      assertNoKey(error);
+      assert.match(error.message, /rpc\.example\.org\/v2\/\[redacted\]\/x/);
+      assert.equal(lines.filter(([level]) => level === "error").length, 0);
+      for (const [, line] of lines) {
+        assert.ok(!line.includes(DUMMY_KEY), line);
+      }
+    });
+  }
 });

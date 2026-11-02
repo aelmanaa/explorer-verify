@@ -162,6 +162,8 @@ export type ErrorDetails =
       status: number;
       /** The start of the response body, redacted, at most 300 characters. */
       excerpt: string;
+      /** How long the backend asked to wait, when it sent `Retry-After` with its last answer. */
+      retryAfterMs?: number;
     }
   | {
       /** The backend is already verifying this contract from another submission. */
@@ -418,6 +420,9 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
         status: numberOf(details.status),
         excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
       };
+      if (details.retryAfterMs !== undefined) {
+        copy.retryAfterMs = numberOf(details.retryAfterMs);
+      }
       break;
     case "unsupported-chain":
       copy = {

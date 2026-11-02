@@ -61,6 +61,7 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "sourcify",
     status: 502,
     excerpt: "<html>Bad gateway</html>",
+    retryAfterMs: 2_000,
   },
   "in-progress": { code: "in-progress", backend: "sourcify" },
   "unknown-state": { code: "unknown-state", handle: handle(), excerpt: '{"status":"weird"}' },

@@ -103,14 +103,21 @@ request with the same URL and body:
   above 30 seconds ends the retries at once;
 - for a lookup or a poll: after a network error, a request that took longer than 30 seconds, and
   HTTP 429, 502, 503 or 504;
-- for a submit: only after a network error, a request that took longer than 30 seconds, and HTTP
-  429 or 503. A submit that got a 500, 502 or 504 is not sent again, because the explorer may have
-  received it.
+- for a submit: only after HTTP 429 or 503, which refuse the request before the explorer processes
+  it. A submit that got no answer, timed out, or got a 500, 502 or 504 is not sent again, because
+  the explorer may have received it. Check the contract's state before you submit again.
 
 A Sourcify 429 whose `customCode` is `duplicate_verification_request` means the contract is
 already being verified. It is not retried. A wait that would end after the time budget
 (`timeoutMs`) ends the retries with the last error. An abort stops every request and wait at once,
 and the call rejects with `signal.reason`.
+
+Some answers end the call at once with `unexpected-response`, without a retry:
+
+- a redirect. The library never follows one, so a request never reaches a host you did not
+  configure;
+- a body larger than 16 MiB;
+- a body that fails or stalls after the headers arrived.
 
 ## Codes
 
@@ -157,8 +164,8 @@ Exit code: 2
 ### network
 
 Cause: every request to the backend failed before it answered, retries included. DNS, TLS, a
-closed connection or a CORS block in a browser all end here. `details.attempts` gives the number of
-requests tried.
+closed connection or a CORS block in a browser all end here, or every request took longer than the
+per-request timeout. `details.attempts` gives the number of requests tried.
 
 Fix: check the network connection and the explorer's status page, then call again.
 
@@ -195,8 +202,10 @@ Exit code: 5
 ### unexpected-response
 
 Cause: the answer did not come from the explorer's API, or not in its format, after retries: a 5xx
-status, an HTML page or a wrong content type. `details.status` holds the status and
-`details.excerpt` the first 300 characters of the body, redacted.
+status, an HTML page, a wrong content type, a redirect or a body that is too large or cannot be
+read. `details.status` holds the status and `details.excerpt` the first 300 characters of the
+body, redacted. `details.retryAfterMs` holds the wait the backend asked for, when its last answer
+had a `Retry-After` header.
 
 Fix: call again later. If the error persists, check the explorer's status page and report
 `details.status` and `details.excerpt` in an issue.
