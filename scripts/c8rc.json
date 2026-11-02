@@ -4,6 +4,7 @@
   "include": [
     "scripts/agent-docs.ts",
     "scripts/check-agent-docs.ts",
+    "scripts/decision-sources.ts",
     "scripts/check-packed-files.ts",
     "scripts/package-docs.ts",
     "scripts/random-order.ts"

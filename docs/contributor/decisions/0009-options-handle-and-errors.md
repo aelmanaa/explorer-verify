@@ -18,6 +18,8 @@ A handle often comes from untrusted storage: a URL parameter, local storage or a
 library must not let that data choose where it sends requests, because on keyed backends the API key
 goes with them (R-SEC-2).
 
+Research: none (maintainer choice).
+
 ## Decision
 
 ### 1. `VerifyOptions` declares only what M1 implements

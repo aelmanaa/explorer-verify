@@ -55,6 +55,11 @@ requirement the change does not meet is named in the pull request with the reaso
 - Docs ship with the code. A new page is linked from [AGENTS.md](AGENTS.md) and
   [docs/README.md](docs/README.md).
 - A user-facing change under `packages/` adds a changeset (see below).
+- A new or changed decision record links the research notes it relies on, or carries the line
+  `Research: none (maintainer choice).` A new or changed research note has a `## Sources` section,
+  and each factual claim in it names a URL with the date read, or the tool, version and date of a
+  local run (see [decisions](docs/contributor/decisions/README.md) and
+  [research](docs/contributor/research/README.md)).
 - `pnpm run check`, `pnpm test`, `pnpm run coverage` and, for package changes, `pnpm run pkg:check`
   pass.
 - A new or changed error has a stable code, a hint that names the fix and a docs entry
@@ -67,6 +72,8 @@ requirement the change does not meet is named in the pull request with the reaso
   with a fix, help that leads with examples, stable output.
 
 `pnpm run check` enforces the `llms.txt` item (see [tooling](docs/contributor/tooling.md#agent-docs)).
+It also enforces the structure of the sources item: the research link or the `Research: none` line,
+the `## Sources` section and the research index. Review checks that each claim has its source.
 The skill does not exist yet; its item applies once #6 lands.
 
 ## Changesets

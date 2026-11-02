@@ -16,6 +16,8 @@ transitive packages. The earlier R-RUN-4 allowed a runtime dependency when it "r
 Decision 0002 keeps Node-only code out of the core entry point and left the split to M1. Decision
 0006 named the core `explorer-verify` and the add-ons `@explorer-verify/*`.
 
+Research: none (maintainer choice).
+
 ## Decision
 
 ### Package split: option C

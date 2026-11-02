@@ -137,7 +137,7 @@ export function packageVersion(root: string): string {
  * Calls `visit` for each line outside fenced code blocks, with inline code spans blanked. A fence
  * closes only on the marker that opened it.
  */
-function forEachProseLine(
+export function forEachProseLine(
   text: string,
   visit: (line: string, index: number, raw: string) => void,
 ): void {

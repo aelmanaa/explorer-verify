@@ -6,7 +6,8 @@ Status: Accepted (2026-11-02)
 
 Users verify from a browser, from their own backend, from serverless or edge functions, and from
 scripts. Etherscan, Sourcify and Blockscout all send `access-control-allow-origin: *` (checked
-2026-11-02), so a browser can call them directly.
+2026-11-02), so a browser can call them directly. See
+[the explorer API research](../research/2026-11-02-explorer-apis.md#browser-reachability-live-2026-11-02).
 
 ## Decision
 

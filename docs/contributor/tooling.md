@@ -68,6 +68,18 @@ count.
 Links in `llms.txt` are raw links, so an agent gets Markdown, not HTML:
 `https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/<path>`.
 
+### Decision and research sources
+
+The same command checks the rule in [decisions](decisions/README.md) and
+[research](research/README.md). The rules live in `scripts/decision-sources.ts`. The check fails
+when:
+
+- a decision record (`docs/contributor/decisions/NNNN-*.md`) has neither a relative link to a
+  research note nor the line `Research: none (maintainer choice).`, or has both;
+- a decision record links a path under `docs/contributor/research/` that is not a research note;
+- a research note has no `## Sources` section, or that section has no http or https link;
+- a research note is not linked from `docs/contributor/research/README.md`.
+
 ### Version line
 
 Each user page has this line, alone, within its first 10 lines and outside a code block:
@@ -113,6 +125,7 @@ lacks them (22.x, 24.0 to 24.15 and 26.0), `scripts/random-order.ts` decides the
 Tests for the repository scripts live in `scripts/test/*.test.ts`. `pnpm run test:scripts` runs
 them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package tests. They build
 small fixture trees in a temporary folder, and run the entry points as child processes against
-them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts` and the three scripts that use
-it) and `scripts/random-order.ts` with a 95% floor per file on lines, branches, functions and statements. The older scripts have
-no tests yet and are not in the coverage list; a script gets added when it gets tests.
+them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts`, `scripts/decision-sources.ts` and
+the three scripts that use them) and `scripts/random-order.ts` with a 95% floor per file on lines,
+branches, functions and statements. The older scripts have no tests yet and are not in the
+coverage list; a script gets added when it gets tests.

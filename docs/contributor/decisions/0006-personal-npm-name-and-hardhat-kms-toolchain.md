@@ -9,6 +9,8 @@ add-ons, and its toolchain and process are proven. On 2026-11-02 the npm registr
 `explorer-verify`, `explorerverify`, `explorer_verify`, `explorer.verify`, `explorer-verifier` and
 `@explorer-verify/core`.
 
+Research: none (maintainer choice).
+
 ## Decision
 
 - Core package: `explorer-verify`. Add-ons: `@explorer-verify/*`. Repository: `aelmanaa/explorer-verify`.
