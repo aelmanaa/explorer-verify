@@ -15,3 +15,4 @@ a new record that names the one it supersedes. Format: `NNNN-slug.md` with `# NN
 | [0006](0006-personal-npm-name-and-hardhat-kms-toolchain.md)       | Personal npm name `explorer-verify`; toolchain and process copied from hardhat-kms                                          | Accepted |
 | [0007](0007-agent-readiness-is-a-requirement-on-every-feature.md) | Agent readiness (R-AX) is a requirement on every feature; CLI plus shipped skill, no MCP server for now                     | Accepted |
 | [0008](0008-package-split-and-bundle-budget.md)                   | Core `explorer-verify` with a `/server` subpath, scoped CLI and build helpers; zero runtime dependencies and a size ceiling | Accepted |
+| [0009](0009-options-handle-and-errors.md)                         | `VerifyOptions` declares only M1 fields; the handle is versioned JSON with no URL; one error class with a details union     | Accepted |
