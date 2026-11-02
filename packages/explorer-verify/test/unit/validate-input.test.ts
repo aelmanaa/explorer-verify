@@ -23,6 +23,10 @@ const MESSAGES = {
   sources: "must be an object of source files by path",
   noSources: "must hold at least one source file",
   settings: "must be an object",
+  settingsJson: "must be JSON data",
+  platformVersion:
+    "has a platform suffix; pass the version up to the commit hash, such as 0.8.24+commit.e11b9ed9",
+  contractNamePathShape: "must have a path of at most 1024 characters, without control characters",
   contractNameFormat: "must be path:Name, with a Solidity identifier after the last colon",
   contractNamePath: "must start with a key of compiler.input.sources",
   constructorArgs: "must be 0x followed by an even number of hex digits",
@@ -318,7 +322,6 @@ describe("rule: compiler.version is the full form (R-IN-1, R-IN-6)", () => {
       "0.8.24+commit",
       "0.8.24+commit.e11b9ed",
       "0.8.24+commit.E11B9ED9",
-      "0.8.24+commit.e11b9ed9.Linux.g++",
       "V0.8.24+commit.e11b9ed9",
       "vv0.8.24+commit.e11b9ed9",
       "0.8.24-nightly+commit.e11b9ed9",
@@ -407,7 +410,7 @@ describe("rule: compiler.input.sources has entries with string content (R-IN-6)"
     assertIssue(
       withStandardJson({ sources: { "src/Token.sol": hostile } }),
       "compiler.input.sources",
-      "has 1 file without a string content, at position 1",
+      "has 1 file that cannot be read as JSON data, at position 1",
     );
   });
 });
@@ -481,9 +484,12 @@ describe("rule: contractName is path:Name with path in the sources (R-IN-1, R-IN
 });
 
 describe("rule: constructorArgs, when present, is 0x and an even number of hex digits (R-IN-6)", () => {
-  it("accepts 0x, one word and mixed case, and leaves it unchanged (R-IN-6)", () => {
+  it("accepts 0x, one word and mixed case, and returns it in lower case (R-IN-6)", () => {
     for (const constructorArgs of ["0x", `0x${"00".repeat(32)}`, "0xAbCd"]) {
-      assert.equal(validateInput({ ...input(), constructorArgs }).constructorArgs, constructorArgs);
+      assert.equal(
+        validateInput({ ...input(), constructorArgs }).constructorArgs,
+        constructorArgs.toLowerCase(),
+      );
     }
   });
 
@@ -500,9 +506,9 @@ describe("rule: constructorArgs, when present, is 0x and an even number of hex d
 });
 
 describe("rule: creationTxHash, when present, is 0x and 64 hex digits (R-IN-6)", () => {
-  it("accepts 64 hex digits in any case and leaves the field out when absent (R-IN-6)", () => {
-    for (const creationTxHash of [TX_HASH, TX_HASH.toUpperCase().replace("0X", "0x")]) {
-      assert.equal(validateInput({ ...input(), creationTxHash }).creationTxHash, creationTxHash);
+  it("accepts 64 hex digits in any case, returns them in lower case, and leaves the field out when absent (R-IN-6)", () => {
+    for (const creationTxHash of [TX_HASH, `0x${"AB".repeat(32)}`, `0x${"aB".repeat(32)}`]) {
+      assert.equal(validateInput({ ...input(), creationTxHash }).creationTxHash, TX_HASH);
     }
     assert.ok(!("creationTxHash" in validateInput(input())));
     assert.ok(!("creationTxHash" in validateInput({ ...input(), creationTxHash: undefined })));
@@ -616,7 +622,7 @@ describe("validateInput rejects hostile input as invalid-input (R-IN-6, R-SEC-1)
     assertIssue(
       withStandardJson({ settings: new Proxy({}, trap) }),
       "compiler.input.settings",
-      MESSAGES.settings,
+      MESSAGES.settingsJson,
     );
   });
 
@@ -754,5 +760,326 @@ describe("validateInput sends nothing (R-IN-6)", () => {
   it("makes no fetch call when validation passes (R-IN-6)", () => {
     validateInput(input());
     assert.equal(calls, 0);
+  });
+});
+
+describe("validateInput returns a deep copy of JSON data (R-IN-1, R-IN-6)", () => {
+  it("shares no object with the input: sources, entries, settings and nested values (R-IN-1)", () => {
+    const original = input();
+    const result = validateInput(original);
+    assert.notEqual(result.compiler, original.compiler);
+    assert.notEqual(result.compiler.input, original.compiler.input);
+    assert.notEqual(result.compiler.input.sources, original.compiler.input.sources);
+    assert.notEqual(
+      result.compiler.input.sources["src/Token.sol"],
+      original.compiler.input.sources["src/Token.sol"],
+    );
+    assert.notEqual(result.compiler.input.settings, original.compiler.input.settings);
+    assert.notEqual(
+      result.compiler.input.settings["optimizer"],
+      original.compiler.input.settings["optimizer"],
+    );
+  });
+
+  it("is unchanged when the caller later mutates settings.optimizer.runs and a source's urls (R-IN-1)", () => {
+    const optimizer = { enabled: true, runs: 200 };
+    const urls = ["ipfs://a"];
+    const value = withStandardJson({
+      sources: { "src/Token.sol": { content: "contract Token {}", urls } },
+      settings: { optimizer },
+    });
+    const result = validateInput(value);
+    const snapshot = structuredClone(result);
+    optimizer.runs = 1;
+    urls.push("ipfs://b");
+    assert.deepEqual(result, snapshot);
+    assert.deepEqual(result.compiler.input.settings, { optimizer: { enabled: true, runs: 200 } });
+  });
+
+  it("keeps extra Standard JSON fields such as evmVersion and outputSelection, deep-copied (R-IN-1)", () => {
+    const selected = ["abi"];
+    const value = withStandardJson({
+      evmVersion: "cancun",
+      outputSelection: { "*": { "*": selected } },
+    });
+    const result = validateInput(value);
+    assert.deepEqual(
+      { ...result.compiler.input },
+      {
+        ...input().compiler.input,
+        evmVersion: "cancun",
+        outputSelection: { "*": { "*": ["abi"] } },
+      },
+    );
+    selected.push("metadata");
+    assert.deepEqual(
+      Object.entries(result.compiler.input).find(([key]) => key === "outputSelection")?.[1],
+      { "*": { "*": ["abi"] } },
+    );
+  });
+
+  it("drops an extra Standard JSON field whose value is undefined (R-IN-6)", () => {
+    const result = validateInput(withStandardJson({ evmVersion: undefined }));
+    assert.ok(!("evmVersion" in result.compiler.input));
+  });
+
+  it("rejects a cycle in settings (R-IN-6)", () => {
+    const settings: Record<string, unknown> = {};
+    settings["self"] = settings;
+    assertIssue(withStandardJson({ settings }), "compiler.input.settings", MESSAGES.settingsJson);
+  });
+
+  it("rejects a BigInt in settings (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({ settings: { optimizer: { runs: 200n } } }),
+      "compiler.input.settings",
+      MESSAGES.settingsJson,
+    );
+  });
+
+  it("rejects a nested revoked Proxy in settings (R-IN-6)", () => {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    assertIssue(
+      withStandardJson({ settings: { optimizer: proxy } }),
+      "compiler.input.settings",
+      MESSAGES.settingsJson,
+    );
+  });
+
+  it("rejects nesting deep enough to overflow the stack (R-IN-6)", () => {
+    let deep: Record<string, unknown> = {};
+    for (let index = 0; index < 1_000_000; index++) {
+      deep = { a: deep };
+    }
+    assertIssue(
+      withStandardJson({ settings: deep }),
+      "compiler.input.settings",
+      MESSAGES.settingsJson,
+    );
+  });
+
+  it("rejects settings whose toJSON returns something that is not an object (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({ settings: { toJSON: () => 5 } }),
+      "compiler.input.settings",
+      MESSAGES.settings,
+    );
+  });
+
+  it("runs a settings toJSON once and returns what it returned (R-IN-6)", () => {
+    let calls = 0;
+    const settings = {
+      evmVersion: "paris",
+      toJSON: (): Record<string, unknown> => {
+        calls++;
+        return { evmVersion: calls === 1 ? "cancun" : "london" };
+      },
+    };
+    const result = validateInput(withStandardJson({ settings }));
+    assert.deepEqual(result.compiler.input.settings, { evmVersion: "cancun" });
+    assert.equal(calls, 1);
+  });
+
+  it("reads a source content getter once, so a later change does not reach the result (R-IN-6)", () => {
+    let reads = 0;
+    const entry = {
+      get content(): string {
+        reads++;
+        return reads === 1 ? "contract Token {}" : "contract Evil {}";
+      },
+    };
+    const result = validateInput(withStandardJson({ sources: { "src/Token.sol": entry } }));
+    assert.equal(result.compiler.input.sources["src/Token.sol"]?.content, "contract Token {}");
+    assert.equal(reads, 1);
+  });
+
+  it("rejects a source entry with a cycle or a BigInt, by position (R-IN-6)", () => {
+    const cyclic: Record<string, unknown> = { content: "" };
+    cyclic["self"] = cyclic;
+    assertIssue(
+      withStandardJson({
+        sources: {
+          "src/Token.sol": { content: "" },
+          "src/A.sol": cyclic,
+          "src/B.sol": { content: "", id: 1n },
+        },
+      }),
+      "compiler.input.sources",
+      "has 2 files that cannot be read as JSON data, at positions 2, 3",
+    );
+  });
+
+  it("reports unreadable entries, missing content and bad paths in one issue (R-IN-6)", () => {
+    const { proxy, revoke } = Proxy.revocable({ content: "" }, {});
+    revoke();
+    assertIssue(
+      withStandardJson({
+        sources: {
+          "src/Token.sol": { content: "" },
+          "src/A.sol": proxy,
+          "src/B.sol": {},
+          "src/\u0007.sol": { content: "" },
+        },
+      }),
+      "compiler.input.sources",
+      "has 1 file without a string content, at position 3; 1 file that cannot be read as JSON data, at position 2; 1 path of more than 1024 characters or with control characters, at position 4",
+    );
+  });
+
+  it("rejects extra Standard JSON fields that are not JSON data, by count and not by name (R-IN-6)", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic["self"] = cyclic;
+    const error = assertIssue(
+      withStandardJson({ [DUMMY_KEY]: cyclic, other: 1n, fine: "x" }),
+      "compiler.input",
+      "has 2 fields that are not JSON data",
+    );
+    assert.ok(!error.message.includes("other"));
+  });
+
+  it("rejects one extra field that is a function, in the singular (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({ evmVersion: () => "cancun" }),
+      "compiler.input",
+      "has 1 field that is not JSON data",
+    );
+  });
+});
+
+describe("rule: compiler.version pre-releases, platform suffixes and bounds (R-IN-6)", () => {
+  it("accepts an official pre-release such as 0.8.31-pre.1 (R-IN-6)", () => {
+    for (const [version, expected] of [
+      ["0.8.31-pre.1+commit.b59566f6", "0.8.31-pre.1+commit.b59566f6"],
+      ["v0.8.31-pre.12+commit.b59566f6", "0.8.31-pre.12+commit.b59566f6"],
+    ]) {
+      assert.equal(validateInput(withCompiler({ version })).compiler.version, expected);
+    }
+  });
+
+  it("accepts parts of up to four digits (R-IN-6)", () => {
+    for (const version of [
+      "9999.9999.9999+commit.e11b9ed9",
+      "0.8.25-nightly.2024.12.31+commit.2a7d79a1",
+      "0.8.31-pre.9999+commit.b59566f6",
+    ]) {
+      assert.equal(validateInput(withCompiler({ version })).compiler.version, version);
+    }
+  });
+
+  it("rejects parts over the bounds (R-IN-6)", () => {
+    for (const version of [
+      "10000.8.24+commit.e11b9ed9",
+      "0.10000.24+commit.e11b9ed9",
+      "0.8.10000+commit.e11b9ed9",
+      "0.8.25-nightly.2024.100.17+commit.2a7d79a1",
+      "0.8.25-nightly.2024.1.100+commit.2a7d79a1",
+      "0.8.25-nightly.20240.1.17+commit.2a7d79a1",
+      "0.8.31-pre+commit.b59566f6",
+      "0.8.31-pre.10000+commit.b59566f6",
+      "0.8.31-rc.1+commit.b59566f6",
+    ]) {
+      assertIssue(withCompiler({ version }), "compiler.version", MESSAGES.version);
+    }
+  });
+
+  it("rejects a platform suffix with its own message and hint (R-IN-6)", () => {
+    for (const version of [
+      "0.8.24+commit.e11b9ed9.Linux.g++",
+      "v0.8.24+commit.e11b9ed9.Darwin.appleclang",
+      "0.8.31-pre.1+commit.b59566f6.Emscripten.clang",
+    ]) {
+      const error = assertIssue(
+        withCompiler({ version }),
+        "compiler.version",
+        MESSAGES.platformVersion,
+      );
+      assert.equal(
+        error.hint,
+        "Remove the platform suffix after the commit hash from compiler.version, such as .Linux.g++.",
+      );
+    }
+  });
+
+  it("still rejects a 7-digit commit hash (R-IN-6)", () => {
+    assertIssue(
+      withCompiler({ version: "0.1.7+commit.c75f2b1" }),
+      "compiler.version",
+      MESSAGES.version,
+    );
+  });
+});
+
+describe("rule: source paths and the contractName path have no control characters and at most 1024 characters (R-IN-6)", () => {
+  it("accepts a path of 1024 characters (R-IN-6)", () => {
+    const path = `${"a".repeat(1020)}.sol`;
+    const value = withStandardJson({ sources: { [path]: { content: "" } } });
+    assert.equal(
+      validateInput({ ...value, contractName: `${path}:Token` }).contractName,
+      `${path}:Token`,
+    );
+  });
+
+  it("rejects a contractName path of 1025 characters or with a control character (R-IN-6)", () => {
+    for (const path of [
+      `${"a".repeat(1021)}.sol`,
+      "src/To\u0000ken.sol",
+      "src/Token.sol\n",
+      "src/\u001fToken.sol",
+      "src/\u007fToken.sol",
+    ]) {
+      assertIssue(
+        { ...input(), contractName: `${path}:Token` },
+        "contractName",
+        MESSAGES.contractNamePathShape,
+      );
+    }
+  });
+
+  it("rejects source paths of 1025 characters or with a control character, by position (R-IN-6)", () => {
+    const long = `${"a".repeat(1021)}.sol`;
+    const error = assertIssue(
+      withStandardJson({
+        sources: {
+          "src/Token.sol": { content: "" },
+          [long]: { content: "" },
+          "src/\tB.sol": { content: "" },
+          [`src/${DUMMY_KEY}\u007f.sol`]: { content: "" },
+        },
+      }),
+      "compiler.input.sources",
+      "has 3 paths of more than 1024 characters or with control characters, at positions 2, 3, 4",
+    );
+    assert.ok(!error.message.includes("aaaa"));
+  });
+
+  it("accepts a path with a character above DEL, such as an accented letter (R-IN-6)", () => {
+    const value = withStandardJson({ sources: { "src/Tökén.sol": { content: "" } } });
+    assert.equal(
+      validateInput({ ...value, contractName: "src/Tökén.sol:Token" }).contractName,
+      "src/Tökén.sol:Token",
+    );
+  });
+
+  it("rejects a space before the colon as a path not in the sources (R-IN-6)", () => {
+    assertIssue(
+      { ...input(), contractName: "src/Token.sol :Token" },
+      "contractName",
+      MESSAGES.contractNamePath,
+    );
+  });
+});
+
+describe("compiler.input.sources position list (R-IN-6)", () => {
+  it("lists exactly five bad positions without 'and more' (R-IN-6)", () => {
+    const sources: Record<string, unknown> = { "src/Token.sol": { content: "" } };
+    for (let index = 0; index < 5; index++) {
+      sources[`src/F${String(index)}.sol`] = {};
+    }
+    assertIssue(
+      withStandardJson({ sources }),
+      "compiler.input.sources",
+      "has 5 files without a string content, at positions 2, 3, 4, 5, 6",
+    );
   });
 });

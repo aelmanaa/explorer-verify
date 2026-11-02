@@ -80,7 +80,8 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
   `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
   handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.
 - `validateInput(input: unknown): VerifyInput` checks the input before any request (R-IN-6) and
-  returns it normalised: the version without a leading `v` and the address in lower case. It throws
+  returns it normalised: the version without a leading `v`, and the address, constructor
+  arguments and creation transaction hash in lower case. The result is a deep copy. It throws
   `invalid-input` with every problem found. `verify()` will call it first.
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
   `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope

@@ -3,17 +3,25 @@ import type { InputIssue } from "../errors.ts";
 import type { Hex, SolidityStandardJsonInput, VerifyInput } from "../types.ts";
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
-// Group 1 is the version without the optional `v`. Nightly builds carry `-nightly.YYYY.M.D`.
+// Group 1 is the version without the optional `v`. Nightly builds carry `-nightly.YYYY.M.D`,
+// official pre-releases `-pre.N`.
 const VERSION =
-  /^v?(\d{1,4}\.\d{1,4}\.\d{1,4}(?:-nightly\.\d{4}\.\d{1,2}\.\d{1,2})?\+commit\.[0-9a-f]{8})$/;
+  /^v?(\d{1,4}\.\d{1,4}\.\d{1,4}(?:-nightly\.\d{4}\.\d{1,2}\.\d{1,2}|-pre\.\d{1,4})?\+commit\.[0-9a-f]{8})$/;
+// A full version followed by a platform suffix, as `solc --version` prints it (`.Linux.g++`).
+const PLATFORM_VERSION =
+  /^v?\d{1,4}\.\d{1,4}\.\d{1,4}(?:-nightly\.\d{4}\.\d{1,2}\.\d{1,2}|-pre\.\d{1,4})?\+commit\.[0-9a-f]{8}\.[A-Za-z]/;
 const SHORT_VERSION = /^v?\d{1,4}\.\d{1,4}\.\d{1,4}$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const EVEN_HEX = /^0x(?:[0-9a-fA-F]{2})*$/;
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
 const MAX_POSITIONS = 5;
+const MAX_PATH = 1024;
+const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "settings"];
 
 const SHORT_VERSION_HINT =
   "Pass the full compiler version with its commit, such as 0.8.24+commit.e11b9ed9.";
+const PLATFORM_HINT =
+  "Remove the platform suffix after the commit hash from compiler.version, such as .Linux.g++.";
 const KIND_HINT = 'Set compiler.kind to "solc", the only supported compiler kind.';
 
 /**
@@ -32,6 +40,39 @@ function readFields(value: unknown): Map<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A deep copy of `value` through JSON, so the result shares no object with the caller. Each getter
+ * and `toJSON` runs once. `undefined` when `value` is not JSON data: a cycle, a BigInt, a function,
+ * a Proxy that throws, or nesting deep enough to overflow the stack.
+ */
+function copyJson(value: unknown): { value: unknown } | undefined {
+  try {
+    const copy: unknown = JSON.parse(JSON.stringify(value));
+    return { value: copy };
+  } catch {
+    return undefined;
+  }
+}
+
+/** A path of at most {@link MAX_PATH} characters, with no C0 control character and no DEL. */
+function isSafePath(path: string): boolean {
+  if (path.length > MAX_PATH) {
+    return false;
+  }
+  for (let index = 0; index < path.length; index++) {
+    const code = path.charCodeAt(index);
+    if (code < 0x20 || code === 0x7f) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** `"1 file"` or `"2 files"`. */
+function count(amount: number, noun: string): string {
+  return `${String(amount)} ${noun}${amount === 1 ? "" : "s"}`;
 }
 
 /** Collects the issues found so far and the specific hints that go with some of them. */
@@ -67,21 +108,29 @@ function checkKind(value: unknown, problems: Problems): "solc" | undefined {
 }
 
 function checkVersion(value: unknown, problems: Problems): string | undefined {
-  const version = typeof value === "string" ? VERSION.exec(value)?.[1] : undefined;
+  const field = "compiler.version";
+  if (typeof value !== "string") {
+    return problems.add(field, "must be a full solc version, such as 0.8.24+commit.e11b9ed9");
+  }
+  const version = VERSION.exec(value)?.[1];
   if (version !== undefined) {
     return version;
   }
-  if (typeof value === "string" && SHORT_VERSION.test(value)) {
+  if (SHORT_VERSION.test(value)) {
     return problems.add(
-      "compiler.version",
+      field,
       "is a short version; pass the full version with its commit, such as 0.8.24+commit.e11b9ed9",
       SHORT_VERSION_HINT,
     );
   }
-  return problems.add(
-    "compiler.version",
-    "must be a full solc version, such as 0.8.24+commit.e11b9ed9",
-  );
+  if (PLATFORM_VERSION.test(value)) {
+    return problems.add(
+      field,
+      "has a platform suffix; pass the version up to the commit hash, such as 0.8.24+commit.e11b9ed9",
+      PLATFORM_HINT,
+    );
+  }
+  return problems.add(field, "must be a full solc version, such as 0.8.24+commit.e11b9ed9");
 }
 
 function checkLanguage(value: unknown, problems: Problems): "Solidity" | undefined {
@@ -90,11 +139,22 @@ function checkLanguage(value: unknown, problems: Problems): "Solidity" | undefin
     : problems.add("compiler.input.language", 'must be "Solidity"');
 }
 
+/** `"2 files without a string content, at positions 1, 3"`, or `undefined` when none. */
+function describePositions(positions: number[], noun: string, what: string): string | undefined {
+  if (positions.length === 0) {
+    return undefined;
+  }
+  const shown = positions.slice(0, MAX_POSITIONS).join(", ");
+  const more = positions.length > MAX_POSITIONS ? " and more" : "";
+  const at = positions.length === 1 ? "position" : "positions";
+  return `${count(positions.length, noun)} ${what}, at ${at} ${shown}${more}`;
+}
+
 /**
- * The sources, copied entry by entry with every field kept, and every source path. `undefined`
- * when the sources are not an object or are empty. Entries without a string `content` are
- * reported by position, never by path: the input chose the paths. `sources` is `undefined` when
- * any entry is bad, while `paths` still lets `contractName` be checked.
+ * The sources, each entry deep-copied with every field kept, and every source path. `undefined`
+ * when the sources are not an object or are empty. Bad entries and bad paths are reported by
+ * position, never by path: the input chose the paths. `sources` is `undefined` when any entry or
+ * path is bad, while `paths` still lets `contractName` be checked.
  */
 function checkSources(
   value: unknown,
@@ -109,27 +169,36 @@ function checkSources(
     return problems.add(field, "must hold at least one source file");
   }
   const good: [string, { content: string }][] = [];
-  const bad: number[] = [];
+  const noContent: number[] = [];
+  const unreadable: number[] = [];
+  const badPaths: number[] = [];
   let position = 0;
   for (const [path, entry] of entries) {
     position++;
-    const fields = readFields(entry);
+    if (!isSafePath(path)) {
+      badPaths.push(position);
+    }
+    const copy = typeof entry === "object" && entry !== null ? copyJson(entry) : { value: entry };
+    if (copy === undefined) {
+      unreadable.push(position);
+      continue;
+    }
+    const fields = readFields(copy.value);
     const content = fields?.get("content");
     if (fields === undefined || typeof content !== "string") {
-      bad.push(position);
+      noContent.push(position);
     } else {
       good.push([path, { ...Object.fromEntries(fields), content }]);
     }
   }
   const paths = new Set(entries.keys());
-  if (bad.length > 0) {
-    const shown = bad.slice(0, MAX_POSITIONS).join(", ");
-    const more = bad.length > MAX_POSITIONS ? " and more" : "";
-    const [files, positions] = bad.length === 1 ? ["file", "position"] : ["files", "positions"];
-    problems.add(
-      field,
-      `has ${String(bad.length)} ${files} without a string content, at ${positions} ${shown}${more}`,
-    );
+  const parts = [
+    describePositions(noContent, "file", "without a string content"),
+    describePositions(unreadable, "file", "that cannot be read as JSON data"),
+    describePositions(badPaths, "path", "of more than 1024 characters or with control characters"),
+  ].filter((part) => part !== undefined);
+  if (parts.length > 0) {
+    problems.add(field, `has ${parts.join("; ")}`);
     return { paths };
   }
   // Object.fromEntries defines each key as an own property, so a path named __proto__ stays a key.
@@ -137,10 +206,47 @@ function checkSources(
 }
 
 function checkSettings(value: unknown, problems: Problems): Record<string, unknown> | undefined {
-  const fields = readFields(value);
+  const field = "compiler.input.settings";
+  if (typeof value !== "object" || value === null) {
+    return problems.add(field, "must be an object");
+  }
+  const copy = copyJson(value);
+  if (copy === undefined) {
+    return problems.add(field, "must be JSON data");
+  }
+  const fields = readFields(copy.value);
   return fields === undefined
-    ? problems.add("compiler.input.settings", "must be an object")
+    ? problems.add(field, "must be an object")
     : Object.fromEntries(fields);
+}
+
+/**
+ * The Standard JSON fields other than language, sources and settings, deep-copied. A field whose
+ * value is `undefined` is left out, as JSON leaves it out. Fields that are not JSON data are
+ * counted, never named: the input chose the names.
+ */
+function checkExtraFields(
+  fields: Map<string, unknown>,
+  problems: Problems,
+): [string, unknown][] | undefined {
+  const extras: [string, unknown][] = [];
+  let bad = 0;
+  for (const [name, value] of fields) {
+    if (STANDARD_JSON_FIELDS.includes(name) || value === undefined) {
+      continue;
+    }
+    const copy = copyJson(value);
+    if (copy === undefined) {
+      bad++;
+    } else {
+      extras.push([name, copy.value]);
+    }
+  }
+  if (bad > 0) {
+    const verb = bad === 1 ? "is" : "are";
+    return problems.add("compiler.input", `has ${count(bad, "field")} that ${verb} not JSON data`);
+  }
+  return extras;
 }
 
 /** A checked value, `undefined` when invalid, and the source paths when the sources were read. */
@@ -149,7 +255,7 @@ interface WithPaths<T> {
   paths: ReadonlySet<string> | undefined;
 }
 
-/** The Standard JSON input, copied with every field kept. */
+/** The Standard JSON input, deep-copied with every field kept. */
 function checkStandardJson(
   value: unknown,
   problems: Problems,
@@ -159,15 +265,21 @@ function checkStandardJson(
     problems.add("compiler.input", "must be the Standard JSON input object");
     return { value: undefined, paths: undefined };
   }
+  const extras = checkExtraFields(fields, problems);
   const language = checkLanguage(fields.get("language"), problems);
   const checked = checkSources(fields.get("sources"), problems);
   const settings = checkSettings(fields.get("settings"), problems);
   const sources = checked?.sources;
   const paths = checked?.paths;
-  if (language === undefined || sources === undefined || settings === undefined) {
+  if (
+    extras === undefined ||
+    language === undefined ||
+    sources === undefined ||
+    settings === undefined
+  ) {
     return { value: undefined, paths };
   }
-  return { value: { ...Object.fromEntries(fields), language, sources, settings }, paths };
+  return { value: { language, sources, settings, ...Object.fromEntries(extras) }, paths };
 }
 
 function checkCompiler(value: unknown, problems: Problems): WithPaths<VerifyInput["compiler"]> {
@@ -197,14 +309,21 @@ function checkContractName(
       "must be path:Name, with a Solidity identifier after the last colon",
     );
   }
+  const path = value.slice(0, colon);
+  if (!isSafePath(path)) {
+    return problems.add(
+      "contractName",
+      "must have a path of at most 1024 characters, without control characters",
+    );
+  }
   // When the sources did not parse, their own issue is enough.
-  if (paths !== undefined && !paths.has(value.slice(0, colon))) {
+  if (paths !== undefined && !paths.has(path)) {
     return problems.add("contractName", "must start with a key of compiler.input.sources");
   }
   return value;
 }
 
-/** An optional hex field: `{}` when absent, `undefined` when present and invalid. */
+/** An optional hex field in lower case: `{}` when absent, `undefined` when present and invalid. */
 function checkOptionalHex(
   fields: Map<string, unknown>,
   field: "constructorArgs" | "creationTxHash",
@@ -217,20 +336,29 @@ function checkOptionalHex(
     return {};
   }
   return typeof value === "string" && pattern.test(value)
-    ? { value: `0x${value.slice(2)}` }
+    ? { value: `0x${value.slice(2).toLowerCase()}` }
     : problems.add(field, message);
 }
 
 /**
- * Checks a verification input before any request is sent (R-IN-6), and returns it normalised: the
- * compiler version without a leading `v` and the address in lower case (R-IN-1). Each backend adds
- * the prefix or checksum it needs. Sources and settings are copied unchanged, with any extra
- * Standard JSON fields; fields that `VerifyInput` does not declare are left out.
+ * Checks a verification input before any request is sent (R-IN-6), and returns it normalised
+ * (R-IN-1): the compiler version without a leading `v`, and the address, `constructorArgs` and
+ * `creationTxHash` in lower case. Each backend adds the prefix or checksum it needs.
+ *
+ * The result is a deep copy that shares no object with the input, so changing the input later does
+ * not change it. Sources, settings and any extra Standard JSON fields go through a JSON round trip:
+ * their values are kept, each getter and `toJSON` runs once, and a value that is not JSON data
+ * (a cycle, a BigInt, a function, a Proxy that throws) is rejected. Fields that `VerifyInput` does
+ * not declare are left out.
  *
  * It finds every problem, not only the first. Each issue names its field with a dotted path, such
  * as `compiler.version`, so a form can show it next to the field. Messages never repeat a value,
  * a source path or anything else the input chose. The address check is format only: the EIP-55
- * checksum is not checked. It sends nothing and calls no `fetch`.
+ * checksum is not checked. Source paths and the path in `contractName` are at most 1024 characters
+ * with no control characters. It sends nothing and calls no `fetch`.
+ *
+ * `constructorArgs` and `creationTxHash` are optional, not nullable: leave them out or set them to
+ * `undefined`; `null` is rejected. `constructorArgs: "0x"` means the constructor takes no arguments.
  *
  * @param input - The input to check. Any value is accepted, for example `JSON.parse` of a request
  *   body; a value whose fields cannot be read, such as a Proxy whose traps throw, is rejected.
