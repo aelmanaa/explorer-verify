@@ -16,6 +16,7 @@ const EVEN_HEX = /^0x(?:[0-9a-fA-F]{2})*$/;
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
 const MAX_POSITIONS = 5;
 const MAX_PATH = 1024;
+const MAX_DEPTH = 64;
 const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "settings"];
 
 const SHORT_VERSION_HINT =
@@ -44,15 +45,31 @@ function readFields(value: unknown): Map<string, unknown> | undefined {
 
 /**
  * A deep copy of `value` through JSON, so the result shares no object with the caller. Each getter
- * and `toJSON` runs once. `undefined` when `value` is not JSON data: a cycle, a BigInt, a function,
- * a Proxy that throws, or nesting deep enough to overflow the stack.
+ * and `toJSON` runs once. `"not-json"` when `value` is not JSON data: a cycle, a BigInt, a
+ * function or a Proxy that throws. `"too-deep"` when an object or array sits more than
+ * {@link MAX_DEPTH} levels deep: the replacer stops the copy at that level, so the result never
+ * depends on the runtime's stack size.
  */
-function copyJson(value: unknown): { value: unknown } | undefined {
+function copyJson(value: unknown): { value: unknown } | "not-json" | "too-deep" {
+  // The depth of each object or array the copy has entered. The root's holder is not in the map.
+  const depths = new Map<unknown, number>();
+  let tooDeep = false;
+  function replacer(this: unknown, _key: string, current: unknown): unknown {
+    if (typeof current === "object" && current !== null) {
+      const parent = depths.get(this) ?? 0;
+      if (parent >= MAX_DEPTH) {
+        tooDeep = true;
+        throw new RangeError("nested too deeply");
+      }
+      depths.set(current, parent + 1);
+    }
+    return current;
+  }
   try {
-    const copy: unknown = JSON.parse(JSON.stringify(value));
+    const copy: unknown = JSON.parse(JSON.stringify(value, replacer));
     return { value: copy };
   } catch {
-    return undefined;
+    return tooDeep ? "too-deep" : "not-json";
   }
 }
 
@@ -171,6 +188,7 @@ function checkSources(
   const good: [string, { content: string }][] = [];
   const noContent: number[] = [];
   const unreadable: number[] = [];
+  const tooDeep: number[] = [];
   const badPaths: number[] = [];
   let position = 0;
   for (const [path, entry] of entries) {
@@ -179,8 +197,12 @@ function checkSources(
       badPaths.push(position);
     }
     const copy = typeof entry === "object" && entry !== null ? copyJson(entry) : { value: entry };
-    if (copy === undefined) {
+    if (copy === "not-json") {
       unreadable.push(position);
+      continue;
+    }
+    if (copy === "too-deep") {
+      tooDeep.push(position);
       continue;
     }
     const fields = readFields(copy.value);
@@ -195,6 +217,7 @@ function checkSources(
   const parts = [
     describePositions(noContent, "file", "without a string content"),
     describePositions(unreadable, "file", "that cannot be read as JSON data"),
+    describePositions(tooDeep, "file", "nested more than 64 levels deep"),
     describePositions(badPaths, "path", "of more than 1024 characters or with control characters"),
   ].filter((part) => part !== undefined);
   if (parts.length > 0) {
@@ -211,8 +234,11 @@ function checkSettings(value: unknown, problems: Problems): Record<string, unkno
     return problems.add(field, "must be an object");
   }
   const copy = copyJson(value);
-  if (copy === undefined) {
+  if (copy === "not-json") {
     return problems.add(field, "must be JSON data");
+  }
+  if (copy === "too-deep") {
+    return problems.add(field, "is nested more than 64 levels deep");
   }
   const fields = readFields(copy.value);
   return fields === undefined
@@ -230,21 +256,30 @@ function checkExtraFields(
   problems: Problems,
 ): [string, unknown][] | undefined {
   const extras: [string, unknown][] = [];
-  let bad = 0;
+  let notJson = 0;
+  let tooDeep = 0;
   for (const [name, value] of fields) {
     if (STANDARD_JSON_FIELDS.includes(name) || value === undefined) {
       continue;
     }
     const copy = copyJson(value);
-    if (copy === undefined) {
-      bad++;
+    if (copy === "not-json") {
+      notJson++;
+    } else if (copy === "too-deep") {
+      tooDeep++;
     } else {
       extras.push([name, copy.value]);
     }
   }
-  if (bad > 0) {
-    const verb = bad === 1 ? "is" : "are";
-    return problems.add("compiler.input", `has ${count(bad, "field")} that ${verb} not JSON data`);
+  const parts: string[] = [];
+  if (notJson > 0) {
+    parts.push(`${count(notJson, "field")} that ${notJson === 1 ? "is" : "are"} not JSON data`);
+  }
+  if (tooDeep > 0) {
+    parts.push(`${count(tooDeep, "field")} nested more than 64 levels deep`);
+  }
+  if (parts.length > 0) {
+    return problems.add("compiler.input", `has ${parts.join("; ")}`);
   }
   return extras;
 }
@@ -348,8 +383,9 @@ function checkOptionalHex(
  * The result is a deep copy that shares no object with the input, so changing the input later does
  * not change it. Sources, settings and any extra Standard JSON fields go through a JSON round trip:
  * their values are kept, each getter and `toJSON` runs once, and a value that is not JSON data
- * (a cycle, a BigInt, a function, a Proxy that throws) is rejected. Fields that `VerifyInput` does
- * not declare are left out.
+ * (a cycle, a BigInt, a function, a Proxy that throws) is rejected. So is a value nested more than
+ * 64 levels deep, on every runtime; real Standard JSON is about 5 levels deep. Fields that
+ * `VerifyInput` does not declare are left out.
  *
  * It finds every problem, not only the first. Each issue names its field with a dotted path, such
  * as `compiler.version`, so a form can show it next to the field. Messages never repeat a value,

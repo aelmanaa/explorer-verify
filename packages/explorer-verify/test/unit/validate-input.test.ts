@@ -24,6 +24,7 @@ const MESSAGES = {
   noSources: "must hold at least one source file",
   settings: "must be an object",
   settingsJson: "must be JSON data",
+  tooDeep: "is nested more than 64 levels deep",
   platformVersion:
     "has a platform suffix; pass the version up to the commit hash, such as 0.8.24+commit.e11b9ed9",
   contractNamePathShape: "must have a path of at most 1024 characters, without control characters",
@@ -52,6 +53,15 @@ function input(): VerifyInput {
     },
     contractName: "src/Token.sol:Token",
   };
+}
+
+/** An object `levels` levels deep: `nested(1)` is `{}`, `nested(2)` is `{ a: {} }`. */
+function nested(levels: number): Record<string, unknown> {
+  let value: Record<string, unknown> = {};
+  for (let level = 1; level < levels; level++) {
+    value = { a: value };
+  }
+  return value;
 }
 
 /** `input()` with `compiler` fields replaced. */
@@ -847,25 +857,80 @@ describe("validateInput returns a deep copy of JSON data (R-IN-1, R-IN-6)", () =
     );
   });
 
-  it("gives invalid-input, never a raw RangeError, for nesting a million levels deep (R-IN-6)", () => {
-    // Whether JSON.stringify overflows at this depth depends on the engine: Node 24 throws a
-    // RangeError, Node 26 does not. Either way the call must not leak the raw error.
-    let deep: Record<string, unknown> = {};
-    for (let index = 0; index < 1_000_000; index++) {
-      deep = { a: deep };
+  it("accepts settings 64 levels deep and rejects 65 (R-IN-6)", () => {
+    const accepted = nested(64);
+    assert.deepEqual(
+      validateInput(withStandardJson({ settings: accepted })).compiler.input.settings,
+      accepted,
+    );
+    assertIssue(
+      withStandardJson({ settings: nested(65) }),
+      "compiler.input.settings",
+      MESSAGES.tooDeep,
+    );
+  });
+
+  it("counts arrays as levels (R-IN-6)", () => {
+    let deep: unknown = {};
+    for (let level = 1; level < 65; level++) {
+      deep = level % 2 === 0 ? [deep] : { a: deep };
     }
-    const value = withStandardJson({ settings: deep });
-    let outcome: unknown;
-    try {
-      outcome = validateInput(value);
-    } catch (error) {
-      outcome = error;
-    }
-    if (outcome instanceof Error) {
-      assertIssue(value, "compiler.input.settings", MESSAGES.settingsJson);
-    } else {
-      assert.notEqual(validateInput(value).compiler.input.settings, deep);
-    }
+    assertIssue(
+      withStandardJson({ settings: { a: deep } }),
+      "compiler.input.settings",
+      MESSAGES.tooDeep,
+    );
+  });
+
+  it("rejects settings a million levels deep with invalid-input on every runtime (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({ settings: nested(1_000_000) }),
+      "compiler.input.settings",
+      MESSAGES.tooDeep,
+    );
+  });
+
+  it("measures depth along each path, so a shared object at two depths is fine (R-IN-6)", () => {
+    const shared = nested(10);
+    const settings = { shallow: shared, deep: { a: { a: shared } } };
+    assert.deepEqual(
+      validateInput(withStandardJson({ settings })).compiler.input.settings,
+      settings,
+    );
+  });
+
+  it("rejects source entries nested too deeply, by position (R-IN-6)", () => {
+    assertIssue(
+      withStandardJson({
+        sources: {
+          "src/Token.sol": { content: "" },
+          "src/A.sol": { content: "", extra: nested(64) },
+        },
+      }),
+      "compiler.input.sources",
+      "has 1 file nested more than 64 levels deep, at position 2",
+    );
+    assert.equal(
+      validateInput(
+        withStandardJson({ sources: { "src/Token.sol": { content: "", extra: nested(63) } } }),
+      ).contractName,
+      "src/Token.sol:Token",
+    );
+  });
+
+  it("rejects extra Standard JSON fields nested too deeply, by count (R-IN-6)", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic["self"] = cyclic;
+    assertIssue(
+      withStandardJson({ a: nested(65), b: nested(65), c: cyclic }),
+      "compiler.input",
+      "has 1 field that is not JSON data; 2 fields nested more than 64 levels deep",
+    );
+    assertIssue(
+      withStandardJson({ a: nested(65) }),
+      "compiler.input",
+      "has 1 field nested more than 64 levels deep",
+    );
   });
 
   it("rejects settings whose toJSON returns something that is not an object (R-IN-6)", () => {
