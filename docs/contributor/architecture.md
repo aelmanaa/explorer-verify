@@ -28,21 +28,22 @@ subpath arrives in M3, the add-ons in M4.
 
 Planned layout of `packages/explorer-verify/src/`:
 
-| Module                                     | Responsibility                                                                |
-| ------------------------------------------ | ----------------------------------------------------------------------------- |
-| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `Hex`, compiler inputs (exists)  |
-| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                       |
-| `errors.ts`                                | Error catalogue: one class per code, a fix hint, key redaction                |
-| `input/validate.ts`                        | R-IN-6 checks                                                                 |
-| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                 |
-| `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5) |
-| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                          |
-| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below                |
-| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)     |
-| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                          |
-| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs |
-| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)           |
-| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                   |
+| Module                                     | Responsibility                                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `VerifyOptions`, `Handle` (exists)                |
+| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                        |
+| `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part) |
+| `input/validate.ts`                        | R-IN-6 checks                                                                                  |
+| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                  |
+| `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                  |
+| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                           |
+| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below                                 |
+| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                      |
+| `flow/handle.ts`                           | `parseHandle` and the handle's one-line form (exists in part)                                  |
+| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                                           |
+| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                  |
+| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                            |
+| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                    |
 
 ## Backend interface
 
@@ -63,17 +64,32 @@ interface Backend {
 ```
 
 `Context` carries `fetch`, `AbortSignal`, the API key (when the backend needs one), a logger and
-the route. A `Handle` is serialisable (backend name, chain id, address, explorer job id) so
-`checkStatus` can resume it in another process.
+the route. A `Handle` is plain JSON (version, backend name, chain id, address, explorer job id) so
+`checkStatus` can resume it in another process. It carries no URL.
 
-## Public entry points (proposed)
+## Public entry points
 
-`verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
-`checkStatus(handle: Handle, options?: VerifyOptions): Promise<VerifyResult>`. `VerifyOptions`
-carries `fetch`, `signal`, `timeoutMs` (poll budget), `logger`, `apiKey`, `rpcUrl` and `route`,
-following implementation B's option shape ([prior-art.md](prior-art.md)). A timeout or unknown state
-throws a typed error whose `handle` property `checkStatus` accepts. Settle the exact shape in the
-first M1 issue and update `types.ts`.
+Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
+
+- `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
+  `checkStatus(handle: Handle, options?: VerifyOptions): Promise<VerifyResult>`.
+- `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
+  `pollIntervalMs`, `logger` and `route`. Every field is optional. M2 adds `apiKeys`, keyed by
+  backend name, and `rpcUrl`.
+- `Handle` is `{ version: 1, backend, chainId, address, jobId }`: plain JSON with no URL.
+  `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
+  handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.
+- Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
+  `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope
+  (R-AX-5).
+- A time budget that runs out after the explorer accepted the submission throws `not-confirmed`,
+  whose `details.handle` `checkStatus` accepts. One that runs out before then throws a timeout error
+  without a handle; its code arrives in #12, and the CLI maps it to exit code 5.
+- Abort rejects with `signal.reason` unchanged. `verify()` logs the handle through `logger.info` as
+  soon as the submit is accepted, so an aborted call can still be resumed.
+
+`types.ts` holds the option and handle types, `errors.ts` the error class and `flow/handle.ts`
+`parseHandle`. `verify` and `checkStatus` do not exist yet.
 
 ## Verification flow
 
@@ -92,7 +108,7 @@ flowchart TD
   H --> I[backend.poll until terminal or budget spent]
   I -- pass --> J[verified: exact or partial]
   I -- definitive rejection --> K[failed: reason]
-  I -- unknown or timeout --> L[throw typed error with the handle]
+  I -- unknown or timeout --> L[throw typed error, with the handle once there is a job id]
   style A fill:#0847F7,color:#fff
 ```
 

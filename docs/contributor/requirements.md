@@ -96,7 +96,8 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 - **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
   ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
-  later, from another process or after a page reload.
+  later, from another process or after a page reload. The handle is plain JSON with a version field
+  and no URLs.
 - **R-FLOW-6** Cancellation through `AbortSignal`, and retries with backoff on rate limits and
   transient errors.
 - **R-FLOW-7** Known explorer behaviour is handled, not reported as failure: Blockscout's partial
@@ -158,7 +159,7 @@ CLI:
 - **R-AX-5** `--json` on every command. The output is one versioned envelope, in one of three forms:
   - `{ "schemaVersion": 1, "ok": true, "result": ... }`
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
-  - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "handle"? } }`
+  - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
   `status`, `result` is a `VerifyResult`; every other command documents its result type in the JSON
@@ -227,6 +228,8 @@ Measurement:
 - **R-SEC-1** API keys never appear in logs, errors, results or thrown messages. Redaction is
   tested.
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
+  A handle never carries a host; the library resolves hosts from the routing table or the caller's
+  options when it resumes.
 - **R-SEC-3** Docs state the Etherscan plan requirement: a public dapp or any business, protocol,
   foundation or DAO use needs an Advanced or higher plan and its own key, and must show "Powered by
   Etherscan.io APIs" when it displays Etherscan data.

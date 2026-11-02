@@ -67,3 +67,123 @@ export type VerifyResult =
       explorerUrl: string;
     }
   | { status: "failed"; backend: BackendName; reason: string };
+
+/**
+ * Receives the library's log lines. Every line is a plain string with API keys already removed
+ * (R-SEC-1). `console` fits this shape.
+ *
+ * @example
+ * ```ts
+ * import type { Logger } from "explorer-verify";
+ *
+ * const logger: Logger = {
+ *   debug: () => {},
+ *   info: (message) => console.info(message),
+ *   warn: (message) => console.warn(message),
+ *   error: (message) => console.error(message),
+ * };
+ * ```
+ * @experimental
+ */
+export interface Logger {
+  /** Request and polling detail. */
+  debug: (message: string) => void;
+  /** Progress a person may want to see. */
+  info: (message: string) => void;
+  /** A retry or a recovered problem. */
+  warn: (message: string) => void;
+  /** A failure, logged before the error is thrown. */
+  error: (message: string) => void;
+}
+
+/**
+ * Overrides the route for one call: which backend to use and where its API lives, for example a
+ * self-hosted Sourcify server or a local fake in tests. Hosts come only from here or from the
+ * routing table, never from a {@link Handle} (R-SEC-2).
+ *
+ * @example
+ * ```ts
+ * import type { RouteOverride } from "explorer-verify";
+ *
+ * const route: RouteOverride = { backend: "sourcify", apiUrl: "https://sourcify.example.org/server" };
+ * ```
+ * @experimental
+ */
+export interface RouteOverride {
+  /** The backend to use instead of the one the routing table names. */
+  backend?: BackendName;
+  /**
+   * The API base URL. This release only declares the field; nothing reads it yet. The routing
+   * change (issue #15) validates it: `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`,
+   * no user name or password in the URL, and the query string redacted in logs.
+   */
+  apiUrl?: string;
+}
+
+/**
+ * Options for `verify()` and `checkStatus()`. Every field is optional. A later release adds fields
+ * without changing these, so existing callers keep working (decision 0009).
+ *
+ * @example
+ * ```ts
+ * import type { VerifyOptions } from "explorer-verify";
+ *
+ * const controller = new AbortController();
+ * const options: VerifyOptions = {
+ *   signal: controller.signal,
+ *   timeoutMs: 60_000,
+ *   pollIntervalMs: 5_000,
+ * };
+ * ```
+ * @experimental
+ */
+export interface VerifyOptions {
+  /** The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). */
+  fetch?: typeof fetch;
+  /** Cancels the call. The call rejects with `signal.reason` unchanged (R-FLOW-6). */
+  signal?: AbortSignal;
+  /** Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. */
+  timeoutMs?: number;
+  /** Wait between two status polls, in milliseconds. Defaults to 3000. */
+  pollIntervalMs?: number;
+  /** Receives log lines with keys removed. Nothing is logged when it is absent. */
+  logger?: Logger;
+  /** Overrides the routing table for this call. */
+  route?: RouteOverride;
+}
+
+/**
+ * Identifies a submitted verification so polling can continue later, in another process or after
+ * a page reload (R-FLOW-5). It is plain JSON and survives `JSON.stringify` and `JSON.parse`.
+ *
+ * It carries no URL. When polling resumes, the library resolves the API from `backend`, `chainId`
+ * and the caller's `route` option, so a handle read from untrusted storage cannot choose where
+ * requests go (R-SEC-2). Read a stored handle back with `parseHandle`.
+ *
+ * @example
+ * ```ts
+ * import type { Handle } from "explorer-verify";
+ *
+ * const handle: Handle = {
+ *   version: 1,
+ *   backend: "sourcify",
+ *   chainId: 11155111,
+ *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+ *   jobId: "550e8400-e29b-41d4-a716-446655440000",
+ * };
+ * localStorage.setItem("pending-verification", JSON.stringify(handle));
+ * ```
+ * @experimental
+ */
+export interface Handle {
+  /** Shape version. A later release that changes the shape still reads version 1. */
+  version: 1;
+  /** The backend that accepted the submission. */
+  backend: BackendName;
+  /** EVM chain id the contract is deployed on. */
+  chainId: number;
+  /** The contract address. */
+  address: Hex;
+  /** The backend's job id: Sourcify's `verificationId` or Etherscan's `guid`. */
+  jobId: string;
+}

@@ -10,6 +10,7 @@ still to come.
 | Page                                                                 | What it covers                                                         |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [Using explorer-verify from an agent](guides/using-from-an-agent.md) | Safe steps and the permanent submit, API keys, the Etherscan plan rule |
+| [Errors](reference/errors.md)                                        | Every error code, with its cause and fix                               |
 
 Pages land with the features they describe, in four kinds (the Diátaxis layout used by [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)):
 

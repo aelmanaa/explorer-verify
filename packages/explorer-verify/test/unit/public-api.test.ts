@@ -1,0 +1,118 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import * as api from "../../src/index.ts";
+import type { Handle, Logger, RouteOverride, VerifyOptions } from "../../src/index.ts";
+
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+// Each object literal must list exactly the type's keys: a missing key and an extra key both fail
+// to compile, so adding, removing or renaming a field breaks this test.
+const handleKeys: Record<keyof Handle, true> = {
+  version: true,
+  backend: true,
+  chainId: true,
+  address: true,
+  jobId: true,
+};
+const optionKeys: Record<keyof VerifyOptions, true> = {
+  fetch: true,
+  signal: true,
+  timeoutMs: true,
+  pollIntervalMs: true,
+  logger: true,
+  route: true,
+};
+const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true };
+const emptyRoute: RouteOverride = {};
+const versionIsOne: Equal<Handle["version"], 1> = true;
+
+describe("public types", () => {
+  it("Handle has exactly version, backend, chainId, address and jobId (R-FLOW-5, R-SEC-2)", () => {
+    assert.deepEqual(Object.keys(handleKeys), [
+      "version",
+      "backend",
+      "chainId",
+      "address",
+      "jobId",
+    ]);
+    assert.equal(versionIsOne, true);
+  });
+
+  it("VerifyOptions has exactly the M1 fields (decision 0009)", () => {
+    assert.deepEqual(Object.keys(optionKeys), [
+      "fetch",
+      "signal",
+      "timeoutMs",
+      "pollIntervalMs",
+      "logger",
+      "route",
+    ]);
+  });
+
+  it("RouteOverride has backend and apiUrl, both optional (decision 0009)", () => {
+    assert.deepEqual(Object.keys(routeKeys), ["backend", "apiUrl"]);
+    assert.deepEqual(emptyRoute, {});
+  });
+});
+
+describe("public entry point", () => {
+  it("exports exactly the decided runtime values (decision 0009)", () => {
+    assert.deepEqual(Object.keys(api).toSorted(), [
+      "BACKEND_NAMES",
+      "ERROR_CODES",
+      "ExplorerVerifyError",
+      "parseHandle",
+      "toBackendName",
+    ]);
+  });
+
+  it("lists the M1 error codes (R-DX-3)", () => {
+    assert.deepEqual(api.ERROR_CODES, ["invalid-input", "not-confirmed"]);
+  });
+
+  it("accepts every VerifyOptions field, all optional (decision 0009)", () => {
+    const logger: Logger = {
+      debug: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    };
+    const route: RouteOverride = { backend: "sourcify", apiUrl: "http://127.0.0.1:5555" };
+    const empty: VerifyOptions = {};
+    const full: VerifyOptions = {
+      fetch: globalThis.fetch,
+      signal: new AbortController().signal,
+      timeoutMs: 120_000,
+      pollIntervalMs: 3_000,
+      logger,
+      route,
+    };
+    assert.deepEqual(Object.keys(empty), []);
+    assert.deepEqual(Object.keys(full), [
+      "fetch",
+      "signal",
+      "timeoutMs",
+      "pollIntervalMs",
+      "logger",
+      "route",
+    ]);
+  });
+
+  it("has a Handle with exactly the decided fields and no URL (R-FLOW-5, R-SEC-2)", () => {
+    const handle: Handle = {
+      version: 1,
+      backend: "sourcify",
+      chainId: 1,
+      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      jobId: "job",
+    };
+    assert.deepEqual(Object.keys(api.parseHandle(handle)), [
+      "version",
+      "backend",
+      "chainId",
+      "address",
+      "jobId",
+    ]);
+  });
+});

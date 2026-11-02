@@ -33,7 +33,8 @@ maintainer's.
 User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/README.md](docs/README.md). The index for agents is [llms.txt](llms.txt), and
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
-are safe and which one submits.
+are safe and which one submits. The error reference is
+[docs/user/reference/errors.md](docs/user/reference/errors.md).
 
 ## Commands
 
