@@ -25,6 +25,7 @@
     "test": "pnpm run build && pnpm -r run test && pnpm run test:scripts",
     "test:unit": "pnpm run build && pnpm -r run test:unit && pnpm run test:scripts",
     "test:scripts": "c8 --config scripts/c8rc.json node scripts/node-test.ts unit \"scripts/test/**/*.test.ts\"",
+    "test:randomize": "pnpm run build && pnpm -r run test:randomize && node scripts/node-test.ts unit --test-randomize \"scripts/test/**/*.test.ts\"",
     "coverage": "pnpm run build && pnpm -r run coverage",
     "pkg:check": "pnpm run build && pnpm -r run pkg:check && knip",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",

@@ -11,7 +11,7 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 | oxfmt                        | `.oxfmtrc.json`                                        | Format, width 100                                                                                                                                           |
 | knip                         | `knip.json`                                            | Unused files, exports and dependencies                                                                                                                      |
 | publint, are-the-types-wrong | `pkg:check` script                                     | Package manifest and type resolution                                                                                                                        |
-| c8                           | `packages/*/.c8rc.json`                                | Coverage, 95% floor                                                                                                                                         |
+| c8                           | `packages/*/.c8rc.json`                                | Coverage, 95% floor per file                                                                                                                                |
 | lefthook                     | `lefthook.yml`                                         | pre-commit: lint fix, format, typecheck, type escapes; commit-msg: Conventional Commits                                                                     |
 | pre-push hook                | `scripts/install-git-hooks.ts`                         | Refuses pushes to `main`, then runs unit tests                                                                                                              |
 | changesets                   | `.changeset/config.json`                               | Release notes and versions                                                                                                                                  |
@@ -92,6 +92,17 @@ gitignored. The `files` field of the package lists them.
 `pkg:check` runs `scripts/check-packed-files.ts`. It reads `npm pack --dry-run --json` and fails
 when the tarball lacks `llms.txt` or a file from `docs/user/`, or when a relative link in a packaged
 page or the packaged `llms.txt` points to a file that is not in the tarball.
+
+## Test runner
+
+`scripts/node-test.ts` runs `node --test` for the package `test:unit` and `test:randomize` scripts
+and for the script tests. It sets `--test-timeout` for the Node version and passes the other
+arguments on. When the arguments include `--test-randomize` or `--test-random-seed=<n>` and the
+Node lacks them (22.x, 24.0 to 24.15 and 26.0), it writes a note to stderr, skips the run and exits 0.
+
+`pnpm run test:randomize` builds, then runs the package unit tests and the script tests with
+`--test-randomize`. The CI coverage job runs it on the latest Node 24. See
+[deterministic tests](testing.md#deterministic-tests).
 
 ## Tests for scripts
 

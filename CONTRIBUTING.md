@@ -44,7 +44,14 @@ A pull request is done when every item that applies holds. The agent-readiness i
 that adds or changes a public function, error, CLI command or user page (decision 0007). A
 requirement the change does not meet is named in the pull request with the reason.
 
-- Tests ship with the change, and coverage stays at or above 95%.
+- Tests ship with the change, and coverage stays at or above 95% in every file.
+- Each acceptance criterion and requirement ID the change implements has a named test that fails
+  if the behaviour regresses. The test name cites the ID (see
+  [testing](docs/contributor/testing.md#rules)).
+- Each bug fix and each review finding adds a test that fails before the fix and passes after it.
+- Each error code and each rejected input has a test that asserts the code. The same test passes a
+  dummy API key and asserts that the key appears nowhere in the error: not in `message`, `toJSON()`,
+  `String(error)` or `util.inspect(error)`.
 - Docs ship with the code. A new page is linked from [AGENTS.md](AGENTS.md) and
   [docs/README.md](docs/README.md).
 - A user-facing change under `packages/` adds a changeset (see below).

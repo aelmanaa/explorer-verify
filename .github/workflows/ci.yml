@@ -70,6 +70,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run coverage
+      # Runs the package and script unit tests again in a random order, so a test that depends on
+      # another test's order or state fails. The log prints the seed; rerun a failure with
+      # `--test-random-seed=<seed>` (docs/contributor/testing.md). The step runs here, on the latest
+      # Node 24, because Node added the option in 24.16.0 and 26.1.0: the 22.18.0, 24.0.0 and
+      # 26.0.0 legs of the test matrix lack it, and scripts/node-test.ts would skip the run there.
+      - name: Unit tests in a random order
+        run: pnpm run test:randomize
 
   package:
     name: Package (publint, attw, knip)
