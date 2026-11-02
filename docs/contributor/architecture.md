@@ -8,17 +8,21 @@ Its identifier type is `BackendName`.
 
 ## Packages
 
-Proposed, following the [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) naming pattern (an unscoped core with scoped add-ons):
+Decided in [decision 0008](decisions/0008-package-split-and-bundle-budget.md): an unscoped core that
+also carries the server handler, and scoped add-ons for Node-only code.
 
-| Package                                                | Contents                                                                              | Runtime                   |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------- |
-| `explorer-verify`                                      | Types, input validation, routing table, backend clients, flow engine, input resolvers | Any (browser, Node, edge) |
-| `@explorer-verify/server`                              | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key           | Node, edge, serverless    |
-| `@explorer-verify/cli`                                 | The `explorer-verify` command                                                         | Node                      |
-| `@explorer-verify/foundry`, `@explorer-verify/hardhat` | Build helpers that read build-info and emit `VerifyInput` parts                       | Node                      |
+| Package                    | Entry points               | Contents                                                                                                        | Runtime                                      |
+| -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine, input resolvers                           | Any (browser, Node, edge)                    |
+| `explorer-verify`          | `explorer-verify/server`   | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key. Uses only `Request` and `Response` | Node, edge runtimes and serverless platforms |
+| `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                                         |
+| `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                                         |
+| `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 3 build-info and emits `VerifyInput` parts                                      | Node                                         |
 
-The alternative is one package with subpath exports (`explorer-verify/server`). Settle it in M1
-(requirements.md, open questions). Only `explorer-verify` exists today.
+The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
+its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
+optional features stay out of it (R-RUN-5). Only `explorer-verify` exists today. The `/server`
+subpath arrives in M3, the add-ons in M4.
 
 ## Core modules
 
@@ -37,6 +41,8 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)     |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                          |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs |
+| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)           |
+| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                   |
 
 ## Backend interface
 
