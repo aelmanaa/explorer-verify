@@ -62,6 +62,7 @@
     "clean": "node -e \"for (const p of ['dist','coverage','docs','llms.txt']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
     "test": "pnpm run test:unit",
     "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
+    "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\"",
     "coverage": "c8 --check-coverage node --test \"test/unit/**/*.test.ts\"",
     "pkg:check": "publint --strict && attw --pack . --profile esm-only && node ../../scripts/check-packed-files.ts"
   },

@@ -55,6 +55,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test
 
+  # The ruleset requires this job name. Besides coverage, the job runs the unit tests in a random
+  # order.
   coverage:
     name: Coverage (95% floor)
     runs-on: ubuntu-26.04
@@ -70,6 +72,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run coverage
+      # Runs the package and script unit tests again in a random order, so a test that depends on
+      # another test's order or state fails. Each of the two runs prints its own seed; rerun a
+      # failure with the seed of the run that failed (docs/contributor/testing.md). The step runs
+      # here, on the latest Node 24, because Node added the option in 24.16.0 and 26.1.0: the
+      # 22.18.0, 24.0.0 and 26.0.0 legs of the test matrix lack it. REQUIRE_RANDOM_ORDER=1 makes
+      # scripts/node-test.ts fail instead of skip if this Node ever lacks the option.
+      - name: Unit tests in a random order
+        env:
+          REQUIRE_RANDOM_ORDER: "1"
+        run: pnpm run test:randomize
 
   package:
     name: Package (publint, attw, knip)

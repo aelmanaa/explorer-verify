@@ -13,11 +13,16 @@
 // the change, delete the file budgets and this script, and put `--test-timeout` back in the package
 // scripts.
 //
+// A run that asks for a random test order on a Node that lacks the option is skipped, or fails
+// when `REQUIRE_RANDOM_ORDER=1` is set; scripts/random-order.ts decides which.
+//
 // Usage: node scripts/node-test.ts unit|integration [node --test arguments and files]
 import { type ChildProcess, spawn, type StdioOptions } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { decideRandomOrder } from "./random-order.ts";
 
 /** The two values `--test-timeout` can get, in milliseconds. */
 export interface TestLimits {
@@ -70,6 +75,12 @@ function main(argv: readonly string[]): void {
       `Usage: node scripts/node-test.ts ${Object.keys(LIMITS).join("|")} [node --test arguments and files]\n`,
     );
     process.exitCode = 2;
+    return;
+  }
+  const order = decideRandomOrder(args);
+  if (order.action !== "run") {
+    process.stderr.write(order.message);
+    process.exitCode = order.action === "fail" ? 1 : 0;
     return;
   }
   const child = startNodeTest(limits, args);

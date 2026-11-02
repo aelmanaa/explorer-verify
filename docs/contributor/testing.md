@@ -5,12 +5,25 @@ Audience: contributors writing or running tests.
 ## Run the tests
 
 ```bash
-pnpm test            # build, then unit tests
-pnpm run coverage    # unit tests under c8; fails below 95%
+pnpm test                 # build, then unit tests
+pnpm run coverage         # unit tests under c8; fails when any file is below 95%
+pnpm run test:randomize   # unit tests in a random order; prints the seed
 ```
 
 Tests use `node --test` with TypeScript run natively (Node 22.18 and later). `scripts/node-test.ts`
 passes the right `--test-timeout` for the Node version.
+
+## Coverage floor
+
+c8 checks each file on its own (`"per-file": true` in `packages/explorer-verify/.c8rc.json`), so
+every file under `src/` must reach 95% of lines, branches, functions and statements, and a
+well-tested module cannot lift a weak one over the floor. The output names each file below it:
+
+```text
+ERROR: Coverage for branches (66.66%) does not meet threshold (95%) for src/probe.ts
+```
+
+`src/types.ts` holds only types and is excluded.
 
 ## Layers
 
@@ -44,6 +57,44 @@ the last column adds the test.
 | R-AX-11     | CLI harness: `--help` for every command has an example and lists the environment variables and exit codes, and links the docs and `llms.txt`; `--version --json` parses              | Planned (#7)                                            |
 | R-AX-12     | CLI harness: the same command run twice gives byte-identical output                                                                                                                  | Planned (#7)                                            |
 | R-AX-13     | Agent evaluation: at least two models run the task set; success, turns and unsafe actions attempted are recorded with the date in `docs/contributor/research/`                       | Planned (#7)                                            |
+
+## Deterministic tests
+
+A test gives the same result on every run, on every machine and in any order.
+
+- No network. Inject `fetch` and replay a recorded fixture.
+- No real timers or sleeps. Use the `node:test` mock timers (`mock.timers.enable()`) and advance
+  them with `mock.timers.tick()`.
+- No randomness. Fix every value a test depends on: ids, salts, dates.
+- No order dependence and no shared mutable state. Each test builds what it needs and cleans up in
+  `afterEach`. A module-level value that tests change is a bug.
+- A test that fails once is a bug to fix, not a flake to retry. Do not add retries.
+
+CI runs the unit tests a second time in a random order (`pnpm run test:randomize`), so a test that
+depends on order fails there. The command makes two runs, the package tests and then the script
+tests, and each prints its own seed in its summary:
+
+```text
+ℹ Randomized test order seed: 3926293431
+```
+
+To rerun a failure, take the seed from the run that failed and use the matching command:
+
+```bash
+pnpm run build
+
+# The package tests failed
+cd packages/explorer-verify
+node ../../scripts/node-test.ts unit --test-random-seed=<seed> "test/unit/**/*.test.ts"
+
+# The script tests failed (from the repository root)
+node scripts/node-test.ts unit --test-random-seed=<seed> "scripts/test/**/*.test.ts"
+```
+
+Node added `--test-randomize` and `--test-random-seed` in 24.16.0 and 26.1.0. On an older Node,
+`scripts/node-test.ts` skips a random-order run with a note on stderr and exit code 0. With
+`REQUIRE_RANDOM_ORDER=1`, as set in CI, it exits 1 instead, so the CI step cannot pass without
+running the tests.
 
 ## Rules
 
