@@ -53,8 +53,11 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
   compiled creation bytecode from its start; the remainder is the ABI-encoded arguments. When the caller supplies them, they win.
 - **R-IN-4** Library link addresses are accepted for contracts that use external libraries.
 - **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
-  metadata hash in the deployed bytecode and fetches sources from Sourcify or an IPFS gateway.
-  Resolvers are pluggable (R-EXT-2).
+  metadata hash in the deployed bytecode, fetches the metadata and sources from a caller-configured
+  IPFS gateway or fetch function (R-SEC-2) or from Sourcify, never from a built-in gateway host, and
+  rebuilds the Standard JSON input with the R-IN-7 builder (added by #20). A second route
+  copies the Standard JSON input of a contract already verified on Sourcify. Resolvers are
+  pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format. Validation errors name the field.
 
@@ -228,6 +231,13 @@ Measurement:
   foundation or DAO use needs an Advanced or higher plan and its own key, and must show "Powered by
   Etherscan.io APIs" when it displays Etherscan data.
 - **R-SEC-4** Published with npm provenance from CI through trusted publishing; signed release tags.
+- **R-SEC-5** The server handler's docs state, with a link to Etherscan's API terms and the date
+  they were read: the operator uses their own key on their own server; the handler is part of the
+  operator's application and must not be offered as a relay to other applications; the terms
+  forbid exposing a key in client code and operating a proxy that passes API data to third parties;
+  whether a verify-only handler counts as such a proxy is the project's reading, not legal advice,
+  and operators should confirm with Etherscan; and that the handler forwards only the verify-submit
+  and status actions (R-SRV-3).
 
 ### Quality (R-QA)
 
@@ -236,6 +246,12 @@ Measurement:
 - **R-QA-2** A live test matrix per backend on public testnets, run by the maintainer, with dated
   results in the docs.
 - **R-QA-3** The CLI and the server handler have integration tests.
+- **R-QA-4** A scheduled live check runs weekly from CI using recorded testnet contracts: lookups on
+  every backend with a client, and one keyless submit on Sourcify of a recorded, already-verified
+  contract, expecting `already-verified`. It reads keys only from repository secrets in an
+  environment limited to `main`, never runs on forks or pull requests, never prints a key, and
+  opens or updates one issue when a check fails. Its dated results update the routing table's date
+  (R-RT-1, R-AX-11).
 
 ### Extensibility (R-EXT)
 

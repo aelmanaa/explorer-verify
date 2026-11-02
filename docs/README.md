@@ -13,6 +13,7 @@ User documentation is written as features land: [user/README.md](user/README.md)
 | [Requirements](contributor/requirements.md)  | What the library must do, with IDs                                         |
 | [Architecture](contributor/architecture.md)  | Packages, modules, flow, extension points                                  |
 | [Roadmap](contributor/roadmap.md)            | Milestones and the first issues                                            |
+| [Adoption](contributor/adoption.md)          | Adoption goal, kinds of users, what each needs, and when                   |
 | [Decisions](contributor/decisions/README.md) | Numbered decision records                                                  |
 | [Prior art](contributor/prior-art.md)        | The two implementations to port from                                       |
 | [Research](contributor/research/README.md)   | Dated evidence: explorer APIs, Etherscan terms, landscape, agent readiness |

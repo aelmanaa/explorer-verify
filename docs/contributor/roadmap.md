@@ -2,7 +2,8 @@
 
 Audience: the maintainer and agents choosing the next piece of work. Each milestone becomes a GitHub
 milestone; each bullet becomes an issue labelled as in [CONTRIBUTING.md](../../CONTRIBUTING.md).
-Requirement IDs refer to [requirements.md](requirements.md).
+Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists
+the kinds of users the library serves and the milestone where each becomes possible.
 
 ## M0: Repository and names (maintainer)
 
@@ -48,6 +49,8 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
   R-AX-10).
 - #6: ship an agent skill in the package, tested against each build. Needs items 8 and 9 (R-AX-4).
 
+Test rules: #32 sets a per-file coverage floor and written rules for regression tests (R-QA-1).
+
 ## M2: Etherscan family and routing
 
 - Etherscan v2 client (R-BE-1), Etherscan-compatible client (R-BE-2), Routescan (R-BE-5).
@@ -55,6 +58,10 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - Constructor-argument derivation (R-IN-3), library links (R-IN-4).
 - Live matrix on Sepolia and one more testnet per backend (R-QA-2). Test Etherscan Similar Match on
   a factory deployment (open question).
+- Format-detecting input builder (R-IN-7), in two issues: build-info and detection (#20), then
+  Solidity metadata (#21).
+- Scheduled live check across explorers (R-QA-4, #23).
+- #29: mutation testing for result mapping and key redaction (R-QA-1, R-FLOW-4, R-SEC-1).
 
 ## M3: Blockscout, server handler and proxies
 
@@ -62,11 +69,14 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for
   Next.js and one edge runtime.
 - Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
+- Bytecode-metadata input resolver (R-IN-5). Reason: tools that hold only the deployed bytecode
+  can verify without the compiler input, so the input resolver ships before 0.1.0.
 
 ## M4: Developer experience and 0.1.0
 
 - CLI as `@explorer-verify/cli` (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry
-  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat` (R-DX-2).
+  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat`. They locate the
+  files and call the R-IN-7 builder (R-DX-2).
 - #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-13).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
@@ -77,7 +87,4 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 
 ## Later
 
-- Bytecode-metadata input resolver (R-IN-5).
 - Vyper (R-EXT-1).
-- Adoption: offer the core to SDKs that ship contract artifacts (a protocol SDK can depend on the
-  core and keep only its artifacts and glue, see [prior-art.md](prior-art.md)).
