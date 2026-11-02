@@ -130,16 +130,19 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 
 Coding agents call explorer-verify as often as people do: they add it to a dapp, run the CLI in CI
 and read the docs to answer a question. These requirements apply to every pull request that adds or
-changes a public function, error, CLI command or user page. A pull request in that scope meets them, or
-names the requirement it does not meet and the reason (decision 0007). Evidence: [research/2026-11-02-agent-readiness.md](research/2026-11-02-agent-readiness.md).
+changes a public function, error, CLI command or user page. A pull request in that scope meets
+them, or names the requirement it does not meet and the reason (decision 0007). Evidence:
+[research/2026-11-02-agent-readiness.md](research/2026-11-02-agent-readiness.md).
 
 Docs:
 
 - **R-AX-1** `llms.txt` at the repository root, per [llmstxt.org](https://llmstxt.org/): an H1, a
   one-paragraph summary, H2 sections, and absolute links to the Markdown source of every user page
   and of the reference.
-- **R-AX-2** User docs ship inside the npm package (`docs/`), so the docs in `node_modules` match the
-  installed version. Each page states the version it describes. The API reference is generated from
+- **R-AX-2** The npm package ships `docs/user/` as `docs/`, plus an `llms.txt` whose links are
+  relative to the packaged docs. An agent working in `node_modules` reads the docs of the installed
+  version. The repository-root `llms.txt` (R-AX-1) links GitHub. Each page states the version it
+  describes. The API reference is generated from
   TSDoc and the CLI reference from the CLI's own help, so neither drifts from the code.
 - **R-AX-3** A page "Using explorer-verify from an agent" says which calls are outward and permanent
   (submit) and which are safe (validate, dry run, lookup, status), where keys come from, and the
@@ -149,12 +152,17 @@ Docs:
 
 CLI:
 
-- **R-AX-5** `--json` on every command. The output is one versioned envelope:
-  `{ "schemaVersion": 1, "ok": true, "result": ... }` or
-  `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "handle"? } }`.
-  `result` has the shape of `VerifyResult`. The error `code` tells an unknown explorer state
+- **R-AX-5** `--json` on every command. The output is one versioned envelope, in one of three forms:
+  - `{ "schemaVersion": 1, "ok": true, "result": ... }`
+  - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
+  - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "handle"? } }`
+
+  `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
+  `status`, `result` is a `VerifyResult`; every other command documents its result type in the JSON
+  Schema. The error `code` tells an unknown explorer state
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, changes
   only add fields. A JSON Schema for the envelope ships with the package.
+
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. When stdout is not a
   terminal, the CLI prints no colour, spinner or pager; it honours `NO_COLOR` always. The CLI never
   prompts.
@@ -175,7 +183,9 @@ CLI:
   resumes a pending verification and uses the same codes (R-FLOW-5).
 
 - **R-AX-8** `--dry-run` validates the input, resolves the route, builds the request and checks
-  whether the contract is already verified, then stops before the submit. It needs no API key.
+  whether the contract is already verified, then stops before the submit. It needs no API key: when
+  the route's backend requires a key and none is set, it skips the already-verified lookup and says
+  so in the output.
 - **R-AX-9** Keys come from environment variables or `--api-key-file`, never from a flag value. Tests
   assert that a dummy key never appears on stdout, on stderr or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
@@ -190,7 +200,8 @@ Measurement:
 - **R-AX-13** Before 0.1.0, a small recorded agent evaluation: a fixed task set (verify from a Foundry
   build, verify from shipped artifacts, resume a pending handle, handle a rejection, refuse to submit
   without a key), run by at least two models. It records success, turns and any unsafe action
-  attempted. The docs carry the dated results, and the evaluation reruns before each minor release.
+  attempted. The dated results go in `docs/contributor/research/`, and the evaluation reruns before
+  each minor release.
 
 ## Non-functional requirements
 

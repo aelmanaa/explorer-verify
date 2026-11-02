@@ -44,7 +44,7 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
   after #3 (R-AX-1 to R-AX-3).
 - #5: machine contract for results and errors, after #3, in parallel with #4 (R-AX-5, R-AX-7,
   R-AX-10).
-- #6: ship an agent skill in the package, tested against each build. Needs item 8 (R-AX-4).
+- #6: ship an agent skill in the package, tested against each build. Needs items 8 and 9 (R-AX-4).
 
 ## M2: Etherscan family and routing
 
@@ -63,7 +63,7 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 ## M4: Developer experience and 0.1.0
 
 - CLI (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry and Hardhat 3 (R-DX-2).
-- #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-6 to R-AX-13).
+- #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-13).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
   explorer-verify from an agent" (R-AX-3). Every page ships in the package and is listed in

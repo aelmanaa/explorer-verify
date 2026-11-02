@@ -31,7 +31,7 @@ pull request which breaks it. None exists yet; the issue in the last column adds
 | Requirement | How it is tested                                                                                                                                                                     | Status           |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
 | R-AX-1      | Docs check: `llms.txt` has an H1, a summary and H2 sections; every link is absolute; every page under `docs/user/` is listed and every listed file exists                            | Planned (#4)     |
-| R-AX-2      | Docs check: every user page has a version line. `pkg:check` fails when the packed tarball lacks `docs/` or `llms.txt`                                                                | Planned (#4)     |
+| R-AX-2      | Docs check: every user page has a version line, and regenerating the API and CLI references gives no diff. `pkg:check` fails when the packed tarball lacks `docs/` or `llms.txt`     | Planned (#4)     |
 | R-AX-3      | Docs check: the agent page exists and every user page links `llms.txt` in its first 10 lines                                                                                         | Planned (#4)     |
 | R-AX-4      | Skill example tests: each code block in the skill runs against the built package with a fake `fetch`. `pkg:check` fails when the tarball lacks the skill                             | Planned (#6)     |
 | R-AX-5      | Contract tests: every envelope produced in the suite validates against the published JSON Schema. CLI harness: stdout parses as one envelope                                         | Planned (#5, #7) |
@@ -40,9 +40,9 @@ pull request which breaks it. None exists yet; the issue in the last column adds
 | R-AX-8      | CLI harness: `--dry-run` sends no submit request to the fake explorer and succeeds without a key                                                                                     | Planned (#7)     |
 | R-AX-9      | Contract tests and CLI harness: a dummy key passed through the environment and `--api-key-file` never appears on stdout, on stderr or in JSON; no flag takes a key                   | Planned (#5, #7) |
 | R-AX-10     | Contract tests: every catalogue error has a hint and a `docsUrl` that resolves to a heading in the errors page. CLI harness: a typo suggests one command                             | Planned (#5, #7) |
-| R-AX-11     | CLI harness: `--help` for every command has an example and lists the environment variables and exit codes; `--version --json` parses                                                 | Planned (#7)     |
+| R-AX-11     | CLI harness: `--help` for every command has an example and lists the environment variables and exit codes, and links the docs and `llms.txt`; `--version --json` parses              | Planned (#7)     |
 | R-AX-12     | CLI harness: the same command run twice gives byte-identical output                                                                                                                  | Planned (#7)     |
-| R-AX-13     | Agent evaluation: at least two models run the task set; success, turns and unsafe actions attempted are recorded with the date in `research/`                                        | Planned (#7)     |
+| R-AX-13     | Agent evaluation: at least two models run the task set; success, turns and unsafe actions attempted are recorded with the date in `docs/contributor/research/`                       | Planned (#7)     |
 
 ## Rules
 

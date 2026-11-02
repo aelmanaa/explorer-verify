@@ -2,7 +2,8 @@
 
 Audience: contributors and agents. One record per decision, numbered, never rewritten: a reversal is
 a new record that names the one it supersedes. Format: `NNNN-slug.md` with `# NNNN: Title`,
-`Status:`, then `## Context`, `## Decision`, `## Consequences`.
+`Status:`, then `## Context`, `## Decision`, an optional `## Alternatives considered`, and
+`## Consequences`.
 
 | #                                                                 | Decision                                                                                                | Status   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
