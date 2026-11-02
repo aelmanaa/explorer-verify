@@ -20,8 +20,8 @@ maintainer's.
 3. [docs/contributor/decisions/README.md](docs/contributor/decisions/README.md): the decisions taken
    so far and why.
 4. [docs/contributor/roadmap.md](docs/contributor/roadmap.md): milestones and the first issues.
-5. [docs/contributor/adoption.md](docs/contributor/adoption.md): who could adopt the library, what
-   each needs, and the milestone where that becomes possible.
+5. [docs/contributor/adoption.md](docs/contributor/adoption.md): the adoption goal, the kinds of
+   users, what each needs, and the milestone where that becomes possible.
 6. [docs/contributor/prior-art.md](docs/contributor/prior-art.md): the two working implementations
    this library starts from, and what to port from each.
 7. [docs/contributor/research/](docs/contributor/research/): dated evidence behind the decisions

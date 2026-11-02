@@ -2,8 +2,8 @@
 
 Audience: the maintainer and agents choosing the next piece of work. Each milestone becomes a GitHub
 milestone; each bullet becomes an issue labelled as in [CONTRIBUTING.md](../../CONTRIBUTING.md).
-Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists who
-could adopt the library and the milestone where each target becomes possible.
+Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists the kinds
+of users the library serves and the milestone where each becomes possible.
 
 ## M0: Repository and names (maintainer)
 
@@ -66,11 +66,8 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 - `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for
   Next.js and one edge runtime.
 - Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
-- Bytecode-metadata input resolver (R-IN-5). Reason: thirdweb's `verifyContract` (thirdweb
-  5.122.1, read on 2026-11-02) takes its input from the bytecode's IPFS metadata hash and supports
-  Etherscan-style explorers, Blockscout and Routescan. With R-IN-5 and the Blockscout clients in the
-  same milestone, 0.1.0 (M4) ships with that coverage, and the integration offer (#24) can follow
-  the release.
+- Bytecode-metadata input resolver (R-IN-5). Reason: tools that hold only the deployed bytecode
+  can verify without the compiler input, so the input resolver ships before 0.1.0.
 
 ## M4: Developer experience and 0.1.0
 
@@ -84,17 +81,6 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
   `llms.txt` (R-AX-1, R-AX-2).
 - Release pipeline copied from [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
   of 0.1.0.
-
-## Adoption
-
-Mirrors the GitHub milestone "Adoption". Each item starts after the release that gives the target
-what it needs ([adoption.md](adoption.md)), and each depends on the other project's agreement.
-
-- #24: offer explorer-verify as the engine of thirdweb `verifyContract`, keeping its signature.
-  Needs 0.1.0, R-IN-5 and the M2 and M3 backends.
-- #25: replace the Chainlink CCT SDK verification prototypes in
-  [smartcontractkit/ccip-tools-ts](https://github.com/smartcontractkit/ccip-tools-ts) with one
-  `verify()` call. Needs 0.1.0 and the R-IN-7 builder.
 
 ## Later
 
