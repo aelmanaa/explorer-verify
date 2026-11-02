@@ -211,10 +211,13 @@ Measurement:
   runtimes. It uses only web-platform globals (`fetch`, `URL`, `AbortSignal`, `TextEncoder`,
   `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`) and a build without Node types.
 - **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
-- **R-RUN-3** Bundle budget for the core in a browser build: set in M1 from measurement, then
-  enforced in CI. The routing table loads as data and does not grow code size.
-- **R-RUN-4** Runtime dependencies: none in the core unless one removes real risk (for example a
-  vetted ABI encoder). Each one needs a decision record.
+- **R-RUN-3** Bundle budget for the core entry point in a browser build: minified and gzipped size at
+  or below the ceiling in the repository, checked in CI. The routing table loads as data and does
+  not count toward code size.
+- **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
+  `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
+- **R-RUN-5** Optional features (server handler, input builders, resolvers) are separate entry points
+  or tree-shake away, so a caller who imports only `verify` does not bundle them.
 
 ### Security (R-SEC)
 
@@ -243,11 +246,9 @@ Measurement:
 
 ## Open questions
 
-| Question                                                                                                      | Owner      | Needed by |
-| ------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
-| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?                    | Maintainer | M3        |
-| Sourcify rate limits and terms for high-volume use                                                            | Maintainer | M2        |
-| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live              | Maintainer | M2        |
-| Bundle budget for the core                                                                                    | Maintainer | M1        |
-| Package split: one package with subpath exports, or `@explorer-verify/*` add-ons (server, cli, build helpers) | Maintainer | M1        |
-| Routescan API host per network, key policy and CORS (not researched yet)                                      | Maintainer | M2        |
+| Question                                                                                         | Owner      | Needed by |
+| ------------------------------------------------------------------------------------------------ | ---------- | --------- |
+| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?       | Maintainer | M3        |
+| Sourcify rate limits and terms for high-volume use                                               | Maintainer | M2        |
+| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live | Maintainer | M2        |
+| Routescan API host per network, key policy and CORS (not researched yet)                         | Maintainer | M2        |

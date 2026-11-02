@@ -12,7 +12,7 @@ scripts. Etherscan, Sourcify and Blockscout all send `access-control-allow-origi
 
 The `explorer-verify` package uses only web-platform globals and never imports a Node built-in.
 `fetch` is injectable. Node-only code (CLI, build helpers that read files) stays out of the core
-entry point, in add-on packages or Node-only subpath exports (the split is decided in M1).
+entry point, in add-on packages or Node-only subpath exports (the split is decided in [0008](0008-package-split-and-bundle-budget.md)).
 
 ## Consequences
 

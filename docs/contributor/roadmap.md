@@ -21,8 +21,8 @@ The scaffold, toolchain and plan exist. Remaining steps need the maintainer's ac
 
 Goal: `verify()` works end to end on one keyless backend, from Node and from a browser. In order:
 
-1. Decide the package split and the bundle budget (open questions in requirements.md). They decide
-   where every later file lives.
+1. Decide the package split and the bundle budget. They decide where every later file lives.
+   Decided in [decision 0008](decisions/0008-package-split-and-bundle-budget.md).
 2. Settle `VerifyOptions`, `Handle` and the error type shape (architecture.md, public entry points).
 3. Error catalogue and key redaction (R-DX-3, R-SEC-1). Each error has a `code`, a `hint` that names
    the fix and a `docsUrl` (R-AX-10).
@@ -34,7 +34,9 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
    2026-07-07: rewrite against v2, do not port a v1 client.
 8. Flow engine with lookup, submit, poll, result mapping (R-FLOW-1 to R-FLOW-4).
 9. Resumable handle and `checkStatus` (R-FLOW-5).
-10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1.
+10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1. It also measures the
+    `verify` bundle and replaces the provisional 10 kB ceiling from decision 0008 with the measured
+    size plus 20%, checked in CI (R-RUN-3).
 
 Agent readiness (epic #2) runs beside that list, so later features meet R-AX from the start:
 
@@ -57,12 +59,13 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
 ## M3: Blockscout, server handler and proxies
 
 - Blockscout clients (R-BE-3), including the partial-match and empty-response cases (R-FLOW-7).
-- `createVerifyHandler` with guards (R-SRV-1 to R-SRV-5); example for Next.js and one edge runtime.
+- `createVerifyHandler` in `explorer-verify/server`, with guards (R-SRV-1 to R-SRV-5); example for Next.js and one edge runtime.
 - Proxy linking (R-FLOW-8). Fan-out to several backends (R-RT-4).
 
 ## M4: Developer experience and 0.1.0
 
-- CLI (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry and Hardhat 3 (R-DX-2).
+- CLI as `@explorer-verify/cli` (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry
+  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat` (R-DX-2).
 - #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-13).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
