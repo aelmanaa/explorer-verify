@@ -96,13 +96,17 @@ page or the packaged `llms.txt` points to a file that is not in the tarball.
 ## Test runner
 
 `scripts/node-test.ts` runs `node --test` for the package `test:unit` and `test:randomize` scripts
-and for the script tests. It sets `--test-timeout` for the Node version and passes the other
-arguments on. When the arguments include `--test-randomize` or `--test-random-seed=<n>` and the
-Node lacks them (22.x, 24.0 to 24.15 and 26.0), it writes a note to stderr, skips the run and exits 0.
+and for the script tests; it sets `--test-timeout` for the Node version and passes the other
+arguments on. When the arguments include `--test-randomize` or `--test-random-seed` and the Node
+lacks them (22.x, 24.0 to 24.15 and 26.0), `scripts/random-order.ts` decides the outcome:
+
+- by default, it writes a note to stderr, skips the run and exits 0;
+- with `REQUIRE_RANDOM_ORDER=1` in the environment, it writes an error that names the Node version
+  and the first releases with the option, and exits 1. The CI step sets it.
 
 `pnpm run test:randomize` builds, then runs the package unit tests and the script tests with
-`--test-randomize`. The CI coverage job runs it on the latest Node 24. See
-[deterministic tests](testing.md#deterministic-tests).
+`--test-randomize`. The CI coverage job runs it on the latest Node 24 with `REQUIRE_RANDOM_ORDER=1`;
+[deterministic tests](testing.md#deterministic-tests) explains how to replay a failing order.
 
 ## Tests for scripts
 
@@ -110,5 +114,5 @@ Tests for the repository scripts live in `scripts/test/*.test.ts`. `pnpm run tes
 them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package tests. They build
 small fixture trees in a temporary folder, and run the entry points as child processes against
 them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts` and the three scripts that use
-it) with a 95% floor per file on lines, branches, functions and statements. The older scripts have
+it) and `scripts/random-order.ts` with a 95% floor per file on lines, branches, functions and statements. The older scripts have
 no tests yet and are not in the coverage list; a script gets added when it gets tests.

@@ -13,15 +13,16 @@
 // the change, delete the file budgets and this script, and put `--test-timeout` back in the package
 // scripts.
 //
-// A run that asks for a random test order (`--test-randomize` or `--test-random-seed=<n>`) is
-// skipped, with a note on stderr and exit code 0, on a Node that lacks those options. Node added
-// them in 24.16.0 and 26.1.0; 22.x, 24.0 to 24.15 and 26.0 do not have them.
+// A run that asks for a random test order on a Node that lacks the option is skipped, or fails
+// when `REQUIRE_RANDOM_ORDER=1` is set; scripts/random-order.ts decides which.
 //
 // Usage: node scripts/node-test.ts unit|integration [node --test arguments and files]
 import { type ChildProcess, spawn, type StdioOptions } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { decideRandomOrder } from "./random-order.ts";
 
 /** The two values `--test-timeout` can get, in milliseconds. */
 export interface TestLimits {
@@ -50,23 +51,6 @@ export function testTimeoutMs(major: number, limits: TestLimits): number {
   return major >= PER_TEST_SINCE_MAJOR ? limits.perTestMs : limits.fileBudgetMs;
 }
 
-/** The `node --test` options that run tests in a random order. */
-const RANDOM_ORDER_OPTIONS: readonly string[] = ["--test-randomize", "--test-random-seed"];
-
-/** Whether `args` ask `node --test` for a random test order. */
-export function asksRandomOrder(args: readonly string[]): boolean {
-  return args.some((arg) =>
-    RANDOM_ORDER_OPTIONS.some((option) => arg === option || arg.startsWith(`${option}=`)),
-  );
-}
-
-/** Whether a Node with these allowed flags can run tests in a random order (24.16.0, 26.1.0). */
-export function supportsRandomOrder(
-  flags: ReadonlySet<string> = process.allowedNodeEnvironmentFlags,
-): boolean {
-  return flags.has("--test-randomize");
-}
-
 /** Starts `node --test` on this Node with the `--test-timeout` value for it, then `args`. */
 export function startNodeTest(
   limits: TestLimits,
@@ -93,10 +77,10 @@ function main(argv: readonly string[]): void {
     process.exitCode = 2;
     return;
   }
-  if (asksRandomOrder(args) && !supportsRandomOrder()) {
-    process.stderr.write(
-      `node-test: Node ${process.versions.node} has no --test-randomize (added in 24.16.0 and 26.1.0); skipping the random-order run\n`,
-    );
+  const order = decideRandomOrder(args);
+  if (order.action !== "run") {
+    process.stderr.write(order.message);
+    process.exitCode = order.action === "fail" ? 1 : 0;
     return;
   }
   const child = startNodeTest(limits, args);

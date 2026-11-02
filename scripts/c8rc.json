@@ -5,7 +5,8 @@
     "scripts/agent-docs.ts",
     "scripts/check-agent-docs.ts",
     "scripts/check-packed-files.ts",
-    "scripts/package-docs.ts"
+    "scripts/package-docs.ts",
+    "scripts/random-order.ts"
   ],
   "reporter": ["text"],
   "reports-dir": "node_modules/.cache/c8-scripts",

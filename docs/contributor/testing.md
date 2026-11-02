@@ -71,22 +71,30 @@ A test gives the same result on every run, on every machine and in any order.
 - A test that fails once is a bug to fix, not a flake to retry. Do not add retries.
 
 CI runs the unit tests a second time in a random order (`pnpm run test:randomize`), so a test that
-depends on order fails there. The log prints the seed:
+depends on order fails there. The command makes two runs, the package tests and then the script
+tests, and each prints its own seed in its summary:
 
 ```text
 ℹ Randomized test order seed: 3926293431
 ```
 
-Rerun that order with the seed:
+To rerun a failure, take the seed from the run that failed and use the matching command:
 
 ```bash
 pnpm run build
-node scripts/node-test.ts unit --test-random-seed=3926293431 "packages/explorer-verify/test/unit/**/*.test.ts"
-node scripts/node-test.ts unit --test-random-seed=3926293431 "scripts/test/**/*.test.ts"
+
+# The package tests failed
+cd packages/explorer-verify
+node ../../scripts/node-test.ts unit --test-random-seed=<seed> "test/unit/**/*.test.ts"
+
+# The script tests failed (from the repository root)
+node scripts/node-test.ts unit --test-random-seed=<seed> "scripts/test/**/*.test.ts"
 ```
 
 Node added `--test-randomize` and `--test-random-seed` in 24.16.0 and 26.1.0. On an older Node,
-`scripts/node-test.ts` skips a random-order run and says so on stderr.
+`scripts/node-test.ts` skips a random-order run with a note on stderr and exit code 0. With
+`REQUIRE_RANDOM_ORDER=1`, as set in CI, it exits 1 instead, so the CI step cannot pass without
+running the tests.
 
 ## Rules
 
