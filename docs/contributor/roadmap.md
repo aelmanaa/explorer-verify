@@ -74,10 +74,11 @@ Test rules: #32 sets a per-file coverage floor and written rules for regression 
 
 ## M4: Developer experience and 0.1.0
 
-- CLI as `@explorer-verify/cli` (R-DX-1) meeting R-AX-5 to R-AX-12, and build helpers for Foundry
-  and Hardhat 3 as `@explorer-verify/foundry` and `@explorer-verify/hardhat`. They locate the
+- CLI as `@explorer-verify/cli` (R-DX-1) meeting R-AX-5 to R-AX-12 and R-AX-14 to R-AX-16, and
+  build helpers for Foundry and Hardhat 3 as `@explorer-verify/foundry` and
+  `@explorer-verify/hardhat`. They locate the
   files and call the R-IN-7 builder (R-DX-2).
-- #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-13).
+- #7: CLI contract harness and a recorded agent evaluation before 0.1.0 (R-AX-5 to R-AX-16).
 - User docs: a tutorial (deploy then verify from a dapp), how-tos per runtime, reference generated
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
   explorer-verify from an agent" (R-AX-3). Every page ships in the package and is listed in

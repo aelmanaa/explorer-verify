@@ -15,7 +15,7 @@ kind of user calls the same core. Build helpers for deploy tools are thin layers
 | -------------------------------------- | ---------------------------------------------------------- | ---------------------------------------- |
 | Dapps in a browser                     | R-FLOW-1 to R-FLOW-5, R-RUN-1, R-SRV-1 to R-SRV-5, R-SEC-5 | M1 (Sourcify), M3 (server handler)       |
 | Backends and edge runtimes             | R-FLOW-1 to R-FLOW-6, R-RUN-1, R-BE-1 to R-BE-5            | M1 (Sourcify), M2 (Etherscan family)     |
-| CI jobs                                | R-DX-1, R-AX-5 to R-AX-12                                  | M4                                       |
+| CI jobs                                | R-DX-1, R-AX-5 to R-AX-12, R-AX-14 to R-AX-16              | M4                                       |
 | Deploy tools and frameworks            | R-DX-2, R-IN-7                                             | M2 (builder), M4 (Foundry and Hardhat 3) |
 | SDKs that ship contract artifacts      | R-IN-7, R-RUN-4, R-RUN-5, R-BE-1 to R-BE-5                 | M2 (builder, Etherscan), M3 (Blockscout) |
 | Tools that hold only deployed bytecode | R-IN-5                                                     | M3                                       |

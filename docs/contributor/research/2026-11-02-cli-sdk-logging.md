@@ -55,32 +55,31 @@ Other observed behaviour:
 
 - kubectl v1.37.0, given an unreachable `--server` and no credentials, printed
   `Please enter Username:` on stdout and then exited with `error: EOF` on stderr, also with stdin
-  redirected from `/dev/null` [L2]. With a kubeconfig that holds credentials, the prompt does not
-  run [S20].
+  redirected from `/dev/null` [L2].
 - npm 11.19.0 with `--json` writes the error object to stdout and a human error to stderr [L6].
 - Terraform's `validate -json` page states that "errors occurring before validation begins" are
   not JSON [S9].
 
 ### A2. Machine output modes
 
-| Pattern                                     | Example                                                                                 | Shape                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--json` with field selection               | gh `--json number,title --jq '.[0].number'` [L1]                                        | One document. With no field list, gh prints the available fields [L1]                                                                                                                                                                                                                                 |
-| `-o` format switch                          | kubectl `-o json\|yaml\|name\|jsonpath\|custom-columns\|wide` [L2]                      | One document per call; `--output-watch-events` for watches [L2]                                                                                                                                                                                                                                       |
-| Versioned event stream on stdout            | Terraform `-json` on `plan`, `apply`, `refresh`, `test` [S8]                            | One JSON object per line with `@level`, `@message`, `@module`, `@timestamp` and `type`. The first message is `type: version` with `ui` (`"1.0"` as of 1.1.0). Consumers "ignore any object properties with unrecognized names" and "reject any input which reports an unsupported major version" [S8] |
-| Event stream on stdout with a final message | cargo `--message-format json` [S11]                                                     | "The output goes to stdout in the JSON object per line format", a `reason` field, a final `build-finished` with `success` [S11]                                                                                                                                                                       |
-| Event stream on stdout                      | `go test -json` [L9]                                                                    | JSON Lines on stdout with `Time`, `Action`, `Package`, `Test`, `Output`; stderr empty [L9]                                                                                                                                                                                                            |
-| Event stream on stderr                      | docker buildx `--progress=rawjson` [L4]                                                 | JSON Lines on stderr; the build result is separate [L4]                                                                                                                                                                                                                                               |
-| Event file                                  | Wrangler `WRANGLER_OUTPUT_FILE_PATH` [S14]                                              | Writes output data as ND-JSON to a file, apart from terminal output [S14]                                                                                                                                                                                                                             |
-| JSON by default, NDJSON for pages           | Google Workspace CLI `gws`, which its README calls not an official Google product [S18] | "All output ... is structured JSON"; `--page-all` gives "one JSON line per page (NDJSON)" [S18]                                                                                                                                                                                                       |
+| Pattern                                     | Example                                                                                                | Shape                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--json` with field selection               | gh `--json number,title --jq '.[0].number'` [L1]                                                       | One document. With no field list, gh prints the available fields [L1]                                                                                                                                                                                                                                 |
+| `-o` format switch                          | kubectl `-o json\|yaml\|name\|jsonpath\|custom-columns\|wide` [L2]                                     | One document per call; `--output-watch-events` for watches [L2]                                                                                                                                                                                                                                       |
+| Versioned event stream on stdout            | Terraform `-json` on `plan`, `apply`, `refresh`, `test` [S8]                                           | One JSON object per line with `@level`, `@message`, `@module`, `@timestamp` and `type`. The first message is `type: version` with `ui` (`"1.0"` as of 1.1.0). Consumers "ignore any object properties with unrecognized names" and "reject any input which reports an unsupported major version" [S8] |
+| Event stream on stdout with a final message | cargo `--message-format json` [S11]                                                                    | "The output goes to stdout in the JSON object per line format", a `reason` field, a final `build-finished` with `success` [S11]                                                                                                                                                                       |
+| Event stream on stdout                      | `go test -json` [L9]                                                                                   | JSON Lines on stdout with `Time`, `Action`, `Package`, `Test`, `Output`; stderr empty [L9]                                                                                                                                                                                                            |
+| Event stream on stderr                      | docker buildx `--progress=rawjson` [L4]                                                                | JSON Lines on stderr; the build result is separate [L4]                                                                                                                                                                                                                                               |
+| Event file                                  | Wrangler `WRANGLER_OUTPUT_FILE_PATH` [S14]                                                             | Writes output data as ND-JSON to a file, apart from terminal output [S14]                                                                                                                                                                                                                             |
+| JSON by default, NDJSON for pages           | Google Workspace CLI `gws`, whose README says it is "not an officially supported Google product" [S18] | "All output ... is structured JSON"; `--page-all` gives "one JSON line per page (NDJSON)" [S18]                                                                                                                                                                                                       |
 
 Two designs fit a long-running verify (validate, route, lookup, submit, poll, result):
 
 1. The final envelope on stdout, progress as JSON Lines on stderr, as docker buildx does for
    progress [L4]. stdout stays one document, so `| jq .result.status` and `2>/dev/null` keep
    working. The caller reads two streams. A reader of stderr parses only lines that start with
-   `{`, because the runtime can write other text there; the cargo docs give the same advice for
-   their own mixed output [S11].
+   `{`, because the runtime can write other text there. The cargo docs suggest the same
+   workaround for output that mixes JSON with other text [S11].
 2. One event stream on stdout whose last line is the result, as Terraform [S8], cargo [S11] and
    `go test` [L9] do. One ordered stream that is easy to save to a file. stdout is then not one
    document, and every consumer picks the final line.
@@ -90,19 +89,21 @@ matters mostly for the resume handle (R-FLOW-5) and for a person watching.
 
 ### A3. Errors in JSON mode
 
-| Tool                                     | Where the JSON error goes                                                                         | Exit code                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------- |
-| npm 11.19.0 `view <missing> --json`      | stdout: `{"error":{"code":"E404","summary":...,"detail":...}}`; a human error also on stderr [L6] | 1 [L6]                       |
-| pnpm 12.16.1 `view <missing> --json`     | stdout: `{"error":{"code":"ERR_PNPM_FETCH_404","message":...}}`; stderr empty [L7]                | 1 [L7]                       |
-| Terraform `validate -json`               | stdout: `valid: false`, `error_count`, `diagnostics[]`, `format_version` [S9]                     | Not stated on that page [S9] |
-| Terraform `-json` streams                | stdout: `type: diagnostic`, `@level: error` [S8]                                                  | Non-zero [S8]                |
-| gws                                      | "All output, success, errors ... is structured JSON"; hints on stderr [S18]                       | 0 to 5 by failure type [S18] |
-| gh 2.92.0                                | stderr, plain text [L1]                                                                           | 1, 2 cancelled, 4 auth [L1]  |
-| aws-cli 2.37.3 `--cli-error-format json` | stderr: `{ "Code", "Message" }` [L3]                                                              | 252 to 255 by class [L3]     |
-| Salesforce CLI                           | `SFDX_JSON_TO_STDOUT` (v44) moved JSON errors to stdout, and that became the default in v48 [S19] | Not checked                  |
+| Tool                                     | Where the JSON error goes                                                                                    | Exit code                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| npm 11.19.0 `view <missing> --json`      | stdout: `{"error":{"code":"E404","summary":...,"detail":...}}`; a human error also on stderr [L6]            | 1 [L6]                       |
+| pnpm 12.16.1 `view <missing> --json`     | stdout: `{"error":{"code":"ERR_PNPM_FETCH_404","message":...}}`; stderr empty [L7]                           | 1 [L7]                       |
+| Terraform `validate -json`               | stdout: `valid: false`, `error_count`, `diagnostics[]`, `format_version` [S9]                                | Not stated on that page [S9] |
+| Terraform `-json` streams                | stdout: `type: diagnostic`, `@level: error` [S8]                                                             | Not stated on that page [S8] |
+| gws                                      | "All output, success, errors ... is structured JSON"; hints on stderr [S18]                                  | 0 to 5 by failure type [S18] |
+| gh 2.92.0                                | stderr, plain text [L1]                                                                                      | 1, 2 cancelled, 4 auth [L1]  |
+| aws-cli 2.37.3 `--cli-error-format json` | stderr: `{ "Code", "Message" }` [L3]                                                                         | 252 to 255 by class [L3]     |
+| Salesforce CLI                           | `SFDX_JSON_TO_STDOUT` (v44) moved JSON errors to stdout; the post states it becomes the default in v48 [S19] | Not checked                  |
 
-Both placements are in use. explorer-verify puts the error envelope on stdout (R-AX-5), so a
-caller always parses one document from stdout, whatever the exit code.
+Both placements are in use: stdout for npm [L6], pnpm [L7], Terraform [S8] [S9], gws [S18] and
+Salesforce CLI [S19]; stderr for gh [L1] and aws-cli [L3]. explorer-verify puts the error
+envelope on stdout (R-AX-5), so a caller always parses one document from stdout, whatever the exit
+code.
 
 Two cases need a rule of their own:
 
@@ -179,6 +180,18 @@ explorer-verify adopts `--input-json <file|->` validated against a JSON Schema t
 package (R-AX-16). The same schemas can become the `inputSchema` and `outputSchema` of an MCP tool
 [S24] if decision 0007's deferral of an MCP server is reversed.
 
+### A7. Secrets on stdin
+
+- docker: `docker login --password-stdin` is described as "Take the Password or Personal Access
+  Token (PAT) from stdin", with the example
+  `cat ~/my_password.txt | docker login --username foo --password-stdin` [S44].
+- gh: `gh auth login --with-token` is described as "Read token from standard input", with the
+  example `gh auth login --with-token < mytoken.txt` [S45].
+- clig.dev: "Do not read secrets directly from flags" [S4].
+
+explorer-verify adds `--api-key-stdin` next to the environment variables and `--api-key-file`
+(R-AX-9).
+
 ## B. Library logging
 
 ### B1. Logger interfaces and defaults
@@ -215,7 +228,14 @@ Argument order, with `info("submitted", fields)` [L10]:
 
 So a `(message, fields?)` logger works with console and winston [L10], and matches the
 message-first shape of Octokit [S32] and the smithy `Logger` [S30]. A pino logger takes a one-line
-adapter: `info: (m, f) => log.info(f ?? {}, m)`.
+adapter, `info: (m, f) => log.info(f ?? {}, m)`: called with `("submitted", fields)` it printed
+`{"level":30,"event":"verify.submitted","backend":"sourcify","chainId":1,"msg":"submitted"}`, and
+with the message alone `{"level":30,"msg":"submitted"}` [L11].
+
+The reverse order, `info(fields, "submitted")`, gave
+`{"level":"info","message":{"backend":"sourcify","chainId":1,"event":"verify.submitted"}}` in
+winston 3.19.0, with the text `submitted` absent, and `console.info` printed the object before the
+text [L11].
 
 ### B2. Structured fields, events and OpenTelemetry
 
@@ -236,7 +256,8 @@ Consequences for explorer-verify: the four levels map to severities 5, 9, 13 and
 fields of type `string | number | boolean | null` map to attributes without conversion [S27]. A
 fixed lowercase, dot-separated name such as `verify.submitted` meets the event naming rules
 [S28]. A dependency on `@opentelemetry/api` in the core would count against the bundle budget of
-decision 0008; an `onEvent` callback lets a caller emit OpenTelemetry events in a few lines.
+decision 0008. Design reasoning, not tested: an `onEvent` callback can pass each event to an
+OpenTelemetry logger as an event name plus attributes, without a dependency in the core.
 
 Correlation: OpenAI and Anthropic attach a per-request log id and record `retryOf` for a retry
 [S33] [S34]. pino [S41] and OpenAI's README [S43] use `logger.child({ ... })` for context the
@@ -246,13 +267,13 @@ stays with the caller's child logger.
 
 ### B3. Secret redaction
 
-| Library       | Mechanism                                                                                                                                                                                                                          | Source |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Anthropic TS  | Header values replaced by `***` for `authorization`, `proxy-authorization`, `api-key`, `x-api-key`, `x-amz-security-token`, `cookie`, `set-cookie`                                                                                 | [S34]  |
-| OpenAI Node   | The same header list plus `x-session-token`, `x-session-id`, `x-auth-token`, `x-id-token`. `redactURL` clears user name, password and fragment and sets credential-like query parameters to `***`. Bodies are summarised by length | [S33]  |
-| Azure core    | An allow-list: headers not on the list and every query value except `api-version` are written as `REDACTED`; SDKs add names to the list. "Request and response bodies are never logged."                                           | [S36]  |
-| AWS SDK JS v3 | The logger middleware passes input and output through per-command `inputFilterSensitiveLog` and `outputFilterSensitiveLog`, seen in published builds of `@aws-sdk/middleware-logger`                                               | [S31]  |
-| pino          | `redact: ['path.to.key', 'headers["x-api-key"]']` replaces values with `[Redacted]` or a custom `censor`                                                                                                                           | [S41]  |
+| Library       | Mechanism                                                                                                                                                                                         | Source |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Anthropic TS  | Header values replaced by `***` for `authorization`, `proxy-authorization`, `api-key`, `x-api-key`, `x-amz-security-token`, `cookie`, `set-cookie`                                                | [S34]  |
+| OpenAI Node   | The same header list plus `x-session-token`, `x-session-id`, `x-auth-token`, `x-id-token`. `redactURL` clears user name, password and fragment and sets credential-like query parameters to `***` | [S33]  |
+| Azure core    | An allow-list: headers not on the list and every query value except `api-version` are written as `REDACTED`; SDKs add names to the list. "Request and response bodies are never logged." [S35]    | [S36]  |
+| AWS SDK JS v3 | The logger middleware passes input and output through per-command `inputFilterSensitiveLog` and `outputFilterSensitiveLog`, seen in published builds of `@aws-sdk/middleware-logger`              | [S31]  |
+| pino          | `redact: ['path.to.key', 'headers["x-api-key"]']` replaces values with `[Redacted]` or a custom `censor`                                                                                          | [S41]  |
 
 Etherscan v2 takes the key as the `apikey` query parameter
 ([explorer APIs note](2026-11-02-explorer-apis.md)), so URL redaction matters more for
@@ -271,8 +292,10 @@ result through one redaction step.
 
 ## Could not verify
 
-- Terraform was not run. The machine-readable UI page does not name the stream for `-json` [S8];
-  the exit codes of `validate -json` are not on that page [S9].
+- Terraform was not run. The machine-readable UI page does not name the stream or the exit codes
+  for `-json` [S8]; the exit codes of `validate -json` are not on that page [S9].
+- kubectl: whether a kubeconfig that holds credentials stops the `Please enter Username:` prompt
+  was not run.
 - Stripe CLI, Wrangler and Vercel CLI were not run; their stream behaviour comes from docs only.
 - AWS SDK JS v3: the current source file of the logger middleware was not found; the filter
   behaviour comes from published package diffs [S31]. The developer guide does not state the
@@ -283,8 +306,7 @@ result through one redaction step.
   third-party package page [S38], not from the Google README [S37].
 - Salesforce CLI's current `--json` error stream was not checked; only the 2020 change is sourced
   [S19].
-- Stripe Node: a lower-level logging option may exist in source that the README does not list
-  [S39].
+- Only the Stripe Node README was read [S39]; the source was not searched for a logging option.
 - docker buildx `--progress=rawjson` was observed writing to stderr [L4]; the docs do not name the
   stream [S16].
 - The output limit of Claude Code's shell tool was not checked; only the MCP limits are sourced
@@ -342,6 +364,8 @@ date the source states.
 | S41 | pino API and redaction docs                     | https://github.com/pinojs/pino/tree/main/docs                                                      | Commit `b29dbe9782`, 10.4.0     |
 | S42 | Node `util.debuglog`                            | https://nodejs.org/api/util.html#utildebuglogsection-callback                                      | Node v24                        |
 | S43 | OpenAI Node README, "Logging"                   | https://github.com/openai/openai-node                                                              | Commit `e572875c28`, v7.47.0    |
+| S44 | `docker login` reference                        | https://docs.docker.com/reference/cli/docker/login/                                                | Undated                         |
+| S45 | `gh auth login` manual                          | https://cli.github.com/manual/gh_auth_login                                                        | Undated                         |
 
 ### Local runs
 
@@ -359,3 +383,4 @@ All run on 2026-11-02.
 | L8  | Node v24.21.0                                           | `NODE_DEBUG=evtest` with `util.debuglog("evtest")`                                                                                                                                                                            |
 | L9  | go1.27.1                                                | `go test -json`                                                                                                                                                                                                               |
 | L10 | pino 10.4.0, winston 3.19.0, `console` on Node v24.21.0 | Each logger called with `info("submitted", fields)`; pino also with `info(fields, "submitted")`                                                                                                                               |
+| L11 | pino 10.4.0, winston 3.19.0, `console` on Node v24.21.0 | The pino adapter `info: (m, f) => log.info(f ?? {}, m)` called with `("submitted", fields)` and with `("submitted")`; winston (JSON format) and `console.info` called with `info(fields, "submitted")`                        |

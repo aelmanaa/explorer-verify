@@ -155,9 +155,12 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
   `verify()` emits them in stage order and emits `verify.submitted` as soon as the explorer accepts
   the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
   `verify.poll`, `verify.retry` and `verify.result`. A call that throws emits no `verify.result`.
-  An exception thrown by `onEvent` is caught and does not change the outcome. Events pass the
-  same redaction step. Within a schema version, releases only add event types and fields;
-  `event.schema.json` ships with the package.
+  `verify.poll` `state` is one of `pending`, `queued` or `completed`; `verify.retry` `reason` is
+  one of `rate-limited`, `network`, `server-error` or `duplicate-submission`. An exception thrown
+  by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
+  outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
+  the same redaction step. Within a schema version, releases only add event types and fields.
+  `event.schema.json` ships with the package and lists `state` and `reason` as enums.
 
 ### Agent readiness (R-AX)
 
@@ -198,15 +201,22 @@ CLI:
   only add fields. A JSON Schema for the envelope ships with the package.
 
   The CLI reads `--json` before it parses the other arguments, so a usage error still gives an
-  envelope and exit code 2. A cancelled run (exit code 130) gives an envelope with the error code
-  `cancelled`. stderr may also carry a one-line human summary.
+  envelope with the code `invalid-input` and exit code 2. A `--json` after `--`, or given as the
+  value of another flag, does not count as the flag. A cancelled run (exit code 130) gives an
+  envelope whose `error` is the `toJSON()` of a `cancelled` error. `cancelled` is in the shared
+  catalogue with `retryable` false and its own errors-page entry, and carries a handle when the
+  explorer accepted a submission before the cancel; the CLI creates it and the core never throws
+  it (decision 0010). An unexpected exception inside the CLI gives an envelope with the code
+  `unknown-state`, no handle and a redacted message, and exit code 6. stderr may also carry a
+  one-line human summary.
 
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
   colour, spinners and pagers per stream, from that stream's own terminal state:
   - `--color=always` colours both streams; `--color=never` colours neither.
   - Otherwise (`--color=auto`, the default), a non-empty `NO_COLOR` or `TERM=dumb` turns colour
     off on both streams, and each stream is coloured only when it is a terminal.
-  - Spinners and line redraws appear only when stderr is a terminal and `CI` is unset or empty.
+  - Spinners and line redraws appear only when stderr is a terminal, `CI` is unset or empty,
+    `--log-format` is `text` and `--quiet` is not set.
   - A pager runs only when stdout is a terminal and `CI` is unset or empty.
 
   The CLI never prompts.
@@ -232,8 +242,11 @@ CLI:
   the route's backend requires a key and none is set, it skips the already-verified lookup and says
   so in the output.
 - **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
-  a flag value. `--api-key-stdin` reads the key from stdin and cannot be combined with
-  `--input-json -` (exit code 2). Tests assert that a dummy key never appears on stdout, on stderr
+  a flag value. `--api-key-stdin` reads the key from stdin and trims one trailing newline. It
+  cannot be combined with `--input-json -` (exit code 2). When stdin is a terminal,
+  `--api-key-stdin` and `--input-json -` exit 2 at once instead of waiting. Until M2, a key given
+  this way applies to the Etherscan-family backend of the route; M2's key issue names the
+  per-backend keys. Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). An unknown command or flag suggests the single closest
@@ -245,25 +258,35 @@ CLI:
 - **R-AX-14** Progress goes to stderr, never to stdout. By default it is human-readable lines.
   With `--log-format json` each stderr line is one JSON object with `schemaVersion`, `level`,
   `message` and `type`: an R-DX-6 event type with that event's fields, or `log` with the logger's
-  fields. A reader parses the lines that start with `{`. The `verify.submitted` line, with the
-  handle, prints in every mode except `--quiet`.
-- **R-AX-15** `-q`/`--quiet` and `--verbose` choose what reaches stderr:
+  fields. These four names are reserved; an event or logger field with one of those names goes
+  under a nested `fields` object. `schemaVersion` is the same as the envelope's (R-AX-5). A reader
+  parses the lines that start with `{`. The `verify.submitted` line, with the handle, prints at
+  level `info` or more verbose (R-AX-15).
+- **R-AX-15** A log level chooses what reaches stderr. `-q`/`--quiet` sets `error`, the default is
+  `info`, and `--verbose` sets `debug`:
 
-  | Mode        | stderr                                                                                       |
-  | ----------- | -------------------------------------------------------------------------------------------- |
-  | `--quiet`   | Errors only                                                                                  |
-  | Default     | Warnings, errors, the `verify.submitted` line, and one result line when stderr is a terminal |
-  | `--verbose` | Adds every stage event, each poll, retries with their delay, and redacted request URLs       |
+  | Mode        | Level   | stderr                                                                                  |
+  | ----------- | ------- | --------------------------------------------------------------------------------------- |
+  | `--quiet`   | `error` | Errors only                                                                             |
+  | Default     | `info`  | Errors, warnings, `verify.retry`, `verify.submitted` and `verify.result`                |
+  | `--verbose` | `debug` | Adds `verify.validated`, `verify.routed`, `verify.lookup`, `verify.poll` and debug logs |
 
-  `EXPLORER_VERIFY_LOG=debug|info|warn|error|off` sets the level when no flag does. The CLI reads
-  it; the core never reads the environment. stdout is byte-identical at every verbosity. `-v` is
-  not bound.
+  Event lines take these levels: `verify.submitted` and `verify.result` are `info`,
+  `verify.retry` is `warn`, and every other event is `debug`. Levels `error` and `off` suppress
+  everything below `error`, the `verify.submitted` line included; `off` also suppresses errors on
+  stderr, while the stdout envelope is unchanged. `EXPLORER_VERIFY_LOG=debug|info|warn|error|off`
+  sets the level when no flag does. Any other value is ignored, with one `warn` line on stderr
+  that names the variable and never its value. `--quiet` with `--verbose` exits 2
+  (`invalid-input`). The CLI reads the variable; the core never reads the environment. stdout is
+  byte-identical at every level. `-v` is not bound.
 
 - **R-AX-16** `verify` and `status` accept `--input-json <file|->`: the whole request as JSON,
-  validated against a JSON Schema that ships with the package. It cannot be combined with request
-  flags (exit code 2, `invalid-input`). An unknown property is an `invalid-input` error that names
-  the property path and does not repeat its value. The schema has no key field, so a key never
-  travels in the input. The package ships JSON Schemas for the input, the envelope (R-AX-5) and the
+  validated against a JSON Schema that ships with the package. Only these flags may accompany it:
+  `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
+  `--api-key-stdin` and `--timeout`. Any other request flag with it exits 2 (`invalid-input`).
+  Malformed JSON is `invalid-input`, exit code 2. Unknown properties are one `invalid-input`
+  issue with their count, never their names or values, as `parseHandle` does (decision 0009). The
+  schema has no key field, so a key never travels in the input. The package ships JSON Schemas for the input, the envelope (R-AX-5) and the
   events (R-AX-14, R-DX-6).
 
 Measurement:
