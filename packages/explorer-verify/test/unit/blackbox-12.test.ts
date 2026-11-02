@@ -45,6 +45,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "in-progress": { retryable: true, exit: 5, hasHandle: false },
   "unknown-state": { retryable: false, exit: 6, hasHandle: true },
   "job-not-found": { retryable: false, exit: 6, hasHandle: true },
+  cancelled: { retryable: false, exit: 130, hasHandle: true },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -68,6 +69,7 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "in-progress": { code: "in-progress", backend: "sourcify" },
     "unknown-state": { code: "unknown-state", handle, excerpt: `state ${text}` },
     "job-not-found": { code: "job-not-found", handle },
+    cancelled: { code: "cancelled", handle },
   };
   return all[code];
 }

@@ -25,10 +25,16 @@ const VALUE = String.raw`(?:[^%&#;\s"'<>\\]|%(?!(?:25)*(?:26|23|3b|22|27|20))(?:
 const EQUALS = "(?:=|%(?:25)*3d)";
 
 /**
- * The redaction patterns, in the order they run. Exported for the tests, which time each one on
- * adversarial input.
+ * The redaction patterns, in the order they run. A pattern runs only when the lower-cased text
+ * holds one of its `needs` (or always, when `needs` is empty), so text with nothing to redact,
+ * such as bytecode, costs one scan. Exported for the tests, which time each pattern on adversarial
+ * input.
  */
-export const REDACTION_PATTERNS: readonly { pattern: RegExp; replacement: string }[] = [
+export const REDACTION_PATTERNS: readonly {
+  pattern: RegExp;
+  replacement: string;
+  needs: readonly string[];
+}[] = [
   // `apikey`, `api_key`, `api-key` and `x-api-key`, followed by `=`, or by `:` with spaces.
   {
     pattern: new RegExp(
@@ -36,6 +42,7 @@ export const REDACTION_PATTERNS: readonly { pattern: RegExp; replacement: string
       "gi",
     ),
     replacement: `$1${REDACTED}`,
+    needs: ["key"],
   },
   // Other key-like parameter names, followed by `=`.
   {
@@ -44,28 +51,33 @@ export const REDACTION_PATTERNS: readonly { pattern: RegExp; replacement: string
       "gi",
     ),
     replacement: `$1${REDACTED}`,
+    needs: ["key", "token", "auth", "secret", "password"],
   },
   // A JSON member such as `"apiKey": "..."`.
   {
     pattern: /("(?:x-)?api[_-]?key"[ \t]{0,16}:[ \t]{0,16}")[^"\\]*/gi,
     replacement: `$1${REDACTED}`,
+    needs: ["key"],
   },
   // The user name and password of a URL, such as `https://user:pass@host`. The scheme starts at
   // most once per URL and both parts are bounded.
   {
     pattern: /(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,31}:\/\/)[^/\s?#@]{1,256}@/gi,
     replacement: `$1${REDACTED}@`,
+    needs: ["://"],
   },
   // An HTTP bearer token. The value must look like a token, so "bearer of bad news" stays.
   {
     pattern: /(?<![A-Za-z0-9])(bearer[ \t]{1,16})[A-Za-z0-9._~+/=-]{8,}/gi,
     replacement: `$1${REDACTED}`,
+    needs: ["bearer"],
   },
   // A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
   {
     pattern:
       /(?<![A-Za-z0-9])(?=[A-Z0-9]{0,33}[A-Z])(?=[A-Z0-9]{0,33}[0-9])[A-Z0-9]{34}(?![A-Za-z0-9])/g,
     replacement: REDACTED,
+    needs: [],
   },
 ];
 
@@ -80,13 +92,18 @@ function forms(secret: string): string[] {
   return all;
 }
 
-/** One pattern that matches every form of every known secret, longest first, in any case. */
-function secretPattern(secrets: readonly string[]): RegExp | undefined {
+/**
+ * One pattern that matches every form of every known secret that `lower` holds, longest first,
+ * in any case.
+ */
+function secretPattern(secrets: readonly string[], lower: string): RegExp | undefined {
   const all = new Set<string>();
   for (const secret of secrets) {
     if (secret.length >= MIN_SECRET_LENGTH) {
       for (const form of forms(secret)) {
-        all.add(form);
+        if (lower.includes(form.toLowerCase())) {
+          all.add(form);
+        }
       }
     }
   }
@@ -121,10 +138,17 @@ function secretPattern(secrets: readonly string[]): RegExp | undefined {
  * ```
  */
 export function redact(text: string, secrets: readonly string[] = []): string {
-  const known = secretPattern(secrets);
-  let result = known === undefined ? text : text.replace(known, REDACTED);
-  for (const { pattern, replacement } of REDACTION_PATTERNS) {
-    result = result.replace(pattern, replacement);
+  let lower = text.toLowerCase();
+  const known = secretPattern(secrets, lower);
+  let result = text;
+  if (known !== undefined) {
+    result = text.replace(known, REDACTED);
+    lower = result.toLowerCase();
+  }
+  for (const { pattern, replacement, needs } of REDACTION_PATTERNS) {
+    if (needs.length === 0 || needs.some((need) => lower.includes(need))) {
+      result = result.replace(pattern, replacement);
+    }
   }
   return result;
 }

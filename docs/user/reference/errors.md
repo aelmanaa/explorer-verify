@@ -72,16 +72,16 @@ Redaction does not cover these cases. Keep such values out of errors:
 
 The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code to its exit code.
 
-| Exit code | Meaning                                                                                                      | Error codes                                                                |
-| --------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                                                                             | None                                                                       |
-| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                    |
-| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`                                       |
-| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                   |
-| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                            |
-| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress` |
-| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                           |
-| 130       | Cancelled                                                                                                    | None. An abort rejects with `signal.reason`                                |
+| Exit code | Meaning                                                                                                      | Error codes                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 0         | `verified` or `already-verified`                                                                             | None                                                                                   |
+| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                                |
+| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`                                                   |
+| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                               |
+| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                                        |
+| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`             |
+| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                                       |
+| 130       | Cancelled                                                                                                    | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason` |
 
 `unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
 answer did not come from the explorer's API, or not in its format: a 5xx status, an HTML page or a
@@ -213,3 +213,17 @@ Fix: do not retry automatically. Check the contract on the explorer. If it is no
 Retryable: no. Checking the same handle again fails the same way.
 
 Exit code: 6
+
+### cancelled
+
+Cause: the run was cancelled, for example with Ctrl-C. The CLI creates this error, so that its
+JSON output for exit code 130 has a typed error. The library never throws it: when the caller's
+`signal` aborts, the call rejects with `signal.reason` unchanged. `details.handle` is present when
+the explorer accepted the submission before the cancel.
+
+Fix: if the CLI printed `verify.submitted`, or `details.handle` is present, resume with
+`checkStatus()` and that handle. Otherwise run the command again.
+
+Retryable: no.
+
+Exit code: 130

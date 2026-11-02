@@ -99,6 +99,7 @@ describe("public entry point", () => {
       "in-progress",
       "unknown-state",
       "job-not-found",
+      "cancelled",
     ]);
   });
 

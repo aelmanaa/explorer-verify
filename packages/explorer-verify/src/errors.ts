@@ -34,6 +34,7 @@ export const ERROR_CODES = [
   "in-progress",
   "unknown-state",
   "job-not-found",
+  "cancelled",
 ] as const;
 
 /**
@@ -164,6 +165,15 @@ export type ErrorDetails =
       code: "job-not-found";
       /** The handle whose job id the explorer does not know. */
       handle: Handle;
+    }
+  | {
+      /**
+       * The run was cancelled. The core never throws this code: an abort rejects with
+       * `signal.reason`. The CLI creates it for exit code 130, so its JSON output has a typed error.
+       */
+      code: "cancelled";
+      /** Present when the explorer accepted the submission before the cancel. */
+      handle?: Handle;
     };
 
 /**
@@ -204,6 +214,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "in-progress": 5,
   "unknown-state": 6,
   "job-not-found": 6,
+  cancelled: 130,
 };
 
 /**
@@ -335,6 +346,10 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "Do not retry automatically. Check the contract on the explorer; if it is not verified, call verify() again.",
     retryable: false,
   },
+  cancelled: {
+    hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+    retryable: false,
+  },
 };
 
 /**
@@ -359,6 +374,12 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       break;
     case "job-not-found":
       copy = { code: "job-not-found", handle: redactHandle(details.handle, secrets) };
+      break;
+    case "cancelled":
+      copy = { code: "cancelled" };
+      if (details.handle !== undefined) {
+        copy.handle = redactHandle(details.handle, secrets);
+      }
       break;
     case "unknown-state":
       copy = {
@@ -656,8 +677,9 @@ export class ExplorerVerifyError extends Error {
       docsUrl: this.docsUrl,
       retryable: this.retryable,
     };
-    if ("handle" in this.details) {
-      json.handle = formatHandle(this.details.handle);
+    const handle = "handle" in this.details ? this.details.handle : undefined;
+    if (handle !== undefined) {
+      json.handle = formatHandle(handle);
     }
     return json;
   }

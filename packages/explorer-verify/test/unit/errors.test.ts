@@ -64,6 +64,7 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "in-progress": { code: "in-progress", backend: "sourcify" },
   "unknown-state": { code: "unknown-state", handle: handle(), excerpt: '{"status":"weird"}' },
   "job-not-found": { code: "job-not-found", handle: handle() },
+  cancelled: { code: "cancelled", handle: handle() },
 };
 
 // Details for every code with the key planted in every string field that can hold one.
@@ -93,6 +94,7 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     excerpt: `result=${DUMMY_KEY}`,
   },
   "job-not-found": { code: "job-not-found", handle: handle(DUMMY_KEY) },
+  cancelled: { code: "cancelled", handle: handle(DUMMY_KEY) },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -147,9 +149,19 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     retryable: false,
     exitCode: 6,
   },
+  cancelled: {
+    hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+    retryable: false,
+    exitCode: 130,
+  },
 };
 
-const HANDLE_CODES: readonly ErrorCode[] = ["not-confirmed", "unknown-state", "job-not-found"];
+const HANDLE_CODES: readonly ErrorCode[] = [
+  "not-confirmed",
+  "unknown-state",
+  "job-not-found",
+  "cancelled",
+];
 
 /** Every place an error can show its content, the full-depth inspect included. */
 function renderings(error: ExplorerVerifyError): Record<string, string> {
@@ -264,6 +276,7 @@ describe("ExplorerVerifyError", () => {
       case "in-progress":
       case "unknown-state":
       case "job-not-found":
+      case "cancelled":
         assert.fail(`unexpected code ${details.code}`);
     }
   });
@@ -674,6 +687,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       { code: "not-confirmed", handle: leaky },
       { code: "unknown-state", handle: leaky, excerpt: "x" },
       { code: "job-not-found", handle: leaky },
+      { code: "cancelled", handle: leaky },
     ];
     for (const details of all) {
       const error = new ExplorerVerifyError(details, "m", { secrets: [] });
@@ -722,6 +736,10 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       excerpt: "",
     });
     assertNoKey(error);
+    const notText: ErrorDetails = { code: "in-progress", backend: "sourcify" };
+    Reflect.set(notText, "backend", 42);
+    const other = new ExplorerVerifyError(notText, "m", { secrets: [] });
+    assert.deepEqual(other.details, { code: "in-progress", backend: "etherscan-compatible" });
   });
 
   it("keeps every known field of every variant, rate-limited with and without retryAfterMs", () => {
@@ -957,5 +975,52 @@ describe("error reference page, exit code rows", () => {
 
   it("states the boundary between unexpected-response and unknown-state", () => {
     assert.match(page, /`unexpected-response` and `unknown-state` differ in who answered/);
+  });
+});
+
+describe("cancelled (R-AX-7)", () => {
+  it("maps to exit code 130, is not retryable and has the resume hint", () => {
+    const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
+    assert.equal(ERROR_EXIT_CODES.cancelled, 130);
+    assert.equal(error.retryable, false);
+    assert.equal(
+      error.hint,
+      "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+    );
+    assert.equal(error.docsUrl, `${DOCS}#cancelled`);
+  });
+
+  it("has no handle in details or toJSON when the cancel came before a submission was accepted (R-AX-5)", () => {
+    const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
+    assert.deepEqual(error.details, { code: "cancelled" });
+    assert.deepEqual(Object.keys(error.toJSON()), [
+      "code",
+      "message",
+      "hint",
+      "docsUrl",
+      "retryable",
+    ]);
+  });
+
+  it("carries the handle, redacted, when a submission was accepted before the cancel (R-AX-5)", () => {
+    const error = new ExplorerVerifyError(
+      { code: "cancelled", handle: handle(DUMMY_KEY) },
+      "Cancelled.",
+      { secrets: [DUMMY_KEY] },
+    );
+    assert.equal(
+      error.toJSON().handle,
+      "ev1:sourcify:11155111:0x5FbDB2315678afecb367f032d93F642f64180aa3:[redacted]",
+    );
+    assertNoKey(error);
+  });
+
+  it("is documented as created by the CLI, not thrown by the core", () => {
+    const page = readFileSync(
+      new URL("../../../../docs/user/reference/errors.md", import.meta.url),
+      "utf8",
+    );
+    assert.match(page, /^\| 130 +\| Cancelled +\| `cancelled`/m);
+    assert.match(page, /The CLI creates this error/);
   });
 });
