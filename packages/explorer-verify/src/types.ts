@@ -110,12 +110,16 @@ export interface Logger {
  * @experimental
  */
 export interface RouteOverride {
-  /** The backend to use instead of the one the routing table names. */
+  /**
+   * The backend to use instead of the one the routing table names. This release supports only
+   * `sourcify`; any other name throws `invalid-input` naming `route.backend`.
+   */
   backend?: BackendName;
   /**
-   * The API base URL. This release only declares the field; nothing reads it yet. The routing
-   * change (issue #15) validates it: `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`,
-   * no user name or password in the URL, and the query string redacted in logs.
+   * The API base URL. It must be an absolute `https:` URL, or an `http:` URL on `localhost`,
+   * `127.0.0.1` or `[::1]`, with no user name, password or fragment. Trailing slashes are
+   * removed. A query string is sent with requests and redacted in logs. Any other value throws
+   * `invalid-input` naming `route.apiUrl`, without repeating the value.
    */
   apiUrl?: string;
 }

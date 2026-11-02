@@ -91,6 +91,28 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
 `types.ts` holds the option and handle types, `errors.ts` the error class and `flow/handle.ts`
 `parseHandle`. `verify` and `checkStatus` do not exist yet.
 
+## Routing in M1
+
+`routing/resolve.ts` is a stub in M1. `resolveRoute(chainId, override)` sends every chain id to
+Sourcify at `https://sourcify.dev/server`, with the explorer page
+`https://repo.sourcify.dev/<chainId>/<address>`. A caller can point at another Sourcify server with
+`VerifyOptions.route` (R-RT-2). M2 replaces the default with `routing/table.json` (R-RT-1) and adds
+the fallback rule of R-RT-3; until then every chain resolves.
+
+`resolveRoute` checks `route.apiUrl` before any request uses it (R-SEC-2):
+
+- It must parse as an absolute URL and use `https:`, or `http:` on `localhost`, `127.0.0.1` or
+  `[::1]`. The check runs on the hostname the URL parser returns, so `localhost.evil.com`,
+  `127.0.0.1.nip.io` and `[::ffff:127.0.0.1]` fail.
+- It must not hold a user name, a password or a fragment.
+- Trailing slashes of the path are removed. The query string stays in `apiUrl` for requests;
+  `redactedApiUrl`, the form for logs, replaces it with `?REDACTED`.
+- `route.backend` must name a known backend, and in M1 only `sourcify` passes.
+
+A bad route throws `invalid-input`. The issues name the field and never repeat the value, and the
+error has no `cause`, because the URL parser's error holds the input. The returned route is a
+frozen plain object.
+
 ## Verification flow
 
 The flow engine's path from input to one of three results or a thrown error:
