@@ -36,7 +36,7 @@ User docs live in [docs/user/](docs/user/README.md); the index for people is
 | Command              | What it does                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`       | Installs dependencies and the git hooks                                       |
-| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape check                 |
+| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape check, host check     |
 | `pnpm test`          | Builds, then runs the unit tests with `node --test`                           |
 | `pnpm run coverage`  | Unit tests under c8; fails below 95% lines, branches, functions or statements |
 | `pnpm run pkg:check` | publint, are-the-types-wrong and knip on the built package                    |
@@ -51,7 +51,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it) |
 | `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                    |
-| `scripts/`                            | Repository scripts run with plain `node`: git hooks, type-escape check, test runner                        |
+| `scripts/`                            | Repository scripts run with plain `node`: git hooks, type-escape check, host check, test runner            |
 | `docs/user/`                          | User documentation (Diátaxis layout, written as features land)                                             |
 | `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                    |
 | `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                               |

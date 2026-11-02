@@ -8,7 +8,7 @@ Its identifier type is `BackendName`.
 
 ## Packages
 
-Proposed, following the [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) naming pattern (an unscoped core with scoped add-ons):
+Proposed, following the [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) naming pattern (an unscoped core with scoped add-ons):
 
 | Package                                                | Contents                                                                              | Runtime                   |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------- |

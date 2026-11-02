@@ -2,7 +2,7 @@
 
 Audience: developers using explorer-verify. Nothing is released yet, so this section is empty.
 
-Pages land with the features they describe, in four kinds (the Diátaxis layout used by [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms)):
+Pages land with the features they describe, in four kinds (the Diátaxis layout used by [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)):
 
 | Folder         | Kind              | Planned first page                                                         |
 | -------------- | ----------------- | -------------------------------------------------------------------------- |

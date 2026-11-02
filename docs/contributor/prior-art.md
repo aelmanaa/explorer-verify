@@ -1,7 +1,7 @@
 # Prior art to port
 
 Audience: whoever implements M1 to M3. Two working implementations of explorer verification exist
-in [smartcontractkit/ccip-tools-ts](https://gh.ali360.cloudns.ch/smartcontractkit/ccip-tools-ts) (MIT,
+in [smartcontractkit/ccip-tools-ts](https://github.com/smartcontractkit/ccip-tools-ts) (MIT,
 copyright SmartContract Chainlink Limited SEZC). Neither is merged into that repository's `main`.
 They verify CCIP contracts only, from bundled artifacts; this library generalises them.
 
@@ -13,7 +13,7 @@ in the package's `files`, and name the source file and commit at the top of each
 
 ## Implementation A: `feat/propose-admin-role`
 
-Commit [`1cecb266`](https://gh.ali360.cloudns.ch/smartcontractkit/ccip-tools-ts/commit/1cecb266), 2026-07-28,
+Commit [`1cecb266`](https://github.com/smartcontractkit/ccip-tools-ts/commit/1cecb266), 2026-07-28,
 author Amine El Manaa. Later carried on the `merge-cct-into-propose-admin` branch of the maintainer's fork (`7b194dff`).
 About 1,560 hand-written lines plus about 11,800 lines of JSON fixtures.
 
@@ -40,7 +40,7 @@ git -C <ccip-tools-ts clone> show "1cecb266:ccip-sdk/src/verify/etherscan.ts"
 
 ## Implementation B: `feature/DAPP-10826-evm-verify-contract`
 
-Commit [`ac4340e7`](https://gh.ali360.cloudns.ch/smartcontractkit/ccip-tools-ts/commit/ac4340e7), 2026-08-06,
+Commit [`ac4340e7`](https://github.com/smartcontractkit/ccip-tools-ts/commit/ac4340e7), 2026-08-06,
 author Pedro Barbosa. An opt-in SDK subpath; about 1,200 generic lines and 1,000 lines of artifact
 pipeline.
 
