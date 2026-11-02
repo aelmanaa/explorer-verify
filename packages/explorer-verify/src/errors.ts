@@ -9,6 +9,14 @@ import type { Handle } from "./types.ts";
  * Every error code the library throws. A code never changes meaning once released; new codes are
  * added to the end.
  *
+ * @example
+ * ```ts
+ * import { ERROR_CODES } from "explorer-verify";
+ *
+ * for (const code of ERROR_CODES) {
+ *   console.log(code); // "invalid-input", "not-confirmed"
+ * }
+ * ```
  * @experimental
  */
 export const ERROR_CODES = ["invalid-input", "not-confirmed"] as const;
@@ -16,6 +24,12 @@ export const ERROR_CODES = ["invalid-input", "not-confirmed"] as const;
 /**
  * One of {@link ERROR_CODES}.
  *
+ * @example
+ * ```ts
+ * import type { ErrorCode } from "explorer-verify";
+ *
+ * const exitCodes: Record<ErrorCode, number> = { "invalid-input": 2, "not-confirmed": 4 };
+ * ```
  * @experimental
  */
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -23,6 +37,15 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 /**
  * One problem found in the caller's input.
  *
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { InputIssue } from "explorer-verify";
+ *
+ * function report(error: ExplorerVerifyError): InputIssue[] {
+ *   return error.details.code === "invalid-input" ? error.details.issues : [];
+ * }
+ * ```
  * @experimental
  */
 export interface InputIssue {
@@ -68,6 +91,15 @@ export type ErrorDetails =
  * What `ExplorerVerifyError.toJSON()` returns: the `error` object of the CLI's JSON output, field
  * for field (R-AX-5). It never holds a `cause`, a stack or an API key.
  *
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { ErrorJson } from "explorer-verify";
+ *
+ * function envelope(error: ExplorerVerifyError): { schemaVersion: 1; ok: false; error: ErrorJson } {
+ *   return { schemaVersion: 1, ok: false, error: error.toJSON() };
+ * }
+ * ```
  * @experimental
  */
 export interface ErrorJson {
@@ -79,7 +111,10 @@ export interface ErrorJson {
   hint: string;
   /** The code's entry in the error reference. */
   docsUrl: string;
-  /** Whether the same call may succeed later without a change. */
+  /**
+   * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
+   * again means `checkStatus(details.handle)`, not a new `verify()`.
+   */
   retryable: boolean;
   /** The handle in its one-line form, when the error carries one. */
   handle?: string;
@@ -88,6 +123,17 @@ export interface ErrorJson {
 /**
  * Options for {@link ExplorerVerifyError}.
  *
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { ExplorerVerifyErrorOptions } from "explorer-verify";
+ *
+ * const options: ExplorerVerifyErrorOptions = {
+ *   hint: "Only sourcify is available in this version.",
+ *   cause: new Error("unsupported backend"),
+ * };
+ * new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "The route is invalid.", options);
+ * ```
  * @experimental
  */
 export interface ExplorerVerifyErrorOptions {
@@ -137,13 +183,14 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
  * @experimental
  */
 export class ExplorerVerifyError extends Error {
-  /** Always `"ExplorerVerifyError"`. */
-  override readonly name = "ExplorerVerifyError";
   /** The stable error code, equal to `details.code`. */
   readonly code: ErrorCode;
   /** One sentence: what to do next (R-DX-3). */
   readonly hint: string;
-  /** Whether the same call may succeed later without a change. */
+  /**
+   * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
+   * again means `checkStatus(details.handle)`, not a new `verify()`, which would submit again.
+   */
   readonly retryable: boolean;
   /** The code's data. Check `details.code` to narrow it. */
   readonly details: ErrorDetails;
@@ -172,6 +219,19 @@ export class ExplorerVerifyError extends Error {
     this.retryable = entry.retryable;
     this.details = details;
     this.docsUrl = `${ERRORS_PAGE}#${details.code}`;
+  }
+
+  /**
+   * Always `"ExplorerVerifyError"`. A getter, so it is not an own field of the instance.
+   *
+   * @returns The class name.
+   * @example
+   * ```ts
+   * String(error); // "ExplorerVerifyError: The handle is invalid: chainId."
+   * ```
+   */
+  override get name(): "ExplorerVerifyError" {
+    return "ExplorerVerifyError";
   }
 
   /**

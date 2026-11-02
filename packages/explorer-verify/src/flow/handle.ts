@@ -5,16 +5,30 @@ import type { Handle, Hex } from "../types.ts";
 
 const FIELDS: readonly string[] = ["version", "backend", "chainId", "address", "jobId"];
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
-const JOB_ID = /^[A-Za-z0-9._:-]{1,128}$/;
-const SAFE_NAME = /^[A-Za-z_$][\w$]{0,63}$/;
+// No `:`, `.`, `/`, `%`, `?`, `#` or `\`: a job id can never parse as a URL scheme or a path
+// segment when a client puts it in a request URL, and the one-line form splits on `:`.
+const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
+/** Own enumerable fields of `value`, or `undefined` when reading them throws (a hostile Proxy). */
+function readFields(value: object): Map<string, unknown> | undefined {
+  try {
+    if (Array.isArray(value)) {
+      return undefined;
+    }
+    return new Map<string, unknown>(Object.entries(value));
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Reads a handle from untrusted input, such as a URL parameter, local storage or a request body,
- * and checks every field (R-FLOW-5). A field it does not know, such as a URL, is rejected, so no
- * host can enter through a handle (R-SEC-2). Error messages name the field, never its value.
+ * and checks every field (R-FLOW-5). Any field it does not know, such as a URL, is rejected, so no
+ * host can enter through a handle (R-SEC-2). Error messages name the known fields only and never
+ * repeat a value or a field name the input chose.
  *
  * @param value - The handle object, for example `JSON.parse` of a stored handle.
- * @returns The handle, with exactly the fields of {@link Handle}.
+ * @returns A new handle with exactly the fields of {@link Handle}.
  * @throws ExplorerVerifyError with code `invalid-input`, listing each bad field in `details.issues`.
  * @example
  * ```ts
@@ -28,10 +42,10 @@ const SAFE_NAME = /^[A-Za-z_$][\w$]{0,63}$/;
  * @experimental
  */
 export function parseHandle(value: unknown): Handle {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw invalid([{ field: "handle", message: "must be an object" }]);
+  const fields = typeof value === "object" && value !== null ? readFields(value) : undefined;
+  if (fields === undefined) {
+    throw invalid([{ field: "handle", message: "must be a plain object" }]);
   }
-  const fields = new Map<string, unknown>(Object.entries(value));
   const issues: InputIssue[] = [];
 
   const version = fields.get("version") === 1 ? 1 : undefined;
@@ -64,16 +78,21 @@ export function parseHandle(value: unknown): Handle {
   if (jobId === undefined) {
     issues.push({
       field: "jobId",
-      message: "must be 1 to 128 characters from A-Z, a-z, 0-9, '.', '_', ':' and '-'",
+      message:
+        "must be 1 to 128 characters from A-Z, a-z, 0-9, '_' and '-', starting with a letter or digit",
     });
   }
+  let unknown = 0;
   for (const name of fields.keys()) {
     if (!FIELDS.includes(name)) {
-      issues.push({
-        field: SAFE_NAME.test(name) ? name : "handle",
-        message: "is not a handle field; a handle carries no URL or other extra data",
-      });
+      unknown++;
     }
+  }
+  if (unknown > 0) {
+    issues.push({
+      field: "handle",
+      message: `has ${String(unknown)} fields that are not handle fields`,
+    });
   }
 
   if (

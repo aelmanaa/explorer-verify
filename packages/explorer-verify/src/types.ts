@@ -112,7 +112,11 @@ export interface Logger {
 export interface RouteOverride {
   /** The backend to use instead of the one the routing table names. */
   backend?: BackendName;
-  /** The API base URL: `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`. */
+  /**
+   * The API base URL. This release only declares the field; nothing reads it yet. The routing
+   * change (issue #15) validates it: `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`,
+   * no user name or password in the URL, and the query string redacted in logs.
+   */
   apiUrl?: string;
 }
 

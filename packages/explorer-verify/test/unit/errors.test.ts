@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { ERROR_CODES, ExplorerVerifyError } from "../../src/index.ts";
@@ -151,5 +152,37 @@ describe("ExplorerVerifyError.toJSON", () => {
     const error = notConfirmed();
     assert.ok(String(error.cause).includes(DUMMY_KEY), "the test key reached the cause");
     assertNoKey(error);
+  });
+});
+
+describe("ExplorerVerifyError.name", () => {
+  it("is a getter, not an own field, and String(error) starts with the class name", () => {
+    const error = invalidInput();
+    assert.ok(!Object.keys(error).includes("name"));
+    assert.equal(Object.hasOwn(error, "name"), false);
+    assert.equal(error.name, "ExplorerVerifyError");
+    assert.ok(String(error).startsWith("ExplorerVerifyError: "));
+  });
+});
+
+describe("error reference page", () => {
+  const page = readFileSync(
+    new URL("../../../../docs/user/reference/errors.md", import.meta.url),
+    "utf8",
+  );
+  const headings = [...page.matchAll(/^## (.+)$/gm)].map((match) => match[1] ?? "");
+
+  it("has a heading for every code in ERROR_CODES (R-AX-10)", () => {
+    for (const code of ERROR_CODES) {
+      assert.ok(headings.includes(code), `errors.md has no "## ${code}"`);
+    }
+  });
+
+  it("has no heading that names a code outside ERROR_CODES (R-AX-10)", () => {
+    const codes: readonly string[] = ERROR_CODES;
+    assert.ok(headings.length > 0);
+    for (const heading of headings) {
+      assert.ok(codes.includes(heading), `"## ${heading}" is not a code`);
+    }
   });
 });
