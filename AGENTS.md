@@ -23,7 +23,7 @@ maintainer's.
 5. [docs/contributor/prior-art.md](docs/contributor/prior-art.md): the two working implementations
    this library starts from, and what to port from each.
 6. [docs/contributor/research/](docs/contributor/research/): dated evidence behind the decisions
-   (explorer APIs, Etherscan terms, competing packages).
+   (explorer APIs, Etherscan terms, competing packages, agent readiness).
 7. [docs/contributor/testing.md](docs/contributor/testing.md): test layers and fixture rules.
 8. [docs/contributor/tooling.md](docs/contributor/tooling.md): toolchain and the type-checking layout.
 9. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
@@ -73,6 +73,9 @@ natively. pnpm 12.16.1 (`packageManager`).
 - `packages/*/src` never imports a Node built-in and never reads `process.env`. Every network call
   goes through the `fetch` the caller injects or the default `globalThis.fetch`.
 - Never print, log or commit an API key, including in tests and fixtures. Errors redact keys.
+- A change that adds or changes a public function, error, CLI command or user page meets
+  [agent readiness (R-AX)](docs/contributor/requirements.md#agent-readiness-r-ax), or the pull
+  request says which requirement it does not meet and why (decision 0007).
 - A requirement change edits [requirements.md](docs/contributor/requirements.md) in the same pull
   request. A design change that reverses a decision adds a new decision record.
 - Prose (docs, changesets, issues, pull requests, comments) is plain and factual: short sentences,
