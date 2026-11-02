@@ -718,7 +718,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     }
   });
 
-  it("replaces a backend name outside BACKEND_NAMES and coerces numbers and strings by type", () => {
+  it('reports a backend name outside BACKEND_NAMES as "unknown" and coerces numbers and strings by type', () => {
     const details: ErrorDetails = {
       code: "unexpected-response",
       backend: "sourcify",
@@ -731,7 +731,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     const error = new ExplorerVerifyError(details, "m", { secrets: [] });
     assert.deepEqual(error.details, {
       code: "unexpected-response",
-      backend: "etherscan-compatible",
+      backend: "unknown",
       status: Number.NaN,
       excerpt: "",
     });
@@ -739,7 +739,31 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     const notText: ErrorDetails = { code: "in-progress", backend: "sourcify" };
     Reflect.set(notText, "backend", 42);
     const other = new ExplorerVerifyError(notText, "m", { secrets: [] });
-    assert.deepEqual(other.details, { code: "in-progress", backend: "etherscan-compatible" });
+    assert.deepEqual(other.details, { code: "in-progress", backend: "unknown" });
+  });
+
+  it('reports "unknown" for every details variant that names a backend, never another backend', () => {
+    for (const code of ERROR_CODES) {
+      const details = { ...SAMPLE_DETAILS[code] };
+      if (!("backend" in details)) {
+        continue;
+      }
+      Reflect.set(details, "backend", "not-a-backend");
+      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      assert.ok("backend" in error.details, code);
+      assert.equal(error.details.backend, "unknown", code);
+    }
+  });
+
+  it("keeps a valid Handle when its backend is outside BACKEND_NAMES, and never leaks it", () => {
+    const leaky = handle();
+    Reflect.set(leaky, "backend", LEAKY_URL);
+    const error = new ExplorerVerifyError({ code: "job-not-found", handle: leaky }, "m", {
+      secrets: [],
+    });
+    assert.ok(error.details.code === "job-not-found");
+    assert.equal(error.details.handle.backend, "etherscan-compatible");
+    assertNoKey(error);
   });
 
   it("keeps every known field of every variant, rate-limited with and without retryAfterMs", () => {

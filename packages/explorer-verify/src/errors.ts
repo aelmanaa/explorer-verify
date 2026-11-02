@@ -109,38 +109,53 @@ export type ErrorDetails =
       code: "unsupported-chain";
       /** The chain that was asked for. */
       chainId: number;
-      /** The backend that refused it. */
-      backend: BackendName;
+      /**
+       * The backend that refused it. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
     }
   | {
       /** Every request to the backend failed before it answered, retries included. */
       code: "network";
-      /** The backend that could not be reached. */
-      backend: BackendName;
+      /**
+       * The backend that could not be reached. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
       /** How many requests were tried. */
       attempts: number;
     }
   | {
       /** The backend answered 429 on every try. */
       code: "rate-limited";
-      /** The backend that limited the requests. */
-      backend: BackendName;
+      /**
+       * The backend that limited the requests. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
       /** How long the backend asked to wait, when it said (`Retry-After`). */
       retryAfterMs?: number;
     }
   | {
       /** The time budget ran out before the explorer accepted the submission: there is no handle. */
       code: "timeout";
-      /** The backend that did not answer in time. */
-      backend: BackendName;
+      /**
+       * The backend that did not answer in time. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
       /** The budget that ran out, in milliseconds. */
       timeoutMs: number;
     }
   | {
       /** The backend answered with a status or a body the library does not recognise. */
       code: "unexpected-response";
-      /** The backend that answered. */
-      backend: BackendName;
+      /**
+       * The backend that answered. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
       /** The HTTP status. */
       status: number;
       /** The start of the response body, redacted, at most 300 characters. */
@@ -149,8 +164,11 @@ export type ErrorDetails =
   | {
       /** The backend is already verifying this contract from another submission. */
       code: "in-progress";
-      /** The backend that is busy with the contract. */
-      backend: BackendName;
+      /**
+       * The backend that is busy with the contract. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
     }
   | {
       /** The explorer reported a final state the library cannot classify. */
@@ -303,7 +321,10 @@ const UNREADABLE_CAUSE = "[unreadable cause]";
 const OMITTED_CAUSE = "[cause omitted]";
 // Stands in for a backend name that is not in BACKEND_NAMES, which only code that bypasses the
 // types can pass.
-const UNKNOWN_BACKEND: BackendName = "etherscan-compatible";
+const UNKNOWN_BACKEND = "unknown";
+// The handle's backend type has no "unknown": a handle with a name outside BACKEND_NAMES, which
+// only code that bypasses the types can build, gets this name so the handle stays a valid Handle.
+const UNKNOWN_HANDLE_BACKEND: BackendName = "etherscan-compatible";
 
 const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
   "invalid-input": {
@@ -433,9 +454,14 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
 // The helpers below take `unknown`: the types say what callers pass, but an error must never throw
 // or leak when code that bypasses the types passes something else.
 
-/** A known backend name, or {@link UNKNOWN_BACKEND}. */
-function backendOf(value: unknown): BackendName {
-  return (typeof value === "string" ? toBackendName(value) : undefined) ?? UNKNOWN_BACKEND;
+/** A known backend name, or `undefined`. */
+function knownBackend(value: unknown): BackendName | undefined {
+  return typeof value === "string" ? toBackendName(value) : undefined;
+}
+
+/** A known backend name, or `"unknown"`. */
+function backendOf(value: unknown): BackendName | typeof UNKNOWN_BACKEND {
+  return knownBackend(value) ?? UNKNOWN_BACKEND;
 }
 
 /** A number, or `NaN` for anything else. */
@@ -457,7 +483,7 @@ function text(value: unknown, secrets: readonly string[]): string {
 function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
   return {
     version: 1,
-    backend: backendOf(handle.backend),
+    backend: knownBackend(handle.backend) ?? UNKNOWN_HANDLE_BACKEND,
     chainId: numberOf(handle.chainId),
     address: `0x${text(stringOf(handle.address).slice(2), secrets)}`,
     jobId: text(handle.jobId, secrets),

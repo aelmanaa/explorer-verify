@@ -53,7 +53,8 @@ The error removes API keys before it stores anything. The message, the hint, eve
   each.
 
 The error builds `details` again from the fields its code declares, so an extra field never
-reaches the error.
+reaches the error. A `details.backend` outside the list of backends reads `unknown`. That happens
+only when code bypassed the types.
 
 The `cause` is a copy of the underlying error. It is a plain `Error` with the original name. Its
 message, stack, `code`, `errno` and `syscall`, a one-line summary of an `AggregateError`'s errors,
