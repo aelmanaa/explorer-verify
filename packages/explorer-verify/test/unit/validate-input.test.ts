@@ -847,16 +847,25 @@ describe("validateInput returns a deep copy of JSON data (R-IN-1, R-IN-6)", () =
     );
   });
 
-  it("rejects nesting deep enough to overflow the stack (R-IN-6)", () => {
+  it("gives invalid-input, never a raw RangeError, for nesting a million levels deep (R-IN-6)", () => {
+    // Whether JSON.stringify overflows at this depth depends on the engine: Node 24 throws a
+    // RangeError, Node 26 does not. Either way the call must not leak the raw error.
     let deep: Record<string, unknown> = {};
     for (let index = 0; index < 1_000_000; index++) {
       deep = { a: deep };
     }
-    assertIssue(
-      withStandardJson({ settings: deep }),
-      "compiler.input.settings",
-      MESSAGES.settingsJson,
-    );
+    const value = withStandardJson({ settings: deep });
+    let outcome: unknown;
+    try {
+      outcome = validateInput(value);
+    } catch (error) {
+      outcome = error;
+    }
+    if (outcome instanceof Error) {
+      assertIssue(value, "compiler.input.settings", MESSAGES.settingsJson);
+    } else {
+      assert.notEqual(validateInput(value).compiler.input.settings, deep);
+    }
   });
 
   it("rejects settings whose toJSON returns something that is not an object (R-IN-6)", () => {
