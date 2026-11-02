@@ -130,7 +130,7 @@ describe("parseHandle rejects", () => {
       const error = assertRejected({ ...handle(), [name]: "https://evil.example" }, ["handle"]);
       assert.deepEqual(error.details, {
         code: "invalid-input",
-        issues: [{ field: "handle", message: "has 1 fields that are not handle fields" }],
+        issues: [{ field: "handle", message: "has 1 field that is not a handle field" }],
       });
     }
   });
@@ -258,7 +258,7 @@ describe("parseHandle errors", () => {
         { field: "chainId", message: "must be a positive integer" },
         { field: "address", message: "must be 0x followed by 40 hex digits" },
         { field: "jobId", message: JOB_ID_MESSAGE },
-        { field: "handle", message: "has 1 fields that are not handle fields" },
+        { field: "handle", message: "has 1 field that is not a handle field" },
       ],
     });
   });
