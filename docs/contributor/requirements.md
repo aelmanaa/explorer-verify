@@ -90,7 +90,8 @@ non-EVM chains, zkSync's zksolc, compiling sources inside the library.
 - **R-FLOW-2** Submit, then poll until a terminal state, within a time budget the caller sets.
 - **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
   `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
-  URL on success.
+  URL on success when the library knows a public page for the contract. A route that points at a
+  self-hosted or local server has none.
 - **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
   ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling

@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import * as api from "../../src/index.ts";
-import type { Handle, Logger, RouteOverride, VerifyOptions } from "../../src/index.ts";
+import type {
+  Handle,
+  Logger,
+  RouteOverride,
+  VerifyOptions,
+  VerifyResult,
+} from "../../src/index.ts";
 
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
@@ -25,6 +31,11 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
 };
 const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true };
 const emptyRoute: RouteOverride = {};
+// A success without an explorer link must compile: a self-hosted Sourcify server has no public page.
+const successesWithoutLink: VerifyResult[] = [
+  { status: "verified", backend: "sourcify", match: "exact" },
+  { status: "already-verified", backend: "sourcify", match: "partial" },
+];
 const versionIsOne: Equal<Handle["version"], 1> = true;
 
 describe("public types", () => {
@@ -48,6 +59,13 @@ describe("public types", () => {
       "logger",
       "route",
     ]);
+  });
+
+  it("VerifyResult successes have an optional explorerUrl (R-FLOW-3)", () => {
+    assert.deepEqual(
+      successesWithoutLink.map((result) => "explorerUrl" in result),
+      [false, false],
+    );
   });
 
   it("RouteOverride has backend and apiUrl, both optional (decision 0009)", () => {

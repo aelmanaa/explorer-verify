@@ -95,19 +95,34 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md).
 
 `routing/resolve.ts` is a stub in M1. `resolveRoute(chainId, override)` sends every chain id to
 Sourcify at `https://sourcify.dev/server`, with the explorer page
-`https://repo.sourcify.dev/<chainId>/<address>`. A caller can point at another Sourcify server with
-`VerifyOptions.route` (R-RT-2). M2 replaces the default with `routing/table.json` (R-RT-1) and adds
-the fallback rule of R-RT-3; until then every chain resolves.
+`https://repo.sourcify.dev/<chainId>/<address>`, and `VerifyOptions.route` can point at another
+Sourcify server (R-RT-2). M2 replaces the default with `routing/table.json` (R-RT-1) and adds the
+fallback rule of R-RT-3. Until then, every chain resolves.
 
-`resolveRoute` checks `route.apiUrl` before any request uses it (R-SEC-2):
+`resolveRoute` checks the override before any request uses it (R-SEC-2):
 
-- It must parse as an absolute URL and use `https:`, or `http:` on `localhost`, `127.0.0.1` or
-  `[::1]`. The check runs on the hostname the URL parser returns, so `localhost.evil.com`,
-  `127.0.0.1.nip.io` and `[::ffff:127.0.0.1]` fail.
+- `route` must be a plain object, with prototype `Object.prototype` or `null`. Only its own
+  `backend` and `apiUrl` properties are read, each once. Inherited ones are ignored.
+- `route.apiUrl` is a primitive string of at most 8192 characters that parses as an absolute URL
+  and uses `https:`, or `http:` with the hostname exactly `localhost`, `127.0.0.1` or `[::1]`. The
+  check runs on the hostname the URL parser returns, so `localhost.evil.com`, `evil.localhost`,
+  `127.0.0.1.nip.io` and `[::ffff:127.0.0.1]` fail. On Node, the system resolver decides where
+  `localhost` points.
 - It must not hold a user name, a password or a fragment.
-- Trailing slashes of the path are removed. The query string stays in `apiUrl` for requests;
-  `redactedApiUrl`, the form for logs, replaces it with `?REDACTED`.
-- `route.backend` must name a known backend, and in M1 only `sourcify` passes.
+- `route.backend` must be a primitive string naming a known backend, and in M1 only `sourcify`
+  passes.
+
+The route keeps the caller's query string apart from the base:
+
+- `apiBase` is the origin and path, with trailing slashes removed and no query.
+- `requestUrl(path)` appends an endpoint path that starts with `/`, then adds the caller's query
+  string again. Clients build every request URL with it and never append to `apiBase` themselves.
+- `redactedApiUrl` is `apiBase` followed by `?REDACTED` when there was a query. Only the query is
+  redacted. The host and path appear as given, so a key must never go in them. A key goes in the
+  query string, or in the per-backend key option planned for M2.
+- `explorerUrl` is `undefined` when the override changes the API base. The public repository page
+  would show a contract verified on a self-hosted or local server as not verified, so a result
+  from such a route has no `explorerUrl` (R-FLOW-3).
 
 A bad route throws `invalid-input`. The issues name the field and never repeat the value, and the
 error has no `cause`, because the URL parser's error holds the input. The returned route is a

@@ -4,25 +4,32 @@ import { describe, it } from "node:test";
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { Hex, RouteOverride } from "../../src/index.ts";
 import { resolveRoute, SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
+import type { Route } from "../../src/routing/resolve.ts";
 
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
+const DEFAULT_HINT = "Fix the fields listed in details.issues, then call again.";
 const BACKEND_HINT = "Only sourcify is available in this version. Remove route.backend.";
+const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
+const ENDPOINT = "/v2/verify/1/0xabc";
 
 /** Runs `resolveRoute` and returns the error it throws. */
 function rejection(chainId: number, override?: unknown): ExplorerVerifyError {
-  // `override` is `unknown` so the tests can pass what a JavaScript caller could pass.
-  const route: unknown = override;
+  return thrown(() => resolveRoute(chainId, routeOf(override)));
+}
+
+/** Runs `run` and returns the ExplorerVerifyError it throws. */
+function thrown(run: () => unknown): ExplorerVerifyError {
   try {
-    resolveRoute(chainId, routeOf(route));
+    run();
   } catch (error) {
-    assert.ok(error instanceof ExplorerVerifyError, `resolveRoute threw ${String(error)}`);
+    assert.ok(error instanceof ExplorerVerifyError, `threw ${String(error)}`);
     return error;
   }
-  return assert.fail("resolveRoute accepted the route");
+  return assert.fail("no error thrown");
 }
 
 /**
@@ -74,14 +81,20 @@ function assertRejected(
   return error;
 }
 
+/** The explorer link of `route`, failing the test when the route has none. */
+function explorerLink(route: Route): (chainId: number, address: Hex) => string {
+  return route.explorerUrl ?? assert.fail("the route has no explorer link");
+}
+
 describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
   for (const chainId of [1, 11155111]) {
     it(`routes chain ${String(chainId)} to Sourcify (R-RT-2)`, () => {
       const route = resolveRoute(chainId);
       assert.equal(route.backend, "sourcify");
-      assert.equal(route.apiUrl, "https://sourcify.dev/server");
-      assert.equal(route.apiUrl, SOURCIFY_API_URL);
+      assert.equal(route.apiBase, "https://sourcify.dev/server");
+      assert.equal(route.apiBase, SOURCIFY_API_URL);
       assert.equal(route.redactedApiUrl, "https://sourcify.dev/server");
+      assert.equal(route.requestUrl(ENDPOINT), `https://sourcify.dev/server${ENDPOINT}`);
     });
   }
 
@@ -94,15 +107,23 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
   it("gives the Sourcify repository page for a contract (R-FLOW-3)", () => {
     const route = resolveRoute(11155111);
     assert.equal(
-      route.explorerUrl(11155111, ADDRESS),
+      explorerLink(route)(11155111, ADDRESS),
       "https://repo.sourcify.dev/11155111/0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    );
+  });
+
+  it("builds the explorer page from the chain id of the call, not the resolved one (R-FLOW-3)", () => {
+    const route = resolveRoute(1);
+    assert.equal(
+      explorerLink(route)(10, ADDRESS),
+      "https://repo.sourcify.dev/10/0x5FbDB2315678afecb367f032d93F642f64180aa3",
     );
   });
 
   it("keeps the explorer page on a single path segment for any address string", () => {
     const route = resolveRoute(1);
     assert.equal(
-      route.explorerUrl(1, "0x/../../evil?x=1#y"),
+      explorerLink(route)(1, "0x/../../evil?x=1#y"),
       "https://repo.sourcify.dev/1/0x%2F..%2F..%2Fevil%3Fx%3D1%23y",
     );
   });
@@ -112,27 +133,30 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
     assert.ok(Object.isFrozen(route));
     assert.equal(Object.getPrototypeOf(route), Object.prototype);
     assert.deepEqual(Object.keys(route).toSorted(), [
-      "apiUrl",
+      "apiBase",
       "backend",
       "explorerUrl",
       "redactedApiUrl",
+      "requestUrl",
     ]);
-    assert.equal(Reflect.set(route, "apiUrl", "https://evil.example"), false);
-    assert.equal(route.apiUrl, "https://sourcify.example.org/server");
+    assert.ok(!("apiUrl" in route));
+    assert.equal(Reflect.set(route, "apiBase", "https://evil.example"), false);
+    assert.equal(route.apiBase, "https://sourcify.example.org/server");
   });
 
   it("treats an empty override, and fields set to undefined, as no override (R-RT-2)", () => {
     for (const override of [{}, { backend: undefined, apiUrl: undefined }, undefined]) {
       const route = resolveRoute(1, routeOf(override));
       assert.equal(route.backend, "sourcify");
-      assert.equal(route.apiUrl, SOURCIFY_API_URL);
+      assert.equal(route.apiBase, SOURCIFY_API_URL);
+      assert.notEqual(route.explorerUrl, undefined);
     }
   });
 
   it("ignores fields a route override does not have, and does not copy them", () => {
     const route = resolveRoute(1, routeOf({ apiKey: DUMMY_KEY }));
     assert.ok(!JSON.stringify(route).includes(DUMMY_KEY));
-    assert.equal(route.apiUrl, SOURCIFY_API_URL);
+    assert.equal(route.apiBase, SOURCIFY_API_URL);
   });
 });
 
@@ -140,18 +164,18 @@ describe("resolveRoute: override (R-RT-2)", () => {
   it("uses a custom https URL (R-RT-2)", () => {
     const route = resolveRoute(1, { apiUrl: "https://sourcify.example.org/server" });
     assert.equal(route.backend, "sourcify");
-    assert.equal(route.apiUrl, "https://sourcify.example.org/server");
+    assert.equal(route.apiBase, "https://sourcify.example.org/server");
   });
 
   it("accepts backend sourcify by name (R-RT-2)", () => {
     const route = resolveRoute(1, { backend: "sourcify" });
     assert.equal(route.backend, "sourcify");
-    assert.equal(route.apiUrl, SOURCIFY_API_URL);
+    assert.equal(route.apiBase, SOURCIFY_API_URL);
   });
 
   it("accepts http://127.0.0.1:8545 (R-RT-2)", () => {
     assert.equal(
-      resolveRoute(1, { apiUrl: "http://127.0.0.1:8545" }).apiUrl,
+      resolveRoute(1, { apiUrl: "http://127.0.0.1:8545" }).apiBase,
       "http://127.0.0.1:8545",
     );
   });
@@ -160,18 +184,17 @@ describe("resolveRoute: override (R-RT-2)", () => {
     const override: RouteOverride = { apiUrl: "https://sourcify.example.org" };
     const route = resolveRoute(1, override);
     override.apiUrl = "https://evil.example";
-    assert.equal(route.apiUrl, "https://sourcify.example.org");
+    assert.equal(route.apiBase, "https://sourcify.example.org");
   });
 
-  // [input, apiUrl after normalisation]
+  // [input, apiBase after normalisation]
   const accepted: [string, string][] = [
     ["https://sourcify.example.org/server/", "https://sourcify.example.org/server"],
     ["https://sourcify.example.org/server///", "https://sourcify.example.org/server"],
     ["https://sourcify.example.org/", "https://sourcify.example.org"],
     ["https://sourcify.example.org", "https://sourcify.example.org"],
     ["https://sourcify.example.org/a/b/", "https://sourcify.example.org/a/b"],
-    ["https://sourcify.example.org/server/?", "https://sourcify.example.org/server"],
-    ["https://sourcify.example.org/server/?a=1", "https://sourcify.example.org/server?a=1"],
+    ["https://sourcify.example.org/server/?a=1", "https://sourcify.example.org/server"],
     ["https://sourcify.example.org:443/server", "https://sourcify.example.org/server"],
     ["https://sourcify.example.org:8443/server", "https://sourcify.example.org:8443/server"],
     ["HTTPS://SOURCIFY.EXAMPLE.ORG/Server", "https://sourcify.example.org/Server"],
@@ -194,8 +217,84 @@ describe("resolveRoute: override (R-RT-2)", () => {
     ["http://0x7f000001:5555", "http://127.0.0.1:5555"],
   ];
   for (const [input, expected] of accepted) {
-    it(`accepts ${input.trim()} as ${expected} (R-RT-2)`, () => {
-      assert.equal(resolveRoute(1, { apiUrl: input }).apiUrl, expected);
+    it(`accepts ${input.trim()} with the base ${expected} (R-RT-2)`, () => {
+      assert.equal(resolveRoute(1, { apiUrl: input }).apiBase, expected);
+    });
+  }
+
+  it("has no explorer link when the override changes the API base (R-FLOW-3)", () => {
+    for (const apiUrl of ["http://127.0.0.1:5555", "https://sourcify.example.org/server"]) {
+      assert.equal(resolveRoute(31337, { apiUrl }).explorerUrl, undefined);
+    }
+  });
+
+  it("keeps the explorer link when the override names the public API base (R-FLOW-3)", () => {
+    for (const apiUrl of ["https://sourcify.dev/server/", "https://sourcify.dev/server?a=1"]) {
+      assert.equal(
+        explorerLink(resolveRoute(1, { apiUrl }))(1, ADDRESS),
+        `https://repo.sourcify.dev/1/${ADDRESS}`,
+      );
+    }
+  });
+
+  it("accepts an apiUrl of 8192 characters", () => {
+    const base = "https://sourcify.example.org/";
+    const apiUrl = `${base}${"a".repeat(8192 - base.length)}`;
+    assert.equal(apiUrl.length, 8192);
+    assert.equal(resolveRoute(1, { apiUrl }).apiBase, apiUrl);
+  });
+});
+
+describe("resolveRoute: loopback hostname match is exact (R-SEC-2)", () => {
+  for (const apiUrl of [
+    "http://evil.localhost",
+    "http://evillocalhost:5555",
+    "http://evil.127.0.0.1.example",
+    "http://localhostevil",
+    "http://a.[::1].example",
+  ]) {
+    it(`rejects ${apiUrl}`, () => {
+      const error = rejection(1, { apiUrl });
+      if (error.details.code !== "invalid-input") {
+        return assert.fail("details do not match the code");
+      }
+      assert.deepEqual(
+        error.details.issues.map((issue) => issue.field),
+        ["route.apiUrl"],
+      );
+      return undefined;
+    });
+  }
+});
+
+describe("resolveRoute: requestUrl (R-SEC-2)", () => {
+  it("appends the endpoint path to the base, then re-adds the caller's query", () => {
+    const route = resolveRoute(1, { apiUrl: "https://h.example/server/?apikey=K" });
+    assert.equal(route.apiBase, "https://h.example/server");
+    assert.equal(route.requestUrl(ENDPOINT), `https://h.example/server${ENDPOINT}?apikey=K`);
+  });
+
+  it("adds no query when the caller's URL has none", () => {
+    const route = resolveRoute(1, { apiUrl: "https://h.example/server/" });
+    assert.equal(route.requestUrl(ENDPOINT), `https://h.example/server${ENDPOINT}`);
+  });
+
+  it("treats a bare ? as no query in requestUrl and redactedApiUrl", () => {
+    const route = resolveRoute(1, { apiUrl: "https://h.example/server/?" });
+    assert.equal(route.requestUrl(ENDPOINT), `https://h.example/server${ENDPOINT}`);
+    assert.equal(route.redactedApiUrl, "https://h.example/server");
+  });
+
+  for (const path of ["v2/verify", "", "?a=1", "/v2/verify?a=1", "/v2#x", "https://evil.example"]) {
+    it(`rejects the path ${JSON.stringify(path)}`, () => {
+      const route = resolveRoute(1, { apiUrl: `https://h.example/server?k=${DUMMY_KEY}` });
+      const error = thrown(() => route.requestUrl(path));
+      assert.equal(error.code, "invalid-input");
+      assert.deepEqual(error.details, {
+        code: "invalid-input",
+        issues: [{ field: "path", message: "must start with / and contain no ? or #" }],
+      });
+      assertNotShown(error, DUMMY_KEY);
     });
   }
 });
@@ -241,11 +340,27 @@ describe("resolveRoute: rejected API URLs (R-RT-2, R-SEC-2)", () => {
     });
   }
 
-  for (const apiUrl of [42, null, {}, ["https://sourcify.example.org"]]) {
-    it(`rejects ${JSON.stringify(apiUrl)}, which is not a string`, () => {
+  const notStrings: [string, unknown][] = [
+    ["42", 42],
+    ["null", null],
+    ["{}", {}],
+    ["an array", ["https://sourcify.example.org"]],
+    ["a URL object", new URL("https://sourcify.example.org")],
+    ["a String object", Object("https://sourcify.example.org")],
+  ];
+  for (const [label, apiUrl] of notStrings) {
+    it(`rejects ${label}, which is not a primitive string`, () => {
       assertRejected(1, { apiUrl }, [{ field: "route.apiUrl", message: "must be a string" }]);
     });
   }
+
+  it("rejects an apiUrl longer than 8192 characters before parsing it", () => {
+    const apiUrl = `https://sourcify.example.org/${"a".repeat(8192)}?k=${DUMMY_KEY}`;
+    const error = assertRejected(1, { apiUrl }, [
+      { field: "route.apiUrl", message: "must be at most 8192 characters" },
+    ]);
+    assert.equal(error.hint, API_URL_HINT);
+  });
 
   const credentials: string[] = [
     `https://${DUMMY_KEY}@sourcify.example.org/server`,
@@ -289,12 +404,17 @@ describe("resolveRoute: rejected API URLs (R-RT-2, R-SEC-2)", () => {
 });
 
 describe("resolveRoute: query redaction (R-SEC-2)", () => {
-  it("keeps the query in apiUrl for requests and redacts it in redactedApiUrl", () => {
+  it("keeps the query for requests and redacts it in redactedApiUrl", () => {
     const route = resolveRoute(1, {
       apiUrl: `https://proxy.example.org/server/?apikey=${DUMMY_KEY}&chain=1`,
     });
-    assert.equal(route.apiUrl, `https://proxy.example.org/server?apikey=${DUMMY_KEY}&chain=1`);
+    assert.equal(route.apiBase, "https://proxy.example.org/server");
+    assert.equal(
+      route.requestUrl("/v2/x"),
+      `https://proxy.example.org/server/v2/x?apikey=${DUMMY_KEY}&chain=1`,
+    );
     assert.equal(route.redactedApiUrl, "https://proxy.example.org/server?REDACTED");
+    assert.ok(!JSON.stringify(route).includes(DUMMY_KEY));
   });
 
   it("redacts a query with no value, whose name may itself be a key", () => {
@@ -321,12 +441,22 @@ describe("resolveRoute: backend (R-RT-2)", () => {
     });
   }
 
-  for (const backend of ["etherscan", "Sourcify", "", DUMMY_KEY, 1, null]) {
-    const shown = backend === DUMMY_KEY ? "<key>" : JSON.stringify(backend);
-    it(`rejects the unknown backend ${shown} without repeating it (R-RT-2)`, () => {
-      assertRejected(1, { backend }, [
+  const unknown: [string, unknown][] = [
+    ['"etherscan"', "etherscan"],
+    ['"Sourcify"', "Sourcify"],
+    ['""', ""],
+    ["<key>", DUMMY_KEY],
+    ["1", 1],
+    ["null", null],
+    ['["sourcify"]', ["sourcify"]],
+    ['Object("sourcify")', Object("sourcify")],
+  ];
+  for (const [label, backend] of unknown) {
+    it(`rejects the unknown backend ${label} without repeating it, with the backend hint (R-RT-2)`, () => {
+      const error = assertRejected(1, { backend }, [
         { field: "route.backend", message: "must name a known backend" },
       ]);
+      assert.equal(error.hint, BACKEND_HINT);
     });
   }
 
@@ -342,16 +472,72 @@ describe("resolveRoute: backend (R-RT-2)", () => {
   });
 });
 
-describe("resolveRoute: malformed input", () => {
-  for (const override of ["https://sourcify.example.org", 1, null, [], [{ apiUrl: "x" }]]) {
-    it(`rejects the route ${JSON.stringify(override)}, which is not a plain object`, () => {
-      assertRejected(1, override, [{ field: "route", message: "must be a plain object" }]);
+describe("resolveRoute: plain object only", () => {
+  class Options {
+    apiUrl = "https://sourcify.example.org";
+  }
+  const notPlain: [string, unknown][] = [
+    ["a string", "https://sourcify.example.org"],
+    ["a number", 1],
+    ["null", null],
+    ["an empty array", []],
+    ["an array", [{ apiUrl: "x" }]],
+    ["a function", Object.assign(() => undefined, { apiUrl: "https://sourcify.example.org" })],
+    ["a Date", new Date(0)],
+    ["a Map", new Map([["apiUrl", "https://sourcify.example.org"]])],
+    ["a class instance", new Options()],
+    ["an object with a custom prototype", Object.create({ apiUrl: "http://evil.example" })],
+  ];
+  for (const [label, override] of notPlain) {
+    it(`rejects ${label} as the route, with the route hint`, () => {
+      const error = assertRejected(1, override, [
+        { field: "route", message: "must be a plain object" },
+      ]);
+      assert.equal(error.hint, ROUTE_HINT);
     });
   }
 
+  it("accepts an object with a null prototype", () => {
+    const override: unknown = Object.assign(Object.create(null), {
+      apiUrl: "https://sourcify.example.org",
+    });
+    assert.equal(resolveRoute(1, routeOf(override)).apiBase, "https://sourcify.example.org");
+  });
+
+  it("ignores an apiUrl inherited through a polluted Object.prototype", () => {
+    Reflect.set(Object.prototype, "apiUrl", "http://evil.example");
+    Reflect.set(Object.prototype, "backend", "blockscout");
+    try {
+      const route = resolveRoute(1, {});
+      assert.equal(route.apiBase, SOURCIFY_API_URL);
+      assert.equal(route.backend, "sourcify");
+    } finally {
+      Reflect.deleteProperty(Object.prototype, "apiUrl");
+      Reflect.deleteProperty(Object.prototype, "backend");
+    }
+  });
+
+  it("reads each override field exactly once", () => {
+    const reads = { apiUrl: 0, backend: 0 };
+    const override = {
+      get apiUrl(): string {
+        reads.apiUrl++;
+        return reads.apiUrl === 1 ? "https://sourcify.example.org/a" : "http://evil.example";
+      },
+      get backend(): string {
+        reads.backend++;
+        return reads.backend === 1 ? "sourcify" : "blockscout";
+      },
+    };
+    const route = resolveRoute(1, routeOf(override));
+    assert.deepEqual(reads, { apiUrl: 1, backend: 1 });
+    assert.equal(route.apiBase, "https://sourcify.example.org/a");
+    assert.equal(route.backend, "sourcify");
+  });
+
   it("rejects a route whose fields throw when read, without the raw error", () => {
     const hostile = new Proxy(
-      {},
+      { apiUrl: "https://sourcify.example.org" },
       {
         get() {
           throw new Error(DUMMY_KEY);
@@ -366,13 +552,15 @@ describe("resolveRoute: malformed input", () => {
     revoke();
     assertRejected(1, proxy, [{ field: "route", message: "must be a plain object" }]);
   });
+});
 
+describe("resolveRoute: chain id", () => {
   for (const chainId of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53]) {
-    it(`rejects the chain id ${String(chainId)}`, () => {
+    it(`rejects the chain id ${String(chainId)}, with the default hint`, () => {
       const error = assertRejected(chainId, undefined, [
         { field: "chainId", message: "must be a positive integer" },
       ]);
-      assert.equal(error.hint, "Fix the fields listed in details.issues, then call again.");
+      assert.equal(error.hint, DEFAULT_HINT);
     });
   }
 
