@@ -41,6 +41,20 @@ caller. Two are planned for M2 and not declared now:
   M2 adds keys keyed by backend name. This is the direction for M2, not implemented here.
 - `rpcUrl?: string`, for deriving constructor arguments from the creation code (R-IN-3).
 
+`RouteOverride` is only declared here; nothing reads it yet. The routing change
+([#15](https://github.com/aelmanaa/explorer-verify/issues/15)) validates `apiUrl`: `https:`, or
+`http:` on a loopback host, no user name or password in the URL, and the query string redacted in
+logs.
+
+`timeoutMs` covers the whole call. When it runs out before the explorer accepts the submission,
+there is no job id yet, so the call throws a timeout error without a handle. #12 adds its code,
+which the CLI maps to exit code 5. `not-confirmed` exists only once there is a job id.
+
+On abort, the call rejects with `signal.reason` unchanged, as `fetch` does, and carries no handle.
+To keep R-FLOW-5, `verify()` ([#17](https://github.com/aelmanaa/explorer-verify/issues/17)) logs
+the handle through `logger.info` as soon as the explorer accepts the submission. The CLI owns its
+controller and maps any rejection seen while its own signal is aborted to exit code 130 (R-AX-7).
+
 ### 2. `Handle` is plain JSON with a version and no URL
 
 ```ts
@@ -56,22 +70,31 @@ interface Handle {
 - The handle carries no URL and no host. `checkStatus` resolves the API URL again from `chainId`,
   `backend` and the caller's `route` option. This extends R-SEC-2: a handle never chooses a host.
 - `parseHandle(value: unknown): Handle` reads untrusted input field by field and throws the
-  catalogue's `invalid-input` error. It rejects any field it does not know, an `apiUrl` included,
-  and its messages name the field without repeating the value. It uses no casts and no type
-  predicates.
+  catalogue's `invalid-input` error. It uses no casts and no type predicates.
+  - It rejects any field it does not know, an `apiUrl` included. All unknown fields become one
+    issue, `{ field: "handle", message: "has N fields that are not handle fields" }`, with a count
+    and no names: the input chose those names, and one could hold a key. So `issues` holds at most
+    six entries, one per known field plus this one.
+  - Messages name known fields only and never repeat a value.
+  - A value whose fields cannot be read, such as a Proxy whose traps throw, gives `invalid-input`,
+    not the raw error.
+- `jobId` matches `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`. Sourcify UUIDs and Etherscan and Routescan
+  GUIDs fit. It has no `:`, `.`, `/`, `%`, `?`, `#` or `\`: a job id such as `http:evil.example`
+  would turn into a host under `new URL(jobId, base)`, and `..` would resolve to the parent path.
 - `version` lets a later release change the shape and still read version 1 handles.
 - The one-line string form, `ev1:<backend>:<chainId>:<address>:<jobId>`, belongs to M1 item 9
-  ([#18](https://github.com/aelmanaa/explorer-verify/issues/18)). This change ships only the
-  formatter, because `toJSON()` needs it. Item 9 adds parsing of the string form.
+  ([#18](https://github.com/aelmanaa/explorer-verify/issues/18)). Because a job id has no `:`, the
+  string form splits on `:` into exactly five parts. This change ships only the formatter, because
+  `toJSON()` needs it. Item 9 adds parsing of the string form.
 
 ### 3. One error class with a details union (option B)
 
 ```ts
 class ExplorerVerifyError extends Error {
-  readonly name: "ExplorerVerifyError";
+  get name(): "ExplorerVerifyError"; // a getter, so not an own field
   readonly code: ErrorCode; // stable string from the ERROR_CODES const list
   readonly hint: string; // one sentence: what to do next (R-DX-3)
-  readonly retryable: boolean;
+  readonly retryable: boolean; // for not-confirmed: retry with checkStatus, not verify
   readonly details: ErrorDetails; // union keyed by code
   readonly docsUrl: string; // the code's entry in docs/user/reference/errors.md (R-AX-10)
   toJSON(): ErrorJson;
@@ -90,7 +113,9 @@ type ErrorDetails =
   R-AX-5 gains `retryable` in the same change, so an agent can decide whether to retry without
   mapping codes itself. `toJSON()` never includes `cause`, the stack or `details`, so
   `JSON.stringify(error)` is safe to print.
-- Abort is not a catalogue error. The call rejects with `signal.reason` unchanged, as `fetch` does.
+- `retryable` for `not-confirmed` means trying `checkStatus(details.handle)` again. A new
+  `verify()` would submit the contract again.
+- Abort is not a catalogue error. The call rejects with `signal.reason` unchanged (see decision 1).
 - No `isExplorerVerifyError` brand check. It needs a type predicate, which the type-escape check
   flags, and callers narrow with `instanceof`. Two copies of the package in one bundle break
   `instanceof`; a caller in that case can check `error.name === "ExplorerVerifyError"`. If that case

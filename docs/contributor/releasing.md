@@ -8,7 +8,8 @@ until the first release (roadmap M4).
 Copy the [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) release pipeline when M4 starts:
 
 1. Changesets accumulate on `main`. `pnpm run version-packages` (in a release pull request) bumps
-   versions, writes changelogs and sets the version line of every user page.
+   versions, writes changelogs and sets the version line of every user page. Changesets before
+   0.1.0 are patch; the first release pull request sets the version to 0.1.0.
 2. The maintainer pushes a GPG-signed `vX.Y.Z` tag.
 3. A release workflow packs the tarballs, checks them, and publishes with
    `npm publish --provenance` through npm trusted publishing (OIDC, no token), behind an approval

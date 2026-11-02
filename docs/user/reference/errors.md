@@ -16,7 +16,7 @@ error has:
 | `message`   | What went wrong                                                                       |
 | `hint`      | What to do next                                                                       |
 | `docsUrl`   | The code's entry on this page                                                         |
-| `retryable` | `true` when the same call may succeed later without a change                          |
+| `retryable` | `true` when trying again may succeed; for `not-confirmed`, try `checkStatus` again    |
 | `details`   | The code's data, such as the handle                                                   |
 | `cause`     | The underlying error, when there is one. `toJSON()` and `JSON.stringify` leave it out |
 
@@ -38,8 +38,9 @@ try {
 
 ## invalid-input
 
-Cause: the input failed validation, or a handle did not parse. A handle with a field it does not
-know, such as `apiUrl`, is rejected: a handle never sets the host.
+Cause: the input failed validation, or a handle did not parse. A handle with any field it does not
+know, a URL included, is rejected: a handle never sets the host. All unknown fields are reported as
+one issue on `handle` that gives their count, not their names.
 
 Fix: correct each field listed in `details.issues` (`field` and `message`), then call again. For a
 handle, pass it exactly as `verify()` or a `not-confirmed` error returned it.
@@ -48,9 +49,11 @@ Retryable: no. Nothing was sent to an explorer.
 
 ## not-confirmed
 
-Cause: the time budget (`timeoutMs`) ran out while the explorer was still verifying the contract.
+Cause: the time budget (`timeoutMs`) ran out after the explorer accepted the submission, while it
+was still verifying the contract.
 
 Fix: store `details.handle` and pass it to `checkStatus()` later to continue polling. Raise
 `timeoutMs` if this happens often.
 
-Retryable: yes.
+Retryable: yes, with `checkStatus(details.handle)`. Do not call `verify()` again: it would submit
+the contract again.
