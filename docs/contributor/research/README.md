@@ -3,13 +3,14 @@
 Audience: contributors who need the evidence behind a requirement or decision. One note per research date,
 named `YYYY-MM-DD-topic.md`, never rewritten: newer findings go in a newer note that links the old one.
 
-Each note has a `## Sources` section with at least one http or https link. Each factual claim in
+Each note has a `## Sources` section with at least one http or https URL, as a Markdown link or a
+bare URL outside code. Each factual claim in
 the note names its source: a URL and the date it was read, or, for something observed by running a
 tool, the tool, its version and the date. A claim without a source is removed or marked as an open
 question. Each note is listed in the table below.
 
 `pnpm run check` fails when a note has no `## Sources` section, when that section has no http or
-https link, or when the note is missing from this table. Whether each claim has a source is checked
+https URL, or when the note is missing from this table. Whether each claim has a source is checked
 in review.
 
 | Note                                                           | Question                                                                             |

@@ -160,7 +160,30 @@ describe("checkDecisionSources", () => {
         "- [Example docs](https://example.com/docs), read 2026-01-01.",
         "- [Prior art](../prior-art.md), read 2026-01-01.",
       );
-      assertProblems(/2026-01-01-topic\.md: the `## Sources` section has no http or https link/);
+      assertProblems(/2026-01-01-topic\.md: the `## Sources` section has no http or https URL/);
+    });
+
+    const accepted: Readonly<Record<string, string>> = {
+      "a bare URL in a table": "| S1 | Docs | https://example.com/docs | 2026-01-01 |",
+      "a bare URL in prose": "Read https://example.com/docs on 2026-01-01.",
+      "an angle-bracket link": "Read <https://example.com/docs> on 2026-01-01.",
+      "a reference definition": "[docs]: https://example.com/docs",
+    };
+    for (const [name, line] of Object.entries(accepted)) {
+      it(`accepts ${name} in the Sources section`, () => {
+        edit(root, NOTE, "- [Example docs](https://example.com/docs), read 2026-01-01.", line);
+        assertProblems();
+      });
+    }
+
+    it("does not count a URL in inline code or a fence", () => {
+      edit(
+        root,
+        NOTE,
+        "- [Example docs](https://example.com/docs), read 2026-01-01.",
+        "Run `curl https://example.com/docs`.\n\n```text\nhttps://example.com/docs\n```",
+      );
+      assertProblems(/the `## Sources` section has no http or https URL/);
     });
 
     it("does not count a link after the Sources section ends", () => {
@@ -171,7 +194,7 @@ describe("checkDecisionSources", () => {
         "Read 2026-01-01.",
       );
       edit(root, NOTE, "## After\n", "## After\n\n[Later](https://example.com/later)\n");
-      assertProblems(/the `## Sources` section has no http or https link/);
+      assertProblems(/the `## Sources` section has no http or https URL/);
     });
 
     it("fails when a note is not listed in the research index", () => {

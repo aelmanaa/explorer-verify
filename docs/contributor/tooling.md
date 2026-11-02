@@ -77,7 +77,8 @@ when:
 - a decision record (`docs/contributor/decisions/NNNN-*.md`) has neither a relative link to a
   research note nor the line `Research: none (maintainer choice).`, or has both;
 - a decision record links a path under `docs/contributor/research/` that is not a research note;
-- a research note has no `## Sources` section, or that section has no http or https link;
+- a research note has no `## Sources` section, or that section has no http or https URL outside
+  code (a Markdown link or a bare URL);
 - a research note is not linked from `docs/contributor/research/README.md`.
 
 ### Version line

@@ -5,7 +5,8 @@
 //   note in `docs/contributor/research/`, or the line `Research: none (maintainer choice).`
 // - Each research link in a decision record points to a note that exists.
 // - Each research note (a Markdown file in `docs/contributor/research/` other than README.md) has
-//   a `## Sources` section with at least one http or https link.
+//   a `## Sources` section with at least one http or https link: a Markdown link or a bare URL
+//   (GitHub links bare URLs), outside code.
 // - Each research note is linked from `docs/contributor/research/README.md`.
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,7 +24,8 @@ export const NO_RESEARCH_LINE = "Research: none (maintainer choice).";
 
 const RECORD = /^\d{4}-[^/]*\.md$/;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-const WEB_LINK = /^https?:\/\//i;
+/** An http or https URL: a Markdown link target, an angle-bracket link or a bare URL. */
+const WEB_URL = /(?:^|[\s(<|])https?:\/\/[^\s>)|]+/i;
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
 
 /** The files directly in `folder` (no subfolders) whose names end with `.md`. */
@@ -47,12 +49,15 @@ function relativeTargets(file: string, text: string): { line: number; target: st
   });
 }
 
-/** The text of the `## Sources` section of a Markdown text, or undefined when it has none. */
+/**
+ * The text of the `## Sources` section of a Markdown text, or undefined when it has none. Fenced
+ * code is left out and inline code spans are blanked, so a URL in code does not count.
+ */
 export function sourcesSection(text: string): string | undefined {
   const lines: string[] = [];
   let inside = false;
   let found = false;
-  forEachProseLine(text, (_line, _index, raw) => {
+  forEachProseLine(text, (line, _index, raw) => {
     const heading = HEADING.exec(raw);
     if (heading !== null && String(heading[1]).length <= 2) {
       inside = String(heading[1]).length === 2 && String(heading[2]) === "Sources";
@@ -60,7 +65,7 @@ export function sourcesSection(text: string): string | undefined {
       return;
     }
     if (inside) {
-      lines.push(raw);
+      lines.push(line);
     }
   });
   return found ? lines.join("\n") : undefined;
@@ -94,8 +99,8 @@ function checkNote(file: string, text: string, listed: ReadonlySet<string>): str
   const sources = sourcesSection(text);
   if (sources === undefined) {
     problems.push(`${file}: has no \`## Sources\` section`);
-  } else if (!markdownLinks(sources).some(({ target }) => WEB_LINK.test(target))) {
-    problems.push(`${file}: the \`## Sources\` section has no http or https link`);
+  } else if (!WEB_URL.test(sources)) {
+    problems.push(`${file}: the \`## Sources\` section has no http or https URL`);
   }
   if (!listed.has(file)) {
     problems.push(`${file}: not listed in ${RESEARCH_INDEX}`);
