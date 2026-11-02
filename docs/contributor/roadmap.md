@@ -2,8 +2,8 @@
 
 Audience: the maintainer and agents choosing the next piece of work. Each milestone becomes a GitHub
 milestone; each bullet becomes an issue labelled as in [CONTRIBUTING.md](../../CONTRIBUTING.md).
-Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists the kinds
-of users the library serves and the milestone where each becomes possible.
+Requirement IDs refer to [requirements.md](requirements.md). [adoption.md](adoption.md) lists
+the kinds of users the library serves and the milestone where each becomes possible.
 
 ## M0: Repository and names (maintainer)
 

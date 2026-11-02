@@ -250,7 +250,8 @@ Measurement:
   every backend with a client, and one keyless submit on Sourcify of a recorded, already-verified
   contract, expecting `already-verified`. It reads keys only from repository secrets in an
   environment limited to `main`, never runs on forks or pull requests, never prints a key, and
-  opens or updates one issue when a check fails. Its dated results update the routing table's date (R-RT-1, R-AX-11).
+  opens or updates one issue when a check fails. Its dated results update the routing table's date
+  (R-RT-1, R-AX-11).
 
 ### Extensibility (R-EXT)
 
