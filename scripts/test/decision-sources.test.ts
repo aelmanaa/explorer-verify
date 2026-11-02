@@ -119,9 +119,49 @@ describe("checkDecisionSources", () => {
       );
     });
 
-    it("does not count the research index or folder as a note", () => {
-      edit(root, BACKED, NOTE_LINK, "../research/");
-      assertProblems(/0001-backed\.md:5: links docs\/contributor\/research, which is not/);
+    for (const index of ["../research/README.md", "../research/", "../research"]) {
+      it(`allows and ignores a link to the research index: ${index}`, () => {
+        edit(root, BACKED, "## Context", `See the [research index](${index}).\n\n## Context`);
+        assertProblems();
+        edit(root, BACKED, `(${NOTE_LINK}#question)`, "(../requirements.md)");
+        assertProblems(/0001-backed\.md: links no research note/);
+      });
+    }
+
+    it("does not count a link to a sibling folder whose name starts with research", () => {
+      edit(root, BACKED, NOTE_LINK, "../research-old/2026-01-01-topic.md");
+      writeFiles(root, { "docs/contributor/research-old/2026-01-01-topic.md": "# Old\n" });
+      assertProblems(/0001-backed\.md: links no research note/);
+    });
+
+    it("does not count a protocol-relative link", () => {
+      edit(root, BACKED, NOTE_LINK, "//example.com/docs/contributor/research/2026-01-01-topic.md");
+      assertProblems(/0001-backed\.md: links no research note/);
+    });
+
+    it("does not count the none line inside a fence", () => {
+      edit(root, CHOICE, NO_RESEARCH_LINE, `\`\`\`text\n${NO_RESEARCH_LINE}\n\`\`\``);
+      assertProblems(/0002-choice\.md: links no research note/);
+    });
+
+    it("passes a research link with the none line quoted in a fence", () => {
+      edit(root, BACKED, "## Context", `\`\`\`text\n${NO_RESEARCH_LINE}\n\`\`\`\n\n## Context`);
+      assertProblems();
+    });
+
+    it("does not count the none line inside an HTML comment", () => {
+      edit(root, CHOICE, NO_RESEARCH_LINE, `<!--\n${NO_RESEARCH_LINE}\n-->`);
+      assertProblems(/0002-choice\.md: links no research note/);
+    });
+
+    it("does not count a research link inside an HTML comment", () => {
+      edit(
+        root,
+        BACKED,
+        `See [the research](${NOTE_LINK}#question).`,
+        `<!-- See [the research](${NOTE_LINK}). -->`,
+      );
+      assertProblems(/0001-backed\.md: links no research note/);
     });
 
     it("fails when a record links research and also says none", () => {
@@ -134,6 +174,13 @@ describe("checkDecisionSources", () => {
       assertProblems();
     });
 
+    it("accepts the none line with a trailing tab and rejects a leading space", () => {
+      edit(root, CHOICE, NO_RESEARCH_LINE, `${NO_RESEARCH_LINE}\t`);
+      assertProblems();
+      edit(root, CHOICE, `${NO_RESEARCH_LINE}\t`, ` ${NO_RESEARCH_LINE}`);
+      assertProblems(/0002-choice\.md: links no research note/);
+    });
+
     it("rejects the none line with other text on it", () => {
       edit(root, CHOICE, NO_RESEARCH_LINE, `- ${NO_RESEARCH_LINE}`);
       assertProblems(/0002-choice\.md: links no research note/);
@@ -143,6 +190,18 @@ describe("checkDecisionSources", () => {
       writeFiles(root, { "docs/contributor/decisions/old/0003-nested.md": "# 0003: Nested\n" });
       assertProblems();
     });
+
+    it("anchors the record name: a prefix, five digits or no hyphen is not a record", () => {
+      writeFiles(root, {
+        "docs/contributor/decisions/draft-0003-x.md": "# Draft\n",
+        "docs/contributor/decisions/00030-x.md": "# Five digits\n",
+        "docs/contributor/decisions/0003.md": "# No slug\n",
+        "docs/contributor/decisions/0003-x.md.bak": "# Backup\n",
+      });
+      assertProblems();
+      writeFiles(root, { "docs/contributor/decisions/0003-x.md": "# 0003: X\n" });
+      assertProblems(/0003-x\.md: links no research note/);
+    });
   });
 
   describe("research notes", () => {
@@ -151,6 +210,38 @@ describe("checkDecisionSources", () => {
       assertProblems(
         /^docs\/contributor\/research\/2026-01-01-topic\.md: has no `## Sources` section/,
       );
+    });
+
+    it("matches the Sources heading by case", () => {
+      edit(root, NOTE, "## Sources", "## sources");
+      assertProblems(/2026-01-01-topic\.md: has no `## Sources` section/);
+    });
+
+    it("does not count a URL inside an HTML comment in the Sources section", () => {
+      edit(
+        root,
+        NOTE,
+        "- [Example docs](https://example.com/docs), read 2026-01-01.",
+        "<!--\n- [Example docs](https://example.com/docs)\n-->",
+      );
+      assertProblems(/the `## Sources` section has no http or https URL/);
+    });
+
+    it("does not count a README listing inside an HTML comment", () => {
+      writeFiles(root, {
+        [RESEARCH_INDEX]: "# Research\n\n<!-- [2026-01-01-topic.md](2026-01-01-topic.md) -->\n",
+      });
+      assertProblems(/2026-01-01-topic\.md: not listed/);
+    });
+
+    it("rejects a URL glued to a word", () => {
+      edit(
+        root,
+        NOTE,
+        "- [Example docs](https://example.com/docs), read 2026-01-01.",
+        "Seehttps://example.com/docs on 2026-01-01.",
+      );
+      assertProblems(/the `## Sources` section has no http or https URL/);
     });
 
     it("fails when the Sources section has no http or https link", () => {
@@ -168,6 +259,9 @@ describe("checkDecisionSources", () => {
       "a bare URL in prose": "Read https://example.com/docs on 2026-01-01.",
       "an angle-bracket link": "Read <https://example.com/docs> on 2026-01-01.",
       "a reference definition": "[docs]: https://example.com/docs",
+      "an http URL": "Read http://example.com/docs on 2026-01-01.",
+      "an uppercase scheme": "Read HTTPS://EXAMPLE.COM/docs on 2026-01-01.",
+      "a URL right after a table pipe": "|S1|https://example.com/docs|2026-01-01|",
     };
     for (const [name, line] of Object.entries(accepted)) {
       it(`accepts ${name} in the Sources section`, () => {

@@ -81,6 +81,11 @@ when:
   code (a Markdown link or a bare URL);
 - a research note is not linked from `docs/contributor/research/README.md`.
 
+A link from a decision to the research index (`research/README.md` or the folder) is allowed and
+does not count as research. The `Research: none` line, links and URLs count only outside fenced
+code and HTML comments. Every docs check skips HTML comments, so a link inside `<!-- -->` is not
+checked either.
+
 ### Version line
 
 Each user page has this line, alone, within its first 10 lines and outside a code block:

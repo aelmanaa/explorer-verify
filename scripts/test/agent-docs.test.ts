@@ -431,6 +431,34 @@ describe("headings and anchors", () => {
       ],
     );
   });
+
+  it("skips links and headings inside HTML comments, on one line or across lines", () => {
+    const text = [
+      "[a](a.md) <!-- [b](b.md) --> [c](c.md) <!-- [d](d.md)",
+      "# Not a heading",
+      "```",
+      "--> [e](e.md)",
+      "[f](f.md)",
+    ].join("\n");
+    assert.deepEqual(
+      markdownLinks(text).map((link) => [link.line, link.target]),
+      [
+        [1, "a.md"],
+        [1, "c.md"],
+        [4, "e.md"],
+        [5, "f.md"],
+      ],
+    );
+    assert.deepEqual(headings(text), []);
+  });
+
+  it("keeps the comments of a page it rewrites for the package", () => {
+    const text = "<!-- note [x](../../AGENTS.md) --> [y](../../AGENTS.md)";
+    assert.equal(
+      rewriteForPackage(README, text),
+      `<!-- note [x](../../AGENTS.md) --> [y](${RAW_MAIN}AGENTS.md)`,
+    );
+  });
 });
 
 describe("writeVersions", () => {

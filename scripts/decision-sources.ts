@@ -3,7 +3,9 @@
 // The rules:
 // - Each decision record (`docs/contributor/decisions/NNNN-*.md`) has a relative link to a research
 //   note in `docs/contributor/research/`, or the line `Research: none (maintainer choice).`
-// - Each research link in a decision record points to a note that exists.
+// - Each research link in a decision record points to a note that exists. A link to the research
+//   index (README.md or the folder) is allowed and does not count as research.
+// - The `Research: none` line and every link count only outside fenced code and HTML comments.
 // - Each research note (a Markdown file in `docs/contributor/research/` other than README.md) has
 //   a `## Sources` section with at least one http or https link: a Markdown link or a bare URL
 //   (GitHub links bare URLs), outside code.
@@ -75,14 +77,17 @@ export function sourcesSection(text: string): string | undefined {
 function checkDecision(file: string, text: string, notes: ReadonlySet<string>): string[] {
   const problems: string[] = [];
   const research = relativeTargets(file, text).filter(
-    ({ target }) => target === RESEARCH || target.startsWith(`${RESEARCH}/`),
+    ({ target }) => target.startsWith(`${RESEARCH}/`) && target !== RESEARCH_INDEX,
   );
   for (const { line, target } of research) {
     if (!notes.has(target)) {
       problems.push(`${file}:${line}: links ${target}, which is not a research note`);
     }
   }
-  const none = text.split("\n").some((line) => line.trimEnd() === NO_RESEARCH_LINE);
+  let none = false;
+  forEachProseLine(text, (_line, _index, raw) => {
+    none ||= raw.trimEnd() === NO_RESEARCH_LINE;
+  });
   if (none && research.length > 0) {
     problems.push(`${file}: links research and also says \`${NO_RESEARCH_LINE}\`; keep one`);
   } else if (!none && research.length === 0) {
