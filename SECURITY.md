@@ -3,7 +3,7 @@
 ## Report a vulnerability
 
 Report privately through
-[GitHub private vulnerability reporting](https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify/security/advisories/new).
+[GitHub private vulnerability reporting](https://github.com/aelmanaa/explorer-verify/security/advisories/new).
 Do not open a public issue. You get an acknowledgement within 3 business days.
 
 ## In scope

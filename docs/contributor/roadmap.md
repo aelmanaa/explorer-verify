@@ -68,7 +68,7 @@ Agent readiness (epic #2) runs beside that list, so later features meet R-AX fro
   from TSDoc, an explanation of match types and Etherscan plan rules (R-SEC-3), and the full page "Using
   explorer-verify from an agent" (R-AX-3). Every page ships in the package and is listed in
   `llms.txt` (R-AX-1, R-AX-2).
-- Release pipeline copied from [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
+- Release pipeline copied from [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) (signed tag, staged publish, provenance), first publish
   of 0.1.0.
 
 ## Later

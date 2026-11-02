@@ -1,6 +1,6 @@
 # Tooling
 
-Audience: contributors setting up or changing the toolchain. The toolchain mirrors [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms)
+Audience: contributors setting up or changing the toolchain. The toolchain mirrors [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)
 (decision 0006).
 
 | Tool                         | Config                                                 | Role                                                                                                                                                        |
@@ -33,3 +33,9 @@ lint-disable comments in `packages/*/src`, unless `scripts/type-escapes.json` li
 reason. The list starts empty; keep it that way where a typed alternative exists. Code under
 `packages/*/src/internal/vendor/` is exempt, and oxlint ignores it too. Ported prior-art code is
 rewritten into the normal tree, not vendored.
+
+## Blocked hosts
+
+`node scripts/check-hosts.ts` fails when a tracked file links to a host on its blocklist. It exists
+because the scaffold once linked a third-party GitHub mirror in place of github.com, including in
+the package's `repository` field. Link GitHub as `https://github.com/...`.

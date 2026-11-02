@@ -36,7 +36,7 @@ User docs live in [docs/user/](docs/user/README.md); the index for people is
 | Command              | What it does                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | `pnpm install`       | Installs dependencies and the git hooks                                       |
-| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape check                 |
+| `pnpm run check`     | Format check, lint (type-aware), typecheck, type-escape check, host check     |
 | `pnpm test`          | Builds, then runs the unit tests with `node --test`                           |
 | `pnpm run coverage`  | Unit tests under c8; fails below 95% lines, branches, functions or statements |
 | `pnpm run pkg:check` | publint, are-the-types-wrong and knip on the built package                    |

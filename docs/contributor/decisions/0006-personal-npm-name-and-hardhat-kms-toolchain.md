@@ -4,7 +4,7 @@ Status: Accepted (2026-11-02)
 
 ## Context
 
-The maintainer publishes [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) under a personal account with an unscoped core and a scope for
+The maintainer publishes [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) under a personal account with an unscoped core and a scope for
 add-ons, and its toolchain and process are proven. On 2026-11-02 the npm registry returned 404 for
 `explorer-verify`, `explorerverify`, `explorer_verify`, `explorer.verify`, `explorer-verifier` and
 `@explorer-verify/core`.

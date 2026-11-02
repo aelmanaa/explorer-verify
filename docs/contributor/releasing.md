@@ -5,7 +5,7 @@ until the first release (roadmap M4).
 
 ## Plan
 
-Copy the [hardhat-kms](https://gh.ali360.cloudns.ch/aelmanaa/hardhat-kms) release pipeline when M4 starts:
+Copy the [hardhat-kms](https://github.com/aelmanaa/hardhat-kms) release pipeline when M4 starts:
 
 1. Changesets accumulate on `main`. `pnpm run version-packages` (in a release pull request) bumps
    versions and writes changelogs.

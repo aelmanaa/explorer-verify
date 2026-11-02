@@ -16,19 +16,19 @@
     "solidity",
     "block-explorer"
   ],
-  "homepage": "https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify#readme",
+  "homepage": "https://github.com/aelmanaa/explorer-verify#readme",
   "bugs": {
-    "url": "https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify/issues"
+    "url": "https://github.com/aelmanaa/explorer-verify/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gh.ali360.cloudns.ch/aelmanaa/explorer-verify.git",
+    "url": "git+https://github.com/aelmanaa/explorer-verify.git",
     "directory": "packages/explorer-verify"
   },
   "license": "MIT",
   "author": {
     "name": "Amine El Manaa",
-    "url": "https://gh.ali360.cloudns.ch/aelmanaa"
+    "url": "https://github.com/aelmanaa"
   },
   "type": "module",
   "sideEffects": false,
