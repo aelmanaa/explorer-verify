@@ -5,8 +5,8 @@ Version: explorer-verify 0.0.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: coding agents, and the people who run them, calling explorer-verify on someone's behalf.
-Nothing is released yet, and none of the steps below exist. This page states the rules the library
-and the CLI will follow. It grows with each feature.
+Nothing is released yet. Of the steps below, only validation exists, as `validateInput()`. This page
+states the rules the library and the CLI will follow. It grows with each feature.
 
 ## Submit is permanent
 
@@ -20,7 +20,7 @@ These steps never submit. You can run them without asking.
 
 | Step     | Effect                                                                                                                             |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Validate | Checks the input locally. Sends nothing                                                                                            |
+| Validate | `validateInput(input)` checks the input locally and lists every problem. Sends nothing                                             |
 | Dry run  | Validates, resolves the explorer, builds the request and asks the explorer whether the contract is already verified. Never submits |
 | Lookup   | Asks the explorer whether the contract is verified                                                                                 |
 | Status   | Asks the explorer about a submission it already has                                                                                |

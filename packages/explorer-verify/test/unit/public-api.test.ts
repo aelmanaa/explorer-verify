@@ -82,6 +82,7 @@ describe("public entry point", () => {
       "ExplorerVerifyError",
       "parseHandle",
       "toBackendName",
+      "validateInput",
     ]);
   });
 
