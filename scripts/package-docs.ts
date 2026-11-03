@@ -1,6 +1,8 @@
 // Copies the user docs into the core package for R-AX-2: every file under `docs/user/` goes to
-// `docs/`, and the root `llms.txt` becomes a packaged `llms.txt` whose links to user pages are
-// relative. In the pages, links that leave `docs/user/` become raw GitHub URLs. The copies are
+// `docs/`, and the root `llms.txt` becomes a packaged `llms.txt` whose links to user pages and
+// skills are relative. Every file under `skills/` goes to `skills/` (R-AX-4), with its links to
+// `docs/user/` pointing to `docs/`. In the pages, links that leave `docs/user/` become raw GitHub
+// URLs. The copies are
 // build output and are gitignored. The package's `build` script runs it. A path argument names
 // another repository root, which the tests use.
 //

@@ -15,3 +15,4 @@ CLAUDE.local.md
 # Build output: the user docs and llms.txt copied into the package (scripts/package-docs.ts)
 packages/explorer-verify/docs/
 packages/explorer-verify/llms.txt
+packages/explorer-verify/skills/

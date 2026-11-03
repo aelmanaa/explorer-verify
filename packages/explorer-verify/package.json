@@ -48,6 +48,7 @@
     "schema/",
     "!**/*.test.*",
     "docs/",
+    "skills/",
     "llms.txt",
     "README.md",
     "LICENSE",
@@ -62,7 +63,7 @@
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json && node ../../scripts/package-docs.ts",
-    "clean": "node -e \"for (const p of ['dist','coverage','docs','llms.txt']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
+    "clean": "node -e \"for (const p of ['dist','coverage','docs','skills','llms.txt']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
     "test": "pnpm run test:unit",
     "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
     "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\"",
