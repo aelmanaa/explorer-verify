@@ -8,9 +8,10 @@ User documentation is written as features land: [user/README.md](user/README.md)
 with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) and the
 [llms.txt](../llms.txt) index.
 
-| Page                               | What it covers                           |
-| ---------------------------------- | ---------------------------------------- |
-| [Errors](user/reference/errors.md) | Every error code, with its cause and fix |
+| Page                                                        | What it covers                                                   |
+| ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Errors](user/reference/errors.md)                          | Every error code, with its cause and fix                         |
+| [JSON output and exit codes](user/reference/json-output.md) | The JSON envelope, its schema and the exit code of every outcome |
 
 ## Contributors
 

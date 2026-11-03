@@ -36,6 +36,11 @@ const BEARER_TOKEN = 8;
 // The length of a bare Etherscan-style key.
 const BARE_KEY = 34;
 const JSON_NAME = '"x-api-key"';
+// A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
+const BARE_KEY_PATTERN = new RegExp(
+  String.raw`(?<![A-Za-z0-9])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[A-Z])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[0-9])[A-Z0-9]{${String(BARE_KEY)}}(?![A-Za-z0-9])`,
+  "g",
+);
 
 /**
  * The redaction patterns, in the order they run. A pattern runs only when the lower-cased text
@@ -94,12 +99,9 @@ export const REDACTION_PATTERNS: readonly {
     replacement: `$1${REDACTED}`,
     needs: ["bearer"],
   },
-  // A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
+  // A bare Etherscan-style key. A handle's job id skips it: see redactJobId.
   {
-    pattern: new RegExp(
-      String.raw`(?<![A-Za-z0-9])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[A-Z])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[0-9])[A-Z0-9]{${String(BARE_KEY)}}(?![A-Za-z0-9])`,
-      "g",
-    ),
+    pattern: BARE_KEY_PATTERN,
     replacement: REDACTED,
     needs: [],
   },
@@ -168,11 +170,33 @@ export function redact(text: string, secrets: readonly string[] = []): string {
   return redactPatterns(result);
 }
 
-/** `text` with every pattern in {@link REDACTION_PATTERNS} applied. */
-function redactPatterns(text: string): string {
+/**
+ * {@link redact} for the job id of a handle: every rule except the bare-key shape. An explorer may
+ * issue a job id of 34 upper-case letters and digits, and redacting it would make the handle
+ * impossible to resume. A job id equal to a known secret is still redacted.
+ *
+ * @param jobId - The job id of a handle.
+ * @param secrets - Key values known to the caller.
+ * @returns The job id with every secret replaced.
+ * @example
+ * ```ts
+ * redactJobId("JOB0123456789ABCDEFGHIJKLMNOPQRSTU", []); // unchanged
+ * ```
+ */
+export function redactJobId(jobId: string, secrets: readonly string[]): string {
+  const known = secretPattern(secrets, jobId.toUpperCase());
+  const result = known === undefined ? jobId : jobId.replace(known, REDACTED);
+  return redactPatterns(result, BARE_KEY_PATTERN);
+}
+
+/** `text` with every pattern in {@link REDACTION_PATTERNS} applied, except `skip`. */
+function redactPatterns(text: string, skip?: RegExp): string {
   const lower = text.toLowerCase();
   let result = text;
   for (const { pattern, replacement, needs } of REDACTION_PATTERNS) {
+    if (pattern === skip) {
+      continue;
+    }
     if (needs.length === 0 || needs.some((need) => lower.includes(need))) {
       result = result.replace(pattern, replacement);
     }

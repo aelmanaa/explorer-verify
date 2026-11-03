@@ -88,13 +88,19 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
   `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope
   (R-AX-5).
+- `exitCodeOf(outcome)` gives the exit code of a result or an error (R-AX-7), and
+  `toEnvelope(outcome)` the versioned JSON envelope (R-AX-5): a result copied field by field or the
+  error's `toJSON()`, in a fixed key order, with every string redacted. `schema/envelope.schema.json`
+  ships in the package as `explorer-verify/envelope.schema.json`. The CLI and the server handler use
+  both, so they cannot disagree.
 - A time budget that runs out after the explorer accepted the submission throws `not-confirmed`,
   whose `details.handle` `checkStatus` accepts. One that runs out before then throws a timeout error
   without a handle; its code arrives in #12, and the CLI maps it to exit code 5.
 - Abort rejects with `signal.reason` unchanged. `verify()` emits a `verify.submitted` event with
   the handle as soon as the submit is accepted, so an aborted call can still be resumed (R-DX-6).
 
-`types.ts` holds the option and handle types, `errors.ts` the error class, `flow/handle.ts`
+`types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
+`exitCodeOf` and `toEnvelope`, `flow/handle.ts`
 `parseHandle` and `input/validate.ts` `validateInput`. `verify` and `checkStatus` do not exist yet.
 
 ## Logging and events

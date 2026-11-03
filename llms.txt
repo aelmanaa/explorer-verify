@@ -9,6 +9,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages and the planned ones
 - [Using explorer-verify from an agent](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/using-from-an-agent.md): which calls are safe, which one submits, where keys come from
 - [Errors](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors.md): every error code with its cause, fix and whether to retry
+- [JSON output and exit codes](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/json-output.md): the versioned JSON envelope, its JSON Schema and the exit code of every outcome
 
 ## Contributor docs
 

@@ -75,14 +75,16 @@ describe("public types", () => {
 });
 
 describe("public entry point", () => {
-  it("exports exactly the decided runtime values (decision 0009)", () => {
+  it("exports exactly the decided runtime values (decision 0009, R-AX-5, R-AX-7)", () => {
     assert.deepEqual(Object.keys(api).toSorted(), [
       "BACKEND_NAMES",
       "ERROR_CODES",
       "ERROR_EXIT_CODES",
       "ExplorerVerifyError",
+      "exitCodeOf",
       "parseHandle",
       "toBackendName",
+      "toEnvelope",
       "validateInput",
     ]);
   });

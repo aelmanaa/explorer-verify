@@ -197,8 +197,11 @@ CLI:
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
   `status`, `result` is a `VerifyResult`; every other command documents its result type in the JSON
   Schema. The error `code` tells an unknown explorer state
-  (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, changes
-  only add fields. A JSON Schema for the envelope ships with the package.
+  (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, a
+  release may add fields, error codes and backends, and changes nothing else. A reader treats an
+  unknown error code by its `retryable` value and the process exit code. A JSON Schema for the
+  envelope ships with the package; it accepts any error code or backend of the form
+  `^[a-z0-9]+(-[a-z0-9]+)*$` and lists the known ones in its descriptions.
 
   The CLI reads `--json` before it parses the other arguments, so a usage error still gives an
   envelope with the code `invalid-input` and exit code 2. A `--json` after `--`, or given as the
@@ -321,7 +324,8 @@ Measurement:
 ### Security (R-SEC)
 
 - **R-SEC-1** API keys never appear in logs, errors, results or thrown messages. Redaction is
-  tested.
+  tested. A handle's job id is exempt from the bare-key shape rule, so a valid job id resumes; it
+  is redacted only where it equals a configured key or holds a key-like parameter.
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
   A handle never carries a host; the library resolves hosts from the routing table or the caller's
   options when it resumes.

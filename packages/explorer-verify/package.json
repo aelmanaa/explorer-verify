@@ -38,11 +38,13 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./envelope.schema.json": "./schema/envelope.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dist/src/",
     "src/",
+    "schema/",
     "!**/*.test.*",
     "docs/",
     "llms.txt",
@@ -67,6 +69,7 @@
     "pkg:check": "publint --strict && attw --pack . --profile esm-only && node ../../scripts/check-packed-files.ts"
   },
   "devDependencies": {
+    "ajv": "catalog:",
     "c8": "catalog:"
   }
 }

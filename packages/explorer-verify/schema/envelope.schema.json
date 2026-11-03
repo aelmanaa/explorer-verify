@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "explorer-verify envelope",
+  "description": "The JSON document that toEnvelope() returns and that the CLI prints on stdout with --json (R-AX-5). ok is true exactly when the exit code is 0. Within schemaVersion 1, a release may add fields, error codes and backends, and changes nothing else, so readers ignore fields they do not know and treat an unknown error code by its retryable value and the exit code. Keys appear in the order the properties below list them.",
+  "oneOf": [
+    {
+      "description": "verified or already-verified: exit code 0.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "ok": { "const": true },
+        "result": { "$ref": "#/$defs/success" }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": { "properties": { "error": {} }, "required": ["error"] }
+    },
+    {
+      "description": "failed: the explorer rejected the submission. Exit code 1.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "ok": { "const": false },
+        "result": { "$ref": "#/$defs/failure" }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": { "properties": { "error": {} }, "required": ["error"] }
+    },
+    {
+      "description": "An error from the catalogue. The exit code depends on error.code.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "ok": { "const": false },
+        "error": { "$ref": "#/$defs/error" }
+      },
+      "required": ["schemaVersion", "ok", "error"],
+      "not": { "properties": { "result": {} }, "required": ["result"] }
+    }
+  ],
+  "$defs": {
+    "schemaVersion": {
+      "description": "The version of this envelope format. A change that removes or changes a field raises it.",
+      "const": 1
+    },
+    "backend": {
+      "description": "The backend that answered. A later release may add a backend. Known values in this release: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "success": {
+      "description": "A VerifyResult whose status is verified or already-verified.",
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["verified", "already-verified"] },
+        "backend": { "$ref": "#/$defs/backend" },
+        "match": { "enum": ["exact", "partial"] },
+        "explorerUrl": {
+          "description": "The public page of the contract. Absent when the library knows none.",
+          "type": "string"
+        }
+      },
+      "required": ["status", "backend", "match"]
+    },
+    "failure": {
+      "description": "A VerifyResult whose status is failed.",
+      "type": "object",
+      "properties": {
+        "status": { "const": "failed" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "reason": {
+          "description": "Why the explorer rejected the submission, with API keys removed.",
+          "type": "string"
+        }
+      },
+      "required": ["status", "backend", "reason"]
+    },
+    "error": {
+      "description": "ExplorerVerifyError.toJSON(): the error without its cause, stack or details.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "The stable error code. Each has an entry in docs/user/reference/errors.md. A later release may add a code; treat an unknown one by retryable and the exit code. Known values in this release: invalid-input, not-confirmed, unsupported-chain, network, rate-limited, timeout, unexpected-response, in-progress, unknown-state, job-not-found, cancelled.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "message": { "description": "What went wrong.", "type": "string" },
+        "hint": { "description": "What to do next.", "type": "string", "minLength": 1 },
+        "docsUrl": {
+          "description": "The code's entry in the error reference.",
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "retryable": {
+          "description": "Whether trying again may succeed without changing the input. For not-confirmed, try checkStatus with the handle, not a new verify.",
+          "type": "boolean"
+        },
+        "handle": {
+          "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>, when the error carries one.",
+          "type": "string",
+          "pattern": "^ev1:"
+        }
+      },
+      "required": ["code", "message", "hint", "docsUrl", "retryable"]
+    }
+  }
+}
