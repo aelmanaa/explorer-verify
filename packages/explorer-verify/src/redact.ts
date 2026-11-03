@@ -40,6 +40,8 @@ const USERINFO = 256;
 const BEARER_TOKEN = 8;
 // The length of a bare Etherscan-style key.
 const BARE_KEY = 34;
+// The most escape sequences, such as `\"`, that a JSON apikey member value runs through.
+const JSON_ESCAPES = 1024;
 const JSON_NAME = '"x-api-key"';
 // A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
 const BARE_KEY_PATTERN = new RegExp(
@@ -73,10 +75,13 @@ export const REDACTION_PATTERNS: readonly {
     replacement: `$1${REDACTED}`,
     needs: ["key", "token", "auth", "secret", "password"],
   },
-  // A JSON member such as `"apiKey": "..."`.
+  // A JSON member such as `"apiKey": "..."`. The value runs through up to 1024 escape sequences
+  // such as `\"` and `\\`, so a key that holds a quote or a backslash is redacted whole. The value
+  // is written as runs between escapes: V8 keeps one backtrack entry per repetition, so a
+  // repetition per character overflows the stack on a value of a few megabytes.
   {
     pattern: new RegExp(
-      String.raw`("${API_KEY_NAME}"[ \t]{0,${String(SPACING)}}:[ \t]{0,${String(SPACING)}}")[^"\\]*`,
+      String.raw`("${API_KEY_NAME}"[ \t]{0,${String(SPACING)}}:[ \t]{0,${String(SPACING)}}")[^"\\]*(?:\\[^][^"\\]*){0,${String(JSON_ESCAPES)}}`,
       "gi",
     ),
     replacement: `$1${REDACTED}`,
@@ -109,14 +114,36 @@ export const REDACTION_PATTERNS: readonly {
   },
 ];
 
+/** `text` with every character other than an ASCII letter or digit written as `\uXXXX`. */
+function unicodeEscaped(text: string): string {
+  let escaped = "";
+  for (let index = 0; index < text.length; index++) {
+    const char = text.charAt(index);
+    escaped += /[A-Za-z0-9]/.test(char)
+      ? char
+      : `\\u${text.charCodeAt(index).toString(16).padStart(4, "0")}`;
+  }
+  return escaped;
+}
+
 /**
- * The ways a secret can appear in text: as is, URL-encoded, form-encoded, and as the WHATWG URL
- * parser encodes it in a query string and in a path. The parser leaves characters such as `'` and
- * `~` raw that `encodeURIComponent` encodes, so an explorer that echoes a parsed URL shows a form
- * the others miss.
+ * The ways a secret can appear in text: as is, JSON-escaped (once, twice, and with every
+ * character other than a letter or digit as `\uXXXX`), URL-encoded, form-encoded, and as the
+ * WHATWG URL parser encodes it in a query string and in a path. An explorer that echoes a key in
+ * a JSON body escapes a `"` or a `\` in it; one that echoes a JSON text inside another escapes it
+ * twice; some encoders write `"`, `+`, `<`, `>`, `&` and `'` as `\uXXXX`. No form is shorter than
+ * the secret. The parser leaves characters such as `'` and `~` raw that `encodeURIComponent`
+ * encodes, so an explorer that echoes a parsed URL shows a form the others miss.
  */
 function forms(secret: string): string[] {
-  const all = [secret, new URLSearchParams({ s: secret }).toString().slice(2)];
+  const json = JSON.stringify(secret).slice(1, -1);
+  const all = [
+    secret,
+    json,
+    JSON.stringify(json).slice(1, -1),
+    unicodeEscaped(secret),
+    new URLSearchParams({ s: secret }).toString().slice(2),
+  ];
   // Encoding never shortens a value, so a shorter result means the parser cut the secret at a `#`
   // or `?`. That piece is dropped: a short piece would match unrelated text.
   for (const parsed of [

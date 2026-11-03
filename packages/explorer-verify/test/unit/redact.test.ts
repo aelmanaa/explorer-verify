@@ -272,17 +272,46 @@ describe("redact: linear time on adversarial input (R-SEC-1)", () => {
     ['"apikey":"', (size) => `"apikey":"${"x".repeat(size)}`],
     ["\\n", (size) => String.raw`\n`.repeat(size / 2)],
     ["@ lines", (size) => `${"@".repeat(998)}\n`.repeat(size / 999)],
+    // One line that grows with the size, of each character a pattern starts at, stops at or
+    // repeats. Work quadratic in the line length shows here, not in short lines.
+    ...[
+      "@",
+      ":",
+      "/",
+      "=",
+      "%",
+      "&",
+      "#",
+      "?",
+      ";",
+      ".",
+      "+",
+      "-",
+      "_",
+      '"',
+      "'",
+      "\\",
+      " ",
+      "\t",
+      "<",
+      ">",
+    ].map((char): [string, (size: number) => string] => [
+      `one line of ${JSON.stringify(char)}`,
+      (size) => char.repeat(size),
+    ]),
+    ['"apikey":" + backslashes', (size) => `"apikey":"${"\\".repeat(size)}`],
   ];
 
-  it("runs every pattern in linear time on every adversarial input", () => {
-    for (const { pattern, replacement } of REDACTION_PATTERNS) {
+  // One test per pattern, so each has its own time budget.
+  for (const [index, { pattern, replacement }] of REDACTION_PATTERNS.entries()) {
+    it(`runs pattern ${String(index)} in linear time on every adversarial input (R-SEC-1)`, () => {
       for (const [name, make] of adversarial) {
-        assertLinear(`${pattern.source.slice(0, 40)} on ${name}`, make, (text) =>
+        assertLinear(`pattern ${String(index)} on ${name}`, make, (text) =>
           text.replace(pattern, replacement),
         );
       }
-    }
-  });
+    });
+  }
 
   const inputs: [string, (size: number) => string][] = [
     ["hex", (size) => `0x${"6080604052a1b2c3d4e5f6".repeat(size / 22)}`],
@@ -345,6 +374,85 @@ function rejectingMethod(text: string): (message: string) => void {
   }
   return method;
 }
+
+describe("redact: a known key echoed in a JSON body (R-SEC-1)", () => {
+  // Fake keys that JSON escapes: a backslash, or a double quote.
+  const keys = ["ab\\cd`ef{g}|h^", 'quote"key12345'];
+
+  for (const key of keys) {
+    it(`redacts ${JSON.stringify(key)} JSON-escaped in a message`, () => {
+      const escaped = JSON.stringify(key).slice(1, -1);
+      assert.notEqual(escaped, key);
+      const body = JSON.stringify({ message: `Invalid API key ${key}` });
+      assert.equal(redact(body, [key]), `{"message":"Invalid API key ${R}"}`);
+    });
+
+    it(`redacts ${JSON.stringify(key)} whole in a JSON apikey member, known or not`, () => {
+      const body = JSON.stringify({ apikey: key, x: 1 });
+      assert.equal(redact(body), `{"apikey":"${R}","x":1}`);
+      assert.equal(redact(body, [key]), `{"apikey":"${R}","x":1}`);
+    });
+  }
+
+  it("redacts a JSON-escaped key in an excerpt without showing part of it", () => {
+    const key = 'quote"key12345';
+    const body = JSON.stringify({ message: "x".repeat(280) + key + "y".repeat(2_000) });
+    assert.doesNotMatch(redactExcerpt(body, [key], 300), /quote|key12345/);
+  });
+
+  it("ends a JSON apikey member at its closing quote, after any escape", () => {
+    assert.equal(
+      redact(String.raw`{"apiKey":"a\"b\\","next":"kept"}`),
+      `{"apiKey":"${R}","next":"kept"}`,
+    );
+    assert.equal(redact('{"apiKey":"a\\u0041b","n":1}'), `{"apiKey":"${R}","n":1}`);
+    // A backslash before a raw newline, which a JSON parser rejects but an explorer may send.
+    assert.equal(redact('{"apiKey":"a\\\nb","n":1}'), `{"apiKey":"${R}","n":1}`);
+  });
+
+  it("redacts an empty JSON apikey member value", () => {
+    assert.equal(redact('{"apiKey":"","n":1}'), `{"apiKey":"${R}","n":1}`);
+  });
+
+  it("runs a JSON apikey member value through 1024 escape sequences, not 1025", () => {
+    const escapes = '\\"'.repeat(1_024);
+    assert.equal(redact(`{"apiKey":"${escapes}"}`), `{"apiKey":"${R}"}`);
+    assert.equal(redact(`{"apiKey":"${escapes}\\""}`), `{"apiKey":"${R}\\""}`);
+  });
+
+  it("redacts an 8 MB JSON apikey member value without a stack overflow", () => {
+    // 8 MB is the smallest power of two at which a value pattern with one repetition per
+    // character, `(?:[^"\\]|\\[^])*`, threw a RangeError on Node 24.
+    const value = "a".repeat(8 << 20);
+    assert.equal(redact(`{"apiKey":"${value}","n":1}`), `{"apiKey":"${R}","n":1}`);
+  });
+
+  for (const key of keys) {
+    it(`redacts ${JSON.stringify(key)} JSON-escaped twice, in a JSON text inside another`, () => {
+      const body = JSON.stringify({ inner: JSON.stringify({ message: key }) });
+      assert.equal(redact(body, [key]), JSON.stringify({ inner: JSON.stringify({ message: R }) }));
+    });
+
+    it(`redacts ${JSON.stringify(key)} with each character but letters and digits as \\uXXXX`, () => {
+      for (const hex of [(code: string) => code, (code: string) => code.toUpperCase()]) {
+        const escaped = key.replaceAll(
+          /[^A-Za-z0-9]/g,
+          (char) => `\\u${hex(char.charCodeAt(0).toString(16).padStart(4, "0"))}`,
+        );
+        assert.notEqual(escaped, key);
+        assert.equal(redact(`{"message":"bad ${escaped}"}`, [key]), `{"message":"bad ${R}"}`);
+      }
+    });
+  }
+
+  it("redacts a key with a lone surrogate in the JSON form JSON.stringify gives it", () => {
+    // The `-` keeps the JSON form apart from the \uXXXX form, which would also match.
+    const lone = "abcd\uD800ef-gh";
+    const body = JSON.stringify({ message: lone });
+    assert.equal(body, String.raw`{"message":"abcd\ud800ef-gh"}`);
+    assert.equal(redact(body, [lone]), `{"message":"${R}"}`);
+  });
+});
 
 describe("redact: a known key encoded twice (R-SEC-1)", () => {
   it("redacts a key that was URL-encoded twice, as in a URL inside another URL's parameter", () => {
@@ -625,6 +733,8 @@ describe("redact: known secrets in any case, Unicode included (R-SEC-1)", () => 
 
   it("matches regex metacharacters in a known secret only as themselves", () => {
     assert.equal(redact("abcXdefgh abc.defgh", ["abc.defgh"]), `abcXdefgh ${R}`);
+    // Unescaped, `b{2}` would be a quantifier and match `bb`.
+    assert.equal(redact("abbcdefgh ab{2}cdefgh", ["ab{2}cdefgh"]), `abbcdefgh ${R}`);
   });
 });
 

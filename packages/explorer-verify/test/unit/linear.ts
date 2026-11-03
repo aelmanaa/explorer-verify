@@ -43,11 +43,45 @@ function assertRatio(name: string, fast: () => void, slow: () => void): void {
   assert.ok(passes(), `${name}: ${slowMs.toFixed(1)} ms against ${fastMs.toFixed(1)} ms`);
 }
 
+// Tries of each step of the guard below. A step fails only when every try is over the ceiling, so
+// one preempted call cannot fail it.
+const GUARD_TRIES = 3;
+
+/**
+ * Fails before the 1 MB call when `run` is so slow that the call would block the test runner.
+ * The timed call is synchronous, so a timeout cannot stop it. The guard times one call at 64 KB,
+ * then at each doubled size up to 512 KB. It fails at once when a call, scaled linearly to 1 MB,
+ * would cost more than the 2 s ceiling. Quadratic code then stops at the first step whose call
+ * takes more than 2 s times its share of 1 MB. One call at 512 KB then takes at most 2 s, and the
+ * 1 MB call at most 4 s. A failing step repeats its call up to 3 times, so quadratic code fails
+ * after about 12 s at most.
+ */
+function guard(name: string, make: (size: number) => string, run: (text: string) => void): void {
+  for (let size = SMALL; size < LARGE; size *= 2) {
+    const text = make(size);
+    let projectedMs = Number.POSITIVE_INFINITY;
+    for (let attempt = 0; attempt < GUARD_TRIES && projectedMs >= CEILING_MS; attempt++) {
+      projectedMs = Math.min(
+        projectedMs,
+        time(() => {
+          run(text);
+        }) *
+          (LARGE / size),
+      );
+    }
+    assert.ok(
+      projectedMs < CEILING_MS,
+      `${name}: ${String(size)} characters project to ${projectedMs.toFixed(1)} ms at ${String(LARGE)}`,
+    );
+  }
+}
+
 /**
  * Asserts that `run` takes linear time: one call on a 1 MB input costs less than 8 times the 16
  * calls on a 64 KB input that cover the same length, and less than 2 s. Quadratic code costs 16
  * times as much on the 1 MB input. The comparison is between runs of the same length, timed in
- * alternating rounds, so a busy machine slows both sides alike and cannot fail the check.
+ * alternating rounds, so a busy machine slows both sides alike and cannot fail the check. Code so
+ * slow that the 1 MB call would block the runner fails first, on a smaller input.
  *
  * @param name - What is timed, for the failure message.
  * @param make - Builds the input at a given size in characters.
@@ -58,6 +92,7 @@ export function assertLinear(
   make: (size: number) => string,
   run: (text: string) => void,
 ): void {
+  guard(name, make, run);
   const small = make(SMALL);
   const large = make(LARGE);
   assertRatio(
