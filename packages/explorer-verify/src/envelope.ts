@@ -6,8 +6,9 @@
 import { toBackendName } from "./backend-names.ts";
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
 import type { ErrorJson, ExitCode, InputIssue } from "./errors.ts";
-import { readFields } from "./internal/read-fields.ts";
-import { redact, redactJobId } from "./redact.ts";
+import { JOB_ID } from "./flow/handle.ts";
+import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
+import { REDACTED, redact, redactJobId } from "./redact.ts";
 import type { VerifyResult } from "./types.ts";
 
 /**
@@ -108,6 +109,30 @@ function splitHandle(value: unknown): { prefix: string; jobId: string } | undefi
   }
   const prefix = `${fields.slice(0, HANDLE_PREFIX_FIELDS).join(":")}:`;
   return { prefix, jobId: value.slice(prefix.length) };
+}
+
+/** A chain id in decimal digits, with no leading zero. */
+const DECIMAL = /^[1-9][0-9]*$/;
+
+/**
+ * {@link splitHandle} for a handle from another copy of the package, whose `toJSON()` this copy
+ * did not build. Every field is checked, so no text, such as a key, rides in a field that is not
+ * redacted: a known backend, a positive safe integer chain id, `0x` and 40 hex digits, and a job id
+ * of the handle charset or the literal `[redacted]`.
+ */
+function strictHandle(value: unknown): { prefix: string; jobId: string } | undefined {
+  const handle = splitHandle(value);
+  const [, backend = "", chainId = "", address = "", jobId = ""] =
+    typeof value === "string" ? value.split(":") : [];
+  const valid =
+    handle !== undefined &&
+    toBackendName(backend) !== undefined &&
+    DECIMAL.test(chainId) &&
+    readChainId(Number(chainId)) !== undefined &&
+    addressDigits(address) !== undefined &&
+    (JOB_ID.test(jobId) || jobId === REDACTED) &&
+    handle.jobId === jobId;
+  return valid ? handle : undefined;
 }
 
 const NOT_AN_OUTCOME = "The value is not a VerifyResult or an ExplorerVerifyError.";
@@ -253,11 +278,12 @@ function copyResult(result: unknown, secrets: readonly string[]): VerifyResult {
 /**
  * A reader of the error object of `outcome`: its own `toJSON()` when it is an
  * `ExplorerVerifyError` of this copy of the package or of another copy, which `instanceof` misses
- * but which has the same name and a `toJSON()`. `undefined` for any other value.
+ * but which has the same name and a `toJSON()`. `foreign` marks the other copy, whose handle is
+ * checked field by field. `undefined` for any other value.
  */
-function errorReader(outcome: unknown): (() => unknown) | undefined {
+function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean } | undefined {
   if (outcome instanceof ExplorerVerifyError) {
-    return () => outcome.toJSON();
+    return { read: () => outcome.toJSON(), foreign: false };
   }
   if (typeof outcome !== "object" || outcome === null) {
     return undefined;
@@ -266,7 +292,7 @@ function errorReader(outcome: unknown): (() => unknown) | undefined {
     const name: unknown = Reflect.get(outcome, "name");
     const toJSON: unknown = Reflect.get(outcome, "toJSON");
     return name === ERROR_NAME && typeof toJSON === "function"
-      ? (): unknown => Reflect.apply(toJSON, outcome, [])
+      ? { read: (): unknown => Reflect.apply(toJSON, outcome, []), foreign: true }
       : undefined;
   } catch {
     return undefined;
@@ -278,7 +304,10 @@ function errorReader(outcome: unknown): (() => unknown) | undefined {
  * again. The job id of the handle skips the bare-key shape rule, as in the error itself, and the
  * rest of the handle is kept. Throws `invalid-input` for an object that is not an error object.
  */
-function copyError(read: () => unknown, secrets: readonly string[]): ErrorJson {
+function copyError(
+  { read, foreign }: { read: () => unknown; foreign: boolean },
+  secrets: readonly string[],
+): ErrorJson {
   let source: unknown;
   try {
     source = read();
@@ -316,7 +345,7 @@ function copyError(read: () => unknown, secrets: readonly string[]): ErrorJson {
   const handle =
     handleValue === undefined
       ? undefined
-      : (splitHandle(handleValue) ??
+      : ((foreign ? strictHandle(handleValue) : splitHandle(handleValue)) ??
         problems.add("outcome.handle", "must be a handle in its one-line form") ??
         null);
   if (

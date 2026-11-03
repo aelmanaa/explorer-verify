@@ -537,6 +537,55 @@ describe("toEnvelope and exitCodeOf accept an error from another copy of the pac
     assert.equal(exitCodeOf(other), 4);
   });
 
+  it("rejects a key planted in any field of the other copy's handle before the job id", () => {
+    const planted = [
+      `ev1:${DUMMY_KEY}:11155111:${ADDRESS}:job`,
+      `ev1:sourcify:${DUMMY_KEY}:${ADDRESS}:job`,
+      `ev1:sourcify:11155111:0x${DUMMY_KEY}:job`,
+      `ev1:sourcify:11155111:${ADDRESS}:job:${DUMMY_KEY}`,
+      `ev1:sourcify:11155111:${ADDRESS}:job?apikey=${DUMMY_KEY}`,
+      `ev1:sourcify:0:${ADDRESS}:job`,
+      `ev1:sourcify:011155111:${ADDRESS}:job`,
+      `ev1:sourcify:9007199254740993:${ADDRESS}:job`,
+      `ev1:sourcify:11155111:${ADDRESS}:`,
+    ];
+    for (const value of planted) {
+      const other = bypass(new OtherCopyError({ ...json, handle: value }));
+      for (const run of [
+        () => toEnvelope(other, { secrets: [DUMMY_KEY] }),
+        () => exitCodeOf(other),
+      ]) {
+        const error = thrownBy(run);
+        assert.ok(error.details.code === "invalid-input", value);
+        assert.deepEqual(
+          error.details.issues.map((issue) => issue.field),
+          ["outcome.handle"],
+          value,
+        );
+        assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+      }
+    }
+  });
+
+  it("accepts a valid handle from the other copy and redacts its job id when it is a secret", () => {
+    const secretJob = "JOBSECRET0123456789";
+    const valid = `ev1:sourcify:11155111:${ADDRESS}:${secretJob}`;
+    const other = bypass(new OtherCopyError({ ...json, handle: valid }));
+    const plain = envelope(other);
+    assert.ok("error" in plain);
+    assert.equal(plain.error.handle, valid);
+    const redacted = envelope(other, { secrets: [secretJob] });
+    assert.ok("error" in redacted);
+    assert.equal(redacted.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
+  });
+
+  it("accepts a job id the other copy already redacted", () => {
+    const value = `ev1:sourcify:11155111:${ADDRESS}:[redacted]`;
+    const result = envelope(bypass(new OtherCopyError({ ...json, handle: value })));
+    assert.ok("error" in result);
+    assert.equal(result.error.handle, value);
+  });
+
   it("redacts the strings of the other copy's error and drops its extra fields", () => {
     const other = bypass(
       new OtherCopyError({ ...json, message: `failed at ${LEAKY_URL}`, extra: DUMMY_KEY }),

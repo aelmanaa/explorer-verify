@@ -94,7 +94,9 @@ Only code that bypasses the types can pass such values.
 When a program holds two copies of explorer-verify, `instanceof` misses an error from the other
 copy. Both functions still accept it when its `name` is `"ExplorerVerifyError"` and its `toJSON()`
 returns a valid error object with a code this copy knows. Its fields are checked and redacted like
-any other error's.
+any other error's. Its handle must have a known backend, a chain ID in decimal digits, `0x` and 40
+hex digits, and a job id of letters, digits, `_` and `-` (or `[redacted]`); any other handle gives
+`invalid-input`.
 
 ## JSON Schema
 

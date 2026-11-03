@@ -7,7 +7,7 @@ import type { Handle, Hex } from "../types.ts";
 const FIELDS: readonly string[] = ["version", "backend", "chainId", "address", "jobId"];
 // No `:`, `.`, `/`, `%`, `?`, `#` or `\`: a job id can never parse as a URL scheme or a path
 // segment when a client puts it in a request URL, and the one-line form splits on `:`.
-const JOB_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+export const JOB_ID: RegExp = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
 /**
  * Reads a handle from untrusted input, such as a URL parameter, local storage or a request body,

@@ -324,7 +324,8 @@ Measurement:
 ### Security (R-SEC)
 
 - **R-SEC-1** API keys never appear in logs, errors, results or thrown messages. Redaction is
-  tested.
+  tested. A handle's job id is exempt from the bare-key shape rule, so a valid job id resumes; it
+  is redacted only where it equals a configured key or holds a key-like parameter.
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
   A handle never carries a host; the library resolves hosts from the routing table or the caller's
   options when it resumes.
