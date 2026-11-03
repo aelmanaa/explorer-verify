@@ -6,7 +6,7 @@
 import { toBackendName } from "./backend-names.ts";
 import type { BackendName } from "./backend-names.ts";
 import { formatHandle } from "./flow/format-handle.ts";
-import { redact, redactExcerpt } from "./redact.ts";
+import { redact, redactExcerpt, redactJobId } from "./redact.ts";
 import type { Handle } from "./types.ts";
 
 /**
@@ -479,14 +479,18 @@ function text(value: unknown, secrets: readonly string[]): string {
   return redact(stringOf(value), secrets);
 }
 
-/** A new handle built from its five fields, with the job id and address redacted. */
+/**
+ * A new handle built from its five fields, with the job id and address redacted. The job id skips
+ * the bare-key shape rule, so a valid 34-character job id still resumes; it is still redacted when
+ * it holds a known secret.
+ */
 function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
   return {
     version: 1,
     backend: knownBackend(handle.backend) ?? UNKNOWN_HANDLE_BACKEND,
     chainId: numberOf(handle.chainId),
     address: `0x${text(stringOf(handle.address).slice(2), secrets)}`,
-    jobId: text(handle.jobId, secrets),
+    jobId: redactJobId(stringOf(handle.jobId), secrets),
   };
 }
 

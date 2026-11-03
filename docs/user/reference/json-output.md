@@ -14,7 +14,8 @@ functions turn either one into data that a program reads without parsing message
 - `toEnvelope(outcome)` gives the JSON envelope.
 
 The CLI, once it ships, prints the envelope on stdout with `--json` and exits with that code. Both
-functions are in the library now.
+functions are in the library now; `verify()` and `checkStatus()` land in
+[#17](https://github.com/aelmanaa/explorer-verify/issues/17).
 
 ```ts
 import { ExplorerVerifyError, exitCodeOf, toEnvelope } from "explorer-verify";
@@ -79,17 +80,31 @@ The rules:
   the same JSON, byte for byte.
 - Every string is redacted. Key-like URL and form parameters, bearer tokens and bare Etherscan-style
   keys become `[redacted]`. Pass the call's API key in `secrets` to remove it wherever it appears.
-- Within `schemaVersion` 1, a release only adds fields, so ignore any field you do not know.
+- The job id in `handle` is an exception to the bare-key rule, so a job id of 34 upper-case
+  letters and digits still resumes. `secrets` and key-like parameters still apply to it, and the
+  rest of the handle is never changed.
+- Within `schemaVersion` 1, a release may add fields, error codes and backends, and changes nothing
+  else. Ignore any field you do not know. Handle an error code you do not know by its `retryable`
+  value and the exit code.
 
 `toEnvelope` and `exitCodeOf` throw `invalid-input` for a value that is neither a `VerifyResult` nor
-an `ExplorerVerifyError`. Only code that bypasses the types can pass one.
+an `ExplorerVerifyError`, and `toEnvelope` throws it for options other than `{ secrets?: string[] }`.
+Only code that bypasses the types can pass such values.
+
+When a program holds two copies of explorer-verify, `instanceof` misses an error from the other
+copy. Both functions still accept it when its `name` is `"ExplorerVerifyError"` and its `toJSON()`
+returns a valid error object with a code this copy knows. Its fields are checked and redacted like
+any other error's.
 
 ## JSON Schema
 
 The package ships a JSON Schema (draft 2020-12) for the envelope. Import it as
 `explorer-verify/envelope.schema.json`, or read `schema/envelope.schema.json` in the installed
-package. The schema allows fields it does not list, so a reader that validates against it keeps
-working when a later release adds a field.
+package. It compiles in strict mode, for example with ajv's `strict: true`. The schema allows
+fields it does not list, and accepts any error code or backend of the form
+`^[a-z0-9]+(-[a-z0-9]+)*$`, so a reader that validates against it keeps working when a later
+release adds a field, a code or a backend. Its descriptions list the codes and backends this
+release knows.
 
 ## Exit codes
 

@@ -20,7 +20,7 @@ import type {
   VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
-import { objectOf, validate } from "./json-schema.ts";
+import { compileStrict, envelopeSchema, objectOf, validateEnvelope } from "./envelope-schema.ts";
 
 // A fake key. Never a real one (R-SEC-1). It is 33 characters, so only the `secrets` option or a
 // key-like parameter name redacts it, not the bare-key rule.
@@ -30,9 +30,7 @@ const ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const VERIFIED_URL = `https://repo.sourcify.dev/11155111/${ADDRESS}`;
 const PACKAGE = new URL("../../", import.meta.url);
 
-const schema: unknown = JSON.parse(
-  readFileSync(new URL("schema/envelope.schema.json", PACKAGE), "utf8"),
-);
+const schema = envelopeSchema;
 
 /**
  * `toEnvelope`, checked on every call: the envelope validates against the shipped schema, its keys
@@ -41,18 +39,18 @@ const schema: unknown = JSON.parse(
  */
 function envelope(outcome: VerifyOutcome, options?: EnvelopeOptions): Envelope {
   const value = options === undefined ? toEnvelope(outcome) : toEnvelope(outcome, options);
-  assert.deepEqual(validate(schema, value), [], "the envelope breaks envelope.schema.json");
+  assert.deepEqual(validateEnvelope(value), [], "the envelope breaks envelope.schema.json");
   assert.deepEqual(outOfOrderKeys(schema, value), [], "keys are not in the schema's order");
   assert.deepEqual(JSON.parse(JSON.stringify(value)), value);
   return value;
 }
 
-/** The `properties` of the subschema that `ref` names, or of the matching `oneOf` branch. */
+/** The `properties` order of the `oneOf` branch for `value`: success, failure or error. */
 function propertyOrder(schemaValue: unknown, value: unknown): string[] {
-  const root = objectOf(schemaValue);
-  const branches = root?.get("oneOf");
-  const candidates = Array.isArray(branches) ? branches : [schemaValue];
-  const branch = candidates.find((option) => validate(option, value, schemaValue).length === 0);
+  const fields = objectOf(value);
+  const index = fields?.get("ok") === true ? 0 : fields?.has("error") === true ? 2 : 1;
+  const branches = objectOf(schemaValue)?.get("oneOf");
+  const branch: unknown = Array.isArray(branches) ? branches[index] : undefined;
   return [...(objectOf(objectOf(branch)?.get("properties"))?.keys() ?? [])];
 }
 
@@ -187,7 +185,18 @@ describe("exitCodeOf (R-AX-7)", () => {
     const error = thrownBy(() => exitCodeOf(bypass({ ...VERIFIED, status: DUMMY_KEY })));
     assert.equal(error.code, "invalid-input");
     assert.ok(!JSON.stringify(error).includes(DUMMY_KEY));
+    assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
     assert.ok(!error.message.includes(DUMMY_KEY));
+  });
+
+  it("checks a result as toEnvelope does, not only its status", () => {
+    for (const broken of [
+      { ...VERIFIED, backend: "nowhere" },
+      { ...VERIFIED, match: "none" },
+      { ...FAILED, reason: 42 },
+    ]) {
+      assert.equal(thrownBy(() => exitCodeOf(bypass(broken))).code, "invalid-input");
+    }
   });
 });
 
@@ -246,6 +255,16 @@ describe("toEnvelope (R-AX-5)", () => {
     Reflect.set(result, "reason", "changed");
     assert.ok("result" in value);
     assert.deepEqual(value.result, FAILED);
+  });
+
+  it("drops undeclared fields from a verified result too", () => {
+    const result: VerifyResult = { ...VERIFIED };
+    Reflect.set(result, "url", LEAKY_URL);
+    Reflect.set(result, "apiKey", DUMMY_KEY);
+    const value = envelope(result);
+    assert.ok("result" in value);
+    assert.deepEqual(Object.keys(value.result), ["status", "backend", "match", "explorerUrl"]);
+    assert.ok(!JSON.stringify(value).includes(DUMMY_KEY));
   });
 
   it("leaves out an explorerUrl that is present but undefined", () => {
@@ -366,9 +385,254 @@ describe("toEnvelope never outputs a key (R-AX-9, R-SEC-1)", () => {
   });
 });
 
-describe("toEnvelope rejects a value outside its types (decision 0009)", () => {
+describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
+  // A valid job id with the shape of a bare Etherscan key: 34 upper-case letters and digits.
+  const KEY_SHAPED_JOB = "JOB0123456789ABCDEFGHIJKLMNOPQRSTU";
+
+  it("keeps a job id with the bare-key shape, so the handle can still be resumed", () => {
+    assert.equal(KEY_SHAPED_JOB.length, 34);
+    const error = new ExplorerVerifyError(
+      { code: "not-confirmed", handle: handle(KEY_SHAPED_JOB) },
+      "Still verifying.",
+      { secrets: [] },
+    );
+    assert.ok(error.details.code === "not-confirmed");
+    assert.equal(error.details.handle.jobId, KEY_SHAPED_JOB);
+    const value = envelope(error);
+    assert.ok("error" in value);
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${KEY_SHAPED_JOB}`);
+  });
+
+  it("still redacts a key-shaped text outside the job id", () => {
+    const error = new ExplorerVerifyError(
+      { code: "not-confirmed", handle: handle(KEY_SHAPED_JOB) },
+      `Still verifying ${KEY_SHAPED_JOB}.`,
+      { secrets: [] },
+    );
+    const value = envelope(error);
+    assert.ok("error" in value);
+    assert.equal(value.error.message, "Still verifying [redacted].");
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${KEY_SHAPED_JOB}`);
+  });
+
+  it("redacts a job id equal to a known secret, in the error and in the envelope", () => {
+    const viaError = new ExplorerVerifyError(
+      { code: "job-not-found", handle: handle(KEY_SHAPED_JOB) },
+      "Gone.",
+      { secrets: [KEY_SHAPED_JOB] },
+    );
+    assert.ok(viaError.details.code === "job-not-found");
+    assert.equal(viaError.details.handle.jobId, "[redacted]");
+    const value = envelope(viaError);
+    assert.ok("error" in value);
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
+  });
+
+  it("redacts a key-like parameter inside a job id", () => {
+    const error = new ExplorerVerifyError(
+      { code: "job-not-found", handle: handle(`job?apikey=${DUMMY_KEY}`) },
+      "Gone.",
+      { secrets: [] },
+    );
+    const value = envelope(error);
+    assert.ok("error" in value);
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:job?apikey=[redacted]`);
+  });
+
+  it("re-redacts only the job id of the handle with toEnvelope's secrets", () => {
+    const error = new ExplorerVerifyError(
+      { code: "not-confirmed", handle: handle(DUMMY_KEY) },
+      "Still verifying.",
+      { secrets: [] },
+    );
+    // Precondition: the error alone keeps the 33-character value, which no rule matches.
+    assert.equal(error.toJSON().handle, `ev1:sourcify:11155111:${ADDRESS}:${DUMMY_KEY}`);
+    const value = envelope(error, { secrets: [DUMMY_KEY] });
+    assert.ok("error" in value);
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
+  });
+
+  it("does not redact the handle's prefix, backend, chain or address with toEnvelope's secrets", () => {
+    const error = errorFor("not-confirmed");
+    const value = envelope(error, { secrets: ["sourcify:11155111", ADDRESS] });
+    assert.ok("error" in value);
+    assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${handle().jobId}`);
+  });
+});
+
+/** Options typed as {@link EnvelopeOptions} without a cast, as code that bypasses the types passes. */
+function looseOptions(value: unknown): EnvelopeOptions {
+  const holder: { options: EnvelopeOptions } = { options: {} };
+  Reflect.set(holder, "options", value);
+  return holder.options;
+}
+
+describe("toEnvelope reads its options safely", () => {
+  const cases: { name: string; field: string; options: unknown }[] = [
+    { name: "options that are a string", field: "options", options: DUMMY_KEY },
+    { name: "options that are null", field: "options", options: null },
+    { name: "options that are an array", field: "options", options: [DUMMY_KEY] },
+    {
+      name: "secrets that are a string",
+      field: "options.secrets",
+      options: { secrets: DUMMY_KEY },
+    },
+    { name: "a secret that is a number", field: "options.secrets", options: { secrets: [42] } },
+    {
+      name: "secrets whose entries cannot be read",
+      field: "options.secrets",
+      options: {
+        secrets: new Proxy([DUMMY_KEY], {
+          get: () => {
+            throw new Error(DUMMY_KEY);
+          },
+        }),
+      },
+    },
+  ];
+  for (const { name, field, options } of cases) {
+    it(`throws invalid-input, never a TypeError, for ${name}`, () => {
+      const error = thrownBy(() => toEnvelope(VERIFIED, looseOptions(options)));
+      assert.equal(error.code, "invalid-input");
+      assert.ok(error.details.code === "invalid-input");
+      assert.deepEqual(
+        error.details.issues.map((issue) => issue.field),
+        [field],
+      );
+      assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+    });
+  }
+
+  it("accepts undefined options and options without secrets", () => {
+    assert.deepEqual(toEnvelope(VERIFIED, looseOptions(undefined)), envelope(VERIFIED));
+    assert.deepEqual(toEnvelope(VERIFIED, {}), envelope(VERIFIED));
+  });
+});
+
+/**
+ * An error from a second copy of the package: same name and `toJSON()`, another class, so
+ * `instanceof` fails.
+ */
+class OtherCopyError extends Error {
+  readonly json: unknown;
+  constructor(json: unknown) {
+    super("other copy");
+    this.json = json;
+  }
+  override get name(): string {
+    return "ExplorerVerifyError";
+  }
+  toJSON(): unknown {
+    return this.json;
+  }
+}
+
+describe("toEnvelope and exitCodeOf accept an error from another copy of the package", () => {
+  const json = errorFor("not-confirmed").toJSON();
+
+  it("uses the toJSON() of an error named ExplorerVerifyError that instanceof misses", () => {
+    const other = bypass(new OtherCopyError({ ...json }));
+    assert.ok(!(other instanceof ExplorerVerifyError));
+    assert.deepEqual(envelope(other), { schemaVersion: 1, ok: false, error: json });
+    assert.equal(exitCodeOf(other), 4);
+  });
+
+  it("redacts the strings of the other copy's error and drops its extra fields", () => {
+    const other = bypass(
+      new OtherCopyError({ ...json, message: `failed at ${LEAKY_URL}`, extra: DUMMY_KEY }),
+    );
+    const value = envelope(other, { secrets: [DUMMY_KEY] });
+    assert.ok("error" in value);
+    assert.ok(!JSON.stringify(value).includes(DUMMY_KEY));
+    assert.deepEqual(Object.keys(value.error), Object.keys(json));
+  });
+
+  const broken: { name: string; field: string; json: () => unknown }[] = [
+    { name: "an unknown code", field: "outcome.code", json: () => ({ ...json, code: DUMMY_KEY }) },
+    {
+      name: "a message that is not a string",
+      field: "outcome.message",
+      json: () => ({ ...json, message: 1 }),
+    },
+    { name: "an empty hint", field: "outcome.hint", json: () => ({ ...json, hint: "" }) },
+    {
+      name: "a docsUrl that is not https",
+      field: "outcome.docsUrl",
+      json: () => ({ ...json, docsUrl: "http://x" }),
+    },
+    {
+      name: "a retryable that is not a boolean",
+      field: "outcome.retryable",
+      json: () => ({ ...json, retryable: "yes" }),
+    },
+    {
+      name: "a handle not in its one-line form",
+      field: "outcome.handle",
+      json: () => ({ ...json, handle: DUMMY_KEY }),
+    },
+    {
+      name: "a handle with too few fields",
+      field: "outcome.handle",
+      json: () => ({ ...json, handle: `ev1:sourcify:1:${DUMMY_KEY}` }),
+    },
+    {
+      name: "a handle that is not a string",
+      field: "outcome.handle",
+      json: () => ({ ...json, handle: 42 }),
+    },
+    { name: "a toJSON() that returns a string", field: "outcome", json: () => DUMMY_KEY },
+  ];
+  for (const { name, field, json: build } of broken) {
+    it(`throws invalid-input for ${name}`, () => {
+      const other = bypass(new OtherCopyError(build()));
+      for (const run of [() => toEnvelope(other), () => exitCodeOf(other)]) {
+        const error = thrownBy(run);
+        assert.equal(error.code, "invalid-input");
+        assert.ok(error.details.code === "invalid-input");
+        assert.ok(
+          error.details.issues.some((issue) => issue.field === field),
+          JSON.stringify(error.details),
+        );
+        assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+      }
+    });
+  }
+
+  it("throws invalid-input when toJSON() throws", () => {
+    class Throwing extends OtherCopyError {
+      override toJSON(): unknown {
+        throw new Error(DUMMY_KEY);
+      }
+    }
+    const error = thrownBy(() => toEnvelope(bypass(new Throwing(json))));
+    assert.equal(error.code, "invalid-input");
+    assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+  });
+
+  it("treats an object whose name cannot be read as a result, and rejects it", () => {
+    const hostile = {};
+    Object.defineProperty(hostile, "name", {
+      get: () => {
+        throw new Error(DUMMY_KEY);
+      },
+    });
+    const error = thrownBy(() => exitCodeOf(bypass(hostile)));
+    assert.ok(error.details.code === "invalid-input");
+    assert.ok(error.details.issues.some((issue) => issue.field === "outcome.status"));
+    assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+  });
+
+  it("treats an object named ExplorerVerifyError without toJSON() as a result, and rejects it", () => {
+    const named = { name: "ExplorerVerifyError", code: "network" };
+    const error = thrownBy(() => toEnvelope(bypass(named)));
+    assert.ok(error.details.code === "invalid-input");
+    assert.ok(error.details.issues.some((issue) => issue.field === "outcome.status"));
+  });
+});
+
+describe("toEnvelope and exitCodeOf reject a value outside their types (decision 0009)", () => {
   // Each case breaks one field with the key as its value; the error names the field and never the
-  // value.
+  // value, in its message or its details.
   const cases: { name: string; field: string; build: () => unknown }[] = [
     {
       name: "a status outside the union",
@@ -376,9 +640,14 @@ describe("toEnvelope rejects a value outside its types (decision 0009)", () => {
       build: () => ({ ...VERIFIED, status: DUMMY_KEY }),
     },
     {
-      name: "a backend outside BACKEND_NAMES",
+      name: "a failed result's backend outside BACKEND_NAMES",
       field: "outcome.backend",
       build: () => ({ ...FAILED, backend: DUMMY_KEY }),
+    },
+    {
+      name: "a verified result's backend outside BACKEND_NAMES",
+      field: "outcome.backend",
+      build: () => ({ ...VERIFIED, backend: DUMMY_KEY }),
     },
     {
       name: "a match other than exact or partial",
@@ -403,15 +672,18 @@ describe("toEnvelope rejects a value outside its types (decision 0009)", () => {
   for (const { name, field, build } of cases) {
     it(`throws invalid-input for ${name}`, () => {
       const outcome = bypass(build());
-      const error = thrownBy(() => toEnvelope(outcome));
-      assert.equal(error.code, "invalid-input");
-      assert.ok(
-        error.details.code === "invalid-input" &&
-          error.details.issues.some((issue) => issue.field === field),
-        JSON.stringify(error.details),
-      );
-      assert.ok(!JSON.stringify(error).includes(DUMMY_KEY));
-      assert.ok(!error.message.includes(DUMMY_KEY));
+      for (const run of [() => toEnvelope(outcome), () => exitCodeOf(outcome)]) {
+        const error = thrownBy(run);
+        assert.equal(error.code, "invalid-input");
+        assert.ok(
+          error.details.code === "invalid-input" &&
+            error.details.issues.some((issue) => issue.field === field),
+          JSON.stringify(error.details),
+        );
+        assert.ok(!JSON.stringify(error).includes(DUMMY_KEY));
+        assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
+        assert.ok(!error.message.includes(DUMMY_KEY));
+      }
     });
   }
 
@@ -426,6 +698,7 @@ describe("toEnvelope rejects a value outside its types (decision 0009)", () => {
     const error = thrownBy(() => toEnvelope(outcome));
     assert.equal(error.code, "invalid-input");
     assert.ok(!JSON.stringify(error).includes(DUMMY_KEY));
+    assert.ok(!JSON.stringify(error.details).includes(DUMMY_KEY));
   });
 });
 
@@ -436,22 +709,53 @@ function bypass(value: unknown): VerifyOutcome {
   return holder.outcome;
 }
 
+// The pattern every error code and backend name follows; the schema accepts any value of this form
+// so that a newer release can add one (R-AX-5).
+const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 describe("envelope.schema.json (R-AX-5, R-AX-16)", () => {
   const defs = objectOf(objectOf(schema)?.get("$defs"));
-  function enumOf(...path: string[]): unknown {
+  function nodeAt(...path: string[]): Map<string, unknown> | undefined {
     let node: unknown = defs?.get(path[0] ?? "");
     for (const step of path.slice(1)) {
       node = objectOf(node)?.get(step);
     }
-    return objectOf(node)?.get("enum") ?? [objectOf(node)?.get("const")];
+    return objectOf(node);
+  }
+  function enumOf(...path: string[]): unknown {
+    const node = nodeAt(...path);
+    return node?.get("enum") ?? [node?.get("const")];
+  }
+  /** The values listed after "Known values in this release: " in a description. */
+  function knownValues(...path: string[]): string[] {
+    const description = String(nodeAt(...path)?.get("description"));
+    const match = /Known values in this release: ([^.]+)\./.exec(description);
+    return (match?.[1] ?? "").split(", ");
   }
 
-  it("lists exactly the catalogue's error codes, in catalogue order", () => {
-    assert.deepEqual(enumOf("error", "properties", "code"), [...ERROR_CODES]);
+  it("compiles in ajv's strict mode for JSON Schema 2020-12", () => {
+    assert.doesNotThrow(() => compileStrict(schema));
+    assert.equal(objectOf(schema)?.get("$schema"), "https://json-schema.org/draft/2020-12/schema");
   });
 
-  it("lists exactly the backend names", () => {
-    assert.deepEqual(enumOf("backend"), [...BACKEND_NAMES]);
+  it("accepts any error code and backend of the code form, so a release can add one", () => {
+    assert.equal(nodeAt("error", "properties", "code")?.get("pattern"), SLUG.source);
+    assert.equal(nodeAt("backend")?.get("pattern"), SLUG.source);
+    for (const name of [...ERROR_CODES, ...BACKEND_NAMES]) {
+      assert.match(name, SLUG);
+    }
+  });
+
+  it("lists exactly the catalogue's error codes as the known values, in catalogue order", () => {
+    assert.deepEqual(knownValues("error", "properties", "code"), [...ERROR_CODES]);
+  });
+
+  it("lists exactly the backend names as the known values", () => {
+    assert.deepEqual(knownValues("backend"), [...BACKEND_NAMES]);
+  });
+
+  it("pins the match values to exact and partial", () => {
+    assert.deepEqual(enumOf("success", "properties", "match"), ["exact", "partial"]);
   });
 
   it("lists every result status in exactly one branch, as success or failure", () => {
@@ -467,7 +771,32 @@ describe("envelope.schema.json (R-AX-5, R-AX-16)", () => {
     }
   });
 
+  it("accepts what a later release may add: a new error code, a new backend, a new field", () => {
+    const accepted: Record<string, unknown> = {
+      "a new error code": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...errorFor("network").toJSON(), code: "key-rejected" },
+      },
+      "a new backend": {
+        schemaVersion: 1,
+        ok: true,
+        result: { ...VERIFIED, backend: "new-explorer-2" },
+      },
+      "a new field": { schemaVersion: 1, ok: true, result: VERIFIED, durationMs: 1 },
+      "a new result field": {
+        schemaVersion: 1,
+        ok: false,
+        result: { ...FAILED, details: "more" },
+      },
+    };
+    for (const [name, value] of Object.entries(accepted)) {
+      assert.deepEqual(validateEnvelope(value), [], name);
+    }
+  });
+
   it("rejects envelopes that break the contract", () => {
+    const networkError = errorFor("network").toJSON();
     const broken: Record<string, unknown> = {
       "ok true with a failed result": { schemaVersion: 1, ok: true, result: FAILED },
       "ok false with a verified result": { schemaVersion: 1, ok: false, result: VERIFIED },
@@ -475,29 +804,94 @@ describe("envelope.schema.json (R-AX-5, R-AX-16)", () => {
         schemaVersion: 1,
         ok: false,
         result: FAILED,
-        error: errorFor("network").toJSON(),
+        error: networkError,
+      },
+      "both a success result and error": {
+        schemaVersion: 1,
+        ok: true,
+        result: VERIFIED,
+        error: networkError,
       },
       "schemaVersion 2": { schemaVersion: 2, ok: true, result: VERIFIED },
-      "an unknown error code": {
+      "an error without schemaVersion": { ok: false, error: networkError },
+      "an error code that is not of the code form": {
         schemaVersion: 1,
         ok: false,
-        error: { ...errorFor("network").toJSON(), code: "teapot" },
+        error: { ...networkError, code: "Teapot!" },
+      },
+      "an empty error code": { schemaVersion: 1, ok: false, error: { ...networkError, code: "" } },
+      "a backend that is not of the code form": {
+        schemaVersion: 1,
+        ok: true,
+        result: { ...VERIFIED, backend: "Sourcify Server" },
       },
       "an error without a hint": {
         schemaVersion: 1,
         ok: false,
         error: { code: "network", message: "m", docsUrl: "https://x", retryable: true },
       },
+      "an empty hint": { schemaVersion: 1, ok: false, error: { ...networkError, hint: "" } },
+      "an error without retryable": {
+        schemaVersion: 1,
+        ok: false,
+        error: { code: "network", message: "m", hint: "h", docsUrl: "https://x" },
+      },
+      "a retryable that is a string": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...networkError, retryable: "yes" },
+      },
+      "a message that is not a string": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...networkError, message: 1 },
+      },
+      "a docsUrl that is not a string": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...networkError, docsUrl: 1 },
+      },
+      "a docsUrl over http": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...networkError, docsUrl: "http://example.org" },
+      },
       "a handle not in its one-line form": {
         schemaVersion: 1,
         ok: false,
         error: { ...errorFor("not-confirmed").toJSON(), handle: "job" },
       },
+      "a handle of another version": {
+        schemaVersion: 1,
+        ok: false,
+        error: { ...errorFor("not-confirmed").toJSON(), handle: `ev2:sourcify:1:${ADDRESS}:job` },
+      },
+      "a verified result without match": {
+        schemaVersion: 1,
+        ok: true,
+        result: { status: "verified", backend: "sourcify" },
+      },
+      "a match outside exact and partial": {
+        schemaVersion: 1,
+        ok: true,
+        result: { ...VERIFIED, match: "none" },
+      },
+      "a failed result without reason": {
+        schemaVersion: 1,
+        ok: false,
+        result: { status: "failed", backend: "sourcify" },
+      },
+      "a failed result with another status": {
+        schemaVersion: 1,
+        ok: false,
+        result: { ...FAILED, status: "rejected" },
+      },
+      "a result that is a string": { schemaVersion: 1, ok: true, result: "verified" },
       "a result without ok": { schemaVersion: 1, result: VERIFIED },
       "an array": [],
     };
     for (const [name, value] of Object.entries(broken)) {
-      assert.notDeepEqual(validate(schema, value), [], name);
+      assert.notDeepEqual(validateEnvelope(value), [], name);
     }
   });
 
@@ -508,6 +902,60 @@ describe("envelope.schema.json (R-AX-5, R-AX-16)", () => {
     assert.equal(exportsMap?.get("./envelope.schema.json"), "./schema/envelope.schema.json");
     const files = fields?.get("files");
     assert.ok(Array.isArray(files) && files.includes("schema/"));
+  });
+});
+
+describe("the strict ajv set-up the tests rely on", () => {
+  // Each check proves the validator reports a broken value for one keyword, so a passing envelope
+  // test is not vacuous.
+  const cases: { keyword: string; schema: object; good: unknown; bad: unknown }[] = [
+    { keyword: "type", schema: { type: "string" }, good: "a", bad: 1 },
+    { keyword: "const", schema: { const: 1 }, good: 1, bad: 2 },
+    { keyword: "enum", schema: { enum: ["a", "b"] }, good: "b", bad: "c" },
+    { keyword: "pattern", schema: { type: "string", pattern: "^ev1:" }, good: "ev1:x", bad: "ev2" },
+    { keyword: "minLength", schema: { type: "string", minLength: 1 }, good: "a", bad: "" },
+    {
+      keyword: "required",
+      schema: { type: "object", properties: { a: {} }, required: ["a"] },
+      good: { a: 1 },
+      bad: {},
+    },
+    {
+      keyword: "not",
+      schema: { type: "object", not: { properties: { a: {} }, required: ["a"] } },
+      good: {},
+      bad: { a: 1 },
+    },
+    {
+      keyword: "oneOf (exactly one branch)",
+      schema: { oneOf: [{ type: "integer" }, { type: "number" }] },
+      good: 1.5,
+      bad: 1,
+    },
+    {
+      keyword: "$ref",
+      schema: { $ref: "#/$defs/s", $defs: { s: { type: "string" } } },
+      good: "a",
+      bad: 1,
+    },
+  ];
+  for (const { keyword, schema: small, good, bad } of cases) {
+    it(`reports a value that breaks ${keyword}`, () => {
+      const check = compileStrict(small);
+      assert.deepEqual(check(good), []);
+      assert.notDeepEqual(check(bad), []);
+    });
+  }
+
+  it("refuses a schema with an unknown keyword", () => {
+    assert.throws(() => compileStrict({ type: "string", minLenght: 1 }), /unknown keyword/);
+  });
+
+  it("refuses a required name that properties does not declare", () => {
+    assert.throws(
+      () => compileStrict({ type: "object", required: ["error"] }),
+      /strictRequired|required/,
+    );
   });
 });
 

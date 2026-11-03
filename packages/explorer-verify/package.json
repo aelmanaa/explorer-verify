@@ -69,6 +69,7 @@
     "pkg:check": "publint --strict && attw --pack . --profile esm-only && node ../../scripts/check-packed-files.ts"
   },
   "devDependencies": {
+    "ajv": "catalog:",
     "c8": "catalog:"
   }
 }

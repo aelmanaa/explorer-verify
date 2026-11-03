@@ -50,7 +50,9 @@ The error removes API keys before it stores anything. The message, the hint, eve
 - the user name and password of a URL;
 - a bearer token;
 - a bare 34-character Etherscan-style key: upper-case letters and digits, with at least one of
-  each.
+  each. This rule skips the job id of a handle: an explorer may issue a job id of that shape, and
+  redacting it would make the handle impossible to resume. A job id that equals the call's API
+  key, or holds a key-like parameter, is still redacted.
 
 The error builds `details` again from the fields its code declares, so an extra field never
 reaches the error. A `details.backend` outside the list of backends reads `unknown`. That happens
