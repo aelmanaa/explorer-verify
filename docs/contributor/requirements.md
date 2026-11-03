@@ -370,4 +370,4 @@ Measurement:
 | Do Blockscout's hosted multichain API terms allow a server handler serving many end users?       | Maintainer | M3        |
 | Sourcify rate limits and terms for high-volume use                                               | Maintainer | M2        |
 | Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live | Maintainer | M2        |
-| Routescan API host per network, key policy and CORS (not researched yet)                         | Maintainer | M2        |
+| Does Routescan's keyless tier accept `verifysourcecode`? Test live                               | Maintainer | M2        |

@@ -9,7 +9,8 @@ explorer, and zkSync uses its own compiler. The maintainer wants to start with S
 others later without breaking callers.
 
 Research:
-[explorer verification APIs](../research/2026-11-02-explorer-apis.md#languages-other-than-solidity).
+[explorer verification APIs](../research/2026-11-02-explorer-apis.md#languages-other-than-solidity);
+[Routescan and the zkSync compiler](../research/2026-11-03-routescan-zksync.md#zksync-era).
 
 ## Decision
 
