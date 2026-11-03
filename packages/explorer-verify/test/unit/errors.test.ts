@@ -1175,6 +1175,27 @@ describe("ExplorerVerifyError bounds", () => {
     }
   });
 
+  it("keeps only the V8 and Firefox frame lines of a cause stack (R-SEC-1)", () => {
+    const cause = new Error("boom");
+    const v8 = "    at fetchJson (https://app.example/main.js:10:5)";
+    const firefox = "fetchJson@https://app.example/main.js:10:5";
+    cause.stack = [
+      "Error: boom",
+      // Each line below fails one part of the frame check.
+      "second line:1:2",
+      "mail me@host.example",
+      "fn@file.js:1:2 trailing",
+      "fn@file.js:12",
+      "text    at x",
+      "at x",
+      v8,
+      firefox,
+    ].join("\n");
+    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    assert.ok(error.cause instanceof Error);
+    assert.deepEqual(error.cause.stack?.split("\n"), ["Error: boom", v8, firefox]);
+  });
+
   it("keeps a cause stack frame line of 1000 characters and drops one of 1001", () => {
     assert.equal(frame(1_000).length, 1_000);
     const cause = new Error("boom");
