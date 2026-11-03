@@ -58,13 +58,31 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
   metadata hash in the deployed bytecode, fetches the metadata and sources from a caller-configured
   IPFS gateway or fetch function (R-SEC-2) or from Sourcify, never from a built-in gateway host, and
-  rebuilds the Standard JSON input with the R-IN-7 builder (added by #20). A second route
+  rebuilds the Standard JSON input with the R-IN-7 builder. A second route
   copies the Standard JSON input of a contract already verified on Sourcify. Resolvers are
   pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format. Validation errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: it needs a Keccak-256
   implementation, which the core does not ship, and explorers accept any case.
+- **R-IN-7** A format-detecting input builder takes one or more parsed JSON documents and
+  optional source contents, and returns the `compiler` part of `VerifyInput` and the fully
+  qualified contract name, or a typed error that names what is missing. It detects by shape, never
+  by file name or tool name, and accepts:
+  - build-info from Hardhat 2, Hardhat 3 (including its separate output file) and Foundry, and a
+    bare Standard JSON input with the version and name supplied (#20);
+  - Solidity metadata (an object, a string, or an artifact's `metadata` or `rawMetadata`) plus the
+    sources it does not embed. It rebuilds the Standard JSON input and checks each source's
+    keccak-256 against the metadata before returning (#21);
+  - an artifact with only ABI and bytecode. That is not enough to verify, and the error says so
+    and names the remaining routes (R-IN-5, explorer similar-match).
+
+  The builder returns only `language`, `sources` and `settings` in the compiler input, and only
+  `content` and `keccak256` of each source. It rejects a local path (absolute, home, drive, file
+  URL, or climbing above the root) in a source path, either side of a remapping, or a key of
+  `settings.libraries` or `settings.outputSelection`, so no local path is published. It rejects
+  documents whose build ids or full compiler versions differ. It runs in any runtime (R-RUN-1): it
+  takes parsed objects, not paths, so it lives in the core.
 
 ### Backends (R-BE)
 
@@ -131,8 +149,10 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`.
   Its machine contract (JSON output, streams, exit codes, dry run, key input, progress, verbosity
   and JSON input) is R-AX-5 to R-AX-12 and R-AX-14 to R-AX-16.
-- **R-DX-2** Build helpers that emit the Standard JSON input and full compiler version from Foundry
-  (`out/` build-info) and Hardhat 3 (artifacts build-info).
+- **R-DX-2** Build helpers for Foundry and Hardhat (2 and 3) find the build-info, artifact and
+  source files for a contract in a project directory, read them, and pass them to the R-IN-7
+  builder. They hold no format logic of their own. They read files, so they are Node-only and stay
+  out of the core entry point.
 - **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
   The CLI and the library share the catalogue (R-AX-10).
 - **R-DX-4** TSDoc on every export, with an example that compiles.

@@ -35,7 +35,9 @@ User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
 are safe and which one submits. The error reference is
 [docs/user/reference/errors.md](docs/user/reference/errors.md), and the JSON envelope and exit codes
-are in [docs/user/reference/json-output.md](docs/user/reference/json-output.md).
+are in [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input
+from compiler JSON of unknown origin is in
+[docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md).
 
 ## Commands
 

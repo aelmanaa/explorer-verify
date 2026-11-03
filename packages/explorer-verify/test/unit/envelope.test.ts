@@ -126,6 +126,9 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "unknown-state": { code: "unknown-state", handle: handle(), excerpt: '{"status":"weird"}' },
   "job-not-found": { code: "job-not-found", handle: handle() },
   cancelled: { code: "cancelled", handle: handle() },
+  "incomplete-input": { code: "incomplete-input", field: "compilerVersion", candidates: [] },
+  "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
+  "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

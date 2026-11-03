@@ -1,0 +1,8 @@
+{
+  "id": "a53c1c4818465428",
+  "source_id_to_path": {
+    "0": "src/Base.sol",
+    "1": "src/Greeter.sol"
+  },
+  "language": "Solidity"
+}

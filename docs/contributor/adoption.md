@@ -20,7 +20,7 @@ kind of user calls the same core. Build helpers for deploy tools are thin layers
 | SDKs that ship contract artifacts      | R-IN-7, R-RUN-4, R-RUN-5, R-BE-1 to R-BE-5                 | M2 (builder, Etherscan), M3 (Blockscout) |
 | Tools that hold only deployed bytecode | R-IN-5                                                     | M3                                       |
 
-R-IN-7, the input builder, is planned in #20 and #21 and added to requirements.md by #20.
+R-IN-7, the input builder, is in requirements.md: #20 adds build-info detection and #21 the metadata rebuild.
 
 ### Dapps in a browser
 

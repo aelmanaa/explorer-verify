@@ -46,6 +46,9 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "unknown-state": { retryable: false, exit: 6, hasHandle: true },
   "job-not-found": { retryable: false, exit: 6, hasHandle: true },
   cancelled: { retryable: false, exit: 130, hasHandle: true },
+  "incomplete-input": { retryable: false, exit: 2, hasHandle: false },
+  "insufficient-artifact": { retryable: false, exit: 2, hasHandle: false },
+  "unsupported-compiler": { retryable: false, exit: 2, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -70,6 +73,13 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "unknown-state": { code: "unknown-state", handle, excerpt: `state ${text}` },
     "job-not-found": { code: "job-not-found", handle },
     cancelled: { code: "cancelled", handle },
+    "incomplete-input": {
+      code: "incomplete-input",
+      field: "contract",
+      candidates: [`src/A.sol:A ${text}`],
+    },
+    "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
+    "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
   };
   return all[code];
 }

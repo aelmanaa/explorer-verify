@@ -1,0 +1,103 @@
+{
+  "id": "56fa2d060c4dcdfc28fabef0375e6426",
+  "_format": "hh-sol-build-info-1",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "input": {
+    "language": "Solidity",
+    "sources": {
+      "contracts/Base.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+      },
+      "contracts/Greeter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+      }
+    },
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "paris",
+      "outputSelection": {
+        "*": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"],
+          "": ["ast"]
+        }
+      }
+    }
+  },
+  "output": {
+    "contracts": {
+      "contracts/Base.sol": {
+        "Base": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Base.sol\":\"Base\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]}},\"version\":1}"
+        }
+      },
+      "contracts/Greeter.sol": {
+        "Greeter": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "owner_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "string",
+                  "name": "greeting_",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "nonpayable",
+              "type": "constructor"
+            },
+            {
+              "inputs": [],
+              "name": "greeting",
+              "outputs": [
+                {
+                  "internalType": "string",
+                  "name": "",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Greeter.sol\":\"Greeter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]},\"contracts/Greeter.sol\":{\"keccak256\":\"0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc4269d23ceefe2bafe7721011588ea4e955498ef2f7f053399f7e56c466790e\",\"dweb:/ipfs/QmUdCdWLpCtbceyaDN24wtZ4prjugNyqPptBp85MqQUtSw\"]}},\"version\":1}"
+        }
+      }
+    }
+  }
+}

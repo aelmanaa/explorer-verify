@@ -1,0 +1,130 @@
+{
+  "id": "a53c1c4818465428",
+  "source_id_to_path": {
+    "0": "src/Base.sol",
+    "1": "src/Greeter.sol"
+  },
+  "language": "Solidity",
+  "_format": "ethers-rs-sol-build-info-1",
+  "input": {
+    "version": "0.8.24",
+    "language": "Solidity",
+    "sources": {
+      "src/Base.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+      },
+      "src/Greeter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+      }
+    },
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "metadata": {
+        "useLiteralContent": false,
+        "bytecodeHash": "ipfs",
+        "appendCBOR": true
+      },
+      "outputSelection": {
+        "*": {
+          "": ["ast"],
+          "*": [
+            "abi",
+            "evm.bytecode.object",
+            "evm.bytecode.sourceMap",
+            "evm.bytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.sourceMap",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "evmVersion": "cancun",
+      "viaIR": false,
+      "libraries": {}
+    },
+    "allowPaths": ["<project-root>"],
+    "basePath": "<project-root>",
+    "includePaths": ["<project-root>"]
+  },
+  "output": {
+    "contracts": {
+      "src/Base.sol": {
+        "Base": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "address",
+                  "internalType": "address"
+                }
+              ],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Base.sol\":\"Base\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]}},\"version\":1}"
+        }
+      },
+      "src/Greeter.sol": {
+        "Greeter": {
+          "abi": [
+            {
+              "type": "constructor",
+              "inputs": [
+                {
+                  "name": "owner_",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "greeting_",
+                  "type": "string",
+                  "internalType": "string"
+                }
+              ],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "greeting",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "string",
+                  "internalType": "string"
+                }
+              ],
+              "stateMutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "address",
+                  "internalType": "address"
+                }
+              ],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Greeter.sol\":\"Greeter\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]},\"src/Greeter.sol\":{\"keccak256\":\"0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc4269d23ceefe2bafe7721011588ea4e955498ef2f7f053399f7e56c466790e\",\"dweb:/ipfs/QmUdCdWLpCtbceyaDN24wtZ4prjugNyqPptBp85MqQUtSw\"]}},\"version\":1}"
+        }
+      }
+    }
+  },
+  "solcLongVersion": "0.8.24",
+  "solcVersion": "0.8.24"
+}

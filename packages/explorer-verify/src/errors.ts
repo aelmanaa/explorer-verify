@@ -35,6 +35,9 @@ export const ERROR_CODES = [
   "unknown-state",
   "job-not-found",
   "cancelled",
+  "incomplete-input",
+  "insufficient-artifact",
+  "unsupported-compiler",
 ] as const;
 
 /**
@@ -196,6 +199,35 @@ export type ErrorDetails =
       code: "cancelled";
       /** Present when the explorer accepted the submission before the cancel. */
       handle?: Handle;
+    }
+  | {
+      /**
+       * The documents passed to `buildVerifyInput` lack something the verification needs: the
+       * compiler input, the full compiler version or the choice of contract.
+       */
+      code: "incomplete-input";
+      /** What is missing: `input`, `compilerVersion` or `contract`. */
+      field: string;
+      /**
+       * For `contract`: the fully qualified names found in the documents, sorted, at most 20.
+       * Empty for the other fields.
+       */
+      candidates: string[];
+    }
+  | {
+      /**
+       * The documents hold only ABI and bytecode: no compiler input, settings or metadata, so the
+       * input cannot be built from them.
+       */
+      code: "insufficient-artifact";
+      /** Always `input`: the part that cannot be built. */
+      field: string;
+    }
+  | {
+      /** The documents come from a compiler other than solc, or a language other than Solidity. */
+      code: "unsupported-compiler";
+      /** The field that names the compiler: `compilerType` or `language`. */
+      field: string;
     };
 
 /**
@@ -237,6 +269,9 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "unknown-state": 6,
   "job-not-found": 6,
   cancelled: 130,
+  "incomplete-input": 2,
+  "insufficient-artifact": 2,
+  "unsupported-compiler": 2,
 };
 
 /**
@@ -375,6 +410,18 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
     retryable: false,
   },
+  "incomplete-input": {
+    hint: "Add what details.field names: a build-info with its input, the full compiler version, or the contract as path:Name.",
+    retryable: false,
+  },
+  "insufficient-artifact": {
+    hint: "ABI and bytecode are not enough to verify. Routes left: (1) ask the publisher to ship build-info or metadata; (2) the bytecode-metadata resolver, when the bytecode carries a metadata hash and the metadata is published; (3) the explorer's own matching (Etherscan Similar Match, Sourcify similarity), when an identical contract is already verified.",
+    retryable: false,
+  },
+  "unsupported-compiler": {
+    hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
+    retryable: false,
+  },
 };
 
 /**
@@ -456,6 +503,21 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       break;
     case "in-progress":
       copy = { code: "in-progress", backend: backendOf(details.backend) };
+      break;
+    case "incomplete-input":
+      copy = {
+        code: "incomplete-input",
+        field: text(details.field, secrets),
+        candidates: Array.isArray(details.candidates)
+          ? details.candidates.map((candidate) => text(candidate, secrets))
+          : [],
+      };
+      break;
+    case "insufficient-artifact":
+      copy = { code: "insufficient-artifact", field: text(details.field, secrets) };
+      break;
+    case "unsupported-compiler":
+      copy = { code: "unsupported-compiler", field: text(details.field, secrets) };
       break;
   }
   return copy;
