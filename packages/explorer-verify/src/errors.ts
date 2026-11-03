@@ -420,13 +420,12 @@ export interface ExplorerVerifyErrorOptions {
 }
 
 /**
- * The `docsUrl` of a code: its own page (decision 0015). Until the docs site exists, it is the page
- * file on GitHub. The site issue (#84) changes this one line to
- * `https://aelmanaa.github.io/explorer-verify/reference/errors/${code}`. The release workflow fails
- * while the built module still holds `blob/main`, so this URL never ships.
+ * The `docsUrl` of a code: its own page on the docs site, unversioned before 1.0 (decision 0015).
+ * The site build test checks that each URL maps to a page in the build output, and the deploy
+ * checks that each one returns 200.
  */
 function docsUrlOf(code: ErrorCode): string {
-  return `https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors/${code}.md`;
+  return `https://aelmanaa.github.io/explorer-verify/reference/errors/${code}`;
 }
 
 // The longest excerpt of an explorer's answer that an error keeps.

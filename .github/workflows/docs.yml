@@ -1,0 +1,124 @@
+name: Docs deploy
+
+# Deploys the docs site of one released version to GitHub Pages, then checks it over HTTPS
+# (R-AX-17, decision 0015). It builds from the version's tag, never from a branch.
+#
+# Two ways in, both from `main` only:
+# - the promote workflow calls it before it moves npm `latest` to the version, and waits for it
+#   (ci(release) issues #86 and #87);
+# - the maintainer dispatches it by hand from `main` to re-deploy the tagged docs of the version on
+#   `latest`, for example after a failed deploy. A docs fix ships in a patch release.
+# It never runs on a pull request, a push or a tag push. Its first step fails, rather than skips,
+# when the run is not a dispatch on `main`, so a caller that waits on it sees a failure. The
+# `github-pages` environment also allows `main` only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy, without the v (for example 0.1.0). The tag v<version> must exist."
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to deploy, without the v. The tag v<version> must exist."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One deploy at a time; a second one waits instead of cancelling the first.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the docs site
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      # A called workflow sees the caller's event and ref, so this also holds for the promote run.
+      - name: Check that the run is a dispatch on main
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT" != "workflow_dispatch" ] || [ "$REF" != "refs/heads/main" ]; then
+            echo "The docs deploy runs only from a dispatch on main; got $EVENT on $REF" >&2
+            exit 1
+          fi
+      - name: Check the version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "version must look like 1.2.3 or 1.2.3-beta.1, without the v" >&2
+            exit 1
+          }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Check that the tag holds the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          found="$(node -p "require('./packages/explorer-verify/package.json').version")"
+          if [ "$found" != "$VERSION" ]; then
+            echo "tag v$VERSION holds package version $found" >&2
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      - run: pnpm run site:build
+      # Test 3 of decision 0015: every docsUrl maps to a built page and its Markdown copy.
+      - run: pnpm run site:check
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  # The only job with Pages permissions.
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # Test 4 of decision 0015: each code page, its Markdown copy, llms.txt and every page it lists
+  # return 200 over HTTPS. A failure fails this workflow, and a caller that needs it stops.
+  smoke:
+    name: Check the deployed site
+    needs: deploy
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      # The checkout is the version's tag, so the script expects the package version found there.
+      - run: node scripts/smoke-site.ts

@@ -14,7 +14,7 @@ Fix: three routes remain.
 2. Use the bytecode-metadata resolver (planned), when the deployed bytecode carries a
    metadata hash and the metadata is published.
 3. Rely on the explorer's own matching (Etherscan Similar Match, Sourcify similarity; see
-   [automatic matching](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
+   [automatic matching](../../../contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
    when an identical contract is already verified.
 
 Default hint: ABI and bytecode are not enough to verify. Routes left: (1) ask the publisher to ship

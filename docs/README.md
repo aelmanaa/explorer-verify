@@ -4,7 +4,8 @@ Audience: everyone. This is the index for people; agents start at [AGENTS.md](..
 
 ## Users
 
-User documentation is written as features land: [user/README.md](user/README.md). Agents start
+User documentation is written as features land: [user/README.md](user/README.md). The docs site,
+<https://aelmanaa.github.io/explorer-verify/>, publishes it for the version on npm `latest`. Agents start
 with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) and the
 [llms.txt](../llms.txt) index.
 

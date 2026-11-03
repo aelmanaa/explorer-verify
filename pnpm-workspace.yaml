@@ -34,3 +34,6 @@ catalog:
   "playwright": "1.64.1"
   "publint": "0.3.25"
   "typescript": "7.0.2"
+  # Pinned exactly: 1.6.4 is the latest stable release (decision 0015). Moving to 2.0 is a site
+  # config change, because the pages stay plain Markdown.
+  "vitepress": "1.6.4"

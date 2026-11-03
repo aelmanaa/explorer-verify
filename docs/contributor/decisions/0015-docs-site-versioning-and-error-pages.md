@@ -161,6 +161,8 @@ are on, and `gitRevision` is the release tag.
   trigger a deploy, promote or approve an environment.
 - A manual re-deploy from `main` covers docs-only fixes between releases. It builds from the tag
   of the version on `latest`.
+  - Note (2026-11-03, #84): because the re-deploy builds from the tag, it can only re-deploy the
+    tagged docs, for example after a failed deploy. A docs fix ships in a patch release.
 
 ## Alternatives considered
 
