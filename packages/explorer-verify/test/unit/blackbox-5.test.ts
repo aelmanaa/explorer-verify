@@ -44,6 +44,9 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "unsupported-compiler": { exit: 2, retryable: false },
   "verification-inconclusive": { exit: 4, retryable: true },
   "source-mismatch": { exit: 2, retryable: false },
+  "missing-api-key": { exit: 3, retryable: false },
+  "api-key-rejected": { exit: 3, retryable: false },
+  "quota-exceeded": { exit: 3, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -96,6 +99,9 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
     expected: `0x${"a".repeat(64)}`,
     actual: `0x${"b".repeat(64)}`,
   }),
+  "missing-api-key": () => ({ code: "missing-api-key", backend: "etherscan-v2" }),
+  "api-key-rejected": () => ({ code: "api-key-rejected", backend: "etherscan-v2" }),
+  "quota-exceeded": () => ({ code: "quota-exceeded", backend: "etherscan-v2" }),
 };
 
 function detailsFor(code: ErrorCode, text: string): ErrorDetails {
@@ -142,8 +148,15 @@ describe("black box #5: catalogue matches the documented table", () => {
     assert.deepEqual(Object.keys(ERROR_EXIT_CODES).toSorted(), [...ERROR_CODES].toSorted());
   });
 
-  it("no error code uses exit code 0, 1 or 3", () => {
-    for (const code of ERROR_CODES) assert.ok(![0, 1, 3].includes(ERROR_EXIT_CODES[code]), code);
+  it("no error code uses exit code 0 or 1", () => {
+    for (const code of ERROR_CODES) assert.ok(![0, 1].includes(ERROR_EXIT_CODES[code]), code);
+  });
+
+  it("exit code 3 holds exactly the key codes (R-AX-7, decision 0016)", () => {
+    assert.deepEqual(
+      ERROR_CODES.filter((code) => ERROR_EXIT_CODES[code] === 3),
+      ["missing-api-key", "api-key-rejected", "quota-exceeded"],
+    );
   });
 });
 

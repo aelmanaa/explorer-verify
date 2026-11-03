@@ -24,4 +24,5 @@ in review.
 | [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md)                           | What does each Sourcify v2 answer mean, and how does the client map it?                                                         |
 | [2026-11-03-m2-live-probes.md](2026-11-03-m2-live-probes.md)                     | What do Etherscan, Routescan and Sourcify answer for omitted arguments, keyless submits, factory children and linked libraries? |
 | [2026-11-03-routescan-zksync.md](2026-11-03-routescan-zksync.md)                 | What are Routescan's hosts, request format, key policy and CORS, and which compiler does zkSync Era use?                        |
+| [2026-11-03-api-key-placement.md](2026-11-03-api-key-placement.md)               | Where do Etherscan v2 and Routescan take an API key, and what do they answer for a missing, refused or spent one?               |
 | [2026-11-03-docs-site-and-versioning.md](2026-11-03-docs-site-and-versioning.md) | Where should the public docs live, built with which generator, and how should they and `docsUrl` be versioned?                  |

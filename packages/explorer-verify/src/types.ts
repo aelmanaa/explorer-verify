@@ -297,6 +297,19 @@ export interface RouteOverride {
    * `explorerUrl`.
    */
   apiUrl?: string;
+  /**
+   * The API key for this route's explorer, bound to the route's API host: it is sent only to that
+   * host, and only for requests of the route's backend (R-SEC-2). Use it for an explorer on its
+   * own host, such as a standalone Etherscan-compatible explorer, which `apiKeys` does not accept.
+   * It wins over `apiKeys` for the route's backend.
+   *
+   * It needs `apiUrl` in the same override: without it, `invalid-input` names `route.apiKey`, so a
+   * key never reaches the routing table's host for the chain. The same value rules as an `apiKeys`
+   * value apply. A backend that takes no key, such as `sourcify`, throws `invalid-input` naming
+   * `route.apiKey`. In this release the only route backend is `sourcify`, so this field is
+   * reserved for the Etherscan v2, Routescan and standalone clients that come next.
+   */
+  apiKey?: string;
 }
 
 /**
@@ -346,6 +359,39 @@ export interface VerifyOptions {
   onEvent?: (event: VerifyEvent) => void | Promise<void>;
   /** Overrides the routing table for this call. */
   route?: RouteOverride;
+  /**
+   * API keys by backend name (decision 0009, amended by 0016). A key is sent only to its backend's
+   * API host in the routing table, `api.etherscan.io` for `etherscan-v2` and `api.routescan.io`
+   * for `routescan`, and only when the call's route resolves to that backend (R-SEC-2). A route
+   * that moves `apiUrl` to another host gets no key from here; pass `route.apiKey` for it.
+   *
+   * - Accepted names: `etherscan-v2` and `routescan`. `etherscan-compatible` throws
+   *   `invalid-input`: each standalone explorer has its own host, so its key goes in
+   *   `route.apiKey`. `sourcify` and `blockscout` take no key in this release and throw too.
+   * - Each value is a primitive string of 8 to 1024 characters, each a letter, a digit, `.`, `_`,
+   *   `~` or `-`, and not all digits. A bad value throws `invalid-input` naming
+   *   `apiKeys.<backend>`, never the value. So does a key found in the contract address or the
+   *   handle's `ev1:<backend>:<chainId>:<address>` part, which redaction would corrupt. An
+   *   `undefined` value counts as absent.
+   * - Only own enumerable string-keyed properties are read, each once; a non-enumerable property
+   *   or a Symbol key is ignored. The object must be a plain object.
+   * - Every key is removed from logs, events, errors and results (R-SEC-1).
+   * - When the route's backend needs a key (`etherscan-v2`) and none is bound to its host, the
+   *   call throws `missing-api-key` before any request, unless `fetch` is set: an injected `fetch`
+   *   may lead to a server that adds the key, so the request goes out without one.
+   *
+   * Etherscan's terms forbid an Etherscan key in browser code. In a browser, inject a `fetch` that
+   * targets a server that holds the key instead (R-SRV-5).
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * declare const etherscanKey: string; // read on a server, never shipped to a browser
+   * const options: VerifyOptions = { apiKeys: { "etherscan-v2": etherscanKey } };
+   * ```
+   */
+  apiKeys?: Partial<Record<BackendName, string | undefined>>;
 }
 
 /**

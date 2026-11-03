@@ -44,4 +44,7 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     expected: `0x${"a".repeat(64)}`,
     actual: `0x${"b".repeat(64)}`,
   },
+  "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
+  "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
+  "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
 };

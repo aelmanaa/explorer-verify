@@ -41,6 +41,9 @@ dry run will skip the lookup and say so.
 
 ## API keys
 
+- Pass keys to the library in `apiKeys`, by backend name. Each key is sent only to its backend's
+  host. [API keys](../reference/api-keys.md) lists the hosts and where in the request each key
+  goes.
 - Read keys from an environment variable or a key file. Never pass a key as a command-line flag
   value: flags end up in shell history, process lists and CI logs.
 - Never print, log or commit a key. explorer-verify errors replace keys with `[redacted]`; see

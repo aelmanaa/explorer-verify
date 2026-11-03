@@ -1558,6 +1558,80 @@ describe("verify(): secrets from the route's query (R-SEC-1)", () => {
   });
 });
 
+describe("verify(): API keys stay secret (R-SEC-1, R-DX-5, R-DX-6)", () => {
+  // Made-up keys, each in the shape of no rule but the call's own secrets, so only the apiKeys
+  // path can redact them. Never real keys.
+  const ETHERSCAN_KEY = "etherscan-dummy-key-r58x";
+  const ROUTESCAN_KEY = "routescan-dummy-key-r58y";
+  const apiKeys = { "etherscan-v2": ETHERSCAN_KEY, routescan: ROUTESCAN_KEY };
+
+  function leaks(text: string): boolean {
+    return text.includes(ETHERSCAN_KEY) || text.includes(ROUTESCAN_KEY);
+  }
+
+  it("keeps a dummy key in apiKeys out of the logger, onEvent and a result (R-SEC-1, R-DX-5, R-DX-6)", async (t) => {
+    const job = edited("job-no-match", (body) => {
+      body.error = {
+        customCode: "no_match",
+        message: `mismatch for ${ETHERSCAN_KEY} and ${ROUTESCAN_KEY}`,
+      };
+    });
+    const r = await run(t, otherSteps(job), { input: input(OTHER), options: { apiKeys } });
+    const result = resultOf(r.outcome);
+    assert.equal(result.status, "failed");
+    assert.equal(result.reason, "no_match: mismatch for [redacted] and [redacted]");
+    assert.ok(r.lines.length > 0);
+    assert.ok(r.events.length > 0);
+    assert.ok(!leaks(JSON.stringify([r.outcome, toEnvelope(result), r.events, r.lines])));
+  });
+
+  it("keeps a dummy key in apiKeys out of a thrown error and its toJSON() (R-SEC-1)", async (t) => {
+    const job = edited("job-internal-error", (body) => {
+      body.error = {
+        customCode: "internal_error",
+        message: `echo ${ETHERSCAN_KEY} ${ROUTESCAN_KEY}`,
+      };
+    });
+    const r = await run(t, otherSteps(job), { input: input(OTHER), options: { apiKeys } });
+    const error = errorOf(r.outcome, "verification-inconclusive");
+    const text = JSON.stringify([
+      error.message,
+      error.hint,
+      error.details,
+      error.toJSON(),
+      toEnvelope(error),
+      String(error.stack),
+      r.events,
+      r.lines,
+    ]);
+    assert.ok(text.includes("[redacted]"), text);
+    assert.ok(!leaks(text), text);
+  });
+
+  it("keeps an invalid apiKeys value out of the invalid-input error and sends nothing (R-SEC-1, R-IN-6)", async (t) => {
+    const bad = `${ETHERSCAN_KEY} with a space`;
+    const r = await run(t, [], { options: { apiKeys: { "etherscan-v2": bad } } });
+    const error = errorOf(r.outcome, "invalid-input");
+    assert.deepEqual(error.details, {
+      code: "invalid-input",
+      issues: [
+        {
+          field: "apiKeys.etherscan-v2",
+          message: "must hold only letters, digits, '.', '_', '~' and '-'",
+        },
+      ],
+    });
+    assert.ok(!JSON.stringify([error.message, error.toJSON(), r.lines]).includes(ETHERSCAN_KEY));
+    assert.equal(r.sent.length, 0);
+  });
+
+  it("verifies on Sourcify with keys set for other backends: a key never goes to sourcify.dev (R-SEC-2)", async (t) => {
+    const r = await run(t, [fixture("lookup-exact-match")], { options: { apiKeys } });
+    assert.equal(resultOf(r.outcome).status, "already-verified");
+    assert.ok(!leaks(JSON.stringify(r.sent)));
+  });
+});
+
 describe("killers", () => {
   it("K1 rejects at once when aborted during the wait before a poll (R-FLOW-6)", async (t) => {
     const controller = new AbortController();

@@ -123,6 +123,9 @@ covers results and errors.
 | `insufficient-artifact`     | Error  | `false` | 2         |
 | `unsupported-compiler`      | Error  | `false` | 2         |
 | `source-mismatch`           | Error  | `false` | 2         |
+| `missing-api-key`           | Error  | `false` | 3         |
+| `api-key-rejected`          | Error  | `false` | 3         |
+| `quota-exceeded`            | Error  | `false` | 3         |
 | `not-confirmed`             | Error  | `false` | 4         |
 | `verification-inconclusive` | Error  | `false` | 4         |
 | `network`                   | Error  | `false` | 5         |

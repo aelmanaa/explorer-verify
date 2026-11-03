@@ -5,6 +5,7 @@
  * This file holds types only: nothing in it runs, so `.c8rc.json` excludes it from coverage.
  */
 import type { BackendName } from "../backend-names.ts";
+import type { ApiKeysReader } from "../http/api-keys.ts";
 import type { HttpContext } from "../http/fetch.ts";
 import type { Route } from "../routing/resolve.ts";
 import type { Handle, Hex, VerifyInput } from "../types.ts";
@@ -59,6 +60,11 @@ export interface Context {
    * observer, whose logger and event callback redact keys and never throw.
    */
   readonly http: HttpContext;
+  /**
+   * The caller's checked `apiKeys`. A client never reads it directly: it passes each request
+   * through `withKey`, which decides whether the request gets a key (R-SEC-2). Absent means none.
+   */
+  readonly apiKeys?: ApiKeysReader;
 }
 
 /**
