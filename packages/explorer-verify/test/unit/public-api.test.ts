@@ -30,6 +30,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   onEvent: true,
   route: true,
   apiKeys: true,
+  allowSourcifyFallback: true,
 };
 const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true, apiKey: true };
 const emptyRoute: RouteOverride = {};
@@ -52,7 +53,7 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has the M1 fields and apiKeys (decisions 0009, 0010 and 0016)", () => {
+  it("VerifyOptions has the M1 fields, apiKeys and allowSourcifyFallback (decisions 0009, 0010 and 0016, R-RT-3)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
@@ -62,6 +63,7 @@ describe("public types", () => {
       "onEvent",
       "route",
       "apiKeys",
+      "allowSourcifyFallback",
     ]);
   });
 

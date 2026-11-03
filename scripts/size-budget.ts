@@ -11,6 +11,11 @@ export interface BudgetEntry {
   readonly measuredBytes: number;
   /** The largest size the check accepts, in bytes. */
   readonly ceilingBytes: number;
+  /**
+   * Measure the code without the routing table's rows, which have their own entry (R-RUN-3).
+   * `withoutTable` in the file; absent means false.
+   */
+  readonly withoutTable: boolean;
 }
 
 /** One line of the report. */
@@ -63,7 +68,17 @@ export function parseBudget(parsed: unknown): BudgetEntry[] {
     if (ceilingBytes < measuredBytes) {
       throw new Error(`size-budget.json: ${where}.ceilingBytes is below measuredBytes`);
     }
-    return { name, code: text(get("code"), `${where}.code`), measuredBytes, ceilingBytes };
+    const withoutTable = get("withoutTable") ?? false;
+    if (typeof withoutTable !== "boolean") {
+      throw new Error(`size-budget.json: ${where}.withoutTable must be true or false`);
+    }
+    return {
+      name,
+      code: text(get("code"), `${where}.code`),
+      measuredBytes,
+      ceilingBytes,
+      withoutTable,
+    };
   });
 }
 

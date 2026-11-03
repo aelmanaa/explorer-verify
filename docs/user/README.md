@@ -14,6 +14,7 @@ still to come.
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |
+| [Routing](reference/routing.md)                                                                | How a chain resolves to a backend, the routing table and its options     |
 | [Errors](reference/errors/index.md)                                                            | Every error code, with its cause and fix                                 |
 | [JSON output and exit codes](reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |

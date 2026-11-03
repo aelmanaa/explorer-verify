@@ -103,10 +103,14 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 
 - **R-RT-1** A routing table maps a chain id to its backend(s), API URL and explorer URL. It is data
   (JSON), versioned with the package, and covers at least the 60 chains the prior art routes to a
-  known backend (67 rows, 7 with no backend).
+  known backend (67 rows, 7 with no backend). A row lists its backends in order of preference. A
+  call goes to the first backend in the row that works with the caller's keys: a backend that
+  needs a key is skipped when the caller passed none for it. When no backend in the row works,
+  the call takes the first and fails with `missing-api-key` before any request.
 - **R-RT-2** The caller can override the route per call, add chains, or pick a backend by name.
 - **R-RT-3** A chain missing from the table falls back to Sourcify when the caller allows it, and
-  otherwise fails with an error naming the chain.
+  otherwise fails with an error naming the chain. The option is `allowSourcifyFallback`, false by
+  default; the error is `unsupported-chain`, and its hint names the option and the route override.
 - **R-RT-4** Optional fan-out: verify on several backends in one call (for example Etherscan and
   Sourcify), with one result per backend.
 
@@ -355,7 +359,9 @@ Measurement:
 - **R-RUN-3** Bundle budget for `import { verify } from "explorer-verify"` in a browser build:
   minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI.
   `size-budget.json` sets a ceiling for each public entry. The routing table loads as data; its size
-  is reported separately and has no limit until M2 sets one.
+  is reported separately: the code entries are measured with an empty table, and the table's rows
+  have their own entry and ceiling. One more entry measures the whole `verify` bundle, table
+  included, under the `verify` ceiling (decision 0023).
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or

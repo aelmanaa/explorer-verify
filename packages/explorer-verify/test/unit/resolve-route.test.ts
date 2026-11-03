@@ -10,15 +10,16 @@ const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
 const DEFAULT_HINT = "Fix the fields listed in details.issues, then call again.";
-const BACKEND_HINT = "Only sourcify is available in this version. Remove route.backend.";
+const BACKEND_HINT = "Leave out route.backend, or name one of: sourcify.";
+const NO_CLIENT = "has no client in this version";
 const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 const ENDPOINT = "/v2/verify/1/0xabc";
 
-/** Runs `resolveRoute` and returns the error it throws. */
+/** Runs `resolveRoute` as this version's flow does, with a Sourcify client only, and returns the error. */
 function rejection(chainId: number, override?: unknown): ExplorerVerifyError {
-  return thrown(() => resolveRoute(chainId, routeOf(override)));
+  return thrown(() => resolveRoute(chainId, routeOf(override), { clients: ["sourcify"] }));
 }
 
 /** Runs `run` and returns the ExplorerVerifyError it throws. */
@@ -82,7 +83,7 @@ function assertRejected(
 }
 
 /** The explorer link of `route`, failing the test when the route has none. */
-function explorerLink(route: Route): (chainId: number, address: Hex) => string {
+function explorerLink(route: Route): (address: Hex) => string {
   return route.explorerUrl ?? assert.fail("the route has no explorer link");
 }
 
@@ -98,34 +99,34 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
     });
   }
 
-  it("resolves a chain id no table lists, because M1 routes every chain to Sourcify (R-RT-3)", () => {
+  it("resolves a chain id the table does not list only with allowSourcifyFallback (R-RT-3)", () => {
     for (const chainId of [2, 999_999_999, Number.MAX_SAFE_INTEGER]) {
-      assert.equal(resolveRoute(chainId).backend, "sourcify");
+      assert.equal(thrown(() => resolveRoute(chainId)).code, "unsupported-chain");
+      const route = resolveRoute(chainId, undefined, { allowSourcifyFallback: true });
+      assert.equal(route.backend, "sourcify");
+      assert.equal(
+        explorerLink(route)(ADDRESS),
+        `https://repo.sourcify.dev/${String(chainId)}/${ADDRESS}`,
+      );
     }
   });
 
   it("gives the Sourcify repository page for a contract (R-FLOW-3)", () => {
     const route = resolveRoute(11155111);
     assert.equal(
-      explorerLink(route)(11155111, ADDRESS),
+      explorerLink(route)(ADDRESS),
       "https://repo.sourcify.dev/11155111/0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    );
-  });
-
-  it("builds the explorer page from the chain id of the call, not the resolved one (R-FLOW-3)", () => {
-    const route = resolveRoute(1);
-    assert.equal(
-      explorerLink(route)(10, ADDRESS),
-      "https://repo.sourcify.dev/10/0x5FbDB2315678afecb367f032d93F642f64180aa3",
     );
   });
 
   it("keeps the explorer page on a single path segment for any address string", () => {
     const route = resolveRoute(1);
     assert.equal(
-      explorerLink(route)(1, "0x/../../evil?x=1#y"),
+      explorerLink(route)("0x/../../evil?x=1#y"),
       "https://repo.sourcify.dev/1/0x%2F..%2F..%2Fevil%3Fx%3D1%23y",
     );
+    // `$` is percent-encoded, so an address cannot form a replacement pattern such as `$&`.
+    assert.equal(explorerLink(route)("0x$&$1"), "https://repo.sourcify.dev/1/0x%24%26%241");
   });
 
   it("returns a plain frozen object with exactly the route fields", () => {
@@ -137,8 +138,10 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
       "apiKey",
       "backend",
       "explorerUrl",
+      "overridden",
       "redactedApiUrl",
       "requestUrl",
+      "tableHost",
     ]);
     assert.ok(!("apiUrl" in route));
     assert.equal(Reflect.set(route, "apiBase", "https://evil.example"), false);
@@ -233,7 +236,7 @@ describe("resolveRoute: override (R-RT-2)", () => {
   it("keeps the explorer link when the override names the public API base (R-FLOW-3)", () => {
     for (const apiUrl of ["https://sourcify.dev/server/", "https://sourcify.dev/server?a=1"]) {
       assert.equal(
-        explorerLink(resolveRoute(1, { apiUrl }))(1, ADDRESS),
+        explorerLink(resolveRoute(1, { apiUrl }))(ADDRESS),
         `https://repo.sourcify.dev/1/${ADDRESS}`,
       );
     }
@@ -287,14 +290,21 @@ describe("resolveRoute: requestUrl (R-SEC-2)", () => {
     assert.equal(route.redactedApiUrl, "https://h.example/server");
   });
 
-  for (const path of ["v2/verify", "", "?a=1", "/v2/verify?a=1", "/v2#x", "https://evil.example"]) {
+  it("accepts an empty path, for an API whose base is the endpoint", () => {
+    const route = resolveRoute(1, { apiUrl: "https://h.example/api?k=v" });
+    assert.equal(route.requestUrl(""), "https://h.example/api?k=v");
+  });
+
+  for (const path of ["v2/verify", "?a=1", "/v2/verify?a=1", "/v2#x", "https://evil.example"]) {
     it(`rejects the path ${JSON.stringify(path)}`, () => {
       const route = resolveRoute(1, { apiUrl: `https://h.example/server?k=${DUMMY_KEY}` });
       const error = thrown(() => route.requestUrl(path));
       assert.equal(error.code, "invalid-input");
       assert.deepEqual(error.details, {
         code: "invalid-input",
-        issues: [{ field: "path", message: "must start with / and contain no ? or #" }],
+        issues: [
+          { field: "path", message: "must be empty or start with /, and contain no ? or #" },
+        ],
       });
       assertNotShown(error, DUMMY_KEY);
     });
@@ -432,12 +442,9 @@ describe("resolveRoute: query redaction (R-SEC-2)", () => {
 
 describe("resolveRoute: backend (R-RT-2)", () => {
   for (const backend of ["etherscan-v2", "etherscan-compatible", "blockscout", "routescan"]) {
-    it(`rejects ${backend}, because only sourcify is available in M1 (R-RT-2)`, () => {
+    it(`rejects ${backend}, which has no client in this version (R-RT-2)`, () => {
       const error = assertRejected(1, { backend }, [
-        {
-          field: "route.backend",
-          message: "must be sourcify; only sourcify is available in this version",
-        },
+        { field: "route.backend", message: NO_CLIENT },
       ]);
       assert.equal(error.hint, BACKEND_HINT);
     });
@@ -464,10 +471,7 @@ describe("resolveRoute: backend (R-RT-2)", () => {
 
   it("lists a backend and an apiUrl problem together, with the backend hint", () => {
     const error = assertRejected(1, { backend: "blockscout", apiUrl: "ftp://example.org" }, [
-      {
-        field: "route.backend",
-        message: "must be sourcify; only sourcify is available in this version",
-      },
+      { field: "route.backend", message: NO_CLIENT },
       { field: "route.apiUrl", message: SCHEME_MESSAGE },
     ]);
     assert.equal(error.hint, BACKEND_HINT);

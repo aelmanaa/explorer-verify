@@ -25,19 +25,28 @@ export type ApiKeysReader = () => ApiKeys;
 /** The longest key accepted, in characters. */
 export const MAX_KEY_LENGTH = 1024;
 
-/**
- * The API host of each backend that takes a key from `apiKeys`, as the routing table names it. A
- * key from `apiKeys` goes only to `https://` and this host, on the default port. Moves to the
- * routing table with #59.
- */
-export const KEY_HOSTS: Readonly<Partial<Record<BackendName, string>>> = {
-  "etherscan-v2": "api.etherscan.io",
-  routescan: "api.routescan.io",
-};
-
+// Backends that take a key from `apiKeys`. Each key goes only to its backend's routing-table host.
+const KEY_BACKENDS: readonly BackendName[] = ["etherscan-v2", "routescan"];
 // Backends whose every request needs a key. Routescan has a keyless free tier; a standalone
 // explorer may or may not need one, so only its answer can tell.
 const KEY_REQUIRED: readonly BackendName[] = ["etherscan-v2"];
+
+/**
+ * Whether every request of `backend` needs a key. Only `etherscan-v2` does: Routescan has a keyless
+ * tier, and only a standalone explorer's answer can tell whether it needs one.
+ *
+ * @param backend - A backend name.
+ * @returns `true` for `etherscan-v2`.
+ * @example
+ * ```ts
+ * needsKey("etherscan-v2"); // true
+ * needsKey("routescan"); // false
+ * ```
+ */
+export function needsKey(backend: BackendName): boolean {
+  return KEY_REQUIRED.includes(backend);
+}
+
 // Backends that take `route.apiKey`.
 const ROUTE_KEY_BACKENDS: readonly BackendName[] = [
   "etherscan-v2",
@@ -114,13 +123,11 @@ export function checkRouteKey(
   if (typeof checked === "string") {
     return { issue: checked };
   }
-  if (!ROUTE_KEY_BACKENDS.includes(backend)) {
-    return {
-      issue: `is not accepted: ${backend} takes no API key, and it is the only route backend in this version`,
-    };
-  }
   if (!hasApiUrl) {
     return { issue: "needs route.apiUrl: the key is sent only to that host" };
+  }
+  if (!ROUTE_KEY_BACKENDS.includes(backend)) {
+    return { issue: `is not accepted: ${backend} takes no API key` };
   }
   return { key: checked.key };
 }
@@ -228,7 +235,7 @@ export function readApiKeys(value: unknown): ReadKeys {
 
 /** Why `apiKeys` refuses a key for `backend`, or `undefined` when it takes one. */
 function refusal(backend: BackendName): string | undefined {
-  if (KEY_HOSTS[backend] !== undefined) {
+  if (KEY_BACKENDS.includes(backend)) {
     return undefined;
   }
   if (backend === "etherscan-compatible") {
@@ -278,9 +285,10 @@ export interface KeyContext {
  * - `backend`, the backend the request is for, equals the route's backend. For a status poll it is
  *   the handle's backend, so a handle that names another backend never gets a key.
  * - `url` has the origin of the route's API base, so a request never carries a key off the route.
- * - The key is `route.apiKey`, which is bound to the route's host; or it is `apiKeys[backend]` and
- *   `url` is `https://` on the backend's host in {@link KEY_HOSTS}, on the default port. An
- *   overridden `apiUrl` on another host gets no key from `apiKeys`.
+ * - The key is `route.apiKey`, which is bound to the route's host; or it is `apiKeys[backend]`,
+ *   the route is not `overridden`, and `url` is `https://` on the route's `tableHost`, the host the
+ *   routing table lists for the backend and chain, on the default port. A route whose `apiUrl` the
+ *   caller set gets no key from `apiKeys`, whatever its host.
  *
  * @param ctx - The route and the caller's keys.
  * @param backend - The backend the request is for.
@@ -305,9 +313,11 @@ export function keyFor(ctx: KeyContext, backend: BackendName, url: string): stri
   if (routeKey !== undefined) {
     return routeKey;
   }
-  const host = KEY_HOSTS[backend];
   const key = ctx.apiKeys === undefined ? undefined : readOwn(ctx.apiKeys(), backend);
-  return host !== undefined && origin === `https://${host}` ? key : undefined;
+  const { overridden, tableHost } = route;
+  return !overridden && tableHost !== undefined && origin === `https://${tableHost}`
+    ? key
+    : undefined;
 }
 
 /** The origin of `url`, or `undefined` when it does not parse. */
@@ -397,17 +407,15 @@ export function requireKey(
   const { route } = ctx;
   if (
     injectedFetch ||
-    !KEY_REQUIRED.includes(route.backend) ||
+    !needsKey(route.backend) ||
     keyFor(ctx, route.backend, route.apiBase) !== undefined
   ) {
     return;
   }
   const host = new URL(route.apiBase).host;
-  const tableHost = KEY_HOSTS[route.backend];
-  const where =
-    tableHost === host
-      ? `set apiKeys.${route.backend}`
-      : `apiKeys.${route.backend} is sent only to ${String(tableHost)}; set route.apiKey for ${host}`;
+  const where = route.overridden
+    ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
+    : `set apiKeys.${route.backend}`;
   throw new ExplorerVerifyError(
     { code: "missing-api-key", backend: route.backend },
     `${route.backend} needs an API key and none is set for ${host}: ${where}.`,

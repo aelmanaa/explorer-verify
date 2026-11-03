@@ -5,7 +5,6 @@
  */
 import type { Target } from "../backends/backend.ts";
 import { ExplorerVerifyError } from "../errors.ts";
-import { resolveRoute } from "../routing/resolve.ts";
 import type { Route } from "../routing/resolve.ts";
 import type { Handle, VerifyOptions, VerifyResult } from "../types.ts";
 import { parseHandle } from "./handle.ts";
@@ -14,6 +13,7 @@ import {
   abortWins,
   announceRoute,
   openCall,
+  routeOf,
   settingsOf,
   settle,
 } from "./verify.ts";
@@ -100,7 +100,7 @@ export async function runCheckStatus(
   const settings = settingsOf(options);
   settings.signal?.throwIfAborted();
   const handle = parseHandle(value);
-  const route = resolveRoute(handle.chainId, settings.route);
+  const route = routeOf(handle.chainId, settings, dependencies);
   checkBackend(handle, route);
   // Lower case, as verify() uses it, so the lookup and the explorer page match a verify() call.
   const target: Target = {
@@ -131,7 +131,7 @@ function checkBackend(handle: Handle, route: Route): void {
     },
     `The handle names ${handle.backend}, but chain ${String(handle.chainId)} routes to ${route.backend}.`,
     {
-      hint: "Pass the route option the submission used, or the handle that verify() returned for this route.",
+      hint: "Pass the route option and the keys the submission used, or the handle that verify() returned for this route.",
       secrets: [],
     },
   );

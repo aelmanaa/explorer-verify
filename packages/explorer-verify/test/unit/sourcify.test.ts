@@ -82,7 +82,12 @@ function setup(
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   };
   return {
-    ctx: { route: resolveRoute(options.chainId ?? SEPOLIA, options.route), http },
+    ctx: {
+      route: resolveRoute(options.chainId ?? SEPOLIA, options.route, {
+        allowSourcifyFallback: true,
+      }),
+      http,
+    },
     calls: fake.calls,
   };
 }

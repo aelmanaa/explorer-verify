@@ -3,6 +3,7 @@
  * outcome to one of three results or a typed error. It never branches on the backend: every
  * explorer call goes through the {@link Backend} interface.
  */
+import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
 import { sourcify } from "../backends/sourcify.ts";
@@ -16,8 +17,8 @@ import { validateInput } from "../input/validate.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
 import { MIN_SECRET_LENGTH } from "../redact.ts";
-import { resolveRoute } from "../routing/resolve.ts";
-import type { Route } from "../routing/resolve.ts";
+import { resolveRoute, unsupported } from "../routing/resolve.ts";
+import type { Route, RoutingTable } from "../routing/resolve.ts";
 import type {
   Handle,
   Logger,
@@ -49,14 +50,16 @@ const POLL_FAILURES: readonly ExplorerVerifyError["code"][] = [
 
 /**
  * What the flow engine takes besides the caller's input and options. `verify()` passes the
- * defaults; the tests pass a fixed `random` for the backoff jitter, or a backend table without a
- * client to reach the error for it.
+ * defaults; the tests pass a fixed `random` for the backoff jitter, a backend table without a
+ * client to reach the error for it, or a routing table with rows for clients to come.
  */
 export interface FlowDependencies {
   /** The client of each backend. */
   readonly backends: Readonly<Partial<Record<BackendName, Backend>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
+  /** The routing table. Defaults to the shipped one; the tests pass rows for clients to come. */
+  readonly table?: RoutingTable;
 }
 
 /** The backend clients `verify()` and `checkStatus()` use. */
@@ -71,6 +74,8 @@ export interface Settings {
   readonly logger: Logger | undefined;
   readonly onEvent: VerifyOptions["onEvent"];
   readonly route: RouteOverride | undefined;
+  /** Whether a chain missing from the routing table falls back to Sourcify (R-RT-3). */
+  readonly allowSourcifyFallback: boolean | undefined;
   /**
    * Returns the checked `apiKeys`: only valid keys of backends that take one. A function, so
    * `JSON.stringify` of the settings never prints a key.
@@ -208,7 +213,7 @@ async function verifyWith(
   dependencies: FlowDependencies,
 ): Promise<VerifyResult> {
   const checked = validateInput(input);
-  const route = resolveRoute(checked.chainId, settings.route);
+  const route = routeOf(checked.chainId, settings, dependencies);
   const target: Target = { chainId: checked.chainId, address: checked.address };
   const call = openCall(settings, route, target, dependencies);
   const { backend } = call;
@@ -280,7 +285,7 @@ export async function abortWins<T>(
  * @param target - The contract the call is about.
  * @param dependencies - The backend clients and the jitter source.
  * @returns The call. Its budget starts now.
- * @throws ExplorerVerifyError `invalid-input` when this version has no client for the route.
+ * @throws ExplorerVerifyError `unsupported-chain` when this version has no client for the route.
  * @example
  * ```ts
  * const call = openCall(settingsOf(options), resolveRoute(11155111), target, DEFAULT_DEPENDENCIES);
@@ -292,7 +297,7 @@ export function openCall(
   target: Target,
   dependencies: FlowDependencies,
 ): Call {
-  const backend = backendOf(route, dependencies);
+  const backend = backendOf(route, target.chainId, dependencies);
   const routeKey = route.apiKey();
   const keySecrets = settings.keySecrets();
   const secrets = [
@@ -438,6 +443,7 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       logger: undefined,
       onEvent: undefined,
       route: undefined,
+      allowSourcifyFallback: undefined,
       apiKeys: () => ({}),
       keySecrets: () => [],
     };
@@ -462,6 +468,7 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       logger,
       onEvent,
       route: own(options, "route"),
+      allowSourcifyFallback: own(options, "allowSourcifyFallback"),
       timeoutMs: duration(own(options, "timeoutMs"), DEFAULT_TIMEOUT_MS, 1, "timeoutMs", issues),
       pollIntervalMs: duration(
         own(options, "pollIntervalMs"),
@@ -503,6 +510,10 @@ function checkKinds(
   const signal: unknown = settings.signal;
   if (signal !== undefined && !(signal instanceof AbortSignal)) {
     issues.push({ field: "signal", message: "must be an AbortSignal" });
+  }
+  const fallback: unknown = settings.allowSourcifyFallback;
+  if (fallback !== undefined && typeof fallback !== "boolean") {
+    issues.push({ field: "allowSourcifyFallback", message: "must be a boolean" });
   }
   const checks: [field: string, value: unknown, kinds: readonly string[]][] = [
     ["fetch", settings.fetch, ["function"]],
@@ -554,18 +565,42 @@ function invalidOptions(
   );
 }
 
-/** The client for the route's backend, or `invalid-input` when this version has none. */
-function backendOf(route: Route, dependencies: FlowDependencies): Backend {
+/**
+ * Resolves the route of a call from the routing table and the caller's options: the route
+ * override, the keys and the Sourcify fallback (R-RT-1 to R-RT-3). `verify()` and `checkStatus()`
+ * both resolve through it, so a resumed job resolves the same route from the same options.
+ *
+ * @param chainId - The chain of the call.
+ * @param settings - The options from {@link settingsOf}.
+ * @param dependencies - The backend clients: `route.backend` must name one of them.
+ * @returns The route.
+ * @throws ExplorerVerifyError `invalid-input` or `unsupported-chain`, as `resolveRoute` throws them.
+ * @example
+ * ```ts
+ * const route = routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES);
+ * ```
+ */
+export function routeOf(
+  chainId: number,
+  settings: Settings,
+  dependencies: FlowDependencies,
+): Route {
+  return resolveRoute(chainId, settings.route, {
+    apiKeys: settings.apiKeys(),
+    allowSourcifyFallback: settings.allowSourcifyFallback === true,
+    clients: BACKEND_NAMES.filter((name) => dependencies.backends[name] !== undefined),
+    ...(dependencies.table === undefined ? {} : { table: dependencies.table }),
+  });
+}
+
+/**
+ * The client for the route's backend. `route.backend` names only a backend with a client, but the
+ * routing table may choose one this version has no client for: that throws `unsupported-chain`.
+ */
+function backendOf(route: Route, chainId: number, dependencies: FlowDependencies): Backend {
   const backend = dependencies.backends[route.backend];
   if (backend === undefined) {
-    throw new ExplorerVerifyError(
-      {
-        code: "invalid-input",
-        issues: [{ field: "route.backend", message: "has no client in this version" }],
-      },
-      `There is no ${route.backend} client in this version.`,
-      { secrets: [] },
-    );
+    throw unsupported(chainId, route.backend, "client");
   }
   return backend;
 }

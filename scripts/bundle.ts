@@ -7,6 +7,18 @@ import { gzipSync } from "node:zlib";
 
 import { build } from "esbuild";
 
+/** The routing table as the code entries of the size check see it: no rows (R-RUN-3). */
+export const EMPTY_TABLE = '{"schemaVersion":1,"checked":"","chains":[]}';
+
+/** How to bundle. */
+export interface BundleOptions {
+  /**
+   * Replace every `routing/table.json` with {@link EMPTY_TABLE}, so the size of the code is
+   * measured apart from the size of the routing table's data (R-RUN-3).
+   */
+  readonly withoutTable?: boolean;
+}
+
 /** What to bundle: a file, or a module given as text and resolved from a folder. */
 export type BundleSource =
   | { readonly entry: string }
@@ -18,9 +30,13 @@ export type BundleSource =
  * when the bundle leaves any import external. Every tsconfig file is ignored.
  *
  * @param source - The entry file, or module text and the folder its imports resolve from.
+ * @param options - Whether to leave the routing table's rows out.
  * @returns The bundled JavaScript.
  */
-export async function bundleForBrowser(source: BundleSource): Promise<string> {
+export async function bundleForBrowser(
+  source: BundleSource,
+  options: BundleOptions = {},
+): Promise<string> {
   const input =
     "entry" in source
       ? { entryPoints: [source.entry] }
@@ -45,6 +61,20 @@ export async function bundleForBrowser(source: BundleSource): Promise<string> {
     // The bundle must not depend on which tsconfig sits next to the entry, such as the `paths`
     // in packages/explorer-verify/tsconfig.test.json.
     tsconfigRaw: "{}",
+    plugins:
+      options.withoutTable === true
+        ? [
+            {
+              name: "without-table",
+              setup(plugin) {
+                plugin.onLoad({ filter: /[\\/]routing[\\/]table\.json$/ }, () => ({
+                  contents: EMPTY_TABLE,
+                  loader: "json",
+                }));
+              },
+            },
+          ]
+        : [],
   });
   const external = new Set(
     Object.values(result.metafile.inputs)

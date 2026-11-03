@@ -390,7 +390,7 @@ export interface ErrorJson {
  *
  * const apiKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
  * const options: ExplorerVerifyErrorOptions = {
- *   hint: "Only sourcify is available in this version.",
+ *   hint: "Leave out route.backend, or name one of: sourcify.",
  *   cause: new Error("unsupported backend"),
  *   secrets: [apiKey],
  * };

@@ -7,8 +7,9 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who call `verify()` and act on what it returns or throws.
 
 `verify()` checks a contract's source on an explorer and submits it when the explorer does not
-have it yet. In this release every chain goes to Sourcify, which needs no API key. Nothing is
-published to npm yet.
+have it yet. In this release the routing table sends every chain it lists to Sourcify, which
+needs no API key; [Routing](routing.md) explains how a chain resolves. Nothing is published to npm
+yet.
 
 ```ts
 function verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>;
@@ -71,16 +72,17 @@ into an exact match, submit the exact sources another way; an option for this is
 
 Every field is optional.
 
-| Option           | Default              | What it does                                                                                                                                                                                         |
-| ---------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fetch`          | `globalThis.fetch`   | Every request goes through it. Point it at your own server to proxy the calls. It must not follow redirects                                                                                          |
-| `signal`         | none                 | Cancels the call. The call rejects with `signal.reason`, unchanged                                                                                                                                   |
-| `timeoutMs`      | `120000`             | Time budget for the whole call, every request and retry included                                                                                                                                     |
-| `pollIntervalMs` | `3000`               | Wait before each status poll                                                                                                                                                                         |
-| `logger`         | none, writes nothing | Receives log lines, keys removed. See [Logging and events](logging-and-events.md)                                                                                                                    |
-| `onEvent`        | none                 | Receives the stage events, keys removed. See [Logging and events](logging-and-events.md#events)                                                                                                      |
-| `route`          | the routing table    | `{ backend?, apiUrl?, apiKey? }`: another Sourcify server, such as a self-hosted one. Results from it have no `explorerUrl`. `apiKey` is for the clients that come next; see [API keys](api-keys.md) |
-| `apiKeys`        | none                 | API keys by backend name, each sent only to its backend's host. See [API keys](api-keys.md)                                                                                                          |
+| Option                  | Default              | What it does                                                                                                                                                                           |
+| ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fetch`                 | `globalThis.fetch`   | Every request goes through it. Point it at your own server to proxy the calls. It must not follow redirects                                                                            |
+| `signal`                | none                 | Cancels the call. The call rejects with `signal.reason`, unchanged                                                                                                                     |
+| `timeoutMs`             | `120000`             | Time budget for the whole call, every request and retry included                                                                                                                       |
+| `pollIntervalMs`        | `3000`               | Wait before each status poll                                                                                                                                                           |
+| `logger`                | none, writes nothing | Receives log lines, keys removed. See [Logging and events](logging-and-events.md)                                                                                                      |
+| `onEvent`               | none                 | Receives the stage events, keys removed. See [Logging and events](logging-and-events.md#events)                                                                                        |
+| `route`                 | the routing table    | `{ backend?, apiUrl?, apiKey? }`: another backend from the chain's row, or another server, such as a self-hosted Sourcify. See [Routing](routing.md#route) and [API keys](api-keys.md) |
+| `allowSourcifyFallback` | `false`              | Lets a chain the routing table does not list go to the public Sourcify API. Without it, such a chain throws `unsupported-chain`. See [Routing](routing.md)                             |
+| `apiKeys`               | none                 | API keys by backend name, each sent only to its backend's host. See [API keys](api-keys.md)                                                                                            |
 
 `timeoutMs` and `pollIntervalMs` must be positive numbers of milliseconds; anything else throws
 `invalid-input`. A value above 2147483647, the largest delay `setTimeout` takes, is lowered to it.
@@ -137,7 +139,7 @@ a result. [Errors](errors/index.md) links a page with the fix for each code.
 | Code                        | When `verify()` throws it                                                                         | Exit code |
 | --------------------------- | ------------------------------------------------------------------------------------------------- | --------- |
 | `invalid-input`             | The input, an option or the route is invalid. Nothing was sent                                    | 2         |
-| `unsupported-chain`         | The explorer does not serve the chain                                                             | 2         |
+| `unsupported-chain`         | The routing table or the explorer does not serve the chain. See [Routing](routing.md#errors)      | 2         |
 | `timeout`                   | The budget ran out before the explorer accepted the submission. No handle                         | 5         |
 | `not-confirmed`             | The budget ran out, or 3 polls in a row failed, before the job ended. `details.handle` resumes it | 4         |
 | `verification-inconclusive` | The job ended without a verdict. No handle: call `verify()` again later                           | 4         |
