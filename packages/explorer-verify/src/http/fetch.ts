@@ -16,6 +16,7 @@
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { ErrorDetails } from "../errors.ts";
+import { readOwn } from "../internal/read-fields.ts";
 import { SILENT_OBSERVER } from "../observe.ts";
 import type { Observer } from "../observe.ts";
 
@@ -111,7 +112,8 @@ export interface HttpContext {
    * R-DX-6). Its `log` gets debug and retry lines; its `emit` gets a `verify.retry` event before
    * each retry wait. It redacts with the keys it was created with and never throws. Taking the
    * observer, not a raw logger and callback, keeps one observer per call, so a broken `onEvent` is
-   * reported once per call. Without it, nothing is logged or emitted.
+   * reported once per call. Without it, nothing is logged or emitted. Its `log` and `emit` must be
+   * own properties, so an observer whose methods live on a class prototype is `invalid-input`.
    */
   readonly observer?: Observer;
   /** Key values to remove from errors. Pass `[]` when the call has no key. */
@@ -157,6 +159,28 @@ export interface HttpRequest {
   /** Request headers. */
   readonly headers?: Readonly<Record<string, string>>;
   /** What may be retried. */
+  readonly retry: RetryMode;
+}
+
+/**
+ * The fields of one {@link request} call, each read once from its context and request as an own
+ * property, with the defaults filled in.
+ */
+interface Call {
+  readonly backend: BackendName;
+  readonly send: typeof fetch;
+  readonly signal: AbortSignal | undefined;
+  readonly log: Observer["log"];
+  readonly emit: Observer["emit"];
+  readonly secrets: readonly string[];
+  readonly requestTimeoutMs: number | undefined;
+  readonly maxResponseBytes: number | undefined;
+  readonly budget: Budget | undefined;
+  readonly random: () => number;
+  readonly url: string;
+  readonly method: HttpRequest["method"];
+  readonly body: HttpRequest["body"];
+  readonly headers: Record<string, string> | undefined;
   readonly retry: RetryMode;
 }
 
@@ -211,6 +235,10 @@ interface Progress {
  *   retry is logged at `warn`; a failure the call throws is never logged at `error`.
  * - Emits a `verify.retry` event before each retry wait (R-DX-6).
  * - A logger or `onEvent` callback that throws does not change the request (decision 0010).
+ * - Reads each field of `ctx`, of its budget and observer, and of `req` once, as an own property,
+ *   so this layer never uses a value added to `Object.prototype` (R-SEC-2). The `RequestInit` it
+ *   passes to `fetch` has no prototype; a platform fetch may still read inherited members of its
+ *   own objects.
  *
  * The returned response's body is already read into memory, inside the timeout and the abort, so
  * reading it cannot hang. It has no `content-encoding`, `content-length` or `transfer-encoding`
@@ -220,10 +248,11 @@ interface Progress {
  * @param req - The request.
  * @returns The first response that is not retried.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
- * @throws ExplorerVerifyError `invalid-input` when `requestTimeoutMs` or `maxResponseBytes` is not
- *   a positive number; `network` when no attempt got a response; `rate-limited` when the last one
- *   got a 429; `unexpected-response` when it got a 5xx, a redirect or a body that cannot be read;
- *   and `timeout` when the budget ran out.
+ * @throws ExplorerVerifyError `invalid-input` when a field of `ctx` or `req` cannot be read or a
+ *   required one is missing, or when `requestTimeoutMs` or `maxResponseBytes` is not a positive
+ *   number; `network` when no attempt got a response; `rate-limited` when the last one got a 429;
+ *   `unexpected-response` when it got a 5xx, a redirect or a body that cannot be read; and
+ *   `timeout` when the budget ran out.
  * @example
  * ```ts
  * const response = await request(
@@ -234,18 +263,13 @@ interface Progress {
  * ```
  */
 export async function request(ctx: HttpContext, req: HttpRequest): Promise<Response> {
-  ctx.signal?.throwIfAborted();
-  checkLimits(ctx);
-  // Read once, then called as a plain function: a browser's fetch called as a method of another
-  // object throws "Illegal invocation".
-  const send = ctx.fetch ?? globalThis.fetch;
-  const { log, emit } = ctx.observer ?? SILENT_OBSERVER;
-  const url = loggableUrl(req.url);
-  const target = `${req.method} ${url}`;
-  const where = { backend: ctx.backend, method: req.method, url };
-  const random = ctx.random ?? Math.random;
+  const call = readCall(ctx, req);
+  checkLimits(call);
+  const { log, emit, budget } = call;
+  const url = loggableUrl(call.url);
+  const target = `${call.method} ${url}`;
+  const where = { backend: call.backend, method: call.method, url };
 
-  const budget = ctx.budget;
   let attempt = 0;
   let failure: Failure | undefined;
   let delayMs: number | undefined;
@@ -264,39 +288,39 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
       );
       emit({
         type: "verify.retry",
-        backend: ctx.backend,
+        backend: call.backend,
         attempt: next,
         reason: failure.reason,
         delayMs,
       });
-      await sleep(delayMs, ctx.signal);
+      await sleep(delayMs, call.signal);
     }
     attempt += 1;
     if (budget !== undefined && budget.deadline - Date.now() <= 0) {
-      throw timeoutError(ctx, target, budget.timeoutMs);
+      throw timeoutError(call, target, budget.timeoutMs);
     }
     log.debug(`${target}: attempt ${String(attempt)} of ${String(MAX_ATTEMPTS)}`, {
       ...where,
       attempt,
     });
     // The logger or onEvent may have aborted the signal; an attempt must not start after that.
-    ctx.signal?.throwIfAborted();
-    const result = await attemptOnce(send, ctx, req);
+    call.signal?.throwIfAborted();
+    const result = await attemptOnce(call);
     if (result.kind === "response") {
       return result.response;
     }
     if (result.kind === "budget") {
-      throw timeoutError(ctx, target, result.timeoutMs);
+      throw timeoutError(call, target, result.timeoutMs);
     }
     if (result.kind === "fatal") {
       const options =
         result.cause === undefined
-          ? { secrets: ctx.secrets }
-          : { secrets: ctx.secrets, cause: result.cause };
+          ? { secrets: call.secrets }
+          : { secrets: call.secrets, cause: result.cause };
       throw new ExplorerVerifyError(
         {
           code: "unexpected-response",
-          backend: ctx.backend,
+          backend: call.backend,
           status: result.status,
           excerpt: result.excerpt,
         },
@@ -306,9 +330,11 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
     }
     failure = result;
     delayMs =
-      attempt < MAX_ATTEMPTS ? retryDelay(budget, req.retry, attempt, result, random) : undefined;
+      attempt < MAX_ATTEMPTS
+        ? retryDelay(budget, call.retry, attempt, result, call.random)
+        : undefined;
   } while (delayMs !== undefined);
-  throw giveUp(ctx, target, attempt, failure);
+  throw giveUp(call, target, attempt, failure);
 }
 
 /**
@@ -350,11 +376,102 @@ function timerMs(ms: number): number {
   return Math.min(ms, MAX_TIMER_MS);
 }
 
+/**
+ * The fields of `ctx` and `req`, each read once as an own property, with the defaults filled in.
+ * `fetch` is read once and then called as a plain function: a browser's fetch called as a method
+ * of another object throws "Illegal invocation". Without it, `globalThis.fetch` is read now, when
+ * the request starts. The headers are copied, so a getter on them runs here and only once.
+ * `signal` is read first: once it has aborted, its reason wins over any problem in another field.
+ *
+ * @throws The caller's `signal.reason`, unchanged, when the signal has aborted.
+ * @throws ExplorerVerifyError `invalid-input` when a getter or Proxy trap throws, or when a
+ *   required field is missing.
+ */
+function readCall(ctx: HttpContext, req: HttpRequest): Call {
+  const signal = optional(ctx, "signal", "context");
+  signal?.throwIfAborted();
+  const observer = optional(ctx, "observer", "context") ?? SILENT_OBSERVER;
+  const budget = optional(ctx, "budget", "context");
+  const headers = optional(req, "headers", "request");
+  return {
+    backend: required(ctx, "backend", "context"),
+    send: optional(ctx, "fetch", "context") ?? globalThis.fetch,
+    signal,
+    log: required(observer, "log", "context.observer"),
+    emit: required(observer, "emit", "context.observer"),
+    secrets: required(ctx, "secrets", "context"),
+    requestTimeoutMs: optional(ctx, "requestTimeoutMs", "context"),
+    maxResponseBytes: optional(ctx, "maxResponseBytes", "context"),
+    budget:
+      budget === undefined
+        ? undefined
+        : {
+            deadline: required(budget, "deadline", "context.budget"),
+            timeoutMs: required(budget, "timeoutMs", "context.budget"),
+          },
+    random: optional(ctx, "random", "context") ?? Math.random,
+    url: required(req, "url", "request"),
+    method: required(req, "method", "request"),
+    body: optional(req, "body", "request"),
+    headers: headers === undefined ? undefined : copyHeaders(headers),
+    retry: required(req, "retry", "request"),
+  };
+}
+
+/**
+ * The own property `name` of `value`, read once, or `undefined` when `value` does not have it.
+ *
+ * @throws ExplorerVerifyError `invalid-input`, without the thrown error, when a getter or Proxy
+ *   trap throws: the error may repeat a caller value (R-SEC-1).
+ */
+function optional<T extends object, K extends keyof T & string>(
+  value: T,
+  name: K,
+  path: string,
+): T[K] | undefined {
+  try {
+    return readOwn(value, name);
+  } catch {
+    throw invalidField(`${path}.${name}`, "could not be read");
+  }
+}
+
+/** Like {@link optional}, for a field that must be set: a missing one is `invalid-input`. */
+function required<T extends object, K extends keyof T & string>(
+  value: T,
+  name: K,
+  path: string,
+): NonNullable<T[K]> {
+  const read = optional(value, name, path);
+  if (read === undefined || read === null) {
+    throw invalidField(`${path}.${name}`, "is missing");
+  }
+  return read;
+}
+
+/** A copy of the request headers, own enumerable fields only, each read once. */
+function copyHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  try {
+    return { ...headers };
+  } catch {
+    throw invalidField("request.headers", "could not be read");
+  }
+}
+
+/** The `invalid-input` error for one field of the context or request. */
+function invalidField(field: string, message: string): ExplorerVerifyError {
+  return new ExplorerVerifyError(
+    { code: "invalid-input", issues: [{ field, message }] },
+    `The HTTP request is invalid: ${field} ${message}.`,
+    { secrets: [] },
+  );
+}
+
 /** Throws `invalid-input` when a limit in the context is not a positive number. */
-function checkLimits(ctx: HttpContext): void {
+function checkLimits(call: Call): void {
   const issues = [
-    { field: "requestTimeoutMs", value: ctx.requestTimeoutMs },
-    { field: "maxResponseBytes", value: ctx.maxResponseBytes },
+    { field: "requestTimeoutMs", value: call.requestTimeoutMs },
+    { field: "maxResponseBytes", value: call.maxResponseBytes },
   ]
     .filter(({ value }) => value !== undefined && !(Number.isFinite(value) && value > 0))
     .map(({ field }) => ({ field, message: "must be a positive finite number" }));
@@ -362,7 +479,7 @@ function checkLimits(ctx: HttpContext): void {
     throw new ExplorerVerifyError(
       { code: "invalid-input", issues },
       `The HTTP limits are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
-      { secrets: ctx.secrets },
+      { secrets: call.secrets },
     );
   }
 }
@@ -372,20 +489,16 @@ function checkLimits(ctx: HttpContext): void {
  * the per-request timeout or the budget's deadline, whichever comes first. The race settles even
  * when the caller's `fetch` ignores the signal.
  */
-async function attemptOnce(
-  send: typeof fetch,
-  ctx: HttpContext,
-  req: HttpRequest,
-): Promise<Attempt> {
-  const requestTimeoutMs = ctx.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
-  const budget = ctx.budget;
+async function attemptOnce(call: Call): Promise<Attempt> {
+  const requestTimeoutMs = call.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
+  const budget = call.budget;
   const budgetLeft = budget === undefined ? Infinity : budget.deadline - Date.now();
   const limitMs = timerMs(Math.min(requestTimeoutMs, budgetLeft));
   // Set when the budget ends before the per-request timeout: the timer then means `timeout`.
   const budgetTimeoutMs =
     budget !== undefined && budgetLeft <= requestTimeoutMs ? budget.timeoutMs : undefined;
   const controller = new AbortController();
-  const caller = ctx.signal;
+  const caller = call.signal;
   const progress: Progress = { status: undefined };
 
   return await new Promise<Attempt>((resolve, reject) => {
@@ -425,7 +538,7 @@ async function attemptOnce(
     const run = async (): Promise<void> => {
       let result: Attempt;
       try {
-        result = await exchange(send, req, controller.signal, progress, maxBytes(ctx));
+        result = await exchange(call, controller.signal, progress);
       } catch (error: unknown) {
         result = { kind: "retry", reason: "network", cause: error };
       }
@@ -435,11 +548,6 @@ async function attemptOnce(
     };
     void run();
   });
-}
-
-/** The configured body limit, or the default. */
-function maxBytes(ctx: HttpContext): number {
-  return ctx.maxResponseBytes ?? MAX_RESPONSE_BYTES;
 }
 
 /**
@@ -466,27 +574,28 @@ function timedOut(budgetTimeoutMs: number | undefined, progress: Progress, cause
  * The fetch and the body read, classified. Throws only when no response arrived; once the
  * headers arrived, every problem is a {@link Fatal}.
  */
-async function exchange(
-  send: typeof fetch,
-  req: HttpRequest,
-  signal: AbortSignal,
-  progress: Progress,
-  limit: number,
-): Promise<Attempt> {
+async function exchange(call: Call, signal: AbortSignal, progress: Progress): Promise<Attempt> {
+  const limit = call.maxResponseBytes ?? MAX_RESPONSE_BYTES;
   // "manual": a redirect is not followed, so the request never reaches a host the caller did not
   // configure (R-SEC-2). A browser then returns an "opaqueredirect" response with status 0.
-  const init: RequestInit = { method: req.method, signal, redirect: "manual" };
-  if (req.body !== undefined) {
-    init.body = req.body;
+  const init: RequestInit = { method: call.method, signal, redirect: "manual" };
+  // No prototype, so an injected fetch or a browser's fetch cannot read a `body`, `headers` or
+  // other member from `Object.prototype`. A platform fetch may still read inherited members of
+  // its own internal objects; Node's fetch does.
+  Object.setPrototypeOf(init, null);
+  if (call.body !== undefined) {
+    init.body = call.body;
   }
-  if (req.headers !== undefined) {
-    init.headers = { ...req.headers };
+  if (call.headers !== undefined) {
+    init.headers = { ...call.headers };
   }
-  const response = await send(req.url, init);
+  // Called as a plain function, never as a method of `call` (see readCall).
+  const { send } = call;
+  const response = await send(call.url, init);
   const { status } = response;
   progress.status = status;
 
-  if (isRedirect(response, req.url)) {
+  if (isRedirect(response, call.url)) {
     discard(response);
     return { kind: "fatal", status, excerpt: "", message: REDIRECT_MESSAGE };
   }
@@ -520,7 +629,7 @@ async function exchange(
       retryAfterMs: retryAfter(response),
     };
   }
-  if (isRetriedServerError(status, req.retry)) {
+  if (isRetriedServerError(status, call.retry)) {
     return {
       kind: "retry",
       reason: "server-error",
@@ -691,24 +800,24 @@ function retryDelay(
 
 /** The last failure as an error, once the retries stop. */
 function giveUp(
-  ctx: HttpContext,
+  call: Call,
   target: string,
   attempts: number,
   failure: Failure,
 ): ExplorerVerifyError {
   const tries = `${String(attempts)} ${attempts === 1 ? "attempt" : "attempts"}`;
-  const options = { secrets: ctx.secrets };
+  const options = { secrets: call.secrets };
   let error: ExplorerVerifyError;
   switch (failure.reason) {
     case "network":
       error = new ExplorerVerifyError(
-        { code: "network", backend: ctx.backend, attempts },
+        { code: "network", backend: call.backend, attempts },
         `${target} got no response after ${tries}.`,
         { ...options, cause: failure.cause },
       );
       break;
     case "rate-limited": {
-      const details: ErrorDetails = { code: "rate-limited", backend: ctx.backend, attempts };
+      const details: ErrorDetails = { code: "rate-limited", backend: call.backend, attempts };
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
@@ -722,7 +831,7 @@ function giveUp(
     case "server-error": {
       const details: ErrorDetails = {
         code: "unexpected-response",
-        backend: ctx.backend,
+        backend: call.backend,
         status: failure.status,
         excerpt: failure.body,
       };
@@ -741,11 +850,11 @@ function giveUp(
 }
 
 /** The `timeout` error for a budget that ran out. */
-function timeoutError(ctx: HttpContext, target: string, timeoutMs: number): ExplorerVerifyError {
+function timeoutError(call: Call, target: string, timeoutMs: number): ExplorerVerifyError {
   return new ExplorerVerifyError(
-    { code: "timeout", backend: ctx.backend, timeoutMs },
+    { code: "timeout", backend: call.backend, timeoutMs },
     `${target} did not finish within the ${String(timeoutMs)} ms budget.`,
-    { secrets: ctx.secrets },
+    { secrets: call.secrets },
   );
 }
 
