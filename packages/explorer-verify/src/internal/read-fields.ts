@@ -1,6 +1,6 @@
 /**
- * Readers shared by the checks of untrusted caller values: `parseHandle`, `validateInput` and
- * `resolveRoute`. Internal: not exported from the package entry point.
+ * Readers shared by the checks of untrusted caller values: `parseHandle`, `validateInput`,
+ * `resolveRoute` and the HTTP layer. Internal: not exported from the package entry point.
  */
 
 const ADDRESS = /^0x([0-9a-fA-F]{40})$/;
@@ -22,6 +22,16 @@ export function readFields(value: unknown): Map<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The own property `name` of `value`, read once, or `undefined` when `value` does not have it. A
+ * value inherited from a prototype, such as one added to `Object.prototype`, is never returned
+ * (R-SEC-2). A getter or Proxy trap that throws is not caught: the caller decides what the failure
+ * means.
+ */
+export function readOwn<T extends object, K extends keyof T>(value: T, name: K): T[K] | undefined {
+  return Object.hasOwn(value, name) ? value[name] : undefined;
 }
 
 /**

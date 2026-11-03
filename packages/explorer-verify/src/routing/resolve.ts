@@ -7,7 +7,7 @@ import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
-import { readChainId } from "../internal/read-fields.ts";
+import { readChainId, readOwn } from "../internal/read-fields.ts";
 import type { Hex, RouteOverride } from "../types.ts";
 
 /**
@@ -79,11 +79,6 @@ function sourcifyExplorerUrl(chainId: number, address: Hex): string {
   return `${SOURCIFY_REPO_URL}/${String(chainId)}/${encodeURIComponent(address)}`;
 }
 
-/** Reads an own property once, or `undefined` when the object does not have it. */
-function readOwn(value: object, name: string): unknown {
-  return Object.hasOwn(value, name) ? Reflect.get(value, name) : undefined;
-}
-
 /**
  * The two override fields, or `undefined` when `value` is not a plain object (prototype
  * `Object.prototype` or `null`) whose fields can be read. Each field is read once.
@@ -97,7 +92,8 @@ function readOverride(value: unknown): { backend: unknown; apiUrl: unknown } | u
     if (prototype !== Object.prototype && prototype !== null) {
       return undefined;
     }
-    return { backend: readOwn(value, "backend"), apiUrl: readOwn(value, "apiUrl") };
+    const fields: { readonly backend?: unknown; readonly apiUrl?: unknown } = value;
+    return { backend: readOwn(fields, "backend"), apiUrl: readOwn(fields, "apiUrl") };
   } catch {
     // A Proxy whose traps throw. The raw error is dropped: it may repeat a caller value.
     return undefined;
