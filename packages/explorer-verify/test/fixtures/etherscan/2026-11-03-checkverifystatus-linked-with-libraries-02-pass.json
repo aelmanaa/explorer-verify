@@ -1,0 +1,32 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=checkverifystatus&guid=ctzxlls4kl2yziafqgangtjk3hgdbd3xhnzbg5d3tgla9wgsb3&apikey=[redacted]",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "169",
+      "content-type": "application/json; charset=utf-8",
+      "server": "nginx",
+      "svid": "arbtestnet",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "5"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": "Pass - Verified"
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:27.613Z"
+}

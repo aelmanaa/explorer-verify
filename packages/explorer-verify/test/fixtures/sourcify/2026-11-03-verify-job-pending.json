@@ -1,0 +1,34 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/84a95999-6a04-422a-8625-fd7f255868b5",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-length": "259",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"103-5gk2fug1oTylNMw/BD0FqmGmE3w\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "d217bc5ac07278fce599cb7e8eeffc18",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "isJobCompleted": false,
+      "verificationId": "84a95999-6a04-422a-8625-fd7f255868b5",
+      "jobStartTime": "2026-11-03T04:51:40Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "421614",
+        "address": "0x986678514E9Fa9C09F4145b482C0fe95a65a4937"
+      }
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:40.468Z"
+}

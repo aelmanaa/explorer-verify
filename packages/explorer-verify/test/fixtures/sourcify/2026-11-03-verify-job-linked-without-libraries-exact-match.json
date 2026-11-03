@@ -1,0 +1,50 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/89bd295a-5a1e-40d7-a853-739e62341b77",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-length": "1103",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"44f-PC6ciw0cNgtZE3XtAhl42ADAFzE\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "e9f4e1648168bc61ca4e645e1063984b",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "89bd295a-5a1e-40d7-a853-739e62341b77",
+      "jobStartTime": "2026-11-03T04:51:43Z",
+      "jobFinishTime": "2026-11-03T04:51:44Z",
+      "compilationTime": "84",
+      "externalVerifications": {
+        "etherscan": {
+          "verificationId": "VERIFIER_ALREADY_VERIFIED",
+          "explorerUrl": "https://sepolia.arbiscan.io//address/0xcecf301f97d21103233E666b2C6B766195D2e5DC"
+        },
+        "blockscout": {
+          "verificationId": "cecf301f97d21103233e666b2c6b766195d2e5dc6ae96860",
+          "statusUrl": "https://arbitrum-sepolia.blockscout.com/api?module=contract&action=checkverifystatus&chainid=421614&guid=cecf301f97d21103233e666b2c6b766195d2e5dc6ae96860",
+          "explorerUrl": "https://arbitrum-sepolia.blockscout.com//address/0xcecf301f97d21103233E666b2C6B766195D2e5DC",
+          "contractApiUrl": "https://arbitrum-sepolia.blockscout.com/api?module=contract&action=getabi&chainid=421614&address=0xcecf301f97d21103233E666b2C6B766195D2e5DC"
+        }
+      },
+      "contract": {
+        "match": "exact_match",
+        "creationMatch": "exact_match",
+        "runtimeMatch": "exact_match",
+        "chainId": "421614",
+        "address": "0xcecf301f97d21103233E666b2C6B766195D2e5DC",
+        "verifiedAt": "2026-11-03T04:51:44Z",
+        "matchId": "58172322"
+      }
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:46.938Z"
+}

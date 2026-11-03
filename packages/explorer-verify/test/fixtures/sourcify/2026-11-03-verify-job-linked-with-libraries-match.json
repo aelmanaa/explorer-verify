@@ -1,0 +1,50 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/84a95999-6a04-422a-8625-fd7f255868b5",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-length": "1085",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"43d-D0eLQbLLC5L+Z1u8+VUFeFD4XSA\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "dcd66fc74c2190fbca4e645e106394f0",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "84a95999-6a04-422a-8625-fd7f255868b5",
+      "jobStartTime": "2026-11-03T04:51:40Z",
+      "jobFinishTime": "2026-11-03T04:51:41Z",
+      "compilationTime": "60",
+      "externalVerifications": {
+        "etherscan": {
+          "verificationId": "VERIFIER_ALREADY_VERIFIED",
+          "explorerUrl": "https://sepolia.arbiscan.io//address/0x986678514E9Fa9C09F4145b482C0fe95a65a4937"
+        },
+        "blockscout": {
+          "verificationId": "986678514e9fa9c09f4145b482c0fe95a65a49376ae9685d",
+          "statusUrl": "https://arbitrum-sepolia.blockscout.com/api?module=contract&action=checkverifystatus&chainid=421614&guid=986678514e9fa9c09f4145b482c0fe95a65a49376ae9685d",
+          "explorerUrl": "https://arbitrum-sepolia.blockscout.com//address/0x986678514E9Fa9C09F4145b482C0fe95a65a4937",
+          "contractApiUrl": "https://arbitrum-sepolia.blockscout.com/api?module=contract&action=getabi&chainid=421614&address=0x986678514E9Fa9C09F4145b482C0fe95a65a4937"
+        }
+      },
+      "contract": {
+        "match": "match",
+        "creationMatch": "match",
+        "runtimeMatch": "match",
+        "chainId": "421614",
+        "address": "0x986678514E9Fa9C09F4145b482C0fe95a65a4937",
+        "verifiedAt": "2026-11-03T04:51:41Z",
+        "matchId": "58172319"
+      }
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:43.650Z"
+}

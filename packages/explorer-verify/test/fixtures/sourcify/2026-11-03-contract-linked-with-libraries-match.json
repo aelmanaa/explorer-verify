@@ -1,0 +1,32 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/421614/0x986678514E9Fa9C09F4145b482C0fe95a65a4937",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cache-control": "public,max-age=3600",
+      "content-length": "195",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"c3-BtHeBiTlgcbKwjdns8tbX9gwg2s\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "04af599a68fe60d2e599cb7e8eefff68",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "matchId": "58172319",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-03T04:51:41Z",
+      "match": "match",
+      "chainId": "421614",
+      "address": "0x986678514E9Fa9C09F4145b482C0fe95a65a4937"
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:43.717Z"
+}

@@ -47,8 +47,13 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
   (decision 0005). A build helper (R-DX-2) makes it easy to produce.
 - **R-IN-3** Constructor arguments are optional. When absent, the library derives them from the
-  creation code: it fetches the creation transaction input through a JSON-RPC URL or the explorer, and removes the
-  compiled creation bytecode from its start; the remainder is the ABI-encoded arguments. When the caller supplies them, they win.
+  creation code: the explorer's `creationBytecode` (Etherscan `getcontractcreation`), or the
+  creation transaction input fetched through a JSON-RPC URL when the contract was deployed
+  directly. It removes the compiled creation bytecode from the start of that code; the remainder is
+  the ABI-encoded arguments. For a factory deployment the transaction input is the factory's code,
+  so only the explorer source applies
+  ([live probes, D](research/2026-11-03-m2-live-probes.md#d-similar-match-and-getcontractcreation-for-a-factory-deployment)).
+  When the caller supplies them, they win.
 - **R-IN-4** Library link addresses are accepted for contracts that use external libraries.
 - **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
   metadata hash in the deployed bytecode, fetches the metadata and sources from a caller-configured
@@ -365,11 +370,24 @@ Measurement:
 
 ## Open questions
 
-| Question                                                                                                                                                         | Owner      | Needed by |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
-| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?                                                                       | Maintainer | M3        |
-| Sourcify rate limits and terms for high-volume use                                                                                                               | Maintainer | M2        |
-| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live                                                                 | Maintainer | M2        |
-| Does Routescan's keyless tier accept `verifysourcecode`? Submit an already-verified testnet contract, for example on 43113, without a key, and record the answer | Maintainer | M2        |
-| What HTTP status does Routescan return when rate-limited? Test live                                                                                              | Maintainer | M2        |
-| Does Etherscan v2 verify a solc-compiled EVM-bytecode contract on zkSync Era (324) without `zksolcVersion`? Test live                                            | Maintainer | M2        |
+| Question                                                                                                                      | Owner      | Needed by |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?                                    | Maintainer | M3        |
+| Sourcify rate limits and terms for high-volume use                                                                            | Maintainer | M2        |
+| What HTTP status and body does Routescan return when rate-limited? Twenty concurrent keyless requests did not reach the limit | Maintainer | M2        |
+| How long does a Routescan GUID stay queryable, and how long can its CDN serve a cached poll answer?                           | Maintainer | M2        |
+| Does Etherscan v2 verify a solc-compiled EVM-bytecode contract on zkSync Era (324) without `zksolcVersion`? Test live         | Maintainer | M2        |
+
+The live probes of 2026-11-03 answered two earlier questions
+([live probes](research/2026-11-03-m2-live-probes.md)):
+
+- Routescan's keyless tier accepts `verifysourcecode`. A keyless form-encoded submit for one
+  contract on Avalanche Fuji (43113) was accepted and verified
+  ([B](research/2026-11-03-m2-live-probes.md#b-routescan-keyless-submit-as-a-form-encoded-post)).
+  A repeated poll URL was answered from a CDN cache, which still served `Pending in queue` at an
+  age of 3044 s; only a unique query parameter reached the API. The GUID answered `Pass - Verified`
+  at 05:30:31 UTC and `Verification not found` at 06:13:36 UTC, while the contract stayed verified.
+- Etherscan Similar Match covered a factory-deployed contract whose immutables differ, for two
+  children created with CREATE in one transaction on Arbitrum Sepolia (421614), compiled with solc
+  0.8.24. The second child's `SimilarMatch` named the first one 6.7 s after the first one's submit
+  ([D](research/2026-11-03-m2-live-probes.md#d-similar-match-and-getcontractcreation-for-a-factory-deployment)).

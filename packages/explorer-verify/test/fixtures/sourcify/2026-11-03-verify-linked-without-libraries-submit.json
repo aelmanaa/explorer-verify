@@ -1,0 +1,74 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/421614/0xcecf301f97d21103233E666b2C6B766195D2e5DC",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "encoding": "application/json",
+      "json": {
+        "stdJsonInput": {
+          "language": "Solidity",
+          "sources": {
+            "src/ProbeELinked2.sol": {
+              "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {ProbeELib} from \"./ProbeELib.sol\";\n\n// explorer-verify live probe 2026-11-03 E2: linked contract, submitted without libraries\ncontract ProbeELinked2 {\n    function run(uint256 x) external pure returns (uint256) {\n        return ProbeELib.triple(x);\n    }\n}\n"
+            },
+            "src/ProbeELib.sol": {
+              "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n// explorer-verify live probe 2026-11-03 E: external library\nlibrary ProbeELib {\n    function triple(uint256 x) external pure returns (uint256) {\n        return x * 3;\n    }\n}\n"
+            }
+          },
+          "settings": {
+            "optimizer": {
+              "enabled": true,
+              "runs": 200
+            },
+            "metadata": {
+              "useLiteralContent": false,
+              "bytecodeHash": "ipfs",
+              "appendCBOR": true
+            },
+            "outputSelection": {
+              "*": {
+                "*": [
+                  "abi",
+                  "evm.bytecode.object",
+                  "evm.bytecode.sourceMap",
+                  "evm.bytecode.linkReferences",
+                  "evm.deployedBytecode.object",
+                  "evm.deployedBytecode.sourceMap",
+                  "evm.deployedBytecode.linkReferences",
+                  "evm.deployedBytecode.immutableReferences",
+                  "evm.methodIdentifiers",
+                  "metadata"
+                ]
+              }
+            },
+            "evmVersion": "cancun",
+            "viaIR": false,
+            "libraries": {}
+          }
+        },
+        "compilerVersion": "0.8.24+commit.e11b9ed9",
+        "contractIdentifier": "src/ProbeELinked2.sol:ProbeELinked2"
+      }
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-length": "57",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"39-99mQY9+cn5mKOV3eyuP3/Xrcek4\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "04985a6223bdaa8aca4e645e106392d4",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "verificationId": "89bd295a-5a1e-40d7-a853-739e62341b77"
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:43.792Z"
+}
