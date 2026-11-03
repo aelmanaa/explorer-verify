@@ -1,0 +1,51 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=getsourcecode&address=0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5&apikey=[redacted]",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "943",
+      "content-type": "application/json; charset=utf-8",
+      "server": "nginx",
+      "svid": "arbtestnet",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "5"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "{{\r\n  \"language\": \"Solidity\",\r\n  \"sources\": {\r\n    \"src/ProbeDChild.sol\": {\r\n      \"content\": \"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n// explorer-verify live probe 2026-11-03 D: factory child with one immutable\\ncontract ProbeDChild {\\n    uint256 public immutable value;\\n\\n    constructor(uint256 value_) {\\n        value = value_;\\n    }\\n}\\n\"\r\n    }\r\n  },\r\n  \"settings\": {\r\n    \"optimizer\": {\r\n      \"enabled\": true,\r\n      \"runs\": 200\r\n    },\r\n    \"metadata\": {\r\n      \"useLiteralContent\": false,\r\n      \"bytecodeHash\": \"ipfs\",\r\n      \"appendCBOR\": true\r\n    },\r\n    \"outputSelection\": {\r\n      \"*\": {\r\n        \"*\": [\r\n          \"evm.bytecode\",\r\n          \"evm.deployedBytecode\",\r\n          \"devdoc\",\r\n          \"userdoc\",\r\n          \"metadata\",\r\n          \"abi\"\r\n        ]\r\n      }\r\n    },\r\n    \"evmVersion\": \"cancun\",\r\n    \"viaIR\": false\r\n  }\r\n}}",
+          "ABI": "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"value_\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+          "ContractName": "ProbeDChild",
+          "CompilerVersion": "v0.8.24+commit.e11b9ed9",
+          "CompilerType": "solc-j",
+          "OptimizationUsed": "1",
+          "Runs": "200",
+          "ConstructorArguments": "0000000000000000000000000000000000000000000000000000000000000001",
+          "EVMVersion": "cancun",
+          "Library": "",
+          "ContractFileName": "src/ProbeDChild.sol",
+          "LicenseType": "",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": ""
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:15.377Z"
+}

@@ -74,8 +74,8 @@ read 2026-11-03.
   50 characters ([verifyzksyncsourcecode](https://docs.etherscan.io/api-reference/endpoint/verifyzksyncsourcecode),
   read 2026-11-03).
 - Both match the handle's `jobId` pattern `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$` (decision 0009).
-  This rests on the documented examples; no real Routescan GUID was produced, because no contract
-  was submitted.
+  This rests on the documented examples. A real Routescan GUID, produced later on 2026-11-03, is a
+  UUID instead and also matches the pattern ([live probes](2026-11-03-m2-live-probes.md), probe B).
 
 ### Key policy and rate limits
 
@@ -204,9 +204,11 @@ member of the compiler union. This note records the facts; it does not change th
 
 ## Open questions
 
-- Does Routescan's keyless tier accept `verifysourcecode`, and what does a successful submit
-  return? Not tested: this check made no submission.
+- Answered on 2026-11-03 by the [live probes](2026-11-03-m2-live-probes.md), probe B: the keyless
+  tier accepted a form-encoded `verifysourcecode` on Avalanche Fuji (43113) and returned a GUID in
+  UUID form, `f111a4c8-368c-51d2-8163-c7ab477a1d91`.
 - Which HTTP status does Routescan return over the rate limit? The docs say only "an error status".
+  Twenty concurrent keyless requests did not reach it (live probes, probe C).
 - Is there an API that lists Routescan's supported chains with their network? Not found in the docs
   on 2026-11-03.
 - Do the two deployed `contract_verification` hosts send the CORS headers that the source sets?

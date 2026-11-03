@@ -1,0 +1,29 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=checkverifystatus&guid=f111a4c8-368c-51d2-8163-c7ab477a1d91&nocache=1793686416856",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cf-cache-status": "MISS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "last-modified": "Tue, 03 Nov 2026 06:13:37 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "transfer-encoding": "chunked",
+      "vary": "accept-encoding"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Verification not found"
+    }
+  },
+  "recordedAt": "2026-11-03T06:13:36.857Z"
+}

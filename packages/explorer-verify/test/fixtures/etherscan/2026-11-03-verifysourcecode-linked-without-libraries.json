@@ -1,0 +1,46 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "apikey": "[redacted]",
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "compilerversion": "v0.8.24+commit.e11b9ed9",
+        "contractaddress": "0xcecf301f97d21103233E666b2C6B766195D2e5DC",
+        "sourceCode": "{\"language\":\"Solidity\",\"sources\":{\"src/ProbeELinked2.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {ProbeELib} from \\\"./ProbeELib.sol\\\";\\n\\n// explorer-verify live probe 2026-11-03 E2: linked contract, submitted without libraries\\ncontract ProbeELinked2 {\\n    function run(uint256 x) external pure returns (uint256) {\\n        return ProbeELib.triple(x);\\n    }\\n}\\n\"},\"src/ProbeELib.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n// explorer-verify live probe 2026-11-03 E: external library\\nlibrary ProbeELib {\\n    function triple(uint256 x) external pure returns (uint256) {\\n        return x * 3;\\n    }\\n}\\n\"}},\"settings\":{\"optimizer\":{\"enabled\":true,\"runs\":200},\"metadata\":{\"useLiteralContent\":false,\"bytecodeHash\":\"ipfs\",\"appendCBOR\":true},\"outputSelection\":{\"*\":{\"*\":[\"abi\",\"evm.bytecode.object\",\"evm.bytecode.sourceMap\",\"evm.bytecode.linkReferences\",\"evm.deployedBytecode.object\",\"evm.deployedBytecode.sourceMap\",\"evm.deployedBytecode.linkReferences\",\"evm.deployedBytecode.immutableReferences\",\"evm.methodIdentifiers\",\"metadata\"]}},\"evmVersion\":\"cancun\",\"viaIR\":false,\"libraries\":{}}}\n",
+        "contractname": "src/ProbeELinked2.sol:ProbeELinked2"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "209",
+      "content-type": "application/json; charset=utf-8",
+      "server": "nginx",
+      "svid": "arbtestnet",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "5"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": "9qaexazfu55fthj5fdjzpk47v1hkbz1p2ywcn4qqdcbyynn5q5"
+    }
+  },
+  "recordedAt": "2026-11-03T04:51:28.090Z"
+}
