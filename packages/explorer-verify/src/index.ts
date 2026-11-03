@@ -11,7 +11,8 @@ export type {
 } from "./errors.ts";
 export { exitCodeOf, toEnvelope } from "./envelope.ts";
 export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";
-export { parseHandle } from "./flow/handle.ts";
+export { formatHandle, parseHandle } from "./flow/handle.ts";
+export { checkStatus } from "./flow/status.ts";
 export { verify } from "./flow/verify.ts";
 export { buildVerifyInput } from "./input/build.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";

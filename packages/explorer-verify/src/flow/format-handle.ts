@@ -26,6 +26,8 @@ export function splitHandle(value: unknown): { prefix: string; jobId: string } |
   if (typeof value !== "string" || !value.startsWith("ev1:")) {
     return undefined;
   }
+  // Lenient on purpose: this only finds the job id to redact in text that may hold any job id,
+  // even one with a `:`. parseHandle, which decides what a valid handle is, demands five parts.
   const fields = value.split(":");
   if (fields.length <= HANDLE_PREFIX_FIELDS) {
     return undefined;
