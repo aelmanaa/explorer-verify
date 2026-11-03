@@ -1,0 +1,22 @@
+{
+  "attestations": [
+    {
+      "predicateType": "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+      "bundle": {
+        "dsseEnvelope": {
+          "payloadType": "application/vnd.in-toto+json",
+          "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjAuMSIsInN1YmplY3QiOlt7Im5hbWUiOiJwa2c6bnBtL2hhcmRoYXQta21zQDAuMTAuMSIsImRpZ2VzdCI6eyJzaGE1MTIiOiJjODg5MWRhOGQ3ZjZjYTkzNGU4YmU3NjllMTZiMzQxYzkxYjQ5NDdkOTYxYWU5N2RkZTA1Y2U2MTM1OGYwZjYwODE5Y2MxNTFiODVlYzIxMmJlMzk1OTJiYTc3NjYxM2Q4YWViMGM1ZTcxMDkyNzkwZTdhNTQyYjk4MGJlNjc2ZCJ9fV0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL2dpdGh1Yi5jb20vbnBtL2F0dGVzdGF0aW9uL3RyZWUvbWFpbi9zcGVjcy9wdWJsaXNoL3YwLjEiLCJwcmVkaWNhdGUiOnsibmFtZSI6ImhhcmRoYXQta21zIiwidmVyc2lvbiI6IjAuMTAuMSIsInJlZ2lzdHJ5IjoiaHR0cHM6Ly9yZWdpc3RyeS5ucG1qcy5vcmcifX0="
+        }
+      }
+    },
+    {
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "bundle": {
+        "dsseEnvelope": {
+          "payloadType": "application/vnd.in-toto+json",
+          "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoicGtnOm5wbS9oYXJkaGF0LWttc0AwLjEwLjEiLCJkaWdlc3QiOnsic2hhNTEyIjoiYzg4OTFkYThkN2Y2Y2E5MzRlOGJlNzY5ZTE2YjM0MWM5MWI0OTQ3ZDk2MWFlOTdkZGUwNWNlNjEzNThmMGY2MDgxOWNjMTUxYjg1ZWMyMTJiZTM5NTkyYmE3NzY2MTNkOGFlYjBjNWU3MTA5Mjc5MGU3YTU0MmI5ODBiZTY3NmQifX1dLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9zbHNhLmRldi9wcm92ZW5hbmNlL3YxIiwicHJlZGljYXRlIjp7ImJ1aWxkRGVmaW5pdGlvbiI6eyJidWlsZFR5cGUiOiJodHRwczovL3Nsc2EtZnJhbWV3b3JrLmdpdGh1Yi5pby9naXRodWItYWN0aW9ucy1idWlsZHR5cGVzL3dvcmtmbG93L3YxIiwiZXh0ZXJuYWxQYXJhbWV0ZXJzIjp7IndvcmtmbG93Ijp7InJlZiI6InJlZnMvdGFncy92MC4xMC4xIiwicmVwb3NpdG9yeSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9hZWxtYW5hYS9oYXJkaGF0LWttcyIsInBhdGgiOiIuZ2l0aHViL3dvcmtmbG93cy9yZWxlYXNlLnltbCJ9fSwiaW50ZXJuYWxQYXJhbWV0ZXJzIjp7ImdpdGh1YiI6eyJldmVudF9uYW1lIjoicHVzaCIsInJlcG9zaXRvcnlfaWQiOiIxMzk3MzcyODIxIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjQ1MDM1NDMifX0sInJlc29sdmVkRGVwZW5kZW5jaWVzIjpbeyJ1cmkiOiJnaXQraHR0cHM6Ly9naXRodWIuY29tL2FlbG1hbmFhL2hhcmRoYXQta21zQHJlZnMvdGFncy92MC4xMC4xIiwiZGlnZXN0Ijp7ImdpdENvbW1pdCI6IjkwZDFiOTY5NDgwOTIzYWI2NDc0ZmRkZTRmY2YyMTM2ODlkMjc5OTYifX1dfSwicnVuRGV0YWlscyI6eyJidWlsZGVyIjp7ImlkIjoiaHR0cHM6Ly9naXRodWIuY29tL2FjdGlvbnMvcnVubmVyL2dpdGh1Yi1ob3N0ZWQifSwibWV0YWRhdGEiOnsiaW52b2NhdGlvbklkIjoiaHR0cHM6Ly9naXRodWIuY29tL2FlbG1hbmFhL2hhcmRoYXQta21zL2FjdGlvbnMvcnVucy8zODA1MTQ5Nzg2NS9hdHRlbXB0cy8yIn19fX0="
+        }
+      }
+    }
+  ]
+}
