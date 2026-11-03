@@ -7,6 +7,8 @@ import {
   AGENT_PAGE_HEADINGS,
   anchors,
   checkAgentDocs,
+  errorCodesOf,
+  errorPageFiles,
   githubSlug,
   headings,
   listFiles,
@@ -643,5 +645,32 @@ describe("packaging (R-AX-2)", () => {
     assert.throws(() => packedFiles("{}"), /no file list/);
     assert.throws(() => packedFiles("[1]"), /no file list/);
     assert.throws(() => packedFiles("[null]"), /no file list/);
+  });
+});
+
+describe("error pages in the package (R-AX-10)", () => {
+  it("reads ERROR_CODES from a loaded module", () => {
+    assert.deepEqual(errorCodesOf({ ERROR_CODES: ["network", "timeout"] }), ["network", "timeout"]);
+    assert.deepEqual(errorCodesOf({ ERROR_CODES: [] }), []);
+  });
+
+  it("throws when the module has no array of strings", () => {
+    for (const module of [
+      undefined,
+      null,
+      1,
+      {},
+      { ERROR_CODES: "network" },
+      { ERROR_CODES: [1] },
+    ]) {
+      assert.throws(() => errorCodesOf(module), /exports no ERROR_CODES array of strings/);
+    }
+  });
+
+  it("names the packaged page of each code", () => {
+    assert.deepEqual(errorPageFiles(["network", "timeout"]), [
+      "docs/reference/errors/network.md",
+      "docs/reference/errors/timeout.md",
+    ]);
   });
 });

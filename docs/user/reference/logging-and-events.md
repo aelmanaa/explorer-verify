@@ -163,7 +163,8 @@ for errors and results:
   each, between characters that are not letters or digits.
 
 A handle's job id keeps the shape of a key, so a valid handle still resumes. It is redacted only
-when it equals a key the call knows. See [Errors](errors.md) for the same rules on thrown errors.
+when it equals a key the call knows. See [Errors](errors/index.md#api-keys-in-errors) for the same
+rules on thrown errors.
 
 Event fields with a fixed set of values, `type`, `backend`, `match`, `state`, `reason` and
 `status`, are copied as they are. They hold words the library chose, such as `sourcify` or

@@ -12,11 +12,12 @@ import type {
   ExplorerVerifyErrorOptions,
   Handle,
 } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
+import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 import { assertLinear, assertSameCost } from "./linear.ts";
 
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
-const DOCS = "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md";
 const LEAKY_URL = `https://api.example.org/v2/api?chainid=1&apikey=${DUMMY_KEY}&module=contract`;
 
 function handle(jobId = "550e8400-e29b-41d4-a716-446655440000"): Handle {
@@ -47,41 +48,6 @@ function invalidInput(): ExplorerVerifyError {
     { secrets: [] },
   );
 }
-
-// Details for every code. A new code that is missing here fails to compile.
-const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
-  "invalid-input": { code: "invalid-input", issues: [] },
-  "not-confirmed": { code: "not-confirmed", handle: handle() },
-  "unsupported-chain": { code: "unsupported-chain", chainId: 999_999, backend: "sourcify" },
-  network: { code: "network", backend: "sourcify", attempts: 3 },
-  "rate-limited": { code: "rate-limited", backend: "sourcify", retryAfterMs: 1_000, attempts: 5 },
-  timeout: { code: "timeout", backend: "sourcify", timeoutMs: 120_000 },
-  "unexpected-response": {
-    code: "unexpected-response",
-    backend: "sourcify",
-    status: 502,
-    excerpt: "<html>Bad gateway</html>",
-    retryAfterMs: 2_000,
-  },
-  "in-progress": { code: "in-progress", backend: "sourcify" },
-  "unknown-state": { code: "unknown-state", handle: handle(), excerpt: '{"status":"weird"}' },
-  "job-not-found": { code: "job-not-found", handle: handle() },
-  cancelled: { code: "cancelled", handle: handle() },
-  "incomplete-input": { code: "incomplete-input", field: "compilerVersion", candidates: [] },
-  "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
-  "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
-  "verification-inconclusive": {
-    code: "verification-inconclusive",
-    backend: "sourcify",
-    reason: "internal_error: The server encountered an unexpected error.",
-  },
-  "source-mismatch": {
-    code: "source-mismatch",
-    path: "src/Greeter.sol",
-    expected: `0x${"a".repeat(64)}`,
-    actual: `0x${"b".repeat(64)}`,
-  },
-};
 
 // Details for every code with the key planted in every string field that can hold one.
 const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
@@ -255,7 +221,7 @@ describe("ExplorerVerifyError", () => {
     assert.equal(error.message, "The input is invalid: chainId.");
     assert.equal(error.hint, "Fix the fields listed in details.issues, then call again.");
     assert.equal(error.retryable, false);
-    assert.equal(error.docsUrl, `${DOCS}#invalid-input`);
+    assert.equal(error.docsUrl, docsUrlOf("invalid-input"));
     assert.equal(String(error), "ExplorerVerifyError: The input is invalid: chainId.");
   });
 
@@ -264,7 +230,7 @@ describe("ExplorerVerifyError", () => {
     assert.equal(error.code, "not-confirmed");
     assert.equal(error.retryable, true);
     assert.equal(error.hint, "Call checkStatus with details.handle later to continue polling.");
-    assert.equal(error.docsUrl, `${DOCS}#not-confirmed`);
+    assert.equal(error.docsUrl, docsUrlOf("not-confirmed"));
   });
 
   for (const code of ERROR_CODES) {
@@ -282,7 +248,7 @@ describe("ExplorerVerifyError", () => {
       assert.equal(thrown.message, `A ${code} error.`);
       assert.equal(thrown.hint, EXPECTED[code].hint);
       assert.equal(thrown.retryable, EXPECTED[code].retryable);
-      assert.equal(thrown.docsUrl, `${DOCS}#${code}`);
+      assert.equal(thrown.docsUrl, docsUrlOf(code));
     });
   }
 
@@ -441,7 +407,7 @@ describe("ExplorerVerifyError.toJSON", () => {
       code: "invalid-input",
       message: "The input is invalid: chainId.",
       hint: "Fix the fields listed in details.issues, then call again.",
-      docsUrl: `${DOCS}#invalid-input`,
+      docsUrl: docsUrlOf("invalid-input"),
       retryable: false,
     };
     const json = invalidInput().toJSON();
@@ -666,78 +632,6 @@ describe("ExplorerVerifyError.name", () => {
     assert.equal(Object.hasOwn(error, "name"), false);
     assert.equal(error.name, "ExplorerVerifyError");
     assert.ok(String(error).startsWith("ExplorerVerifyError: "));
-  });
-});
-
-describe("error reference page", () => {
-  const page = readFileSync(
-    new URL("../../../../docs/user/reference/errors.md", import.meta.url),
-    "utf8",
-  );
-  const codesSection = page.slice(page.indexOf("\n## Codes\n"));
-  const headings = [...codesSection.matchAll(/^### (.+)$/gm)].map((match) => match[1] ?? "");
-
-  /** The text of one code's entry, from its heading to the next. */
-  function entry(code: string): string {
-    const start = codesSection.indexOf(`\n### ${code}\n`);
-    const end = codesSection.indexOf("\n### ", start + 1);
-    return codesSection.slice(start, end === -1 ? undefined : end);
-  }
-
-  it("has a heading for every code in ERROR_CODES (R-AX-10)", () => {
-    for (const code of ERROR_CODES) {
-      assert.ok(headings.includes(code), `errors.md has no "### ${code}"`);
-    }
-  });
-
-  it("has no heading that names a code outside ERROR_CODES (R-AX-10)", () => {
-    const codes: readonly string[] = ERROR_CODES;
-    assert.equal(headings.length, ERROR_CODES.length);
-    for (const heading of headings) {
-      assert.ok(codes.includes(heading), `"### ${heading}" is not a code`);
-    }
-    assert.equal(page.match(/^### /gm)?.length, ERROR_CODES.length);
-  });
-
-  it("states each code's exit code once, equal to ERROR_EXIT_CODES (R-AX-7)", () => {
-    for (const code of ERROR_CODES) {
-      const lines = [...entry(code).matchAll(/^Exit code: (\d+)$/gm)];
-      assert.equal(lines.length, 1, `${code} has ${String(lines.length)} exit code lines`);
-      assert.equal(Number(lines[0]?.[1]), ERROR_EXIT_CODES[code], code);
-    }
-  });
-
-  it("states each code's retry flag, equal to the catalogue (R-AX-10)", () => {
-    for (const code of ERROR_CODES) {
-      const retry = entry(code).match(/^Retryable: (yes|no)\b/m)?.[1];
-      assert.equal(retry === "yes", EXPECTED[code].retryable, code);
-    }
-  });
-
-  it("lists each code in the row of its exit code in the exit code table (R-AX-7)", () => {
-    const rows = new Map(
-      [...page.matchAll(/^\| (\d+) +\|[^|]*\|([^|]*)\|$/gm)].map((match) => [
-        Number(match[1]),
-        match[2] ?? "",
-      ]),
-    );
-    assert.deepEqual([...rows.keys()], [0, 1, 2, 3, 4, 5, 6, 130]);
-    for (const code of ERROR_CODES) {
-      const holding = [...rows].filter(([, cell]) => cell.includes(`\`${code}\``));
-      assert.deepEqual(
-        holding.map(([exit]) => exit),
-        [ERROR_EXIT_CODES[code]],
-        `${code} must appear in exactly the row for exit code ${String(ERROR_EXIT_CODES[code])}`,
-      );
-    }
-  });
-
-  it("links every docsUrl to an anchor that exists on the page (R-AX-10)", () => {
-    for (const code of ERROR_CODES) {
-      const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
-      const anchor = new URL(error.docsUrl).hash.slice(1);
-      assert.ok(headings.includes(anchor), `no heading for #${anchor}`);
-    }
   });
 });
 
@@ -1095,21 +989,6 @@ describe("ExplorerVerifyError excerpts", () => {
   });
 });
 
-describe("error reference page, exit code rows", () => {
-  const page = readFileSync(
-    new URL("../../../../docs/user/reference/errors.md", import.meta.url),
-    "utf8",
-  );
-
-  it("says the explorer definitively rejected a failed submission (R-AX-7)", () => {
-    assert.match(page, /^\| 1 +\| `failed`: the explorer definitively rejected the submission/m);
-  });
-
-  it("states the boundary between unexpected-response and unknown-state", () => {
-    assert.match(page, /`unexpected-response` and `unknown-state` differ in who answered/);
-  });
-});
-
 describe("cancelled (R-AX-7)", () => {
   it("maps to exit code 130, is not retryable and has the resume hint", () => {
     const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
@@ -1119,7 +998,7 @@ describe("cancelled (R-AX-7)", () => {
       error.hint,
       "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
     );
-    assert.equal(error.docsUrl, `${DOCS}#cancelled`);
+    assert.equal(error.docsUrl, docsUrlOf("cancelled"));
   });
 
   it("has no handle in details or toJSON when the cancel came before a submission was accepted (R-AX-5)", () => {
@@ -1148,11 +1027,15 @@ describe("cancelled (R-AX-7)", () => {
   });
 
   it("is documented as created by the CLI, not thrown by the core", () => {
-    const page = readFileSync(
-      new URL("../../../../docs/user/reference/errors.md", import.meta.url),
+    const index = readFileSync(
+      new URL("../../../../docs/user/reference/errors/index.md", import.meta.url),
       "utf8",
     );
-    assert.match(page, /^\| 130 +\| Cancelled +\| `cancelled`/m);
+    const page = readFileSync(
+      new URL("../../../../docs/user/reference/errors/cancelled.md", import.meta.url),
+      "utf8",
+    );
+    assert.match(index, /^\| 130 +\| Cancelled +\| `cancelled`/m);
     assert.match(page, /The CLI creates this error/);
   });
 });

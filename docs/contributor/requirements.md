@@ -206,13 +206,18 @@ Docs:
 - **R-AX-2** The npm package ships `docs/user/` as `docs/`, plus an `llms.txt` whose links are
   relative to the packaged docs. An agent working in `node_modules` reads the docs of the installed
   version. The repository-root `llms.txt` (R-AX-1) links GitHub. Each page states the version it
-  describes. The API reference is generated from
-  TSDoc and the CLI reference from the CLI's own help, so neither drifts from the code.
+  describes. The CLI reference is generated from the CLI's own help, so it does not drift from the
+  code. The API reference is generated from TSDoc into the docs site build only (R-AX-17). It is
+  not written to `docs/user/` and does not ship in the package, whose `.d.ts` files carry the
+  TSDoc.
 - **R-AX-3** A page "Using explorer-verify from an agent" says which calls are outward and permanent
   (submit) and which are safe (validate, dry run, lookup, status), where keys come from, and the
   Etherscan plan rule (R-SEC-3). Every user page links `llms.txt` near the top.
 - **R-AX-4** A skill (`skills/explorer-verify/SKILL.md`) ships in the npm package. CI runs its
   examples against the built package, so a release cannot ship a stale skill.
+- **R-AX-17** A docs site serves the user docs of the version on npm `latest` before 1.0, and of
+  each major from 1.0, built from release tags, never from `main`. It serves `/llms.txt` and a
+  `.md` copy of each page (decision 0015).
 
 CLI:
 
@@ -282,8 +287,12 @@ CLI:
   per-backend keys. Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
-  the library share one catalogue (R-DX-3). An unknown command or flag suggests the single closest
-  match.
+  the library share one catalogue (R-DX-3). The docs URL is the code's own page,
+  `reference/errors/<code>`, with no fragment: unversioned before 1.0, and per major from 1.0
+  (decision 0015). A code that was ever released keeps its page. When a release removes a code, its
+  page stays, says "Removed in X.Y.Z" and links the replacement's page. A version is promoted to npm
+  `latest` only after its docs URLs resolve. An unknown command or flag suggests the single
+  closest match.
 - **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
   the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
 - **R-AX-12** The same input gives the same stdout: stable key order, no timestamps unless

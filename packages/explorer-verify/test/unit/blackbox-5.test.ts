@@ -19,14 +19,14 @@ import type {
   Handle,
   VerifyResult,
 } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 import { validateEnvelope } from "./envelope-schema.ts";
 
 // Fake keys. Never real ones (R-SEC-1).
 const BARE_KEY = "QWERTYUIOP1234567890ASDFGHJKLZXCVB"; // 34 chars, Etherscan-style
 const OPAQUE_KEY = "bbtest-opaque-secret-value-xyz"; // matches no deny-list rule
-const DOCS = "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md";
 
-// The documented table in docs/user/reference/json-output.md and errors.md (R-AX-7).
+// The documented table in docs/user/reference/json-output.md and errors/index.md (R-AX-7).
 const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "invalid-input": { exit: 2, retryable: false },
   "not-confirmed": { exit: 4, retryable: true },
@@ -239,7 +239,7 @@ describe("black box #5: errors", () => {
       assert.equal(json.code, code);
       assert.equal(json.message, `A ${code} error.`);
       assert.ok(json.hint.trim().length > 0);
-      assert.equal(json.docsUrl, `${DOCS}#${code}`);
+      assert.equal(json.docsUrl, docsUrlOf(code));
       assert.equal(json.retryable, ERROR_TABLE[code].retryable);
       const hasHandle = "handle" in detailsFor(code, "");
       const keys = [

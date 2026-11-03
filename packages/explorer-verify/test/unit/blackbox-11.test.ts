@@ -1,6 +1,6 @@
 // Black-box tests for issue #11: VerifyOptions, Handle and the error shape. They use only the
 // public entry point and the promises in the issue, decision 0009, requirements.md and
-// docs/user/reference/errors.md. Cases the other unit tests already cover are left out.
+// docs/user/reference/errors/. Cases the other unit tests already cover are left out.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -14,6 +14,7 @@ import type {
   RouteOverride,
   VerifyOptions,
 } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 // --- type-level helpers -------------------------------------------------------------------------
 
@@ -221,7 +222,7 @@ describe("blackbox #11: parseHandle rejects bad input (R-FLOW-5, R-SEC-2)", () =
 });
 
 describe("blackbox #11: error object (R-DX-3, R-AX-10)", () => {
-  it("docsUrl is an https URL whose hash is the code, for every code", () => {
+  it("docsUrl is an https URL to the code's own page, with no fragment", () => {
     const errors = [
       expectInvalid({ ...validHandle(), chainId: -1 }),
       new ExplorerVerifyError({ code: "not-confirmed", handle: validHandle() }, "Still pending.", {
@@ -231,8 +232,8 @@ describe("blackbox #11: error object (R-DX-3, R-AX-10)", () => {
     for (const error of errors) {
       const url = new URL(error.docsUrl);
       assert.equal(url.protocol, "https:");
-      assert.match(url.pathname, /errors\.md$/);
-      assert.equal(url.hash, `#${error.code}`);
+      assert.equal(error.docsUrl, docsUrlOf(error.code));
+      assert.equal(url.hash, "");
     }
   });
 

@@ -1,5 +1,5 @@
 // Black-box tests for issue #20: buildVerifyInput, written from the issue, R-IN-7 and R-DX-2,
-// the how-to "Verify a contract shipped in an npm package", errors.md, json-output.md and the
+// the how-to "Verify a contract shipped in an npm package", errors/index.md, json-output.md and the
 // public type declarations only. Inputs: the committed Hardhat 2 and 3 fixtures, the committed
 // Foundry stub, and a separate two-file Foundry 1.8.1 build (below) of a contract with an
 // immutable, a constructor argument and two contracts named Helper in different files.
@@ -16,6 +16,7 @@ import {
   validateInput,
 } from "../../src/index.ts";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 // --- helpers -----------------------------------------------------------------------------------
 
@@ -527,7 +528,7 @@ describe("buildVerifyInput: documented failures give the documented code and fie
       assert.match(text, /resolver|metadata hash/i, "route 2: bytecode-metadata resolver");
       assert.match(text, /similar/i, "route 3: explorer similar match");
       assert.match(error.message, /compiler input|settings/i);
-      assert.match(error.docsUrl, /errors\.md#insufficient-artifact$/);
+      assert.equal(error.docsUrl, docsUrlOf("insufficient-artifact"));
     }
   });
 
@@ -565,7 +566,7 @@ describe("buildVerifyInput: documented failures give the documented code and fie
     }
     const error = catchError(() => build([own.stub()]));
     assert.ok(error.hint.length > 0);
-    assert.match(error.docsUrl, /errors\.md#incomplete-input$/);
+    assert.equal(error.docsUrl, docsUrlOf("incomplete-input"));
     assert.equal(error.retryable, false);
   });
 });

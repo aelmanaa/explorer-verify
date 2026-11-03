@@ -1,6 +1,6 @@
 /**
  * The one error class the library throws, and the codes it carries (decision 0009). Each code has
- * a fix hint, an entry in docs/user/reference/errors.md and a CLI exit code (R-DX-3, R-AX-7,
+ * a fix hint, its own page in docs/user/reference/errors/ and a CLI exit code (R-DX-3, R-AX-7,
  * R-AX-10). The constructor redacts API keys from everything the error holds (R-SEC-1).
  */
 import { toBackendName } from "./backend-names.ts";
@@ -331,7 +331,7 @@ export interface ErrorJson {
   message: string;
   /** What to do next. */
   hint: string;
-  /** The code's entry in the error reference. */
+  /** The code's own page in the error reference. */
   docsUrl: string;
   /**
    * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
@@ -383,8 +383,15 @@ export interface ExplorerVerifyErrorOptions {
   secrets: readonly string[];
 }
 
-const ERRORS_PAGE =
-  "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md";
+/**
+ * The `docsUrl` of a code: its own page (decision 0015). Until the docs site exists, it is the page
+ * file on GitHub. The site issue (#84) changes this one line to
+ * `https://aelmanaa.github.io/explorer-verify/reference/errors/${code}`. The release workflow fails
+ * while the built module still holds `blob/main`, so this URL never ships.
+ */
+function docsUrlOf(code: ErrorCode): string {
+  return `https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors/${code}.md`;
+}
 
 // The longest excerpt of an explorer's answer that an error keeps.
 const EXCERPT_LENGTH = 300;
@@ -783,7 +790,7 @@ export class ExplorerVerifyError extends Error {
   readonly retryable: boolean;
   /** The code's data, redacted. Check `details.code` to narrow it. */
   readonly details: ErrorDetails;
-  /** The code's entry in the error reference (R-AX-10). */
+  /** The code's own page in the error reference (R-AX-10). */
   readonly docsUrl: string;
 
   /**
@@ -815,7 +822,7 @@ export class ExplorerVerifyError extends Error {
     this.hint = redact(hint, options.secrets);
     this.retryable = entry.retryable;
     this.details = redactDetails(details, options.secrets);
-    this.docsUrl = `${ERRORS_PAGE}#${details.code}`;
+    this.docsUrl = docsUrlOf(details.code);
   }
 
   /**

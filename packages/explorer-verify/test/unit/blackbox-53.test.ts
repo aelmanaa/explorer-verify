@@ -22,7 +22,7 @@ import type { ContextOverrides } from "./http-context.ts";
 type PublicLogger = Logger;
 
 const SECRET = "DUMMYKEYzq9x7w5v3u1tQ8r6p4o2n0mLkJ"; // known to the call through `secrets`
-// Upper-case letters and digits, 34 characters: the bare Etherscan-style shape of errors.md.
+// Upper-case letters and digits, 34 characters: the bare Etherscan-style shape of errors/index.md.
 const UNKNOWN_KEY = "ABCDEFGHIJ1234567890KLMNOPQRST1234";
 const ORIGIN = "https://api.example.test";
 

@@ -1,6 +1,6 @@
 // Black-box tests for issue #18: `checkStatus(handle)`, `formatHandle` and `parseHandle`. They use
 // only the package entry point, the issue and its comments, docs/user/reference/check-status.md,
-// verify.md, errors.md, json-output.md, logging-and-events.md, llms.txt and the TSDoc of the three
+// verify.md, errors/index.md, json-output.md, logging-and-events.md, llms.txt and the TSDoc of the three
 // functions. Every request goes to a fake `fetch` that answers by step (lookup, submit, status),
 // with bodies shaped like Sourcify's answers. Time is mocked: `setTimeout` and `Date` run on
 // node:test mock timers, so no test waits in real time.
@@ -32,6 +32,7 @@ import type {
   VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 const CHAIN_ID = 84532;
 const ADDRESS: Hex = "0x616dc0f820416e46841d2e1122ff7ca615a740fe";
@@ -1011,8 +1012,7 @@ describe("envelope and exit codes", () => {
         code: "not-confirmed",
         message: readMessage(envelope),
         hint: "Call checkStatus with details.handle later to continue polling.",
-        docsUrl:
-          "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md#not-confirmed",
+        docsUrl: docsUrlOf("not-confirmed"),
         retryable: true,
         handle: DOC_LINE,
       },
@@ -1147,7 +1147,7 @@ describe("doc examples", () => {
     assert.equal(fake.calls.filter((c) => c.step === "submit").length, 1, "one submit in all");
   });
 
-  it("verify.md and errors.md store JSON.stringify(handle); check(JSON.parse(...)) resumes", async () => {
+  it("verify.md and errors/index.md store JSON.stringify(handle); check(JSON.parse(...)) resumes", async () => {
     const localStorage = stubStorage();
     let phase: "first" | "later" = "first";
     const fake = fakeFetch((step) => {

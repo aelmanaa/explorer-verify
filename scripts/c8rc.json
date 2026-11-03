@@ -10,6 +10,8 @@
     "scripts/check-packed-files.ts",
     "scripts/package-docs.ts",
     "scripts/random-order.ts",
+    "scripts/record-released-codes.ts",
+    "scripts/released-codes.ts",
     "scripts/size-budget.ts"
   ],
   "reporter": ["text"],
