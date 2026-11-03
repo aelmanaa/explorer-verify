@@ -22,7 +22,7 @@ type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Each constant only compiles when its type is `true`; the runtime assertion keeps it used.
 const verifyOptionKeys: Equals<
   keyof VerifyOptions,
-  "fetch" | "signal" | "timeoutMs" | "pollIntervalMs" | "logger" | "route"
+  "fetch" | "signal" | "timeoutMs" | "pollIntervalMs" | "logger" | "onEvent" | "route"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;

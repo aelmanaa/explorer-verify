@@ -6,9 +6,10 @@
 import { toBackendName } from "./backend-names.ts";
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
 import type { ErrorJson, ExitCode, InputIssue } from "./errors.ts";
+import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { JOB_ID } from "./flow/handle.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
-import { REDACTED, redact, redactJobId } from "./redact.ts";
+import { REDACTED, redact } from "./redact.ts";
 import type { VerifyResult } from "./types.ts";
 
 /**
@@ -92,24 +93,6 @@ const MATCHES = ["exact", "partial"] as const;
 
 // The name every copy of the package gives its error class.
 const ERROR_NAME = "ExplorerVerifyError";
-// The fields of a handle in its one-line form before the job id: `ev1:<backend>:<chainId>:<address>`.
-const HANDLE_PREFIX_FIELDS = 4;
-
-/**
- * A handle in its one-line form split into `ev1:<backend>:<chainId>:<address>:` and the job id,
- * which may hold any character. `undefined` when `value` is not in that form.
- */
-function splitHandle(value: unknown): { prefix: string; jobId: string } | undefined {
-  if (typeof value !== "string" || !value.startsWith("ev1:")) {
-    return undefined;
-  }
-  const fields = value.split(":");
-  if (fields.length <= HANDLE_PREFIX_FIELDS) {
-    return undefined;
-  }
-  const prefix = `${fields.slice(0, HANDLE_PREFIX_FIELDS).join(":")}:`;
-  return { prefix, jobId: value.slice(prefix.length) };
-}
 
 /** A chain id in decimal digits, with no leading zero. */
 const DECIMAL = /^[1-9][0-9]*$/;
@@ -366,7 +349,7 @@ function copyError(
     retryable,
   };
   if (handle !== undefined) {
-    json.handle = `${handle.prefix}${redactJobId(handle.jobId, secrets)}`;
+    json.handle = redactSplitHandle(handle, secrets);
   }
   return json;
 }

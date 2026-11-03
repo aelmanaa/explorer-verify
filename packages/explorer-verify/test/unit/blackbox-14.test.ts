@@ -17,9 +17,23 @@ import {
   request,
   sleep,
 } from "../../src/http/fetch.ts";
-import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch.ts";
+import type { HttpContext, HttpRequest } from "../../src/http/fetch.ts";
 import { ExplorerVerifyError } from "../../src/index.ts";
-import type { ErrorDetails, Logger } from "../../src/index.ts";
+import type { ErrorDetails, Logger, VerifyEvent } from "../../src/index.ts";
+import { contextWith } from "./http-context.ts";
+import type { ContextOverrides } from "./http-context.ts";
+
+/** A `verify.retry` event, as the HTTP layer emits it before each retry wait. */
+type RetryNotice = Extract<VerifyEvent, { type: "verify.retry" }>;
+
+/** An `onEvent` callback that keeps the `verify.retry` events in `notices`. */
+function collect(notices: RetryNotice[]): (event: VerifyEvent) => void {
+  return (event) => {
+    if (event.type === "verify.retry") {
+      notices.push(event);
+    }
+  };
+}
 
 /**
  * `it` with a 20 s limit per test. A stuck mock timer then fails the test within the limit
@@ -142,15 +156,12 @@ function captureLogger(): { logger: Logger; lines: LogLine[] } {
 
 function ctxWith(
   fetchImpl: typeof fetch,
-  extra: Partial<Omit<HttpContext, "fetch" | "backend">> = {},
+  extra: Omit<ContextOverrides, "fetch" | "backend"> = {},
 ): HttpContext {
-  return {
-    backend: "sourcify",
-    fetch: fetchImpl,
-    secrets: [],
-    random: () => 0,
-    ...extra,
-  };
+  return contextWith(
+    { backend: "sourcify", fetch: fetchImpl, secrets: [], random: () => 0 },
+    extra,
+  );
 }
 
 const GET: HttpRequest = { url: PLAIN_URL, method: "GET", retry: "safe" };
@@ -403,7 +414,7 @@ describe("blackbox #14: retried cases (R-FLOW-6)", () => {
       useClock(t);
       const notices: RetryNotice[] = [];
       const { fetch, calls } = fakeFetch([first, { kind: "status", status: 200, body: "done" }]);
-      const ctx = ctxWith(fetch, { onRetry: (n) => notices.push(n) });
+      const ctx = ctxWith(fetch, { onEvent: collect(notices) });
       const res = okResponse(await drive(t, request(ctx, req)));
       assert.equal(res.status, 200);
       assert.equal(await res.text(), "done");
@@ -518,7 +529,7 @@ describe("blackbox #14: retried cases (R-FLOW-6)", () => {
       const { fetch, calls } = fakeFetch([{ kind: "status", status: 503 }]);
       const ctx = ctxWith(fetch, {
         random: () => random,
-        onRetry: (n) => notices.push(n),
+        onEvent: collect(notices),
       });
       await drive(t, request(ctx, GET), { stepMs: 50 });
       assert.equal(calls.length, MAX_ATTEMPTS);
@@ -548,7 +559,7 @@ describe("blackbox #14: retried cases (R-FLOW-6)", () => {
       { kind: "status", status: 503 },
       { kind: "status", status: 200 },
     ]);
-    const p = request(ctxWith(fetch, { onRetry: (n) => notices.push(n) }), GET);
+    const p = request(ctxWith(fetch, { onEvent: collect(notices) }), GET);
     await flush();
     assert.equal(calls.length, 1);
     const wait = notices[0]?.delayMs ?? 0;
@@ -573,7 +584,7 @@ describe("blackbox #14: Retry-After (R-FLOW-6)", () => {
       { kind: "status", status: 429, headers: { "retry-after": "2" } },
       { kind: "status", status: 200 },
     ]);
-    const p = request(ctxWith(fetch, { onRetry: (n) => notices.push(n) }), GET);
+    const p = request(ctxWith(fetch, { onEvent: collect(notices) }), GET);
     await flush();
     t.mock.timers.tick(1_999);
     await flush();
@@ -593,7 +604,7 @@ describe("blackbox #14: Retry-After (R-FLOW-6)", () => {
       { kind: "status", status: 503, headers: { "retry-after": date } },
       { kind: "status", status: 200 },
     ]);
-    const p = request(ctxWith(fetch, { onRetry: (n) => notices.push(n) }), GET);
+    const p = request(ctxWith(fetch, { onEvent: collect(notices) }), GET);
     await flush();
     t.mock.timers.tick(4_999);
     await flush();
@@ -651,7 +662,7 @@ describe("blackbox #14: edge cases (R-FLOW-6)", () => {
         { kind: "status", status: 503, headers: { "retry-after": value } },
         { kind: "status", status: 200 },
       ]);
-      const ctx = ctxWith(fetch, { onRetry: (n) => notices.push(n) });
+      const ctx = ctxWith(fetch, { onEvent: collect(notices) });
       okResponse(await drive(t, request(ctx, GET), { stepMs: 10 }));
       assert.equal(calls.length, 2);
       const wait = notices[0]?.delayMs ?? -1;
@@ -1021,17 +1032,17 @@ describe("blackbox #14: keys never leak (R-SEC-1, decision 0010)", () => {
     for (const line of lines) assertClean(line.text, `log ${line.level}`);
   });
 
-  it("onRetry notices carry no URL or key", async (t) => {
+  it("verify.retry events carry no URL or key", async (t) => {
     useClock(t);
     const notices: RetryNotice[] = [];
     const { fetch } = fakeFetch([{ kind: "network", message: KEYED_URL }]);
     const ctx = ctxWith(fetch, {
       secrets: [KEY, SECRET],
-      onRetry: (n) => notices.push(n),
+      onEvent: collect(notices),
     });
     await drive(t, request(ctx, { ...GET, url: KEYED_URL }));
     assert.equal(notices.length, MAX_ATTEMPTS - 1);
-    assertClean(JSON.stringify(notices), "onRetry");
+    assertClean(JSON.stringify(notices), "verify.retry");
   });
 
   it("writes nothing to the console when no logger is given (decision 0010)", async (t) => {

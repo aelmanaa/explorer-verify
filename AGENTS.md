@@ -40,7 +40,8 @@ are in [docs/user/reference/json-output.md](docs/user/reference/json-output.md).
 from compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
-sends and how it reads each answer.
+sends and how it reads each answer. The logger and the stage events are in
+[docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
 
 ## Commands
 

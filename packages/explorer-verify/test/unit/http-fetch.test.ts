@@ -16,8 +16,10 @@ import {
   request,
   sleep,
 } from "../../src/http/fetch.ts";
-import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch.ts";
-import type { Logger } from "../../src/index.ts";
+import type { HttpContext, HttpRequest } from "../../src/http/fetch.ts";
+import type { Logger, VerifyEvent } from "../../src/index.ts";
+import { contextWith } from "./http-context.ts";
+import type { ContextOverrides } from "./http-context.ts";
 
 /**
  * `it` with a 20 s limit per test. A stuck mock timer then fails the test within the limit
@@ -96,8 +98,8 @@ const DUPLICATE = {
     "Contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 on chain 31337 is already being verified.",
 };
 
-function context(overrides: Partial<HttpContext> = {}): HttpContext {
-  return { backend: "sourcify", secrets: [DUMMY_KEY], random: () => 0, ...overrides };
+function context(overrides: ContextOverrides = {}): HttpContext {
+  return contextWith({ backend: "sourcify", secrets: [DUMMY_KEY], random: () => 0 }, overrides);
 }
 
 function get(url: string = SOURCIFY_URL): HttpRequest {
@@ -375,19 +377,20 @@ describe("request: retries (R-FLOW-6)", () => {
     assert.equal(calls[0]?.url, SOURCIFY_URL);
   });
 
-  it("reports each retry to onRetry before the wait, with the next attempt, reason and delay", async () => {
-    const notices: RetryNotice[] = [];
+  it("emits verify.retry before each wait, with the next attempt, reason and delay (R-DX-6)", async () => {
+    const events: VerifyEvent[] = [];
     const { fetch } = fakeFetch(
       json(429, TOO_MANY),
       new TypeError("reset"),
       json(504, {}),
       json(200, {}),
     );
-    await drive(request(context({ fetch, onRetry: (notice) => notices.push(notice) }), get()));
-    assert.deepEqual(notices, [
-      { attempt: 2, reason: "rate-limited", delayMs: 500 },
-      { attempt: 3, reason: "network", delayMs: 1_000 },
-      { attempt: 4, reason: "server-error", delayMs: 2_000 },
+    await drive(request(context({ fetch, onEvent: (event) => void events.push(event) }), get()));
+    const retry = { type: "verify.retry", backend: "sourcify" } as const;
+    assert.deepEqual(events, [
+      { ...retry, attempt: 2, reason: "rate-limited", delayMs: 500 },
+      { ...retry, attempt: 3, reason: "network", delayMs: 1_000 },
+      { ...retry, attempt: 4, reason: "server-error", delayMs: 2_000 },
     ]);
   });
 });
@@ -490,7 +493,7 @@ describe("request: abort (R-FLOW-6)", () => {
     });
     const { fetch, calls } = fakeFetch(json(503, {}), json(200, {}));
     const pending = track(
-      request(context({ fetch, signal: controller.signal, onRetry: () => waiting?.() }), get()),
+      request(context({ fetch, signal: controller.signal, onEvent: () => waiting?.() }), get()),
     );
     await retried;
     controller.abort(reason);

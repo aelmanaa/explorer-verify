@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "explorer-verify event",
+  "description": "One stage event, as VerifyOptions.onEvent receives it (R-DX-6). Every value is flat and JSON-safe, and API keys are removed from every string. Within a schema version, a release may add event types and fields and changes nothing else, so readers ignore fields they do not know. A new value of state or reason is a schema change.",
+  "oneOf": [
+    {
+      "description": "The input passed validation.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.validated" },
+        "chainId": { "$ref": "#/$defs/chainId" },
+        "address": {
+          "description": "The contract address.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        }
+      },
+      "required": ["type", "chainId", "address"]
+    },
+    {
+      "description": "The route is resolved.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.routed" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "apiHost": {
+          "description": "The API host only: no scheme, path or query.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/?#\\s]+$"
+        }
+      },
+      "required": ["type", "backend", "apiHost"]
+    },
+    {
+      "description": "The already-verified check finished or was skipped.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.lookup" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "match": { "enum": ["exact", "partial", "none", "skipped"] }
+      },
+      "required": ["type", "backend", "match"]
+    },
+    {
+      "description": "The explorer accepted the submission. The handle resumes the verification later (R-FLOW-5).",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.submitted" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "handle": {
+          "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>.",
+          "type": "string",
+          "pattern": "^ev1:"
+        }
+      },
+      "required": ["type", "backend", "handle"]
+    },
+    {
+      "description": "One poll returned a state that is not final.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.poll" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "attempt": { "description": "The poll number, from 1.", "type": "integer", "minimum": 1 },
+        "state": { "enum": ["pending", "queued", "completed"] }
+      },
+      "required": ["type", "backend", "attempt", "state"]
+    },
+    {
+      "description": "A request is retried after a transient failure.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.retry" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "attempt": {
+          "description": "The number of the attempt that follows the wait: 2 for the first retry.",
+          "type": "integer",
+          "minimum": 2
+        },
+        "reason": { "enum": ["rate-limited", "network", "server-error", "duplicate-submission"] },
+        "delayMs": {
+          "description": "The wait before that attempt, in milliseconds.",
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["type", "backend", "attempt", "reason", "delayMs"]
+    },
+    {
+      "description": "The call is about to return a verified or already-verified result.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.result" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "status": { "enum": ["verified", "already-verified"] },
+        "match": { "enum": ["exact", "partial"] }
+      },
+      "required": ["type", "backend", "status", "match"]
+    },
+    {
+      "description": "The call is about to return a failed result: the explorer rejected the submission.",
+      "type": "object",
+      "properties": {
+        "type": { "const": "verify.result" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "status": { "const": "failed" }
+      },
+      "required": ["type", "backend", "status"],
+      "not": { "properties": { "match": {} }, "required": ["match"] }
+    }
+  ],
+  "$defs": {
+    "chainId": {
+      "description": "EVM chain id the contract is deployed on.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "backend": {
+      "description": "The backend. A later release may add a backend. Known values in this release: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    }
+  }
+}

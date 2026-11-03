@@ -10,6 +10,7 @@ import type { Backend, Context, Match, Target } from "../../src/backends/backend
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { parseHandle } from "../../src/flow/handle.ts";
+import { createObserver } from "../../src/observe.ts";
 import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { Handle, Hex, SolidityStandardJsonInput, VerifyInput } from "../../src/types.ts";
 
@@ -235,7 +236,10 @@ function harness(
       backend: "sourcify",
       fetch,
       secrets: opts.secrets ?? [],
-      logger: { debug: log("debug"), info: log("info"), warn: log("warn"), error: log("error") },
+      observer: createObserver({
+        logger: { debug: log("debug"), info: log("info"), warn: log("warn"), error: log("error") },
+        secrets: opts.secrets ?? [],
+      }),
       random: () => 0,
       ...(opts.signal === undefined ? {} : { signal: opts.signal }),
     },

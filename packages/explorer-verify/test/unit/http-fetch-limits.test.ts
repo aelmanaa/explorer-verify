@@ -20,6 +20,9 @@ import {
 } from "../../src/http/fetch.ts";
 import type { HttpContext, HttpRequest } from "../../src/http/fetch.ts";
 import { redact } from "../../src/redact.ts";
+import type { VerifyEvent } from "../../src/types.ts";
+import { contextWith } from "./http-context.ts";
+import type { ContextOverrides } from "./http-context.ts";
 
 // Fake keys. Never real ones (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -30,17 +33,17 @@ function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
   void baseIt(name, { timeout: 20_000 }, fn);
 }
 
-/** A callback for `onRetry` and a promise that resolves on its first call. */
-function retried(): { onRetry: () => void; first: Promise<void> } {
+/** An `onEvent` callback and a promise that resolves on the first `verify.retry` event. */
+function retried(): { onEvent: (event: VerifyEvent) => void; first: Promise<void> } {
   let resolve: (() => void) | undefined;
   const first = new Promise<void>((done) => {
     resolve = done;
   });
-  return { onRetry: () => resolve?.(), first };
+  return { onEvent: (event) => (event.type === "verify.retry" ? resolve?.() : undefined), first };
 }
 
-function context(overrides: Partial<HttpContext> = {}): HttpContext {
-  return { backend: "sourcify", secrets: [DUMMY_KEY], random: () => 0, ...overrides };
+function context(overrides: ContextOverrides = {}): HttpContext {
+  return contextWith({ backend: "sourcify", secrets: [DUMMY_KEY], random: () => 0 }, overrides);
 }
 
 function get(url = "https://api.example.org/v2/contract/1/0x01"): HttpRequest {
@@ -292,7 +295,7 @@ describe("request: Retry-After bounds (R-FLOW-6)", () => {
       () => replies[Math.min(calls.length - 1, 1)] ?? new Response(),
     );
     const retry = retried();
-    const pending = request(context({ fetch, onRetry: retry.onRetry }), get());
+    const pending = request(context({ fetch, onEvent: retry.onEvent }), get());
     await retry.first;
     // The backoff with random 0: Retry-After was ignored.
     t.mock.timers.tick(500);
@@ -411,7 +414,7 @@ describe("request: abort between attempts (R-FLOW-6)", () => {
     };
     const retry = retried();
     const pending = rejection(
-      request(context({ fetch, logger, signal: controller.signal, onRetry: retry.onRetry }), get()),
+      request(context({ fetch, logger, signal: controller.signal, onEvent: retry.onEvent }), get()),
     );
     await retry.first;
     t.mock.timers.tick(500);

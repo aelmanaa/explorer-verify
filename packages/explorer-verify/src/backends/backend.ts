@@ -44,7 +44,7 @@ export type ResolvedInput = VerifyInput;
  * ```ts
  * const ctx: Context = {
  *   route: resolveRoute(11155111),
- *   http: { backend: "sourcify", secrets: [], signal: controller.signal, logger },
+ *   http: { backend: "sourcify", secrets: [], signal: controller.signal, observer },
  * };
  * ```
  */
@@ -55,8 +55,8 @@ export interface Context {
    */
   readonly route: Route;
   /**
-   * The HTTP context every request goes through: `fetch`, signal, budget, keys, and the logger,
-   * which the HTTP layer wraps with key redaction.
+   * The HTTP context every request goes through: `fetch`, signal, budget, keys, and the call's
+   * observer, whose logger and event callback redact keys and never throw.
    */
   readonly http: HttpContext;
 }

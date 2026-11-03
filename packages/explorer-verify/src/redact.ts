@@ -7,7 +7,7 @@
  * repetition cannot contain. A 1 MB explorer answer, such as hex bytecode, is redacted in
  * milliseconds.
  */
-import type { Logger } from "./types.ts";
+import type { LogFields, Logger, LogValue } from "./types.ts";
 
 /** What every redacted value is replaced with. */
 export const REDACTED = "[redacted]";
@@ -23,6 +23,11 @@ const NAME_START = String.raw`(?:(?<![A-Za-z0-9])|(?<=\\[nrt])|(?<=%(?:25)*(?:26
 const VALUE = String.raw`(?:[^%&#;\s"'<>\\]|%(?!(?:25)*(?:26|23|3b|22|27|20))(?:[0-9a-f]{2})?)+`;
 // `=`, raw or percent-encoded any number of times.
 const EQUALS = "(?:=|%(?:25)*3d)";
+// The API key parameter names: `apikey`, `api_key`, `api-key` and `x-api-key`, in any case.
+const API_KEY_NAME = "(?:x-)?api[_-]?key";
+// Other key-like parameter names.
+const KEY_LIKE_NAME =
+  "(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|token|key|auth|secret|password)";
 
 // The bounds of the patterns below. The excerpt margin is derived from them, so they cannot drift.
 // The most spaces or tabs around `:` or `=`, and after `bearer`.
@@ -56,7 +61,7 @@ export const REDACTION_PATTERNS: readonly {
   // `apikey`, `api_key`, `api-key` and `x-api-key`, followed by `=`, or by `:` with spaces.
   {
     pattern: new RegExp(
-      String.raw`${NAME_START}((?:x-)?api[_-]?key(?:[ \t]{0,${String(SPACING)}}[:=][ \t]{0,${String(SPACING)}}|%(?:25)*3d))${VALUE}`,
+      String.raw`${NAME_START}(${API_KEY_NAME}(?:[ \t]{0,${String(SPACING)}}[:=][ \t]{0,${String(SPACING)}}|%(?:25)*3d))${VALUE}`,
       "gi",
     ),
     replacement: `$1${REDACTED}`,
@@ -64,17 +69,14 @@ export const REDACTION_PATTERNS: readonly {
   },
   // Other key-like parameter names, followed by `=`.
   {
-    pattern: new RegExp(
-      String.raw`${NAME_START}((?:access[_-]?token|refresh[_-]?token|client[_-]?secret|token|key|auth|secret|password)${EQUALS})${VALUE}`,
-      "gi",
-    ),
+    pattern: new RegExp(String.raw`${NAME_START}(${KEY_LIKE_NAME}${EQUALS})${VALUE}`, "gi"),
     replacement: `$1${REDACTED}`,
     needs: ["key", "token", "auth", "secret", "password"],
   },
   // A JSON member such as `"apiKey": "..."`.
   {
     pattern: new RegExp(
-      String.raw`("(?:x-)?api[_-]?key"[ \t]{0,${String(SPACING)}}:[ \t]{0,${String(SPACING)}}")[^"\\]*`,
+      String.raw`("${API_KEY_NAME}"[ \t]{0,${String(SPACING)}}:[ \t]{0,${String(SPACING)}}")[^"\\]*`,
       "gi",
     ),
     replacement: `$1${REDACTED}`,
@@ -126,7 +128,9 @@ function forms(secret: string): string[] {
     }
   }
   try {
-    all.push(encodeURIComponent(secret));
+    const encoded = encodeURIComponent(secret);
+    // Encoded twice: a URL carried inside another URL's parameter, as a redirect target.
+    all.push(encoded, encodeURIComponent(encoded));
   } catch {
     // A lone surrogate cannot be URL-encoded; the other forms still apply.
   }
@@ -296,10 +300,47 @@ function loggable(value: unknown, secrets: readonly string[]): string {
 }
 
 /**
- * Wraps a logger so that every argument passes through {@link redact} before it reaches the
- * caller's logger (R-SEC-1). It never throws: a value it cannot turn into text is logged as
- * `[unloggable]`. Extra arguments are kept, each redacted. The entry point wraps the caller's
- * logger once per call; the HTTP layer logs through that wrapper only.
+ * A field value for a log line: a number, a boolean or `null` as is, a string redacted, and any
+ * other value as redacted text. Never throws.
+ */
+function loggableValue(value: unknown, secrets: readonly string[]): LogValue {
+  if (typeof value === "number" || typeof value === "boolean" || value === null) {
+    return value;
+  }
+  return loggable(value, secrets);
+}
+
+/**
+ * The fields of a log line with every name and value redacted, in a new object. `Object.entries`
+ * and `Object.fromEntries` read and define own properties only, so a field named `__proto__`
+ * stays a field.
+ */
+function loggableFields(fields: LogFields, secrets: readonly string[]): LogFields {
+  return Object.fromEntries(
+    Object.entries(fields).map(([name, value]) => [
+      loggable(name, secrets),
+      typeof value === "string" && KEY_NAME_FIELD.test(name)
+        ? REDACTED
+        : loggableValue(value, secrets),
+    ]),
+  );
+}
+
+/**
+ * A field name that holds a key, such as `apikey` or `token`: the parameter names the redaction
+ * patterns use. A string value of such a field is replaced whole, even when the key is not known.
+ */
+const KEY_NAME_FIELD = new RegExp(`^(?:${API_KEY_NAME}|${KEY_LIKE_NAME})$`, "i");
+
+/**
+ * Wraps a logger so that the message and every field name and value pass through {@link redact}
+ * before they reach the caller's logger (R-SEC-1, R-DX-5). The fields are a new object; the
+ * caller's method gets no second argument when there are no fields, so `console` prints no
+ * `undefined`.
+ *
+ * It never throws. A value it cannot turn into text is logged as `[unloggable]`. When the caller's
+ * method throws, or is not a function, the line is dropped: a broken logger must not change the
+ * outcome of a verification, and there is nowhere else to report it.
  *
  * @param logger - The caller's logger.
  * @param secrets - Key values to remove, such as the API key for this call.
@@ -308,15 +349,30 @@ function loggable(value: unknown, secrets: readonly string[]): string {
  * ```ts
  * const apiKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
  * const log = redactingLogger(console, [apiKey]);
- * log.debug(`GET https://api.example.org/api?apikey=${apiKey}`); // prints apikey=[redacted]
+ * log.debug("request", { url: `https://api.example.org/api?apikey=${apiKey}` });
+ * // prints request { url: 'https://api.example.org/api?apikey=[redacted]' }
  * ```
  */
 export function redactingLogger(logger: Logger, secrets: readonly string[] = []): Logger {
   const wrap =
     (method: keyof Logger) =>
-    (message: string, ...rest: unknown[]): void => {
-      const args = [message, ...rest].map((value) => loggable(value, secrets));
-      Reflect.apply(logger[method], logger, args);
+    (message: string, fields?: LogFields): void => {
+      try {
+        const args =
+          fields === undefined
+            ? [loggable(message, secrets)]
+            : [loggable(message, secrets), loggableFields(fields, secrets)];
+        const returned: unknown = Reflect.apply(logger[method], logger, args);
+        if (returned !== undefined) {
+          // An async logger method returns a promise. A rejection would be unhandled and stop a
+          // Node process, so it is caught and dropped, like a throw. It is not awaited.
+          void new Promise<unknown>((resolve) => {
+            resolve(returned);
+          }).catch(() => {});
+        }
+      } catch {
+        // The caller's logger threw: drop the line (see above).
+      }
     };
   return { debug: wrap("debug"), info: wrap("info"), warn: wrap("warn"), error: wrap("error") };
 }

@@ -148,6 +148,27 @@ Every value passes one redaction step before it leaves the core, whether it goes
 `onEvent`, into an `ExplorerVerifyError` or into a result. A failure the core throws is not also
 logged at `error`.
 
+`src/observe.ts` holds the guard for both channels. `createObserver({ logger, onEvent, secrets })`
+returns a `log` and an `emit` that never throw:
+
+- `log` is `redactingLogger` from `src/redact.ts`. It redacts the message and every field name and
+  value, and replaces the string value of a field named like a key (`apikey`, `token` and the other
+  names the redaction patterns use) whole. It passes a new fields object, and drops a line when the
+  caller's method throws or returns a promise that rejects. Without a logger it does nothing.
+- `emit` passes `redactEvent(event)`, a frozen copy with only the documented fields, to
+  `onEvent`. The address, the API host and the handle's job id are redacted. The job id goes
+  through `redactHandleLine` in `src/flow/format-handle.ts`, the rule the envelope also uses, so a
+  job id shaped like a key still resumes. Fixed values (`type`, `backend`, `match`, `state`,
+  `reason`, `status`) and numbers are copied. When `onEvent` throws, or returns a promise that
+  rejects, the first failure is logged at `warn` and later ones are ignored. The event type in that
+  warning is read before the callback runs. Without `onEvent` it does nothing.
+
+Rule: one call, one observer. `verify()` and `checkStatus()` create the observer and pass it to
+every layer; nothing below them takes a raw logger or callback. `HttpContext.observer` has the
+`Observer` type, so the HTTP layer and the backends (through `ctx.http.observer`) log and emit
+through the call's observer, and a broken callback is reported once per call.
+`schema/event.schema.json` describes the events and ships as `explorer-verify/event.schema.json`.
+
 The diagram shows where each output goes in the CLI.
 
 ```mermaid
@@ -205,9 +226,10 @@ signal)`, which polling uses (R-FLOW-6).
   `retryAfterMs`, at most one hour), `unexpected-response` (a 5xx, with the status, an excerpt and
   `retryAfterMs`) or `timeout` (the budget ran out). Every error gets the call's keys as `secrets`.
 - Log lines show the URL's origin and path, with `?REDACTED` for a query, through the redacting
-  logger. A retry is logged at `warn`; a failure that is thrown is not logged at `error`.
-  `ctx.onRetry` reports each retry with the next attempt number, the reason and the wait, for the
-  `verify.retry` event (R-DX-6).
+  logger, with `backend`, `method`, `url` and `attempt` as fields. A retry is logged at `warn`,
+  with `reason`, `status` (`null` for a network failure) and `delayMs`; a failure that is thrown is
+  not logged at `error`. Before each retry wait, `ctx.observer` emits a `verify.retry` event
+  with the next attempt number, the reason and the wait (R-DX-6).
 - The timers are `setTimeout`, which keeps a Node process alive. `AbortSignal.timeout()` is not
   used: its timer does not keep Node alive (on Node 24.21.0, on 2026-11-02, a script that waits
   only on it exits with code 0 before the abort fires), and the node:test mock timers do not drive
