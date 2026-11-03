@@ -81,7 +81,9 @@ values.
 - `verify.submitted` replaces "logs the handle through `logger.info`" in decision 0009,
   section 1. A caller that aborts or crashes after the submit still has the handle (R-FLOW-5).
   The logger may also print a line, but no program depends on it.
-- `checkStatus` emits `verify.poll`, `verify.retry` and `verify.result` only.
+- `checkStatus` emits `verify.poll`, `verify.retry` and `verify.result` only. Amended on
+  2026-11-03 by [decision 0013](0013-check-status-emits-verify-routed.md): `checkStatus` also
+  emits `verify.routed`.
 - A call that throws emits no `verify.result`; the thrown error is the outcome.
 - Event values are flat and JSON-safe, like log fields.
 - An exception thrown by `onEvent` is caught, and the library logs it once at `warn` through the

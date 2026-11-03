@@ -17,8 +17,7 @@ Both are off by default. Without them the library writes nothing, in every runti
 `console` on its own. API keys are removed from every message, field and event before your code
 sees it.
 
-`verify()` logs and emits events as described here. `checkStatus()` lands in
-[#18](https://github.com/aelmanaa/explorer-verify/issues/18).
+`verify()` and [checkStatus()](check-status.md) log and emit events as described here.
 
 ## Logger
 
@@ -87,8 +86,8 @@ the verification goes on.
 
 - `verify.retry` `reason` is `rate-limited`, `network`, `server-error` or `duplicate-submission`.
   `attempt` is the number of the attempt after the wait, so the first retry is attempt 2.
-- `verify()` emits events in stage order. `checkStatus()` emits only `verify.poll`, `verify.retry`
-  and `verify.result`.
+- `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
+  `verify.retry` and `verify.result`.
 - A call that throws emits no `verify.result`. The thrown error is the outcome.
 - `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
   if the call is aborted or the process stops, the handle resumes the verification. `verify()` also

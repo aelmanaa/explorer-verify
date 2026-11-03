@@ -249,7 +249,9 @@ Exit code: 6
 Cause: the explorer no longer knows the job id in `details.handle`. Explorers drop old jobs.
 
 Fix: do not retry automatically. Check the contract on the explorer. If it is not verified, call
-`verify()` again to submit it again.
+`verify()` again to submit it again. `checkStatus()` does this check itself: it looks the contract up
+and returns `verified` when it finds a match. It throws this error only when the lookup finds the
+contract not verified, and then its hint says to call `verify()` again, or when the lookup fails.
 
 Retryable: no. Checking the same handle again fails the same way.
 

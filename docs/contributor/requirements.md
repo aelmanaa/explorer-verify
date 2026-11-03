@@ -181,9 +181,10 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 
   `verify()` emits them in stage order and emits `verify.submitted` as soon as the explorer accepts
   the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
-  `verify.poll`, `verify.retry` and `verify.result`. A call that throws emits no `verify.result`.
-  `verify.poll` `state` is one of `pending`, `queued` or `completed`; `verify.retry` `reason` is
-  one of `rate-limited`, `network`, `server-error` or `duplicate-submission`. An exception thrown
+  `verify.routed`, `verify.poll`, `verify.retry` and `verify.result` (decision 0013). A call that
+  throws emits no `verify.result`. `verify.poll` `state` is one of `pending`, `queued` or
+  `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error` or
+  `duplicate-submission`. An exception thrown
   by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
   outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
   the same redaction step. Within a schema version, releases only add event types and fields.

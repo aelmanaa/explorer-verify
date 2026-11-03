@@ -57,10 +57,11 @@ export interface FlowDependencies {
   readonly random?: () => number;
 }
 
-const DEFAULT_DEPENDENCIES: FlowDependencies = { backends: { sourcify } };
+/** The backend clients `verify()` and `checkStatus()` use. */
+export const DEFAULT_DEPENDENCIES: FlowDependencies = { backends: { sourcify } };
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
-interface Settings {
+export interface Settings {
   readonly fetch: typeof fetch | undefined;
   readonly signal: AbortSignal | undefined;
   readonly timeoutMs: number;
@@ -71,7 +72,7 @@ interface Settings {
 }
 
 /** Everything one call shares once the route is known. */
-interface Call {
+export interface Call {
   readonly backend: Backend;
   readonly ctx: Context;
   readonly budget: Budget;
@@ -183,35 +184,12 @@ export async function runVerify(
   settings.signal?.throwIfAborted();
   const checked = validateInput(input);
   const route = resolveRoute(checked.chainId, settings.route);
-  const backend = backendOf(route, dependencies);
-  const secrets = routeSecrets(route, checked.chainId, checked.address, backend.name);
-  // The one observer of this call: every request, retry and stage goes through it, so a broken
-  // `onEvent` is reported once per call (decision 0010).
-  const observer = createObserver({
-    logger: settings.logger,
-    onEvent: settings.onEvent,
-    secrets,
-  });
-  const budget: Budget = {
-    deadline: Date.now() + settings.timeoutMs,
-    timeoutMs: settings.timeoutMs,
-  };
-  const call: Call = {
-    backend,
-    ctx: { route, http: httpContext(route, settings, observer, secrets, budget, dependencies) },
-    budget,
-    target: { chainId: checked.chainId, address: checked.address },
-    settings,
-    observer,
-  };
-  const { emit, log } = observer;
+  const target: Target = { chainId: checked.chainId, address: checked.address };
+  const call = openCall(settings, route, target, dependencies);
+  const { backend } = call;
+  const { emit, log } = call.observer;
   emit({ type: "verify.validated", chainId: checked.chainId, address: checked.address });
-  emit({ type: "verify.routed", backend: backend.name, apiHost: new URL(route.apiBase).host });
-  log.debug(`Verifying ${checked.address} on chain ${String(checked.chainId)}`, {
-    backend: backend.name,
-    chainId: checked.chainId,
-    api: route.redactedApiUrl,
-  });
+  announceRoute(call, `Verifying ${checked.address} on chain ${String(checked.chainId)}`);
 
   const found = await backend.lookup(call.target, call.ctx);
   emit({ type: "verify.lookup", backend: backend.name, match: found ?? "none" });
@@ -224,6 +202,7 @@ export async function runVerify(
     return finish(call, "already-verified", submitted.match);
   }
   const { handle } = submitted;
+  const { secrets } = call.ctx.http;
   const line = formatHandle(handle);
   emit({ type: "verify.submitted", backend: backend.name, handle: line });
   // The same rule as the event: a job id shaped like a key stays, so the line still resumes.
@@ -233,7 +212,101 @@ export async function runVerify(
     handle: logged,
   });
 
-  const polled = await pollUntilDone(call, handle);
+  return await settle(call, handle, settings.pollIntervalMs);
+}
+
+/**
+ * Builds what one call shares once its route is known: the backend client, the keys from the
+ * route's query, the one observer, the budget and the HTTP context. `verify()` and `checkStatus()`
+ * both start here, so they derive the keys and the budget the same way.
+ *
+ * @param settings - The options from {@link settingsOf}.
+ * @param route - The resolved route.
+ * @param target - The contract the call is about.
+ * @param dependencies - The backend clients and the jitter source.
+ * @returns The call. Its budget starts now.
+ * @throws ExplorerVerifyError `invalid-input` when this version has no client for the route.
+ * @example
+ * ```ts
+ * const call = openCall(settingsOf(options), resolveRoute(11155111), target, DEFAULT_DEPENDENCIES);
+ * ```
+ */
+export function openCall(
+  settings: Settings,
+  route: Route,
+  target: Target,
+  dependencies: FlowDependencies,
+): Call {
+  const backend = backendOf(route, dependencies);
+  const secrets = routeSecrets(route, target.chainId, target.address, backend.name);
+  // The one observer of this call: every request, retry and stage goes through it, so a broken
+  // `onEvent` is reported once per call (decision 0010).
+  const observer = createObserver({
+    logger: settings.logger,
+    onEvent: settings.onEvent,
+    secrets,
+  });
+  const budget: Budget = {
+    deadline: Date.now() + settings.timeoutMs,
+    timeoutMs: settings.timeoutMs,
+  };
+  return {
+    backend,
+    ctx: { route, http: httpContext(route, settings, observer, secrets, budget, dependencies) },
+    budget,
+    target,
+    settings,
+    observer,
+  };
+}
+
+/**
+ * Emits `verify.routed` and logs `message` at `debug` with the backend, the chain id and the API
+ * URL, its query redacted.
+ *
+ * @param call - The call from {@link openCall}.
+ * @param message - The log line.
+ * @example
+ * ```ts
+ * announceRoute(call, `Verifying ${address} on chain ${String(chainId)}`);
+ * ```
+ */
+export function announceRoute(call: Call, message: string): void {
+  const { backend, observer, target, ctx } = call;
+  observer.emit({
+    type: "verify.routed",
+    backend: backend.name,
+    apiHost: new URL(ctx.route.apiBase).host,
+  });
+  observer.log.debug(message, {
+    backend: backend.name,
+    chainId: target.chainId,
+    api: ctx.route.redactedApiUrl,
+  });
+}
+
+/**
+ * Polls a submitted job and maps how it ends to a result or an error: steps 4 to 6 of `verify()`.
+ * `checkStatus()` runs the same steps, so a resumed job ends as it would have in `verify()`.
+ *
+ * @param call - The call from {@link openCall}.
+ * @param handle - The job to poll.
+ * @param firstWaitMs - The wait before the first poll: `pollIntervalMs` right after a submit, 0
+ *   for a resumed job, which may have ended long ago.
+ * @returns `verified`, `already-verified` or `failed`.
+ * @throws ExplorerVerifyError `not-confirmed` with the handle, and every error a poll throws
+ *   that does not mean "no answer this time".
+ * @example
+ * ```ts
+ * const result = await settle(call, handle, 0);
+ * ```
+ */
+export async function settle(
+  call: Call,
+  handle: Handle,
+  firstWaitMs: number,
+): Promise<VerifyResult> {
+  const polled = await pollUntilDone(call, handle, firstWaitMs);
   if (polled.kind === "stopped") {
     return await lastLookup(call, handle, polled);
   }
@@ -258,7 +331,7 @@ export async function runVerify(
  *   {@link MIN_POLL_INTERVAL_MS} and {@link MAX_TIMER_MS}.
  * - `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object.
  */
-function settingsOf(options: VerifyOptions | undefined): Settings {
+export function settingsOf(options: VerifyOptions | undefined): Settings {
   if (options === undefined) {
     return {
       fetch: undefined,
@@ -441,7 +514,8 @@ function httpContext(
 }
 
 /**
- * Polls the job until it ends, waiting `pollIntervalMs` before each poll.
+ * Polls the job until it ends, waiting `firstWaitMs` before the first poll and `pollIntervalMs`
+ * before each later one.
  *
  * A poll that fails with `network`, `rate-limited` or `unexpected-response`, after the HTTP
  * layer's own retries, is logged at `warn` and polling goes on: the job exists, and the next poll
@@ -449,19 +523,18 @@ function httpContext(
  * {@link MAX_POLL_FAILURES} failed polls in a row. The job id exists, so the call then ends with
  * `not-confirmed`, never `timeout`.
  */
-async function pollUntilDone(call: Call, handle: Handle): Promise<Polled> {
+async function pollUntilDone(call: Call, handle: Handle, firstWaitMs: number): Promise<Polled> {
   const { backend, ctx, settings, observer } = call;
   const { deadline } = call.budget;
   let attempt = 0;
   let failures = 0;
   let cause: ExplorerVerifyError | undefined;
+  let wait = firstWaitMs;
   for (;;) {
     // A wait never passes the deadline. When the deadline has passed, it waits no time and the
     // check below ends polling.
-    await sleep(
-      Math.max(0, Math.min(settings.pollIntervalMs, deadline - Date.now())),
-      settings.signal,
-    );
+    await sleep(Math.max(0, Math.min(wait, deadline - Date.now())), settings.signal);
+    wait = settings.pollIntervalMs;
     if (deadline - Date.now() <= 0) {
       return { kind: "stopped", why: "budget", cause };
     }
@@ -571,7 +644,7 @@ async function gradeOf(call: Call, handle: Handle): Promise<Match> {
  * Whether `error` must reach the caller unchanged: the abort reason once the signal aborted, or
  * anything that is not an `ExplorerVerifyError`. Otherwise the flow maps it to its own error.
  */
-function mustRethrow(error: unknown, signal: AbortSignal | undefined): boolean {
+export function mustRethrow(error: unknown, signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true || !(error instanceof ExplorerVerifyError);
 }
 
@@ -581,7 +654,7 @@ function mustRethrow(error: unknown, signal: AbortSignal | undefined): boolean {
  * that never answers cannot hold the call much past its budget: the call ends by `timeoutMs`
  * plus `min(pollIntervalMs, 30000)`.
  */
-function graceContext(call: Call): Context {
+export function graceContext(call: Call): Context {
   const { ctx, settings, budget } = call;
   const grace = Math.min(settings.pollIntervalMs, REQUEST_TIMEOUT_MS);
   const deadline = Math.max(budget.deadline, Date.now() + grace);
@@ -612,7 +685,11 @@ function notConfirmed(
 }
 
 /** A success result, with the public page when the library knows one. Emits `verify.result`. */
-function finish(call: Call, status: "verified" | "already-verified", match: Match): VerifyResult {
+export function finish(
+  call: Call,
+  status: "verified" | "already-verified",
+  match: Match,
+): VerifyResult {
   const { backend, ctx, target, observer } = call;
   const explorerUrl = backend.explorerUrl(target, ctx);
   const result: VerifyResult =

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { BACKEND_NAMES, ExplorerVerifyError, parseHandle } from "../../src/index.ts";
+import { BACKEND_NAMES, ExplorerVerifyError, formatHandle, parseHandle } from "../../src/index.ts";
 import type { Handle } from "../../src/index.ts";
 
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -272,10 +272,132 @@ describe("parseHandle errors", () => {
     );
   });
 
-  it("for a non-object say it must be a plain object (R-DX-3)", () => {
-    assert.deepEqual(rejection("x").details, {
-      code: "invalid-input",
-      issues: [{ field: "handle", message: "must be a plain object" }],
-    });
+  it("for a value of neither form name both forms (R-DX-3)", () => {
+    for (const value of ["x", 1, null]) {
+      assert.deepEqual(rejection(value).details, {
+        code: "invalid-input",
+        issues: [
+          {
+            field: "handle",
+            message:
+              "must be a handle object or its one-line form ev1:<backend>:<chainId>:<address>:<jobId>",
+          },
+        ],
+      });
+    }
+  });
+});
+
+describe("the one-line form", () => {
+  const ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+  const JOB = "550e8400-e29b-41d4-a716-446655440000";
+  type Part = "version" | "backend" | "chainId" | "address" | "jobId";
+  const line = (fields: Partial<Record<Part, string>> = {}): string =>
+    [
+      fields.version ?? "ev1",
+      fields.backend ?? "sourcify",
+      fields.chainId ?? "11155111",
+      fields.address ?? ADDRESS,
+      fields.jobId ?? JOB,
+    ].join(":");
+
+  it("formatHandle writes ev1:<backend>:<chainId>:<address>:<jobId> (R-FLOW-5)", () => {
+    assert.equal(formatHandle(handle()), `ev1:sourcify:11155111:${ADDRESS}:${JOB}`);
+  });
+
+  it("round-trips through formatHandle and parseHandle for every backend, keeping the address case (R-FLOW-5)", () => {
+    for (const backend of BACKEND_NAMES) {
+      for (const jobId of [JOB, "a", "A_b-9", "a".repeat(128)]) {
+        const original: Handle = { ...handle(), backend, jobId };
+        assert.deepEqual(parseHandle(formatHandle(original)), original);
+      }
+    }
+  });
+
+  it("reads the largest safe chain id", () => {
+    const chainId = Number.MAX_SAFE_INTEGER;
+    assert.equal(parseHandle(line({ chainId: String(chainId) })).chainId, chainId);
+  });
+
+  it("rejects an unknown version (R-FLOW-5)", () => {
+    for (const version of ["ev2", "ev0", "EV1", "", "1"]) {
+      const error = assertRejected(line({ version }), ["version"]);
+      assert.deepEqual(error.details, {
+        code: "invalid-input",
+        issues: [{ field: "version", message: "must be 1 (ev1 in the one-line form)" }],
+      });
+    }
+  });
+
+  it("rejects an unknown backend (R-FLOW-5)", () => {
+    for (const backend of ["etherscan", "Sourcify", ""]) {
+      assertRejected(line({ backend }), ["backend"]);
+    }
+  });
+
+  it("rejects a bad chain id (R-FLOW-5)", () => {
+    for (const chainId of [
+      "0",
+      "011155111",
+      "-1",
+      "1.5",
+      "0x1",
+      "1e3",
+      " 1",
+      "9007199254740992",
+      "",
+    ]) {
+      assertRejected(line({ chainId }), ["chainId"]);
+    }
+  });
+
+  it("rejects a bad address (R-FLOW-5)", () => {
+    for (const address of [
+      "0x",
+      `${ADDRESS}0`,
+      ADDRESS.slice(2),
+      "0xZZbDB2315678afecb367f032d93F642f64180aa3",
+    ]) {
+      assertRejected(line({ address }), ["address"]);
+    }
+  });
+
+  it("rejects an empty or malformed job id (R-FLOW-5, R-SEC-2)", () => {
+    for (const jobId of ["", "-a", "a.b", "a/b", "..", "a b", "a?b", "a#b", "a".repeat(129)]) {
+      assertRejected(line({ jobId }), ["jobId"]);
+    }
+  });
+
+  it("rejects a line that does not split into exactly five parts (R-SEC-2)", () => {
+    for (const value of [
+      "",
+      "ev1",
+      `ev1:sourcify:11155111:${ADDRESS}`,
+      line({ jobId: "http://evil.example" }),
+      line({ jobId: "a:b" }),
+      `${line()}:`,
+    ]) {
+      assertRejected(value, ["handle"]);
+    }
+  });
+
+  it("rejects a line longer than 512 characters as a whole, naming only handle", () => {
+    assertRejected(line({ jobId: "a".repeat(600) }), ["handle"]);
+  });
+
+  it("does not trim surrounding whitespace", () => {
+    assertRejected(` ${line()}`, ["version"]);
+    assertRejected(`${line()}\n`, ["jobId"]);
+  });
+
+  it("lists every bad part in one error and never repeats a value (R-SEC-1, R-DX-3)", () => {
+    const error = assertRejected(
+      [`ev9${DUMMY_KEY}`, DUMMY_KEY, DUMMY_KEY, `0x${DUMMY_KEY}`, `${DUMMY_KEY}!`].join(":"),
+      ["version", "backend", "chainId", "address", "jobId"],
+    );
+    assert.equal(
+      error.message,
+      "The handle is invalid: version, backend, chainId, address, jobId.",
+    );
   });
 });

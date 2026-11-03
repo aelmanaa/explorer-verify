@@ -6,8 +6,9 @@ a CLI, and a self-hosted server handler keeps Etherscan keys off the client.
 
 Status: in design; nothing is published to npm yet. The repository has the toolchain, a typed public
 contract (`packages/explorer-verify/src/types.ts`), the plan, the first explorer client
-(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`) and `verify()`
-(`packages/explorer-verify/src/flow/verify.ts`).
+(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`), `verify()`
+(`packages/explorer-verify/src/flow/verify.ts`) and `checkStatus()`
+(`packages/explorer-verify/src/flow/status.ts`).
 
 ## Start here
 

@@ -29,7 +29,7 @@ These steps never submit. You can run them without asking.
 | Validate | `validateInput(input)` checks the input locally and lists every problem. Sends nothing                                             |
 | Dry run  | Validates, resolves the explorer, builds the request and asks the explorer whether the contract is already verified. Never submits |
 | Lookup   | Asks the explorer whether the contract is verified                                                                                 |
-| Status   | Asks the explorer about a submission it already has                                                                                |
+| Status   | [`checkStatus(handle)`](../reference/check-status.md) asks the explorer about a submission it already has. Never submits           |
 
 A dry run needs no API key. When the explorer needs a key and none is set, the dry run skips the
 lookup and says so.

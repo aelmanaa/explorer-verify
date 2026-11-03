@@ -170,8 +170,8 @@ const pending = verify(input, {
 });
 ```
 
-`checkStatus(handle)`, which continues polling from a handle, is planned
-([#18](https://github.com/aelmanaa/explorer-verify/issues/18)).
+Pass the handle, as an object or in its one-line form, to [checkStatus()](check-status.md) to
+continue polling without a new submission.
 
 ## Events
 

@@ -28,26 +28,26 @@ subpath arrives in M3, the add-ons in M4.
 
 Planned layout of `packages/explorer-verify/src/`:
 
-| Module                                     | Responsibility                                                                                 |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `VerifyOptions`, `Handle` (exists)                |
-| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                        |
-| `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part) |
-| `input/validate.ts`                        | R-IN-6 checks                                                                                  |
-| `input/build.ts`                           | `buildVerifyInput`: detects each document's shape and builds the input (R-IN-7) (exists)       |
-| `input/metadata.ts`                        | Rebuilds Standard JSON from Solidity metadata and checks source hashes (R-IN-7) (exists)       |
-| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                  |
-| `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                  |
-| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                           |
-| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts` exists)          |
-| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                      |
-| `flow/handle.ts`                           | `parseHandle` and the handle's one-line form (exists in part)                                  |
-| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                                           |
-| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                  |
-| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                            |
-| `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                    |
-| `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                 |
-| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                    |
+| Module                                     | Responsibility                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `VerifyOptions`, `Handle` (exists)                        |
+| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                                |
+| `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part)         |
+| `input/validate.ts`                        | R-IN-6 checks                                                                                          |
+| `input/build.ts`                           | `buildVerifyInput`: detects each document's shape and builds the input (R-IN-7) (exists)               |
+| `input/metadata.ts`                        | Rebuilds Standard JSON from Solidity metadata and checks source hashes (R-IN-7) (exists)               |
+| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                          |
+| `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                          |
+| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                                   |
+| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts` exists)                  |
+| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                              |
+| `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)    |
+| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists) |
+| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                          |
+| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                                    |
+| `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                            |
+| `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                         |
+| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                            |
 
 ## Backend interface
 
@@ -108,7 +108,7 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md); the log
 amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-default.md).
 
 - `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
-  `checkStatus(handle: Handle, options?: VerifyOptions): Promise<VerifyResult>`.
+  `checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>`.
 - `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
   `pollIntervalMs`, `logger`, `onEvent` and `route`. Every field is optional. M2 adds `apiKeys`,
   keyed by backend name, and `rpcUrl`.
@@ -135,8 +135,13 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 
 `types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
 `exitCodeOf` and `toEnvelope`, `flow/handle.ts`
-`parseHandle`, `input/validate.ts` `validateInput` and `flow/verify.ts` `verify`. `checkStatus`
-does not exist yet ([#18](https://github.com/aelmanaa/explorer-verify/issues/18)).
+`parseHandle` and `formatHandle`, `input/validate.ts` `validateInput`, `flow/verify.ts` `verify`
+and `flow/status.ts` `checkStatus`. `checkStatus` reuses the option reading, the call setup, the
+poll loop, the failure cap, the last lookup and the result mapping of `flow/verify.ts`
+(`settingsOf`, `openCall`, `settle`). It polls at once instead of after one interval. Its handle's
+backend must equal the backend the route resolves for the handle's chain, or it throws
+`invalid-input` before any request (R-SEC-2). When the explorer no longer knows the job, it looks
+the contract up: a match returns `verified`, otherwise it throws `job-not-found`.
 
 ## Logging and events
 
