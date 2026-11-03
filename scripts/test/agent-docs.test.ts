@@ -21,7 +21,16 @@ import {
   rewriteForPackage,
   writeVersions,
 } from "../agent-docs.ts";
-import { AGENT, edit, makeFixture, read, README, removeFixture, writeFiles } from "./fixture.ts";
+import {
+  AGENT,
+  edit,
+  makeFixture,
+  read,
+  README,
+  removeFixture,
+  SKILL,
+  writeFiles,
+} from "./fixture.ts";
 
 let root = "";
 
@@ -85,6 +94,7 @@ describe("checkAgentDocs", () => {
         /`## Contributor docs`/,
         /does not list docs\/user\/README\.md/,
         /does not list docs\/user\/guides/,
+        /does not list skills\/explorer-verify\/SKILL\.md/,
       );
     });
 
@@ -94,6 +104,7 @@ describe("checkAgentDocs", () => {
         /^llms\.txt: missing at the repository root/,
         /^docs\/user\/README\.md:5: link \.\.\/\.\.\/llms\.txt points to llms\.txt/,
         /^docs\/user\/guides\/using-from-an-agent\.md:5: link \.\.\/\.\.\/\.\.\/llms\.txt points to llms\.txt/,
+        /^skills\/explorer-verify\/SKILL\.md:5: link \.\.\/\.\.\/llms\.txt points to llms\.txt/,
       );
     });
 
@@ -184,6 +195,18 @@ describe("checkAgentDocs", () => {
     }
   });
 
+  describe("skills (R-AX-4)", () => {
+    it("fails when llms.txt does not list a skill", () => {
+      edit(root, "llms.txt", `- [Skill](${RAW_MAIN}${SKILL}): the skill\n`, "");
+      assertProblems(/llms\.txt: does not list skills\/explorer-verify\/SKILL\.md.*\(R-AX-4\)/);
+    });
+
+    it("checks the relative links of a skill", () => {
+      edit(root, SKILL, "#stop", "#gone");
+      assertProblems(/skills\/explorer-verify\/SKILL\.md:5: link #gone names a heading/);
+    });
+  });
+
   describe("user pages (R-AX-2, R-AX-3)", () => {
     it("fails when the agent page is missing", () => {
       rmSync(path.join(root, AGENT));
@@ -191,6 +214,7 @@ describe("checkAgentDocs", () => {
         /using-from-an-agent\.md: missing; the agent page is required/,
         /llms\.txt:8: .* which does not exist/,
         /README\.md:7: link guides\/using-from-an-agent\.md#notes points to/,
+        /SKILL\.md:5: link \.\.\/\.\.\/docs\/user\/guides\/using-from-an-agent\.md#notes points to/,
       );
     });
 
@@ -525,15 +549,32 @@ describe("packaging (R-AX-2)", () => {
     );
   });
 
+  it("points links in a skill and links to a skill at the packaged copies", () => {
+    assert.equal(
+      rewriteForPackage(
+        SKILL,
+        "[g](../../docs/user/guides/a.md#x) [u](../../docs/user) [o](../other/SKILL.md) [c](../../docs/contributor/x.md)",
+      ),
+      `[g](../../docs/guides/a.md#x) [u](../../docs) [o](../other/SKILL.md) [c](${RAW_MAIN}docs/contributor/x.md)`,
+    );
+    assert.equal(
+      rewriteForPackage(AGENT, "[s](../../../skills/explorer-verify/SKILL.md#stop)"),
+      "[s](../../skills/explorer-verify/SKILL.md#stop)",
+    );
+  });
+
   it("keeps a link to the user docs folder itself", () => {
     assert.equal(rewriteForPackage(AGENT, "[u](..)"), "[u](..)");
   });
 
-  it("makes llms.txt links to user pages relative", () => {
+  it("makes llms.txt links to user pages and skills relative", () => {
     const packaged = packagedLlmsTxt(
-      `[a](${RAW_MAIN}docs/user/README.md) [b](${RAW_MAIN}AGENTS.md)`,
+      `[a](${RAW_MAIN}docs/user/README.md) [b](${RAW_MAIN}AGENTS.md) [s](${RAW_MAIN}${SKILL}) [t](${RAW_MAIN}packages/explorer-verify/package.json)`,
     );
-    assert.equal(packaged, `[a](docs/README.md) [b](${RAW_MAIN}AGENTS.md)`);
+    assert.equal(
+      packaged,
+      `[a](docs/README.md) [b](${RAW_MAIN}AGENTS.md) [s](skills/explorer-verify/SKILL.md) [t](${RAW_MAIN}packages/explorer-verify/package.json)`,
+    );
   });
 
   it("copies every file of the user docs and llms.txt into the package", () => {
@@ -544,10 +585,16 @@ describe("packaging (R-AX-2)", () => {
       "docs/README.md",
       "docs/guides/using-from-an-agent.md",
       "docs/img/logo.png",
+      "skills/explorer-verify/SKILL.md",
       "llms.txt",
     ]);
+    assert.equal(
+      read(packageDir, SKILL),
+      `---\nname: explorer-verify\n---\n\nRead [llms.txt](../../llms.txt), [the agent page](../../docs/guides/using-from-an-agent.md#notes), [stop](#stop) and [AGENTS](${RAW_MAIN}AGENTS.md).\n\n## Stop\n`,
+    );
     assert.equal(readFileSync(path.join(packageDir, "docs/img/logo.png"), "utf8"), "PNG");
     assert.match(read(packageDir, "llms.txt"), /\(docs\/README\.md\)/);
+    assert.match(read(packageDir, "llms.txt"), /\(skills\/explorer-verify\/SKILL\.md\)/);
     assert.match(read(packageDir, "docs/README.md"), /\[llms\.txt\]\(\.\.\/llms\.txt\)/);
     assert.throws(() => read(packageDir, "docs/stale.md"));
     assert.deepEqual(packagedLinkProblems(packageDir, packagedDocFiles(root)), []);
@@ -564,12 +611,22 @@ describe("packaging (R-AX-2)", () => {
     ]);
   });
 
+  it("finds a link in a skill to a file the tarball lacks", () => {
+    const packageDir = path.join(root, "packages/explorer-verify");
+    packageDocs(root, packageDir);
+    edit(packageDir, SKILL, "../../docs/guides/using-from-an-agent.md#notes", "../../docs/gone.md");
+    assert.deepEqual(packagedLinkProblems(packageDir, packagedDocFiles(root)), [
+      "skills/explorer-verify/SKILL.md:5: link ../../docs/gone.md points to docs/gone.md, which is not in the tarball (R-AX-2)",
+    ]);
+  });
+
   it("lists the files the tarball must hold", () => {
     assert.deepEqual(packagedDocFiles(root), [
       "llms.txt",
       "docs/README.md",
       "docs/guides/using-from-an-agent.md",
       "docs/img/logo.png",
+      "skills/explorer-verify/SKILL.md",
     ]);
   });
 
@@ -581,6 +638,7 @@ describe("packaging (R-AX-2)", () => {
     assert.deepEqual(missingFromPack(packedFiles(output), packagedDocFiles(root)), [
       "docs/guides/using-from-an-agent.md",
       "docs/img/logo.png",
+      "skills/explorer-verify/SKILL.md",
     ]);
     assert.throws(() => packedFiles("{}"), /no file list/);
     assert.throws(() => packedFiles("[1]"), /no file list/);

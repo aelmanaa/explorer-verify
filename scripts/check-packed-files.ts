@@ -1,6 +1,6 @@
-// Fails when the packed tarball of the core package lacks `llms.txt` or a file under `docs/`, or
-// when a relative link in a packaged page or the packaged `llms.txt` points outside the tarball
-// (R-AX-2). It reads the file list from `npm pack --dry-run --json`. The package's `pkg:check`
+// Fails when the packed tarball of the core package lacks `llms.txt`, a file under `docs/` (R-AX-2)
+// or a file under `skills/` (R-AX-4), or when a relative link in a packaged page, a skill or the
+// packaged `llms.txt` points outside the tarball. It reads the file list from `npm pack --dry-run --json`. The package's `pkg:check`
 // script runs it after the build. A path argument names another repository root, which the tests
 // use.
 //
@@ -13,6 +13,7 @@ import {
   missingFromPack,
   PACKAGE_DIR,
   packagedDocFiles,
+  SKILLS,
   packagedLinkProblems,
   packedFiles,
 } from "./agent-docs.ts";
@@ -35,7 +36,7 @@ const missing = missingFromPack(packed, required);
 const problems = [
   ...missing.map(
     (file) =>
-      `The packed tarball lacks ${file}. Run the build, and check \`files\` in ${PACKAGE_DIR}/package.json (R-AX-2)`,
+      `The packed tarball lacks ${file}. Run the build, and check \`files\` in ${PACKAGE_DIR}/package.json (${file.startsWith(`${SKILLS}/`) ? "R-AX-4" : "R-AX-2"})`,
   ),
   ...packagedLinkProblems(
     packageDir,
@@ -46,6 +47,7 @@ if (problems.length > 0) {
   process.stderr.write(`${problems.join("\n")}\n`);
   process.exit(1);
 }
+const skills = required.filter((file) => file.startsWith(`${SKILLS}/`)).length;
 process.stdout.write(
-  `packed files: llms.txt and ${required.length - 1} docs files are in the tarball, and their links resolve\n`,
+  `packed files: llms.txt, ${required.length - 1 - skills} docs files and ${skills} skill files are in the tarball, and their links resolve\n`,
 );

@@ -10,11 +10,16 @@ Nothing is released yet. Of the steps below, validation and the input build exis
 lookup and the submit. This page
 states the rules the library and the CLI will follow. It grows with each feature.
 
+The package also ships a skill, [skills/explorer-verify/SKILL.md](../../../skills/explorer-verify/SKILL.md),
+with tested examples of each step: build the input, verify, resume from the handle, read the
+outcome, and when to stop.
+
 ## Submit is permanent
 
 Submit sends the source to the explorer, which publishes it. The step is outward and permanent: you
-cannot take it back. `verify()` submits, unless its lookup finds the contract already verified. Run a dry run first, and submit only when the person asked for verification of
-that contract on that chain.
+cannot take it back. `verify()` submits, unless its lookup finds the contract already verified. Submit only when the
+person asked for verification of that contract on that chain. A dry run is planned but not
+available yet: until then, run the build and validation steps first.
 
 A Sourcify submit can also publish the source on other explorers: Sourcify forwards it to
 Etherscan, Blockscout and Routescan. See [Sourcify](../reference/sourcify.md#behaviour-to-know).
@@ -27,12 +32,12 @@ These steps never submit. You can run them without asking.
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Build    | `buildVerifyInput(documents)` builds the compiler input and contract name from parsed build files. Sends nothing                   |
 | Validate | `validateInput(input)` checks the input locally and lists every problem. Sends nothing                                             |
-| Dry run  | Validates, resolves the explorer, builds the request and asks the explorer whether the contract is already verified. Never submits |
-| Lookup   | Asks the explorer whether the contract is verified                                                                                 |
+| Dry run  | Not available yet. Planned: validates, resolves the explorer, builds the request and asks whether the contract is already verified |
+| Lookup   | Not available yet as its own call. `verify()` runs it before it submits                                                            |
 | Status   | [`checkStatus(handle)`](../reference/check-status.md) asks the explorer about a submission it already has. Never submits           |
 
-A dry run needs no API key. When the explorer needs a key and none is set, the dry run skips the
-lookup and says so.
+Once it exists, a dry run will need no API key. When the explorer needs a key and none is set, the
+dry run will skip the lookup and say so.
 
 ## API keys
 

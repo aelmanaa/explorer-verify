@@ -10,8 +10,10 @@
 //   to the root `llms.txt` in its first 10 lines. The version matches the core package.
 // - The agent page `docs/user/guides/using-from-an-agent.md` exists and has its required headings.
 // - `docs/user/` holds no symbolic links.
-// - Each relative link in a Markdown file under `docs/` points to a file that exists, with the
-//   same case, and, when it has a fragment, to a heading in that file (GitHub heading slugs).
+// - Each relative link in a Markdown file under `docs/` or `skills/` points to a file that exists,
+//   with the same case, and, when it has a fragment, to a heading in that file (GitHub heading
+//   slugs).
+// - `llms.txt` lists every skill (R-AX-4).
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -35,6 +37,11 @@ export const AGENT_PAGE_HEADINGS: readonly string[] = [
 export const LLMS_SECTIONS: readonly string[] = ["User docs", "Contributor docs"];
 /** The core package, whose version the user pages state. */
 export const PACKAGE_DIR = "packages/explorer-verify";
+/**
+ * The folder of the agent skills (R-AX-4), at the repository root. The build copies it into the
+ * core package under the same name.
+ */
+export const SKILLS = "skills";
 /** How many lines from the top of a user page may hold the version line and the `llms.txt` link. */
 export const HEAD_LINES = 10;
 
@@ -396,6 +403,11 @@ function checkLlmsTxt(root: string, userPages: readonly string[]): string[] {
       problems.push(`llms.txt: does not list ${page}; add ${RAW_MAIN}${page} (R-AX-1)`);
     }
   }
+  for (const skill of listFiles(root, SKILLS, ".md")) {
+    if (!listed.has(skill)) {
+      problems.push(`llms.txt: does not list ${skill}; add ${RAW_MAIN}${skill} (R-AX-4)`);
+    }
+  }
   return problems;
 }
 
@@ -459,7 +471,7 @@ export function checkAgentDocs(root: string): string[] {
   for (const page of userPages) {
     problems.push(...checkUserPage(page, readFileSync(path.join(root, page), "utf8"), version));
   }
-  for (const file of listFiles(root, "docs", ".md")) {
+  for (const file of [...listFiles(root, "docs", ".md"), ...listFiles(root, SKILLS, ".md")]) {
     problems.push(...checkLinks(root, file, readFileSync(path.join(root, file), "utf8")));
   }
   return problems;
@@ -494,18 +506,20 @@ export function packagedPath(repositoryPath: string): string {
   return `docs/${path.posix.relative(USER_DOCS, repositoryPath)}`;
 }
 
-/** The files the packed tarball must hold: `llms.txt` and each file under `docs/`. */
+/** The files the packed tarball must hold: `llms.txt`, each file under `docs/` and `skills/`. */
 export function packagedDocFiles(root: string): string[] {
-  return ["llms.txt", ...listFiles(root, USER_DOCS).map(packagedPath)];
+  return ["llms.txt", ...listFiles(root, USER_DOCS).map(packagedPath), ...listFiles(root, SKILLS)];
 }
 
 /**
- * Rewrites the relative links of a user page for the package: a link inside `docs/user/` stays,
- * a link to the root `llms.txt` points to the packaged one, and any other link becomes a raw
- * GitHub URL.
+ * Rewrites the relative links of a user page or a skill for the package. In a user page, a link
+ * inside `docs/user/` stays. In a skill, it points to the same page under `docs/`. A link into
+ * `skills/` or to the root `llms.txt` points to the packaged copy, and any other link becomes a
+ * raw GitHub URL.
  */
 export function rewriteForPackage(file: string, text: string): string {
-  const destination = packagedPath(file);
+  const skill = file.startsWith(`${SKILLS}/`);
+  const destination = skill ? file : packagedPath(file);
   const rewrite = (target: string): string => {
     if (SCHEME.test(target) || target.startsWith("//") || target.startsWith("#")) {
       return target;
@@ -514,7 +528,12 @@ export function rewriteForPackage(file: string, text: string): string {
     const rest = target.slice(linked.length);
     const relative = resolveLink(file, linked);
     if (relative === USER_DOCS || relative.startsWith(`${USER_DOCS}/`)) {
-      return target;
+      return skill
+        ? `${path.posix.relative(path.posix.dirname(destination), packagedPath(relative))}${rest}`
+        : target;
+    }
+    if (relative.startsWith(`${SKILLS}/`)) {
+      return `${path.posix.relative(path.posix.dirname(destination), relative)}${rest}`;
     }
     if (relative === "llms.txt") {
       return `${path.posix.relative(path.posix.dirname(destination), "llms.txt")}${rest}`;
@@ -544,28 +563,38 @@ export function rewriteForPackage(file: string, text: string): string {
   return lines.join("\n");
 }
 
-/** The packaged `llms.txt`: the root one with links to user pages made relative to the package. */
+/**
+ * The packaged `llms.txt`: the root one with links to user pages and to the skills made relative
+ * to the package.
+ */
 export function packagedLlmsTxt(text: string): string {
-  return text.replaceAll(`${RAW_MAIN}${USER_DOCS}/`, "docs/");
+  return text
+    .replaceAll(`${RAW_MAIN}${USER_DOCS}/`, "docs/")
+    .replaceAll(`${RAW_MAIN}${SKILLS}/`, `${SKILLS}/`);
 }
 
 /**
- * Writes every file under `docs/user/` into `packageDir` as `docs/`, with the links of Markdown
- * pages rewritten for the package, and the packaged `llms.txt` next to them. Removes the previous
- * copy first.
+ * Writes every file under `docs/user/` into `packageDir` as `docs/`, and every file under
+ * `skills/` as `skills/`, with the links of Markdown pages rewritten for the package, and the
+ * packaged `llms.txt` next to them. Removes the previous copies first.
  */
 export function packageDocs(root: string, packageDir: string): string[] {
   rmSync(path.join(packageDir, "docs"), { recursive: true, force: true });
+  rmSync(path.join(packageDir, SKILLS), { recursive: true, force: true });
   const written: string[] = [];
-  for (const source of listFiles(root, USER_DOCS)) {
-    const destination = path.join(packageDir, packagedPath(source));
+  const sources = [
+    ...listFiles(root, USER_DOCS).map((source) => ({ source, packaged: packagedPath(source) })),
+    ...listFiles(root, SKILLS).map((source) => ({ source, packaged: source })),
+  ];
+  for (const { source, packaged } of sources) {
+    const destination = path.join(packageDir, packaged);
     mkdirSync(path.dirname(destination), { recursive: true });
     const content = readFileSync(path.join(root, source));
     writeFileSync(
       destination,
       source.endsWith(".md") ? rewriteForPackage(source, content.toString("utf8")) : content,
     );
-    written.push(packagedPath(source));
+    written.push(packaged);
   }
   writeFileSync(
     path.join(packageDir, "llms.txt"),
@@ -598,8 +627,8 @@ export function missingFromPack(packed: readonly string[], required: readonly st
 }
 
 /**
- * Problems with the relative links of the packaged pages and the packaged `llms.txt`: each must
- * point to a file or folder in the tarball. `packageDir` holds the files the list names.
+ * Problems with the relative links of the packaged pages, the skills and the packaged `llms.txt`:
+ * each must point to a file or folder in the tarball. `packageDir` holds the files the list names.
  */
 export function packagedLinkProblems(packageDir: string, packed: readonly string[]): string[] {
   const present = new Set(packed);
@@ -613,7 +642,9 @@ export function packagedLinkProblems(packageDir: string, packed: readonly string
     }
   }
   const pages = packed.filter(
-    (file) => file === "llms.txt" || (file.startsWith("docs/") && file.endsWith(".md")),
+    (file) =>
+      file === "llms.txt" ||
+      ((file.startsWith("docs/") || file.startsWith(`${SKILLS}/`)) && file.endsWith(".md")),
   );
   const problems: string[] = [];
   for (const page of pages) {

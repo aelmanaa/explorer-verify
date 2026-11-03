@@ -43,7 +43,11 @@ from compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
 sends and how it reads each answer. The logger and the stage events are in
-[docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
+[docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md). The agent
+skill that ships in the package is
+[skills/explorer-verify/SKILL.md](skills/explorer-verify/SKILL.md); the build copies it into the
+package, and `packages/explorer-verify/test/unit/skill.test.ts` runs its examples against the
+build.
 
 ## Commands
 
@@ -69,6 +73,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/` |
 | `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                           |
 | `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                         |
+| `skills/`                             | The agent skill; the build copies it into the package, and the tests run its examples against the build                   |
 | `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                   |
 | `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                              |
 | `.changeset/`                         | Pending release notes                                                                                                     |

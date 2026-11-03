@@ -74,7 +74,8 @@ requirement the change does not meet is named in the pull request with the reaso
 `pnpm run check` enforces the `llms.txt` item (see [tooling](docs/contributor/tooling.md#agent-docs)).
 It also enforces the structure of the sources item: the research link or the `Research: none` line,
 the `## Sources` section and the research index. Review checks that each claim has its source.
-The skill does not exist yet; its item applies once #6 lands.
+`pnpm test` enforces the skill item: it fails when a skill example no longer compiles or prints
+other output, or when the skill names an API the package does not export.
 
 ## Changesets
 

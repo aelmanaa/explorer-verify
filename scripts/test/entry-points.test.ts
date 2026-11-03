@@ -81,11 +81,11 @@ describe("package-docs.ts and check-packed-files.ts", () => {
   it("copies the docs into the package, and the tarball holds them", () => {
     const built = run("package-docs.ts", root);
     assert.equal(built.status, 0);
-    assert.equal(built.stdout, "package docs: wrote 4 files to packages/explorer-verify\n");
+    assert.equal(built.stdout, "package docs: wrote 5 files to packages/explorer-verify\n");
     const checked = run("check-packed-files.ts", root);
     assert.equal(checked.stderr, "");
     assert.equal(checked.status, 0);
-    assert.match(checked.stdout, /llms\.txt and 3 docs files are in the tarball/);
+    assert.match(checked.stdout, /llms\.txt, 3 docs files and 1 skill files are in the tarball/);
   });
 
   it("exits 1 when the tarball lacks the docs", () => {
@@ -95,6 +95,18 @@ describe("package-docs.ts and check-packed-files.ts", () => {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /^The packed tarball lacks docs\/README\.md\./m);
     assert.match(result.stderr, /lacks docs\/img\/logo\.png\./);
+  });
+
+  it("exits 1 when the tarball lacks the skill", () => {
+    run("package-docs.ts", root);
+    edit(root, PACKAGE_JSON, '"skills/",', "");
+    const result = run("check-packed-files.ts", root);
+    assert.equal(result.status, 1);
+    assert.equal(
+      result.stderr,
+      "The packed tarball lacks skills/explorer-verify/SKILL.md. Run the build, and check `files` in packages/explorer-verify/package.json (R-AX-4)\n" +
+        "llms.txt:9: link skills/explorer-verify/SKILL.md points to skills/explorer-verify/SKILL.md, which is not in the tarball (R-AX-2)\n",
+    );
   });
 
   it("exits 1 when a packaged link points outside the tarball", () => {

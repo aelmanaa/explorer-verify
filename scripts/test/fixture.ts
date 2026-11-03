@@ -13,6 +13,8 @@ export const README = "docs/user/README.md";
 export const AGENT = "docs/user/guides/using-from-an-agent.md";
 /** An image the index page links. */
 export const IMAGE = "docs/user/img/logo.png";
+/** The skill of the fixture, at the repository root. */
+export const SKILL = "skills/explorer-verify/SKILL.md";
 
 const LLMS_TXT = `# explorer-verify
 
@@ -22,6 +24,7 @@ const LLMS_TXT = `# explorer-verify
 
 - [Index](${RAW_MAIN}${README}): the index
 - [Agents](${RAW_MAIN}${AGENT}): the agent page
+- [Skill](${RAW_MAIN}${SKILL}): the skill
 
 ## Contributor docs
 
@@ -34,7 +37,7 @@ export const VALID: Readonly<Record<string, string>> = {
   "packages/explorer-verify/package.json": JSON.stringify({
     name: "fixture-package",
     version: "1.2.3",
-    files: ["docs/", "llms.txt"],
+    files: ["docs/", "skills/", "llms.txt"],
   }),
   "llms.txt": LLMS_TXT,
   [README]: `# User docs
@@ -48,6 +51,14 @@ See [the agent page](guides/using-from-an-agent.md#notes), [guides](guides/) and
 ![logo](img/logo.png)
 `,
   [IMAGE]: "PNG",
+  [SKILL]: `---
+name: explorer-verify
+---
+
+Read [llms.txt](../../llms.txt), [the agent page](../../docs/user/guides/using-from-an-agent.md#notes), [stop](#stop) and [AGENTS](../../AGENTS.md).
+
+## Stop
+`,
   [AGENT]: `# Using explorer-verify from an agent
 
 Version: explorer-verify 1.2.3
