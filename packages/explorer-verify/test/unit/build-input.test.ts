@@ -12,6 +12,7 @@ import type { BuildVerifyInputOptions, BuiltVerifyInput, ErrorCode } from "../..
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const LONG_VERSION = "0.8.24+commit.e11b9ed9";
+const PLANTED_LOCAL_PATHS = ["/home/builder/", "/home/u/", "/home/alice/", "C:\\Users\\builder"];
 const FIXTURES = new URL("../fixtures/build-formats/", import.meta.url);
 const FOUNDRY_EXTRA_KEYS = ["version", "allowPaths", "basePath", "includePaths"];
 
@@ -142,7 +143,10 @@ function assertFails(
   assert.equal(fieldOf(error), field);
   assert.equal(error.retryable, false);
   assertNotShown(error, DUMMY_KEY);
-  assertNotShown(error, "/home/");
+  // The planted local paths. Not "/home/" alone: the stack names the runner's own checkout.
+  for (const local of PLANTED_LOCAL_PATHS) {
+    assertNotShown(error, local);
+  }
   return error;
 }
 
