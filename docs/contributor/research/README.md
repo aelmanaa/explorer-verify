@@ -14,13 +14,14 @@ question. Each note is listed in the table below.
 https URL, or when the note is missing from this table. Whether each claim has a source is checked
 in review.
 
-| Note                                                             | Question                                                                                                                        |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| [2026-11-02-agent-readiness.md](2026-11-02-agent-readiness.md)   | What makes docs and a CLI usable by a coding agent?                                                                             |
-| [2026-11-02-cli-sdk-logging.md](2026-11-02-cli-sdk-logging.md)   | How should the CLI split its output streams, and how should the library log?                                                    |
-| [2026-11-02-etherscan-terms.md](2026-11-02-etherscan-terms.md)   | What do Etherscan's API terms allow for keys, proxies and plans?                                                                |
-| [2026-11-02-explorer-apis.md](2026-11-02-explorer-apis.md)       | How do Etherscan v2, Sourcify v2 and Blockscout verify, and can a browser call them?                                            |
-| [2026-11-02-landscape.md](2026-11-02-landscape.md)               | What exists already, including thirdweb, and is there demand?                                                                   |
-| [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md)           | What does each Sourcify v2 answer mean, and how does the client map it?                                                         |
-| [2026-11-03-m2-live-probes.md](2026-11-03-m2-live-probes.md)     | What do Etherscan, Routescan and Sourcify answer for omitted arguments, keyless submits, factory children and linked libraries? |
-| [2026-11-03-routescan-zksync.md](2026-11-03-routescan-zksync.md) | What are Routescan's hosts, request format, key policy and CORS, and which compiler does zkSync Era use?                        |
+| Note                                                                             | Question                                                                                                                        |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [2026-11-02-agent-readiness.md](2026-11-02-agent-readiness.md)                   | What makes docs and a CLI usable by a coding agent?                                                                             |
+| [2026-11-02-cli-sdk-logging.md](2026-11-02-cli-sdk-logging.md)                   | How should the CLI split its output streams, and how should the library log?                                                    |
+| [2026-11-02-etherscan-terms.md](2026-11-02-etherscan-terms.md)                   | What do Etherscan's API terms allow for keys, proxies and plans?                                                                |
+| [2026-11-02-explorer-apis.md](2026-11-02-explorer-apis.md)                       | How do Etherscan v2, Sourcify v2 and Blockscout verify, and can a browser call them?                                            |
+| [2026-11-02-landscape.md](2026-11-02-landscape.md)                               | What exists already, including thirdweb, and is there demand?                                                                   |
+| [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md)                           | What does each Sourcify v2 answer mean, and how does the client map it?                                                         |
+| [2026-11-03-m2-live-probes.md](2026-11-03-m2-live-probes.md)                     | What do Etherscan, Routescan and Sourcify answer for omitted arguments, keyless submits, factory children and linked libraries? |
+| [2026-11-03-routescan-zksync.md](2026-11-03-routescan-zksync.md)                 | What are Routescan's hosts, request format, key policy and CORS, and which compiler does zkSync Era use?                        |
+| [2026-11-03-docs-site-and-versioning.md](2026-11-03-docs-site-and-versioning.md) | Where should the public docs live, built with which generator, and how should they and `docsUrl` be versioned?                  |

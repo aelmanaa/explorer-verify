@@ -1,6 +1,6 @@
 // Black-box tests for issue #21: buildVerifyInput rebuilds the Standard JSON input from Solidity
 // metadata and sources. Written from the issue, R-IN-7, the how-to "Verify a contract shipped in an
-// npm package" (section "Rebuild the input from Solidity metadata"), errors.md (`source-mismatch`,
+// npm package" (section "Rebuild the input from Solidity metadata"), errors/source-mismatch.md (`source-mismatch`,
 // `incomplete-input`) and the buildVerifyInput TSDoc only.
 //
 // The data at the end of this file comes from fresh solc-js 0.8.24 compiles of contracts that are

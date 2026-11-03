@@ -37,9 +37,10 @@ User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/README.md](docs/README.md). The index for agents is [llms.txt](llms.txt), and
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
 are safe and which one submits. The error reference is
-[docs/user/reference/errors.md](docs/user/reference/errors.md), and the JSON envelope and exit codes
-are in [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input
-from compiler JSON of unknown origin is in
+[docs/user/reference/errors/index.md](docs/user/reference/errors/index.md), with one page per
+error code next to it, and the JSON envelope and exit codes are in
+[docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input from
+compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
 sends and how it reads each answer. The logger and the stage events are in

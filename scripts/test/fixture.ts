@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { RAW_MAIN } from "../agent-docs.ts";
+import { CORE_ENTRY, RAW_MAIN } from "../agent-docs.ts";
 
 /** The user index page of the fixture. */
 export const README = "docs/user/README.md";
@@ -37,8 +37,11 @@ export const VALID: Readonly<Record<string, string>> = {
   "packages/explorer-verify/package.json": JSON.stringify({
     name: "fixture-package",
     version: "1.2.3",
+    type: "module",
     files: ["docs/", "skills/", "llms.txt"],
   }),
+  // The built entry point, which check-packed-files.ts reads the error codes from.
+  [CORE_ENTRY]: "export const ERROR_CODES = [];\n",
   "llms.txt": LLMS_TXT,
   [README]: `# User docs
 

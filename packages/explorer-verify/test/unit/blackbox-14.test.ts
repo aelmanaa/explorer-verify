@@ -1,6 +1,6 @@
 // Black-box tests for issue #14: the HTTP layer. They use only the names in the built
 // declaration of http/fetch.ts, the issue, R-FLOW-6, R-SEC-1, R-SEC-2, decisions 0009 and 0010,
-// the "Retries" section of docs/user/reference/errors.md and the "HTTP layer" section of
+// the "Retries" section of docs/user/reference/errors/index.md and the "HTTP layer" section of
 // docs/contributor/architecture.md. No real network: every test injects a fake fetch. Every wait
 // runs on the node:test mock timers. The process-liveness test of sleep() lives in
 // http-fetch.test.ts.

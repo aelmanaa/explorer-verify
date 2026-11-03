@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { ExplorerVerifyError, validateInput } from "../../src/index.ts";
 import type { InputIssue, VerifyInput } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 // --- fixtures -----------------------------------------------------------------------------------
 
@@ -396,7 +397,7 @@ describe("blackbox #13: every promised rejection names its field (R-IN-6)", () =
     const error = rejectionOf(withFields({ chainId: 0 }));
     assert.equal(error.name, "ExplorerVerifyError");
     assert.equal(error.retryable, false);
-    assert.match(error.docsUrl, /#invalid-input$/);
+    assert.equal(error.docsUrl, docsUrlOf("invalid-input"));
     const json = error.toJSON();
     assert.equal(json.code, "invalid-input");
     assert.equal(json.handle, undefined);

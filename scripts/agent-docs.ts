@@ -14,6 +14,7 @@
 //   with the same case, and, when it has a fragment, to a heading in that file (GitHub heading
 //   slugs).
 // - `llms.txt` lists every skill (R-AX-4).
+// - The packed tarball holds the page of every error code the built package exports (R-AX-10).
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -504,6 +505,36 @@ export function writeVersions(root: string): string[] {
 /** The path inside the package of a repository file under `docs/user/`. */
 export function packagedPath(repositoryPath: string): string {
   return `docs/${path.posix.relative(USER_DOCS, repositoryPath)}`;
+}
+
+/** The built entry point of the core package, which exports `ERROR_CODES`. */
+export const CORE_ENTRY: string = `${PACKAGE_DIR}/dist/src/index.js`;
+/** The built errors module, which holds the `docsUrl` base. */
+export const CORE_ERRORS: string = `${PACKAGE_DIR}/dist/src/errors.js`;
+/** Text the built errors module must not hold at release: a `docsUrl` on the default branch. */
+export const UNRELEASABLE_DOCS_URL = "blob/main";
+/** The folder of the error pages, one per code (R-AX-10, decision 0015). */
+export const ERROR_PAGES: string = `${USER_DOCS}/reference/errors`;
+
+/**
+ * The `ERROR_CODES` export of a loaded module. Throws when it is not an array of strings; `from`
+ * names the module in the message.
+ */
+export function errorCodesOf(module: unknown, from: string = CORE_ENTRY): string[] {
+  const codes: unknown =
+    typeof module === "object" && module !== null ? Reflect.get(module, "ERROR_CODES") : undefined;
+  const strings = Array.isArray(codes)
+    ? codes.flatMap((code: unknown) => (typeof code === "string" ? [code] : []))
+    : [];
+  if (!Array.isArray(codes) || strings.length !== codes.length) {
+    throw new Error(`${from} exports no ERROR_CODES array of strings; run the build`);
+  }
+  return strings;
+}
+
+/** The path inside the package of the page of each error code (R-AX-10). */
+export function errorPageFiles(codes: readonly string[]): string[] {
+  return codes.map((code) => packagedPath(`${ERROR_PAGES}/${code}.md`));
 }
 
 /** The files the packed tarball must hold: `llms.txt`, each file under `docs/` and `skills/`. */

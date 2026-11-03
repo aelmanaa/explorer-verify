@@ -33,7 +33,7 @@
     "test:browser:harness": "node scripts/test-browser/browser-smoke.test.ts",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",
     "changeset": "changeset",
-    "version-packages": "changeset version && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts"
+    "version-packages": "changeset version && node scripts/record-released-codes.ts && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",

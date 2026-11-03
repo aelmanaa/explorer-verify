@@ -130,7 +130,7 @@ its job has finished, that lookup finds the contract verified.
 ## Errors
 
 Every failure throws an `ExplorerVerifyError`. An unknown or ambiguous state is never returned as
-a result. [Errors](errors.md) has the fix for each code.
+a result. [Errors](errors/index.md) links a page with the fix for each code.
 
 | Code                        | When `verify()` throws it                                                                         | Exit code |
 | --------------------------- | ------------------------------------------------------------------------------------------------- | --------- |

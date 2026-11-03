@@ -12,7 +12,23 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [Agent skill](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/skills/explorer-verify/SKILL.md): the skill shipped in the package: build the input, verify, resume from the handle, read the result, the errors and the exit codes, and the key rules
 - [verify()](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/verify.md): what `verify()` does step by step, its options, results, errors and exit codes, and how to resume after an abort
 - [checkStatus()](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/check-status.md): resume a submitted verification from its handle, the handle's one-line form, `formatHandle` and `parseHandle`
-- [Errors](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors.md): every error code with its cause, fix and whether to retry
+- [Errors](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/index.md): the fields of every error, key redaction, exit codes, retries and the list of codes
+- [Error `invalid-input`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/invalid-input.md): cause, fix, hint, whether to retry and exit code
+- [Error `not-confirmed`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/not-confirmed.md): cause, fix, hint, whether to retry and exit code
+- [Error `unsupported-chain`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/unsupported-chain.md): cause, fix, hint, whether to retry and exit code
+- [Error `network`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/network.md): cause, fix, hint, whether to retry and exit code
+- [Error `rate-limited`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/rate-limited.md): cause, fix, hint, whether to retry and exit code
+- [Error `timeout`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/timeout.md): cause, fix, hint, whether to retry and exit code
+- [Error `unexpected-response`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/unexpected-response.md): cause, fix, hint, whether to retry and exit code
+- [Error `in-progress`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/in-progress.md): cause, fix, hint, whether to retry and exit code
+- [Error `unknown-state`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/unknown-state.md): cause, fix, hint, whether to retry and exit code
+- [Error `job-not-found`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/job-not-found.md): cause, fix, hint, whether to retry and exit code
+- [Error `cancelled`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/cancelled.md): cause, fix, hint, whether to retry and exit code
+- [Error `incomplete-input`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/incomplete-input.md): cause, fix, hint, whether to retry and exit code
+- [Error `insufficient-artifact`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/insufficient-artifact.md): cause, fix, hint, whether to retry and exit code
+- [Error `unsupported-compiler`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/unsupported-compiler.md): cause, fix, hint, whether to retry and exit code
+- [Error `verification-inconclusive`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/verification-inconclusive.md): cause, fix, hint, whether to retry and exit code
+- [Error `source-mismatch`](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors/source-mismatch.md): cause, fix, hint, whether to retry and exit code
 - [JSON output and exit codes](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/json-output.md): the versioned JSON envelope, its JSON Schema and the exit code of every outcome
 - [Sourcify](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/sourcify.md): what is sent to Sourcify, how each answer becomes a result or an error, and its side effects
 - [Logging and events](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/logging-and-events.md): the logger, the typed stage events, the event JSON Schema, and what happens when a callback throws

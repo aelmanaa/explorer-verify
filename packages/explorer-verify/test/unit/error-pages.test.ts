@@ -1,0 +1,237 @@
+// The error reference (R-AX-7, R-AX-10, decision 0015): one page per code in
+// docs/user/reference/errors/, and an index with the shared sections. The catalogue in
+// src/errors.ts is the one source of truth: each page is written by hand, and these tests check
+// its default hint, retry flag and exit code against the catalogue, so a page cannot drift.
+import assert from "node:assert/strict";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+
+import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import type { ErrorCode } from "../../src/index.ts";
+import { docsFileOf, docsUrlOf } from "../helpers/docs-url.ts";
+import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";
+
+const REPOSITORY = new URL("../../../../", import.meta.url);
+const PAGES = new URL("docs/user/reference/errors/", REPOSITORY);
+const RELEASED = new URL("../../released-error-codes.json", import.meta.url);
+// The labelled lines of a code page, in the order they appear.
+const LABELS = ["Cause:", "Fix:", "Default hint:", "Retryable:", "Exit code:"];
+
+const codes: readonly string[] = ERROR_CODES;
+
+function read(url: URL): string {
+  return readFileSync(url, "utf8");
+}
+
+function page(code: string): string {
+  return read(new URL(`${code}.md`, PAGES));
+}
+
+function error(code: ErrorCode): ExplorerVerifyError {
+  return new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
+}
+
+/** The paragraph that starts with `label`, without the label, with its lines joined. */
+function paragraph(text: string, label: string): string | undefined {
+  const start = text.search(new RegExp(`^${label} `, "m"));
+  if (start === -1) {
+    return undefined;
+  }
+  const end = text.indexOf("\n\n", start);
+  return text
+    .slice(start + label.length, end === -1 ? undefined : end)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The committed list of released codes: each code and the first version that shipped it. */
+function released(): Map<string, string> {
+  const parsed: unknown = JSON.parse(read(RELEASED));
+  assert.ok(
+    typeof parsed === "object" && parsed !== null && !Array.isArray(parsed),
+    "released-error-codes.json must hold an object",
+  );
+  return new Map(
+    Object.entries(parsed).map(([code, version]: [string, unknown]) => {
+      assert.equal(typeof version, "string", `${code} must map to a version`);
+      return [code, String(version)];
+    }),
+  );
+}
+
+/** The numeric parts of a version, for ordering. */
+function parts(version: string): number[] {
+  return version
+    .replace(/-.*$/, "")
+    .split(".")
+    .map((part) => Number(part));
+}
+
+/** Whether version `a` comes after version `b`, compared on major, minor and patch. */
+function later(a: string, b: string): boolean {
+  const [x, y] = [parts(a), parts(b)];
+  const index = x.findIndex((part, at) => part !== y[at]);
+  return index !== -1 && (x[index] ?? 0) > (y[index] ?? 0);
+}
+
+describe("error pages (R-AX-10)", () => {
+  it("has a page for every code in ERROR_CODES, with the code as its H1", () => {
+    for (const code of ERROR_CODES) {
+      assert.ok(existsSync(new URL(`${code}.md`, PAGES)), `no page for ${code}`);
+      assert.equal(page(code).split("\n")[0], `# ${code}`, code);
+    }
+  });
+
+  it("gives each page the labelled lines once each, in order", () => {
+    for (const code of ERROR_CODES) {
+      const text = page(code);
+      const positions = LABELS.map((label) => {
+        const found = [...text.matchAll(new RegExp(`^${label} `, "gm"))];
+        assert.equal(found.length, 1, `${code} has ${String(found.length)} "${label}" lines`);
+        return found[0]?.index ?? -1;
+      });
+      assert.deepEqual(
+        positions,
+        positions.toSorted((a, b) => a - b),
+        `${code}: labels out of order`,
+      );
+    }
+  });
+
+  it("states the catalogue's default hint on each page", () => {
+    for (const code of ERROR_CODES) {
+      assert.equal(paragraph(page(code), "Default hint:"), error(code).hint, code);
+    }
+  });
+
+  it("states the catalogue's retry flag on each page", () => {
+    for (const code of ERROR_CODES) {
+      const retry = /^Retryable: (yes|no)\b/m.exec(page(code))?.[1];
+      assert.equal(retry, error(code).retryable ? "yes" : "no", code);
+    }
+  });
+
+  it("states the exit code from ERROR_EXIT_CODES on each page (R-AX-7)", () => {
+    for (const code of ERROR_CODES) {
+      const stated = /^Exit code: (\d+)$/m.exec(page(code))?.[1];
+      assert.equal(Number(stated), ERROR_EXIT_CODES[code], code);
+    }
+  });
+
+  it("links each page back to the index", () => {
+    for (const code of ERROR_CODES) {
+      assert.match(page(code), /\]\(index\.md\)/, code);
+    }
+  });
+
+  it("holds nothing but the index and one page per code or released code", () => {
+    const allowed = new Set([...codes, ...released().keys()].map((code) => `${code}.md`));
+    allowed.add("index.md");
+    const entries = readdirSync(PAGES, { withFileTypes: true });
+    for (const entry of entries) {
+      assert.ok(entry.isFile(), `${entry.name} is not a file`);
+      assert.ok(allowed.has(entry.name), `${entry.name} is not a code page`);
+    }
+    assert.equal(entries.length, allowed.size);
+  });
+});
+
+describe("docsUrl (R-AX-10)", () => {
+  it("is the code's own page, with no fragment and no query", () => {
+    for (const code of ERROR_CODES) {
+      const url = new URL(error(code).docsUrl);
+      assert.equal(url.hash, "", code);
+      assert.equal(url.search, "", code);
+      assert.equal(error(code).docsUrl, docsUrlOf(code));
+    }
+  });
+
+  it("maps to a file in the repository", () => {
+    for (const code of ERROR_CODES) {
+      const path = docsFileOf(error(code).docsUrl);
+      assert.equal(path, `docs/user/reference/errors/${code}.md`);
+      assert.ok(existsSync(new URL(path, REPOSITORY)), `${path} does not exist`);
+    }
+  });
+
+  it("is the same in toJSON()", () => {
+    for (const code of ERROR_CODES) {
+      assert.equal(error(code).toJSON().docsUrl, error(code).docsUrl);
+    }
+  });
+});
+
+describe("released codes (R-AX-10 stub rule)", () => {
+  it("maps each code, in the code format, to the version that first shipped it", () => {
+    for (const [code, version] of released()) {
+      assert.match(code, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+      assert.match(version, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/, code);
+    }
+  });
+
+  it("has a page for every released code", () => {
+    for (const code of released().keys()) {
+      assert.ok(existsSync(new URL(`${code}.md`, PAGES)), `released code ${code} has no page`);
+    }
+  });
+
+  it("says on a removed code's page when it went, after it shipped, and links its replacement", () => {
+    for (const [code, first] of released()) {
+      if (codes.includes(code)) {
+        continue;
+      }
+      const text = page(code);
+      const removed = /Removed in (\d+\.\d+\.\d+)/.exec(text)?.[1];
+      assert.ok(removed !== undefined, `${code}: no "Removed in X.Y.Z"`);
+      assert.ok(later(removed, first), `${code}: removed in ${removed}, first shipped in ${first}`);
+      const replaced = [...text.matchAll(/\]\(([a-z0-9-]+)\.md\)/g)].some((match) =>
+        codes.includes(match[1] ?? ""),
+      );
+      assert.ok(replaced, `${code}: links no current code as its replacement`);
+    }
+  });
+
+  it("orders versions on major, minor and patch", () => {
+    assert.equal(later("0.2.0", "0.1.0"), true);
+    assert.equal(later("1.0.0", "0.9.9"), true);
+    assert.equal(later("0.1.0", "0.1.0"), false);
+    assert.equal(later("0.1.0", "0.2.0-beta.1"), false);
+  });
+});
+
+describe("error index page (R-AX-7, R-AX-10)", () => {
+  const index = read(new URL("index.md", PAGES));
+
+  it("links every code's page once", () => {
+    for (const code of ERROR_CODES) {
+      const links = index.split(`](${code}.md)`).length - 1;
+      assert.equal(links, 1, `index links ${code}.md ${String(links)} times`);
+    }
+  });
+
+  it("lists each code in the row of its exit code in the exit code table", () => {
+    const rows = new Map(
+      [...index.matchAll(/^\| (\d+) +\|[^|]*\|([^|]*)\|$/gm)].map((match) => [
+        Number(match[1]),
+        match[2] ?? "",
+      ]),
+    );
+    assert.deepEqual([...rows.keys()], [0, 1, 2, 3, 4, 5, 6, 130]);
+    for (const code of ERROR_CODES) {
+      const holding = [...rows].filter(([, cell]) => cell.includes(`\`${code}\``));
+      assert.deepEqual(
+        holding.map(([exit]) => exit),
+        [ERROR_EXIT_CODES[code]],
+        `${code} must appear in exactly the row for exit code ${String(ERROR_EXIT_CODES[code])}`,
+      );
+    }
+  });
+
+  it("says the explorer definitively rejected a failed submission", () => {
+    assert.match(index, /^\| 1 +\| `failed`: the explorer definitively rejected the submission/m);
+  });
+
+  it("states the boundary between unexpected-response and unknown-state", () => {
+    assert.match(index, /`unexpected-response` and `unknown-state` differ in who answered/);
+  });
+});

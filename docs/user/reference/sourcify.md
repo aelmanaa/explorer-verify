@@ -39,20 +39,20 @@ success.
 | ------ | ----------------------------------------------- | ------------------------------------------------------------------ |
 | Lookup | 200 with `match` `exact_match` or `match`       | Verified, `exact` or `partial`                                     |
 | Lookup | 404 with `match` `null`                         | Not verified                                                       |
-| Lookup | 400 `unsupported_chain`                         | [`unsupported-chain`](errors.md#unsupported-chain)                 |
-| Lookup | Anything else, a 500 included                   | [`unexpected-response`](errors.md#unexpected-response)             |
+| Lookup | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                 |
+| Lookup | Anything else, a 500 included                   | [`unexpected-response`](errors/unexpected-response.md)             |
 | Submit | 202 with a `verificationId`                     | A job to poll                                                      |
 | Submit | 409 `already_verified`                          | `already-verified`, `exact`                                        |
-| Submit | 400 `unsupported_chain`                         | [`unsupported-chain`](errors.md#unsupported-chain)                 |
-| Submit | 429 `duplicate_verification_request`            | [`in-progress`](errors.md#in-progress)                             |
-| Submit | Anything else, 400 `invalid_parameter` included | [`unexpected-response`](errors.md#unexpected-response)             |
+| Submit | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                 |
+| Submit | 429 `duplicate_verification_request`            | [`in-progress`](errors/in-progress.md)                             |
+| Submit | Anything else, 400 `invalid_parameter` included | [`unexpected-response`](errors/unexpected-response.md)             |
 | Status | `isJobCompleted` `false`                        | Still pending                                                      |
 | Status | Completed with `match` `exact_match` or `match` | `verified`, `exact` or `partial`                                   |
 | Status | Completed with error `already_verified`         | `already-verified`                                                 |
 | Status | Completed with an error that rejects the source | `failed`, with `reason` `<code>: <message>`                        |
-| Status | Completed with an error that may clear up later | [`verification-inconclusive`](errors.md#verification-inconclusive) |
-| Status | Completed with any other error, or with neither | [`unknown-state`](errors.md#unknown-state)                         |
-| Status | 404 `job_not_found`                             | [`job-not-found`](errors.md#job-not-found)                         |
+| Status | Completed with an error that may clear up later | [`verification-inconclusive`](errors/verification-inconclusive.md) |
+| Status | Completed with any other error, or with neither | [`unknown-state`](errors/unknown-state.md)                         |
+| Status | 404 `job_not_found`                             | [`job-not-found`](errors/job-not-found.md)                         |
 
 `exact` means the metadata hash matches too; `partial` means everything but the metadata hash
 matches. An answer whose `chainId` or `address` names another contract throws

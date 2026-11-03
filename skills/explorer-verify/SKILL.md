@@ -16,7 +16,7 @@ This skill ships in the npm package, next to the docs of the same version:
   rules for agents: which calls are safe, which one submits, where keys come from.
 - [verify()](../../docs/user/reference/verify.md),
   [checkStatus()](../../docs/user/reference/check-status.md),
-  [Errors](../../docs/user/reference/errors.md) and
+  [Errors](../../docs/user/reference/errors/index.md), with one page per error code, and
   [JSON output and exit codes](../../docs/user/reference/json-output.md) are the reference.
 
 The examples are ES modules in TypeScript, for Node.js 22.18 or later, which runs `.ts` files by
@@ -221,7 +221,7 @@ state always throws; it never comes back as a result.
   carries `result.reason`: the explorer rejected the source, for example because the bytecode
   differs.
 - `error.details.code` is a stable code. `error.hint` says what to do next, `error.retryable` says
-  whether trying again may succeed, and `error.docsUrl` links the code's entry in the docs.
+  whether trying again may succeed, and `error.docsUrl` links the code's own page in the docs.
   `ERROR_CODES` lists every code.
 
 To report the outcome as data, turn it into the versioned JSON envelope with `toEnvelope()` and

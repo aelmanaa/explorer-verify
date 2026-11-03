@@ -171,7 +171,7 @@ Then it:
 ## When the files are not enough
 
 The builder throws an `ExplorerVerifyError` that says what is missing. See
-[Errors](../reference/errors.md) for each code.
+[Errors](../reference/errors/index.md) for each code.
 
 | Code                    | Meaning                                                                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |

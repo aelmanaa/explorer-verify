@@ -98,8 +98,8 @@ When the lookup finds the contract not verified, the `job-not-found` hint says t
 again. When the lookup fails, the hint says to check the contract on the explorer first. Its
 `cause` is the lookup's error.
 
-`checkStatus()` never throws `timeout`: the job id exists. [Errors](errors.md) has the fix for
-every code.
+`checkStatus()` never throws `timeout`: the job id exists. [Errors](errors/index.md) links the
+page of every code, with its fix.
 
 ## Events
 

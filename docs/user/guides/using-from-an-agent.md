@@ -44,8 +44,8 @@ dry run will skip the lookup and say so.
 - Read keys from an environment variable or a key file. Never pass a key as a command-line flag
   value: flags end up in shell history, process lists and CI logs.
 - Never print, log or commit a key. explorer-verify errors replace keys with `[redacted]`; see
-  [API keys in errors](../reference/errors.md#api-keys-in-errors). Results are redacted the same
-  way.
+  [API keys in errors](../reference/errors/index.md#api-keys-in-errors). Results are redacted the
+  same way.
 - In a browser, do not ship an Etherscan key to the client; Etherscan's API terms forbid it. Use
   the server handler, planned for a later release, which keeps the key on your server.
 

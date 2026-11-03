@@ -1,5 +1,5 @@
 // Black-box tests for issue #17: `verify()`. They use only the package entry point, the issue and
-// its comments, docs/user/reference/verify.md, logging-and-events.md, json-output.md, errors.md,
+// its comments, docs/user/reference/verify.md, logging-and-events.md, json-output.md, errors/index.md,
 // sourcify.md, llms.txt and the TSDoc of `verify`. Every request goes to a fake `fetch` that
 // answers by method and path, with bodies shaped like the recorded Sourcify answers. Time is
 // mocked: `setTimeout` and `Date` run on node:test mock timers, so no test waits in real time.
@@ -27,6 +27,7 @@ import type {
   VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 const CHAIN_ID = 11155111;
 const ADDRESS: Hex = "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC";
@@ -947,8 +948,7 @@ describe("verify(): time budget", () => {
         error: {
           code: "not-confirmed",
           hint: "Call checkStatus with details.handle later to continue polling.",
-          docsUrl:
-            "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md#not-confirmed",
+          docsUrl: docsUrlOf("not-confirmed"),
           retryable: true,
           handle:
             "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
@@ -1627,7 +1627,7 @@ describe("verify(): doc examples", () => {
     assert.deepEqual(Object.keys(envelope), ["schemaVersion", "ok", "result"]);
   });
 
-  it("errors.md example rethrows and stores the handle for not-confirmed", async () => {
+  it("errors/index.md example rethrows and stores the handle for not-confirmed", async () => {
     const localStorage = stubStorage();
     const fake = fakeFetch({
       lookup: [lookup(null), lookup(null)],
@@ -1635,7 +1635,7 @@ describe("verify(): doc examples", () => {
       status: [PENDING],
     });
     const run = async (): Promise<void> => {
-      // Copied from errors.md, with `verify` given the fake fetch and a 1.5 s budget, long
+      // Copied from errors/index.md, with `verify` given the fake fetch and a 1.5 s budget, long
       // enough for the lookup and the submit on a loaded machine.
       try {
         await verify(makeInput(), {

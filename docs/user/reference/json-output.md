@@ -59,7 +59,7 @@ The envelope has one of three forms:
     "code": "not-confirmed",
     "message": "...",
     "hint": "Call checkStatus with details.handle later to continue polling.",
-    "docsUrl": "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md#not-confirmed",
+    "docsUrl": "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors/not-confirmed.md",
     "retryable": true,
     "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000"
   }
@@ -74,7 +74,7 @@ The rules:
   when the library knows no public page for the contract.
 - `error` is the error's `toJSON()`: `code`, `message`, `hint`, `docsUrl`, `retryable` and, when the
   error carries one, `handle` in its one-line form. It never holds `cause`, the stack or `details`.
-  [Errors](errors.md) has an entry for each code.
+  `docsUrl` is the code's own page. [Errors](errors/index.md) lists every code.
 - Keys are always in the order shown, and the envelope holds no timestamp. The same outcome gives
   the same JSON, byte for byte.
 - Every string is redacted. Key-like URL and form parameters, bearer tokens and bare Etherscan-style
@@ -135,5 +135,5 @@ covers results and errors.
 | `cancelled`                 | Error  | `false` | 130       |
 
 Exit code 3 is for a missing, invalid or under-privileged API key. No error code uses it yet: key
-errors arrive with the first backend that needs a key. [Errors](errors.md#exit-codes) explains what
-to do for each exit code.
+errors arrive with the first backend that needs a key. [Errors](errors/index.md#exit-codes)
+explains what to do for each exit code.

@@ -10,6 +10,7 @@ import { inspect } from "node:util";
 import { buildVerifyInput, ExplorerVerifyError } from "../../src/index.ts";
 import type { BuildVerifyInputOptions, ErrorCode } from "../../src/index.ts";
 import { keccak256 } from "../../src/internal/keccak.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 const LONG_VERSION = "0.8.24+commit.e11b9ed9";
 // A fake key. Never a real one (R-SEC-1).
@@ -433,7 +434,7 @@ describe("buildVerifyInput: Solidity metadata failures (R-IN-7, R-DX-3)", () => 
       actual: keccak256(new TextEncoder().encode(changed)),
     });
     assert.equal(error.toJSON().code, "source-mismatch");
-    assert.match(error.docsUrl, /#source-mismatch$/);
+    assert.equal(error.docsUrl, docsUrlOf("source-mismatch"));
   });
 
   it("fails on a source with Windows line endings with source-mismatch", () => {

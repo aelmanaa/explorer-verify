@@ -6,6 +6,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { CORE_ENTRY, CORE_ERRORS } from "../agent-docs.ts";
+import { CORE_SOURCE, RELEASED_CODES } from "../released-codes.ts";
 import { AGENT, edit, makeFixture, read, README, removeFixture, writeFiles } from "./fixture.ts";
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -85,7 +87,40 @@ describe("package-docs.ts and check-packed-files.ts", () => {
     const checked = run("check-packed-files.ts", root);
     assert.equal(checked.stderr, "");
     assert.equal(checked.status, 0);
-    assert.match(checked.stdout, /llms\.txt, 3 docs files and 1 skill files are in the tarball/);
+    assert.match(
+      checked.stdout,
+      /llms\.txt, 3 docs files \(the pages of 0 error codes among them\) and 1 skill files are in the tarball/,
+    );
+  });
+
+  it("exits 1 when the tarball lacks the page of an error code", () => {
+    run("package-docs.ts", root);
+    writeFiles(root, { [CORE_ENTRY]: 'export const ERROR_CODES = ["gone"];\n' });
+    const result = run("check-packed-files.ts", root);
+    assert.equal(result.status, 1);
+    assert.equal(
+      result.stderr,
+      "The packed tarball lacks docs/reference/errors/gone.md. Run the build, and check `files` in packages/explorer-verify/package.json (R-AX-10)\n",
+    );
+  });
+
+  it("counts a code page the docs already hold once", () => {
+    writeFiles(root, {
+      [CORE_ENTRY]: 'export const ERROR_CODES = ["kept"];\n',
+      "docs/user/reference/errors/kept.md": "# kept\n",
+    });
+    run("package-docs.ts", root);
+    const result = run("check-packed-files.ts", root);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /4 docs files \(the pages of 1 error codes among them\)/);
+  });
+
+  it("exits 1 when the package is not built", () => {
+    run("package-docs.ts", root);
+    writeFiles(root, { [CORE_ENTRY]: "export const ERROR_CODES = [1];\n" });
+    const result = run("check-packed-files.ts", root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /exports no ERROR_CODES array of strings; run the build/);
   });
 
   it("exits 1 when the tarball lacks the docs", () => {
@@ -118,5 +153,95 @@ describe("package-docs.ts and check-packed-files.ts", () => {
       result.stderr,
       "llms.txt:7: link docs/gone.md points to docs/gone.md, which is not in the tarball (R-AX-2)\n",
     );
+  });
+});
+
+describe("check-packed-files.ts --release (R-AX-10)", () => {
+  const SITE_ERRORS =
+    'const url = "https://aelmanaa.github.io/explorer-verify/reference/errors/";\n';
+
+  it("exits 0 when every code is released and docsUrl points at the site", () => {
+    run("package-docs.ts", root);
+    writeFiles(root, {
+      [CORE_ENTRY]: 'export const ERROR_CODES = ["kept"];\n',
+      [CORE_ERRORS]: SITE_ERRORS,
+      [RELEASED_CODES]: '{ "kept": "0.1.0" }\n',
+      "docs/user/reference/errors/kept.md": "# kept\n",
+    });
+    run("package-docs.ts", root);
+    const result = run("check-packed-files.ts", "--release", root);
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /every code is released and docsUrl points at the docs site\n$/);
+  });
+
+  it("exits 1 when a code is not released or docsUrl points at the default branch", () => {
+    run("package-docs.ts", root);
+    writeFiles(root, {
+      [CORE_ENTRY]: 'export const ERROR_CODES = ["kept", "new-code"];\n',
+      [CORE_ERRORS]: 'const url = "https://github.com/o/r/blob/main/docs/";\n',
+      [RELEASED_CODES]: '{ "kept": "0.1.0" }\n',
+      "docs/user/reference/errors/kept.md": "# kept\n",
+      "docs/user/reference/errors/new-code.md": "# new-code\n",
+    });
+    run("package-docs.ts", root);
+    const result = run("check-packed-files.ts", "--release", root);
+    assert.equal(result.status, 1);
+    assert.equal(
+      result.stderr,
+      "packages/explorer-verify/released-error-codes.json does not list new-code; run pnpm run version-packages (R-AX-10)\n" +
+        "packages/explorer-verify/dist/src/errors.js holds blob/main: docsUrl must point at the docs site before a release (R-AX-10, decision 0015)\n",
+    );
+  });
+
+  it("does not check releases without the flag", () => {
+    run("package-docs.ts", root);
+    writeFiles(root, { [CORE_ERRORS]: 'const url = "blob/main";\n' });
+    const result = run("check-packed-files.ts", root);
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, 0);
+  });
+});
+
+describe("record-released-codes.ts (R-AX-10)", () => {
+  it("adds the missing codes at the package version, in catalogue order", () => {
+    writeFiles(root, {
+      [CORE_SOURCE]: 'export const ERROR_CODES = ["network", "timeout", "cancelled"];\n',
+      [RELEASED_CODES]: '{ "timeout": "1.0.0" }\n',
+    });
+    const result = run("record-released-codes.ts", root);
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, 0);
+    assert.equal(
+      result.stdout,
+      "released codes: added 2 codes to packages/explorer-verify/released-error-codes.json: network, cancelled\n",
+    );
+    assert.equal(
+      read(root, RELEASED_CODES),
+      '{\n  "timeout": "1.0.0",\n  "network": "1.2.3",\n  "cancelled": "1.2.3"\n}\n',
+    );
+  });
+
+  it("changes nothing when every code is listed", () => {
+    writeFiles(root, {
+      [CORE_SOURCE]: 'export const ERROR_CODES = ["network"];\n',
+      [RELEASED_CODES]: '{\n  "network": "1.0.0"\n}\n',
+    });
+    const result = run("record-released-codes.ts", root);
+    assert.equal(
+      result.stdout,
+      "released codes: added 0 codes to packages/explorer-verify/released-error-codes.json\n",
+    );
+    assert.equal(read(root, RELEASED_CODES), '{\n  "network": "1.0.0"\n}\n');
+  });
+
+  it("exits 1 when the sources export no codes", () => {
+    writeFiles(root, {
+      [CORE_SOURCE]: "export const ERROR_CODES = 1;\n",
+      [RELEASED_CODES]: "{}\n",
+    });
+    const result = run("record-released-codes.ts", root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /packages\/explorer-verify\/src\/index\.ts exports no ERROR_CODES/);
   });
 });

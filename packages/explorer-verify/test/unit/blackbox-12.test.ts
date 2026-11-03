@@ -1,6 +1,6 @@
 // Black-box tests for issue #12: the error catalogue and API key redaction. They use only the
 // public entry point and the promises in the issue, decision 0009, requirements.md (R-DX-3,
-// R-SEC-1, R-AX-5, R-AX-7, R-AX-9, R-AX-10) and docs/user/reference/errors.md.
+// R-SEC-1, R-AX-5, R-AX-7, R-AX-9, R-AX-10) and docs/user/reference/errors/.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -8,20 +8,14 @@ import { inspect } from "node:util";
 
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
 import type { ErrorCode, ErrorDetails, Handle } from "../../src/index.ts";
+import { docsUrlOf } from "../helpers/docs-url.ts";
 
 // --- fixtures -----------------------------------------------------------------------------------
 
 // A fake Etherscan-style key: 34 uppercase alphanumerics. Never a real key.
 const KEY = "FAKEKEY0BLACKBOX0TEST0Z9Y8X7W6V5U4";
-const DOCS_BASE =
-  "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors.md";
 const ETHERSCAN_URL = `https://api.etherscan.io/v2/api?chainid=1&module=contract&action=verifysourcecode&apikey=${KEY}`;
 const FORM_BODY = `apikey=${KEY}&module=contract`;
-
-const errorsMd = readFileSync(
-  new URL("../../../../docs/user/reference/errors.md", import.meta.url),
-  "utf8",
-);
 
 const handle: Handle = {
   version: 1,
@@ -32,7 +26,7 @@ const handle: Handle = {
 };
 const handleString = `ev1:sourcify:11155111:0x1234567890abcdef1234567890abcdef12345678:0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0`;
 
-// Expected values, from errors.md and R-AX-7: exit codes 4 and 6 carry the handle, so in-progress
+// Expected values, from the error pages and R-AX-7: exit codes 4 and 6 carry the handle, so in-progress
 // (no handle, call again later) exits 5 and job-not-found (a person checks) exits 6.
 const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle: boolean }> = {
   "invalid-input": { retryable: false, exit: 2, hasHandle: false },
@@ -118,13 +112,12 @@ function assertNoKey(error: ExplorerVerifyError, secret: string = KEY): void {
   }
 }
 
-/** The "### <code>" section of errors.md, up to the next heading. */
+/** The page of one code, docs/user/reference/errors/<code>.md. */
 function section(code: string): string {
-  const start = errorsMd.indexOf(`\n### ${code}\n`);
-  assert.ok(start >= 0, `errors.md has no heading for ${code}`);
-  const rest = errorsMd.slice(start + 1);
-  const next = rest.indexOf("\n#", 1);
-  return next === -1 ? rest : rest.slice(0, next);
+  return readFileSync(
+    new URL(`../../../../docs/user/reference/errors/${code}.md`, import.meta.url),
+    "utf8",
+  );
 }
 
 // --- catalogue ----------------------------------------------------------------------------------
@@ -156,7 +149,7 @@ describe("blackbox #12: catalogue", () => {
         assert.equal(error.details.code, code);
       });
 
-      it("retryable matches the issue table and errors.md (R-DX-3)", () => {
+      it("retryable matches the issue table and the code's page (R-DX-3)", () => {
         assert.equal(error.retryable, want.retryable);
         const doc = section(code);
         assert.match(doc, want.retryable ? /^Retryable: yes/mu : /^Retryable: no/mu);
@@ -167,8 +160,8 @@ describe("blackbox #12: catalogue", () => {
         assert.ok(error.hint.trim().length > 0);
       });
 
-      it("docsUrl points at an anchor that exists in errors.md (R-AX-10)", () => {
-        assert.equal(error.docsUrl, `${DOCS_BASE}#${code}`);
+      it("docsUrl points at the code's own page (R-AX-10)", () => {
+        assert.equal(error.docsUrl, docsUrlOf(code));
         const doc = section(code);
         assert.match(doc, /^Cause: /mu);
         assert.match(doc, /^Fix: /mu);
@@ -178,7 +171,7 @@ describe("blackbox #12: catalogue", () => {
         assert.equal(ERROR_EXIT_CODES[code], want.exit);
         const doc = section(code);
         const match = /^Exit code: (\d+)$/mu.exec(doc);
-        assert.ok(match, `errors.md section ${code} has no exit code`);
+        assert.ok(match, `the page of ${code} has no exit code`);
         assert.equal(Number(match[1]), want.exit);
       });
 
