@@ -1,0 +1,13 @@
+{
+  "id": "c7409fb9bbf470dc",
+  "source_id_to_path": {
+    "0": "src/Base.sol",
+    "1": "src/Counter.sol",
+    "2": "src/Greeter.sol",
+    "3": "src/Pair.sol",
+    "4": "src/Tally.sol",
+    "5": "src/a/Token.sol",
+    "6": "src/b/Token.sol"
+  },
+  "language": "Solidity"
+}

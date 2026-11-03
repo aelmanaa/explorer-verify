@@ -116,6 +116,12 @@
       }
     },
     {
+      "files": ["packages/foundry/src/**"],
+      "rules": {
+        "import/no-nodejs-modules": "off"
+      }
+    },
+    {
       "files": ["packages/*/test/**"],
       "rules": {
         "jsdoc-js/require-jsdoc": "off",

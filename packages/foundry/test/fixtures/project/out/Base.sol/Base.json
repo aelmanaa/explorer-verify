@@ -1,0 +1,52 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": { "object": "0x", "sourceMap": "", "linkReferences": {} },
+  "deployedBytecode": { "object": "0x", "sourceMap": "", "linkReferences": {} },
+  "methodIdentifiers": { "owner()": "8da5cb5b" },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Base.sol\":\"Base\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": { "version": "0.8.24+commit.e11b9ed9" },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "owner",
+          "outputs": [{ "internalType": "address", "name": "", "type": "address" }]
+        }
+      ],
+      "devdoc": { "kind": "dev", "methods": {}, "version": 1 },
+      "userdoc": { "kind": "user", "methods": {}, "version": 1 }
+    },
+    "settings": {
+      "remappings": [],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "bytecodeHash": "ipfs" },
+      "compilationTarget": { "src/Base.sol": "Base" },
+      "evmVersion": "cancun",
+      "libraries": { "src/Tally.sol:Tally": "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c" }
+    },
+    "sources": {
+      "src/Base.sol": {
+        "keccak256": "0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba",
+        "urls": [
+          "bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b",
+          "dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 0
+}

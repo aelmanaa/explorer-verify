@@ -91,7 +91,8 @@ nothing under `packages/` carries none. Write the entry for users:
 
 - TSDoc on every export, with an example for public functions.
 - No `any`, no `@ts-` directives, no casts; see [docs/contributor/tooling.md](docs/contributor/tooling.md#type-escapes).
-- `packages/*/src` uses web-platform APIs only (decision 0002).
+- `packages/*/src` uses web-platform APIs only (decision 0002). The Node-only build helper in
+  `packages/foundry/` may import Node built-ins (decision 0008).
 - Errors come from the error catalogue (`src/errors.ts`, R-DX-3; the first M1 issues create it) and
   never contain an API key.
 - New docs pages are linked from [AGENTS.md](AGENTS.md) and [docs/README.md](docs/README.md).

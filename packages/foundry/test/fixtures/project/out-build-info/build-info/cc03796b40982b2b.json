@@ -1,0 +1,232 @@
+{
+  "id": "cc03796b40982b2b",
+  "source_id_to_path": {
+    "0": "src/Base.sol",
+    "1": "src/Counter.sol",
+    "2": "src/Greeter.sol",
+    "3": "src/Pair.sol",
+    "4": "src/Tally.sol",
+    "5": "src/a/Token.sol",
+    "6": "src/b/Token.sol"
+  },
+  "language": "Solidity",
+  "_format": "ethers-rs-sol-build-info-1",
+  "input": {
+    "version": "0.8.24",
+    "language": "Solidity",
+    "sources": {
+      "src/Base.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+      },
+      "src/Counter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Tally} from \"./Tally.sol\";\n\ncontract Counter {\n    uint256 public count;\n\n    function bump(uint256 amount) external {\n        count = Tally.add(count, amount);\n    }\n}\n"
+      },
+      "src/Greeter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+      },
+      "src/Pair.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract Ping {\n    uint256 public pings;\n\n    function ping() external {\n        pings += 1;\n    }\n}\n\ncontract Pong {\n    uint256 public pongs;\n\n    function pong() external {\n        pongs += 1;\n    }\n}\n"
+      },
+      "src/Tally.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nlibrary Tally {\n    function add(uint256 total, uint256 amount) external pure returns (uint256) {\n        return total + amount;\n    }\n}\n"
+      },
+      "src/a/Token.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract Token {\n    string public constant LABEL = \"a\";\n}\n"
+      },
+      "src/b/Token.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract Token {\n    string public constant LABEL = \"b\";\n}\n"
+      }
+    },
+    "settings": {
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "useLiteralContent": false, "bytecodeHash": "ipfs", "appendCBOR": true },
+      "outputSelection": {
+        "*": {
+          "": ["ast"],
+          "*": [
+            "abi",
+            "evm.bytecode.object",
+            "evm.bytecode.sourceMap",
+            "evm.bytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.sourceMap",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "evmVersion": "cancun",
+      "viaIR": false,
+      "libraries": { "src/Tally.sol": { "Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c" } }
+    },
+    "allowPaths": ["<project-root>", "<project-root>/lib"],
+    "basePath": "<project-root>",
+    "includePaths": ["<project-root>"]
+  },
+  "output": {
+    "contracts": {
+      "src/Base.sol": {
+        "Base": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Base.sol\":\"Base\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]}},\"version\":1}"
+        }
+      },
+      "src/Counter.sol": {
+        "Counter": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "bump",
+              "inputs": [{ "name": "amount", "type": "uint256", "internalType": "uint256" }],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "count",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"bump\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Counter.sol\":\"Counter\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Counter.sol\":{\"keccak256\":\"0x473d70d8a16a3110e6a7ba9380b10a9b396d560b0ad291aa30db3cd5f700113d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://3ddf926bb1b138b994eaf0b9aba6023b5442530027e43503655e3737a2a0eaeb\",\"dweb:/ipfs/QmWaJM6YJ6QMy1eQ3Zu4a5oVVppRMuTnjbvPZnjMhh57SN\"]},\"src/Tally.sol\":{\"keccak256\":\"0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c\",\"dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm\"]}},\"version\":1}"
+        }
+      },
+      "src/Greeter.sol": {
+        "Greeter": {
+          "abi": [
+            {
+              "type": "constructor",
+              "inputs": [
+                { "name": "owner_", "type": "address", "internalType": "address" },
+                { "name": "greeting_", "type": "string", "internalType": "string" }
+              ],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "greeting",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+              "stateMutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Greeter.sol\":\"Greeter\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]},\"src/Greeter.sol\":{\"keccak256\":\"0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc4269d23ceefe2bafe7721011588ea4e955498ef2f7f053399f7e56c466790e\",\"dweb:/ipfs/QmUdCdWLpCtbceyaDN24wtZ4prjugNyqPptBp85MqQUtSw\"]}},\"version\":1}"
+        }
+      },
+      "src/Pair.sol": {
+        "Ping": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "ping",
+              "inputs": [],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "pings",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ping\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pings\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Pair.sol\":\"Ping\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Pair.sol\":{\"keccak256\":\"0xfdff4bf9018871cb8205fc1a53d8ebd89498798356acd571ace30723fc2f304a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6fd98eea9121f95243f7ea9e1f6ee1c4cfc2f9bd2395739229fd30259f71a781\",\"dweb:/ipfs/QmbhbrjwAwvNBoPAdzUNbJn7ryeUg5CezD2xBsPGAvqR2c\"]}},\"version\":1}"
+        },
+        "Pong": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "pong",
+              "inputs": [],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "pongs",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"pong\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pongs\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Pair.sol\":\"Pong\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Pair.sol\":{\"keccak256\":\"0xfdff4bf9018871cb8205fc1a53d8ebd89498798356acd571ace30723fc2f304a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6fd98eea9121f95243f7ea9e1f6ee1c4cfc2f9bd2395739229fd30259f71a781\",\"dweb:/ipfs/QmbhbrjwAwvNBoPAdzUNbJn7ryeUg5CezD2xBsPGAvqR2c\"]}},\"version\":1}"
+        }
+      },
+      "src/Tally.sol": {
+        "Tally": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "add",
+              "inputs": [
+                { "name": "total", "type": "uint256", "internalType": "uint256" },
+                { "name": "amount", "type": "uint256", "internalType": "uint256" }
+              ],
+              "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+              "stateMutability": "pure"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"total\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"add\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Tally.sol\":\"Tally\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Tally.sol\":{\"keccak256\":\"0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c\",\"dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm\"]}},\"version\":1}"
+        }
+      },
+      "src/a/Token.sol": {
+        "Token": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "LABEL",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"LABEL\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/a/Token.sol\":\"Token\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/a/Token.sol\":{\"keccak256\":\"0xb3a4b277c91af2f47a4c357312c6e5f62a592f2cb755fa104f88cb69d5eddd76\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b392f668b9791d3be9be35bdf3dd6af8f9b35efc3bc4f3f633078888f8acf41a\",\"dweb:/ipfs/QmcLypgMHFY9jbX3neB9TTYUFqnVmGuG2FBrBXQg47Vkru\"]}},\"version\":1}"
+        }
+      },
+      "src/b/Token.sol": {
+        "Token": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "LABEL",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"LABEL\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/b/Token.sol\":\"Token\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/b/Token.sol\":{\"keccak256\":\"0x1146986b19fd6c5348d05acffcfaac9bb8743bda33c5139fb059bb490251b3df\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://05e86f8e1d53900dd9412cb091bfe38313097b8401503adb06029ac046d37259\",\"dweb:/ipfs/QmbHPyC3HvVFkWJBDePP1SzKEtA9MHABJvFbMxvHKKpJyN\"]}},\"version\":1}"
+        }
+      }
+    },
+    "sources": {
+      "src/Base.sol": { "id": 0 },
+      "src/Counter.sol": { "id": 1 },
+      "src/Greeter.sol": { "id": 2 },
+      "src/Pair.sol": { "id": 3 },
+      "src/Tally.sol": { "id": 4 },
+      "src/a/Token.sol": { "id": 5 },
+      "src/b/Token.sol": { "id": 6 }
+    }
+  },
+  "solcLongVersion": "0.8.24",
+  "solcVersion": "0.8.24"
+}

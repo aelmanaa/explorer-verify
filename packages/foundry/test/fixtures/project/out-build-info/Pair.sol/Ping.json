@@ -1,0 +1,68 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "ping",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "pings",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": {
+    "object": "0x608060405234801561000f575f80fd5b5060c58061001c5f395ff3fe6080604052348015600e575f80fd5b50600436106030575f3560e01c80631e81ccb21460345780635c36b18614604d575b5f80fd5b603b5f5481565b60405190815260200160405180910390f35b60536055565b005b60015f8082825460649190606b565b9091555050565b80820180821115608957634e487b7160e01b5f52601160045260245ffd5b9291505056fea264697066735822122071dc1a8f7f0233ca87c08ca54653fc225f00517b62fe915fc9057a91283e9d1164736f6c63430008180033",
+    "sourceMap": "58:101:3:-:0;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x6080604052348015600e575f80fd5b50600436106030575f3560e01c80631e81ccb21460345780635c36b18614604d575b5f80fd5b603b5f5481565b60405190815260200160405180910390f35b60536055565b005b60015f8082825460649190606b565b9091555050565b80820180821115608957634e487b7160e01b5f52601160045260245ffd5b9291505056fea264697066735822122071dc1a8f7f0233ca87c08ca54653fc225f00517b62fe915fc9057a91283e9d1164736f6c63430008180033",
+    "sourceMap": "58:101:3:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;78:20;;;;;;;;;160:25:7;;;148:2;133:18;78:20:3;;;;;;;105:52;;;:::i;:::-;;;149:1;140:5;;:10;;;;;;;:::i;:::-;;;;-1:-1:-1;;105:52:3:o;196:222:7:-;261:9;;;282:10;;;279:133;;;334:10;329:3;325:20;322:1;315:31;369:4;366:1;359:15;397:4;394:1;387:15;279:133;196:222;;;;:::o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": { "ping()": "5c36b186", "pings()": "1e81ccb2" },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ping\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pings\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Pair.sol\":\"Ping\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Pair.sol\":{\"keccak256\":\"0xfdff4bf9018871cb8205fc1a53d8ebd89498798356acd571ace30723fc2f304a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6fd98eea9121f95243f7ea9e1f6ee1c4cfc2f9bd2395739229fd30259f71a781\",\"dweb:/ipfs/QmbhbrjwAwvNBoPAdzUNbJn7ryeUg5CezD2xBsPGAvqR2c\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": { "version": "0.8.24+commit.e11b9ed9" },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        { "inputs": [], "stateMutability": "nonpayable", "type": "function", "name": "ping" },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "pings",
+          "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }]
+        }
+      ],
+      "devdoc": { "kind": "dev", "methods": {}, "version": 1 },
+      "userdoc": { "kind": "user", "methods": {}, "version": 1 }
+    },
+    "settings": {
+      "remappings": [],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "bytecodeHash": "ipfs" },
+      "compilationTarget": { "src/Pair.sol": "Ping" },
+      "evmVersion": "cancun",
+      "libraries": { "src/Tally.sol:Tally": "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c" }
+    },
+    "sources": {
+      "src/Pair.sol": {
+        "keccak256": "0xfdff4bf9018871cb8205fc1a53d8ebd89498798356acd571ace30723fc2f304a",
+        "urls": [
+          "bzz-raw://6fd98eea9121f95243f7ea9e1f6ee1c4cfc2f9bd2395739229fd30259f71a781",
+          "dweb:/ipfs/QmbhbrjwAwvNBoPAdzUNbJn7ryeUg5CezD2xBsPGAvqR2c"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 3
+}

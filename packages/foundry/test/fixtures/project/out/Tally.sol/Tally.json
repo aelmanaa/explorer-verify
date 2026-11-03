@@ -1,0 +1,66 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "add",
+      "inputs": [
+        { "name": "total", "type": "uint256", "internalType": "uint256" },
+        { "name": "amount", "type": "uint256", "internalType": "uint256" }
+      ],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "pure"
+    }
+  ],
+  "bytecode": {
+    "object": "0x60dc610034600b8282823980515f1a60731461002857634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe73000000000000000000000000000000000000000030146080604052600436106032575f3560e01c8063771602f7146036575b5f80fd5b604560413660046069565b6057565b60405190815260200160405180910390f35b5f606082846088565b90505b92915050565b5f80604083850312156079575f80fd5b50508035926020909101359150565b80820180821115606357634e487b7160e01b5f52601160045260245ffdfea26469706673582212209a8330b59424594bef46f4b76b50143957ac7d5f3187a112cbe0b6ec580784e864736f6c63430008180033",
+    "sourceMap": "58:136:4:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;58:136:4;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x73000000000000000000000000000000000000000030146080604052600436106032575f3560e01c8063771602f7146036575b5f80fd5b604560413660046069565b6057565b60405190815260200160405180910390f35b5f606082846088565b90505b92915050565b5f80604083850312156079575f80fd5b50508035926020909101359150565b80820180821115606357634e487b7160e01b5f52601160045260245ffdfea26469706673582212209a8330b59424594bef46f4b76b50143957ac7d5f3187a112cbe0b6ec580784e864736f6c63430008180033",
+    "sourceMap": "58:136:4:-:0;;;;;;;;;;;;;;;;;;;;;;;;78:114;;;;;;:::i;:::-;;:::i;:::-;;;421:25:7;;;409:2;394:18;78:114:4;;;;;;;;145:7;171:14;179:6;171:5;:14;:::i;:::-;164:21;;78:114;;;;;:::o;14:248:7:-;82:6;90;143:2;131:9;122:7;118:23;114:32;111:52;;;159:1;156;149:12;111:52;-1:-1:-1;;182:23:7;;;252:2;237:18;;;224:32;;-1:-1:-1;14:248:7:o;457:222::-;522:9;;;543:10;;;540:133;;;595:10;590:3;586:20;583:1;576:31;630:4;627:1;620:15;658:4;655:1;648:15",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": { "add(uint256,uint256)": "771602f7" },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"total\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"add\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Tally.sol\":\"Tally\"},\"evmVersion\":\"cancun\",\"libraries\":{\"src/Tally.sol:Tally\":\"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c\"},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"src/Tally.sol\":{\"keccak256\":\"0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c\",\"dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": { "version": "0.8.24+commit.e11b9ed9" },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            { "internalType": "uint256", "name": "total", "type": "uint256" },
+            { "internalType": "uint256", "name": "amount", "type": "uint256" }
+          ],
+          "stateMutability": "pure",
+          "type": "function",
+          "name": "add",
+          "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }]
+        }
+      ],
+      "devdoc": { "kind": "dev", "methods": {}, "version": 1 },
+      "userdoc": { "kind": "user", "methods": {}, "version": 1 }
+    },
+    "settings": {
+      "remappings": [],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "bytecodeHash": "ipfs" },
+      "compilationTarget": { "src/Tally.sol": "Tally" },
+      "evmVersion": "cancun",
+      "libraries": { "src/Tally.sol:Tally": "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c" }
+    },
+    "sources": {
+      "src/Tally.sol": {
+        "keccak256": "0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e",
+        "urls": [
+          "bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c",
+          "dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 4
+}
