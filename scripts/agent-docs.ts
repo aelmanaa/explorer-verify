@@ -14,6 +14,8 @@
 //   with the same case, and, when it has a fragment, to a heading in that file (GitHub heading
 //   slugs).
 // - `llms.txt` lists every skill (R-AX-4).
+// - The prose of a user page holds no `{{` outside code, which the docs site would evaluate
+//   (R-AX-17).
 // - The packed tarball holds the page of every error code the built package exports (R-AX-10).
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -294,7 +296,7 @@ export function anchors(text: string): Set<string> {
 }
 
 /** Splits a link target into its path and its percent-decoded fragment. */
-function splitTarget(target: string): { file: string; fragment: string | undefined } {
+export function splitTarget(target: string): { file: string; fragment: string | undefined } {
   const hash = target.indexOf("#");
   if (hash === -1) {
     return { file: target, fragment: undefined };
@@ -310,13 +312,18 @@ function splitTarget(target: string): { file: string; fragment: string | undefin
 }
 
 /** The repository path a relative link in `file` points to, without a trailing slash. */
-function resolveLink(file: string, linked: string): string {
+export function resolveLink(file: string, linked: string): string {
   if (linked === "") {
     return file;
   }
   return path.posix
     .normalize(path.posix.join(path.posix.dirname(file), linked))
     .replace(/(.)\/$/, "$1");
+}
+
+/** Whether a link target is an absolute URL, a protocol-relative URL or a fragment only. */
+export function isExternalOrFragment(target: string): boolean {
+  return SCHEME.test(target) || target.startsWith("//") || target.startsWith("#");
 }
 
 function leaves(relative: string): boolean {
@@ -424,6 +431,22 @@ function versionLine(text: string): { line: number; version: string } | undefine
   return found;
 }
 
+/**
+ * Problems with `{{` in the prose of a user page, outside code and HTML comments. The docs site
+ * compiles each page as a Vue template, which evaluates `{{ }}` as an expression (decision 0015).
+ */
+function braceProblems(file: string, text: string): string[] {
+  const problems: string[] = [];
+  forEachProseLine(text, (line, index) => {
+    if (line.includes("{{")) {
+      problems.push(
+        `${file}:${index + 1}: holds {{ outside code; the docs site would evaluate it as a Vue expression. Put it in a code span or a code block (R-AX-17)`,
+      );
+    }
+  });
+  return problems;
+}
+
 /** Problems with the head of one user page: the version line and the `llms.txt` link. */
 function checkUserPage(file: string, text: string, version: string): string[] {
   const problems: string[] = [];
@@ -470,7 +493,8 @@ export function checkAgentDocs(root: string): string[] {
     problems.push(`${AGENT_PAGE}: missing; the agent page is required (R-AX-3)`);
   }
   for (const page of userPages) {
-    problems.push(...checkUserPage(page, readFileSync(path.join(root, page), "utf8"), version));
+    const text = readFileSync(path.join(root, page), "utf8");
+    problems.push(...checkUserPage(page, text, version), ...braceProblems(page, text));
   }
   for (const file of [...listFiles(root, "docs", ".md"), ...listFiles(root, SKILLS, ".md")]) {
     problems.push(...checkLinks(root, file, readFileSync(path.join(root, file), "utf8")));
@@ -552,7 +576,7 @@ export function rewriteForPackage(file: string, text: string): string {
   const skill = file.startsWith(`${SKILLS}/`);
   const destination = skill ? file : packagedPath(file);
   const rewrite = (target: string): string => {
-    if (SCHEME.test(target) || target.startsWith("//") || target.startsWith("#")) {
+    if (isExternalOrFragment(target)) {
       return target;
     }
     const { file: linked } = splitTarget(target);
@@ -571,6 +595,14 @@ export function rewriteForPackage(file: string, text: string): string {
     }
     return `${RAW_MAIN}${relative}${rest}`;
   };
+  return rewriteLinks(text, rewrite);
+}
+
+/**
+ * Passes the target of each inline link, image and reference definition outside code through
+ * `rewrite`, and keeps the rest of the text as written. Angle brackets around a target stay.
+ */
+export function rewriteLinks(text: string, rewrite: (target: string) => string): string {
   const lines = text.split("\n");
   forEachProseLine(text, (line, index) => {
     const raw = String(lines[index]);

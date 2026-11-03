@@ -67,7 +67,9 @@ runs it. The rules live in `scripts/agent-docs.ts`. The check fails when:
 - a user page has no version line in its first 10 lines, or the line names another version than
   `packages/explorer-verify/package.json`;
 - a relative link in a Markdown file under `docs/` points to a missing file, or to a heading the
-  target file does not have.
+  target file does not have;
+- a user page holds `{{` in prose, outside code spans, code blocks and HTML comments. The docs site
+  compiles each page as a Vue template, which evaluates `{{ }}` (R-AX-17, decision 0015).
 
 File names must match with the same case, so a link that works on macOS but not on Linux fails
 everywhere. Anchors follow GitHub's slug rules: the rendered heading text (emphasis markers and
@@ -121,6 +123,54 @@ gitignored. The `files` field of the package lists them.
 when the tarball lacks `llms.txt` or a file from `docs/user/`, or when a relative link in a packaged
 page or the packaged `llms.txt` points to a file that is not in the tarball.
 
+### Docs site
+
+The docs site is <https://aelmanaa.github.io/explorer-verify/> (R-AX-17, decision 0015). VitePress
+1.6.4, pinned exactly in the catalogue, builds it from `docs/user/` (`srcDir`), with `base` set to
+`/explorer-verify/`, clean URLs and local search. The config is `site/.vitepress/config.ts`, outside
+`docs/user/`, so GitHub and the package never see it. The pages stay plain Markdown: no
+frontmatter, Vue components or containers. The link rules, the sidebar and the copies live in
+`scripts/site-docs.ts`:
+
+- `README.md` becomes `index.md`, the page of its folder.
+- Before VitePress reads a page, a link inside `docs/user/` stays relative, a link to the root
+  `llms.txt` points to the site's `llms.txt`, and any other link into the repository points to the
+  file on GitHub at the tag `v<version>`, because the site is built from that tag.
+- Headings get GitHub's anchors, the same ones the docs check uses, so a link with a fragment that
+  passes the check works on the site too.
+- Inline code is marked `v-pre`, as VitePress already marks code blocks, so `{{` in code is shown as
+  written. `{{` in prose fails the docs check.
+
+| Command                 | What it does                                                                                                            |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run site:build`   | `vitepress build site`, then `scripts/site-copies.ts`, which writes the Markdown copies and `llms.txt` into `site/dist` |
+| `pnpm run site:check`   | `scripts/check-site.ts` on the build: test 3 of decision 0015. Needs `pnpm run build` first                             |
+| `pnpm run site:dev`     | VitePress dev server                                                                                                    |
+| `pnpm run site:preview` | Serves `site/dist`                                                                                                      |
+
+Dev-server advisories (2026-11-03): `pnpm audit` reports advisories against the Vite 5 and
+esbuild versions that VitePress 1.6.4 depends on, for the dev server only. They are accepted,
+because CI and the deploy only build. Run `site:dev` and `site:preview` on localhost only; never
+pass `--host`.
+
+`scripts/site-copies.ts` writes each user page next to its HTML as `<page>.md`, with the site's
+links, and `site/dist/llms.txt`. That `llms.txt` is the root one with only the user pages, each
+linked as its Markdown copy on the site, plus a line that names the version and the jsDelivr URL of
+other versions. The root and packaged `llms.txt` do not change.
+
+`scripts/check-site.ts` reads the codes from the built package and builds an error for each. It
+fails when a `docsUrl`, with the site address removed, has no HTML page or no `.md` copy in
+`site/dist`; when a link in the site's `llms.txt` is not a built `.md` copy; or when an HTML page
+other than `404.html` has no copy that `llms.txt` lists. The CI `site` job runs the core build,
+`site:build` and `site:check`. It never deploys. The job is not yet a required check; the
+maintainer adds `Docs site build` to the `main` ruleset.
+
+`scripts/smoke-site.ts` runs after a deploy: test 4 of decision 0015. It fetches each code page, its
+`.md` copy, the site's `llms.txt` and every page that file lists, and fails unless each returns 200
+within 10 seconds. It also fails unless the site's `llms.txt` names the package version at the
+checked-out tag, so a site that still serves an older version fails. It tries up to five times, 15 seconds apart, because a new deployment can take a short time to
+reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
+
 ## Test runner
 
 `scripts/node-test.ts` runs `node --test` for the package `test:unit` and `test:randomize` scripts
@@ -163,7 +213,9 @@ Tests for the repository scripts live in `scripts/test/*.test.ts`. `pnpm run tes
 them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package tests. They build
 small fixture trees in a temporary folder, and run the entry points as child processes against
 them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts`, `scripts/decision-sources.ts` and
-the three scripts that use them), `scripts/random-order.ts` and the size check
+the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
+`scripts/site-copies.ts`, `scripts/check-site.ts` and `scripts/smoke-site.ts`, the last against a
+local server), `scripts/random-order.ts` and the size check
 (`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`) with a 95% floor per
 file on lines, branches, functions and statements. `scripts/browser-smoke.ts` needs a browser and
 runs in its own CI job instead. The older scripts have no tests yet and are not in the

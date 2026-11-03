@@ -12,7 +12,11 @@
     "scripts/random-order.ts",
     "scripts/record-released-codes.ts",
     "scripts/released-codes.ts",
-    "scripts/size-budget.ts"
+    "scripts/size-budget.ts",
+    "scripts/check-site.ts",
+    "scripts/site-copies.ts",
+    "scripts/site-docs.ts",
+    "scripts/smoke-site.ts"
   ],
   "reporter": ["text"],
   "reports-dir": "node_modules/.cache/c8-scripts",

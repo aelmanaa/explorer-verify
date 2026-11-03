@@ -227,6 +227,23 @@ describe("checkAgentDocs", () => {
       });
     }
 
+    it("fails on {{ in prose, which the docs site would evaluate (R-AX-17)", () => {
+      edit(root, AGENT, "## Notes", "## Notes\n\nSet {{ name }} here.");
+      assertProblems(
+        /^docs\/user\/guides\/using-from-an-agent\.md:17: holds \{\{ outside code; the docs site would evaluate it as a Vue expression\. Put it in a code span or a code block \(R-AX-17\)$/,
+      );
+    });
+
+    it("allows {{ in code spans, code blocks and HTML comments", () => {
+      edit(
+        root,
+        AGENT,
+        "## Notes",
+        "## Notes\n\nSet `{{ name }}` here.\n\n```text\n{{ name }}\n```\n\n<!-- {{ name }} -->",
+      );
+      assertProblems();
+    });
+
     it("fails on a symbolic link under docs/user", () => {
       symlinkSync("README.md", path.join(root, "docs/user/alias.md"));
       assertProblems(/^docs\/user\/alias\.md: symlinks are not allowed in docs\/user \(R-AX-2\)$/);

@@ -223,6 +223,7 @@ state always throws; it never comes back as a result.
   differs.
 - `error.details.code` is a stable code. `error.hint` says what to do next, `error.retryable` says
   whether trying again may succeed, and `error.docsUrl` links the code's own page in the docs.
+  Append `.md` to `error.docsUrl` to fetch that page as Markdown.
   `ERROR_CODES` lists every code.
 
 To report the outcome as data, turn it into the versioned JSON envelope with `toEnvelope()` and

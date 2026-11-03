@@ -59,7 +59,7 @@ The envelope has one of three forms:
     "code": "not-confirmed",
     "message": "...",
     "hint": "Call checkStatus with details.handle later to continue polling.",
-    "docsUrl": "https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/errors/not-confirmed.md",
+    "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
     "retryable": true,
     "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000"
   }

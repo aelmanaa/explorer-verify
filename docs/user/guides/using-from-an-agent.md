@@ -14,6 +14,12 @@ The package also ships a skill, [skills/explorer-verify/SKILL.md](../../../skill
 with tested examples of each step: build the input, verify, resume from the handle, read the
 outcome, and when to stop.
 
+Read the docs of the installed version first: `node_modules/explorer-verify/llms.txt` and the pages
+under `docs/` next to it. The docs site, <https://aelmanaa.github.io/explorer-verify/>, describes the
+version on npm `latest`, which may be newer. Append `.md` to a site page's URL for its Markdown
+copy, for example the `docsUrl` of an error plus `.md`. A folder's page is `index.md`, such as
+<https://aelmanaa.github.io/explorer-verify/reference/errors/index.md>.
+
 ## Submit is permanent
 
 Submit sends the source to the explorer, which publishes it. The step is outward and permanent: you

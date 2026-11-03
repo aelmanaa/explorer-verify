@@ -34,3 +34,10 @@ Each user page states the version it describes in a `Version:` line and links
 [llms.txt](../../llms.txt) near the top. Once published, the npm package will ship these pages
 under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the
 installed version.
+
+The docs site, <https://aelmanaa.github.io/explorer-verify/>, shows the docs of the version on npm
+`latest` only, the version in the `Version:` line above. For the docs of another version, read the
+npm package, or jsDelivr for any published version:
+`https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt`. On the site, append `.md` to a
+page's URL for its Markdown copy; <https://aelmanaa.github.io/explorer-verify/llms.txt> lists
+every copy.

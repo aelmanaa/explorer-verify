@@ -185,7 +185,7 @@ ABI and bytecode alone cannot be verified: the explorer needs the sources and th
 Three routes remain: ask the publisher to ship build-info or metadata; use the bytecode-metadata
 resolver (planned), when the bytecode carries a metadata hash and the metadata is published; or rely
 on the explorer's own matching (Etherscan Similar Match, Sourcify similarity; see
-[automatic matching](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
+[automatic matching](../../contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
 when an identical contract is already verified.
 
 ## Sources

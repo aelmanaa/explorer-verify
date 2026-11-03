@@ -31,6 +31,10 @@
     "size": "pnpm run build && node scripts/check-size.ts size-budget.json",
     "test:browser": "pnpm run build && node scripts/browser-smoke.ts",
     "test:browser:harness": "node scripts/test-browser/browser-smoke.test.ts",
+    "site:build": "vitepress build site && node scripts/site-copies.ts",
+    "site:check": "node scripts/check-site.ts",
+    "site:dev": "vitepress dev site",
+    "site:preview": "vitepress preview site",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/record-released-codes.ts && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts"
@@ -50,6 +54,7 @@
     "oxlint-tsgolint": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitepress": "catalog:"
   }
 }
