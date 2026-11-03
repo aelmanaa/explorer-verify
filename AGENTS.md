@@ -45,8 +45,10 @@ error code next to it, and the JSON envelope and exit codes are in
 [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input from
 compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md),
-and from a Foundry project in
-[docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md).
+from a Foundry project in
+[docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md),
+and from a Hardhat project in
+[docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
 sends and how it reads each answer. The logger and the stage events are in
 [docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md). The agent
@@ -76,18 +78,19 @@ natively. pnpm 12.16.1 (`packageManager`).
 
 ## Where things are
 
-| Path                                  | Contents                                                                                                                  |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                |
-| `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                                   |
-| `packages/foundry/`                   | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                |
-| `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/` |
-| `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                           |
-| `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                         |
-| `skills/`                             | The agent skill; the build copies it into the package, and the tests run its examples against the build                   |
-| `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                   |
-| `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                              |
-| `.changeset/`                         | Pending release notes                                                                                                     |
+| Path                                  | Contents                                                                                                                                                         |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
+| `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                                                                          |
+| `packages/foundry/`                   | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
+| `packages/hardhat/`                   | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
+| `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
+| `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
+| `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
+| `skills/`                             | The agent skill; the build copies it into the package, and the tests run its examples against the build                                                          |
+| `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                                                          |
+| `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                                                                     |
+| `.changeset/`                         | Pending release notes                                                                                                                                            |
 
 ## Rules for every change
 
@@ -103,9 +106,10 @@ natively. pnpm 12.16.1 (`packageManager`).
 - No `any`, no `@ts-` directives, no casts. `scripts/type-escapes.json` lists the only exceptions,
   each with a reason. Prefer a typed alternative over adding one.
 - `packages/*/src` never imports a Node built-in and never reads `process.env`. Every network call
-  goes through the `fetch` the caller injects or the default `globalThis.fetch`. The exception is
-  `packages/foundry/src`, a Node-only build helper (decision 0008), which reads files with
-  `node:fs`; it still never reads `process.env`.
+  goes through the `fetch` the caller injects or the default `globalThis.fetch`. The exceptions
+  are `packages/foundry/src` and `packages/hardhat/src`, the Node-only build helpers (decisions
+  0008 and 0018), which read files with `node:fs`; a lint override names each one. They still
+  never read `process.env`.
 - Never print, log or commit an API key, including in tests and fixtures. Errors redact keys.
 - A change that adds or changes a public function, error, CLI command or user page meets
   [agent readiness (R-AX)](docs/contributor/requirements.md#agent-readiness-r-ax), or the pull

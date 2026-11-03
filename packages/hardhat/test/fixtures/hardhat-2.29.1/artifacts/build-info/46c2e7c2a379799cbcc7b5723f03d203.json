@@ -1,0 +1,231 @@
+{
+  "id": "46c2e7c2a379799cbcc7b5723f03d203",
+  "_format": "hh-sol-build-info-1",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "input": {
+    "language": "Solidity",
+    "sources": {
+      "contracts/Base.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+      },
+      "contracts/Counter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Tally} from \"./Tally.sol\";\n\ncontract Counter {\n    uint256 public count;\n\n    function bump(uint256 amount) external {\n        count = Tally.add(count, amount);\n    }\n}\n"
+      },
+      "contracts/Greeter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+      },
+      "contracts/Pair.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract First {\n    uint256 public value = 1;\n}\n\ncontract Second {\n    uint256 public value = 2;\n}\n"
+      },
+      "contracts/Tally.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nlibrary Tally {\n    function add(uint256 total, uint256 amount) external pure returns (uint256) {\n        return total + amount;\n    }\n}\n"
+      }
+    },
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "paris",
+      "outputSelection": {
+        "*": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"],
+          "": ["ast"]
+        }
+      }
+    }
+  },
+  "output": {
+    "sources": {
+      "contracts/Base.sol": {
+        "id": 0
+      },
+      "contracts/Counter.sol": {
+        "id": 1
+      },
+      "contracts/Greeter.sol": {
+        "id": 2
+      },
+      "contracts/Pair.sol": {
+        "id": 3
+      },
+      "contracts/Tally.sol": {
+        "id": 4
+      }
+    },
+    "contracts": {
+      "contracts/Base.sol": {
+        "Base": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Base.sol\":\"Base\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]}},\"version\":1}"
+        }
+      },
+      "contracts/Counter.sol": {
+        "Counter": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "bump",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "count",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"bump\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Counter.sol\":\"Counter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Counter.sol\":{\"keccak256\":\"0x473d70d8a16a3110e6a7ba9380b10a9b396d560b0ad291aa30db3cd5f700113d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://3ddf926bb1b138b994eaf0b9aba6023b5442530027e43503655e3737a2a0eaeb\",\"dweb:/ipfs/QmWaJM6YJ6QMy1eQ3Zu4a5oVVppRMuTnjbvPZnjMhh57SN\"]},\"contracts/Tally.sol\":{\"keccak256\":\"0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c\",\"dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm\"]}},\"version\":1}"
+        }
+      },
+      "contracts/Greeter.sol": {
+        "Greeter": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "owner_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "string",
+                  "name": "greeting_",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "nonpayable",
+              "type": "constructor"
+            },
+            {
+              "inputs": [],
+              "name": "greeting",
+              "outputs": [
+                {
+                  "internalType": "string",
+                  "name": "",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Greeter.sol\":\"Greeter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Base.sol\":{\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b\",\"dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr\"]},\"contracts/Greeter.sol\":{\"keccak256\":\"0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc4269d23ceefe2bafe7721011588ea4e955498ef2f7f053399f7e56c466790e\",\"dweb:/ipfs/QmUdCdWLpCtbceyaDN24wtZ4prjugNyqPptBp85MqQUtSw\"]}},\"version\":1}"
+        }
+      },
+      "contracts/Pair.sol": {
+        "First": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "value",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Pair.sol\":\"First\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Pair.sol\":{\"keccak256\":\"0xb67f14ee821fb437626fa2ab6824af3b76029dc7fef64dcf7d488641311fa07b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://762885292c5e57cd916063b9cbda64f486eb9f3ee37f06f2d8ce7279d25c5d90\",\"dweb:/ipfs/QmaX5JuDSgVf4af2zq9pcmWyUw3PYh4g5RmPDyE8fxPJYK\"]}},\"version\":1}"
+        },
+        "Second": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "value",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Pair.sol\":\"Second\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Pair.sol\":{\"keccak256\":\"0xb67f14ee821fb437626fa2ab6824af3b76029dc7fef64dcf7d488641311fa07b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://762885292c5e57cd916063b9cbda64f486eb9f3ee37f06f2d8ce7279d25c5d90\",\"dweb:/ipfs/QmaX5JuDSgVf4af2zq9pcmWyUw3PYh4g5RmPDyE8fxPJYK\"]}},\"version\":1}"
+        }
+      },
+      "contracts/Tally.sol": {
+        "Tally": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "total",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "add",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "pure",
+              "type": "function"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"total\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"add\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Tally.sol\":\"Tally\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/Tally.sol\":{\"keccak256\":\"0x32dd19fd952c220a21d269a47dfb3dea59f2a01c44e3aef8c8bfe0a3439a4f9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4987e8f8672789d27677f99b8f0883ea3d2aa1b5349eba27635a74323452b46c\",\"dweb:/ipfs/QmXQwVtnp1fnrVaUH9p9i51xQXXs5nEqPZgM5r79r9aQAm\"]}},\"version\":1}"
+        }
+      }
+    }
+  }
+}

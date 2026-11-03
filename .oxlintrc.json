@@ -116,7 +116,7 @@
       }
     },
     {
-      "files": ["packages/foundry/src/**"],
+      "files": ["packages/foundry/src/**", "packages/hardhat/src/**"],
       "rules": {
         "import/no-nodejs-modules": "off"
       }

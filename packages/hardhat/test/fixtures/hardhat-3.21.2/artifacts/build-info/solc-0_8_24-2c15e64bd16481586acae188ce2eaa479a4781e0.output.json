@@ -1,0 +1,190 @@
+{
+  "_format": "hh3-sol-build-info-output-1",
+  "id": "solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0",
+  "output": {
+    "contracts": {
+      "project/contracts/Base.sol": {
+        "Base": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ]
+        }
+      },
+      "project/contracts/Counter.sol": {
+        "Counter": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "bump",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "count",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ]
+        }
+      },
+      "project/contracts/Greeter.sol": {
+        "Greeter": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "owner_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "string",
+                  "name": "greeting_",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "nonpayable",
+              "type": "constructor"
+            },
+            {
+              "inputs": [],
+              "name": "greeting",
+              "outputs": [
+                {
+                  "internalType": "string",
+                  "name": "",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ]
+        }
+      },
+      "project/contracts/Pair.sol": {
+        "First": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "value",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ]
+        },
+        "Second": {
+          "abi": [
+            {
+              "inputs": [],
+              "name": "value",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ]
+        }
+      },
+      "project/contracts/Tally.sol": {
+        "Tally": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "total",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "add",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "pure",
+              "type": "function"
+            }
+          ]
+        }
+      }
+    },
+    "sources": {
+      "project/contracts/Base.sol": {
+        "id": 0
+      },
+      "project/contracts/Counter.sol": {
+        "id": 1
+      },
+      "project/contracts/Greeter.sol": {
+        "id": 2
+      },
+      "project/contracts/Pair.sol": {
+        "id": 3
+      },
+      "project/contracts/Tally.sol": {
+        "id": 4
+      }
+    }
+  }
+}

@@ -6,6 +6,8 @@
     { "path": "./packages/explorer-verify/tsconfig.test.json" },
     { "path": "./packages/foundry/tsconfig.build.json" },
     { "path": "./packages/foundry/tsconfig.test.json" },
+    { "path": "./packages/hardhat/tsconfig.build.json" },
+    { "path": "./packages/hardhat/tsconfig.test.json" },
     { "path": "./tsconfig.scripts.json" }
   ]
 }

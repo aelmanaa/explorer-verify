@@ -1,0 +1,71 @@
+{
+  "name": "@explorer-verify/hardhat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Find a contract's build files in a Hardhat 2 or Hardhat 3 project and build its explorer-verify input.",
+  "keywords": [
+    "ethereum",
+    "evm",
+    "smart-contracts",
+    "verification",
+    "source-verification",
+    "hardhat",
+    "build-info",
+    "solidity"
+  ],
+  "homepage": "https://github.com/aelmanaa/explorer-verify#readme",
+  "bugs": {
+    "url": "https://github.com/aelmanaa/explorer-verify/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aelmanaa/explorer-verify.git",
+    "directory": "packages/hardhat"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Amine El Manaa",
+    "url": "https://github.com/aelmanaa"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/src/",
+    "src/",
+    "!**/*.test.*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "node -e \"for (const p of ['dist','coverage']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
+    "test": "pnpm run test:unit",
+    "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
+    "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\"",
+    "coverage": "c8 --check-coverage node --test \"test/unit/**/*.test.ts\"",
+    "pkg:check": "publint --strict && attw --pack . --profile esm-only"
+  },
+  "peerDependencies": {
+    "explorer-verify": "workspace:^"
+  },
+  "devDependencies": {
+    "c8": "catalog:",
+    "explorer-verify": "workspace:^"
+  }
+}
