@@ -42,6 +42,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "incomplete-input": { exit: 2, retryable: false },
   "insufficient-artifact": { exit: 2, retryable: false },
   "unsupported-compiler": { exit: 2, retryable: false },
+  "verification-inconclusive": { exit: 4, retryable: true },
 };
 
 const HANDLE: Handle = {
@@ -83,6 +84,11 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   }),
   "insufficient-artifact": () => ({ code: "insufficient-artifact", field: "input" }),
   "unsupported-compiler": () => ({ code: "unsupported-compiler", field: "compilerType" }),
+  "verification-inconclusive": (text) => ({
+    code: "verification-inconclusive",
+    backend: "sourcify",
+    reason: `internal_error: ${text}`,
+  }),
 };
 
 function detailsFor(code: ErrorCode, text: string): ErrorDetails {

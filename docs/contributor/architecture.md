@@ -37,7 +37,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                  |
 | `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                  |
 | `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                           |
-| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below                                 |
+| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts` exists)          |
 | `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                      |
 | `flow/handle.ts`                           | `parseHandle` and the handle's one-line form (exists in part)                                  |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling (R-FLOW-5)                                           |
@@ -48,25 +48,56 @@ Planned layout of `packages/explorer-verify/src/`:
 
 ## Backend interface
 
-Every backend client implements the same shape, so the flow engine never branches on the backend:
+Every backend client implements the same shape, so the flow engine never branches on the backend.
+It lives in `backends/backend.ts` and is internal: the package entry point does not export it.
 
 ```ts
 interface Backend {
   readonly name: BackendName;
   /** Returns the match when the contract is already verified, or undefined. */
-  lookup(target: Target, ctx: Context): Promise<"exact" | "partial" | undefined>;
-  /** Submits the verification and returns an opaque handle for polling. */
-  submit(input: ResolvedInput, ctx: Context): Promise<Handle>;
+  lookup(target: Target, ctx: Context): Promise<Match | undefined>;
+  /** Submits the verification: a handle to poll, or already-verified with its match. */
+  submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome>;
   /** Polls once; returns "pending" or a terminal outcome. */
   poll(handle: Handle, ctx: Context): Promise<PollOutcome>;
-  /** The human-facing page for the contract. */
-  explorerUrl(target: Target): string;
+  /** The public page for the contract, or undefined when the route has none. */
+  explorerUrl(target: Target, ctx: Context): string | undefined;
 }
+
+type Match = "exact" | "partial";
+type SubmitOutcome =
+  | { state: "submitted"; handle: Handle }
+  | { state: "already-verified"; match: Match };
+type PollOutcome =
+  | { state: "pending" }
+  | { state: "verified"; match: Match }
+  | { state: "already-verified"; match?: Match }
+  | { state: "failed"; reason: string };
 ```
 
-`Context` carries `fetch`, `AbortSignal`, the API key (when the backend needs one), a logger, the
-event callback and the route. A `Handle` is plain JSON (version, backend name, chain id, address,
+`Context` holds the route and the HTTP context. The HTTP context carries `fetch`, the
+`AbortSignal`, the budget, the keys to redact, the logger and the retry callback; the API key joins
+it when a backend needs one. A `Handle` is plain JSON (version, backend name, chain id, address,
 explorer job id) so `checkStatus` can resume it in another process. It carries no URL.
+
+Rules every client follows:
+
+- An answer the client does not recognise throws. It never reads as "not verified" or as success
+  (R-FLOW-4). `failed` is only for an explorer code that rejects the source for good.
+- `already-verified` from `poll` may come without a match; the flow then looks the grade up.
+- A job that ended without a verdict throws `verification-inconclusive`, without a handle: polling
+  the finished job again gives the same answer ([decision 0011](decisions/0011-verification-inconclusive-error.md)).
+- `failed.reason` and every excerpt from the explorer are redacted with the call's keys and cut to
+  300 characters.
+- `poll` checks the handle's backend and job id before any request.
+- A submit that got no response, a 500, 502 or 504, or a success status whose body failed, stalled
+  or did not parse may have reached the explorer. The client looks the contract up, returns
+  `already-verified` when it is verified, and otherwise submits once more. A second submit that
+  finds a job already running throws `in-progress`, without a job id.
+
+The Sourcify client (`backends/sourcify.ts`) is the first one. The answers it maps and their
+sources are in [research/2026-11-02-sourcify-v2.md](research/2026-11-02-sourcify-v2.md); the user
+view is [docs/user/reference/sourcify.md](../user/reference/sourcify.md).
 
 ## Public entry points
 

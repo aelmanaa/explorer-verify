@@ -106,6 +106,7 @@ describe("public entry point", () => {
       "incomplete-input",
       "insufficient-artifact",
       "unsupported-compiler",
+      "verification-inconclusive",
     ]);
   });
 

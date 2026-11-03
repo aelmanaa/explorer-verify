@@ -38,6 +38,7 @@ export const ERROR_CODES = [
   "incomplete-input",
   "insufficient-artifact",
   "unsupported-compiler",
+  "verification-inconclusive",
 ] as const;
 
 /**
@@ -228,6 +229,20 @@ export type ErrorDetails =
       code: "unsupported-compiler";
       /** The field that names the compiler: `compilerType` or `language`. */
       field: string;
+    }
+  | {
+      /**
+       * The explorer finished the verification job without a verdict, for example with an internal
+       * error or before its node saw the contract. Polling that job again gives the same answer.
+       */
+      code: "verification-inconclusive";
+      /**
+       * The backend whose job ended without a verdict. `"unknown"` appears only when code bypassed
+       * the types and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
+      /** The explorer's code and message, redacted, at most 300 characters. */
+      reason: string;
     };
 
 /**
@@ -272,6 +287,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "incomplete-input": 2,
   "insufficient-artifact": 2,
   "unsupported-compiler": 2,
+  "verification-inconclusive": 4,
 };
 
 /**
@@ -300,7 +316,8 @@ export interface ErrorJson {
   docsUrl: string;
   /**
    * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
-   * again means `checkStatus(details.handle)`, not a new `verify()`.
+   * again means `checkStatus(details.handle)`, not a new `verify()`. For
+   * `verification-inconclusive`, it means a new `verify()`, which looks the contract up first.
    */
   retryable: boolean;
   /** The handle in its one-line form, when the error carries one. */
@@ -422,6 +439,10 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
     retryable: false,
   },
+  "verification-inconclusive": {
+    hint: "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
+    retryable: true,
+  },
 };
 
 /**
@@ -518,6 +539,13 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       break;
     case "unsupported-compiler":
       copy = { code: "unsupported-compiler", field: text(details.field, secrets) };
+      break;
+    case "verification-inconclusive":
+      copy = {
+        code: "verification-inconclusive",
+        backend: backendOf(details.backend),
+        reason: redactExcerpt(stringOf(details.reason), secrets, EXCERPT_LENGTH),
+      };
       break;
   }
   return copy;
@@ -716,7 +744,8 @@ export class ExplorerVerifyError extends Error {
   readonly hint: string;
   /**
    * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
-   * again means `checkStatus(details.handle)`, not a new `verify()`, which would submit again.
+   * again means `checkStatus(details.handle)`, not a new `verify()`, which would submit again. For
+   * `verification-inconclusive`, it means a new `verify()`, which looks the contract up first.
    */
   readonly retryable: boolean;
   /** The code's data, redacted. Check `details.code` to narrow it. */

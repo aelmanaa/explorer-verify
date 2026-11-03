@@ -5,7 +5,8 @@ explorer-verify will verify the source of deployed smart contracts on block expl
 a CLI, and a self-hosted server handler keeps Etherscan keys off the client.
 
 Status: in design; nothing is published to npm yet. The repository has the toolchain, a typed public
-contract (`packages/explorer-verify/src/types.ts`) and the plan. No explorer client exists yet.
+contract (`packages/explorer-verify/src/types.ts`), the plan, and the first explorer client
+(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`).
 
 ## Start here
 
@@ -38,6 +39,8 @@ are safe and which one submits. The error reference is
 are in [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input
 from compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md).
+[docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
+sends and how it reads each answer.
 
 ## Commands
 

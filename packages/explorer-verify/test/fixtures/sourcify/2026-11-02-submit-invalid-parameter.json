@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded on 2026-11-02.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "invalid_parameter",
+      "message": "request/body must have required property 'stdJsonInput'",
+      "errorId": "d790f2f2-5866-4e37-972c-24e8c62ea86b"
+    }
+  }
+}

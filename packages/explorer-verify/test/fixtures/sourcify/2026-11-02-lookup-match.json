@@ -1,0 +1,22 @@
+{
+  "source": "Live response from sourcify.dev, recorded on 2026-11-02.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xA6B01960EA6e942aDA412C76456bc9465682F3aB"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "matchId": "48642930",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-09-10T16:34:47Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0xA6B01960EA6e942aDA412C76456bc9465682F3aB"
+    }
+  }
+}

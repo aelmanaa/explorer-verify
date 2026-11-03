@@ -49,6 +49,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "incomplete-input": { retryable: false, exit: 2, hasHandle: false },
   "insufficient-artifact": { retryable: false, exit: 2, hasHandle: false },
   "unsupported-compiler": { retryable: false, exit: 2, hasHandle: false },
+  "verification-inconclusive": { retryable: true, exit: 4, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -80,6 +81,11 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     },
     "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
     "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
+    "verification-inconclusive": {
+      code: "verification-inconclusive",
+      backend: "sourcify",
+      reason: `internal_error: ${text}`,
+    },
   };
   return all[code];
 }

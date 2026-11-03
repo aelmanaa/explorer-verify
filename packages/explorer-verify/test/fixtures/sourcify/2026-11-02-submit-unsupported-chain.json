@@ -1,0 +1,19 @@
+{
+  "source": "Not recorded: no live submit was sent for this. The body has the error shape and the unsupported_chain code of the recorded lookup answer (2026-11-02-lookup-unsupported-chain.json); the status is the 400 the OpenAPI spec 2.1.0 lists for the submit route.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/9429413/0x000000000000000000000000000000000000dEaD"
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "unsupported_chain",
+      "message": "Chain 9429413 not found",
+      "errorId": "00000000-0000-4000-8000-000000000001"
+    }
+  }
+}

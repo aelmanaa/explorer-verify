@@ -70,6 +70,11 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "incomplete-input": { code: "incomplete-input", field: "compilerVersion", candidates: [] },
   "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
   "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
+  "verification-inconclusive": {
+    code: "verification-inconclusive",
+    backend: "sourcify",
+    reason: "internal_error: The server encountered an unexpected error.",
+  },
 };
 
 // Details for every code with the key planted in every string field that can hold one.
@@ -107,6 +112,11 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
   },
   "insufficient-artifact": { code: "insufficient-artifact", field: `input ${DUMMY_KEY}` },
   "unsupported-compiler": { code: "unsupported-compiler", field: `compilerType ${DUMMY_KEY}` },
+  "verification-inconclusive": {
+    code: "verification-inconclusive",
+    backend: "sourcify",
+    reason: `internal_error: ${LEAKY_URL}`,
+  },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -180,6 +190,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
     retryable: false,
     exitCode: 2,
+  },
+  "verification-inconclusive": {
+    hint: "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
+    retryable: true,
+    exitCode: 4,
   },
 };
 
@@ -307,6 +322,7 @@ describe("ExplorerVerifyError", () => {
       case "incomplete-input":
       case "insufficient-artifact":
       case "unsupported-compiler":
+      case "verification-inconclusive":
         assert.fail(`unexpected code ${details.code}`);
     }
   });
@@ -383,9 +399,11 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
   });
 
   it("maps to 4 and 6 only codes whose details carry the handle, as R-AX-7 promises", () => {
+    // R-AX-7 and decision 0011: verification-inconclusive exits 4 with no handle, because the
+    // finished job cannot give another answer; the fix is a new verify().
     for (const code of ERROR_CODES) {
       const exit = ERROR_EXIT_CODES[code];
-      if (exit === 4 || exit === 6) {
+      if ((exit === 4 || exit === 6) && code !== "verification-inconclusive") {
         assert.ok(HANDLE_CODES.includes(code), `${code} exits ${String(exit)} without a handle`);
       }
     }

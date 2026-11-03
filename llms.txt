@@ -1,6 +1,6 @@
 # explorer-verify
 
-> explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet, and no explorer client exists. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
+> explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet. The Sourcify client exists; `verify()` does not yet. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
 
 Submitting a verification is outward and permanent. Read the agent page before you call the library or the CLI on someone's behalf.
 
@@ -11,6 +11,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [Verify a contract shipped in an npm package](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-a-contract-from-an-npm-package.md): build the verification input from build-info, artifacts or Standard JSON of unknown origin
 - [Errors](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors.md): every error code with its cause, fix and whether to retry
 - [JSON output and exit codes](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/json-output.md): the versioned JSON envelope, its JSON Schema and the exit code of every outcome
+- [Sourcify](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/sourcify.md): what is sent to Sourcify, how each answer becomes a result or an error, and its side effects
 
 ## Contributor docs
 

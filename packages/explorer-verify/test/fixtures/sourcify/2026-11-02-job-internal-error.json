@@ -1,0 +1,31 @@
+{
+  "source": "Derived from 2026-11-02-job-no-match.json (live, 2026-11-02) with error.customCode replaced by internal_error. Not recorded live; the code is from the server source at argotorg/sourcify@189cd726.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/dea83eb0-3918-449b-a914-3038dd554b42"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "dea83eb0-3918-449b-a914-3038dd554b42",
+      "jobStartTime": "2026-11-02T17:36:05Z",
+      "jobFinishTime": "2026-11-02T17:36:07Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0xA6B01960EA6e942aDA412C76456bc9465682F3aB"
+      },
+      "error": {
+        "customCode": "internal_error",
+        "message": "The server encountered an unexpected error.",
+        "errorId": "187d91ed-2ea2-4419-851b-028720c0ecab"
+      }
+    }
+  }
+}
