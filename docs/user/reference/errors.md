@@ -75,16 +75,16 @@ Redaction does not cover these cases. Keep such values out of errors:
 
 The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code to its exit code.
 
-| Exit code | Meaning                                                                                                      | Error codes                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                                                                             | None                                                                                   |
-| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                                |
-| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`                                                   |
-| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                               |
-| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                                        |
-| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`             |
-| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                                       |
-| 130       | Cancelled                                                                                                    | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason` |
+| Exit code | Meaning                                                                                                      | Error codes                                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| 0         | `verified` or `already-verified`                                                                             | None                                                                                                      |
+| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                                                   |
+| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler` |
+| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                                                  |
+| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                                                           |
+| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`                                |
+| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                                                          |
+| 130       | Cancelled                                                                                                    | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                    |
 
 `unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
 answer did not come from the explorer's API, or not in its format: a 5xx status, an HTML page or a
@@ -125,7 +125,10 @@ Each entry below gives the cause, the fix, whether to retry and the exit code.
 
 ### invalid-input
 
-Cause: the input failed validation, or a handle did not parse. A handle with any field it does not
+Cause: the input failed validation, or a handle did not parse. From `buildVerifyInput`, it also
+means a document of no known shape, documents from different builds (their build ids or full
+compiler versions differ), a contract path that is not in the sources, or a local path in the
+compiler input. The issue gives the position of a local path, never the path. A handle with any field it does not
 know, a URL included, is rejected: a handle never sets the host. All unknown fields are reported as
 one issue on `handle` that gives their count, not their names.
 
@@ -262,3 +265,60 @@ Fix: if the CLI printed `verify.submitted`, or `details.handle` is present, resu
 Retryable: no.
 
 Exit code: 130
+
+### incomplete-input
+
+Cause: `buildVerifyInput` found no way to build part of the input from the documents passed.
+`details.field` names the part:
+
+- `input`: no document holds the compiler input. A Foundry build-info written without
+  `--build-info` holds only `id`, `source_id_to_path` and `language`; a Hardhat 3 `.output.json`
+  holds the output but not the input. Solidity metadata, alone or in an artifact, is not a compiler
+  input either: rebuilding the input from it arrives in #21.
+- `compilerVersion`: no document holds the full version with its commit, such as
+  `0.8.24+commit.e11b9ed9`. Foundry build-info records only `0.8.24` in `solcLongVersion`; the full
+  version is in each contract's metadata.
+- `contract`: the documents hold several contracts and none was chosen, or a bare name matches
+  more than one. `details.candidates` lists the fully qualified names found, sorted, at most 20.
+
+Fix: for `input`, rebuild with build-info enabled (`forge build --build-info`) and pass the new
+build-info file. For `compilerVersion`, add the artifact or build-info output that holds the
+contract metadata, or pass `options.compilerVersion`. For `contract`, pass `options.contract` as
+`path:Name` or as a name that matches one entry of `details.candidates`.
+
+Retryable: no. Nothing was sent to an explorer.
+
+Exit code: 2
+
+### insufficient-artifact
+
+Cause: the documents passed to `buildVerifyInput` hold only ABI and bytecode, with no compiler
+input, settings or metadata. The explorer needs the sources and the exact settings, and these
+files do not have them. `details.field` is `input`.
+
+Fix: three routes remain.
+
+1. Ask the publisher to ship the build-info or the Solidity metadata of the build.
+2. Use the bytecode-metadata resolver (planned), when the deployed bytecode carries a
+   metadata hash and the metadata is published.
+3. Rely on the explorer's own matching (Etherscan Similar Match, Sourcify similarity; see
+   [automatic matching](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
+   when an identical contract is already verified.
+
+Retryable: no. Nothing was sent to an explorer.
+
+Exit code: 2
+
+### unsupported-compiler
+
+Cause: the documents passed to `buildVerifyInput` come from a compiler other than solc.
+`details.field` names what showed it: `compilerType` (a Hardhat 3 build-info with a `compilerType`
+other than `solc`) or `language` (a compiler input whose language is not `Solidity`, such as
+Vyper).
+
+Fix: verify the contract with its compiler's own tooling. This release supports Solidity compiled
+with solc only.
+
+Retryable: no. Nothing was sent to an explorer.
+
+Exit code: 2

@@ -81,6 +81,7 @@ describe("public entry point", () => {
       "ERROR_CODES",
       "ERROR_EXIT_CODES",
       "ExplorerVerifyError",
+      "buildVerifyInput",
       "exitCodeOf",
       "parseHandle",
       "toBackendName",
@@ -89,7 +90,7 @@ describe("public entry point", () => {
     ]);
   });
 
-  it("lists the M1 error codes, the two from decision 0009 first (R-DX-3)", () => {
+  it("lists the error codes, the two from decision 0009 first and new codes last (R-DX-3)", () => {
     assert.deepEqual(api.ERROR_CODES, [
       "invalid-input",
       "not-confirmed",
@@ -102,6 +103,9 @@ describe("public entry point", () => {
       "unknown-state",
       "job-not-found",
       "cancelled",
+      "incomplete-input",
+      "insufficient-artifact",
+      "unsupported-compiler",
     ]);
   });
 

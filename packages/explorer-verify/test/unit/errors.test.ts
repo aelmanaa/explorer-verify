@@ -67,6 +67,9 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "unknown-state": { code: "unknown-state", handle: handle(), excerpt: '{"status":"weird"}' },
   "job-not-found": { code: "job-not-found", handle: handle() },
   cancelled: { code: "cancelled", handle: handle() },
+  "incomplete-input": { code: "incomplete-input", field: "compilerVersion", candidates: [] },
+  "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
+  "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
 };
 
 // Details for every code with the key planted in every string field that can hold one.
@@ -97,6 +100,13 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
   },
   "job-not-found": { code: "job-not-found", handle: handle(DUMMY_KEY) },
   cancelled: { code: "cancelled", handle: handle(DUMMY_KEY) },
+  "incomplete-input": {
+    code: "incomplete-input",
+    field: `contract ${DUMMY_KEY}`,
+    candidates: [`src/A.sol:A`, `${LEAKY_URL}:B`],
+  },
+  "insufficient-artifact": { code: "insufficient-artifact", field: `input ${DUMMY_KEY}` },
+  "unsupported-compiler": { code: "unsupported-compiler", field: `compilerType ${DUMMY_KEY}` },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -155,6 +165,21 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
     retryable: false,
     exitCode: 130,
+  },
+  "incomplete-input": {
+    hint: "Add what details.field names: a build-info with its input, the full compiler version, or the contract as path:Name.",
+    retryable: false,
+    exitCode: 2,
+  },
+  "insufficient-artifact": {
+    hint: "ABI and bytecode are not enough to verify. Routes left: (1) ask the publisher to ship build-info or metadata; (2) the bytecode-metadata resolver, when the bytecode carries a metadata hash and the metadata is published; (3) the explorer's own matching (Etherscan Similar Match, Sourcify similarity), when an identical contract is already verified.",
+    retryable: false,
+    exitCode: 2,
+  },
+  "unsupported-compiler": {
+    hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
+    retryable: false,
+    exitCode: 2,
   },
 };
 
@@ -279,8 +304,19 @@ describe("ExplorerVerifyError", () => {
       case "unknown-state":
       case "job-not-found":
       case "cancelled":
+      case "incomplete-input":
+      case "insufficient-artifact":
+      case "unsupported-compiler":
         assert.fail(`unexpected code ${details.code}`);
     }
+  });
+
+  it("keeps incomplete-input candidates only when they are an array (R-SEC-1)", () => {
+    const details: ErrorDetails = { code: "incomplete-input", field: "contract", candidates: [] };
+    Reflect.set(details, "candidates", `src/A.sol:A ${DUMMY_KEY}`);
+    const error = new ExplorerVerifyError(details, "m", { secrets: [DUMMY_KEY] });
+    assert.ok(error.details.code === "incomplete-input");
+    assert.deepEqual(error.details.candidates, []);
   });
 
   it("cuts an excerpt to 300 characters (unexpected-response, unknown-state)", () => {

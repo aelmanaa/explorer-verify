@@ -39,6 +39,9 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "unknown-state": { exit: 6, retryable: false },
   "job-not-found": { exit: 6, retryable: false },
   cancelled: { exit: 130, retryable: false },
+  "incomplete-input": { exit: 2, retryable: false },
+  "insufficient-artifact": { exit: 2, retryable: false },
+  "unsupported-compiler": { exit: 2, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -73,6 +76,13 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "unknown-state": (text) => ({ code: "unknown-state", handle: HANDLE, excerpt: text }),
   "job-not-found": () => ({ code: "job-not-found", handle: HANDLE }),
   cancelled: () => ({ code: "cancelled", handle: HANDLE }),
+  "incomplete-input": (text) => ({
+    code: "incomplete-input",
+    field: "contract",
+    candidates: [text],
+  }),
+  "insufficient-artifact": () => ({ code: "insufficient-artifact", field: "input" }),
+  "unsupported-compiler": () => ({ code: "unsupported-compiler", field: "compilerType" }),
 };
 
 function detailsFor(code: ErrorCode, text: string): ErrorDetails {
