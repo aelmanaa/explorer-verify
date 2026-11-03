@@ -58,8 +58,9 @@ Source: [Sourcify API docs](https://docs.sourcify.dev/docs/api/). The v1 API was
   `{ stdJsonInput, compilerVersion, contractIdentifier, creationTransactionHash? }`. Returns a
   `verificationId`.
 - Poll: `GET /v2/verify/{verificationId}`.
-- Lookup: `GET /v2/contract/{chainId}/{address}?fields=all`. Match fields are in the OpenAPI spec at
-  `https://sourcify.dev/server/api-docs/swagger.json`; read it before mapping `exact`/`partial`.
+- Lookup: `GET /v2/contract/{chainId}/{address}`. Read it without `?fields=all`: see the
+  correction of 2026-11-03 and [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md#caching).
+  Match fields are in the OpenAPI spec at `https://sourcify.dev/server/api-docs/swagger.json`.
 - Similarity: `POST /v2/verify/similarity/{chainId}/{address}` (in the OpenAPI spec, version
   2.1.0); the monitor also schedules it after contract creation on monitored chains
   ([docs](https://docs.sourcify.dev/docs/similarity-verification/)).
@@ -155,3 +156,7 @@ Local runs, curl 8.7.1, 2026-11-02:
   tool upgrades it to Exact Match for now; re-verification is enabled for whitelisted users);
   added the section on languages other than Solidity.
 - 2026-11-02: added Sourcify's rate-limit guidance and 429 error codes from the OpenAPI spec.
+- 2026-11-03: the lookup line named `?fields=all`. A cached `?fields=all` answer showed an old
+  partial match after an upgrade to exact (live, 2026-11-02), and the client needs only the match
+  fields, so the lookup is read without it. Every Sourcify answer the client maps is in
+  [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md).

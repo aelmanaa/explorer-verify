@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-02T23:39:54.134Z.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"39-i8fVEGKMQWW35uHOtEZqk97IyUY\""
+    },
+    "body": {
+      "verificationId": "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718"
+    }
+  }
+}

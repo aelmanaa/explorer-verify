@@ -129,6 +129,11 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "incomplete-input": { code: "incomplete-input", field: "compilerVersion", candidates: [] },
   "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
   "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
+  "verification-inconclusive": {
+    code: "verification-inconclusive",
+    backend: "sourcify",
+    reason: "internal_error: The server encountered an unexpected error.",
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

@@ -23,7 +23,8 @@ well-tested module cannot lift a weak one over the floor. The output names each 
 ERROR: Coverage for branches (66.66%) does not meet threshold (95%) for src/probe.ts
 ```
 
-`src/types.ts` holds only types and is excluded.
+`src/types.ts` and `src/backends/backend.ts` hold only types and are excluded: no test loads them at
+run time, so c8 would report them at 0%.
 
 ## Layers
 

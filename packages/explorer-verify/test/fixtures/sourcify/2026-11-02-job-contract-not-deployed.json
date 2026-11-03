@@ -1,0 +1,31 @@
+{
+  "source": "Live response from sourcify.dev, recorded on 2026-11-02.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/0bcf24fd-93f7-40aa-bf7d-1488b25446be"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "0bcf24fd-93f7-40aa-bf7d-1488b25446be",
+      "jobStartTime": "2026-11-02T17:35:52Z",
+      "jobFinishTime": "2026-11-02T17:35:53Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0x000000000000000000000000000000000000dEaD"
+      },
+      "error": {
+        "customCode": "contract_not_deployed",
+        "message": "Chain #11155111 does not have a contract deployed at 0x000000000000000000000000000000000000dEaD.",
+        "errorId": "79d9af11-cee3-4f28-a6f9-b94c2cb6528d"
+      }
+    }
+  }
+}

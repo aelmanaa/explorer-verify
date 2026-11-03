@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded on 2026-11-02.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/461157eb-e4ea-4c5f-9aec-04c56924fd96"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "job_not_found",
+      "message": "No verification job found for id 461157eb-e4ea-4c5f-9aec-04c56924fd96",
+      "errorId": "825d0e73-9701-4dd4-a6bb-81c3b217f77c"
+    }
+  }
+}

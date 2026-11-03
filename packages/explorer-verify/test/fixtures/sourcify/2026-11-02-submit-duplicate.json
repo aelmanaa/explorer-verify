@@ -1,0 +1,19 @@
+{
+  "source": "Not recorded: a 429 cannot be triggered on purpose. The body is the documented duplicate_verification_request answer (OpenAPI spec 2.1.0; server source at argotorg/sourcify@189cd726), in the error shape of the recorded answers.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "duplicate_verification_request",
+      "message": "The contract is already being verified",
+      "errorId": "00000000-0000-4000-8000-000000000002"
+    }
+  }
+}

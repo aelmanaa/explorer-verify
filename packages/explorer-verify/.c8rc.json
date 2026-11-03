@@ -2,7 +2,7 @@
   "all": true,
   "src": ["src"],
   "include": ["src/**/*.ts"],
-  "exclude": ["src/types.ts", "test/**"],
+  "exclude": ["src/types.ts", "src/backends/backend.ts", "test/**"],
   "reporter": ["text", "lcov"],
   "reports-dir": "coverage",
   "check-coverage": true,

@@ -75,16 +75,16 @@ Redaction does not cover these cases. Keep such values out of errors:
 
 The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code to its exit code.
 
-| Exit code | Meaning                                                                                                      | Error codes                                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                                                                             | None                                                                                                      |
-| 1         | `failed`: the explorer definitively rejected the submission                                                  | None. A `failed` result is not an error                                                                   |
-| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler` |
-| 3         | Missing, invalid or under-privileged API key                                                                 | None yet. Key errors arrive with the first keyed backend                                                  |
-| 4         | Still pending at the time budget; the output carries the handle                                              | `not-confirmed`                                                                                           |
-| 5         | Network or explorer unavailable after retries; call again later                                              | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`                                |
-| 6         | Unknown state; the output carries the handle. A person checks it                                             | `unknown-state`, `job-not-found`                                                                          |
-| 130       | Cancelled                                                                                                    | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                    |
+| Exit code | Meaning                                                                                                        | Error codes                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 0         | `verified` or `already-verified`                                                                               | None                                                                                                      |
+| 1         | `failed`: the explorer definitively rejected the submission                                                    | None. A `failed` result is not an error                                                                   |
+| 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification   | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler` |
+| 3         | Missing, invalid or under-privileged API key                                                                   | None yet. Key errors arrive with the first keyed backend                                                  |
+| 4         | No verdict yet: still pending at the time budget (the output carries the handle), or the job ended without one | `not-confirmed`, `verification-inconclusive`                                                              |
+| 5         | Network or explorer unavailable after retries; call again later                                                | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`                                |
+| 6         | Unknown state; the output carries the handle. A person checks it                                               | `unknown-state`, `job-not-found`                                                                          |
+| 130       | Cancelled                                                                                                      | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                    |
 
 `unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
 answer did not come from the explorer's API, or not in its format: a 5xx status, an HTML page or a
@@ -208,7 +208,8 @@ Cause: the answer did not come from the explorer's API, or not in its format, af
 status, an HTML page, a wrong content type, a redirect or a body that is too large or cannot be
 read. `details.status` holds the status and `details.excerpt` the first 300 characters of the
 body, redacted. `details.retryAfterMs` holds the wait the backend asked for, when its last answer
-had a `Retry-After` header.
+had a `Retry-After` header. A status or body that the backend's client does not recognise ends here
+too, such as Sourcify's `400 invalid_parameter`, or an answer about another contract.
 
 Fix: call again later. If the error persists, check the explorer's status page and report
 `details.status` and `details.excerpt` in an issue.
@@ -220,7 +221,9 @@ Exit code: 5
 ### in-progress
 
 Cause: the backend is already verifying this contract from another submission. This call has no
-job id, so the error carries no handle.
+job id, so the error carries no handle. It also happens when a submit got no clear answer, the
+library submitted once more, and the explorer said a job for the contract was already running: the
+first submit most likely reached it.
 
 Fix: wait for the explorer to finish that verification, then call again.
 
@@ -322,3 +325,20 @@ with solc only.
 Retryable: no. Nothing was sent to an explorer.
 
 Exit code: 2
+
+### verification-inconclusive
+
+Cause: the explorer finished the verification job without a verdict. The job ended with an error
+that may clear up later, such as Sourcify's `internal_error`, or `contract_not_deployed` right after
+a deployment. `details.reason` holds the explorer's code and message, redacted, at most 300
+characters, and `details.backend` names the backend. The
+[Sourcify page](sourcify.md#how-answers-are-read) lists those errors. The finished job will not
+change, so the error carries no handle.
+
+Fix: wait a minute, then call `verify()` again. It looks the contract up first and submits only
+when the contract is not verified. Do not call `checkStatus()`: it would read the same finished
+job.
+
+Retryable: yes, with a new `verify()`.
+
+Exit code: 4

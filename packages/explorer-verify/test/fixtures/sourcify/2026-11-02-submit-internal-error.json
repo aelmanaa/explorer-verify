@@ -1,0 +1,19 @@
+{
+  "source": "Not recorded: a 5xx cannot be triggered on purpose. The body is the documented internal_error answer (OpenAPI spec 2.1.0), in the error shape of the recorded answers.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 500,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "internal_error",
+      "message": "The server encountered an unexpected error.",
+      "errorId": "00000000-0000-4000-8000-000000000003"
+    }
+  }
+}

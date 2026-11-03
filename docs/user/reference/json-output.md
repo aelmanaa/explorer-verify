@@ -113,25 +113,26 @@ release knows.
 Each outcome has one exit code. `ERROR_EXIT_CODES` holds the codes of the errors, and `exitCodeOf`
 covers results and errors.
 
-| Outcome                 | Kind   | `ok`    | Exit code |
-| ----------------------- | ------ | ------- | --------- |
-| `verified`              | Result | `true`  | 0         |
-| `already-verified`      | Result | `true`  | 0         |
-| `failed`                | Result | `false` | 1         |
-| `invalid-input`         | Error  | `false` | 2         |
-| `unsupported-chain`     | Error  | `false` | 2         |
-| `incomplete-input`      | Error  | `false` | 2         |
-| `insufficient-artifact` | Error  | `false` | 2         |
-| `unsupported-compiler`  | Error  | `false` | 2         |
-| `not-confirmed`         | Error  | `false` | 4         |
-| `network`               | Error  | `false` | 5         |
-| `rate-limited`          | Error  | `false` | 5         |
-| `timeout`               | Error  | `false` | 5         |
-| `unexpected-response`   | Error  | `false` | 5         |
-| `in-progress`           | Error  | `false` | 5         |
-| `unknown-state`         | Error  | `false` | 6         |
-| `job-not-found`         | Error  | `false` | 6         |
-| `cancelled`             | Error  | `false` | 130       |
+| Outcome                     | Kind   | `ok`    | Exit code |
+| --------------------------- | ------ | ------- | --------- |
+| `verified`                  | Result | `true`  | 0         |
+| `already-verified`          | Result | `true`  | 0         |
+| `failed`                    | Result | `false` | 1         |
+| `invalid-input`             | Error  | `false` | 2         |
+| `unsupported-chain`         | Error  | `false` | 2         |
+| `incomplete-input`          | Error  | `false` | 2         |
+| `insufficient-artifact`     | Error  | `false` | 2         |
+| `unsupported-compiler`      | Error  | `false` | 2         |
+| `not-confirmed`             | Error  | `false` | 4         |
+| `verification-inconclusive` | Error  | `false` | 4         |
+| `network`                   | Error  | `false` | 5         |
+| `rate-limited`              | Error  | `false` | 5         |
+| `timeout`                   | Error  | `false` | 5         |
+| `unexpected-response`       | Error  | `false` | 5         |
+| `in-progress`               | Error  | `false` | 5         |
+| `unknown-state`             | Error  | `false` | 6         |
+| `job-not-found`             | Error  | `false` | 6         |
+| `cancelled`                 | Error  | `false` | 130       |
 
 Exit code 3 is for a missing, invalid or under-privileged API key. No error code uses it yet: key
 errors arrive with the first backend that needs a key. [Errors](errors.md#exit-codes) explains what

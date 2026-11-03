@@ -1,0 +1,20 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-02T23:39:57.552Z.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 409,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"f6-wSJO9kVUpGZjMwVmM3RyR5c+UqQ\""
+    },
+    "body": {
+      "customCode": "already_verified",
+      "message": "Contract 0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC on chain 11155111 is already verified with runtimeMatch and creationMatch both being exact matches.",
+      "errorId": "a716c989-046f-46c8-a83a-daf85ec81826"
+    }
+  }
+}

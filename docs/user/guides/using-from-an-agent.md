@@ -15,6 +15,9 @@ Submit sends the source to the explorer, which publishes it. The step is outward
 cannot take it back. Run a dry run first, and submit only when the person asked for verification of
 that contract on that chain.
 
+A Sourcify submit can also publish the source on other explorers: Sourcify forwards it to
+Etherscan, Blockscout and Routescan. See [Sourcify](../reference/sourcify.md#behaviour-to-know).
+
 ## Safe steps
 
 These steps never submit. You can run them without asking.

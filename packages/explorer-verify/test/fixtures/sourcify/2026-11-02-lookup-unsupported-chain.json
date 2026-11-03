@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded on 2026-11-02.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/9429413/0x000000000000000000000000000000000000dEaD"
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "unsupported_chain",
+      "message": "Chain 9429413 not found",
+      "errorId": "5ab41b90-ceea-41af-8d54-6c54a3fa1662"
+    }
+  }
+}
