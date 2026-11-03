@@ -11,7 +11,7 @@ import { JOB_ID } from "../flow/handle.ts";
 import { request } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
-import { redactExcerpt, redactingLogger } from "../redact.ts";
+import { redactExcerpt } from "../redact.ts";
 import type { Handle } from "../types.ts";
 import type {
   Backend,
@@ -183,11 +183,10 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
   if (first.kind === "answer") {
     return readSubmit(input, ctx, first.answer);
   }
-  if (ctx.http.logger !== undefined) {
-    redactingLogger(ctx.http.logger, ctx.http.secrets).warn(
-      `Sourcify submit: ${first.error.message} Looking the contract up before submitting again.`,
-    );
-  }
+  ctx.http.observer?.log.warn(
+    `Sourcify submit: ${first.error.message} Looking the contract up before submitting again.`,
+    { backend: "sourcify", code: first.error.code },
+  );
   let match: Match | undefined;
   try {
     match = await lookup(target, ctx);

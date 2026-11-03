@@ -91,32 +91,182 @@ export type VerifyResult =
   | { status: "failed"; backend: BackendName; reason: string };
 
 /**
- * Receives the library's log lines. Every line is a plain string with API keys already removed
- * (R-SEC-1). `console` fits this shape.
+ * One log field value: flat and JSON-safe, so it maps to a JSON Lines record or an OpenTelemetry
+ * attribute without conversion (R-DX-5).
+ *
+ * @experimental
+ */
+export type LogValue = string | number | boolean | null;
+
+/**
+ * The structured fields of one log line, such as the backend or the attempt number. Values are
+ * flat. Field names are diagnostics and may change in any release; a program reads
+ * {@link VerifyEvent} objects instead (R-DX-5).
  *
  * @example
  * ```ts
- * import type { Logger } from "explorer-verify";
+ * import type { LogFields } from "explorer-verify";
  *
+ * const fields: LogFields = { backend: "sourcify", attempt: 2, delayMs: 1_000 };
+ * ```
+ * @experimental
+ */
+export type LogFields = Readonly<Record<string, LogValue>>;
+
+/**
+ * Receives the library's log lines (R-DX-5). Each method takes a message and optional flat
+ * fields, both with API keys removed (R-SEC-1). `console` fits this shape, and a logger that reads
+ * only the message keeps working. Messages and fields are diagnostics: their wording may change in
+ * any release.
+ *
+ * The library never logs at `error` a failure it throws: the thrown `ExplorerVerifyError` carries
+ * it. A method that throws is ignored and does not change the outcome.
+ *
+ * @example
+ * ```ts
+ * import type { LogFields, Logger } from "explorer-verify";
+ *
+ * // User code: print lines at info and above, with fields only when a line has them.
+ * const print =
+ *   (write: (...data: unknown[]) => void) =>
+ *   (message: string, fields?: LogFields): void => {
+ *     if (fields === undefined) {
+ *       write(message);
+ *     } else {
+ *       write(message, fields);
+ *     }
+ *   };
  * const logger: Logger = {
  *   debug: () => {},
- *   info: (message) => console.info(message),
- *   warn: (message) => console.warn(message),
- *   error: (message) => console.error(message),
+ *   info: print(console.info),
+ *   warn: print(console.warn),
+ *   error: print(console.error),
  * };
  * ```
  * @experimental
  */
 export interface Logger {
   /** Request and polling detail. */
-  debug: (message: string) => void;
+  debug: (message: string, fields?: LogFields) => void;
   /** Progress a person may want to see. */
-  info: (message: string) => void;
-  /** A retry or a recovered problem. */
-  warn: (message: string) => void;
-  /** A failure, logged before the error is thrown. */
-  error: (message: string) => void;
+  info: (message: string, fields?: LogFields) => void;
+  /** A retry, a recovered problem, or an `onEvent` callback that threw. */
+  warn: (message: string, fields?: LogFields) => void;
+  /** A failure the library recovers from or does not throw. Never a failure it throws. */
+  error: (message: string, fields?: LogFields) => void;
 }
+
+/**
+ * A stage event, passed to `VerifyOptions.onEvent` (R-DX-6). The union is keyed by `type`. Every
+ * value is flat and JSON-safe, and API keys are removed from every string (R-SEC-1). The
+ * `event.schema.json` file in the package describes the same objects.
+ *
+ * | `type`             | Emitted when                                       |
+ * | ------------------ | -------------------------------------------------- |
+ * | `verify.validated` | The input passed validation                        |
+ * | `verify.routed`    | The route is resolved                              |
+ * | `verify.lookup`    | The already-verified check finished or was skipped |
+ * | `verify.submitted` | The explorer accepted the submission               |
+ * | `verify.poll`      | One poll returned a state that is not final        |
+ * | `verify.retry`     | A request is retried after a transient failure     |
+ * | `verify.result`    | The call is about to return a result               |
+ *
+ * Within a schema version, a release adds event types or fields and never removes or changes one.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyEvent } from "explorer-verify";
+ *
+ * // User code: keep the handle, count retries, and fail to compile when a type is added.
+ * let retries = 0;
+ * function onEvent(event: VerifyEvent): void {
+ *   switch (event.type) {
+ *     case "verify.submitted":
+ *       localStorage.setItem("pending-verification", event.handle);
+ *       break;
+ *     case "verify.retry":
+ *       retries += 1;
+ *       break;
+ *     case "verify.validated":
+ *     case "verify.routed":
+ *     case "verify.lookup":
+ *     case "verify.poll":
+ *     case "verify.result":
+ *       break;
+ *     default: {
+ *       const unknown: never = event;
+ *       throw new Error(`Unknown event ${JSON.stringify(unknown)}`);
+ *     }
+ *   }
+ * }
+ * ```
+ * @experimental
+ */
+export type VerifyEvent =
+  | {
+      readonly type: "verify.validated";
+      /** EVM chain id the contract is deployed on. */
+      readonly chainId: number;
+      /** The contract address. */
+      readonly address: Hex;
+    }
+  | {
+      readonly type: "verify.routed";
+      /** The backend the call goes to. */
+      readonly backend: BackendName;
+      /** The API host, such as `sourcify.dev`. Never a scheme, a path or a query. */
+      readonly apiHost: string;
+    }
+  | {
+      readonly type: "verify.lookup";
+      /** The backend that was asked. */
+      readonly backend: BackendName;
+      /** What the already-verified check found, or `skipped` when it did not run. */
+      readonly match: "exact" | "partial" | "none" | "skipped";
+    }
+  | {
+      readonly type: "verify.submitted";
+      /** The backend that accepted the submission. */
+      readonly backend: BackendName;
+      /** The handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. */
+      readonly handle: string;
+    }
+  | {
+      readonly type: "verify.poll";
+      /** The backend that was polled. */
+      readonly backend: BackendName;
+      /** The poll number, from 1. */
+      readonly attempt: number;
+      /** The state the explorer reported. */
+      readonly state: "pending" | "queued" | "completed";
+    }
+  | {
+      readonly type: "verify.retry";
+      /** The backend the request goes to. */
+      readonly backend: BackendName;
+      /** The number of the attempt that follows the wait: 2 for the first retry. */
+      readonly attempt: number;
+      /** Why the previous attempt failed. */
+      readonly reason: "rate-limited" | "network" | "server-error" | "duplicate-submission";
+      /** The wait before that attempt, in milliseconds. */
+      readonly delayMs: number;
+    }
+  | {
+      readonly type: "verify.result";
+      /** The backend that gave the result. */
+      readonly backend: BackendName;
+      /** The result's status. */
+      readonly status: "verified" | "already-verified";
+      /** The result's match. */
+      readonly match: "exact" | "partial";
+    }
+  | {
+      readonly type: "verify.result";
+      /** The backend that gave the result. */
+      readonly backend: BackendName;
+      /** The result's status. A failed result has no match. */
+      readonly status: "failed";
+    };
 
 /**
  * Overrides the route for one call: which backend to use and where its API lives, for example a
@@ -175,8 +325,14 @@ export interface VerifyOptions {
   timeoutMs?: number;
   /** Wait between two status polls, in milliseconds. Defaults to 3000. */
   pollIntervalMs?: number;
-  /** Receives log lines with keys removed. Nothing is logged when it is absent. */
+  /** Receives log lines with keys removed. Nothing is logged when it is absent (R-DX-5). */
   logger?: Logger;
+  /**
+   * Receives the stage events, with keys removed (R-DX-6). Nothing is emitted when it is absent.
+   * An exception it throws, or a rejection of a promise it returns, is logged once at `warn` and
+   * does not change the outcome. A returned promise is not awaited.
+   */
+  onEvent?: (event: VerifyEvent) => void | Promise<void>;
   /** Overrides the routing table for this call. */
   route?: RouteOverride;
 }

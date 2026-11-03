@@ -15,6 +15,7 @@ import {
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { validateInput } from "../../src/input/validate.ts";
+import { createObserver } from "../../src/observe.ts";
 import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { Handle, Logger, RouteOverride, VerifyInput } from "../../src/types.ts";
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
@@ -75,7 +76,9 @@ function setup(
     fetch: fake.fetch,
     secrets: options.secrets ?? [],
     random: () => 0,
-    ...(options.logger === undefined ? {} : { logger: options.logger }),
+    ...(options.logger === undefined
+      ? {}
+      : { observer: createObserver({ logger: options.logger, secrets: options.secrets ?? [] }) }),
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   };
   return {
@@ -656,7 +659,7 @@ describe("sourcify backend", () => {
           backend: "sourcify",
           fetch: fake.fetch,
           secrets: [],
-          logger,
+          observer: createObserver({ logger, secrets: [] }),
           budget: { deadline: Date.now() - 1, timeoutMs: 1_000 },
         },
       };

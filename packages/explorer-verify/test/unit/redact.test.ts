@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { Logger } from "../../src/index.ts";
+import type { Logger, LogValue } from "../../src/index.ts";
 import {
   EXCERPT_MARGIN,
   MIN_SECRET_LENGTH,
@@ -334,6 +334,88 @@ function recorder(): { logger: Logger; seen: unknown[][] } {
   };
 }
 
+/**
+ * A logger method declared as `void`, as `Logger` declares it, whose body returns a rejected
+ * promise, as an async method does.
+ */
+function rejectingMethod(text: string): (message: string) => void {
+  function method(message: string): void;
+  function method(): unknown {
+    return Promise.reject(new Error(text));
+  }
+  return method;
+}
+
+describe("redact: a known key encoded twice (R-SEC-1)", () => {
+  it("redacts a key that was URL-encoded twice, as in a URL inside another URL's parameter", () => {
+    const key = "dummy key/with+marks=1";
+    const twice = encodeURIComponent(encodeURIComponent(key));
+    assert.notEqual(twice, encodeURIComponent(key));
+    assert.equal(redact(`next=${twice}&x=1`, [key]), `next=${R}&x=1`);
+  });
+});
+
+describe("redactingLogger: key-named fields (R-SEC-1, R-DX-5)", () => {
+  it("replaces a string value whole when the field name is a key name, even when the key is unknown", () => {
+    const { logger, seen } = recorder();
+    redactingLogger(logger).info("x", {
+      apikey: "unknown-value-1",
+      "X-Api-Key": "unknown-value-2",
+      access_token: "unknown-value-3",
+      password: "hunter2",
+      key: "k",
+      attempt: 2,
+      apikeys: "kept: not a key name",
+    });
+    assert.deepEqual(seen, [
+      [
+        "info",
+        "x",
+        {
+          apikey: R,
+          "X-Api-Key": R,
+          access_token: R,
+          password: R,
+          key: R,
+          attempt: 2,
+          apikeys: "kept: not a key name",
+        },
+      ],
+    ]);
+  });
+});
+
+describe("redactingLogger: async methods (decision 0010)", () => {
+  it("catches a rejected promise from an async logger method", async (t) => {
+    const unhandled: unknown[] = [];
+    const listener = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", listener);
+    t.after(() => {
+      process.off("unhandledRejection", listener);
+    });
+    const rejecting = rejectingMethod("async logger");
+    const log = redactingLogger({
+      debug: rejecting,
+      info: rejecting,
+      warn: rejecting,
+      error: rejecting,
+    });
+    assert.doesNotThrow(() => {
+      log.warn("x", { a: 1 });
+      log.error("y");
+    });
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    assert.deepEqual(unhandled, []);
+  });
+});
+
 describe("redactingLogger (R-SEC-1)", () => {
   it("redacts every message before it reaches each of the four methods", () => {
     const { logger, seen } = recorder();
@@ -356,7 +438,55 @@ describe("redactingLogger (R-SEC-1)", () => {
     assert.deepEqual(seen, [["debug", `?apikey=${R}`]]);
   });
 
-  it("keeps extra arguments, each redacted, and never throws on values that are not strings", () => {
+  it("redacts every field name and string value, and keeps numbers, booleans and null (R-DX-5)", () => {
+    const { logger, seen } = recorder();
+    const log = redactingLogger(logger, [DUMMY_KEY]);
+    log.warn(`retry ${DUMMY_KEY}`, {
+      url: `https://x.example/api?apikey=${DUMMY_KEY}`,
+      [`k-${DUMMY_KEY}`]: "name",
+      attempt: 2,
+      final: false,
+      status: null,
+      plain: "sourcify",
+    });
+    assert.deepEqual(seen, [
+      [
+        "warn",
+        `retry ${R}`,
+        {
+          url: `https://x.example/api?apikey=${R}`,
+          [`k-${R}`]: "name",
+          attempt: 2,
+          final: false,
+          status: null,
+          plain: "sourcify",
+        },
+      ],
+    ]);
+    assert.ok(!JSON.stringify(seen).includes(DUMMY_KEY));
+  });
+
+  it("passes no second argument when there are no fields, so console prints no `undefined`", () => {
+    const { logger, seen } = recorder();
+    redactingLogger(logger).info("x");
+    redactingLogger(logger).info("y", {});
+    assert.deepEqual(seen, [
+      ["info", "x"],
+      ["info", "y", {}],
+    ]);
+  });
+
+  it("passes a new fields object, and a `__proto__` field stays an own field", () => {
+    const { logger, seen } = recorder();
+    const fields: Record<string, LogValue> = Object.fromEntries([["__proto__", "p"]]);
+    redactingLogger(logger).debug("x", fields);
+    const passed = seen[0]?.[2];
+    assert.notEqual(passed, fields);
+    assert.deepEqual(Object.entries(passed ?? {}), [["__proto__", "p"]]);
+    assert.equal(Object.getPrototypeOf(passed), Object.prototype);
+  });
+
+  it("turns a field value that is not flat into redacted text, and never throws on it", () => {
     const { logger, seen } = recorder();
     const log = redactingLogger(logger, [DUMMY_KEY]);
     const hostile = {
@@ -364,38 +494,74 @@ describe("redactingLogger (R-SEC-1)", () => {
         throw new Error(DUMMY_KEY);
       },
     };
-    Reflect.apply(log.info, log, [
-      "x",
+    const values: unknown[] = [
       { url: `?apikey=${DUMMY_KEY}` },
       new TypeError(`fetch ${DUMMY_KEY}`),
-      7,
-      true,
       10n,
       Symbol(DUMMY_KEY),
       undefined,
-      null,
       () => DUMMY_KEY,
       hostile,
       { toJSON: () => undefined },
-    ]);
+    ];
+    // A JavaScript caller can pass any value; the entries mimic that without a cast.
+    Reflect.apply(log.info, log, ["x", Object.fromEntries(values.map((v, i) => [`f${i}`, v]))]);
+    // The same for a message that is not a string.
+    Reflect.apply(log.debug, log, [null]);
+    Reflect.apply(log.debug, log, [7]);
     assert.deepEqual(seen, [
       [
         "info",
         "x",
-        `{"url":"?apikey=${R}"}`,
-        `TypeError: fetch ${R}`,
-        "7",
-        "true",
-        "10",
-        `Symbol(${R})`,
-        "undefined",
-        "null",
-        "function",
-        "[unloggable]",
-        "[unloggable]",
+        {
+          f0: `{"url":"?apikey=${R}"}`,
+          f1: `TypeError: fetch ${R}`,
+          f2: "10",
+          f3: `Symbol(${R})`,
+          f4: "undefined",
+          f5: "function",
+          f6: "[unloggable]",
+          f7: "[unloggable]",
+        },
       ],
+      ["debug", "null"],
+      ["debug", "7"],
     ]);
     assert.ok(!JSON.stringify(seen).includes(DUMMY_KEY));
+  });
+
+  it("never throws when the caller's logger throws, lacks a method or gets unreadable fields (decision 0010)", () => {
+    const throwing: Logger = {
+      debug: () => {
+        throw new Error(DUMMY_KEY);
+      },
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    };
+    assert.doesNotThrow(() => {
+      redactingLogger(throwing, [DUMMY_KEY]).debug("x", { a: 1 });
+    });
+    // A JavaScript caller may pass a logger with a missing method.
+    const partial: Logger = { ...throwing };
+    const wrapped = redactingLogger(partial);
+    Reflect.deleteProperty(partial, "warn");
+    assert.doesNotThrow(() => {
+      wrapped.warn("x");
+    });
+    const { logger, seen } = recorder();
+    const unreadable = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error(DUMMY_KEY);
+        },
+      },
+    );
+    assert.doesNotThrow(() => {
+      redactingLogger(logger, [DUMMY_KEY]).error("x", unreadable);
+    });
+    assert.deepEqual(seen, []);
   });
 
   it("calls the caller's method with the logger as this", () => {

@@ -39,6 +39,7 @@
       "default": "./dist/src/index.js"
     },
     "./envelope.schema.json": "./schema/envelope.schema.json",
+    "./event.schema.json": "./schema/event.schema.json",
     "./package.json": "./package.json"
   },
   "files": [

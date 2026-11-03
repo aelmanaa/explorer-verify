@@ -27,6 +27,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   timeoutMs: true,
   pollIntervalMs: true,
   logger: true,
+  onEvent: true,
   route: true,
 };
 const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true };
@@ -50,13 +51,14 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has exactly the M1 fields (decision 0009)", () => {
+  it("VerifyOptions has exactly the M1 fields (decisions 0009 and 0010)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
       "timeoutMs",
       "pollIntervalMs",
       "logger",
+      "onEvent",
       "route",
     ]);
   });
@@ -125,6 +127,7 @@ describe("public entry point", () => {
       timeoutMs: 120_000,
       pollIntervalMs: 3_000,
       logger,
+      onEvent: () => undefined,
       route,
     };
     assert.deepEqual(Object.keys(empty), []);
@@ -134,6 +137,7 @@ describe("public entry point", () => {
       "timeoutMs",
       "pollIntervalMs",
       "logger",
+      "onEvent",
       "route",
     ]);
   });

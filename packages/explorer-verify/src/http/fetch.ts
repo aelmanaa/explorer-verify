@@ -16,8 +16,8 @@
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { ErrorDetails } from "../errors.ts";
-import { redactingLogger } from "../redact.ts";
-import type { Logger } from "../types.ts";
+import { SILENT_OBSERVER } from "../observe.ts";
+import type { Observer } from "../observe.ts";
 
 /** The most requests one {@link request} call sends, the first one included. */
 export const MAX_ATTEMPTS = 5;
@@ -66,26 +66,6 @@ const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
  */
 export type RetryMode = "safe" | "submit";
 
-/** Why a request is retried. The values match the `reason` of decision 0010's `verify.retry`. */
-export type RetryReason = "rate-limited" | "network" | "server-error";
-
-/**
- * One retry, reported to {@link HttpContext.onRetry} before the wait starts.
- *
- * @example
- * ```ts
- * const notice: RetryNotice = { attempt: 2, reason: "server-error", delayMs: 1_000 };
- * ```
- */
-export interface RetryNotice {
-  /** The number of the attempt that follows the wait: 2 for the first retry. */
-  readonly attempt: number;
-  /** Why the previous attempt failed. */
-  readonly reason: RetryReason;
-  /** The wait before that attempt, in milliseconds. */
-  readonly delayMs: number;
-}
-
 /**
  * The time budget of the whole call, polling included. A request never runs past `deadline`.
  *
@@ -126,9 +106,15 @@ export interface HttpContext {
   readonly fetch?: typeof fetch;
   /** The caller's signal. On abort, every request and wait stops and rejects with its reason. */
   readonly signal?: AbortSignal;
-  /** Receives debug and retry lines. Every line passes the key redaction first (R-SEC-1). */
-  readonly logger?: Logger;
-  /** Key values to remove from log lines and errors. Pass `[]` when the call has no key. */
+  /**
+   * The call's observer from `createObserver`, shared by every request of the call (R-DX-5,
+   * R-DX-6). Its `log` gets debug and retry lines; its `emit` gets a `verify.retry` event before
+   * each retry wait. It redacts with the keys it was created with and never throws. Taking the
+   * observer, not a raw logger and callback, keeps one observer per call, so a broken `onEvent` is
+   * reported once per call. Without it, nothing is logged or emitted.
+   */
+  readonly observer?: Observer;
+  /** Key values to remove from errors. Pass `[]` when the call has no key. */
   readonly secrets: readonly string[];
   /**
    * The limit for one request, body included, in milliseconds. A positive number; values above
@@ -144,8 +130,6 @@ export interface HttpContext {
   readonly budget?: Budget;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. Tests fix it. */
   readonly random?: () => number;
-  /** Called before each retry wait, so the caller can emit a `verify.retry` event. */
-  readonly onRetry?: (notice: RetryNotice) => void;
 }
 
 /**
@@ -223,13 +207,16 @@ interface Progress {
  * - Reads at most `maxResponseBytes` of a body. Once the headers arrived, a body that is too large,
  *   fails or stalls past the timeout is `unexpected-response`, never retried.
  * - Logs only the URL's origin and path, with `?REDACTED` in place of a query string, through the
- *   redacting logger (R-SEC-1, decision 0010).
+ *   redacting logger, with the backend, method, URL and attempt as fields (R-SEC-1, R-DX-5). A
+ *   retry is logged at `warn`; a failure the call throws is never logged at `error`.
+ * - Emits a `verify.retry` event before each retry wait (R-DX-6).
+ * - A logger or `onEvent` callback that throws does not change the request (decision 0010).
  *
  * The returned response's body is already read into memory, inside the timeout and the abort, so
  * reading it cannot hang. It has no `content-encoding`, `content-length` or `transfer-encoding`
  * header.
  *
- * @param ctx - What the call's requests share: `fetch`, signal, logger, keys and budget.
+ * @param ctx - What the call's requests share: `fetch`, signal, observer, keys and budget.
  * @param req - The request.
  * @returns The first response that is not retried.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
@@ -252,8 +239,10 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
   // Read once, then called as a plain function: a browser's fetch called as a method of another
   // object throws "Illegal invocation".
   const send = ctx.fetch ?? globalThis.fetch;
-  const log = ctx.logger === undefined ? undefined : redactingLogger(ctx.logger, ctx.secrets);
-  const target = `${req.method} ${loggableUrl(req.url)}`;
+  const { log, emit } = ctx.observer ?? SILENT_OBSERVER;
+  const url = loggableUrl(req.url);
+  const target = `${req.method} ${url}`;
+  const where = { backend: ctx.backend, method: req.method, url };
   const random = ctx.random ?? Math.random;
 
   const budget = ctx.budget;
@@ -262,18 +251,35 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
   let delayMs: number | undefined;
   do {
     if (failure !== undefined && delayMs !== undefined) {
-      log?.warn(
-        `${target}: ${describe(failure)}; retrying in ${String(delayMs)} ms (attempt ${String(attempt + 1)} of ${String(MAX_ATTEMPTS)})`,
+      const next = attempt + 1;
+      log.warn(
+        `${target}: ${describe(failure)}; retrying in ${String(delayMs)} ms (attempt ${String(next)} of ${String(MAX_ATTEMPTS)})`,
+        {
+          ...where,
+          attempt: next,
+          reason: failure.reason,
+          status: failure.reason === "network" ? null : failure.status,
+          delayMs,
+        },
       );
-      ctx.onRetry?.({ attempt: attempt + 1, reason: failure.reason, delayMs });
+      emit({
+        type: "verify.retry",
+        backend: ctx.backend,
+        attempt: next,
+        reason: failure.reason,
+        delayMs,
+      });
       await sleep(delayMs, ctx.signal);
     }
     attempt += 1;
     if (budget !== undefined && budget.deadline - Date.now() <= 0) {
       throw timeoutError(ctx, target, budget.timeoutMs);
     }
-    log?.debug(`${target}: attempt ${String(attempt)} of ${String(MAX_ATTEMPTS)}`);
-    // The logger or onRetry may have aborted the signal; an attempt must not start after that.
+    log.debug(`${target}: attempt ${String(attempt)} of ${String(MAX_ATTEMPTS)}`, {
+      ...where,
+      attempt,
+    });
+    // The logger or onEvent may have aborted the signal; an attempt must not start after that.
     ctx.signal?.throwIfAborted();
     const result = await attemptOnce(send, ctx, req);
     if (result.kind === "response") {

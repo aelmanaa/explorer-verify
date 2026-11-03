@@ -18,9 +18,12 @@ export { validateInput } from "./input/validate.ts";
 export type {
   Handle,
   Hex,
+  LogFields,
   Logger,
+  LogValue,
   RouteOverride,
   SolidityStandardJsonInput,
+  VerifyEvent,
   VerifyInput,
   VerifyOptions,
   VerifyResult,
