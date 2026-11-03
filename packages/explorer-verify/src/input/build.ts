@@ -6,6 +6,14 @@ import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { VerifyInput } from "../types.ts";
+import {
+  checkSourceHashes,
+  parseMetadata,
+  readMetadata,
+  rebuildInput,
+  sourceFingerprint,
+} from "./metadata.ts";
+import type { RebuiltInput, SolidityMetadata } from "./metadata.ts";
 import { validateInput } from "./validate.ts";
 
 /**
@@ -33,6 +41,13 @@ export interface BuildVerifyInputOptions {
    * no full version; when they do, it must be the same version.
    */
   compilerVersion?: string;
+  /**
+   * Source contents by source path, as the Solidity metadata lists the paths, such as
+   * `{ "src/Greeter.sol": "// SPDX-License-Identifier: MIT\n..." }`. Used only when the input is
+   * rebuilt from metadata, for each source whose content the metadata does not embed. Each content
+   * must hash to the metadata's `keccak256` for that path.
+   */
+  sources?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -63,6 +78,10 @@ const ABSOLUTE_PATH = /^\s*(?:[/\\]|~|[a-z]:|file:)/i;
 const SEGMENT_SEPARATOR = /[/\\]/;
 const MAX_CANDIDATES = 20;
 const MAX_POSITIONS = 5;
+// The deepest nesting compared between two metadata documents, as validateInput allows.
+const MAX_DEPTH = 64;
+// The most missing source paths an error lists; the message gives the full count.
+const MAX_MISSING = 1000;
 // Stand-ins so validateInput checks the built part; they never leave this module.
 const PLACEHOLDER_CHAIN_ID = 1;
 const PLACEHOLDER_ADDRESS = `0x${"0".repeat(40)}`;
@@ -70,7 +89,11 @@ const PLACEHOLDER_ADDRESS = `0x${"0".repeat(40)}`;
 const STUB_HINT =
   "The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.";
 const METADATA_ONLY_HINT =
-  "Pass the build-info of the same build. Rebuilding the input from Solidity metadata alone arrives in #21.";
+  "Pass the build-info of the same build, or Solidity metadata with language, compiler.version, settings.compilationTarget and a keccak256 hash for each source.";
+const SOURCES_HINT =
+  "Pass each path in details.candidates as a key of options.sources, with the file's exact content, or pass the build-info of the same build.";
+const METADATA_TARGET_HINT =
+  "Pass the metadata of one contract: settings.compilationTarget must name exactly one contract.";
 const OUTPUT_ONLY_HINT =
   "Pass the build-info that holds the compiler input, next to its output file or artifact.";
 const VERSION_HINT =
@@ -103,6 +126,8 @@ class Findings {
   stub = false;
   /** Whether Solidity metadata was seen, in an artifact or on its own. */
   metadata = false;
+  /** Metadata, in an artifact or on its own, complete enough to rebuild the input from. */
+  readonly rebuildable: SolidityMetadata[] = [];
   /** Whether a build-info output without its input was seen. */
   output = false;
   plainArtifact = false;
@@ -162,24 +187,18 @@ function isLocalPath(path: string): boolean {
   return false;
 }
 
-/** The fields of a metadata object, or of a metadata JSON string. */
-function readMetadata(value: unknown): Map<string, unknown> | undefined {
-  if (typeof value !== "string") {
-    return readFields(value);
-  }
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return readFields(parsed);
-  } catch {
-    return undefined;
-  }
-}
-
-/** Records the version and the compilation target of one metadata value. */
+/**
+ * Records the version of one metadata value. With `target`, for metadata on its own or in an
+ * artifact, also records its compilation target and keeps it for a rebuild when it is complete.
+ */
 function readMetadataFacts(value: unknown, findings: Findings, target: boolean): void {
   const metadata = readMetadata(value);
   if (metadata === undefined) {
     return;
+  }
+  const complete = target ? parseMetadata(value) : undefined;
+  if (complete !== undefined) {
+    findings.rebuildable.push(complete);
   }
   const version = readFields(metadata.get("compiler"))?.get("version");
   if (typeof version === "string") {
@@ -245,6 +264,17 @@ function readArtifact(fields: Map<string, unknown>, findings: Findings): void {
 
 /** Classifies one document by its shape and records what it holds. */
 function classify(document: unknown, position: number, findings: Findings): void {
+  if (typeof document === "string") {
+    // A metadata JSON string, such as the `metadata` of a build-info output contract.
+    const parsed = readMetadata(document);
+    if (parsed !== undefined && !parsed.has("input") && hasMetadataShape(parsed)) {
+      findings.metadata = true;
+      readMetadataFacts(document, findings, true);
+    } else {
+      findings.unknown.push(position);
+    }
+    return;
+  }
   const fields = readFields(document);
   if (fields === undefined) {
     findings.unknown.push(position);
@@ -274,7 +304,14 @@ function classify(document: unknown, position: number, findings: Findings): void
   } else if (fields.has("metadata") || fields.has("rawMetadata")) {
     findings.metadata = true;
     readBuildId(fields.get("buildInfoId"), findings);
-    readMetadataFacts(fields.get("metadata") ?? fields.get("rawMetadata"), findings, true);
+    // rawMetadata is the exact string solc wrote and the metadata object a parsed copy, so the
+    // string is read first.
+    const raw = fields.get("rawMetadata");
+    readMetadataFacts(
+      readMetadata(raw) === undefined ? fields.get("metadata") : raw,
+      findings,
+      true,
+    );
   } else if (fields.has("abi") && fields.has("bytecode")) {
     readArtifact(fields, findings);
   } else {
@@ -296,12 +333,13 @@ function incomplete(
   message: string,
   hint: string,
   candidates: readonly string[] = [],
+  limit = MAX_CANDIDATES,
 ): ExplorerVerifyError {
   return new ExplorerVerifyError(
     {
       code: "incomplete-input",
       field,
-      candidates: [...candidates].toSorted().slice(0, MAX_CANDIDATES),
+      candidates: [...candidates].toSorted().slice(0, limit),
     },
     message,
     { hint, secrets: [] },
@@ -316,8 +354,133 @@ function unsupportedCompiler(field: string): ExplorerVerifyError {
   );
 }
 
-/** The one compiler input, or the error that explains why there is none. */
-function pickInput(findings: Findings): Map<string, unknown> {
+/**
+ * `value` as JSON text with the keys of every object sorted, to compare two values whose key
+ * order may differ.
+ */
+function canonical(value: unknown, depth: number): string {
+  if (depth > MAX_DEPTH) {
+    throw new RangeError("nested too deeply");
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item: unknown) => canonical(item, depth + 1)).join(",")}]`;
+  }
+  const fields = readFields(value);
+  if (fields === undefined) {
+    return JSON.stringify(value);
+  }
+  const keys = [...fields.keys()].toSorted();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(fields.get(key), depth + 1)}`).join(",")}}`;
+}
+
+/** Metadata documents that target one contract: the first one found and any others. */
+interface MetadataGroup {
+  first: SolidityMetadata;
+  others: SolidityMetadata[];
+}
+
+/**
+ * The metadata to rebuild from: the one contract the metadata documents target, or the one
+ * `contract` names when they target several.
+ */
+function pickMetadata(findings: Findings, contract: string | undefined): MetadataGroup {
+  const groups = new Map<string, MetadataGroup>();
+  for (const metadata of findings.rebuildable) {
+    const [target, ...more] = metadata.targets;
+    if (target === undefined || more.length > 0) {
+      throw invalid(
+        "metadata.settings.compilationTarget",
+        "must name exactly one contract",
+        METADATA_TARGET_HINT,
+      );
+    }
+    const group = groups.get(target);
+    if (group === undefined) {
+      groups.set(target, { first: metadata, others: [] });
+    } else {
+      group.others.push(metadata);
+    }
+  }
+  const all = [...groups];
+  // options.contract must name the metadata's own target: another contract may come from
+  // another build.
+  const matching =
+    contract === undefined
+      ? all
+      : all.filter(([target]) =>
+          contract.includes(":") ? target === contract : target.endsWith(`:${contract}`),
+        );
+  const [chosen, ...rest] = matching;
+  if (chosen === undefined) {
+    throw invalid("contract", "matches no contract in the documents");
+  }
+  if (rest.length > 0) {
+    throw incomplete(
+      "contract",
+      `The documents hold Solidity metadata of ${String(matching.length)} contracts and none was chosen.`,
+      CONTRACT_HINT,
+      matching.map(([target]) => target),
+    );
+  }
+  return chosen[1];
+}
+
+/**
+ * The Standard JSON input rebuilt from the chosen metadata and `provided` sources. Metadata
+ * documents that target the same contract must rebuild to the same input.
+ */
+function rebuildFromMetadata(
+  findings: Findings,
+  contract: string | undefined,
+  provided: ReadonlyMap<string, string>,
+): RebuiltInput {
+  const { first, others } = pickMetadata(findings, contract);
+  const rebuilt = rebuildInput(first, provided);
+  if (others.length === 0) {
+    return rebuilt;
+  }
+  // Every document must list the same sources with the same hashes, so the one that is checked
+  // does not depend on the order of the documents.
+  const fingerprint = sourceFingerprint(first);
+  if (others.some((other) => sourceFingerprint(other) !== fingerprint)) {
+    throw invalid("documents", "come from different builds; pass the documents of one build");
+  }
+  let same: boolean;
+  try {
+    const expected = canonical(rebuilt.input, 0);
+    same = others.every((other) => canonical(rebuildInput(other, provided).input, 0) === expected);
+  } catch (error) {
+    // An ExplorerVerifyError from rebuildInput is the caller's answer; any other throw comes from
+    // a value that is not JSON data, and its text may hold a caller value, so it is dropped.
+    if (error instanceof ExplorerVerifyError) {
+      throw error;
+    }
+    throw invalid("documents", "hold Solidity metadata that is not JSON data");
+  }
+  if (!same) {
+    throw invalid(
+      "documents",
+      "hold different Solidity metadata for one contract; pass the documents of one build",
+    );
+  }
+  return rebuilt;
+}
+
+/** The compiler input, and the rebuild it came from when it was rebuilt from metadata. */
+interface PickedInput {
+  input: Map<string, unknown>;
+  rebuilt: RebuiltInput | undefined;
+}
+
+/**
+ * The one compiler input, else the input rebuilt from Solidity metadata, else the error that
+ * explains why there is none.
+ */
+function pickInput(
+  findings: Findings,
+  contract: string | undefined,
+  provided: ReadonlyMap<string, string>,
+): PickedInput {
   const [input, ...others] = findings.inputs;
   if (others.length > 0) {
     throw invalid(
@@ -326,7 +489,11 @@ function pickInput(findings: Findings): Map<string, unknown> {
     );
   }
   if (input !== undefined) {
-    return input;
+    return { input, rebuilt: undefined };
+  }
+  if (findings.rebuildable.length > 0) {
+    const rebuilt = rebuildFromMetadata(findings, contract, provided);
+    return { input: new Map<string, unknown>(Object.entries(rebuilt.input)), rebuilt };
   }
   if (findings.stub) {
     throw incomplete(
@@ -380,14 +547,25 @@ function remappingParts(remapping: unknown): string[] {
 }
 
 /**
+ * `value` copied into a new array when it is an array, else `[]`. A Proxy whose traps throw gives
+ * `invalid-input` on `field`; its own error text, which may hold a caller value, is dropped.
+ */
+function readList(value: unknown, field: string): unknown[] {
+  try {
+    return Array.isArray(value) ? Array.from<unknown>(value) : [];
+  } catch {
+    throw invalid(field, "could not be read as an array");
+  }
+}
+
+/**
  * Rejects a source path, either side of a remapping, or a `libraries` or `outputSelection` key
  * that is a local path, so no path on the build machine is published.
  */
 function checkRelativePaths(sources: Map<string, unknown>, settings: unknown): void {
   rejectLocalPaths([...sources.keys()], "compiler.input.sources");
   const fields = readFields(settings);
-  const remappings = fields?.get("remappings");
-  const list: unknown[] = Array.isArray(remappings) ? remappings : [];
+  const list = readList(fields?.get("remappings"), "compiler.input.settings.remappings");
   const local = list.map((remapping) => remappingParts(remapping).some(isLocalPath));
   rejectLocalPaths(
     local.map((isLocal) => (isLocal ? "/" : "")),
@@ -552,16 +730,42 @@ function pickContract(
   );
 }
 
+/** `options.sources` as a map, checked: an object whose every value is a string. */
+function readSourcesOption(value: unknown): Map<string, string> {
+  const sources = new Map<string, string>();
+  if (value === undefined) {
+    return sources;
+  }
+  const fields = readFields(value);
+  if (fields === undefined) {
+    throw invalid("sources", "must be an object of source contents by path");
+  }
+  for (const [path, content] of fields) {
+    if (typeof content !== "string") {
+      throw invalid("sources", "must map each path to the source content as a string");
+    }
+    sources.set(path, content);
+  }
+  return sources;
+}
+
+/** The checked options. */
+interface ReadOptions {
+  contract?: string;
+  compilerVersion?: string;
+  sources: Map<string, string>;
+}
+
 /** The options, checked; unknown fields are ignored. */
-function readOptions(options: unknown): { contract?: string; compilerVersion?: string } {
+function readOptions(options: unknown): ReadOptions {
   if (options === undefined) {
-    return {};
+    return { sources: new Map() };
   }
   const fields = readFields(options);
   if (fields === undefined) {
     throw invalid("options", "must be an object");
   }
-  const result: { contract?: string; compilerVersion?: string } = {};
+  const result: ReadOptions = { sources: readSourcesOption(fields.get("sources")) };
   for (const name of ["contract", "compilerVersion"] as const) {
     const value = fields.get(name);
     if (typeof value === "string") {
@@ -603,16 +807,29 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *   Foundry with `--build-info`);
  * - build-info stub: `source_id_to_path` and no `input` (Foundry without `--build-info`);
  * - build-info output: `output.contracts` and no `input` (Hardhat 3's `.output.json`);
- * - Solidity metadata: no `input`, and a top-level `compiler` or `output` object or a
- *   `settings.compilationTarget`;
+ * - Solidity metadata, as an object or a JSON string: no `input`, and a top-level `compiler` or
+ *   `output` object or a `settings.compilationTarget`;
  * - bare Standard JSON: `language`, `sources` and `settings` at the top level, none of the above;
- * - artifact with metadata: `metadata` or `rawMetadata` (Foundry);
+ * - artifact with metadata: `metadata` or `rawMetadata` (Foundry); `rawMetadata` is read first;
  * - artifact with ABI and bytecode only (Hardhat 2 and 3).
  *
- * Metadata gives the version and the contract only next to a compiler input; rebuilding the input
- * from metadata alone arrives in #21. A document passed twice counts once. The build ids that
- * documents carry (a build-info's or output file's `id`, an artifact's `buildInfoId`) must all be
- * equal, and so must every full compiler version found.
+ * Next to a compiler input, metadata gives the version and the contract. Without one, the input is
+ * rebuilt from metadata that has `language`, `compiler.version`, `settings.compilationTarget` with
+ * exactly one entry, and a `keccak256` for each source. `language` comes from the metadata;
+ * `settings` copies every metadata setting except `compilationTarget`, turns `libraries` from
+ * `{ "path:Name": address }` into `{ path: { Name: address } }` (a bare `Name`, from solc 0.7.4 and
+ * earlier, goes under the empty path) and adds an `outputSelection` for the ABI, the bytecode and
+ * the metadata. Three settings change so solc accepts the input: with `metadata.appendCBOR: false`,
+ * `metadata.bytecodeHash` is dropped; for solc 0.8.2 to 0.8.4, `optimizer.details.inliner` becomes
+ * `optimizer.enabled`; when a source embeds its content and `metadata.useLiteralContent` is unset
+ * (solc 0.5.0 and earlier), it is set to `true`. Each source takes the metadata's `content` when
+ * present, else `options.sources[path]`: embedded content wins. Before returning, each source's
+ * UTF-8 bytes are hashed with keccak-256 and compared with the metadata. When metadata of several
+ * contracts is passed, `options.contract` picks one; in a rebuild, `options.contract` must name the
+ * metadata's own target. Metadata documents for one contract must list the same sources and
+ * hashes. A document passed twice counts once. The build ids that documents
+ * carry (a build-info's or output file's `id`, an artifact's `buildInfoId`) must all be equal, and
+ * so must every full compiler version found.
  *
  * The compiler input returned holds only `language`, `sources` and `settings`; every other
  * top-level key is dropped, Foundry's `basePath`, `allowPaths`, `includePaths` and `version`
@@ -630,14 +847,18 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  * `validateInput`, so it shares no object with the documents. It sends nothing.
  *
  * @param documents - The parsed JSON documents of one build, in any order.
- * @param options - The contract and the full compiler version, when the documents lack them.
+ * @param options - The contract and the full compiler version, when the documents lack them, and
+ *   the source files that Solidity metadata lists without their content.
  * @returns The compiler part of `VerifyInput` and the contract name.
  * @throws ExplorerVerifyError `incomplete-input` naming the missing part in `details.field`
- *   (`input`, `compilerVersion` or `contract`, with `details.candidates` for an ambiguous name);
+ *   (`input`, `compilerVersion`, `contract` with `details.candidates` for an ambiguous name, or
+ *   `sources` with every missing source path in `details.candidates`); `source-mismatch` for a
+ *   source whose keccak-256 differs from the metadata, with the path and both hashes in `details`;
  *   `insufficient-artifact` for ABI and bytecode only; `unsupported-compiler` for a compiler other
  *   than solc; `invalid-input` for documents of no known shape, documents of different builds or
- *   versions, a path not in the sources, a local path, or an input that `validateInput` rejects.
- *   Messages never repeat a value or a path.
+ *   versions, metadata whose `compilationTarget` does not name exactly one contract, a path not in
+ *   the sources, a local path, or an input that `validateInput` rejects. Messages never repeat a
+ *   value or a path.
  * @example
  * ```ts
  * import { buildVerifyInput, validateInput } from "explorer-verify";
@@ -654,6 +875,16 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
  *   ...built,
  * });
+ *
+ * // A Foundry artifact holds the metadata; the source files come next to it.
+ * declare const foundryArtifact: unknown;
+ * declare const greeterSol: string;
+ * declare const baseSol: string;
+ *
+ * const rebuilt = buildVerifyInput([foundryArtifact], {
+ *   sources: { "src/Greeter.sol": greeterSol, "src/Base.sol": baseSol },
+ * });
+ * // rebuilt.contractName: "src/Greeter.sol:Greeter", from settings.compilationTarget
  * ```
  * @experimental
  */
@@ -668,7 +899,7 @@ export function buildVerifyInput(
   if (list.length === 0) {
     throw invalid("documents", "must hold at least one document");
   }
-  const { contract, compilerVersion } = readOptions(options);
+  const { contract, compilerVersion, sources: provided } = readOptions(options);
   const findings = new Findings();
   // A document passed twice counts once.
   const seen = new Set<string>();
@@ -691,7 +922,7 @@ export function buildVerifyInput(
   if (findings.buildIds.size > 1) {
     throw invalid("documents", "come from different builds; pass the documents of one build");
   }
-  const input = pickInput(findings);
+  const { input, rebuilt } = pickInput(findings, contract, provided);
   const language = input.get("language");
   if (typeof language === "string" && language !== "Solidity") {
     throw unsupportedCompiler("language");
@@ -701,7 +932,23 @@ export function buildVerifyInput(
     throw invalid("compiler.input.sources", "must be an object of source files by path");
   }
   const settings = input.get("settings");
-  checkRelativePaths(sourceFields, settings);
+  // A rebuild checks every path the metadata lists, the missing ones too, before any is named.
+  checkRelativePaths(
+    rebuilt === undefined ? sourceFields : new Map(rebuilt.paths.map((path) => [path, path])),
+    settings,
+  );
+  if (rebuilt !== undefined) {
+    if (rebuilt.missing.length > 0) {
+      throw incomplete(
+        "sources",
+        `The documents and options.sources lack ${String(rebuilt.missing.length)} of the source files the Solidity metadata lists.`,
+        SOURCES_HINT,
+        rebuilt.missing,
+        MAX_MISSING,
+      );
+    }
+    checkSourceHashes(rebuilt.supplied);
+  }
   const sources = copySources(sourceFields);
   const version = pickVersion(findings, compilerVersion);
   const keys = new Set(sourceFields.keys());

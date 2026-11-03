@@ -109,6 +109,7 @@ describe("public entry point", () => {
       "insufficient-artifact",
       "unsupported-compiler",
       "verification-inconclusive",
+      "source-mismatch",
     ]);
   });
 

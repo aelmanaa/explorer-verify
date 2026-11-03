@@ -1,0 +1,164 @@
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "owner_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "greeting_",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "greeting",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": {
+    "object": "0x60a0604052346102075761043e803803806100198161020b565b9283398101906040818303126102075780516001600160a01b0381168103610207576020828101516001600160401b0393919291848211610207570193601f918183870112156102075785518581116101df57601f199661007f8286018916870161020b565b938285528683830101116102075785905f5b8381106101f35750505f918401015260805280519384116101df575f54926001938481811c911680156101d5575b828210146101c15783811161017e575b508092851160011461011e5750839450908392915f94610113575b50501b915f199060031b1c1916175f555b60405161020d90816102318239608051816101a80152f35b015192505f806100ea565b9294849081165f8052845f20945f905b88838310610164575050501061014c575b505050811b015f556100fb565b01515f1960f88460031b161c191690555f808061013f565b85870151885590960195948501948793509081019061012e565b5f8052815f208480880160051c8201928489106101b8575b0160051c019085905b8281106101ad5750506100cf565b5f815501859061019f565b92508192610196565b634e487b7160e01b5f52602260045260245ffd5b90607f16906100bf565b634e487b7160e01b5f52604160045260245ffd5b818101830151868201840152879201610091565b5f80fd5b6040519190601f01601f191682016001600160401b038111838210176101df5760405256fe60806040908082526004361015610014575f80fd5b5f3560e01c9081638da5cb5b14610196575063ef690cc014610034575f80fd5b34610192575f366003190112610192578051905f905f54926001928460011c9360018616908115610188575b60209687871083146101745786855287929081156101555750600114610101575b505081929350601f801993849203011681019381851067ffffffffffffffff8611176100ed579084929183855280845281519182828601525f5b8381106100d75750505f84830186015250601f01168101030190f35b81810183015188820188015287955082016100bb565b634e487b7160e01b5f52604160045260245ffd5b5f8080529192507f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5635b8683106101425750939450849350820101845f610081565b805485840185015291830191810161012a565b60ff191683860152509394859450151560051b8301019050845f610081565b634e487b7160e01b5f52602260045260245ffd5b94607f1694610060565b5f80fd5b34610192575f366003190112610192577f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f3fea2646970667358221220556f315c50bebd3accc91e1eb939041e3077259de2692bc2a3eb4426d0a2ce9f64736f6c63430008180033",
+    "sourceMap": "92:165:1:-:0;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;-1:-1:-1;;;;;92:165:1;;;;;;;;;;;-1:-1:-1;;;;;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;92:165:1;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;-1:-1:-1;92:165:1;;;;;162:14:0;;92:165:1;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;162:14:0;92:165:1;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;-1:-1:-1;92:165:1;;;-1:-1:-1;92:165:1;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;-1:-1:-1;92:165:1;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;-1:-1:-1;;92:165:1;;;-1:-1:-1;;;;;92:165:1;;;;;;;;;;:::o",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x60806040908082526004361015610014575f80fd5b5f3560e01c9081638da5cb5b14610196575063ef690cc014610034575f80fd5b34610192575f366003190112610192578051905f905f54926001928460011c9360018616908115610188575b60209687871083146101745786855287929081156101555750600114610101575b505081929350601f801993849203011681019381851067ffffffffffffffff8611176100ed579084929183855280845281519182828601525f5b8381106100d75750505f84830186015250601f01168101030190f35b81810183015188820188015287955082016100bb565b634e487b7160e01b5f52604160045260245ffd5b5f8080529192507f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5635b8683106101425750939450849350820101845f610081565b805485840185015291830191810161012a565b60ff191683860152509394859450151560051b8301019050845f610081565b634e487b7160e01b5f52602260045260245ffd5b94607f1694610060565b5f80fd5b34610192575f366003190112610192577f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f3fea2646970667358221220556f315c50bebd3accc91e1eb939041e3077259de2692bc2a3eb4426d0a2ce9f64736f6c63430008180033",
+    "sourceMap": "92:165:1:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;92:165:1;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;92:165:1;;;;;;;-1:-1:-1;92:165:1;;-1:-1:-1;92:165:1;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;92:165:1;;;;;-1:-1:-1;92:165:1;;;;-1:-1:-1;92:165:1;;;;;;;;-1:-1:-1;92:165:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;92:165:1;;;;87:30:0;-1:-1:-1;;;;;92:165:1;;;;;",
+    "linkReferences": {},
+    "immutableReferences": {
+      "3": [
+        {
+          "start": 424,
+          "length": 32
+        }
+      ]
+    }
+  },
+  "methodIdentifiers": {
+    "greeting()": "ef690cc0",
+    "owner()": "8da5cb5b"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/Greeter.sol\":\"Greeter\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"src/Base.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nabstract contract Base {\\n    address public immutable owner;\\n\\n    constructor(address owner_) {\\n        owner = owner_;\\n    }\\n}\\n\",\"keccak256\":\"0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba\",\"license\":\"MIT\"},\"src/Greeter.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {Base} from \\\"./Base.sol\\\";\\n\\ncontract Greeter is Base {\\n    string public greeting;\\n\\n    constructor(address owner_, string memory greeting_) Base(owner_) {\\n        greeting = greeting_;\\n    }\\n}\\n\",\"keccak256\":\"0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d\",\"license\":\"MIT\"}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.24+commit.e11b9ed9"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "owner_",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "greeting_",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "greeting",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [],
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "metadata": {
+        "useLiteralContent": true,
+        "bytecodeHash": "ipfs"
+      },
+      "compilationTarget": {
+        "src/Greeter.sol": "Greeter"
+      },
+      "evmVersion": "cancun",
+      "libraries": {},
+      "viaIR": true
+    },
+    "sources": {
+      "src/Base.sol": {
+        "keccak256": "0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba",
+        "urls": [],
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n",
+        "license": "MIT"
+      },
+      "src/Greeter.sol": {
+        "keccak256": "0xa130d93deff246f7f1d3cf1b421dc9df82f2e51fa215f64787ca22c634339d8d",
+        "urls": [],
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n",
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 1
+}

@@ -123,6 +123,7 @@ covers results and errors.
 | `incomplete-input`          | Error  | `false` | 2         |
 | `insufficient-artifact`     | Error  | `false` | 2         |
 | `unsupported-compiler`      | Error  | `false` | 2         |
+| `source-mismatch`           | Error  | `false` | 2         |
 | `not-confirmed`             | Error  | `false` | 4         |
 | `verification-inconclusive` | Error  | `false` | 4         |
 | `network`                   | Error  | `false` | 5         |

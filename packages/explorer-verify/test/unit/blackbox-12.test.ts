@@ -50,6 +50,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "insufficient-artifact": { retryable: false, exit: 2, hasHandle: false },
   "unsupported-compiler": { retryable: false, exit: 2, hasHandle: false },
   "verification-inconclusive": { retryable: true, exit: 4, hasHandle: false },
+  "source-mismatch": { retryable: false, exit: 2, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -85,6 +86,12 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
       code: "verification-inconclusive",
       backend: "sourcify",
       reason: `internal_error: ${text}`,
+    },
+    "source-mismatch": {
+      code: "source-mismatch",
+      path: `src/A.sol ${text}`,
+      expected: `0x${"a".repeat(64)}`,
+      actual: `0x${"b".repeat(64)}`,
     },
   };
   return all[code];

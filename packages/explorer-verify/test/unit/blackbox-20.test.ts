@@ -368,10 +368,10 @@ describe("buildVerifyInput: documented failures give the documented code and fie
     }
   });
 
-  it("Foundry stub plus its artifact: still incomplete-input, field input", () => {
+  it("Foundry stub plus its artifact: the metadata rebuild asks for the sources (#21)", () => {
     const error = catchError(() => build([own.stub(), own.artifact()]));
     assert.equal(error.code, "incomplete-input");
-    assert.equal(fieldOf(error), "input");
+    assert.equal(fieldOf(error), "sources");
   });
 
   it("Hardhat 3 output file alone: incomplete-input, field input", () => {

@@ -1,0 +1,20 @@
+{
+  "$comment": "Keccak-256 test vectors (original Keccak padding, as Ethereum and solc use). Shared by the unit tests and the browser smoke test. Digests: empty and abc as published with the Keccak reference and used across Ethereum tooling; the 200-byte input (0xa3 repeated) computed with js-sha3 0.8.0, the hash solc-js depends on, on 2026-11-03.",
+  "vectors": [
+    {
+      "name": "empty input",
+      "inputHex": "",
+      "digest": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    },
+    {
+      "name": "\"abc\"",
+      "inputHex": "616263",
+      "digest": "0x4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"
+    },
+    {
+      "name": "200 bytes of 0xa3, more than one 136-byte block",
+      "inputHex": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+      "digest": "0x3a57666b048777f2c953dc4456f45a2588e1cb6f2da760122d530ac2ce607d4a"
+    }
+  ]
+}

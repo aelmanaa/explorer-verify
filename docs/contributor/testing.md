@@ -28,14 +28,14 @@ run time, so c8 would report them at 0%.
 
 ## Layers
 
-| Layer            | Where                                              | What it proves                                                                    | Status       |
-| ---------------- | -------------------------------------------------- | --------------------------------------------------------------------------------- | ------------ |
-| Unit             | `packages/*/test/unit/`, `scripts/test/`           | Each module, with explorer responses recorded as fixtures and an injected `fetch` | In place     |
-| Browser smoke    | planned (M1)                                       | The core bundles and runs in a headless browser (R-RUN-1)                         | Planned      |
-| Integration      | planned (M3 handler, M4 CLI)                       | The server handler and the CLI end to end against a local fake explorer           | Planned      |
-| Live             | planned (M2), maintainer only                      | Real verification on public testnets per backend, with dated results              | Planned      |
-| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check` | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                       | In place     |
-| Agent evaluation | `test/agent-eval/`, maintainer only                | Agents complete a fixed task set without unsafe actions (R-AX-13)                 | Planned (#7) |
+| Layer            | Where                                              | What it proves                                                                                                                        | Status       |
+| ---------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Unit             | `packages/*/test/unit/`, `scripts/test/`           | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                     | In place     |
+| Browser smoke    | planned (M1)                                       | The core bundles and runs in a headless browser (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | Planned      |
+| Integration      | planned (M3 handler, M4 CLI)                       | The server handler and the CLI end to end against a local fake explorer                                                               | Planned      |
+| Live             | planned (M2), maintainer only                      | Real verification on public testnets per backend, with dated results                                                                  | Planned      |
+| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check` | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                           | In place     |
+| Agent evaluation | `test/agent-eval/`, maintainer only                | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                     | Planned (#7) |
 
 ## Agent readiness (R-AX)
 
