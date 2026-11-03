@@ -31,15 +31,17 @@ submitted. Each claim names its source; the links and the local runs are listed 
   | `testnet/evm/80002` | `{"status":"0","message":"chain not supported","result":null}`       |
   | `mainnet/evm/324`   | `{"status":"0","message":"chain not supported","result":null}`       |
 
-  So the routing table needs the network per chain, not only the chain id. A chain that Routescan
-  does not serve answers HTTP 200 with `status` `"0"` and `message` `chain not supported`.
+  So each Routescan row stores its full API URL, network segment included; the chain id alone does
+  not give the URL. A chain that Routescan does not serve answers HTTP 200 with `status` `"0"` and `message` `chain not supported`.
 
 - The path without the trailing `/api` (`.../etherscan`) returned the same
   `Verification not found` body for chain 43114 (curl 8.7.1, 2026-11-03).
-- The supported-chains page lists the chains with their ids; the docs say only listed chain ids
-  are supported ([supported chains](https://docs.routescan.io/getting-started/supported-chains),
-  [migrate from Etherscan](https://docs.routescan.io/getting-started/migrate-from-etherscan),
-  read 2026-11-03). The list changes; the routing table records a date per row (R-RT-1).
+- The supported-chains page lists the chains with their ids
+  ([supported chains](https://docs.routescan.io/getting-started/supported-chains), read
+  2026-11-03). The migrate page says only the chain ids it lists are supported
+  ([migrate from Etherscan](https://docs.routescan.io/getting-started/migrate-from-etherscan), read
+  2026-11-03). The list changes; the routing table carries the date it was last checked (R-AX-11,
+  R-QA-4).
 
 ### Verify and status requests
 
@@ -50,7 +52,8 @@ read 2026-11-03.
   are `contractaddress`, `sourceCode`, `constructorArguments`, `codeformat`
   (`solidity-single-file` or `solidity-standard-json-input`), `contractname`, `compilerversion`
   (example `v0.8.10+commit.fc410830`), `evmversion`, `optimizationUsed`, `runs` and `licenseType`.
-  The page's curl example puts the parameters in the query string. The page shows no example
+  The page's curl example sends every field in the query string, with the headers
+  `content-type: application/json` and `apikey`, and the body `{}`. The page shows no example
   response for this action.
 - Status: `GET .../etherscan/api?module=contract&action=checkverifystatus&guid=<guid>`. The page
   shows no example response.
@@ -78,9 +81,9 @@ read 2026-11-03.
 
 - "No sign-up or API key is required for free-tier access." A key, for higher tiers, is sent in
   the `apikey` header ([get started](https://docs.routescan.io/getting-started/get-started), read
-  2026-11-03). The contracts API page marks the key as optional and its examples pass it as an
-  `apikey` query parameter ([contracts API](https://docs.routescan.io/api/etherscan/contracts),
-  read 2026-11-03).
+  2026-11-03). The contracts API page marks the key as optional. Its curl examples send it in an
+  `apikey` header; its try-it URLs pass it as an `apikey` query parameter
+  ([contracts API](https://docs.routescan.io/api/etherscan/contracts), read 2026-11-03).
 - One key covers every chain
   ([migrate from Etherscan](https://docs.routescan.io/getting-started/migrate-from-etherscan),
   read 2026-11-03).
@@ -128,20 +131,23 @@ header. The free tier needs no key, so no key has to reach the browser for it.
   2026-11-03).
 - For Vyper, the verifier source names zkvyper as the EraVM compiler (`compilerZkvyperVersion`, see
   [zkSync's own verifier](#zksyncs-own-verifier)).
-- So zkSync Era runs two kinds of contract: EraVM bytecode from zksolc, and EVM bytecode from solc
-  run by the EVM Bytecode Interpreter. The next two sections show both verification APIs taking a
-  solc version and an optional zksolc version.
+- So zkSync Era runs two kinds of contract: EraVM bytecode from zksolc or zkvyper, and EVM
+  bytecode from solc run by the EVM Bytecode Interpreter. The next two sections show how each verification API takes the
+  zksolc version.
 
 ### Etherscan
 
 Source: [verifyzksyncsourcecode](https://docs.etherscan.io/api-reference/endpoint/verifyzksyncsourcecode),
 read 2026-11-03.
 
-- `POST https://api.etherscan.io/v2/api?chainid=324&module=contract&action=verifysourcecode` (324
-  is zkSync Era in the docs' example), with an API key and form-encoded fields.
+- `POST https://api.etherscan.io/v2/api?chainid=324&module=contract&action=verifysourcecode` (the
+  `chainid` parameter description names 324 as zkSync Era), with an API key and form-encoded
+  fields.
 - Fields as for Solidity (`codeformat`, `sourceCode`, `contractaddress`, `contractname`,
-  `compilerversion`, `constructorArguments`) plus `zksolcVersion`: "Required for EraVM contracts
-  and optional for EVM contracts. Use a version with the v prefix, beginning with v1.3.0."
+  `compilerversion`, `constructorArguments`) plus `zksolcVersion`. The OpenAPI schema on the page
+  lists `zksolcVersion` as a required field, while its description says: "Required for EraVM
+  contracts and optional for EVM contracts. Use a version with the v prefix, beginning with
+  v1.3.0."
 - The response is a GUID polled with `checkverifystatus`.
 
 ### zkSync's own verifier
@@ -156,8 +162,9 @@ read 2026-11-03.
 - The verifier server in the `matter-labs/zksync-era` repository, at commit
   [`ff5f519b`](https://github.com/matter-labs/zksync-era/tree/ff5f519b11cff863edcfa0f75af10fea113806b0)
   (read 2026-11-03):
-  - Routes ([api_decl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_decl.rs)):
-    `POST /contract_verification`, `GET /contract_verification/{id}`,
+  - Routes ([api_decl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_decl.rs#L28-L60)):
+    `GET /contract_verification` and `POST /contract_verification`,
+    `GET /contract_verification/{id}`,
     `GET /contract_verification/info/{address}`, and version lists under
     `/contract_verification/zksolc_versions`, `solc_versions`, `zkvyper_versions` and
     `vyper_versions`.
@@ -168,13 +175,30 @@ read 2026-11-03.
     `compilerZksolcVersion` (or `compilerVyperVersion` with an optional `compilerZkvyperVersion`),
     `optimizationUsed`, `optimizerMode`, `constructorArguments`, `isSystem`, `forceEvmla`, and
     `evmVersion` and `optimizerRuns` for EVM single-file requests.
+  - The router adds tower-http's `CorsLayer::permissive()` to every route (same lines of
+    api_decl.rs).
   - Status body: `status`, with optional `error` and `compilationErrors`.
-- This is a JSON API of its own, not the Etherscan form API.
+- The same server also answers in the Etherscan form:
+  - `GET /contract_verification` takes `module=contract` and the actions `getabi`,
+    `getsourcecode` and `checkverifystatus`
+    ([etherscan.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/etherscan.rs#L280-L302)).
+  - `POST /contract_verification` chooses by content type: `application/json` goes to the JSON
+    API above, `application/x-www-form-urlencoded` to the Etherscan actions `verifysourcecode` and
+    `checkverifystatus`; any other type is rejected
+    ([api_impl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_impl.rs#L154-L191),
+    [etherscan.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/etherscan.rs#L305-L325)).
+  - The form field for constructor arguments is spelled `constructorArguements`
+    ([etherscan.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/etherscan.rs#L72)).
+  - The `guid` that `verifysourcecode` returns is the numeric verification id, and a failed
+    submission comes back as an Etherscan-style error with HTTP 200
+    ([api_impl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_impl.rs#L271-L304)). A
+    numeric id also matches the handle's `jobId` pattern.
 
 ### Consequence for decision 0004
 
 "zkSync uses its own compiler" holds for EraVM contracts. An EVM-bytecode contract on zkSync Era is
-compiled with solc, and both APIs above accept it without a zksolc version. A `{ kind: "solc" }`
+compiled with solc. zkSync's verifier accepts a request without a zksolc version, and Etherscan's
+description says `zksolcVersion` is optional for EVM contracts (not tested live). A `{ kind: "solc" }`
 input could therefore cover EVM-bytecode contracts on zkSync Era; EraVM contracts need a zksolc
 member of the compiler union. This note records the facts; it does not change the decision.
 
@@ -185,7 +209,8 @@ member of the compiler union. This note records the facts; it does not change th
 - Which HTTP status does Routescan return over the rate limit? The docs say only "an error status".
 - Is there an API that lists Routescan's supported chains with their network? Not found in the docs
   on 2026-11-03.
-- Does the zkSync verifier at the two `contract_verification` hosts send CORS headers? Not checked.
+- Do the two deployed `contract_verification` hosts send the CORS headers that the source sets?
+  Not checked live.
 
 ## Sources
 
@@ -203,7 +228,9 @@ Read on 2026-11-03:
   `matter-labs/zksync-era` at commit
   [`ff5f519b`](https://github.com/matter-labs/zksync-era/tree/ff5f519b11cff863edcfa0f75af10fea113806b0):
   [api_decl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_decl.rs),
-  [api.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/api.rs).
+  [api.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/api.rs),
+  [api_impl.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/node/contract_verification_server/src/api_impl.rs),
+  [etherscan.rs](https://github.com/matter-labs/zksync-era/blob/ff5f519b11cff863edcfa0f75af10fea113806b0/core/lib/types/src/contract_verification/etherscan.rs).
 
 Local runs, curl 8.7.1, 2026-11-03, against `https://api.routescan.io`, no key:
 
