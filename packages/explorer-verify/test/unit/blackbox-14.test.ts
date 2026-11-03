@@ -5,7 +5,7 @@
 // runs on the node:test mock timers. The process-liveness test of sleep() lives in
 // http-fetch.test.ts.
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it as baseIt } from "node:test";
 import type { TestContext } from "node:test";
 import { inspect } from "node:util";
 
@@ -20,6 +20,11 @@ import {
 import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch.ts";
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { ErrorDetails, Logger } from "../../src/index.ts";
+
+/** `it` with a 5 s limit per test, so a stuck mock timer fails fast instead of hanging. */
+function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
+  void baseIt(name, { timeout: 5_000 }, fn);
+}
 
 // --- fixtures -----------------------------------------------------------------------------------
 

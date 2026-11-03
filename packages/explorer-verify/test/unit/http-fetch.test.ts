@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { getEventListeners } from "node:events";
-import { afterEach, beforeEach, describe, it, mock } from "node:test";
+import { afterEach, beforeEach, describe, it as baseIt, mock } from "node:test";
+import type { TestContext } from "node:test";
 import { setImmediate } from "node:timers";
 import { fileURLToPath } from "node:url";
 import { inspect, promisify } from "node:util";
@@ -17,6 +18,11 @@ import {
 } from "../../src/http/fetch.ts";
 import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch.ts";
 import type { Logger } from "../../src/index.ts";
+
+/** `it` with a 5 s limit per test, so a stuck mock timer fails fast instead of hanging. */
+function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
+  void baseIt(name, { timeout: 5_000 }, fn);
+}
 
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
