@@ -75,6 +75,12 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "sourcify",
     reason: "internal_error: The server encountered an unexpected error.",
   },
+  "source-mismatch": {
+    code: "source-mismatch",
+    path: "src/Greeter.sol",
+    expected: `0x${"a".repeat(64)}`,
+    actual: `0x${"b".repeat(64)}`,
+  },
 };
 
 // Details for every code with the key planted in every string field that can hold one.
@@ -116,6 +122,12 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     code: "verification-inconclusive",
     backend: "sourcify",
     reason: `internal_error: ${LEAKY_URL}`,
+  },
+  "source-mismatch": {
+    code: "source-mismatch",
+    path: `${LEAKY_URL}/A.sol`,
+    expected: `0x${"a".repeat(64)} ${DUMMY_KEY}`,
+    actual: `0x${"b".repeat(64)} ${DUMMY_KEY}`,
   },
 };
 
@@ -177,7 +189,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 130,
   },
   "incomplete-input": {
-    hint: "Add what details.field names: a build-info with its input, the full compiler version, or the contract as path:Name.",
+    hint: "Add what details.field names: a build-info with its input, the full compiler version, the contract as path:Name, or the source files listed in details.candidates.",
     retryable: false,
     exitCode: 2,
   },
@@ -195,6 +207,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
     retryable: true,
     exitCode: 4,
+  },
+  "source-mismatch": {
+    hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
+    retryable: false,
+    exitCode: 2,
   },
 };
 
@@ -323,6 +340,7 @@ describe("ExplorerVerifyError", () => {
       case "insufficient-artifact":
       case "unsupported-compiler":
       case "verification-inconclusive":
+      case "source-mismatch":
         assert.fail(`unexpected code ${details.code}`);
     }
   });

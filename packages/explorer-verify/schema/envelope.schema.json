@@ -79,7 +79,7 @@
       "type": "object",
       "properties": {
         "code": {
-          "description": "The stable error code. Each has an entry in docs/user/reference/errors.md. A later release may add a code; treat an unknown one by retryable and the exit code. Known values in this release: invalid-input, not-confirmed, unsupported-chain, network, rate-limited, timeout, unexpected-response, in-progress, unknown-state, job-not-found, cancelled, incomplete-input, insufficient-artifact, unsupported-compiler, verification-inconclusive.",
+          "description": "The stable error code. Each has an entry in docs/user/reference/errors.md. A later release may add a code; treat an unknown one by retryable and the exit code. Known values in this release: invalid-input, not-confirmed, unsupported-chain, network, rate-limited, timeout, unexpected-response, in-progress, unknown-state, job-not-found, cancelled, incomplete-input, insufficient-artifact, unsupported-compiler, verification-inconclusive, source-mismatch.",
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },

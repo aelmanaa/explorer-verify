@@ -134,6 +134,12 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "sourcify",
     reason: "internal_error: The server encountered an unexpected error.",
   },
+  "source-mismatch": {
+    code: "source-mismatch",
+    path: "src/Greeter.sol",
+    expected: `0x${"a".repeat(64)}`,
+    actual: `0x${"b".repeat(64)}`,
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

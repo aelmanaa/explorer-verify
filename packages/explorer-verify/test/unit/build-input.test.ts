@@ -347,13 +347,15 @@ describe("buildVerifyInput: failures (R-IN-7, R-DX-3)", () => {
     const error = assertFails([foundry.stub()], "incomplete-input", "input");
     assert.match(error.hint, /--build-info/);
     assert.deepEqual(candidatesOf(error), []);
-    // The stub, and its hint, win over the artifact that comes with it.
+    // Next to the artifact, the metadata rebuild runs instead, and asks for the sources (#21).
     const withArtifact = assertFails(
       [foundry.stub(), foundry.artifact()],
       "incomplete-input",
-      "input",
+      "sources",
     );
-    assert.match(withArtifact.hint, /--build-info/);
+    assert.deepEqual(candidatesOf(withArtifact), ["src/Base.sol", "src/Greeter.sol"]);
+    assert.match(withArtifact.hint, /options\.sources/);
+    assert.match(withArtifact.hint, /build-info/);
   });
 
   it("fails on a short version with no long one with incomplete-input on compilerVersion", () => {
@@ -476,9 +478,9 @@ describe("buildVerifyInput: failures (R-IN-7, R-DX-3)", () => {
     assertFails([buildInfo, artifact], "incomplete-input", "compilerVersion");
   });
 
-  it("fails on an artifact with metadata alone with incomplete-input on input", () => {
-    const error = assertFails([foundry.artifact()], "incomplete-input", "input");
-    assert.match(error.hint, /Solidity metadata alone arrives in #21/);
+  it("fails on an artifact with metadata and no sources with incomplete-input on sources (#21)", () => {
+    const error = assertFails([foundry.artifact()], "incomplete-input", "sources");
+    assert.deepEqual(candidatesOf(error), ["src/Base.sol", "src/Greeter.sol"]);
   });
 
   it("fails on a build-info output alone with incomplete-input on input", () => {
@@ -689,12 +691,12 @@ describe("buildVerifyInput: builds and versions that do not match (R-IN-7)", () 
 });
 
 describe("buildVerifyInput: Solidity metadata is not a compiler input (R-IN-7)", () => {
-  it("fails on a metadata object with incomplete-input on input, not as Standard JSON", () => {
-    const error = assertFails([metadataDocument()], "incomplete-input", "input", {
+  it("rebuilds from a metadata object, not as Standard JSON, and asks for its sources", () => {
+    const error = assertFails([metadataDocument()], "incomplete-input", "sources", {
       contract: "src/Greeter.sol:Greeter",
       compilerVersion: LONG_VERSION,
     });
-    assert.match(error.hint, /metadata/);
+    assert.deepEqual(candidatesOf(error), ["src/Base.sol", "src/Greeter.sol"]);
   });
 
   it("fails on metadata with embedded sources and no compiler or output object", () => {
@@ -943,18 +945,20 @@ describe("buildVerifyInput: shapes and precedence pinned (R-IN-7)", () => {
     const error = assertFails(
       [foundry.artifact(), hardhat2.artifact()],
       "incomplete-input",
-      "input",
+      "sources",
     );
-    assert.match(error.hint, /Solidity metadata alone arrives in #21/);
+    assert.match(error.hint, /options\.sources/);
   });
 
-  it("keeps the --build-info hint for a stub with metadata, and the metadata hint alone (K-prec2)", () => {
-    const stub = assertFails([foundry.stub(), foundry.artifact()], "incomplete-input", "input");
+  it("rebuilds from an artifact next to a stub, and keeps the --build-info hint for a stub alone (K-prec2)", () => {
+    const stub = assertFails([foundry.stub()], "incomplete-input", "input");
     assert.match(stub.hint, /--build-info/);
-    assert.doesNotMatch(stub.hint, /metadata alone/);
-    const metadata = assertFails([foundry.artifact()], "incomplete-input", "input");
-    assert.match(metadata.hint, /Solidity metadata alone arrives in #21/);
-    assert.doesNotMatch(metadata.hint, /--build-info/);
+    const withArtifact = assertFails(
+      [foundry.stub(), foundry.artifact()],
+      "incomplete-input",
+      "sources",
+    );
+    assert.doesNotMatch(withArtifact.hint, /--build-info/);
   });
 
   it("never repeats a bare name that matches nothing (K-echo)", () => {
@@ -976,7 +980,7 @@ describe("buildVerifyInput: shapes and precedence pinned (R-IN-7)", () => {
     assertFails([hardhat2.buildInfo()], "invalid-input", "contract", { contract: "reeter" });
   });
 
-  it("reads an artifact's metadata object before its rawMetadata string", () => {
+  it("falls back to an artifact's metadata object when its rawMetadata string does not parse", () => {
     const buildInfo = foundry.buildInfo();
     delete buildInfo.output;
     const artifact = foundry.artifact();

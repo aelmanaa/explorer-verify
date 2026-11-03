@@ -8,7 +8,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 
 - [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages and the planned ones
 - [Using explorer-verify from an agent](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/using-from-an-agent.md): which calls are safe, which one submits, where keys come from
-- [Verify a contract shipped in an npm package](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-a-contract-from-an-npm-package.md): build the verification input from build-info, artifacts or Standard JSON of unknown origin
+- [Verify a contract shipped in an npm package](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-a-contract-from-an-npm-package.md): build the verification input from build-info, artifacts, Standard JSON or Solidity metadata and sources of unknown origin
 - [Errors](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/errors.md): every error code with its cause, fix and whether to retry
 - [JSON output and exit codes](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/json-output.md): the versioned JSON envelope, its JSON Schema and the exit code of every outcome
 - [Sourcify](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/sourcify.md): what is sent to Sourcify, how each answer becomes a result or an error, and its side effects

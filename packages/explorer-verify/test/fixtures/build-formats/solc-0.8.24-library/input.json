@@ -1,0 +1,28 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "src/Counter.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Tally} from \"./Tally.sol\";\n\ncontract Counter {\n    uint256 public count;\n\n    function bump(uint256 amount) external {\n        count = Tally.add(count, amount);\n    }\n}\n"
+    },
+    "src/Tally.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nlibrary Tally {\n    function add(uint256 total, uint256 amount) external pure returns (uint256) {\n        return total + amount;\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "evmVersion": "shanghai",
+    "libraries": {
+      "src/Tally.sol": {
+        "Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c"
+      }
+    },
+    "outputSelection": {
+      "*": {
+        "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object", "metadata"]
+      }
+    }
+  }
+}

@@ -57,27 +57,93 @@ also runs in a browser, for example on JSON your dapp bundles. It sends nothing.
 | Hardhat 2 build-info                             | The build-info, and the artifact | `contract` when no artifact is passed            |
 | Foundry build-info (built with `--build-info`)   | The build-info, and the artifact | `contract` when no artifact is passed            |
 | A Standard JSON input file                       | The file                         | `contract` as `path:Name`, and `compilerVersion` |
+| A Foundry artifact, no build-info                | The artifact                     | `sources`, unless the metadata embeds them       |
+| Solidity metadata, as an object or a string      | The metadata                     | `sources`, unless the metadata embeds them       |
 | Only artifacts with ABI and bytecode             | Not enough: see below            |                                                  |
 
 `options.contract` is `path:Name`, or a bare `Name` when exactly one contract in the documents has
 that name. A bare Standard JSON input lists no contracts, so it needs `path:Name`. For Hardhat 3, the user source name (`contracts/Greeter.sol:Greeter`) also works: it is
 mapped to the input source name (`project/contracts/Greeter.sol:Greeter`). `options.compilerVersion`
 is the full version, such as `0.8.24+commit.e11b9ed9`. It is used only when the documents hold no
-full version.
+full version. `options.sources` maps each source path, as the metadata lists it, to the file's
+content. It is used only when the input is rebuilt from metadata.
+
+## Rebuild the input from Solidity metadata
+
+Some packages ship the Solidity metadata of a contract instead of its build-info: a Foundry
+artifact holds it in `rawMetadata` and `metadata`, and a build-info output holds it as a string per
+contract. The metadata is the JSON whose hash solc appends to the bytecode. It records the compiler
+version, the settings, the contract and the keccak-256 hash of each source file. With the source
+files, the builder rebuilds the Standard JSON input that produced the bytecode.
+
+```ts
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+
+import { buildVerifyInput } from "explorer-verify";
+
+const require = createRequire(import.meta.url);
+const text = async (file: string): Promise<string> =>
+  readFile(require.resolve(`some-sdk/${file}`), "utf8");
+
+const built = buildVerifyInput([JSON.parse(await text("out/Greeter.sol/Greeter.json"))], {
+  sources: {
+    "src/Base.sol": await text("src/Base.sol"),
+    "src/Greeter.sol": await text("src/Greeter.sol"),
+  },
+});
+// built.contractName: "src/Greeter.sol:Greeter", from settings.compilationTarget
+// built.compiler.version: "0.8.24+commit.e11b9ed9", from compiler.version
+```
+
+Pass each file exactly as it was compiled. The builder hashes each source's UTF-8 bytes with
+keccak-256 and compares the hash with the metadata before it returns. A file with other line
+endings, or one run through a formatter, fails with `source-mismatch`. When the metadata was built
+with `useLiteralContent` (Foundry's `use_literal_content = true`), it embeds the sources and
+`options.sources` is not needed.
+
+The rebuilt input:
+
+- takes `language` from the metadata;
+- copies every setting from the metadata (`optimizer`, `evmVersion`, `remappings`, `metadata`,
+  `viaIR`, `debug`) except `compilationTarget`, with three changes so solc accepts the input:
+  - with `metadata.appendCBOR: false`, it drops `metadata.bytecodeHash`, which solc records but
+    rejects in an input;
+  - for solc 0.8.2 to 0.8.4, it moves `optimizer.details.inliner` to `optimizer.enabled`: those
+    versions record the key but reject it;
+  - when a source embeds its content and `metadata.useLiteralContent` is unset, as solc 0.5.0 and
+    earlier write it, it sets `useLiteralContent` to `true`;
+- turns `libraries` from `{ "path:Name": address }` into `{ path: { Name: address } }`. A bare
+  `Name`, as solc 0.7.4 and earlier write it, goes under the empty path `""`;
+- adds an `outputSelection` for the ABI, the bytecode and the metadata;
+- takes each source's content from the metadata when it embeds it, else from `options.sources`.
+  Embedded content wins over `options.sources`.
+
+The version comes from `compiler.version` and the contract from `settings.compilationTarget`,
+which must name exactly one contract. When you pass the metadata of several contracts, choose one
+with `options.contract`. In a rebuild, `options.contract` must name that target, as `path:Name` or
+as `Name`. Metadata documents for one contract must list the same sources with the same hashes.
+When a build-info with its input is passed too, the build-info's input is used and
+`options.sources` is ignored.
+
+Tested with metadata from solc 0.5.0, 0.7.0, 0.8.3 and 0.8.24: the rebuilt input compiled with the
+same version gave the original bytecode and metadata. Metadata from solc before 0.5.0 is read the
+same way but is not tested. On 2026-11-03, a contract on Base Sepolia was verified on Sourcify
+from an input rebuilt from its metadata alone, with an exact match.
 
 ## What the builder does
 
 It classifies each document by its shape, never by file name or tool name:
 
-| Shape                          | Recognised by                                                              | Gives                                                   |
-| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Build-info                     | An `input` object with `language`, `sources`, `settings`                   | The compiler input; the version from `solcLongVersion`  |
-| Build-info stub                | `source_id_to_path` and no `input`                                         | Nothing: the error says to rebuild with build-info      |
-| Build-info output              | An `output.contracts` object and no `input`                                | The contract list; the version from contract metadata   |
-| Standard JSON input            | `language`, `sources` and `settings` at the top level                      | The compiler input                                      |
-| Solidity metadata              | A top-level `compiler` or `output` object, or `settings.compilationTarget` | The contract and the version, only next to a build-info |
-| Artifact with metadata         | `metadata` or `rawMetadata`                                                | The contract and the version, only next to a build-info |
-| Artifact with ABI and bytecode | `abi` and `bytecode`, none of the above                                    | The contract (`inputSourceName` or `sourceName`)        |
+| Shape                          | Recognised by                                                                                             | Gives                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Build-info                     | An `input` object with `language`, `sources`, `settings`                                                  | The compiler input; the version from `solcLongVersion`                |
+| Build-info stub                | `source_id_to_path` and no `input`                                                                        | Nothing: the error says to rebuild with build-info                    |
+| Build-info output              | An `output.contracts` object and no `input`                                                               | The contract list; the version from contract metadata                 |
+| Standard JSON input            | `language`, `sources` and `settings` at the top level                                                     | The compiler input                                                    |
+| Solidity metadata              | A top-level `compiler` or `output` object, or `settings.compilationTarget`, in an object or a JSON string | The contract and the version; without a build-info, the rebuilt input |
+| Artifact with metadata         | `metadata` or `rawMetadata` (read first)                                                                  | The contract and the version; without a build-info, the rebuilt input |
+| Artifact with ABI and bytecode | `abi` and `bytecode`, none of the above                                                                   | The contract (`inputSourceName` or `sourceName`)                      |
 
 Then it:
 
@@ -109,7 +175,8 @@ The builder throws an `ExplorerVerifyError` that says what is missing. See
 
 | Code                    | Meaning                                                                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `incomplete-input`      | `details.field` names what is missing: `input`, `compilerVersion` or `contract` (with `details.candidates`)                                         |
+| `incomplete-input`      | `details.field` names what is missing: `input`, `compilerVersion`, `contract` or `sources`, with the names or paths in `details.candidates`         |
+| `source-mismatch`       | A source file does not match the keccak-256 hash in the metadata. `details.path` names it; `details.expected` and `details.actual` hold the hashes  |
 | `insufficient-artifact` | Only ABI and bytecode: no compiler input or settings. The hint lists the routes left                                                                |
 | `unsupported-compiler`  | A compiler other than solc, or a language other than Solidity                                                                                       |
 | `invalid-input`         | A document of no known shape, documents of different builds or versions, a path not in the sources, a local path, or an input that fails validation |
@@ -120,9 +187,6 @@ resolver (planned), when the bytecode carries a metadata hash and the metadata i
 on the explorer's own matching (Etherscan Similar Match, Sourcify similarity; see
 [automatic matching](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
 when an identical contract is already verified.
-
-Solidity metadata alone, without a build-info, is not enough yet: rebuilding the input from
-metadata and sources arrives in #21.
 
 ## Sources
 
@@ -137,5 +201,9 @@ output of Foundry 1.8.1, Hardhat 2.29.1 and Hardhat 3.21.2 built from one two-fi
   at NomicFoundation/hardhat@51a2cc4f, read 2026-11-02.
 - Hardhat 2 build-info and artifact: `types/artifacts.d.ts` in the
   [`hardhat@2.29.1`](https://www.npmjs.com/package/hardhat/v/2.29.1) npm package, read 2026-11-02.
+- Solidity metadata: [Contract Metadata](https://docs.soliditylang.org/en/v0.8.24/metadata.html)
+  in the Solidity 0.8.24 documentation, read 2026-11-03. On 2026-11-03, the input rebuilt from the
+  metadata of the Foundry, Hardhat 2 and linked-library fixtures was compiled again with solc-js
+  0.8.24; the bytecode and the metadata equaled the original build's.
 - The test fixtures, with the tool versions and build commands, are in
   `packages/explorer-verify/test/fixtures/build-formats/` in the repository.

@@ -34,6 +34,8 @@ Planned layout of `packages/explorer-verify/src/`:
 | `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                        |
 | `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part) |
 | `input/validate.ts`                        | R-IN-6 checks                                                                                  |
+| `input/build.ts`                           | `buildVerifyInput`: detects each document's shape and builds the input (R-IN-7) (exists)       |
+| `input/metadata.ts`                        | Rebuilds Standard JSON from Solidity metadata and checks source hashes (R-IN-7) (exists)       |
 | `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                  |
 | `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                  |
 | `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                           |
@@ -44,6 +46,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                  |
 | `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                            |
 | `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                    |
+| `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                 |
 | `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                    |
 
 ## Backend interface

@@ -39,6 +39,7 @@ export const ERROR_CODES = [
   "insufficient-artifact",
   "unsupported-compiler",
   "verification-inconclusive",
+  "source-mismatch",
 ] as const;
 
 /**
@@ -204,13 +205,16 @@ export type ErrorDetails =
   | {
       /**
        * The documents passed to `buildVerifyInput` lack something the verification needs: the
-       * compiler input, the full compiler version or the choice of contract.
+       * compiler input, the full compiler version, the choice of contract, or source files that
+       * the Solidity metadata lists.
        */
       code: "incomplete-input";
-      /** What is missing: `input`, `compilerVersion` or `contract`. */
+      /** What is missing: `input`, `compilerVersion`, `contract` or `sources`. */
       field: string;
       /**
        * For `contract`: the fully qualified names found in the documents, sorted, at most 20.
+       * For `sources`: the source paths the metadata lists that have no content, sorted, at most
+       * 1000; the message gives the full count.
        * Empty for the other fields.
        */
       candidates: string[];
@@ -243,6 +247,19 @@ export type ErrorDetails =
       backend: BackendName | "unknown";
       /** The explorer's code and message, redacted, at most 300 characters. */
       reason: string;
+    }
+  | {
+      /**
+       * A source file passed to `buildVerifyInput` does not match the keccak-256 hash that the
+       * Solidity metadata records for it, so the rebuilt input would not reproduce the bytecode.
+       */
+      code: "source-mismatch";
+      /** The source path, as the metadata lists it. */
+      path: string;
+      /** The hash the metadata records, `0x` and 64 lowercase hex digits. */
+      expected: string;
+      /** The keccak-256 hash of the content passed, `0x` and 64 lowercase hex digits. */
+      actual: string;
     };
 
 /**
@@ -288,6 +305,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "insufficient-artifact": 2,
   "unsupported-compiler": 2,
   "verification-inconclusive": 4,
+  "source-mismatch": 2,
 };
 
 /**
@@ -428,7 +446,7 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     retryable: false,
   },
   "incomplete-input": {
-    hint: "Add what details.field names: a build-info with its input, the full compiler version, or the contract as path:Name.",
+    hint: "Add what details.field names: a build-info with its input, the full compiler version, the contract as path:Name, or the source files listed in details.candidates.",
     retryable: false,
   },
   "insufficient-artifact": {
@@ -442,6 +460,10 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
   "verification-inconclusive": {
     hint: "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
     retryable: true,
+  },
+  "source-mismatch": {
+    hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
+    retryable: false,
   },
 };
 
@@ -545,6 +567,14 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
         code: "verification-inconclusive",
         backend: backendOf(details.backend),
         reason: redactExcerpt(stringOf(details.reason), secrets, EXCERPT_LENGTH),
+      };
+      break;
+    case "source-mismatch":
+      copy = {
+        code: "source-mismatch",
+        path: text(details.path, secrets),
+        expected: text(details.expected, secrets),
+        actual: text(details.actual, secrets),
       };
       break;
   }

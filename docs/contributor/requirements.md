@@ -63,8 +63,8 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format. Validation errors name the field. The address check is format only:
-  `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: it needs a Keccak-256
-  implementation, which the core does not ship, and explorers accept any case.
+  `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any
+  case.
 - **R-IN-7** A format-detecting input builder takes one or more parsed JSON documents and
   optional source contents, and returns the `compiler` part of `VerifyInput` and the fully
   qualified contract name, or a typed error that names what is missing. It detects by shape, never
@@ -73,7 +73,9 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
     bare Standard JSON input with the version and name supplied (#20);
   - Solidity metadata (an object, a string, or an artifact's `metadata` or `rawMetadata`) plus the
     sources it does not embed. It rebuilds the Standard JSON input and checks each source's
-    keccak-256 against the metadata before returning (#21);
+    keccak-256 against the metadata before returning (#21). A missing source fails with
+    `incomplete-input` listing the missing paths, at most 1,000; a source whose hash differs fails with
+    `source-mismatch` naming the file and both hashes;
   - an artifact with only ABI and bytecode. That is not enough to verify, and the error says so
     and names the remaining routes (R-IN-5, explorer similar-match).
 

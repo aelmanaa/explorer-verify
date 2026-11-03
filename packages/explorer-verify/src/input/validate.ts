@@ -16,6 +16,8 @@ const EVEN_HEX = /^0x(?:[0-9a-fA-F]{2})*$/;
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
 const MAX_POSITIONS = 5;
 const MAX_PATH = 1024;
+// Unicode format characters: bidirectional overrides, zero-width characters and the like.
+const FORMAT_CHARACTER = /\p{Cf}/u;
 const MAX_DEPTH = 64;
 const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "settings"];
 
@@ -69,9 +71,13 @@ function copyJson(value: unknown): { value: unknown } | "not-json" | "too-deep" 
   }
 }
 
-/** A path of at most {@link MAX_PATH} characters, with no C0 control character and no DEL. */
+/**
+ * A path of at most {@link MAX_PATH} characters, with no C0 control character, no DEL and no
+ * Unicode format character (category Cf, such as a bidirectional override, which can make a path
+ * read differently from what it is).
+ */
 function isSafePath(path: string): boolean {
-  if (path.length > MAX_PATH) {
+  if (path.length > MAX_PATH || FORMAT_CHARACTER.test(path)) {
     return false;
   }
   for (let index = 0; index < path.length; index++) {

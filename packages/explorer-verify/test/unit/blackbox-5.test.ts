@@ -43,6 +43,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "insufficient-artifact": { exit: 2, retryable: false },
   "unsupported-compiler": { exit: 2, retryable: false },
   "verification-inconclusive": { exit: 4, retryable: true },
+  "source-mismatch": { exit: 2, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -88,6 +89,12 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
     code: "verification-inconclusive",
     backend: "sourcify",
     reason: `internal_error: ${text}`,
+  }),
+  "source-mismatch": (text) => ({
+    code: "source-mismatch",
+    path: `src/A.sol ${text}`,
+    expected: `0x${"a".repeat(64)}`,
+    actual: `0x${"b".repeat(64)}`,
   }),
 };
 
