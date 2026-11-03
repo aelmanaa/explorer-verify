@@ -1,0 +1,63 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-03T19:22:11.562Z: the key was sent as the apikey field of the form body, chainid in the query. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xF20cfae8007a1e2df9A7CBa74bD54A375e1771c4",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "981",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 03 Nov 2026 19:22:14 GMT",
+      "server": "nginx",
+      "svid": "arbtestnet",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "4"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "{{\r\n  \"language\": \"Solidity\",\r\n  \"sources\": {\r\n    \"src/ProbeDChild.sol\": {\r\n      \"content\": \"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n// explorer-verify live probe 2026-11-03 D: factory child with one immutable\\ncontract ProbeDChild {\\n    uint256 public immutable value;\\n\\n    constructor(uint256 value_) {\\n        value = value_;\\n    }\\n}\\n\"\r\n    }\r\n  },\r\n  \"settings\": {\r\n    \"optimizer\": {\r\n      \"enabled\": true,\r\n      \"runs\": 200\r\n    },\r\n    \"metadata\": {\r\n      \"useLiteralContent\": false,\r\n      \"bytecodeHash\": \"ipfs\",\r\n      \"appendCBOR\": true\r\n    },\r\n    \"outputSelection\": {\r\n      \"*\": {\r\n        \"*\": [\r\n          \"evm.bytecode\",\r\n          \"evm.deployedBytecode\",\r\n          \"devdoc\",\r\n          \"userdoc\",\r\n          \"metadata\",\r\n          \"abi\"\r\n        ]\r\n      }\r\n    },\r\n    \"evmVersion\": \"cancun\",\r\n    \"viaIR\": false\r\n  }\r\n}}",
+          "ABI": "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"value_\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"value\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+          "ContractName": "ProbeDChild",
+          "CompilerVersion": "v0.8.24+commit.e11b9ed9",
+          "CompilerType": "solc-j",
+          "OptimizationUsed": "1",
+          "Runs": "200",
+          "ConstructorArguments": "",
+          "EVMVersion": "cancun",
+          "Library": "",
+          "ContractFileName": "src/ProbeDChild.sol",
+          "LicenseType": "",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5"
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-03T19:22:11.562Z"
+}

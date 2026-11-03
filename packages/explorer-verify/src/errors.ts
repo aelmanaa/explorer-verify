@@ -41,6 +41,9 @@ export const ERROR_CODES = [
   "unsupported-compiler",
   "verification-inconclusive",
   "source-mismatch",
+  "missing-api-key",
+  "api-key-rejected",
+  "quota-exceeded",
 ] as const;
 
 /**
@@ -261,6 +264,36 @@ export type ErrorDetails =
       expected: string;
       /** The keccak-256 hash of the content passed, `0x` and 64 lowercase hex digits. */
       actual: string;
+    }
+  | {
+      /**
+       * The route's backend needs an API key and none is bound to its host, or the explorer
+       * answered that the key is missing.
+       */
+      code: "missing-api-key";
+      /**
+       * The backend that needs the key. `"unknown"` appears only when code bypassed the types and
+       * passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
+    }
+  | {
+      /** The explorer refused the API key, as Etherscan's `Invalid API Key (#err2)`. */
+      code: "api-key-rejected";
+      /**
+       * The backend that refused the key. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
+    }
+  | {
+      /** The API key's daily limit is spent, so another request in this call cannot succeed. */
+      code: "quota-exceeded";
+      /**
+       * The backend whose limit is spent. `"unknown"` appears only when code bypassed the types
+       * and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
     };
 
 /**
@@ -307,6 +340,9 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "unsupported-compiler": 2,
   "verification-inconclusive": 4,
   "source-mismatch": 2,
+  "missing-api-key": 3,
+  "api-key-rejected": 3,
+  "quota-exceeded": 3,
 };
 
 /**
@@ -473,6 +509,18 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
     retryable: false,
   },
+  "missing-api-key": {
+    hint: "Pass the key in apiKeys under the backend named in details.backend, or as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.",
+    retryable: false,
+  },
+  "api-key-rejected": {
+    hint: "Check the key on the explorer's account page: it may be mistyped, revoked or issued by another explorer. Pass a valid key, then call again.",
+    retryable: false,
+  },
+  "quota-exceeded": {
+    hint: "The key's daily limit is spent. Call again after the explorer resets the limit, or use a key on a plan with a higher limit.",
+    retryable: false,
+  },
 };
 
 /**
@@ -584,6 +632,11 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
         expected: text(details.expected, secrets),
         actual: text(details.actual, secrets),
       };
+      break;
+    case "missing-api-key":
+    case "api-key-rejected":
+    case "quota-exceeded":
+      copy = { code: details.code, backend: backendOf(details.backend) };
       break;
   }
   return copy;

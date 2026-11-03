@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 
 import { BACKEND_NAMES, ExplorerVerifyError, parseHandle } from "../../src/index.ts";
 import type {
+  BackendName,
   ErrorCode,
   ErrorDetails,
   ErrorJson,
@@ -23,17 +24,21 @@ type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 // Each constant only compiles when its type is `true`; the runtime assertion keeps it used.
 const verifyOptionKeys: Equals<
   keyof VerifyOptions,
-  "fetch" | "signal" | "timeoutMs" | "pollIntervalMs" | "logger" | "onEvent" | "route"
+  "fetch" | "signal" | "timeoutMs" | "pollIntervalMs" | "logger" | "onEvent" | "route" | "apiKeys"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;
 const noApiKey: "apiKey" extends keyof VerifyOptions ? false : true = true;
-const noApiKeys: "apiKeys" extends keyof VerifyOptions ? false : true = true;
+// Decision 0009 planned `apiKeys` keyed by backend name for M2; #58 adds it.
+const apiKeysType: Equals<
+  VerifyOptions["apiKeys"],
+  Partial<Record<BackendName, string | undefined>> | undefined
+> = true;
 const noAbort: "abort" extends keyof VerifyOptions ? false : true = true;
 const signalType: Equals<VerifyOptions["signal"], AbortSignal | undefined> = true;
 const fetchType: Equals<VerifyOptions["fetch"], typeof fetch | undefined> = true;
 const loggerKeys: Equals<keyof Logger, "debug" | "info" | "warn" | "error"> = true;
-const routeKeys: Equals<keyof RouteOverride, "backend" | "apiUrl"> = true;
+const routeKeys: Equals<keyof RouteOverride, "backend" | "apiUrl" | "apiKey"> = true;
 const handleKeys: Equals<keyof Handle, "version" | "backend" | "chainId" | "address" | "jobId"> =
   true;
 const errorJsonKeys: Equals<
@@ -124,7 +129,7 @@ describe("blackbox #11: type-level contract (compiles only when true)", () => {
       verifyOptionKeys,
       verifyOptionsEmptyOk,
       noApiKey,
-      noApiKeys,
+      apiKeysType,
       noAbort,
       signalType,
       fetchType,

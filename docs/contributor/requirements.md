@@ -282,9 +282,10 @@ CLI:
 - **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
   a flag value. `--api-key-stdin` reads the key from stdin and trims one trailing newline. It
   cannot be combined with `--input-json -` (exit code 2). When stdin is a terminal,
-  `--api-key-stdin` and `--input-json -` exit 2 at once instead of waiting. Until M2, a key given
-  this way applies to the Etherscan-family backend of the route; M2's key issue names the
-  per-backend keys. Tests assert that a dummy key never appears on stdout, on stderr
+  `--api-key-stdin` and `--input-json -` exit 2 at once instead of waiting. A key given this way
+  fills `VerifyOptions.apiKeys` for the route's backend: `ETHERSCAN_API_KEY` fills
+  `apiKeys["etherscan-v2"]` and `ROUTESCAN_API_KEY` fills `apiKeys.routescan`. A standalone
+  explorer's key fills `route.apiKey` (decision 0016). Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). The docs URL is the code's own page,
@@ -368,7 +369,9 @@ Measurement:
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
   It never follows a redirect.
   A handle never carries a host; the library resolves hosts from the routing table or the caller's
-  options when it resumes.
+  options when it resumes. A key from `apiKeys` goes only to its backend's routing-table host, and
+  only with requests of the route's backend; `route.apiKey` goes only to its route's host
+  (decision 0016).
 - **R-SEC-3** Docs state the Etherscan plan requirement: a public dapp or any business, protocol,
   foundation or DAO use needs an Advanced or higher plan and its own key, and must show "Powered by
   Etherscan.io APIs" when it displays Etherscan data.

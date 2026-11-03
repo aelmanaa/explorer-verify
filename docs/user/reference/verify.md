@@ -71,21 +71,23 @@ into an exact match, submit the exact sources another way; an option for this is
 
 Every field is optional.
 
-| Option           | Default              | What it does                                                                                                       |
-| ---------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `fetch`          | `globalThis.fetch`   | Every request goes through it. Point it at your own server to proxy the calls. It must not follow redirects        |
-| `signal`         | none                 | Cancels the call. The call rejects with `signal.reason`, unchanged                                                 |
-| `timeoutMs`      | `120000`             | Time budget for the whole call, every request and retry included                                                   |
-| `pollIntervalMs` | `3000`               | Wait before each status poll                                                                                       |
-| `logger`         | none, writes nothing | Receives log lines, keys removed. See [Logging and events](logging-and-events.md)                                  |
-| `onEvent`        | none                 | Receives the stage events, keys removed. See [Logging and events](logging-and-events.md#events)                    |
-| `route`          | the routing table    | `{ backend?, apiUrl? }`: another Sourcify server, such as a self-hosted one. Results from it have no `explorerUrl` |
+| Option           | Default              | What it does                                                                                                                                                                                         |
+| ---------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fetch`          | `globalThis.fetch`   | Every request goes through it. Point it at your own server to proxy the calls. It must not follow redirects                                                                                          |
+| `signal`         | none                 | Cancels the call. The call rejects with `signal.reason`, unchanged                                                                                                                                   |
+| `timeoutMs`      | `120000`             | Time budget for the whole call, every request and retry included                                                                                                                                     |
+| `pollIntervalMs` | `3000`               | Wait before each status poll                                                                                                                                                                         |
+| `logger`         | none, writes nothing | Receives log lines, keys removed. See [Logging and events](logging-and-events.md)                                                                                                                    |
+| `onEvent`        | none                 | Receives the stage events, keys removed. See [Logging and events](logging-and-events.md#events)                                                                                                      |
+| `route`          | the routing table    | `{ backend?, apiUrl?, apiKey? }`: another Sourcify server, such as a self-hosted one. Results from it have no `explorerUrl`. `apiKey` is for the clients that come next; see [API keys](api-keys.md) |
+| `apiKeys`        | none                 | API keys by backend name, each sent only to its backend's host. See [API keys](api-keys.md)                                                                                                          |
 
 `timeoutMs` and `pollIntervalMs` must be positive numbers of milliseconds; anything else throws
 `invalid-input`. A value above 2147483647, the largest delay `setTimeout` takes, is lowered to it.
 A `pollIntervalMs` below 1000 is raised to 1000.
 
-`signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object. Only the
+`signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, `logger` an object, and
+`apiKeys` a plain object of key strings by backend name. Only the
 options object's own properties are read, each once. A value of the wrong kind, or a property that
 cannot be read, throws `invalid-input` before any request.
 
@@ -145,6 +147,9 @@ a result. [Errors](errors/index.md) links a page with the fix for each code.
 | `network`                   | No request got an answer, retries included                                                        | 5         |
 | `rate-limited`              | The explorer answered 429 on every try                                                            | 5         |
 | `unexpected-response`       | The explorer answered something the library does not recognise                                    | 5         |
+| `missing-api-key`           | The route's backend needs a key and none is set for its host, or the explorer says it is missing  | 3         |
+| `api-key-rejected`          | The explorer refused the API key                                                                  | 3         |
+| `quota-exceeded`            | The API key's daily limit is spent                                                                | 3         |
 
 A budget that runs out after the explorer accepted the submission always ends in `not-confirmed`,
 never `timeout`, so the handle is not lost. The same holds when status polls keep failing.

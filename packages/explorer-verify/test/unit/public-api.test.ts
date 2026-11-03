@@ -29,8 +29,9 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   logger: true,
   onEvent: true,
   route: true,
+  apiKeys: true,
 };
-const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true };
+const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true, apiKey: true };
 const emptyRoute: RouteOverride = {};
 // A success without an explorer link must compile: a self-hosted Sourcify server has no public page.
 const successesWithoutLink: VerifyResult[] = [
@@ -51,7 +52,7 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has exactly the M1 fields (decisions 0009 and 0010)", () => {
+  it("VerifyOptions has the M1 fields and apiKeys (decisions 0009, 0010 and 0016)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
@@ -60,6 +61,7 @@ describe("public types", () => {
       "logger",
       "onEvent",
       "route",
+      "apiKeys",
     ]);
   });
 
@@ -70,8 +72,8 @@ describe("public types", () => {
     );
   });
 
-  it("RouteOverride has backend and apiUrl, both optional (decision 0009)", () => {
-    assert.deepEqual(Object.keys(routeKeys), ["backend", "apiUrl"]);
+  it("RouteOverride has backend, apiUrl and apiKey, all optional (decisions 0009 and 0016)", () => {
+    assert.deepEqual(Object.keys(routeKeys), ["backend", "apiUrl", "apiKey"]);
     assert.deepEqual(emptyRoute, {});
   });
 });
@@ -113,6 +115,9 @@ describe("public entry point", () => {
       "unsupported-compiler",
       "verification-inconclusive",
       "source-mismatch",
+      "missing-api-key",
+      "api-key-rejected",
+      "quota-exceeded",
     ]);
   });
 

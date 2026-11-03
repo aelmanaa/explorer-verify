@@ -80,7 +80,7 @@ The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code
 | 0         | `verified` or `already-verified`                                                                               | None                                                                                                                         |
 | 1         | `failed`: the explorer definitively rejected the submission                                                    | None. A `failed` result is not an error                                                                                      |
 | 2         | Usage or input error, including a chain the backend does not support; nothing was submitted for verification   | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler`, `source-mismatch` |
-| 3         | Missing, invalid or under-privileged API key                                                                   | None yet. Key errors arrive with the first keyed backend                                                                     |
+| 3         | Missing, invalid or under-privileged API key                                                                   | `missing-api-key`, `api-key-rejected`, `quota-exceeded`                                                                      |
 | 4         | No verdict yet: still pending at the time budget (the output carries the handle), or the job ended without one | `not-confirmed`, `verification-inconclusive`                                                                                 |
 | 5         | Network or explorer unavailable after retries; call again later                                                | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`                                                   |
 | 6         | Unknown state; the output carries the handle. A person checks it                                               | `unknown-state`, `job-not-found`                                                                                             |
@@ -141,3 +141,6 @@ code. `docsUrl` links that page.
 - [`unsupported-compiler`](unsupported-compiler.md)
 - [`verification-inconclusive`](verification-inconclusive.md)
 - [`source-mismatch`](source-mismatch.md)
+- [`missing-api-key`](missing-api-key.md)
+- [`api-key-rejected`](api-key-rejected.md)
+- [`quota-exceeded`](quota-exceeded.md)

@@ -45,6 +45,9 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "unsupported-compiler": { retryable: false, exit: 2, hasHandle: false },
   "verification-inconclusive": { retryable: true, exit: 4, hasHandle: false },
   "source-mismatch": { retryable: false, exit: 2, hasHandle: false },
+  "missing-api-key": { retryable: false, exit: 3, hasHandle: false },
+  "api-key-rejected": { retryable: false, exit: 3, hasHandle: false },
+  "quota-exceeded": { retryable: false, exit: 3, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -87,6 +90,9 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
       expected: `0x${"a".repeat(64)}`,
       actual: `0x${"b".repeat(64)}`,
     },
+    "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
+    "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
+    "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
   };
   return all[code];
 }

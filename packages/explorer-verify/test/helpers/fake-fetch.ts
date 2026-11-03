@@ -63,7 +63,12 @@ export function replay(...steps: Step[]): { fetch: typeof fetch; calls: Call[] }
     calls.push({
       url,
       method: init?.method ?? "GET",
-      body: typeof body === "string" ? body : undefined,
+      body:
+        typeof body === "string"
+          ? body
+          : body instanceof URLSearchParams
+            ? body.toString()
+            : undefined,
       headers: new Headers(init?.headers),
     });
     const step = steps[calls.length - 1];

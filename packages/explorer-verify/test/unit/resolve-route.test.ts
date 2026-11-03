@@ -134,6 +134,7 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
     assert.equal(Object.getPrototypeOf(route), Object.prototype);
     assert.deepEqual(Object.keys(route).toSorted(), [
       "apiBase",
+      "apiKey",
       "backend",
       "explorerUrl",
       "redactedApiUrl",
@@ -154,8 +155,9 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
   });
 
   it("ignores fields a route override does not have, and does not copy them", () => {
-    const route = resolveRoute(1, routeOf({ apiKey: DUMMY_KEY }));
+    const route = resolveRoute(1, routeOf({ token: DUMMY_KEY }));
     assert.ok(!JSON.stringify(route).includes(DUMMY_KEY));
+    assert.equal(route.apiKey(), undefined);
     assert.equal(route.apiBase, SOURCIFY_API_URL);
   });
 });

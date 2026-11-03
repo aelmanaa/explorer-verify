@@ -7,6 +7,7 @@ import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
+import { checkRouteKey } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
 import type { Hex, RouteOverride } from "../types.ts";
 
@@ -48,6 +49,12 @@ export interface Route {
    * contracts verified on the public Sourcify server.
    */
   readonly explorerUrl: ((chainId: number, address: Hex) => string) | undefined;
+  /**
+   * The caller's `route.apiKey`, bound to this route: it goes only to `apiBase`'s host, and only
+   * with requests of `backend`. `undefined` when the caller passed none. A function, so
+   * `JSON.stringify` of a route never prints the key.
+   */
+  readonly apiKey: () => string | undefined;
 }
 
 /**
@@ -72,6 +79,8 @@ const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]
 const BACKEND_MESSAGE = "must be sourcify; only sourcify is available in this version";
 const BACKEND_HINT = "Only sourcify is available in this version. Remove route.backend.";
 const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
+const API_KEY_HINT =
+  "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl and only for a backend that takes a key, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 
@@ -83,7 +92,9 @@ function sourcifyExplorerUrl(chainId: number, address: Hex): string {
  * The two override fields, or `undefined` when `value` is not a plain object (prototype
  * `Object.prototype` or `null`) whose fields can be read. Each field is read once.
  */
-function readOverride(value: unknown): { backend: unknown; apiUrl: unknown } | undefined {
+function readOverride(
+  value: unknown,
+): { backend: unknown; apiUrl: unknown; apiKey: unknown } | undefined {
   if (typeof value !== "object" || value === null) {
     return undefined;
   }
@@ -92,8 +103,16 @@ function readOverride(value: unknown): { backend: unknown; apiUrl: unknown } | u
     if (prototype !== Object.prototype && prototype !== null) {
       return undefined;
     }
-    const fields: { readonly backend?: unknown; readonly apiUrl?: unknown } = value;
-    return { backend: readOwn(fields, "backend"), apiUrl: readOwn(fields, "apiUrl") };
+    const fields: {
+      readonly backend?: unknown;
+      readonly apiUrl?: unknown;
+      readonly apiKey?: unknown;
+    } = value;
+    return {
+      backend: readOwn(fields, "backend"),
+      apiUrl: readOwn(fields, "apiUrl"),
+      apiKey: readOwn(fields, "apiKey"),
+    };
   } catch {
     // A Proxy whose traps throw. The raw error is dropped: it may repeat a caller value.
     return undefined;
@@ -143,8 +162,8 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
  * or a local fake in tests (R-RT-2). Hosts come only from here, never from a handle (R-SEC-2).
  *
  * `override` must be a plain object: its prototype is `Object.prototype` or `null`. Only its own
- * `backend` and `apiUrl` properties are read, each once; inherited ones are ignored, and so are
- * other fields.
+ * `backend`, `apiUrl` and `apiKey` properties are read, each once; inherited ones are ignored, and so
+ * are other fields.
  *
  * `override.apiUrl` must be a primitive string of at most 8192 characters that parses as an
  * absolute `https:` URL, or an `http:` URL whose hostname is exactly `localhost`, `127.0.0.1` or
@@ -153,11 +172,15 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
  * of the path are removed. A query string is kept for requests and redacted in `redactedApiUrl`.
  * Error messages name the field and never repeat the value, which may hold a key.
  *
+ * `override.apiKey` must be a key string as `checkRouteKey` accepts, set next to `apiUrl`, for a
+ * backend that takes a `route.apiKey`. In this release the route backend is always `sourcify`,
+ * which takes none.
+ *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
  * @returns A frozen plain object. Later changes to `override` do not affect it.
  * @throws ExplorerVerifyError with code `invalid-input`, listing `chainId`, `route`,
- *   `route.backend` or `route.apiUrl` in `details.issues`.
+ *   `route.backend`, `route.apiUrl` or `route.apiKey` in `details.issues`.
  * @example
  * ```ts
  * const route = resolveRoute(31337, { apiUrl: "http://127.0.0.1:5555/?token=abc" });
@@ -177,6 +200,8 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
 
   let backend: BackendName = SUPPORTED_BACKEND;
   let target = { apiBase: SOURCIFY_API_URL, search: "" };
+  let apiKey: string | undefined;
+  let rawKey: unknown;
   const raw: unknown = override;
   if (raw !== undefined) {
     const fields = readOverride(raw);
@@ -206,11 +231,18 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
           target = checked;
         }
       }
+      rawKey = fields.apiKey;
+      const checked = checkRouteKey(backend, rawKey, fields.apiUrl !== undefined);
+      if (checked.issue !== undefined) {
+        issues.push({ field: "route.apiKey", message: checked.issue });
+        hint ??= API_KEY_HINT;
+      }
+      apiKey = checked.key;
     }
   }
 
   if (issues.length > 0) {
-    throw invalid(issues, "The route is invalid", hint);
+    throw invalid(issues, "The route is invalid", hint, typeof rawKey === "string" ? [rawKey] : []);
   }
   const { apiBase, search } = target;
   return Object.freeze({
@@ -223,11 +255,13 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
           [{ field: "path", message: "must start with / and contain no ? or #" }],
           "The request path is invalid",
           undefined,
+          [],
         );
       }
       return `${apiBase}${path}${search}`;
     },
     explorerUrl: apiBase === SOURCIFY_API_URL ? sourcifyExplorerUrl : undefined,
+    apiKey: () => apiKey,
   });
 }
 
@@ -235,11 +269,12 @@ function invalid(
   issues: InputIssue[],
   summary: string,
   hint: string | undefined,
+  secrets: readonly string[],
 ): ExplorerVerifyError {
   const names = issues.map((issue) => issue.field).join(", ");
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `${summary}: ${names}.`,
-    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
+    hint === undefined ? { secrets } : { hint, secrets },
   );
 }

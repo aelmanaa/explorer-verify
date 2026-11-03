@@ -95,6 +95,9 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     expected: `0x${"a".repeat(64)} ${DUMMY_KEY}`,
     actual: `0x${"b".repeat(64)} ${DUMMY_KEY}`,
   },
+  "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
+  "api-key-rejected": { code: "api-key-rejected", backend: "routescan" },
+  "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -178,6 +181,21 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
     retryable: false,
     exitCode: 2,
+  },
+  "missing-api-key": {
+    hint: "Pass the key in apiKeys under the backend named in details.backend, or as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.",
+    retryable: false,
+    exitCode: 3,
+  },
+  "api-key-rejected": {
+    hint: "Check the key on the explorer's account page: it may be mistyped, revoked or issued by another explorer. Pass a valid key, then call again.",
+    retryable: false,
+    exitCode: 3,
+  },
+  "quota-exceeded": {
+    hint: "The key's daily limit is spent. Call again after the explorer resets the limit, or use a key on a plan with a higher limit.",
+    retryable: false,
+    exitCode: 3,
   },
 };
 
@@ -307,6 +325,9 @@ describe("ExplorerVerifyError", () => {
       case "unsupported-compiler":
       case "verification-inconclusive":
       case "source-mismatch":
+      case "missing-api-key":
+      case "api-key-rejected":
+      case "quota-exceeded":
         assert.fail(`unexpected code ${details.code}`);
     }
   });

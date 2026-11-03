@@ -299,6 +299,7 @@ examples do. See [When to stop](#when-to-stop) for how often to retry.
 | 0         | `verified` or `already-verified`                                                                                                                                       | Done. Delete the stored handle                                                                                                                              |
 | 1         | `failed`: the explorer rejected the source                                                                                                                             | Report `result.reason`. Do not change the sources or settings and submit again unless the person asks                                                       |
 | 2         | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler` or `source-mismatch`. Nothing was submitted for verification | Fix what `error.details.issues` or `error.details.field` names. An envelope has no `details`: read its `hint`                                               |
+| 3         | `missing-api-key`, `api-key-rejected` or `quota-exceeded`, from the Etherscan and Routescan clients on. Nothing more can succeed with this key in this call            | Do not retry. Ask the person for a key, a valid key, or to wait until the daily limit resets. Never ask them to paste a key into the chat                   |
 | 4         | `not-confirmed` or `verification-inconclusive`                                                                                                                         | `not-confirmed`: call `checkStatus()` later with the handle. `verification-inconclusive`: no handle; call `verify()` again later, once                      |
 | 5         | `network`, `rate-limited`, `timeout`, `unexpected-response` or `in-progress`                                                                                           | Retry `verify()` later, at most once or twice. It looks the contract up before it submits. `in-progress` or `timeout` may mean an earlier submit is running |
 | 6         | `unknown-state` or `job-not-found`                                                                                                                                     | Do not retry automatically. `unknown-state`: give the handle and the hint to the person. `job-not-found`: ask the person, then call `verify()` once         |
@@ -326,6 +327,9 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
 
 - Read a key from an environment variable or a key file. Never pass it as a command-line flag
   value, and never write it into code, a commit, a fixture or a test.
+- Pass a key to the library in `apiKeys`, by backend name, such as
+  `{ apiKeys: { "etherscan-v2": key } }`. The library sends it only to that backend's own host and
+  never in a URL. A standalone explorer's key goes in `route.apiKey`.
 - Never put a key in a URL you print, log or store. The library removes each query value of
   `route.apiUrl` that is 8 or more characters long from every error, log line, event and result.
   Put a key in a parameter named like a key, such as `apikey` or `token`: then a shorter value is

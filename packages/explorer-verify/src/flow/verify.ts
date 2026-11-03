@@ -8,6 +8,8 @@ import type { Backend, Context, Match, PollOutcome, Target } from "../backends/b
 import { sourcify } from "../backends/sourcify.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
+import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
+import type { ApiKeysReader } from "../http/api-keys.ts";
 import { MAX_TIMER_MS, REQUEST_TIMEOUT_MS, sleep } from "../http/fetch.ts";
 import type { Budget, HttpContext } from "../http/fetch.ts";
 import { validateInput } from "../input/validate.ts";
@@ -69,6 +71,13 @@ export interface Settings {
   readonly logger: Logger | undefined;
   readonly onEvent: VerifyOptions["onEvent"];
   readonly route: RouteOverride | undefined;
+  /**
+   * Returns the checked `apiKeys`: only valid keys of backends that take one. A function, so
+   * `JSON.stringify` of the settings never prints a key.
+   */
+  readonly apiKeys: ApiKeysReader;
+  /** Returns every string value of `apiKeys`, valid or not, removed from all the call outputs. */
+  readonly keySecrets: () => readonly string[];
 }
 
 /** Everything one call shares once the route is known. */
@@ -284,7 +293,29 @@ export function openCall(
   dependencies: FlowDependencies,
 ): Call {
   const backend = backendOf(route, dependencies);
-  const secrets = routeSecrets(route, target.chainId, target.address, backend.name);
+  const routeKey = route.apiKey();
+  const keySecrets = settings.keySecrets();
+  const secrets = [
+    ...routeSecrets(route, target.chainId, target.address, backend.name),
+    ...keySecrets,
+    ...(routeKey === undefined ? [] : [routeKey]),
+  ];
+  const { apiKeys } = settings;
+  // Before any request: a key found in the handle's fixed part would corrupt the address and the
+  // handle once redacted, and show where the key sits (R-SEC-1).
+  const named: [string, string][] = Object.entries(apiKeys()).map(([name, key]) => [
+    `apiKeys.${name}`,
+    key,
+  ]);
+  if (routeKey !== undefined) {
+    named.push(["route.apiKey", routeKey]);
+  }
+  const clashes = collisions(named, visiblePart(backend.name, target.chainId, target.address));
+  if (clashes.length > 0) {
+    throw invalidOptions(clashes, secrets);
+  }
+  // Before any request: a keyed backend with no key bound to its host (R-AX-7).
+  requireKey({ route, apiKeys }, settings.fetch !== undefined, secrets);
   // The one observer of this call: every request, retry and stage goes through it, so a broken
   // `onEvent` is reported once per call (decision 0010).
   const observer = createObserver({
@@ -298,7 +329,11 @@ export function openCall(
   };
   return {
     backend,
-    ctx: { route, http: httpContext(route, settings, observer, secrets, budget, dependencies) },
+    ctx: {
+      route,
+      apiKeys,
+      http: httpContext(route, settings, observer, secrets, budget, dependencies),
+    },
     budget,
     target,
     settings,
@@ -403,13 +438,16 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       logger: undefined,
       onEvent: undefined,
       route: undefined,
+      apiKeys: () => ({}),
+      keySecrets: () => [],
     };
   }
   const raw: unknown = options;
   if (typeof raw !== "object" || raw === null) {
     throw invalidOptions([{ field: "options", message: "must be an object" }]);
   }
-  let read: Settings;
+  let read: Omit<Settings, "apiKeys" | "keySecrets">;
+  let rawKeys: unknown;
   const issues: InputIssue[] = [];
   try {
     const signal = own(options, "signal");
@@ -433,15 +471,20 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
         issues,
       ),
     };
+    rawKeys = own(options, "apiKeys");
   } catch {
     // A getter or Proxy trap threw. Its error is dropped: it may repeat a caller value.
     throw invalidOptions([{ field: "options", message: "could not be read" }]);
   }
   checkKinds(read, issues);
+  // Read after the other options, so a bad key value never hides an issue in them.
+  const keys = readApiKeys(rawKeys);
+  issues.push(...keys.issues);
   if (issues.length > 0) {
-    throw invalidOptions(issues);
+    throw invalidOptions(issues, keys.secrets);
   }
-  return read;
+  const { keys: checked, secrets } = keys;
+  return { ...read, apiKeys: () => checked, keySecrets: () => secrets };
 }
 
 /** An own option, read once, or `undefined` when `options` does not have it. */
@@ -453,7 +496,10 @@ function own<K extends keyof VerifyOptions>(
 }
 
 /** Adds an issue for each of `signal`, `fetch`, `logger` and `onEvent` of the wrong kind. */
-function checkKinds(settings: Settings, issues: InputIssue[]): void {
+function checkKinds(
+  settings: Omit<Settings, "apiKeys" | "keySecrets">,
+  issues: InputIssue[],
+): void {
   const signal: unknown = settings.signal;
   if (signal !== undefined && !(signal instanceof AbortSignal)) {
     issues.push({ field: "signal", message: "must be an AbortSignal" });
@@ -494,13 +540,16 @@ function duration(
   return Math.min(Math.max(value, floor), MAX_TIMER_MS);
 }
 
-function invalidOptions(issues: InputIssue[]): ExplorerVerifyError {
+function invalidOptions(
+  issues: InputIssue[],
+  secrets: readonly string[] = [],
+): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
-      hint: "Pass options as a plain object: timeoutMs and pollIntervalMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object. Leave out any you do not need.",
-      secrets: [],
+      hint: "Pass options as a plain object: timeoutMs and pollIntervalMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.",
+      secrets,
     },
   );
 }
@@ -537,7 +586,7 @@ function routeSecrets(
   address: string,
   backend: BackendName,
 ): string[] {
-  const visible = `ev1:${backend}:${String(chainId)}:${address}`.toLowerCase();
+  const visible = visiblePart(backend, chainId, address).toLowerCase();
   const secrets: string[] = [];
   for (const value of new URL(route.requestUrl("/")).searchParams.values()) {
     if (
@@ -549,6 +598,11 @@ function routeSecrets(
     }
   }
   return secrets;
+}
+
+/** The handle's fixed part, `ev1:<backend>:<chainId>:<address>`: public text of the call. */
+function visiblePart(backend: BackendName, chainId: number, address: string): string {
+  return `ev1:${backend}:${String(chainId)}:${address}`;
 }
 
 /** `globalThis.fetch`, read when each request starts and called as a plain function. */
@@ -764,7 +818,7 @@ function graceContext(call: Call): Context {
   const { ctx, settings, budget } = call;
   const grace = Math.min(settings.pollIntervalMs, REQUEST_TIMEOUT_MS);
   const deadline = Math.max(budget.deadline, Date.now() + grace);
-  return { route: ctx.route, http: { ...ctx.http, budget: { ...budget, deadline } } };
+  return { ...ctx, http: { ...ctx.http, budget: { ...budget, deadline } } };
 }
 
 /**

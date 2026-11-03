@@ -44,6 +44,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)    |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists) |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                          |
+| `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)          |
 | `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                                    |
 | `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                            |
 | `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                         |
@@ -79,9 +80,11 @@ type PollOutcome =
 ```
 
 `Context` holds the route and the HTTP context. The HTTP context carries `fetch`, the
-`AbortSignal`, the budget, the keys to redact, the logger and the retry callback; the API key joins
-it when a backend needs one. A `Handle` is plain JSON (version, backend name, chain id, address,
-explorer job id) so `checkStatus` can resume it in another process. It carries no URL.
+`AbortSignal`, the budget, the keys to redact, the logger and the retry callback. `Context` also
+holds the checked `apiKeys`; a client passes each request through `withKey` (`http/api-keys.ts`),
+the one rule for which request gets a key and where it goes (decision 0016). A `Handle` is plain
+JSON (version, backend name, chain id, address, explorer job id) so `checkStatus` can resume it in
+another process. It carries no URL.
 
 Rules every client follows:
 
@@ -110,8 +113,8 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 - `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
   `checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>`.
 - `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
-  `pollIntervalMs`, `logger`, `onEvent` and `route`. Every field is optional. M2 adds `apiKeys`,
-  keyed by backend name, and `rpcUrl`.
+  `pollIntervalMs`, `logger`, `onEvent`, `route` and `apiKeys`, keyed by backend name (decision
+  0016). Every field is optional. M2 adds `rpcUrl`.
 - `Handle` is `{ version: 1, backend, chainId, address, jobId }`: plain JSON with no URL.
   `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
   handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.
