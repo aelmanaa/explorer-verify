@@ -14,11 +14,11 @@ functions turn either one into data that a program reads without parsing message
 - `toEnvelope(outcome)` gives the JSON envelope.
 
 The CLI, once it ships, prints the envelope on stdout with `--json` and exits with that code. Both
-functions are in the library now; `verify()` and `checkStatus()` land in
-[#17](https://github.com/aelmanaa/explorer-verify/issues/17).
+functions and [verify()](verify.md) are in the library now; `checkStatus()` lands in
+[#18](https://github.com/aelmanaa/explorer-verify/issues/18).
 
 ```ts
-import { ExplorerVerifyError, exitCodeOf, toEnvelope } from "explorer-verify";
+import { ExplorerVerifyError, exitCodeOf, toEnvelope, verify } from "explorer-verify";
 import type { VerifyOutcome } from "explorer-verify";
 
 let outcome: VerifyOutcome;

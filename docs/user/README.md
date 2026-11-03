@@ -11,6 +11,7 @@ still to come.
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Using explorer-verify from an agent](guides/using-from-an-agent.md)                           | Safe steps and the permanent submit, API keys, the Etherscan plan rule   |
 | [Verify a contract shipped in an npm package](guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
+| [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [Errors](reference/errors.md)                                                                  | Every error code, with its cause and fix                                 |
 | [JSON output and exit codes](reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |

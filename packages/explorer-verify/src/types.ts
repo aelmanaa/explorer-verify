@@ -317,13 +317,24 @@ export interface RouteOverride {
  * @experimental
  */
 export interface VerifyOptions {
-  /** The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). */
+  /**
+   * The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). The library
+   * sends every request with `redirect: "manual"` and never follows a redirect: a redirect could
+   * carry a key to another host. An injected `fetch` must keep that behaviour and must not follow
+   * redirects itself.
+   */
   fetch?: typeof fetch;
   /** Cancels the call. The call rejects with `signal.reason` unchanged (R-FLOW-6). */
   signal?: AbortSignal;
-  /** Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. */
+  /**
+   * Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. A
+   * positive number; a value above 2147483647 is lowered to it.
+   */
   timeoutMs?: number;
-  /** Wait between two status polls, in milliseconds. Defaults to 3000. */
+  /**
+   * Wait between two status polls, in milliseconds. Defaults to 3000. A positive number; a value
+   * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
+   */
   pollIntervalMs?: number;
   /** Receives log lines with keys removed. Nothing is logged when it is absent (R-DX-5). */
   logger?: Logger;
@@ -353,7 +364,7 @@ export interface VerifyOptions {
  *   version: 1,
  *   backend: "sourcify",
  *   chainId: 11155111,
- *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+ *   address: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
  *   jobId: "550e8400-e29b-41d4-a716-446655440000",
  * };
  * localStorage.setItem("pending-verification", JSON.stringify(handle));
@@ -367,7 +378,7 @@ export interface Handle {
   backend: BackendName;
   /** EVM chain id the contract is deployed on. */
   chainId: number;
-  /** The contract address. */
+  /** The contract address. In a handle from `verify()` it is in lower case, as `validateInput` returns it. */
   address: Hex;
   /** The backend's job id: Sourcify's `verificationId` or Etherscan's `guid`. */
   jobId: string;

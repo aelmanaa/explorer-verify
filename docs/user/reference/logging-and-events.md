@@ -17,9 +17,8 @@ Both are off by default. Without them the library writes nothing, in every runti
 `console` on its own. API keys are removed from every message, field and event before your code
 sees it.
 
-`verify()` and `checkStatus()` land in [#17](https://github.com/aelmanaa/explorer-verify/issues/17).
-The types and the event schema are in the library now, and the HTTP layer already logs requests and
-emits `verify.retry`.
+`verify()` logs and emits events as described here. `checkStatus()` lands in
+[#18](https://github.com/aelmanaa/explorer-verify/issues/18).
 
 ## Logger
 
@@ -39,12 +38,12 @@ interface Logger {
 that reads only the message also fits. When a line has no fields, the method gets one argument, so
 `console` prints no `undefined`.
 
-| Level   | What the library logs there                                             |
-| ------- | ----------------------------------------------------------------------- |
-| `debug` | Each request: method, URL and attempt number                            |
-| `info`  | Progress a person may want to see                                       |
-| `warn`  | A retry, with the reason and the wait; an `onEvent` callback that threw |
-| `error` | A failure the library recovers from. Never a failure it throws to you   |
+| Level   | What the library logs there                                                                                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `debug` | The first line, `Verifying <address> on chain <id>`, with `backend`, `chainId` and `api` (the API URL, query replaced by `?REDACTED`); each request: method, URL and attempt number; each pending poll |
+| `info`  | The handle once the explorer accepts the submission, and the result                                                                                                                                    |
+| `warn`  | A retry, with the reason and the wait; a status poll that failed; an `onEvent` callback that threw                                                                                                     |
+| `error` | A failure the library recovers from. Never a failure it throws to you                                                                                                                                  |
 
 A failure that ends the call is thrown as an `ExplorerVerifyError`, which carries the message. It
 is not also logged at `error`, so a program that logs the thrown error shows each failure once.
@@ -92,7 +91,12 @@ the verification goes on.
   and `verify.result`.
 - A call that throws emits no `verify.result`. The thrown error is the outcome.
 - `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
-  if the call is aborted or the process stops, the handle resumes the verification.
+  if the call is aborted or the process stops, the handle resumes the verification. `verify()` also
+  logs the handle at `info`.
+- `verify.validated` arrives once the input, the options and the route have all passed their
+  checks, so a call that fails any of them emits no event.
+- `verify.lookup` reports the check before the submit. The lookup after the time budget, described
+  in [verify()](verify.md#what-it-does), emits no event.
 
 ```ts
 import type { VerifyEvent } from "explorer-verify";
@@ -126,7 +130,8 @@ Each event is a new, frozen object, so a callback cannot change it or the next o
 
 An exception thrown by `onEvent` is caught. The library logs the first one at `warn`, with the
 event type and the error message, and ignores later ones in the same call. The outcome does not
-change.
+change. Each `verify()` call creates its own guard, so a callback that throws on every event gives
+one warning per call.
 
 `onEvent` may be `async`: its type is `(event: VerifyEvent) => void | Promise<void>`. If it returns
 a promise, the library attaches a `.catch` and does not wait for it. A slow

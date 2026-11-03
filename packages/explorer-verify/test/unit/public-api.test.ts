@@ -89,6 +89,7 @@ describe("public entry point", () => {
       "toBackendName",
       "toEnvelope",
       "validateInput",
+      "verify",
     ]);
   });
 

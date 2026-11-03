@@ -9,9 +9,8 @@ reads each answer.
 
 explorer-verify talks to Sourcify through its API v2 at `https://sourcify.dev/server`, or at the
 server that the `route` option names. Sourcify needs no API key and answers browsers directly. The
-v1 API was switched off on 2026-07-07; explorer-verify does not use it. The Sourcify client is in
-the library now; `verify()` and `checkStatus()`, which call it, land in
-[#17](https://github.com/aelmanaa/explorer-verify/issues/17).
+v1 API was switched off on 2026-07-07; explorer-verify does not use it. [verify()](verify.md) uses
+this client; `checkStatus()` lands in [#18](https://github.com/aelmanaa/explorer-verify/issues/18).
 
 ## Requests
 
