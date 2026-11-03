@@ -3,7 +3,7 @@
  * and result steps of `verify()` through the same helpers, so a resumed job ends as it would have
  * in `verify()`.
  */
-import type { Match, Target } from "../backends/backend.ts";
+import type { Target } from "../backends/backend.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import { resolveRoute } from "../routing/resolve.ts";
 import type { Route } from "../routing/resolve.ts";
@@ -11,15 +11,13 @@ import type { Handle, VerifyOptions, VerifyResult } from "../types.ts";
 import { parseHandle } from "./handle.ts";
 import {
   DEFAULT_DEPENDENCIES,
+  abortWins,
   announceRoute,
-  finish,
-  graceContext,
-  mustRethrow,
   openCall,
   settingsOf,
   settle,
 } from "./verify.ts";
-import type { Call, FlowDependencies } from "./verify.ts";
+import type { FlowDependencies } from "./verify.ts";
 
 /**
  * Continues polling a verification that `verify()` submitted, from its handle (R-FLOW-5). Use it
@@ -114,20 +112,8 @@ export async function runCheckStatus(
     call,
     `Resuming ${call.backend.name} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,
   );
-  try {
-    return await settle(call, handle, 0);
-  } catch (error: unknown) {
-    // An abort wins, even when the answer that arrived with it was a job-not-found.
-    const { signal } = settings;
-    if (signal?.aborted === true) {
-      const reason: unknown = signal.reason;
-      throw reason;
-    }
-    if (!(error instanceof ExplorerVerifyError) || error.code !== "job-not-found") {
-      throw error;
-    }
-    return await forgottenJob(call, handle, error);
-  }
+  // settle() looks the contract up for a job the explorer no longer knows, as in verify().
+  return await abortWins(settings.signal, async () => await settle(call, handle, 0));
 }
 
 /**
@@ -147,50 +133,6 @@ function checkBackend(handle: Handle, route: Route): void {
     {
       hint: "Pass the route option the submission used, or the handle that verify() returned for this route.",
       secrets: [],
-    },
-  );
-}
-
-/**
- * The explorer no longer knows the job, as Routescan forgets a job id within an hour. One lookup
- * decides: a match means the job verified the contract, so the result is `verified`. Otherwise it
- * throws `job-not-found`, whose hint says to call `verify()` again. When the lookup fails, the
- * error keeps the catalogue hint, which says to check the contract first, and the lookup error as
- * its cause.
- */
-async function forgottenJob(
-  call: Call,
-  handle: Handle,
-  notFound: ExplorerVerifyError,
-): Promise<VerifyResult> {
-  const { backend, settings, observer, ctx } = call;
-  observer.log.debug(
-    `${backend.name} does not know job ${handle.jobId}; looking the contract up instead`,
-    { backend: backend.name },
-  );
-  let match: Match | undefined;
-  try {
-    match = await backend.lookup(call.target, graceContext(call));
-  } catch (error: unknown) {
-    if (mustRethrow(error, settings.signal)) {
-      throw error;
-    }
-    throw new ExplorerVerifyError(
-      { code: "job-not-found", handle },
-      `${backend.name} does not know job ${handle.jobId}, and the lookup of the contract failed.`,
-      { secrets: ctx.http.secrets, cause: error },
-    );
-  }
-  if (match !== undefined) {
-    return finish(call, "verified", match);
-  }
-  throw new ExplorerVerifyError(
-    { code: "job-not-found", handle },
-    `${backend.name} does not know job ${handle.jobId}, and a lookup found the contract not verified.`,
-    {
-      hint: "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.",
-      secrets: ctx.http.secrets,
-      cause: notFound,
     },
   );
 }

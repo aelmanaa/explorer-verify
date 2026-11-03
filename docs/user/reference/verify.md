@@ -57,6 +57,9 @@ Build `input` with `buildVerifyInput` from build files, or write it by hand. See
 6. When `timeoutMs` runs out while the job is still pending, or after 3 failed polls in a row, it
    looks the contract up once more. Some explorers finish a job before their status endpoint says
    so. A match returns `verified`; otherwise the call throws `not-confirmed` with the handle.
+7. When a poll answers that the explorer no longer knows the job, it looks the contract up once.
+   Some explorers drop a job id after it ends. A match returns `verified`. Otherwise the call
+   throws `job-not-found` with the handle.
 
 `verify()` uses the address in lower case, as `validateInput` returns it: in the handle, the events
 and `explorerUrl`.
@@ -91,7 +94,7 @@ redirect could carry a key to another host. A `fetch` you pass must keep that be
 follow redirects itself.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`. The lookups after polling,
-described below, get that much more time, so a server that never answers cannot hold the call
+in steps 6 and 7 above, get that much more time, so a server that never answers cannot hold the call
 longer.
 
 The values of `route.apiUrl`'s query string count as keys: they are removed from every error, log
@@ -106,7 +109,7 @@ like a key, such as `apikey` or `token`: those values are removed whatever their
 | `status`           | When                                                                                    | Fields                                       | Exit code |
 | ------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------- | --------- |
 | `already-verified` | The lookup found the contract verified, or the explorer said so on submit or in the job | `backend`, `match`, `explorerUrl` when known | 0         |
-| `verified`         | The job verified the contract, or the lookup after the budget found it verified         | `backend`, `match`, `explorerUrl` when known | 0         |
+| `verified`         | The job verified the contract, or a lookup after polling found it verified              | `backend`, `match`, `explorerUrl` when known | 0         |
 | `failed`           | The explorer definitively rejected the source, for example because the bytecode differs | `backend`, `reason`                          | 1         |
 
 - `match` is `exact` when the metadata hash matches too, and `partial` when everything else does.
@@ -137,7 +140,7 @@ a result. [Errors](errors.md) has the fix for each code.
 | `not-confirmed`             | The budget ran out, or 3 polls in a row failed, before the job ended. `details.handle` resumes it | 4         |
 | `verification-inconclusive` | The job ended without a verdict. No handle: call `verify()` again later                           | 4         |
 | `unknown-state`             | The explorer reported a final state the library cannot classify. Has a handle                     | 6         |
-| `job-not-found`             | The explorer no longer knows the job                                                              | 6         |
+| `job-not-found`             | The explorer no longer knows the job, and a lookup found the contract not verified, or failed     | 6         |
 | `in-progress`               | The explorer is already verifying this contract from another submission                           | 5         |
 | `network`                   | No request got an answer, retries included                                                        | 5         |
 | `rate-limited`              | The explorer answered 429 on every try                                                            | 5         |
@@ -145,6 +148,10 @@ a result. [Errors](errors.md) has the fix for each code.
 
 A budget that runs out after the explorer accepted the submission always ends in `not-confirmed`,
 never `timeout`, so the handle is not lost. The same holds when status polls keep failing.
+
+When that lookup finds the contract not verified, the `job-not-found` hint says to call `verify()`
+again. When the lookup fails, the hint says to check the contract on the explorer first, and the
+`cause` is the lookup's error. `checkStatus()` handles a forgotten job the same way.
 
 The `cause` of a `not-confirmed` error is the last poll error, or the last lookup's error. Like
 every cause, it is a redacted copy: a plain `Error` with the original `name`

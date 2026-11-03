@@ -575,12 +575,15 @@ describe("verify(): job outcomes (R-FLOW-3, R-FLOW-4)", () => {
     assertErrorEnvelope(error);
   });
 
-  it("throws job-not-found when Sourcify forgot the job", async (t) => {
+  it("throws job-not-found when Sourcify forgot the job and a lookup finds the contract not verified (R-FLOW-5)", async (t) => {
     const missing = edited("job-not-found", () => {});
-    const r = await run(t, [notVerified(OTHER), accepted(OTHER_JOB), missing], {
+    const r = await run(t, [notVerified(OTHER), accepted(OTHER_JOB), missing, notVerified(OTHER)], {
       input: input(OTHER),
     });
-    assertErrorEnvelope(errorOf(r.outcome, "job-not-found"));
+    const error = errorOf(r.outcome, "job-not-found");
+    assertErrorEnvelope(error);
+    assert.equal(r.sent.length, 4);
+    assert.ok(error.hint.startsWith("Call verify() again"));
   });
 
   it("looks the grade up for a job that found the contract already verified (R-FLOW-3)", async (t) => {
@@ -895,6 +898,126 @@ describe("verify(): abort (R-FLOW-6)", () => {
       dependencies: { backends: { sourcify: broken } },
     });
     assert.equal(r.outcome, bug);
+  });
+});
+
+// --- abort wins over every lookup error (R-FLOW-6) ------------------------------------------------
+
+/** Errors a lookup may throw after the signal aborted, none of them the abort reason. */
+function otherErrors(): Error[] {
+  return [
+    new ExplorerVerifyError(
+      { code: "network", backend: "sourcify", attempts: 1 },
+      "not the reason",
+      { secrets: [] },
+    ),
+    new TypeError("not the reason either"),
+  ];
+}
+
+describe("verify(): an abort wins over the error a lookup throws (R-FLOW-6)", () => {
+  it("rejects with the reason when the first lookup throws another error after an abort", async (t) => {
+    for (const other of otherErrors()) {
+      t.mock.timers.reset();
+      const controller = new AbortController();
+      const reason = new Error("stop");
+      const backend: Backend = {
+        ...sourcify,
+        lookup: async () => {
+          controller.abort(reason);
+          return await Promise.reject(other);
+        },
+      };
+      const r = await run(t, [], {
+        options: { signal: controller.signal },
+        dependencies: { backends: { sourcify: backend } },
+      });
+      assert.equal(r.outcome, reason, other.message);
+    }
+  });
+
+  it("rejects with the reason when the last lookup throws another error after an abort (R-FLOW-2)", async (t) => {
+    for (const other of otherErrors()) {
+      t.mock.timers.reset();
+      const controller = new AbortController();
+      const reason = new Error("stop");
+      const aborting = laterLookups(() => {
+        controller.abort(reason);
+        throw other;
+      });
+      const r = await run(t, [fixture("lookup-not-verified"), fixture("submit-accepted")], {
+        options: { signal: controller.signal, timeoutMs: 1 },
+        dependencies: { backends: { sourcify: aborting } },
+      });
+      assert.equal(r.outcome, reason, other.message);
+      assert.equal(r.sent.length, 2);
+    }
+  });
+
+  it("rejects with the reason when the grade lookup throws another error after an abort (R-FLOW-3)", async (t) => {
+    for (const other of otherErrors()) {
+      t.mock.timers.reset();
+      const controller = new AbortController();
+      const reason = new Error("stop");
+      const aborting = laterLookups(() => {
+        controller.abort(reason);
+        throw other;
+      });
+      const r = await run(
+        t,
+        [notVerified(OTHER), accepted(OTHER_JOB), fixture("job-already-verified")],
+        {
+          input: input(OTHER),
+          options: { signal: controller.signal },
+          dependencies: { backends: { sourcify: aborting } },
+        },
+      );
+      assert.equal(r.outcome, reason, other.message);
+    }
+  });
+
+  it("rejects with the reason when the forgotten-job lookup throws another error after an abort (R-FLOW-5)", async (t) => {
+    for (const other of otherErrors()) {
+      t.mock.timers.reset();
+      const controller = new AbortController();
+      const reason = new Error("stop");
+      const aborting = laterLookups(() => {
+        controller.abort(reason);
+        throw other;
+      });
+      const r = await run(t, [notVerified(OTHER), accepted(OTHER_JOB), fixture("job-not-found")], {
+        input: input(OTHER),
+        options: { signal: controller.signal },
+        dependencies: { backends: { sourcify: aborting } },
+      });
+      assert.equal(r.outcome, reason, other.message);
+    }
+  });
+
+  it("rejects with the reason when a poll throws another error after an abort (R-FLOW-6)", async (t) => {
+    const controller = new AbortController();
+    const reason = new Error("stop");
+    const lookups = { count: 0 };
+    const backend: Backend = {
+      ...laterLookups(() => {
+        lookups.count += 1;
+        throw new Error("no lookup expected");
+      }),
+      poll: async () => {
+        controller.abort(reason);
+        return await Promise.reject(
+          new ExplorerVerifyError({ code: "network", backend: "sourcify", attempts: 1 }, "x", {
+            secrets: [],
+          }),
+        );
+      },
+    };
+    const r = await run(t, [fixture("lookup-not-verified"), fixture("submit-accepted")], {
+      options: { signal: controller.signal },
+      dependencies: { backends: { sourcify: backend } },
+    });
+    assert.equal(r.outcome, reason);
+    assert.equal(lookups.count, 0);
   });
 });
 

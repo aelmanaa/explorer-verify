@@ -140,8 +140,9 @@ and `flow/status.ts` `checkStatus`. `checkStatus` reuses the option reading, the
 poll loop, the failure cap, the last lookup and the result mapping of `flow/verify.ts`
 (`settingsOf`, `openCall`, `settle`). It polls at once instead of after one interval. Its handle's
 backend must equal the backend the route resolves for the handle's chain, or it throws
-`invalid-input` before any request (R-SEC-2). When the explorer no longer knows the job, it looks
-the contract up: a match returns `verified`, otherwise it throws `job-not-found`.
+`invalid-input` before any request (R-SEC-2). When a poll answers that the explorer no longer
+knows the job, `settle` looks the contract up once, in the same grace window as the last lookup,
+for both functions: a match returns `verified`, otherwise it throws `job-not-found` with the handle.
 
 ## Logging and events
 
