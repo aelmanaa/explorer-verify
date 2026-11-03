@@ -98,3 +98,51 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run pkg:check
+      # Fails when a public entry, bundled for the browser, minified and gzipped, is above its
+      # ceiling in size-budget.json (R-RUN-3, decision 0014).
+      - name: Bundle size within size-budget.json
+        run: pnpm run size
+
+  # Bundles the core for the browser and runs verify() and checkStatus() in Node and in headless
+  # Chromium against a local server that replays recorded Sourcify answers with Sourcify's CORS
+  # headers (R-RUN-1; docs/contributor/testing.md). The headless shell
+  # (about 100 MB) is cached per Playwright version; the system libraries it needs come from apt on
+  # every run, because the cache holds only the browser.
+  browser:
+    name: Browser smoke (Chromium)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Read the Playwright version
+        id: playwright
+        run: |
+          version="$(node -p "require('playwright/package.json').version")"
+          if [ -z "$version" ]; then
+            echo "Could not read the Playwright version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache the Chromium download
+        id: chromium-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: Download Chromium and install its system libraries
+        if: steps.chromium-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps --only-shell chromium
+      - name: Install Chromium's system libraries
+        if: steps.chromium-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - run: pnpm run test:browser
+      # Checks the smoke test itself: broken page scripts and missing CORS headers must fail it.
+      - run: pnpm run test:browser:harness

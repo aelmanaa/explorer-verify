@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev to a CORS preflight sent with curl 8.7.1, recorded 2026-11-03T15:02:59Z. Request headers: Origin http://127.0.0.1:41234, Access-Control-Request-Method POST, Access-Control-Request-Headers content-type. Only the CORS headers and the content type are kept; the access-control-allow-headers value echoes the request (vary: Access-Control-Request-Headers).",
+  "request": {
+    "method": "OPTIONS",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "access-control-allow-headers": "content-type",
+      "vary": "Access-Control-Request-Headers",
+      "content-type": "text/html"
+    },
+    "body": ""
+  }
+}

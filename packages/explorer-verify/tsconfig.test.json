@@ -5,9 +5,13 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsbuild/explorer-verify-test",
     "tsBuildInfoFile": "../../node_modules/.cache/tsbuild/explorer-verify-test.tsbuildinfo",
-    "lib": ["ES2023", "DOM"]
+    "lib": ["ES2023", "DOM"],
+    // test/browser/scenario.ts imports the package by name, and esbuild bundles it from dist/. For
+    // types, the name maps to the sources, so lint and typecheck pass before a build.
+    "paths": { "explorer-verify": ["./src/index.ts"] }
   },
   // Tests run on Node and import the sources directly. tsconfig.build.json checks src/ again
   // without Node types, which keeps the shipped code runtime-neutral.
-  "include": ["src", "test"]
+  // The browser smoke scenario imports the keccak-256 vectors as a JSON module.
+  "include": ["src", "test", "test/fixtures/keccak256-vectors.json"]
 }
