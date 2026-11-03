@@ -1,7 +1,8 @@
 // Redirects, body limits, timer bounds and abort checks of the HTTP layer (R-SEC-2, R-FLOW-6).
 // Every test injects a fake fetch; the tests against real local servers are in
 // http-fetch-servers.test.ts. Timers and methods are mocked through the test's own `t.mock`, so
-// nothing outlives a test, and each test has a 5 s limit so a stuck mock timer fails fast.
+// nothing outlives a test, and each test has a 20 s limit so a stuck mock timer fails before the
+// runner's 30 s default.
 import assert from "node:assert/strict";
 import { describe, it as baseIt } from "node:test";
 import type { TestContext } from "node:test";
@@ -24,9 +25,9 @@ import { redact } from "../../src/redact.ts";
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const MiB = 1024 * 1024;
 
-/** `it` with a 5 s limit per test. */
+/** `it` with a 20 s limit per test. */
 function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
-  void baseIt(name, { timeout: 5_000 }, fn);
+  void baseIt(name, { timeout: 20_000 }, fn);
 }
 
 /** A callback for `onRetry` and a promise that resolves on its first call. */
@@ -430,18 +431,13 @@ describe("redact: URL-parser encodings of a known key (R-SEC-1)", () => {
 
   it("redacts the parsed forms in an explorer's echoed answer, inside an error excerpt", async () => {
     const query = new URL(`http://h/?q=${key}`).search.slice(3);
-    const { fetch } = answering(() => new Response(`bad request q=${query}`, { status: 503 }));
+    // Retry-After above 30 s ends the retries at once, with no wait and no real-time budget.
+    const { fetch } = answering(
+      () =>
+        new Response(`bad request q=${query}`, { status: 503, headers: { "retry-after": "60" } }),
+    );
     const error = await explorerError(
-      request(
-        {
-          backend: "sourcify",
-          secrets: [key],
-          random: () => 0,
-          fetch,
-          budget: { deadline: Date.now() + 100, timeoutMs: 100 },
-        },
-        get(),
-      ),
+      request({ backend: "sourcify", secrets: [key], random: () => 0, fetch }, get()),
     );
     assert.ok(error.details.code === "unexpected-response");
     assert.equal(error.details.excerpt, "bad request q=[redacted]");

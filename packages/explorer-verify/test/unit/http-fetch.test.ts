@@ -19,9 +19,12 @@ import {
 import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch.ts";
 import type { Logger } from "../../src/index.ts";
 
-/** `it` with a 5 s limit per test, so a stuck mock timer fails fast instead of hanging. */
+/**
+ * `it` with a 20 s limit per test. A stuck mock timer then fails the test within the limit
+ * instead of at the runner's 30 s default, with room for a loaded machine.
+ */
 function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
-  void baseIt(name, { timeout: 5_000 }, fn);
+  void baseIt(name, { timeout: 20_000 }, fn);
 }
 
 // A fake key. Never a real one (R-SEC-1).

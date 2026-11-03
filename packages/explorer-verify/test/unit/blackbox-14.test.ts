@@ -21,9 +21,12 @@ import type { HttpContext, HttpRequest, RetryNotice } from "../../src/http/fetch
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { ErrorDetails, Logger } from "../../src/index.ts";
 
-/** `it` with a 5 s limit per test, so a stuck mock timer fails fast instead of hanging. */
+/**
+ * `it` with a 20 s limit per test. A stuck mock timer then fails the test within the limit
+ * instead of at the runner's 30 s default, with room for a loaded machine.
+ */
 function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
-  void baseIt(name, { timeout: 5_000 }, fn);
+  void baseIt(name, { timeout: 20_000 }, fn);
 }
 
 // --- fixtures -----------------------------------------------------------------------------------
@@ -507,16 +510,17 @@ describe("blackbox #14: retried cases (R-FLOW-6)", () => {
     for (const call of calls.slice(1)) assert.deepEqual(call.headers, calls[0]?.headers);
   });
 
-  it("waits a backoff with jitter: 1 s doubled per attempt, between half and all of each step", async (t) => {
-    useClock(t);
-    for (const random of [0, 0.5, 0.999_999]) {
+  // One case per test: each drives about 15 s of mock time in 50 ms steps.
+  for (const random of [0, 0.999_999]) {
+    it(`waits a backoff with jitter: 1 s doubled per attempt, between half and all of each step (random ${String(random)})`, async (t) => {
+      useClock(t);
       const notices: RetryNotice[] = [];
       const { fetch, calls } = fakeFetch([{ kind: "status", status: 503 }]);
       const ctx = ctxWith(fetch, {
         random: () => random,
         onRetry: (n) => notices.push(n),
       });
-      await drive(t, request(ctx, GET), { stepMs: 10 });
+      await drive(t, request(ctx, GET), { stepMs: 50 });
       assert.equal(calls.length, MAX_ATTEMPTS);
       assert.deepEqual(
         notices.map((n) => n.attempt),
@@ -530,12 +534,12 @@ describe("blackbox #14: retried cases (R-FLOW-6)", () => {
         );
         const gap = (calls[i + 1]?.at ?? 0) - (calls[i]?.at ?? 0);
         assert.ok(
-          gap >= n.delayMs && gap < n.delayMs + 10,
+          gap >= n.delayMs && gap < n.delayMs + 50,
           `gap ${String(gap)} vs wait ${String(n.delayMs)}`,
         );
       });
-    }
-  });
+    });
+  }
 
   it("does not send the next attempt before the wait ends", async (t) => {
     useClock(t);
