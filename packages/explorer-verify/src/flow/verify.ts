@@ -114,6 +114,9 @@ type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
  * 6. When the budget runs out while the job is still pending, it looks the contract up once more,
  *    within one more `pollIntervalMs`: some explorers finish before their status endpoint says so.
  *    A match returns `verified`; otherwise it throws `not-confirmed` with the handle.
+ * 7. When a poll answers that the explorer no longer knows the job, it looks the contract up once,
+ *    within the same window. A match returns `verified`; otherwise it throws `job-not-found` with
+ *    the handle.
  *
  * So the call ends within `timeoutMs` plus one `pollIntervalMs`.
  *
@@ -135,8 +138,9 @@ type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
  *   `timeout` when the budget runs out before the explorer accepts the submission;
  *   `not-confirmed`, with the handle, when it runs out while the job is pending;
  *   `verification-inconclusive` when the job ends without a verdict; `unknown-state` for a final
- *   state the library cannot classify; `in-progress`, `job-not-found`, `network`, `rate-limited`
- *   and `unexpected-response`. See the error reference for each.
+ *   state the library cannot classify; `job-not-found`, with the handle, when the explorer no
+ *   longer knows the job and a lookup finds no match or fails; `in-progress`, `network`,
+ *   `rate-limited` and `unexpected-response`. See the error reference for each.
  * @example
  * ```ts
  * import { ExplorerVerifyError, verify } from "explorer-verify";
@@ -182,6 +186,18 @@ export async function runVerify(
 ): Promise<VerifyResult> {
   const settings = settingsOf(options);
   settings.signal?.throwIfAborted();
+  return await abortWins(
+    settings.signal,
+    async () => await verifyWith(input, settings, dependencies),
+  );
+}
+
+/** Steps 1 to 7 of {@link verify}, once the options are read. */
+async function verifyWith(
+  input: VerifyInput,
+  settings: Settings,
+  dependencies: FlowDependencies,
+): Promise<VerifyResult> {
   const checked = validateInput(input);
   const route = resolveRoute(checked.chainId, settings.route);
   const target: Target = { chainId: checked.chainId, address: checked.address };
@@ -213,6 +229,36 @@ export async function runVerify(
   });
 
   return await settle(call, handle, settings.pollIntervalMs);
+}
+
+/**
+ * Runs `work` and, when it throws after the signal aborted, throws `signal.reason` instead, whatever
+ * the error (R-FLOW-6). `verify()` and `checkStatus()` both run their requests through it, so a
+ * cancelled call always rejects with the reason, unchanged, even when a lookup or a poll threw
+ * another error as the signal aborted.
+ *
+ * @param signal - The caller's signal, if any.
+ * @param work - The part of the call that sends requests.
+ * @returns What `work` returns.
+ * @throws `signal.reason` once the signal aborted; otherwise what `work` throws.
+ * @example
+ * ```ts
+ * return await abortWins(settings.signal, async () => await settle(call, handle, 0));
+ * ```
+ */
+export async function abortWins<T>(
+  signal: AbortSignal | undefined,
+  work: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await work();
+  } catch (error: unknown) {
+    if (signal?.aborted === true) {
+      const reason: unknown = signal.reason;
+      throw reason;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -286,16 +332,19 @@ export function announceRoute(call: Call, message: string): void {
 }
 
 /**
- * Polls a submitted job and maps how it ends to a result or an error: steps 4 to 6 of `verify()`.
+ * Polls a submitted job and maps how it ends to a result or an error: steps 4 to 7 of `verify()`.
  * `checkStatus()` runs the same steps, so a resumed job ends as it would have in `verify()`.
+ * When a poll answers that the explorer no longer knows the job, one lookup decides: see
+ * {@link forgottenJob}.
  *
  * @param call - The call from {@link openCall}.
  * @param handle - The job to poll.
  * @param firstWaitMs - The wait before the first poll: `pollIntervalMs` right after a submit, 0
  *   for a resumed job, which may have ended long ago.
  * @returns `verified`, `already-verified` or `failed`.
- * @throws ExplorerVerifyError `not-confirmed` with the handle, and every error a poll throws
- *   that does not mean "no answer this time".
+ * @throws ExplorerVerifyError `not-confirmed` with the handle; `job-not-found` with the handle
+ *   when the explorer no longer knows the job and the lookup finds no match or fails; and every
+ *   error a poll throws that does not mean "no answer this time".
  * @example
  * ```ts
  * const result = await settle(call, handle, 0);
@@ -306,7 +355,20 @@ export async function settle(
   handle: Handle,
   firstWaitMs: number,
 ): Promise<VerifyResult> {
-  const polled = await pollUntilDone(call, handle, firstWaitMs);
+  let polled: Polled;
+  try {
+    polled = await pollUntilDone(call, handle, firstWaitMs);
+  } catch (error: unknown) {
+    // After an abort, no lookup: abortWins() turns the error into the caller's reason.
+    if (
+      call.settings.signal?.aborted === true ||
+      !(error instanceof ExplorerVerifyError) ||
+      error.code !== "job-not-found"
+    ) {
+      throw error;
+    }
+    return await forgottenJob(call, handle, error);
+  }
   if (polled.kind === "stopped") {
     return await lastLookup(call, handle, polled);
   }
@@ -607,6 +669,50 @@ async function lastLookup(
 }
 
 /**
+ * The explorer no longer knows the job, as Routescan forgets a job id within an hour. One lookup
+ * in the grace window decides: a match means the job verified the contract, so the result is
+ * `verified`. Otherwise it throws `job-not-found` with the handle, whose hint says to call
+ * `verify()` again. When the lookup fails, the error keeps the catalogue hint, which says to check
+ * the contract first, and the lookup error as its cause. It emits no `verify.lookup`.
+ */
+async function forgottenJob(
+  call: Call,
+  handle: Handle,
+  notFound: ExplorerVerifyError,
+): Promise<VerifyResult> {
+  const { backend, settings, observer, ctx } = call;
+  observer.log.debug(
+    `${backend.name} does not know job ${handle.jobId}; looking the contract up instead`,
+    { backend: backend.name },
+  );
+  let match: Match | undefined;
+  try {
+    match = await backend.lookup(call.target, graceContext(call));
+  } catch (error: unknown) {
+    if (mustRethrow(error, settings.signal)) {
+      throw error;
+    }
+    throw new ExplorerVerifyError(
+      { code: "job-not-found", handle },
+      `${backend.name} does not know job ${handle.jobId}, and the lookup of the contract failed.`,
+      { secrets: ctx.http.secrets, cause: error },
+    );
+  }
+  if (match !== undefined) {
+    return finish(call, "verified", match);
+  }
+  throw new ExplorerVerifyError(
+    { code: "job-not-found", handle },
+    `${backend.name} does not know job ${handle.jobId}, and a lookup found the contract not verified.`,
+    {
+      hint: "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.",
+      secrets: ctx.http.secrets,
+      cause: notFound,
+    },
+  );
+}
+
+/**
  * The match of a job that found the contract already verified without saying the grade: one
  * lookup. A lookup that fails or says "not verified" throws `unknown-state`, never a guess.
  */
@@ -644,7 +750,7 @@ async function gradeOf(call: Call, handle: Handle): Promise<Match> {
  * Whether `error` must reach the caller unchanged: the abort reason once the signal aborted, or
  * anything that is not an `ExplorerVerifyError`. Otherwise the flow maps it to its own error.
  */
-export function mustRethrow(error: unknown, signal: AbortSignal | undefined): boolean {
+function mustRethrow(error: unknown, signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true || !(error instanceof ExplorerVerifyError);
 }
 
@@ -654,7 +760,7 @@ export function mustRethrow(error: unknown, signal: AbortSignal | undefined): bo
  * that never answers cannot hold the call much past its budget: the call ends by `timeoutMs`
  * plus `min(pollIntervalMs, 30000)`.
  */
-export function graceContext(call: Call): Context {
+function graceContext(call: Call): Context {
   const { ctx, settings, budget } = call;
   const grace = Math.min(settings.pollIntervalMs, REQUEST_TIMEOUT_MS);
   const deadline = Math.max(budget.deadline, Date.now() + grace);
@@ -685,11 +791,7 @@ function notConfirmed(
 }
 
 /** A success result, with the public page when the library knows one. Emits `verify.result`. */
-export function finish(
-  call: Call,
-  status: "verified" | "already-verified",
-  match: Match,
-): VerifyResult {
+function finish(call: Call, status: "verified" | "already-verified", match: Match): VerifyResult {
   const { backend, ctx, target, observer } = call;
   const explorerUrl = backend.explorerUrl(target, ctx);
   const result: VerifyResult =
