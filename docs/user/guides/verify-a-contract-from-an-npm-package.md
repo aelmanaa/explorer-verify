@@ -5,7 +5,7 @@ Version: explorer-verify 0.0.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who deploy a contract that an SDK ships compiled, and want it verified.
-Nothing is released yet. `buildVerifyInput` and `validateInput` exist; `verify` is planned (#17).
+Nothing is released yet. `buildVerifyInput`, `validateInput` and [`verify`](../reference/verify.md) exist.
 
 An SDK often ships compiled contracts as JSON files in its npm package. You may not know whether
 Hardhat 2, Hardhat 3 or Foundry produced them. `buildVerifyInput` takes the parsed files, works out
@@ -18,7 +18,7 @@ fully qualified contract name.
    documents where they are.
 2. Parse them and pass them to `buildVerifyInput`, in any order.
 3. Add the chain ID and the deployed address, and check the result with `validateInput`.
-4. Pass the input to `verify` once it lands (#17).
+4. Pass the input to [`verify`](../reference/verify.md).
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -41,7 +41,7 @@ const built = buildVerifyInput([
 
 const input = validateInput({ chainId: 11155111, address: deployedAddress, ...built });
 
-// Planned (#17): verify() submits the input to the explorer.
+// verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
 ```
 

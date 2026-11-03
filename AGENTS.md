@@ -5,8 +5,9 @@ explorer-verify will verify the source of deployed smart contracts on block expl
 a CLI, and a self-hosted server handler keeps Etherscan keys off the client.
 
 Status: in design; nothing is published to npm yet. The repository has the toolchain, a typed public
-contract (`packages/explorer-verify/src/types.ts`), the plan, and the first explorer client
-(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`).
+contract (`packages/explorer-verify/src/types.ts`), the plan, the first explorer client
+(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`) and `verify()`
+(`packages/explorer-verify/src/flow/verify.ts`).
 
 ## Start here
 

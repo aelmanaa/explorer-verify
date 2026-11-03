@@ -330,15 +330,18 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
 export async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   signal?.throwIfAborted();
   await new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onAbort = (): void => {
       clearTimeout(timer);
       reject(reasonOf(signal));
     };
-    const timer = setTimeout(() => {
+    // The listener goes on before the timer: if `addEventListener` throws, no timer is left
+    // running whose `removeEventListener` call could throw later, outside any promise.
+    signal?.addEventListener("abort", onAbort, { once: true });
+    timer = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
       resolve();
     }, timerMs(ms));
-    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -387,6 +390,7 @@ async function attemptOnce(
 
   return await new Promise<Attempt>((resolve, reject) => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = (): boolean => {
       if (settled) {
         return false;
@@ -403,7 +407,10 @@ async function attemptOnce(
         reject(reason);
       }
     };
-    const timer = setTimeout(() => {
+    // The listener goes on before the timer, so a signal whose `addEventListener` throws leaves
+    // no timer behind.
+    caller?.addEventListener("abort", onAbort, { once: true });
+    timer = setTimeout(() => {
       if (settle()) {
         // Only a per-request timeout uses this message; a budget timeout becomes `timeout`.
         const cause = new DOMException(
@@ -414,7 +421,6 @@ async function attemptOnce(
         resolve(timedOut(budgetTimeoutMs, progress, cause));
       }
     }, limitMs);
-    caller?.addEventListener("abort", onAbort, { once: true });
 
     const run = async (): Promise<void> => {
       let result: Attempt;

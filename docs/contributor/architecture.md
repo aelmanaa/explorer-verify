@@ -135,7 +135,8 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 
 `types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
 `exitCodeOf` and `toEnvelope`, `flow/handle.ts`
-`parseHandle` and `input/validate.ts` `validateInput`. `verify` and `checkStatus` do not exist yet.
+`parseHandle`, `input/validate.ts` `validateInput` and `flow/verify.ts` `verify`. `checkStatus`
+does not exist yet ([#18](https://github.com/aelmanaa/explorer-verify/issues/18)).
 
 ## Logging and events
 

@@ -5,14 +5,15 @@ Version: explorer-verify 0.0.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: coding agents, and the people who run them, calling explorer-verify on someone's behalf.
-Nothing is released yet. Of the steps below, only validation and the input build exist, as
-`validateInput()` and `buildVerifyInput()`. This page
+Nothing is released yet. Of the steps below, validation and the input build exist, as
+`validateInput()` and `buildVerifyInput()`, and [`verify()`](../reference/verify.md) runs the
+lookup and the submit. This page
 states the rules the library and the CLI will follow. It grows with each feature.
 
 ## Submit is permanent
 
 Submit sends the source to the explorer, which publishes it. The step is outward and permanent: you
-cannot take it back. Run a dry run first, and submit only when the person asked for verification of
+cannot take it back. `verify()` submits, unless its lookup finds the contract already verified. Run a dry run first, and submit only when the person asked for verification of
 that contract on that chain.
 
 A Sourcify submit can also publish the source on other explorers: Sourcify forwards it to
@@ -38,7 +39,7 @@ lookup and says so.
 - Read keys from an environment variable or a key file. Never pass a key as a command-line flag
   value: flags end up in shell history, process lists and CI logs.
 - Never print, log or commit a key. explorer-verify errors replace keys with `[redacted]`; see
-  [API keys in errors](../reference/errors.md#api-keys-in-errors). Results will be redacted the same
+  [API keys in errors](../reference/errors.md#api-keys-in-errors). Results are redacted the same
   way.
 - In a browser, do not ship an Etherscan key to the client; Etherscan's API terms forbid it. Use
   the server handler, planned for a later release, which keeps the key on your server.
