@@ -137,6 +137,54 @@ to stderr (R-AX-14, R-AX-15), and prints the result or the error as one envelope
 to its telemetry. The core has no OpenTelemetry dependency; the event names follow OpenTelemetry's
 naming rules, so an `onEvent` callback can emit them as OpenTelemetry events.
 
+## HTTP layer
+
+`http/fetch.ts` exports `request(ctx, req)`, which every backend client calls, and `sleep(ms,
+signal)`, which polling uses (R-FLOW-6).
+
+- Every request goes through `ctx.fetch`, or `globalThis.fetch` when it is absent (R-SRV-5). The
+  function is called on its own, not as a method of `ctx`, because a browser's `fetch` throws
+  "Illegal invocation" when called on another object.
+- One attempt is the fetch and the body read. It races the caller's signal and a timer set to the
+  per-request timeout (default 30 s) or the budget's deadline, whichever comes first. The signal
+  is checked again before each attempt. The returned `Response` holds the body already read, so
+  reading it cannot hang, and has no `content-encoding`, `content-length` or `transfer-encoding`
+  header.
+- Redirects are never followed (R-SEC-2). The request sets `redirect: "manual"`. An opaque
+  redirect, a 3xx, a response marked `redirected` or one whose URL has another origin ends the
+  call with `unexpected-response`. The last two catch an injected `fetch` that ignores
+  `redirect`. The `Location` header is never read, logged or put in an error.
+- The body is read chunk by chunk up to `maxResponseBytes` (default 16 MiB, counted after
+  decoding). A larger `content-length` fails before the read. A body above the limit, or one that
+  fails or stalls after the headers arrived, is `unexpected-response` and is not retried.
+- Every timer is clamped to 2,147,483,647 ms, the most `setTimeout` takes. A `requestTimeoutMs`
+  or `maxResponseBytes` that is not a positive finite number throws `invalid-input`.
+- Retries: at most 5 attempts, backoff from 1 s doubled per attempt with jitter that keeps between
+  half and all of each step, and at least the `Retry-After` wait. A `Retry-After` above 30 s, or a
+  wait that would reach the deadline, ends the retries with the last failure. Sourcify asks
+  clients to back off this way on 429 and 5xx
+  ([research](research/2026-11-02-explorer-apis.md#sourcify-api-v2)).
+- `retry: "safe"` retries network errors, timeouts, 429, 502, 503 and 504. `retry: "submit"`
+  retries only 429 and 503, which refuse a request before the explorer processes it. A submit that
+  got no response, timed out, or got a 500, 502 or 504 may have reached the explorer, so it is not
+  sent again; the backend checks the contract's state with a lookup before it submits again.
+- A 429 whose JSON body has `customCode` `duplicate_verification_request` is returned without a
+  retry; the backend maps it to `in-progress`.
+- Giving up throws `network` (no response, with `attempts`), `rate-limited` (with `attempts` and
+  `retryAfterMs`, at most one hour), `unexpected-response` (a 5xx, with the status, an excerpt and
+  `retryAfterMs`) or `timeout` (the budget ran out). Every error gets the call's keys as `secrets`.
+- Log lines show the URL's origin and path, with `?REDACTED` for a query, through the redacting
+  logger. A retry is logged at `warn`; a failure that is thrown is not logged at `error`.
+  `ctx.onRetry` reports each retry with the next attempt number, the reason and the wait, for the
+  `verify.retry` event (R-DX-6).
+- The timers are `setTimeout`, which keeps a Node process alive. `AbortSignal.timeout()` is not
+  used: its timer does not keep Node alive (on Node 24.21.0, on 2026-11-02, a script that waits
+  only on it exits with code 0 before the abort fires), and the node:test mock timers do not drive
+  it. `AbortSignal.any()` is not used either: Safari added it in 17.4
+  ([MDN compatibility data](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static#browser_compatibility),
+  read on 2026-11-02). A unit test runs a child Node process to check that `sleep` keeps it
+  alive.
+
 ## Routing in M1
 
 `routing/resolve.ts` is a stub in M1. `resolveRoute(chainId, override)` sends every chain id to

@@ -327,6 +327,7 @@ Measurement:
   tested. A handle's job id is exempt from the bare-key shape rule, so a valid job id resumes; it
   is redacted only where it equals a configured key or holds a key-like parameter.
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
+  It never follows a redirect.
   A handle never carries a host; the library resolves hosts from the routing table or the caller's
   options when it resumes.
 - **R-SEC-3** Docs state the Etherscan plan requirement: a public dapp or any business, protocol,
