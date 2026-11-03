@@ -251,42 +251,84 @@ signal)`, which polling uses (R-FLOW-6).
   read on 2026-11-02). A unit test runs a child Node process to check that `sleep` keeps it
   alive.
 
-## Routing in M1
+## Routing
 
-`routing/resolve.ts` is a stub in M1. `resolveRoute(chainId, override)` sends every chain id to
-Sourcify at `https://sourcify.dev/server`, with the explorer page
-`https://repo.sourcify.dev/<chainId>/<address>`, and `VerifyOptions.route` can point at another
-Sourcify server (R-RT-2). M2 replaces the default with `routing/table.json` (R-RT-1) and adds the
-fallback rule of R-RT-3. Until then, every chain resolves.
+`routing/table.json` maps each chain id to its backends, in order of preference (R-RT-1). Each
+backend entry has the full API base for that backend and chain (`apiUrl`: `https:`, no query, no
+trailing slash; for Routescan it holds the network and chain id) and the public page of a contract
+(`explorerUrl`, a template with one `{address}` token). The row and the table each carry a
+`checked` date. The table is data, imported as a JSON module with `with { type: "json" }`. The
+user reference is [Routing](../user/reference/routing.md).
+
+`resolveRoute(chainId, override, choice)` in `routing/resolve.ts` resolves a call. `choice` holds
+the caller's checked keys, `allowSourcifyFallback`, the backends with a client and, in tests, another
+table. The flow builds it in `routeOf`, which `verify()` and `checkStatus()` both call, so a resumed
+job resolves the same route from the same options.
+
+Without `route.apiUrl`:
+
+- A chain with a row resolves to its first backend that has a client and is usable with the
+  caller's keys: one that needs no key, or one with a key in `apiKeys`. Only `etherscan-v2` needs a key. When none is
+  usable it takes the first, and the flow's missing-key check throws `missing-api-key`.
+  `route.backend` picks another backend the row lists; one it does not list throws
+  `unsupported-chain` naming the chain and the backend (R-RT-2).
+- A chain with no row resolves to the public Sourcify API when `allowSourcifyFallback` is true
+  (R-RT-3). Otherwise it throws `unsupported-chain` with `details.backend` `sourcify`, whose hint
+  names the fallback option and the route override.
+
+With `route.apiUrl`, the call goes there for any chain, and the backend is `route.backend` or
+`sourcify`. `route.backend` naming a backend with no client throws `invalid-input` before the table
+is read. A table that chooses a backend with no client throws `unsupported-chain` when the flow
+opens the call, after `checkStatus()` has compared the handle's backend with the route's.
 
 `resolveRoute` checks the override before any request uses it (R-SEC-2):
 
 - `route` must be a plain object, with prototype `Object.prototype` or `null`. Only its own
-  `backend` and `apiUrl` properties are read, each once. Inherited ones are ignored.
+  `backend`, `apiUrl` and `apiKey` properties are read, each once. Inherited ones are ignored.
 - `route.apiUrl` is a primitive string of at most 8192 characters that parses as an absolute URL
   and uses `https:`, or `http:` with the hostname exactly `localhost`, `127.0.0.1` or `[::1]`. The
   check runs on the hostname the URL parser returns, so `localhost.evil.com`, `evil.localhost`,
   `127.0.0.1.nip.io` and `[::ffff:127.0.0.1]` fail. On Node, the system resolver decides where
   `localhost` points.
 - It must not hold a user name, a password or a fragment.
-- `route.backend` must be a primitive string naming a known backend, and in M1 only `sourcify`
-  passes.
+- `route.backend` must be a primitive string naming a known backend.
 
 The route keeps the caller's query string apart from the base:
 
 - `apiBase` is the origin and path, with trailing slashes removed and no query.
-- `requestUrl(path)` appends an endpoint path that starts with `/`, then adds the caller's query
-  string again. Clients build every request URL with it and never append to `apiBase` themselves.
-- `redactedApiUrl` is `apiBase` followed by `?REDACTED` when there was a query. Only the query is
-  redacted. The host and path appear as given, so a key must never go in them. A key goes in the
-  query string, or in the per-backend key option planned for M2.
-- `explorerUrl` is `undefined` when the override changes the API base. The public repository page
-  would show a contract verified on a self-hosted or local server as not verified, so a result
-  from such a route has no `explorerUrl` (R-FLOW-3).
+- `requestUrl(path)` appends an endpoint path, empty or starting with `/`, then the query: the
+  caller's query string and, for `etherscan-v2`, `chainid`. The route is the one place that adds
+  `chainid`, and it drops any `chainid` of the caller's, in any letter case, so a request never
+  goes to another chain. Clients build every request
+  URL with it and never append to `apiBase` themselves.
+- `redactedApiUrl` is `apiBase` followed by `?REDACTED` when the caller's URL had a query. Only the
+  query is redacted. The host and path appear as given, so a key must never go in them.
+- `explorerUrl(address)` fills the entry's template. It is `undefined` when `route.apiUrl` is not
+  the table's URL for the backend and chain: the public page would show a contract verified on a
+  self-hosted or local server as not verified, so a result from such a route has no `explorerUrl`
+  (R-FLOW-3).
+- `overridden` says whether `apiBase` came from `route.apiUrl`. `tableHost` is the host of the
+  table's `apiUrl` for the backend and chain, or `undefined` when the table lists none. `keyFor`
+  sends a key from `apiKeys` only when the route is not overridden and the request goes to
+  `https://<tableHost>` on the default port; an overridden route gets only `route.apiKey`
+  (decision 0016).
 
 A bad route throws `invalid-input`. The issues name the field and never repeat the value, and the
 error has no `cause`, because the URL parser's error holds the input. The returned route is a
 frozen plain object.
+
+The unit tests check the shipped table (`test/helpers/routing-table.ts`): its schema and types;
+unique, ascending, positive safe-integer chain ids; known backend names, each once per row; the
+`apiUrl` of each backend (`https://api.etherscan.io/v2/api`,
+`https://api.routescan.io/v2/network/<mainnet|testnet>/evm/<chainId>/etherscan/api` with the row's
+chain id, `https://sourcify.dev/server`); the explorer template; the dates; and that no value
+matches a redaction pattern. A backend without a host rule cannot appear in the table until its
+issue adds one. Another test checks that every backend in the table has a client in this release.
+
+`pnpm run size` measures the code entries with an empty table and the table's rows as their own
+entry, `routing table`. One more entry, `verify with table`, measures the whole bundle a page
+ships under the `verify` ceiling of decision 0014
+([decision 0023](decisions/0023-routing-table-size-measured-apart.md)).
 
 ## Verification flow
 

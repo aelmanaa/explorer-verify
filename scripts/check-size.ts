@@ -1,5 +1,6 @@
 // Bundle size check (R-RUN-3, decision 0008). Bundles each entry of size-budget.json for the
-// browser from the built package, gzips it and fails when one is above its ceiling.
+// browser from the built package, gzips it and fails when one is above its ceiling. An entry with
+// `withoutTable` is measured with an empty routing table: the table's rows have their own entry.
 //
 // Usage: node scripts/check-size.ts <budget.json>. `pnpm run size` builds, then passes the
 // size-budget.json at the repository root.
@@ -19,7 +20,11 @@ const entries = parseBudget(JSON.parse(readFileSync(path.resolve(file), "utf8"))
 const resolveDir = path.join(root, "packages/explorer-verify");
 const sizes = new Map<string, number>();
 for (const entry of entries) {
-  sizes.set(entry.name, gzipSize(await bundleForBrowser({ contents: entry.code, resolveDir })));
+  const code = await bundleForBrowser(
+    { contents: entry.code, resolveDir },
+    { withoutTable: entry.withoutTable },
+  );
+  sizes.set(entry.name, gzipSize(code));
 }
 const lines = compareSizes(entries, sizes);
 process.stdout.write(formatReport(lines));

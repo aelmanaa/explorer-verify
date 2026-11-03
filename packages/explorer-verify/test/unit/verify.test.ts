@@ -368,6 +368,7 @@ describe("verify(): lookup first (R-FLOW-1)", () => {
   it("throws unsupported-chain with exit code 2 for a chain Sourcify does not serve", async (t) => {
     const r = await run(t, [fixture("lookup-unsupported-chain")], {
       input: input("0x000000000000000000000000000000000000dead", 9429413),
+      options: { allowSourcifyFallback: true },
     });
     const error = errorOf(r.outcome, "unsupported-chain");
     assert.equal(exitCodeOf(error), 2);
@@ -1084,13 +1085,26 @@ describe("verify(): input and options (R-IN-6)", () => {
     }
   });
 
-  it("throws invalid-input for a backend with no client in this version", async (t) => {
+  it("throws unsupported-chain when the table picks a backend with no client in this version (R-RT-1)", async (t) => {
     const r = await run(t, [], { dependencies: { backends: {} } });
+    const error = errorOf(r.outcome, "unsupported-chain");
+    assert.deepEqual(error.details, {
+      code: "unsupported-chain",
+      chainId: SEPOLIA,
+      backend: "sourcify",
+    });
+    assert.match(error.message, /no sourcify client/);
+    assert.equal(r.sent.length, 0);
+  });
+
+  it("throws invalid-input when route.backend names a backend with no client in this version (R-RT-2)", async (t) => {
+    const r = await run(t, [], { options: { route: { backend: "routescan" } } });
     const error = errorOf(r.outcome, "invalid-input");
-    assert.deepEqual(
-      error.details.code === "invalid-input" && error.details.issues.map((issue) => issue.field),
-      ["route.backend"],
-    );
+    assert.deepEqual(error.details.code === "invalid-input" && error.details.issues, [
+      { field: "route.backend", message: "has no client in this version" },
+    ]);
+    assert.equal(error.hint, "Leave out route.backend, or name one of: sourcify.");
+    assert.equal(r.sent.length, 0);
   });
 });
 

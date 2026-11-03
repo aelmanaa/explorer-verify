@@ -1074,7 +1074,12 @@ describe("verify(): unsupported chain, rate limits, abort", () => {
     });
     const rec = recorder();
     const error = await verifyError(
-      verify(makeInput(ADDRESS, 9429413), { fetch: fake.fetch, ...rec, ...FAST }),
+      verify(makeInput(ADDRESS, 9429413), {
+        fetch: fake.fetch,
+        allowSourcifyFallback: true,
+        ...rec,
+        ...FAST,
+      }),
     );
     assert.equal(error.code, "unsupported-chain");
     assert.equal(exitCodeOf(error), 2);

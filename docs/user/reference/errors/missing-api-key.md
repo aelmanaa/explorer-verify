@@ -4,7 +4,7 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-From the Etherscan v2, Routescan and standalone clients on ([#61](https://github.com/aelmanaa/explorer-verify/issues/61), [#62](https://github.com/aelmanaa/explorer-verify/issues/62), [#63](https://github.com/aelmanaa/explorer-verify/issues/63)): this release routes every chain to Sourcify, which takes no key, so the library does not
+From the Etherscan v2, Routescan and standalone clients on ([#61](https://github.com/aelmanaa/explorer-verify/issues/61), [#62](https://github.com/aelmanaa/explorer-verify/issues/62), [#63](https://github.com/aelmanaa/explorer-verify/issues/63)): in this release the routing table sends every chain it lists to Sourcify, which takes no key, so the library does not
 throw this code yet.
 
 Cause: the route's backend needs an API key and the call has none for it. Two cases throw this

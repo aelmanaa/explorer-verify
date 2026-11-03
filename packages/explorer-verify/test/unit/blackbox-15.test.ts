@@ -1,7 +1,9 @@
 // Black-box tests for issue #15: minimal routing. They use only the declarations of
 // routing/resolve.ts, the RouteOverride TSDoc, the issue, requirements R-RT-2, R-RT-3, R-SEC-2,
-// R-BE-4 and the "Routing in M1" section of architecture.md. Cases that resolve-route.test.ts
-// already covers are left out.
+// R-BE-4 and the "Routing" section of architecture.md. Cases that resolve-route.test.ts
+// already covers are left out. Since the routing table (#59), a chain the table does not list
+// reaches Sourcify only with allowSourcifyFallback, and route.backend is checked against the
+// backends with a client, which these tests pass as `clients`.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
@@ -64,8 +66,8 @@ function surfaces(error: ExplorerVerifyError): Array<[string, string]> {
 
 describe("blackbox #15: default route (R-RT-2, R-BE-4)", () => {
   for (const chainId of [10, 137, 8453, 31337]) {
-    it(`routes chain ${String(chainId)} to public Sourcify`, () => {
-      const route = resolveRoute(chainId);
+    it(`routes chain ${String(chainId)} to public Sourcify with allowSourcifyFallback (R-RT-3)`, () => {
+      const route = resolveRoute(chainId, undefined, { allowSourcifyFallback: true });
       assert.equal(route.backend, "sourcify");
       assert.equal(route.apiBase, SOURCIFY_API_URL);
       assert.equal(route.redactedApiUrl, SOURCIFY_API_URL);
@@ -87,7 +89,7 @@ describe("blackbox #15: explorer page (R-FLOW-3)", () => {
     const explorerUrl = resolveRoute(1).explorerUrl;
     assert.notEqual(explorerUrl, undefined);
     assert.equal(
-      explorerUrl?.(1, ADDRESS),
+      explorerUrl?.(ADDRESS),
       "https://repo.sourcify.dev/1/0x5FbDB2315678afecb367f032d93F642f64180aa3",
     );
   });
@@ -154,7 +156,10 @@ describe("blackbox #15: override rejected (R-SEC-2)", () => {
   const otherBackends: BackendName[] = BACKEND_NAMES.filter((name) => name !== "sourcify");
   for (const backend of otherBackends) {
     it(`names sourcify when it rejects backend ${backend}`, () => {
-      const error = expectInvalid(() => resolveRoute(1, { backend }), "route.backend");
+      const error = expectInvalid(
+        () => resolveRoute(1, { backend }, { clients: ["sourcify"] }),
+        "route.backend",
+      );
       assert.match(`${error.message} ${error.hint}`.toLowerCase(), /sourcify/);
     });
   }

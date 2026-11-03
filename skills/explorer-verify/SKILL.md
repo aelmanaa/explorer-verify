@@ -6,8 +6,9 @@ description: Verify deployed smart contract source code on a block explorer with
 # Verify a contract with explorer-verify
 
 explorer-verify verifies the source of a deployed contract on a block explorer. In this release
-every chain goes to Sourcify, which needs no API key. Etherscan, Blockscout and Routescan come
-later.
+the routing table sends every chain it lists to Sourcify, which needs no API key. A chain it does
+not list throws `unsupported-chain` unless you pass `allowSourcifyFallback: true`. Etherscan,
+Blockscout and Routescan come later.
 
 This skill ships in the npm package, next to the docs of the same version:
 

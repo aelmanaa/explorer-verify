@@ -6,7 +6,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers and agents who pass an explorer API key to `verify()` or `checkStatus()`.
 
-In this release every chain goes to Sourcify, which needs no key. The Etherscan v2, Routescan and
+In this release the routing table sends every chain it lists to Sourcify, which needs no key. The Etherscan v2, Routescan and
 standalone clients come next. The key options below are already checked, and a bad value throws
 `invalid-input` today. Where a section below says "from the clients on", the rule takes effect with
 those clients ([#61](https://github.com/aelmanaa/explorer-verify/issues/61),
@@ -82,9 +82,9 @@ const options = {
 wins over `apiKeys` for that backend. It needs `route.apiUrl` in the same override: without it, the
 call throws `invalid-input` naming `route.apiKey`, so a key meant for one explorer never reaches the
 routing table's host for the chain. The same value rules apply. A backend that takes no key, such
-as `sourcify`, throws `invalid-input` naming `route.apiKey`. In this release the only route backend
-is `sourcify`, so this example throws `invalid-input` today; the field is reserved for the clients
-that come next.
+as `sourcify`, throws `invalid-input` naming `route.apiKey`. In this release `sourcify` is the only
+backend with a client, so this example throws `invalid-input` naming `route.backend` today; the
+field is for the clients that come next.
 
 ## A missing key
 

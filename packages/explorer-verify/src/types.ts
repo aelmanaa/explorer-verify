@@ -283,8 +283,11 @@ export type VerifyEvent =
  */
 export interface RouteOverride {
   /**
-   * The backend to use instead of the one the routing table names. This release supports only
-   * `sourcify`; any other name throws `invalid-input` naming `route.backend`.
+   * The backend to use instead of the one the routing table picks. Without `apiUrl`, the
+   * routing table must list it for the chain; otherwise the call throws `unsupported-chain`
+   * naming the chain and the backend. With `apiUrl`, any backend goes. A name outside
+   * `BACKEND_NAMES`, or a backend this version has no client for, throws `invalid-input` naming
+   * `route.backend`.
    */
   backend?: BackendName;
   /**
@@ -293,8 +296,10 @@ export interface RouteOverride {
    * name, password or fragment. Trailing slashes are removed. A query string is sent with every
    * request and redacted in logs. Only the query is redacted, so never put a key in the host or
    * path. Any other value throws `invalid-input` naming `route.apiUrl`, without repeating the
-   * value. Setting it to a server other than the public Sourcify API means results carry no
-   * `explorerUrl`.
+   * value. It works for any chain, including one the routing table does not list. Without
+   * `backend`, the backend is `sourcify`. A URL other than the routing table's for the backend
+   * and chain means results carry no `explorerUrl`. No key from `apiKeys` is ever sent to a
+   * `route.apiUrl`, even one that names the routing table's own URL; pass `route.apiKey` for it.
    */
   apiUrl?: string;
   /**
@@ -306,8 +311,7 @@ export interface RouteOverride {
    * It needs `apiUrl` in the same override: without it, `invalid-input` names `route.apiKey`, so a
    * key never reaches the routing table's host for the chain. The same value rules as an `apiKeys`
    * value apply. A backend that takes no key, such as `sourcify`, throws `invalid-input` naming
-   * `route.apiKey`. In this release the only route backend is `sourcify`, so this field is
-   * reserved for the Etherscan v2, Routescan and standalone clients that come next.
+   * `route.apiKey`.
    */
   apiKey?: string;
 }
@@ -359,6 +363,19 @@ export interface VerifyOptions {
   onEvent?: (event: VerifyEvent) => void | Promise<void>;
   /** Overrides the routing table for this call. */
   route?: RouteOverride;
+  /**
+   * Lets a chain that the routing table does not list resolve to the public Sourcify API (R-RT-3).
+   * Defaults to `false`: such a chain throws `unsupported-chain`, whose hint names this option and
+   * the `route` override. A value that is not a boolean throws `invalid-input`.
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * const options: VerifyOptions = { allowSourcifyFallback: true };
+   * ```
+   */
+  allowSourcifyFallback?: boolean;
   /**
    * API keys by backend name (decision 0009, amended by 0016). A key is sent only to its backend's
    * API host in the routing table, `api.etherscan.io` for `etherscan-v2` and `api.routescan.io`

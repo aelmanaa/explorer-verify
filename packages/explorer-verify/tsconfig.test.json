@@ -13,5 +13,5 @@
   // Tests run on Node and import the sources directly. tsconfig.build.json checks src/ again
   // without Node types, which keeps the shipped code runtime-neutral.
   // The browser smoke scenario imports the keccak-256 vectors as a JSON module.
-  "include": ["src", "test", "test/fixtures/keccak256-vectors.json"]
+  "include": ["src", "src/routing/table.json", "test", "test/fixtures/keccak256-vectors.json"]
 }

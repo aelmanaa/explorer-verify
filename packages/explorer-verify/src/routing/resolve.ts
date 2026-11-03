@@ -1,15 +1,88 @@
 /**
- * Chain id to backend, API URL and explorer URL (R-RT). In this release every chain goes to
- * Sourcify, and a caller can point at another Sourcify server with `VerifyOptions.route`. The
- * routing table with per-chain data, `routing/table.json`, replaces the default in M2 (R-RT-1).
+ * Chain id to backend, API URL and explorer URL (R-RT). The routing table, `routing/table.json`,
+ * lists each chain's backends in order of preference; a caller can pick another listed backend,
+ * point a backend at another server, or let a chain missing from the table fall back to Sourcify
+ * (R-RT-1 to R-RT-3). Hosts come only from the table or the caller's options (R-SEC-2).
  */
-import { toBackendName } from "../backend-names.ts";
+import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
-import { checkRouteKey } from "../http/api-keys.ts";
+import { checkRouteKey, needsKey } from "../http/api-keys.ts";
+import type { ApiKeys } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
 import type { Hex, RouteOverride } from "../types.ts";
+import table from "./table.json" with { type: "json" };
+
+/**
+ * One backend of a chain in the routing table.
+ *
+ * @example
+ * ```ts
+ * const entry: TableEntry = {
+ *   backend: "sourcify",
+ *   apiUrl: "https://sourcify.dev/server",
+ *   explorerUrl: "https://repo.sourcify.dev/11155111/{address}",
+ * };
+ * ```
+ */
+export interface TableEntry {
+  /** A name in `BACKEND_NAMES`. */
+  readonly backend: string;
+  /**
+   * The full API base for this backend and chain: `https:`, no query string, no trailing slash.
+   * For Routescan it holds the network segment and the chain id.
+   */
+  readonly apiUrl: string;
+  /** The public page of a contract, with exactly one `{address}` token. */
+  readonly explorerUrl: string;
+}
+
+/**
+ * One chain in the routing table.
+ *
+ * @example
+ * ```ts
+ * const row: TableRow = { chainId: 11155111, name: "Ethereum Sepolia Testnet", checked: "2026-11-03", backends: [entry] };
+ * ```
+ */
+export interface TableRow {
+  /** The EVM chain id, a positive safe integer. Rows are in ascending chain id order. */
+  readonly chainId: number;
+  /** The chain's name, for people. */
+  readonly name: string;
+  /** The date the row was last checked against its sources, as `YYYY-MM-DD`. */
+  readonly checked: string;
+  /** The chain's backends, in order of preference. */
+  readonly backends: readonly TableEntry[];
+}
+
+/**
+ * The routing table: the shape of `routing/table.json` (R-RT-1).
+ *
+ * @example
+ * ```ts
+ * const empty: RoutingTable = { schemaVersion: 1, checked: "2026-11-03", chains: [] };
+ * ```
+ */
+export interface RoutingTable {
+  /** The format version, 1. */
+  readonly schemaVersion: number;
+  /** The date of the newest check of any row, as `YYYY-MM-DD`. */
+  readonly checked: string;
+  /** One row per chain. A chain with no usable backend has no row. */
+  readonly chains: readonly TableRow[];
+}
+
+/**
+ * The routing table shipped with this version. The unit tests check every row (R-RT-1, R-SEC-2).
+ *
+ * @example
+ * ```ts
+ * ROUTING_TABLE.chains.find((row) => row.chainId === 11155111)?.backends[0]?.backend; // "sourcify"
+ * ```
+ */
+export const ROUTING_TABLE: RoutingTable = table;
 
 /**
  * Where one call sends its requests, and where a person sees the verified contract.
@@ -26,45 +99,75 @@ export interface Route {
   readonly backend: BackendName;
   /**
    * The API base: origin and path, with no query string and no trailing slash. Build request
-   * URLs with {@link Route.requestUrl}, not by appending to this, so the caller's query is kept.
+   * URLs with {@link Route.requestUrl}, not by appending to this, so the query is kept.
    */
   readonly apiBase: string;
   /**
    * `apiBase`, followed by `?REDACTED` when the caller's URL had a query string. Only the query
-   * is redacted: the host and path appear as given, so a key must never be put in them. Put a
-   * key in the query string, or in the per-backend key option planned for a later release.
+   * is redacted: the host and path appear as given, so a key must never be put in them.
    */
   readonly redactedApiUrl: string;
   /**
-   * The full URL of one API endpoint: `apiBase`, then `path`, then the caller's query string.
-   * The result can hold a key from that query, so it is for requests only.
+   * The full URL of one API endpoint: `apiBase`, then `path`, then the query: the caller's query
+   * string and, for `etherscan-v2`, `chainid` set to the call's chain. A `chainid` in the caller's
+   * query, in any letter case, is dropped, so a request never goes to another chain. The result
+   * can hold a key from the caller's query, so it is for requests only.
    *
-   * @throws ExplorerVerifyError with code `invalid-input` when `path` does not start with `/` or
-   *   contains `?` or `#`.
+   * @throws ExplorerVerifyError with code `invalid-input` when `path` is not empty and does not
+   *   start with `/`, or contains `?` or `#`.
    */
   readonly requestUrl: (path: string) => string;
   /**
-   * The page that shows a verified contract, for the chain id and address of the call.
-   * `undefined` when the override moved the API to another server: repo.sourcify.dev shows only
-   * contracts verified on the public Sourcify server.
+   * The page that shows a verified contract at `address`, from the table entry's template.
+   * `undefined` when `route.apiUrl` moved the API to a server other than the table's: the
+   * explorer's page shows only contracts verified through the table's API.
    */
-  readonly explorerUrl: ((chainId: number, address: Hex) => string) | undefined;
+  readonly explorerUrl: ((address: Hex) => string) | undefined;
   /**
    * The caller's `route.apiKey`, bound to this route: it goes only to `apiBase`'s host, and only
    * with requests of `backend`. `undefined` when the caller passed none. A function, so
    * `JSON.stringify` of a route never prints the key.
    */
   readonly apiKey: () => string | undefined;
+  /** Whether `apiBase` came from the caller's `route.apiUrl` rather than the routing table. */
+  readonly overridden: boolean;
+  /**
+   * The host of the routing table's API URL for this backend and chain, or `undefined` when the
+   * table lists none. A key from `apiKeys` goes only to this host, and only when the route is not
+   * overridden (R-SEC-2, decision 0016).
+   */
+  readonly tableHost: string | undefined;
 }
 
 /**
- * The public Sourcify API base, the default for every chain in this release.
+ * What decides the route besides the chain id and the override.
+ *
+ * @example
+ * ```ts
+ * const route = resolveRoute(11155111, undefined, { apiKeys: { routescan: key }, clients: ["sourcify"] });
+ * ```
+ */
+export interface RouteChoice {
+  /** The caller's checked keys. A backend that needs a key is skipped without one. */
+  readonly apiKeys?: ApiKeys;
+  /** Whether a chain missing from the table resolves to Sourcify (R-RT-3). Defaults to false. */
+  readonly allowSourcifyFallback?: boolean;
+  /**
+   * The backends this version has a client for. `route.backend` naming another one throws
+   * `invalid-input`. Absent means every backend name is accepted.
+   */
+  readonly clients?: readonly BackendName[];
+  /** The table to read. Defaults to {@link ROUTING_TABLE}; the tests pass their own. */
+  readonly table?: RoutingTable;
+}
+
+/**
+ * The public Sourcify API base.
  *
  * @example
  * ```ts
  * const route = resolveRoute(1);
  * route.apiBase === SOURCIFY_API_URL; // true
- * route.requestUrl("/v2/contract/1/0x5FbDB2315678afecb367f032d93F642f64180aa3");
  * ```
  */
 export const SOURCIFY_API_URL = "https://sourcify.dev/server";
@@ -72,21 +175,18 @@ export const SOURCIFY_API_URL = "https://sourcify.dev/server";
 const SOURCIFY_REPO_URL = "https://repo.sourcify.dev";
 // Hostnames as `URL` reports them: lowercase, IPv4 normalised, IPv6 compressed in brackets.
 const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
-const SUPPORTED_BACKEND: BackendName = "sourcify";
 const MAX_API_URL_LENGTH = 8192;
+const PATH = /^(?:\/[^?#]*)?$/;
 
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
-const BACKEND_MESSAGE = "must be sourcify; only sourcify is available in this version";
-const BACKEND_HINT = "Only sourcify is available in this version. Remove route.backend.";
 const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
 const API_KEY_HINT =
   "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl and only for a backend that takes a key, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 
-function sourcifyExplorerUrl(chainId: number, address: Hex): string {
-  return `${SOURCIFY_REPO_URL}/${String(chainId)}/${encodeURIComponent(address)}`;
-}
+/** A table entry whose backend is a known name. */
+type Entry = TableEntry & { readonly backend: BackendName };
 
 /**
  * The two override fields, or `undefined` when `value` is not a plain object (prototype
@@ -157,13 +257,28 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
 }
 
 /**
- * Resolves where a call for `chainId` goes. In this release every chain resolves to Sourcify at
- * {@link SOURCIFY_API_URL}; `override` can name another Sourcify server, such as a self-hosted one
- * or a local fake in tests (R-RT-2). Hosts come only from here, never from a handle (R-SEC-2).
+ * Resolves where a call for `chainId` goes (R-RT-1 to R-RT-3). Hosts come only from the routing
+ * table or `override`, never from a handle (R-SEC-2).
+ *
+ * Without `override.apiUrl`:
+ *
+ * - A chain in the table resolves to its first backend that is usable with `choice.apiKeys`: one
+ *   that needs no key, or one with a key. When none is usable, it resolves to the first, and the
+ *   flow reports the missing key. `override.backend` picks another backend the row lists.
+ * - `override.backend` that the row does not list throws `unsupported-chain` naming the chain and
+ *   the backend.
+ * - A chain missing from the table resolves to Sourcify when `choice.allowSourcifyFallback` is
+ *   true. Otherwise it throws `unsupported-chain`, whose hint names the fallback option and the
+ *   route override.
+ * - For `etherscan-v2`, `requestUrl` adds `chainid` to the query; the table's URL has none.
+ *
+ * With `override.apiUrl`, the call goes to that URL, for any chain, and the backend is
+ * `override.backend`, or `sourcify` when it is absent. The route is `overridden`: a key from
+ * `apiKeys` never goes to it, only `override.apiKey` does.
  *
  * `override` must be a plain object: its prototype is `Object.prototype` or `null`. Only its own
- * `backend`, `apiUrl` and `apiKey` properties are read, each once; inherited ones are ignored, and so
- * are other fields.
+ * `backend`, `apiUrl` and `apiKey` properties are read, each once; inherited ones are ignored, and
+ * so are other fields.
  *
  * `override.apiUrl` must be a primitive string of at most 8192 characters that parses as an
  * absolute `https:` URL, or an `http:` URL whose hostname is exactly `localhost`, `127.0.0.1` or
@@ -173,14 +288,15 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
  * Error messages name the field and never repeat the value, which may hold a key.
  *
  * `override.apiKey` must be a key string as `checkRouteKey` accepts, set next to `apiUrl`, for a
- * backend that takes a `route.apiKey`. In this release the route backend is always `sourcify`,
- * which takes none.
+ * backend that takes a `route.apiKey`.
  *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
+ * @param choice - The caller's keys, the fallback option, the backends with a client, the table.
  * @returns A frozen plain object. Later changes to `override` do not affect it.
  * @throws ExplorerVerifyError with code `invalid-input`, listing `chainId`, `route`,
- *   `route.backend`, `route.apiUrl` or `route.apiKey` in `details.issues`.
+ *   `route.backend`, `route.apiUrl` or `route.apiKey` in `details.issues`; `unsupported-chain`
+ *   as described above.
  * @example
  * ```ts
  * const route = resolveRoute(31337, { apiUrl: "http://127.0.0.1:5555/?token=abc" });
@@ -191,15 +307,19 @@ function checkApiUrl(value: unknown): { apiBase: string; search: string } | stri
  * route.explorerUrl; // undefined: the public repository does not show a local server's contracts
  * ```
  */
-export function resolveRoute(chainId: number, override?: RouteOverride): Route {
+export function resolveRoute(
+  chainId: number,
+  override?: RouteOverride,
+  choice: RouteChoice = {},
+): Route {
   const issues: InputIssue[] = [];
   let hint: string | undefined;
   if (readChainId(chainId) === undefined) {
     issues.push({ field: "chainId", message: "must be a positive integer" });
   }
 
-  let backend: BackendName = SUPPORTED_BACKEND;
-  let target = { apiBase: SOURCIFY_API_URL, search: "" };
+  let named: BackendName | undefined;
+  let target: { apiBase: string; search: string } | undefined;
   let apiKey: string | undefined;
   let rawKey: unknown;
   const raw: unknown = override;
@@ -210,16 +330,16 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
       hint = ROUTE_HINT;
     } else {
       if (fields.backend !== undefined) {
-        const named =
-          typeof fields.backend === "string" ? toBackendName(fields.backend) : undefined;
-        if (named === SUPPORTED_BACKEND) {
-          backend = named;
-        } else {
-          issues.push({
-            field: "route.backend",
-            message: named === undefined ? "must name a known backend" : BACKEND_MESSAGE,
-          });
-          hint = BACKEND_HINT;
+        named = typeof fields.backend === "string" ? toBackendName(fields.backend) : undefined;
+        const problem =
+          named === undefined
+            ? "must name a known backend"
+            : choice.clients?.includes(named) === false
+              ? "has no client in this version"
+              : undefined;
+        if (problem !== undefined) {
+          issues.push({ field: "route.backend", message: problem });
+          hint = `Leave out route.backend, or name one of: ${(choice.clients ?? BACKEND_NAMES).join(", ")}.`;
         }
       }
       if (fields.apiUrl !== undefined) {
@@ -232,7 +352,7 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
         }
       }
       rawKey = fields.apiKey;
-      const checked = checkRouteKey(backend, rawKey, fields.apiUrl !== undefined);
+      const checked = checkRouteKey(named ?? "sourcify", rawKey, fields.apiUrl !== undefined);
       if (checked.issue !== undefined) {
         issues.push({ field: "route.apiKey", message: checked.issue });
         hint ??= API_KEY_HINT;
@@ -244,25 +364,125 @@ export function resolveRoute(chainId: number, override?: RouteOverride): Route {
   if (issues.length > 0) {
     throw invalid(issues, "The route is invalid", hint, typeof rawKey === "string" ? [rawKey] : []);
   }
-  const { apiBase, search } = target;
+
+  const row = (choice.table ?? ROUTING_TABLE).chains.find((each) => each.chainId === chainId);
+  const fallback: Entry = {
+    backend: "sourcify",
+    apiUrl: SOURCIFY_API_URL,
+    explorerUrl: `${SOURCIFY_REPO_URL}/${String(chainId)}/{address}`,
+  };
+  const listed: Entry[] = (row?.backends ?? []).flatMap((each) => {
+    const known = toBackendName(each.backend);
+    return known === undefined ? [] : [{ ...each, backend: known }];
+  });
+  const keys = choice.apiKeys ?? {};
+  let backend: BackendName;
+  let entry: Entry | undefined;
+  let apiBase: string;
+  let search = "";
+  if (target === undefined) {
+    const candidates =
+      row === undefined && choice.allowSourcifyFallback === true ? [fallback] : listed;
+    // Backends with a client come first. When none has one, the first entry stays, and the flow
+    // throws `unsupported-chain` for it once the handle's backend has been checked.
+    const served = candidates.filter((each) => choice.clients?.includes(each.backend) !== false);
+    const pool = served.length > 0 ? served : candidates;
+    const found =
+      named === undefined
+        ? (pool.find(
+            (each) => !needsKey(each.backend) || readOwn(keys, each.backend) !== undefined,
+          ) ?? pool[0])
+        : candidates.find((each) => each.backend === named);
+    if (found === undefined) {
+      // No row, or a row without the named backend. The Sourcify fallback serves only Sourcify,
+      // so a named backend on a chain without a row gets the "no row" error.
+      throw unsupported(chainId, named ?? "sourcify", row === undefined ? "row" : "listed");
+    }
+    ({ backend, apiUrl: apiBase } = found);
+    entry = found;
+  } else {
+    ({ apiBase, search } = target);
+    backend = named ?? "sourcify";
+    entry =
+      listed.find((each) => each.backend === backend) ??
+      (backend === "sourcify" ? fallback : undefined);
+  }
+
+  // Etherscan v2 serves every chain from one URL, so the chain goes in the query, set here only.
+  // Any `chainid` of the caller's, in any case, is dropped: it could send a submit to another chain.
+  let query = search;
+  if (backend === "etherscan-v2") {
+    const kept = search
+      .slice(1)
+      .split("&")
+      .filter(
+        (part) =>
+          part !== "" && [...new URLSearchParams(part).keys()][0]?.toLowerCase() !== "chainid",
+      );
+    query = `?${[...kept, `chainid=${String(chainId)}`].join("&")}`;
+  }
+  const template = entry?.apiUrl === apiBase ? entry.explorerUrl : undefined;
   return Object.freeze({
     backend,
     apiBase,
     redactedApiUrl: search === "" ? apiBase : `${apiBase}?REDACTED`,
     requestUrl: (path: string): string => {
-      if (!path.startsWith("/") || path.includes("?") || path.includes("#")) {
+      if (!PATH.test(path)) {
         throw invalid(
-          [{ field: "path", message: "must start with / and contain no ? or #" }],
+          [{ field: "path", message: "must be empty or start with /, and contain no ? or #" }],
           "The request path is invalid",
           undefined,
           [],
         );
       }
-      return `${apiBase}${path}${search}`;
+      return `${apiBase}${path}${query}`;
     },
-    explorerUrl: apiBase === SOURCIFY_API_URL ? sourcifyExplorerUrl : undefined,
+    explorerUrl:
+      template === undefined
+        ? undefined
+        : (address: Hex): string =>
+            template.replace("{address}", () => encodeURIComponent(address)),
     apiKey: () => apiKey,
+    overridden: target !== undefined,
+    tableHost: entry === undefined ? undefined : new URL(entry.apiUrl).host,
   });
+}
+
+/**
+ * `unsupported-chain` for a chain the routing table does not route: no row (`row`), a row that
+ * does not list the backend the caller named (`listed`), or a row whose chosen backend has no
+ * client in this version (`client`). The flow engine throws the last one when it opens the call.
+ *
+ * @param chainId - The chain of the call.
+ * @param backend - The backend named or chosen; `sourcify`, the fallback, for a missing row.
+ * @param why - Which of the three cases.
+ * @returns The error, with a hint that names the options that fix it.
+ * @example
+ * ```ts
+ * throw unsupported(999_999, "sourcify", "row");
+ * ```
+ */
+export function unsupported(
+  chainId: number,
+  backend: BackendName,
+  why: "row" | "listed" | "client",
+): ExplorerVerifyError {
+  const chain = `chain ${String(chainId)}`;
+  return new ExplorerVerifyError(
+    { code: "unsupported-chain", chainId, backend },
+    why === "row"
+      ? `The routing table has no row for ${chain}.`
+      : why === "listed"
+        ? `The routing table lists no ${backend} API for ${chain}.`
+        : `This version has no ${backend} client, the routing table's choice for ${chain}.`,
+    {
+      hint:
+        why === "row"
+          ? "Set allowSourcifyFallback: true, or set route.apiUrl and route.backend."
+          : "Set route.backend to another backend the chain lists, or set route.apiUrl with it.",
+      secrets: [],
+    },
+  );
 }
 
 function invalid(

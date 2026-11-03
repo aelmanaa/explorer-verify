@@ -645,13 +645,31 @@ describe("checkStatus(): the handle never chooses a host (R-SEC-2)", () => {
     );
   });
 
-  it("throws invalid-input for a backend with no client in this version", async (t) => {
+  it("throws unsupported-chain when the table picks a backend with no client in this version (R-RT-1)", async (t) => {
     const r = await run(t, handleOf(), [], { dependencies: { backends: {} } });
-    const error = errorOf(r.outcome, "invalid-input");
-    assert.deepEqual(
-      error.details.code === "invalid-input" && error.details.issues.map((issue) => issue.field),
-      ["route.backend"],
-    );
+    const error = errorOf(r.outcome, "unsupported-chain");
+    assert.deepEqual(error.details, {
+      code: "unsupported-chain",
+      chainId: SEPOLIA,
+      backend: "sourcify",
+    });
+    assert.equal(r.sent.length, 0);
+  });
+
+  it("resolves a handle on a chain missing from the table only with allowSourcifyFallback (R-RT-3)", async (t) => {
+    const handle = { ...handleOf(), chainId: 999_999 };
+    const refused = await run(t, handle, []);
+    const error = errorOf(refused.outcome, "unsupported-chain");
+    assert.match(error.hint, /allowSourcifyFallback/);
+    assert.equal(refused.sent.length, 0);
+    t.mock.timers.reset();
+    // With the fallback, the job is polled on the public Sourcify API. The recorded answer is
+    // for another chain, so only where the poll went is checked here.
+    const allowed = await run(t, handle, [fixture("job-exact-match")], {
+      options: { allowSourcifyFallback: true },
+    });
+    assert.ok(allowed.sent.length > 0);
+    assert.ok(allowed.sent[0]?.url.startsWith("https://sourcify.dev/server/v2/verify/"));
   });
 });
 

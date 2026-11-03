@@ -2,14 +2,14 @@
 // (scripts/size-budget.ts) and the size check run as `pnpm run size` runs it (R-RUN-1, R-RUN-3).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 
-import { bundleForBrowser, gzipSize } from "../bundle.ts";
+import { EMPTY_TABLE, bundleForBrowser, gzipSize } from "../bundle.ts";
 import { compareSizes, formatReport, parseBudget } from "../size-budget.ts";
 import type { BudgetEntry } from "../size-budget.ts";
 
@@ -67,6 +67,37 @@ describe("bundleForBrowser (R-RUN-1)", () => {
   }
 });
 
+/** Writes a module that imports `routing/table.json`, which holds one row, and returns its importer. */
+function withTable(): string {
+  mkdirSync(path.join(dir, "routing"));
+  writeFileSync(
+    path.join(dir, "routing", "table.json"),
+    JSON.stringify({ schemaVersion: 1, checked: "2026-11-03", chains: [{ chainId: 424242 }] }),
+  );
+  writeFileSync(
+    path.join(dir, "routing", "resolve.ts"),
+    'import table from "./table.json" with { type: "json" };\nexport const rows = table.chains;\n',
+  );
+  return 'export { rows } from "./routing/resolve.ts";';
+}
+
+describe("bundleForBrowser without the routing table (R-RUN-3)", () => {
+  it("keeps the table's rows by default", async () => {
+    const code = await bundleForBrowser({ contents: withTable(), resolveDir: dir });
+    assert.match(code, /424242/);
+  });
+
+  it("replaces the table with an empty one when asked, so code and data are measured apart", async () => {
+    const code = await bundleForBrowser(
+      { contents: withTable(), resolveDir: dir },
+      { withoutTable: true },
+    );
+    assert.doesNotMatch(code, /424242/);
+    assert.match(code, /chains:\[\]/);
+    assert.deepEqual(JSON.parse(EMPTY_TABLE), { schemaVersion: 1, checked: "", chains: [] });
+  });
+});
+
 describe("bundleForBrowser with guarded imports (R-RUN-1)", () => {
   for (const code of [
     'export async function f() { try { await import("node:crypto"); } catch {} }',
@@ -104,7 +135,16 @@ describe("parseBudget", () => {
       code: 'export { verify } from "explorer-verify";',
       measuredBytes: 100,
       ceilingBytes: 120,
+      withoutTable: false,
     });
+  });
+
+  it("reads withoutTable, false when absent (R-RUN-3)", () => {
+    const [entry0, entry1] = parseBudget({
+      entries: [entry({ withoutTable: true }), entry({ name: "routing table" })],
+    });
+    assert.equal(entry0?.withoutTable, true);
+    assert.equal(entry1?.withoutTable, false);
   });
 
   const bad: [string, unknown, RegExp][] = [
@@ -123,6 +163,11 @@ describe("parseBudget", () => {
       /ceilingBytes is below measuredBytes/,
     ],
     [
+      "a withoutTable that is not a boolean",
+      { entries: [entry({ withoutTable: "yes" })] },
+      /entries\[0\]\.withoutTable must be true or false/,
+    ],
+    [
       "a repeated name",
       { entries: [entry(), entry()] },
       /entries\[1\]\.name "verify" appears twice/,
@@ -137,8 +182,8 @@ describe("parseBudget", () => {
 
 describe("compareSizes and formatReport (R-RUN-3)", () => {
   const entries: BudgetEntry[] = [
-    { name: "verify", code: "x", measuredBytes: 100, ceilingBytes: 120 },
-    { name: "index", code: "y", measuredBytes: 200, ceilingBytes: 240 },
+    { name: "verify", code: "x", measuredBytes: 100, ceilingBytes: 120, withoutTable: true },
+    { name: "index", code: "y", measuredBytes: 200, ceilingBytes: 240, withoutTable: false },
   ];
 
   it("accepts a size equal to the ceiling and reports no failure", () => {

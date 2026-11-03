@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "checked": "2026-11-03",
+  "chains": [
+    {
+      "chainId": 1,
+      "name": "Ethereum Mainnet",
+      "checked": "2026-11-03",
+      "backends": [
+        {
+          "backend": "sourcify",
+          "apiUrl": "https://sourcify.dev/server",
+          "explorerUrl": "https://repo.sourcify.dev/1/{address}"
+        }
+      ]
+    },
+    {
+      "chainId": 43113,
+      "name": "Avalanche Fuji Testnet",
+      "checked": "2026-11-03",
+      "backends": [
+        {
+          "backend": "sourcify",
+          "apiUrl": "https://sourcify.dev/server",
+          "explorerUrl": "https://repo.sourcify.dev/43113/{address}"
+        }
+      ]
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia Testnet",
+      "checked": "2026-11-03",
+      "backends": [
+        {
+          "backend": "sourcify",
+          "apiUrl": "https://sourcify.dev/server",
+          "explorerUrl": "https://repo.sourcify.dev/84532/{address}"
+        }
+      ]
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia Testnet",
+      "checked": "2026-11-03",
+      "backends": [
+        {
+          "backend": "sourcify",
+          "apiUrl": "https://sourcify.dev/server",
+          "explorerUrl": "https://repo.sourcify.dev/421614/{address}"
+        }
+      ]
+    },
+    {
+      "chainId": 11155111,
+      "name": "Ethereum Sepolia Testnet",
+      "checked": "2026-11-03",
+      "backends": [
+        {
+          "backend": "sourcify",
+          "apiUrl": "https://sourcify.dev/server",
+          "explorerUrl": "https://repo.sourcify.dev/11155111/{address}"
+        }
+      ]
+    }
+  ]
+}

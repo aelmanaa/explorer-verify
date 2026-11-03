@@ -13,7 +13,6 @@ import type { ErrorCode } from "../../src/errors.ts";
 import { runCheckStatus } from "../../src/flow/status.ts";
 import { openCall, settingsOf } from "../../src/flow/verify.ts";
 import {
-  KEY_HOSTS,
   MAX_KEY_LENGTH,
   checkKey,
   keyErrorOf,
@@ -44,8 +43,18 @@ const ADDRESS = "0xF20cfae8007a1e2df9A7CBa74bD54A375e1771c4";
 const GUID = "9qaexazfu55fthj5fdjzpk47v1hkbz1p2ywcn4qqdcbyyhtr5i";
 const KEYS = { "etherscan-v2": ETHERSCAN_KEY, routescan: ROUTESCAN_KEY };
 
-/** A route as the routing table or an override would resolve it. */
+// The routing table's API host of each keyed backend (#59).
+const TABLE_HOSTS: Readonly<Partial<Record<BackendName, string>>> = {
+  "etherscan-v2": "api.etherscan.io",
+  routescan: "api.routescan.io",
+};
+
+/**
+ * A route as the routing table or an override would resolve it: on the table's host it is the
+ * table's route, anywhere else it is overridden, as `route.apiUrl` makes it.
+ */
 function routeOf(backend: BackendName, apiBase: string, apiKey?: string): Route {
+  const tableHost = TABLE_HOSTS[backend];
   return {
     backend,
     apiBase,
@@ -53,6 +62,8 @@ function routeOf(backend: BackendName, apiBase: string, apiKey?: string): Route 
     requestUrl: (path: string): string => `${apiBase}${path}`,
     explorerUrl: undefined,
     apiKey: () => apiKey,
+    overridden: tableHost === undefined || !apiBase.startsWith(`https://${tableHost}/`),
+    tableHost,
   };
 }
 
@@ -152,7 +163,9 @@ describe("keyFor: the one attachment rule (R-SEC-2)", () => {
     ] as const) {
       assert.equal(keyFor(keyed(routeOf("etherscan-v2", apiBase)), "etherscan-v2", url), undefined);
     }
-    assert.equal(KEY_HOSTS["etherscan-v2"], "api.etherscan.io");
+    // The same host, but from the caller's route.apiUrl: no key from apiKeys (#59).
+    const named = keyed({ ...routeOf("etherscan-v2", ETHERSCAN_API), overridden: true });
+    assert.equal(keyFor(named, "etherscan-v2", ETHERSCAN_URL), undefined);
   });
 
   it("does not attach a key to an overridden apiUrl on another host (R-SEC-2)", async () => {
@@ -787,8 +800,7 @@ describe("apiKeys and route.apiKey: options validation (R-SEC-1, R-IN-6)", () =>
 
   it("refuses route.apiKey for sourcify, without apiUrl, and when the value is bad, never echoing it (R-SEC-1)", () => {
     const apiUrl = "https://sourcify.example.org/server";
-    const noKey =
-      "is not accepted: sourcify takes no API key, and it is the only route backend in this version";
+    const noKey = "is not accepted: sourcify takes no API key";
     for (const [override, message] of [
       [{ apiUrl, apiKey: STANDALONE_KEY }, noKey],
       [{ backend: "sourcify", apiUrl, apiKey: STANDALONE_KEY }, noKey],

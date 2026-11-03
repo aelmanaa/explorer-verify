@@ -73,8 +73,9 @@ with fields a handle does not have, such as `apiUrl`. Messages never repeat a va
 4. When the explorer no longer knows the job, it looks the contract up once. A match returns
    `verified`. Otherwise it throws `job-not-found`.
 
-Pass the same `route` the submit used. A handle from a self-hosted Sourcify server, resumed without
-its `route`, is polled on the public server, which does not know the job.
+Pass the same `route`, `apiKeys` and `allowSourcifyFallback` the submit used, so the route
+resolves to the same backend ([Routing](routing.md#resuming)). A handle from a self-hosted Sourcify
+server, resumed without its `route`, is polled on the public server, which does not know the job.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`.
 

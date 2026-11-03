@@ -158,11 +158,12 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
 }
 
 /**
- * The repository page of the contract, `https://repo.sourcify.dev/<chainId>/<address>`, or
- * `undefined` when the route points at another Sourcify server.
+ * The contract's page from the routing table's template, such as
+ * `https://repo.sourcify.dev/<chainId>/<address>`, or `undefined` when the route points at another
+ * Sourcify server.
  */
 function explorerUrl(target: Target, ctx: Context): string | undefined {
-  return ctx.route.explorerUrl?.(target.chainId, target.address);
+  return ctx.route.explorerUrl?.(target.address);
 }
 
 /**

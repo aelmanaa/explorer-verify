@@ -34,7 +34,10 @@ maintainer's.
 10. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
-[docs/README.md](docs/README.md). The index for agents is [llms.txt](llms.txt), and
+[docs/README.md](docs/README.md).
+[docs/user/reference/routing.md](docs/user/reference/routing.md) describes the routing table in
+`packages/explorer-verify/src/routing/table.json` and its checks. The index for agents is
+[llms.txt](llms.txt), and
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
 are safe and which one submits. The error reference is
 [docs/user/reference/errors/index.md](docs/user/reference/errors/index.md), with one page per
