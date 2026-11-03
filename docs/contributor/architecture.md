@@ -21,8 +21,10 @@ also carries the server handler, and scoped add-ons for Node-only code.
 
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
-optional features stay out of it (R-RUN-5). Only `explorer-verify` exists today. The `/server`
-subpath arrives in M3, the add-ons in M4.
+optional features stay out of it (R-RUN-5). `explorer-verify` and `@explorer-verify/foundry` exist
+today. The `/server` subpath arrives in M3, the other add-ons in M4. `@explorer-verify/foundry`
+depends on the core's public entry point only: it finds and reads a contract's files under `out/`
+and leaves every format check to `buildVerifyInput` (R-DX-2).
 
 ## Core modules
 

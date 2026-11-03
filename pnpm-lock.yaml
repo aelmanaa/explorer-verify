@@ -276,6 +276,15 @@ importers:
         specifier: 'catalog:'
         version: 12.0.0
 
+  packages/foundry:
+    devDependencies:
+      c8:
+        specifier: 'catalog:'
+        version: 12.0.0
+      explorer-verify:
+        specifier: workspace:^
+        version: link:../explorer-verify
+
 packages:
 
   '@andrewbranch/untar.js@1.0.4':

@@ -11,6 +11,7 @@ still to come.
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Using explorer-verify from an agent](guides/using-from-an-agent.md)                           | Safe steps and the permanent submit, API keys, the Etherscan plan rule   |
 | [Verify a contract shipped in an npm package](guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
+| [Verify a contract from a Foundry project](guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |

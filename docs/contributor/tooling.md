@@ -7,7 +7,7 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 | ---------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pnpm 12.16.1                 | `package.json` `packageManager`, `pnpm-workspace.yaml` | Workspace; tool versions live in the `catalog:`                                                                                                             |
 | TypeScript 7                 | `tsconfig.base.json`                                   | `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `isolatedDeclarations`, `erasableSyntaxOnly`, `verbatimModuleSyntax`; imports use `.ts` |
-| oxlint (type-aware)          | `.oxlintrc.json`                                       | Lint; `import/no-nodejs-modules` on `packages/*/src`; TSDoc required on exports                                                                             |
+| oxlint (type-aware)          | `.oxlintrc.json`                                       | Lint; `import/no-nodejs-modules` on `packages/*/src` except `packages/foundry/src`; TSDoc required on exports                                               |
 | oxfmt                        | `.oxfmtrc.json`                                        | Format, width 100                                                                                                                                           |
 | knip                         | `knip.json`                                            | Unused files, exports and dependencies                                                                                                                      |
 | publint, are-the-types-wrong | `pkg:check` script                                     | Package manifest and type resolution                                                                                                                        |
@@ -21,11 +21,14 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 
 ## Type-checking layout
 
-`tsc -b` at the root builds three projects:
+`tsc -b` at the root builds these projects:
 
 - `packages/explorer-verify/tsconfig.build.json`: `src/` only, `types: []`, DOM lib. Node APIs do
   not typecheck here, which keeps the shipped code runtime-neutral (decision 0002).
 - `packages/explorer-verify/tsconfig.test.json`: `src/` and `test/` with Node types.
+- `packages/foundry/tsconfig.build.json` and `tsconfig.test.json`: the Foundry build helper and
+  its tests, with Node types (decision 0008). Both reference the core's build project, so the
+  core's declarations are built first and the helper sees only its public entry point.
 - `tsconfig.scripts.json`: repository scripts.
 
 `tsconfig.test.json` maps the name `explorer-verify` to `src/index.ts` with `paths`, for types

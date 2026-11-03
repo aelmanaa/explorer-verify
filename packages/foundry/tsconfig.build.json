@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+    // Node only (decision 0008): it reads the project's files with node:fs, so it keeps the Node
+    // types of the base config.
+  },
+  "include": ["src"],
+  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }]
+}

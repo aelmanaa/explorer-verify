@@ -4,6 +4,8 @@
   "references": [
     { "path": "./packages/explorer-verify/tsconfig.build.json" },
     { "path": "./packages/explorer-verify/tsconfig.test.json" },
+    { "path": "./packages/foundry/tsconfig.build.json" },
+    { "path": "./packages/foundry/tsconfig.test.json" },
     { "path": "./tsconfig.scripts.json" }
   ]
 }

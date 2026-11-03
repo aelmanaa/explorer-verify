@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../node_modules/.cache/tsbuild/foundry-test",
+    "tsBuildInfoFile": "../../node_modules/.cache/tsbuild/foundry-test.tsbuildinfo"
+  },
+  // Tests import the sources directly, and the core by its package name.
+  "include": ["src", "test"],
+  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }]
+}

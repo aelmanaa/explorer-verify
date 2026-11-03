@@ -1,0 +1,73 @@
+{
+  "id": "76721a2d5c7f80f3",
+  "source_id_to_path": { "0": "lib/utils/Context.sol", "1": "src/New.sol" },
+  "language": "Solidity",
+  "_format": "ethers-rs-sol-build-info-1",
+  "input": {
+    "version": "0.8.24",
+    "language": "Solidity",
+    "sources": {
+      "lib/utils/Context.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\nabstract contract Context {\n    function _msgSender() internal view virtual returns (address) {\n        return msg.sender;\n    }\n}\n"
+      },
+      "src/New.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity =0.8.24;\n\nimport {Context} from \"../lib/utils/Context.sol\";\n\ncontract New is Context {\n    function who() external view returns (address) {\n        return _msgSender();\n    }\n}\n"
+      }
+    },
+    "settings": {
+      "remappings": ["utils/=lib/utils/"],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "useLiteralContent": false, "bytecodeHash": "ipfs", "appendCBOR": true },
+      "outputSelection": {
+        "*": {
+          "": ["ast"],
+          "*": [
+            "abi",
+            "evm.bytecode.object",
+            "evm.bytecode.sourceMap",
+            "evm.bytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.sourceMap",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "evmVersion": "cancun",
+      "viaIR": false,
+      "libraries": {}
+    },
+    "allowPaths": ["<project-root>", "<project-root>/lib"],
+    "basePath": "<project-root>",
+    "includePaths": ["<project-root>"]
+  },
+  "output": {
+    "contracts": {
+      "lib/utils/Context.sol": {
+        "Context": {
+          "abi": [],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"lib/utils/Context.sol\":\"Context\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":utils/=lib/utils/\"]},\"sources\":{\"lib/utils/Context.sol\":{\"keccak256\":\"0xd34e07ef091e608a503da8b7399ae08c4a224a2392e245073c9272df63792e40\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7779a106e616803924d2ad3a9ed4b4aa91510f9f301ae5eddbb934acb3b13c5e\",\"dweb:/ipfs/QmbzVPzmDaUn8U9K1xfHrnNCEp6jtnwQXVfAecxArWSPhL\"]}},\"version\":1}"
+        }
+      },
+      "src/New.sol": {
+        "New": {
+          "abi": [
+            {
+              "type": "function",
+              "name": "who",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+              "stateMutability": "view"
+            }
+          ],
+          "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"who\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/New.sol\":\"New\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":utils/=lib/utils/\"]},\"sources\":{\"lib/utils/Context.sol\":{\"keccak256\":\"0xd34e07ef091e608a503da8b7399ae08c4a224a2392e245073c9272df63792e40\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7779a106e616803924d2ad3a9ed4b4aa91510f9f301ae5eddbb934acb3b13c5e\",\"dweb:/ipfs/QmbzVPzmDaUn8U9K1xfHrnNCEp6jtnwQXVfAecxArWSPhL\"]},\"src/New.sol\":{\"keccak256\":\"0x0ea9cee919cfef3d577478f17d8016d2143d8a5413c0776c14e1c4375be8e601\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b26671a0bfbaa1b4e7a774fd84de50df8069272c90c1db56d49d1b08217b62b8\",\"dweb:/ipfs/Qmf8cZPtBPugYrWq98BZTuJkJZGP4bXj36adkk9yNn1RRA\"]}},\"version\":1}"
+        }
+      }
+    },
+    "sources": { "lib/utils/Context.sol": { "id": 0 }, "src/New.sol": { "id": 1 } }
+  },
+  "solcLongVersion": "0.8.24",
+  "solcVersion": "0.8.24"
+}
