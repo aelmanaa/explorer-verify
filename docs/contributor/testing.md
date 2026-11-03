@@ -8,6 +8,9 @@ Audience: contributors writing or running tests.
 pnpm test                 # build, then unit tests
 pnpm run coverage         # unit tests under c8; fails when any file is below 95%
 pnpm run test:randomize   # unit tests in a random order; prints the seed
+pnpm run test:browser     # build, then verify() and checkStatus() in headless Chromium
+pnpm run test:browser:harness  # broken page scripts must fail the browser test
+pnpm run size             # build, then the bundle size of each public entry
 ```
 
 Tests use `node --test` with TypeScript run natively (Node 22.18 and later). `scripts/node-test.ts`
@@ -28,14 +31,15 @@ run time, so c8 would report them at 0%.
 
 ## Layers
 
-| Layer            | Where                                              | What it proves                                                                                                                        | Status       |
-| ---------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Unit             | `packages/*/test/unit/`, `scripts/test/`           | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                     | In place     |
-| Browser smoke    | planned (M1)                                       | The core bundles and runs in a headless browser (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | Planned      |
-| Integration      | planned (M3 handler, M4 CLI)                       | The server handler and the CLI end to end against a local fake explorer                                                               | Planned      |
-| Live             | planned (M2), maintainer only                      | Real verification on public testnets per backend, with dated results                                                                  | Planned      |
-| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check` | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                           | In place     |
-| Agent evaluation | `test/agent-eval/`, maintainer only                | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                     | Planned (#7) |
+| Layer            | Where                                                                                         | What it proves                                                                                                                                        | Status       |
+| ---------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Unit             | `packages/*/test/unit/`, `scripts/test/`                                                      | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                                     | In place     |
+| Browser smoke    | `scripts/browser-smoke.ts`, `packages/explorer-verify/test/browser/`, `scripts/test-browser/` | The core bundles and runs in a headless browser under real CORS (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | In place     |
+| Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                   | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place     |
+| Integration      | planned (M3 handler, M4 CLI)                                                                  | The server handler and the CLI end to end against a local fake explorer                                                                               | Planned      |
+| Live             | planned (M2), maintainer only                                                                 | Real verification on public testnets per backend, with dated results                                                                                  | Planned      |
+| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                            | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place     |
+| Agent evaluation | `test/agent-eval/`, maintainer only                                                           | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                     | Planned (#7) |
 
 ## Agent readiness (R-AX)
 
@@ -73,6 +77,103 @@ are tested with it.
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | R-DX-5      | Type test: `console` satisfies `Logger`. Unit tests: a call without `logger` or `onEvent` writes nothing to a spied `console`; field values are flat and JSON-safe; a failure the call throws is not passed to `logger.error`; a dummy key never reaches the logger spy                                                                                                                                                                                                                                                                            | In place: guard and HTTP layer (#53), `verify()` (#17), `checkStatus()` (#18)          |
 | R-DX-6      | Unit tests: a fixture run emits the events in stage order with the listed fields; `verify.submitted` carries the handle before an abort; `checkStatus` emits only `verify.routed`, `verify.poll`, `verify.retry` and `verify.result`; a call that throws emits no `verify.result`; an `onEvent` that throws is logged once at `warn` and does not change the outcome; a rejected promise from `onEvent` is caught; every event validates against the shipped event schema, whose `state` and `reason` are enums; a dummy key never reaches the spy | In place: guard, schema, `verify.retry` (#53), `verify()` (#17), `checkStatus()` (#18) |
+
+## Browser smoke test
+
+`pnpm run test:browser` builds the package, then runs `scripts/browser-smoke.ts`:
+
+1. esbuild bundles `packages/explorer-verify/test/browser/entry.ts` for the browser (ESM, minified,
+   `platform: "browser"`). The entry imports `verify` and `checkStatus` by package name, so the
+   bundle holds the built `dist/`, as a dapp's would. The keccak-256 code is internal and not
+   exported, so the bundle takes it from `src/internal/keccak.ts`. A Node built-in fails this step,
+   also inside `try`/`catch` or a dynamic `import()` (R-RUN-1).
+2. A replay server on `127.0.0.1` answers Sourcify's API from recorded fixtures, in order:
+   - `verify()`: lookup, submit, a pending poll and an exact match;
+   - `checkStatus()` on the handle string from `verify.submitted`: one poll;
+   - `checkStatus()` on another recorded job's handle: one poll of that job.
+     The page passes the server to the library as `route.apiUrl`. The server sends only the CORS
+     headers Sourcify sends, as recorded in
+     `test/fixtures/sourcify/2026-11-03-preflight-verify.json` and the other fixtures.
+3. The bundle runs in Node. Then a second server on another port of `127.0.0.1` serves it to
+   headless Chromium, so the requests to the replay server are cross-origin and Chromium applies
+   its CORS checks, preflight included. The test observes requests without intercepting them,
+   because a Playwright request route answers CORS preflights itself. Other paths on the page
+   server return 404.
+4. Each run must give the digests in `test/fixtures/keccak256-vectors.json`, then `verified` with
+   `exact` from `verify()` and both `checkStatus()` calls. A fresh load in each runtime then
+   resumes the first handle with `checkStatus()` alone, as after a page reload.
+
+The test fails on any of these (R-SEC-2):
+
+- a request out of the recorded order, or a recorded answer nobody asked for. The replay server
+  answers an unexpected request at once with `400 {"customCode":"smoke_unexpected_request"}`;
+- a request to any other host, or a WebSocket. Chromium resolves no host but `127.0.0.1`;
+- a request header beyond the CORS-safelisted set and `content-type: application/json`, a `cookie`
+  or `authorization` header, or a preflight that asks for another header. The page server sets a
+  cookie, so a request that includes credentials carries it;
+- a submit body without `compilerVersion`, `contractIdentifier` or `stdJsonInput`;
+- an uncaught page error, a run with no result after 60 seconds, or a request sent after a run
+  ended.
+
+A passing run takes about 8 seconds with the build. Each call has a 10-second budget, so a broken
+run ends in about 20 seconds.
+
+`pnpm run test:browser:harness` checks the smoke test itself. It runs `scripts/browser-smoke.ts`
+with each broken page script in `packages/explorer-verify/test/browser/broken/` (`--entry`), and
+with `access-control-allow-origin` or `access-control-allow-headers` left out of the replay answers
+(`--drop-response-header`). Each run must fail with its own message. It takes about 65 seconds and
+needs a build first.
+
+### Run it locally
+
+Install the Chromium headless shell once, then run the test:
+
+```bash
+pnpm exec playwright install --only-shell chromium
+pnpm run test:browser
+pnpm run test:browser:harness
+```
+
+Playwright stores the browser in its cache folder (`~/.cache/ms-playwright` on Linux,
+`~/Library/Caches/ms-playwright` on macOS), not in `node_modules`. On Linux, add `--with-deps` the
+first time to install the system libraries; it uses `sudo`.
+
+Playwright downloads no browser for some older systems, such as macOS 13: `playwright install`
+stops with "Playwright does not support chromium on mac13". Pass a Chromium or Chrome binary you
+already have:
+
+```bash
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+pnpm run test:browser --executable-path "$CHROME"
+pnpm run test:browser:harness --executable-path "$CHROME"
+```
+
+`--executable-path` without a value stops with an error; it never falls back to the downloaded
+browser.
+
+## Bundle size
+
+`pnpm run size` builds the package, then bundles each entry of `size-budget.json` at the
+repository root with the same esbuild settings, gzips it at level 6 and prints one line
+per entry. It exits 1 when an entry is above its `ceilingBytes`:
+
+```text
+ok   verify: 14402 bytes (ceiling 17283)
+OVER index: 26200 bytes (ceiling 26163)
+```
+
+The entries are `verify`, `checkStatus`, `buildVerifyInput` and the whole index
+([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
+entry holds with esbuild's analyzer:
+
+```bash
+echo 'export { verify } from "explorer-verify";' > packages/explorer-verify/size-entry.js
+pnpm exec esbuild packages/explorer-verify/size-entry.js --bundle --minify --format=esm \
+  --platform=browser --target=es2023 --outfile=/dev/null --analyze
+rm packages/explorer-verify/size-entry.js
+```
+
+A pull request that raises a ceiling records the new `measuredBytes` and says why.
 
 ## Deterministic tests
 
@@ -124,5 +225,5 @@ running the tests.
   `it("returns already-verified without submitting (R-FLOW-1)")`.
 - Live tests read keys from the environment, run only on the maintainer's machine or an
   owner-approved workflow, and never print a key.
-- The browser smoke test's tools (headless browser, bundler) are chosen in its M1 issue, as
-  devDependencies only.
+- Browser tests use Playwright and esbuild, both devDependencies. The core has no runtime
+  dependencies (R-RUN-4).

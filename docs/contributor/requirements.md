@@ -339,11 +339,13 @@ Measurement:
 
 - **R-RUN-1** The core runs unchanged in current browsers, Node 22.18 and later, Deno, Bun and edge
   runtimes. It uses only web-platform globals (`fetch`, `URL`, `AbortSignal`, `TextEncoder`,
-  `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`) and a build without Node types.
+  `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`), a build without Node types and
+  the browser smoke test.
 - **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
 - **R-RUN-3** Bundle budget for `import { verify } from "explorer-verify"` in a browser build:
-  minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI. The
-  routing table loads as data; its size is reported separately and has no limit until M2 sets one.
+  minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI.
+  `size-budget.json` sets a ceiling for each public entry. The routing table loads as data; its size
+  is reported separately and has no limit until M2 sets one.
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or

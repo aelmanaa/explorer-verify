@@ -28,6 +28,9 @@
     "test:randomize": "pnpm run build && pnpm -r run test:randomize && node scripts/node-test.ts unit --test-randomize \"scripts/test/**/*.test.ts\"",
     "coverage": "pnpm run build && pnpm -r run coverage",
     "pkg:check": "pnpm run build && pnpm -r run pkg:check && knip",
+    "size": "pnpm run build && node scripts/check-size.ts size-budget.json",
+    "test:browser": "pnpm run build && node scripts/browser-smoke.ts",
+    "test:browser:harness": "node scripts/test-browser/browser-smoke.test.ts",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts"
@@ -38,12 +41,14 @@
     "@changesets/cli": "catalog:",
     "@types/node": "catalog:",
     "c8": "catalog:",
+    "esbuild": "catalog:",
     "eslint-plugin-jsdoc": "catalog:",
     "knip": "catalog:",
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "playwright": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:"
   }

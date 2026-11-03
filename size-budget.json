@@ -1,0 +1,30 @@
+{
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008 and 0014). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up. Raise a ceiling only in a pull request that says why.",
+  "measured": "2026-11-03, esbuild 0.28.2, Node 24.21.0 zlib",
+  "entries": [
+    {
+      "name": "verify",
+      "code": "export { verify } from \"explorer-verify\";",
+      "measuredBytes": 14402,
+      "ceilingBytes": 17283
+    },
+    {
+      "name": "checkStatus",
+      "code": "export { checkStatus } from \"explorer-verify\";",
+      "measuredBytes": 13038,
+      "ceilingBytes": 15646
+    },
+    {
+      "name": "buildVerifyInput",
+      "code": "export { buildVerifyInput } from \"explorer-verify\";",
+      "measuredBytes": 11091,
+      "ceilingBytes": 13310
+    },
+    {
+      "name": "index",
+      "code": "export * from \"explorer-verify\";",
+      "measuredBytes": 21802,
+      "ceilingBytes": 26163
+    }
+  ]
+}

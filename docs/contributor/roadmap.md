@@ -37,7 +37,8 @@ Goal: `verify()` works end to end on one keyless backend, from Node and from a b
 9. Resumable handle and `checkStatus` (R-FLOW-5).
 10. A browser smoke test (bundled page in a headless browser) proving R-RUN-1. It also measures
     the `verify` bundle and replaces the provisional 10 kB ceiling in `size-budget.json` with the
-    measured size plus 20%, checked in CI (R-RUN-3).
+    measured size plus 20%, checked in CI (R-RUN-3). Done in #19: the ceilings are in
+    [decision 0014](decisions/0014-measured-bundle-ceilings.md).
 
 Agent readiness (epic #2) runs beside that list, so later features meet R-AX from the start:
 

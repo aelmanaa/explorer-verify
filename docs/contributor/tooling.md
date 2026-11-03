@@ -12,6 +12,8 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 | knip                         | `knip.json`                                            | Unused files, exports and dependencies                                                                                                                      |
 | publint, are-the-types-wrong | `pkg:check` script                                     | Package manifest and type resolution                                                                                                                        |
 | c8                           | `packages/*/.c8rc.json`                                | Coverage, 95% floor per file                                                                                                                                |
+| esbuild 0.28.2               | `scripts/bundle.ts`                                    | Browser bundle for the size check and the browser smoke test                                                                                                |
+| Playwright 1.64.1            | `scripts/browser-smoke.ts`                             | Headless Chromium for the browser smoke test                                                                                                                |
 | lefthook                     | `lefthook.yml`                                         | pre-commit: lint fix, format, typecheck, type escapes; commit-msg: Conventional Commits                                                                     |
 | pre-push hook                | `scripts/install-git-hooks.ts`                         | Refuses pushes to `main`, then runs unit tests                                                                                                              |
 | changesets                   | `.changeset/config.json`                               | Release notes and versions                                                                                                                                  |
@@ -25,6 +27,11 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
   not typecheck here, which keeps the shipped code runtime-neutral (decision 0002).
 - `packages/explorer-verify/tsconfig.test.json`: `src/` and `test/` with Node types.
 - `tsconfig.scripts.json`: repository scripts.
+
+`tsconfig.test.json` maps the name `explorer-verify` to `src/index.ts` with `paths`, for types
+only. `test/browser/scenario.ts` imports the package by that name. esbuild reads no tsconfig, so
+the browser bundle still takes the built `dist/`, and the CI lint job, which does not build, still
+type-checks the file.
 
 ## Type escapes
 
@@ -126,12 +133,35 @@ lacks them (22.x, 24.0 to 24.15 and 26.0), `scripts/random-order.ts` decides the
 `--test-randomize`. The CI coverage job runs it on the latest Node 24 with `REQUIRE_RANDOM_ORDER=1`;
 [deterministic tests](testing.md#deterministic-tests) explains how to replay a failing order.
 
+## Browser bundle
+
+`scripts/bundle.ts` bundles with esbuild for `platform: "browser"`, as ESM, minified, for
+ES2023, with every tsconfig file ignored (`tsconfigRaw: "{}"`). An import of a Node built-in
+(`node:fs` or `fs`) fails the build. So does any import esbuild leaves external, which catches a
+built-in inside `try`/`catch` or a dynamic `import()`. `scripts/check-size.ts`
+and `scripts/browser-smoke.ts` both use it, so the size check measures the bundle the browser
+test runs. [testing.md](testing.md#browser-smoke-test) describes both commands.
+
+esbuild has an install script, which only checks that the binary from its platform package works.
+`allowBuilds` in `pnpm-workspace.yaml` lists it as `false`, so the script does not run. Playwright
+has no install script; its browser comes from `pnpm exec playwright install`.
+
+The CI `browser` job caches `~/.cache/ms-playwright`, keyed on the runner and the Playwright
+version that `node -p "require('playwright/package.json').version"` prints. The step fails when it
+prints nothing, and a Playwright update downloads the browser again. It installs the headless shell only
+(`--only-shell`), not the full Chrome for Testing build. The system libraries come from apt on
+every run, because the cache holds only the browser. The job runs `pnpm run test:browser`, then
+`pnpm run test:browser:harness`. The job is not yet a required check; the
+maintainer adds `Browser smoke (Chromium)` to the `main` ruleset.
+
 ## Tests for scripts
 
 Tests for the repository scripts live in `scripts/test/*.test.ts`. `pnpm run test:scripts` runs
 them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package tests. They build
 small fixture trees in a temporary folder, and run the entry points as child processes against
 them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts`, `scripts/decision-sources.ts` and
-the three scripts that use them) and `scripts/random-order.ts` with a 95% floor per file on lines,
-branches, functions and statements. The older scripts have no tests yet and are not in the
+the three scripts that use them), `scripts/random-order.ts` and the size check
+(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`) with a 95% floor per
+file on lines, branches, functions and statements. `scripts/browser-smoke.ts` needs a browser and
+runs in its own CI job instead. The older scripts have no tests yet and are not in the
 coverage list; a script gets added when it gets tests.
