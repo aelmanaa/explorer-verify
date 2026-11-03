@@ -291,6 +291,15 @@ importers:
         specifier: workspace:^
         version: link:../explorer-verify
 
+  packages/hardhat:
+    devDependencies:
+      c8:
+        specifier: 'catalog:'
+        version: 12.0.0
+      explorer-verify:
+        specifier: workspace:^
+        version: link:../explorer-verify
+
 packages:
 
   '@algolia/abtesting@1.27.0':

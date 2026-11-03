@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  // A build helper reads files, so it runs on Node only (decision 0008) and keeps the Node types of
+  // the base config. It imports the core by name, from the core's built declarations.
+  "include": ["src"],
+  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }]
+}

@@ -1,0 +1,60 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/Base.sol": "project/contracts/Base.sol",
+    "contracts/Counter.sol": "project/contracts/Counter.sol",
+    "contracts/Greeter.sol": "project/contracts/Greeter.sol",
+    "contracts/Pair.sol": "project/contracts/Pair.sol",
+    "contracts/Tally.sol": "project/contracts/Tally.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": ["ast"],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Base.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+      },
+      "project/contracts/Counter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Tally} from \"./Tally.sol\";\n\ncontract Counter {\n    uint256 public count;\n\n    function bump(uint256 amount) external {\n        count = Tally.add(count, amount);\n    }\n}\n"
+      },
+      "project/contracts/Greeter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+      },
+      "project/contracts/Pair.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract First {\n    uint256 public value = 1;\n}\n\ncontract Second {\n    uint256 public value = 2;\n}\n"
+      },
+      "project/contracts/Tally.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nlibrary Tally {\n    function add(uint256 total, uint256 amount) external pure returns (uint256) {\n        return total + amount;\n    }\n}\n"
+      }
+    }
+  }
+}
