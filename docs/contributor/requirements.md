@@ -35,7 +35,7 @@ In scope for 1.0: Solidity contracts on EVM chains, verified on Etherscan v2, Et
 standalone explorers, Blockscout, Sourcify and Routescan.
 
 Out of scope for 1.0, with the design kept open for them (R-EXT): Vyper and other compilers,
-non-EVM chains, zkSync's zksolc, compiling sources inside the library.
+non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside the library.
 
 ## Functional requirements
 
@@ -365,9 +365,11 @@ Measurement:
 
 ## Open questions
 
-| Question                                                                                         | Owner      | Needed by |
-| ------------------------------------------------------------------------------------------------ | ---------- | --------- |
-| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?       | Maintainer | M3        |
-| Sourcify rate limits and terms for high-volume use                                               | Maintainer | M2        |
-| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live | Maintainer | M2        |
-| Routescan API host per network, key policy and CORS (not researched yet)                         | Maintainer | M2        |
+| Question                                                                                                                                                         | Owner      | Needed by |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| Do Blockscout's hosted multichain API terms allow a server handler serving many end users?                                                                       | Maintainer | M3        |
+| Sourcify rate limits and terms for high-volume use                                                                                                               | Maintainer | M2        |
+| Does Etherscan Similar Match cover factory-deployed contracts whose immutables differ? Test live                                                                 | Maintainer | M2        |
+| Does Routescan's keyless tier accept `verifysourcecode`? Submit an already-verified testnet contract, for example on 43113, without a key, and record the answer | Maintainer | M2        |
+| What HTTP status does Routescan return when rate-limited? Test live                                                                                              | Maintainer | M2        |
+| Does Etherscan v2 verify a solc-compiled EVM-bytecode contract on zkSync Era (324) without `zksolcVersion`? Test live                                            | Maintainer | M2        |

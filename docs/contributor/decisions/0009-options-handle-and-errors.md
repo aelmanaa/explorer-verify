@@ -21,7 +21,8 @@ goes with them (R-SEC-2).
 Research: [agent readiness](../research/2026-11-02-agent-readiness.md) for the JSON error
 object, exit codes and fix hints (R-AX-5, R-AX-7, R-AX-10);
 [explorer APIs](../research/2026-11-02-explorer-apis.md) for the job id formats (Sourcify
-`verificationId`, Etherscan `guid`).
+`verificationId`, Etherscan `guid`);
+[Routescan](../research/2026-11-03-routescan-zksync.md#verification-guid) for the Routescan GUID.
 
 ## Decision
 
