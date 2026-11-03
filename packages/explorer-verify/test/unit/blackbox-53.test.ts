@@ -296,7 +296,12 @@ describe("#53 HTTP layer: silent by default", () => {
     const { fetch } = scriptedFetch([503, "network", 200]);
     const response = await drive(request(ctxOf({ fetch }), GET));
     assert.equal(response.status, 200);
-    for (const spy of spies) assert.equal(spy.mock.callCount(), 0);
+    // Node 22 prints its own ExperimentalWarning for MockTimers through console.error. That line
+    // comes from Node, not from the library, so it is not counted.
+    const fromLibrary = spies.flatMap((spy) =>
+      spy.mock.calls.filter((call) => !String(call.arguments[0]).includes("ExperimentalWarning")),
+    );
+    assert.equal(fromLibrary.length, 0);
   });
 });
 
