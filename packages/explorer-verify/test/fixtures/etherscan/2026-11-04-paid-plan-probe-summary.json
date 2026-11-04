@@ -1,0 +1,357 @@
+{
+  "source": "Live responses from api.etherscan.io to form POSTs sent with the fetch of Node.js 24.21.0, 2026-11-04T20:03:09.311Z to 2026-11-04T20:03:36.485Z: a free-plan Etherscan key in the apikey field, on the 11 chains the Etherscan chainlist marks \"Paid Plan required\". Address 0x4200000000000000000000000000000000000006; checkverifystatus used a made-up guid of 50 letters. No source was submitted. Each result is cut to its first 120 characters. The key is not in this file.",
+  "tool": "Node.js 24.21.0 fetch",
+  "date": "2026-11-04",
+  "results": [
+    {
+      "chainid": 10,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:09.312Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"/**\\r\\n *Submitted for verification at goerli.basescan.org on 2023-02-28\\r\\n*/\\r\\n\\r\\n// Copyright (C) 2"
+    },
+    {
+      "chainid": 10,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:10.538Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 10,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:11.141Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 56,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:11.736Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 56,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:17.155Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 56,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:17.768Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 97,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:18.368Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 97,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:18.970Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 97,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:19.569Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 100,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:20.168Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 100,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:20.791Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 100,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:21.400Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 4663,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:22.002Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 4663,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:22.608Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 4663,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:23.210Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 5042,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:23.808Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 5042,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:24.418Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 5042,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:25.030Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 8453,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:25.628Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"/**\\r\\n *Submitted for verification at goerli.basescan.org on 2023-02-28\\r\\n*/\\r\\n\\r\\n// Copyright (C) 2"
+    },
+    {
+      "chainid": 8453,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:26.527Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 8453,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:27.128Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 43113,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:27.727Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 43113,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:28.342Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 43113,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:28.960Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "0"
+    },
+    {
+      "chainid": 43114,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:29.564Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"\",\"ABI\":\"Contract source code not verified\",\"ContractName\":\"\",\"CompilerVersion\":\"\",\"CompilerType\":\"\",\"Op"
+    },
+    {
+      "chainid": 43114,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:30.171Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 43114,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:30.772Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan"
+    },
+    {
+      "chainid": 84532,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:31.369Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"/**\\r\\n *Submitted for verification at basescan.org on 2023-07-24\\r\\n*/\\r\\n\\r\\n/**\\r\\n *Submitted for ve"
+    },
+    {
+      "chainid": 84532,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:32.121Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 84532,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:32.722Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "12652558617193174412578"
+    },
+    {
+      "chainid": 11155420,
+      "module": "contract",
+      "action": "getsourcecode",
+      "sentAt": "2026-11-04T20:03:33.319Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"SourceCode\":\"/**\\r\\n *Submitted for verification at basescan.org on 2023-07-24\\r\\n*/\\r\\n\\r\\n/**\\r\\n *Submitted for ve"
+    },
+    {
+      "chainid": 11155420,
+      "module": "contract",
+      "action": "checkverifystatus",
+      "sentAt": "2026-11-04T20:03:34.069Z",
+      "httpStatus": 200,
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    },
+    {
+      "chainid": 11155420,
+      "module": "account",
+      "action": "balance",
+      "sentAt": "2026-11-04T20:03:34.674Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "481385386560837749838"
+    },
+    {
+      "chainid": 84532,
+      "module": "contract",
+      "action": "getabi",
+      "sentAt": "2026-11-04T20:03:35.283Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"src\",\"type\":\"address\"},{\"indexed\":true,\"i"
+    },
+    {
+      "chainid": 84532,
+      "module": "contract",
+      "action": "getcontractcreation",
+      "sentAt": "2026-11-04T20:03:35.883Z",
+      "httpStatus": 200,
+      "status": "1",
+      "message": "OK",
+      "result": "[{\"contractAddress\":\"0x4200000000000000000000000000000000000006\",\"contractCreator\":\"GENESIS\",\"txHash\":\"GENESIS_420000000"
+    }
+  ]
+}

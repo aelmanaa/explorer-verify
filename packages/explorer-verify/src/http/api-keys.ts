@@ -61,6 +61,12 @@ const ALLOWED_MESSAGE = "must hold only letters, digits, '.', '_', '~' and '-'";
 // Etherscan's daily limit answers, lower-cased: `Max daily rate limit reached. 100000 (100%) of
 // 100000 day/limit` and `Daily limit of 500 source code submissions reached` (live, 2026-11-02).
 const DAILY_LIMIT = /\bdaily\b[^]{0,64}\blimit\b/;
+// Etherscan's answer for a free-plan key on a chain its chainlist marks "Paid Plan required":
+// `Free API access is not supported for this chain. Please upgrade your api plan for full chain
+// coverage.` (live, 2026-11-04, to `account` calls on chain 8453). Lower-cased.
+const PAID_PLAN = "free api access is not supported for this chain";
+const PAID_PLAN_HINT =
+  'This chain needs a paid Etherscan API plan. Use a key on a paid plan, or verify on Sourcify, which needs no key: set route: { backend: "sourcify" }.';
 const ISSUES_URL = "https://github.com/aelmanaa/explorer-verify/issues";
 
 /**
@@ -450,6 +456,9 @@ export function requireKey(
  * - `Missing/Invalid API Key`: `missing-api-key`. Etherscan gives it for no key and for a key
  *   sent where it does not read one, such as a header.
  * - `Invalid API Key (#err2)`, or any other `Invalid API Key`: `api-key-rejected`.
+ * - `Free API access is not supported for this chain`, Etherscan's answer for a free-plan key
+ *   on a chain that needs a paid plan: `api-key-rejected`. For `etherscan-v2` the hint names the
+ *   paid plan and Sourcify; other backends keep the default hint (live, 2026-11-04).
  * - A daily limit, as `Max daily rate limit reached` or `Daily limit of 500 source code
  *   submissions reached`: `quota-exceeded`.
  *
@@ -480,17 +489,26 @@ export function keyErrorOf(
   const text = result.toLowerCase();
   let code: "missing-api-key" | "api-key-rejected" | "quota-exceeded";
   let what: string;
+  let hint: string | undefined;
   if (text.includes("missing/invalid api key")) {
     code = "missing-api-key";
     what = "that the API key is missing";
   } else if (text.includes("invalid api key")) {
     code = "api-key-rejected";
     what = "that the API key is not valid";
+  } else if (text.startsWith(PAID_PLAN)) {
+    code = "api-key-rejected";
+    what = "that the API key's plan does not cover this chain";
+    // The hint names Etherscan, so only the Etherscan v2 client gets it.
+    hint = backend === "etherscan-v2" ? PAID_PLAN_HINT : undefined;
   } else if (DAILY_LIMIT.test(text)) {
     code = "quota-exceeded";
     what = "that the API key's daily limit is spent";
   } else {
     return undefined;
   }
-  return new ExplorerVerifyError({ code, backend }, `${backend} answered ${what}.`, { secrets });
+  return new ExplorerVerifyError({ code, backend }, `${backend} answered ${what}.`, {
+    secrets,
+    ...(hint === undefined ? {} : { hint }),
+  });
 }
