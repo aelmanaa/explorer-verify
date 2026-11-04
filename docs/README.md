@@ -20,6 +20,10 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Verify a contract from a Hardhat project](user/guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |
 | [Verify from deployed bytecode](user/guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode |
 | [Run the server handler](user/guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS    |
+| [Verify from a browser](user/guides/verify-from-a-browser.md)                                       | Bundler or CDN, keyless explorers, the handle across a reload, size      |
+| [Verify from Node.js](user/guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue  |
+| [Verify from an edge function](user/guides/verify-from-an-edge-function.md)                         | Submit in one request, resume in later ones, keys from Worker secrets    |
+| [Verify from CI with the CLI](user/guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets |
 | [verify()](user/reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](user/reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](user/reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |

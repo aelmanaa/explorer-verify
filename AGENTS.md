@@ -65,7 +65,12 @@ and from a deployed contract's bytecode alone in
 Etherscan, Routescan and Blockscout clients send and how they read each answer. The logger and the stage events are in
 [docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
 [docs/user/guides/run-the-server-handler.md](docs/user/guides/run-the-server-handler.md) runs the
-server handler in Next.js and Cloudflare Workers, from the examples in `examples/`.
+server handler in Next.js and Cloudflare Workers, from the examples in `examples/`. One guide per
+runtime covers
+[the browser](docs/user/guides/verify-from-a-browser.md),
+[Node.js](docs/user/guides/verify-from-node.md),
+[an edge function](docs/user/guides/verify-from-an-edge-function.md) and
+[CI with the CLI](docs/user/guides/verify-from-ci-with-the-cli.md).
 [docs/user/explanation/match-types.md](docs/user/explanation/match-types.md) explains exact and
 partial matches, and
 [docs/user/explanation/etherscan-plans-and-attribution.md](docs/user/explanation/etherscan-plans-and-attribution.md)

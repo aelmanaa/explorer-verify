@@ -17,6 +17,10 @@ still to come.
 | [Verify a contract from a Hardhat project](guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |
 | [Verify from deployed bytecode](guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode |
 | [Run the server handler](guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS    |
+| [Verify from a browser](guides/verify-from-a-browser.md)                                       | Bundler or CDN, keyless explorers, the handle across a reload, size      |
+| [Verify from Node.js](guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue  |
+| [Verify from an edge function](guides/verify-from-an-edge-function.md)                         | Submit in one request, resume in later ones, keys from Worker secrets    |
+| [Verify from CI with the CLI](guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets |
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |
@@ -39,7 +43,7 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | Folder         | Kind              | Planned first page                                      |
 | -------------- | ----------------- | ------------------------------------------------------- |
 | `tutorials/`   | Learning by doing | In place: deploy a contract from a dapp, then verify it |
-| `guides/`      | Task how-tos      | Verify from a browser; verify from CI with the CLI      |
+| `guides/`      | Task how-tos      | In place: one per runtime, and the CLI in CI            |
 | `reference/`   | Exact facts       | Supported chains and explorers                          |
 | `explanation/` | Background        | In place: match types; Etherscan plans and attribution  |
 
