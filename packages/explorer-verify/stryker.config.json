@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "tap",
+  "plugins": ["@stryker-mutator/tap-runner"],
+  "mutate": [
+    "src/backends/sourcify.ts",
+    "src/backends/common.ts",
+    "src/flow/verify.ts",
+    "src/flow/status.ts",
+    "src/redact.ts",
+    "src/errors.ts",
+    "src/observe.ts",
+    "src/http/fetch.ts",
+    "src/http/api-keys.ts",
+    "src/routing/resolve.ts"
+  ],
+  "tap": {
+    "testFiles": ["test/unit/!(skill|user-docs).test.ts"],
+    "nodeArgs": ["--test-reporter=tap", "-r", "{{hookFile}}", "{{testFile}}"],
+    "forceBail": true
+  },
+  "coverageAnalysis": "perTest",
+  "incremental": true,
+  "timeoutFactor": 3,
+  "timeoutMS": 15000,
+  "checkers": [],
+  "inPlace": true,
+  "concurrency": 4,
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "thresholds": { "high": 90, "low": 80, "break": null }
+}

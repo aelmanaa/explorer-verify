@@ -11,6 +11,7 @@ pnpm run test:randomize   # unit tests in a random order; prints the seed
 pnpm run test:browser     # build, then verify() and checkStatus() in headless Chromium
 pnpm run test:browser:harness  # broken page scripts must fail the browser test
 pnpm run size             # build, then the bundle size of each public entry
+pnpm run test:mutation    # mutation testing of the result mapping and redaction (slow)
 ```
 
 Tests use `node --test` with TypeScript run natively (Node 22.18 and later). `scripts/node-test.ts`
@@ -37,6 +38,7 @@ run time, so c8 would report them at 0%.
 | Browser smoke    | `scripts/browser-smoke.ts`, `packages/explorer-verify/test/browser/`, `scripts/test-browser/`                  | The core bundles and runs in a headless browser under real CORS (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | In place                                         |
 | Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                                    | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place                                         |
 | Integration      | `packages/cli/test/integration/` (CLI); `packages/explorer-verify/test/unit/server-handler*.test.ts` (handler) | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI output contract in place (#98); handler done |
+| Mutation         | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json`, `.github/workflows/mutation.yml`       | The unit tests fail when the result mapping, the HTTP retry rules or the key redaction is changed (R-FLOW-4, R-FLOW-6, R-SEC-1)                       | In place                                         |
 | Live             | planned (M2), maintainer only                                                                                  | Real verification on public testnets per backend, with dated results                                                                                  | Planned                                          |
 | Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                                         |
 | Docs examples    | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                              | In place                                         |
@@ -257,6 +259,129 @@ rm packages/explorer-verify/size-entry.js
 ```
 
 A pull request that raises a ceiling records the new `measuredBytes` and says why.
+
+## Mutation testing
+
+Coverage shows which lines the tests run, not whether a test fails when a line is wrong. Mutation
+testing checks that: StrykerJS changes the code one small step at a time (it flips a condition,
+empties a block, replaces a string) and runs the unit tests against each change, called a mutant.
+A mutant is killed when a test fails, and survives when every test passes. The score of a file is
+the share of its mutants that the tests kill or that time out.
+
+It covers the files where a surviving mutant means a false result or a leaked key. The Etherscan,
+Routescan and Blockscout clients (`src/backends/etherscan.ts`, `routescan.ts`, `blockscout.ts`),
+the server handler and the input builders are not mutated yet.
+
+| File                       | What a surviving mutant can break                                  | Score | Killed only | Limit        |
+| -------------------------- | ------------------------------------------------------------------ | ----- | ----------- | ------------ |
+| `src/backends/sourcify.ts` | Sourcify answers mapped to results and errors (R-FLOW-4)           | 96.34 | 90.14       | 89           |
+| `src/backends/common.ts`   | Submit, resubmit and handle rules shared by the clients (R-FLOW-4) | 91.33 | 91.33       | 90           |
+| `src/flow/verify.ts`       | The flow engine: submit, poll, budget, recovery (R-FLOW-4)         | 91.83 | 89.64       | 88           |
+| `src/flow/status.ts`       | `checkStatus()` (R-FLOW-4)                                         | 96.00 | 96.00       | 2 undetected |
+| `src/http/fetch.ts`        | Retry, timeout and abort rules (R-FLOW-6)                          | 95.48 | 90.32       | 89           |
+| `src/http/api-keys.ts`     | Which key goes to which host (R-SEC-1)                             | 95.64 | 94.63       | 93           |
+| `src/routing/resolve.ts`   | Which backend and URL a chain gets, so where a key goes            | 96.03 | 93.55       | 92           |
+| `src/errors.ts`            | The error catalogue and its redaction (R-SEC-1)                    | 98.99 | 98.99       | 97           |
+| `src/observe.ts`           | The logger and event guard (R-DX-5, R-DX-6, R-SEC-1)               | 95.71 | 95.71       | 94           |
+| `src/redact.ts`            | Key redaction (R-SEC-1)                                            | 88.76 | 78.28       | 77           |
+
+"Score" is Stryker's score from the full run of 2026-11-04 on commit `ff437c9` (StrykerJS
+10.0.0, Node 24.21.0, concurrency 4); "Killed only" counts timed-out mutants as not detected. Many of the survivors in
+`redact.ts` only make it slower, such as an empty list of the words that must appear before a
+pattern is tried; no test can kill them.
+
+The check compares Stryker's score, which counts timeouts as detected, with the floor. Each floor
+is set lower than that score: from the killed mutants alone, over the valid ones (killed, timed
+out, survived, not covered), rounded down to the whole percent, minus 1. A mutant that times out on
+one machine can survive on another, so a floor that counted timeouts would fail on a faster or
+idler runner. A file with fewer than 50 mutants has `maxUndetected` instead, a maximum count of
+survived and not-covered mutants, because one mutant moves its score by several points. It is set
+to the survived, not-covered and timed-out mutants of the measuring run, plus 1. On an earlier base,
+45 mutants of `errors.ts` timed out under heavy load, which would have put its floor 13 points
+below its score; counting killed mutants only keeps such a run from failing the check.
+[The research note](research/2026-11-03-mutation-testing.md) explains the tool choice and the
+run times.
+
+### Keep the floors current
+
+- A pull request that lowers a file's score below its floor updates `measured` and `floor` (or
+  `maxUndetected`) in `mutation-floors.json` and the table above, and says why.
+- When scores rise, raise the floors by hand with the same rule; the check never raises them.
+- When two open pull requests change the same mutated files, the one that merges second
+  re-measures with a full run before it merges.
+- After this setup first lands on `main`, dispatch one full run of the `Mutation` workflow on
+  `main`. It seeds the cache that pull requests start from, and checks the floors on CI's 4-core
+  runner.
+
+### Run it locally
+
+```bash
+pnpm run test:mutation              # every mutant; about 4 hours with 4 processes
+pnpm run test:mutation:incremental  # only mutated files and unit test files changed since the last run
+```
+
+Both commands build the package first. Stryker changes the mutated files in `src/` while it runs and puts them back
+when it ends, so do not edit or commit them during a run
+([tooling.md](tooling.md#mutation-testing) says how to recover from a killed run). Both commands
+write `packages/explorer-verify/reports/mutation/mutation.html`
+(open it in a browser to see each surviving mutant in the source),
+`reports/mutation/mutation.json` and `reports/stryker-incremental.json`. Then
+`scripts/check-mutation-score.ts` prints a table and exits 1 when a file fails:
+
+```text
+| File | Score | Floor | Killed | Timeout | Survived | No coverage | Result |
+| --- | --: | --: | --: | --: | --: | --: | --- |
+| src/backends/sourcify.ts | 96.34 | 89.00 | 320 | 22 | 13 | 0 | ok |
+| src/flow/status.ts | 96.00 | max 2 undetected | 24 | 0 | 1 | 0 | ok |
+```
+
+A file fails when its score is below its floor (`BELOW`), when it has more undetected mutants than
+`maxUndetected` (`TOO MANY`), when it is mutated and has no limit in
+`packages/explorer-verify/mutation-floors.json` (`NO FLOOR`), or when it has a limit and is not in
+the report (`NOT IN REPORT`).
+
+The incremental command sees changes to the mutated files and to `test/unit/*.test.ts` only. It
+does not see a change to any other file: `test/helpers/`, `test/fixtures/`, `schema/`, `docs/`,
+the `src/` files the mutated code calls, `package.json`, the lockfile or a Stryker update. Only a
+full run catches those: run `pnpm run test:mutation` locally after such a change, and the weekly
+full run in CI catches it otherwise.
+
+To mutate one file, or a range of lines, run Stryker from the package:
+
+```bash
+cd packages/explorer-verify
+pnpm exec stryker run --force --mutate src/flow/status.ts
+pnpm exec stryker run --force --mutate "src/backends/sourcify.ts:140-160"
+```
+
+A partial run rewrites the report with the other files' previous results, from
+`reports/stryker-incremental.json`, or without them when that file does not exist, so the floor
+check can then fail with `NOT IN REPORT`.
+
+### In CI
+
+The `Mutation` workflow (`.github/workflows/mutation.yml`) is not a required check. Both jobs have
+a 300-minute limit.
+
+- Weekly, on Monday, and on manual dispatch: `pnpm run test:mutation`. It writes the table to the
+  job summary, uploads the report as an artifact for 30 days and, on `main`, saves
+  `stryker-incremental.json` to the Actions cache.
+- On a pull request that changes a mutated file, a file under `test/`, the Stryker config, the
+  floors, the score scripts, `pnpm-workspace.yaml` or the workflow:
+  `pnpm run test:mutation:incremental`, starting from the cached file of the latest full run on
+  `main`. Without a cached file it runs every mutant. It has the limits of the incremental command
+  above, so a pull request that changes only a helper or a fixture can pass here and fail the
+  next weekly run.
+
+### When a mutant survives
+
+Read it in `mutation.html`. Most survivors are one of these:
+
+- A missing test: the change alters behaviour that no test checks. Add the test, and raise the
+  floor if the score allows it.
+- An equivalent mutant: the change does not alter behaviour, for example an empty default
+  `secrets` list replaced by a list holding a string that never occurs. No test can kill it.
+- Text no test reads, such as a log message. Check the text in a test when it matters to a user.
 
 ## Deterministic tests
 

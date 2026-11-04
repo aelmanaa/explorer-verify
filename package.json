@@ -28,6 +28,8 @@
     "test:scripts": "c8 --config scripts/c8rc.json node scripts/node-test.ts unit \"scripts/test/**/*.test.ts\"",
     "test:randomize": "pnpm run build && pnpm -r run test:randomize && node scripts/node-test.ts unit --test-randomize \"scripts/test/**/*.test.ts\"",
     "coverage": "pnpm run build && pnpm -r run coverage",
+    "test:mutation": "pnpm --filter explorer-verify run test:mutation",
+    "test:mutation:incremental": "pnpm --filter explorer-verify run test:mutation:incremental",
     "pkg:check": "pnpm run build && pnpm -r run pkg:check && knip",
     "size": "pnpm run build && node scripts/check-size.ts size-budget.json",
     "test:browser": "pnpm run build && node scripts/browser-smoke.ts",
