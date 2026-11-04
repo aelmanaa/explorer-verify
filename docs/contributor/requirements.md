@@ -106,8 +106,12 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-BE-1** Etherscan API v2: one endpoint for every chain it covers, `chainid` per request, API key
   required.
 - **R-BE-2** Etherscan-compatible standalone explorers (their own host, Etherscan request format).
-- **R-BE-3** Blockscout: per-instance `/api` (Etherscan-compatible) and the v2 REST standard-input
-  endpoint; the hosted multichain API with a key.
+- **R-BE-3** Blockscout: per-instance, with no key. The submit and the job status go to the
+  instance's Etherscan-compatible `/api`; the lookup goes to its REST
+  `/api/v2/smart-contracts/{address}`, which tells a full match from a partial one. The REST
+  standard-input submit is not used: it returns no job id and no failure verdict
+  ([research](research/2026-11-04-blockscout-client.md)). The hosted multichain API with a key
+  comes later.
 - **R-BE-4** Sourcify API v2 (`/v2/verify/{chainId}/{address}`, job polling, `/v2/contract/...`
   lookup). No key.
 - **R-BE-5** Routescan (Etherscan-compatible host per network).
@@ -212,7 +216,7 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   `verify.routed`, `verify.poll`, `verify.retry` and `verify.result` (decision 0013). A call that
   throws emits no `verify.result`. `verify.poll` `state` is one of `pending`, `queued` or
   `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error`,
-  `duplicate-submission` or `not-indexed`. An exception thrown
+  `duplicate-submission`, `not-indexed` or `empty-submit`. An exception thrown
   by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
   outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
   the same redaction step. Within a schema version, releases only add event types and fields.

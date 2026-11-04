@@ -23,10 +23,12 @@ import type {
 import {
   attemptSubmit,
   checkHandle,
+  explorerUrl,
   REASON_LENGTH,
   send,
   submitOnce,
   UNCONFIRMED_STATUSES,
+  unexpected as unexpectedAnswer,
 } from "./common.ts";
 import type { Answer } from "./common.ts";
 
@@ -149,15 +151,6 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
     throw unsupportedChain(ctx, target.chainId);
   }
   throw unexpected(ctx, answer, unrecognised("the lookup", answer));
-}
-
-/**
- * The contract's page from the routing table's template, such as
- * `https://repo.sourcify.dev/<chainId>/<address>`, or `undefined` when the route points at another
- * Sourcify server.
- */
-function explorerUrl(target: Target, ctx: Context): string | undefined {
-  return ctx.route.explorerUrl?.(target.address);
 }
 
 /**
@@ -359,11 +352,7 @@ function unrecognised(what: string, answer: Answer): string {
 }
 
 function unexpected(ctx: Context, answer: Answer, message: string): ExplorerVerifyError {
-  return new ExplorerVerifyError(
-    { code: "unexpected-response", backend: NAME, status: answer.status, excerpt: answer.text },
-    message,
-    { secrets: ctx.http.secrets },
-  );
+  return unexpectedAnswer(ctx, NAME, "Sourcify", answer, message, true);
 }
 
 function unsupportedChain(ctx: Context, chainId: number): ExplorerVerifyError {

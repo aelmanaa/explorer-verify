@@ -84,9 +84,11 @@ the verification goes on.
 | `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                       |
 | `verify.result`    | The call is about to return a result               | `backend`, `status`, and `match` unless `status` is `failed`    |
 
-- `verify.retry` `reason` is `rate-limited`, `network`, `server-error`, `duplicate-submission` or
-  `not-indexed`. `not-indexed` means Etherscan found no contract code at the address yet, and the
-  submit is sent again ([Etherscan](etherscan.md#how-answers-are-read)).
+- `verify.retry` `reason` is `rate-limited`, `network`, `server-error`, `duplicate-submission`,
+  `not-indexed` or `empty-submit`. `not-indexed` means Etherscan found no contract code at the
+  address yet, and the submit is sent again ([Etherscan](etherscan.md#how-answers-are-read)).
+  `empty-submit` means Blockscout gave an empty answer to the submit, and the submit is sent again
+  after a lookup ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment)).
   `attempt` is the number of the attempt after the wait, so the first retry is attempt 2.
 - `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
   `verify.retry` and `verify.result`.

@@ -57,12 +57,12 @@ Etherscan verified both inputs as an exact match in the same probe.
 
 ## Each explorer's terms
 
-| Explorer   | Its terms                                                                                               | Source                                                                                                                                                                                    |
-| ---------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sourcify   | `exact_match` and `match` on the creation code, the runtime code and the whole contract                 | [Sourcify v2 research](../../contributor/research/2026-11-02-sourcify-v2.md#match-values), 2026-11-02                                                                                     |
-| Etherscan  | Exact Match, Similar Match and Runtime Match badges on the explorer page                                | [Types of contract verification](https://info.etherscan.com/types-of-contract-verification/), read 2026-11-04                                                                             |
-| Blockscout | Full and partial verification; the planned client reads `is_fully_verified` and `is_partially_verified` | [Prior art](../../contributor/prior-art.md#behaviour-both-implementations-learned) live runs; the field names are planned in [#66](https://github.com/aelmanaa/explorer-verify/issues/66) |
-| Routescan  | `getsourcecode` returns the source, with no `SimilarMatch` field                                        | [Live probe B](../../contributor/research/2026-11-03-m2-live-probes.md#b-routescan-keyless-submit-as-a-form-encoded-post), 2026-11-03                                                     |
+| Explorer   | Its terms                                                                                       | Source                                                                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Sourcify   | `exact_match` and `match` on the creation code, the runtime code and the whole contract         | [Sourcify v2 research](../../contributor/research/2026-11-02-sourcify-v2.md#match-values), 2026-11-02                                 |
+| Etherscan  | Exact Match, Similar Match and Runtime Match badges on the explorer page                        | [Types of contract verification](https://info.etherscan.com/types-of-contract-verification/), read 2026-11-04                         |
+| Blockscout | Full and partial verification; the client reads `is_fully_verified` and `is_partially_verified` | [Blockscout client research](../../contributor/research/2026-11-04-blockscout-client.md), live 2026-11-04                             |
+| Routescan  | `getsourcecode` returns the source, with no `SimilarMatch` field                                | [Live probe B](../../contributor/research/2026-11-03-m2-live-probes.md#b-routescan-keyless-submit-as-a-form-encoded-post), 2026-11-03 |
 
 Etherscan describes its badges this way (read 2026-11-04):
 
@@ -121,11 +121,9 @@ only a partial match upgrades it to an exact match
 ([Sourcify](../reference/sourcify.md#behaviour-to-know)). explorer-verify does not do that yet: to
 upgrade, submit the exact sources another way. An option for this is planned.
 
-The clients that come next plan these mappings, which may change before they ship:
-
-- Blockscout: `is_fully_verified` becomes `exact` and `is_partially_verified` becomes `partial`. A
-  build without a metadata hash gives `verified` with `partial`, never `failed`
-  ([#66](https://github.com/aelmanaa/explorer-verify/issues/66)).
+On Blockscout, `is_fully_verified` becomes `exact` and `is_partially_verified` becomes `partial`.
+On 2026-11-04, a build without a metadata hash gave `verified` with `partial`, never `failed`
+([Blockscout](../reference/blockscout.md#partial-matches)).
 
 ## Which match to aim for
 

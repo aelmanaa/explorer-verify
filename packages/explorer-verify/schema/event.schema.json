@@ -79,7 +79,14 @@
           "minimum": 2
         },
         "reason": {
-          "enum": ["rate-limited", "network", "server-error", "duplicate-submission", "not-indexed"]
+          "enum": [
+            "rate-limited",
+            "network",
+            "server-error",
+            "duplicate-submission",
+            "not-indexed",
+            "empty-submit"
+          ]
         },
         "delayMs": {
           "description": "The wait before that attempt, in milliseconds.",

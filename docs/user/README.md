@@ -1,3 +1,5 @@
+| [Blockscout](reference/blockscout.md) | What is sent to a Blockscout instance, and how each answer becomes a result |
+
 # User documentation
 
 Version: explorer-verify 0.0.0

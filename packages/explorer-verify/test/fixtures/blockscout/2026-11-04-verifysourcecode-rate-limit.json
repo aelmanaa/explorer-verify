@@ -1,0 +1,50 @@
+{
+  "source": "Live response from base-sepolia.blockscout.com, recorded 2026-11-04T08:37:09.973Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://base-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "contractaddress": "0x78f30137d81525fb79c4e85bbb6f681d1264a6ed",
+        "sourceCode": "[873 characters: the Standard JSON input]",
+        "contractname": "contracts/Greeter.sol:Greeter",
+        "compilerversion": "v0.8.24+commit.e11b9ed9",
+        "constructorArguments": "0x0000000000000000000000009d087fc03ae39b088326b67fa3c788236645b7170000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001568656c6c6f206578706c6f7265722d7665726966790000000000000000000000"
+      }
+    }
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-length": "109",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 08:37:13 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": "1366882"
+    },
+    "body": {
+      "message": "Too many requests. Increase limits now at https://dev.blockscout.com",
+      "result": null,
+      "status": "0"
+    }
+  },
+  "recordedAt": "2026-11-04T08:37:09.973Z"
+}

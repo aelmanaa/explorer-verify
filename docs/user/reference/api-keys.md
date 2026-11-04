@@ -46,7 +46,7 @@ route whose `apiUrl` you set, gets no key from `apiKeys`.
 | `routescan`            | `api.routescan.io`                    | The `apikey` request header (see below)        | No: the free tier is keyless |
 | `etherscan-compatible` | Not accepted here; use `route.apiKey` | The `apikey` field of a form-encoded POST body | Depends on the explorer      |
 | `sourcify`             | Not accepted                          | None                                           | No                           |
-| `blockscout`           | Not accepted in this release          | None                                           | No                           |
+| `blockscout`           | Not accepted in this release          | None: no request carries a key                 | No                           |
 
 The key never goes in a URL. Etherscan ignores a key in a request header and answers as if no key
 was sent, so the library puts it in the form body, with `chainid` in the query. Routescan's docs

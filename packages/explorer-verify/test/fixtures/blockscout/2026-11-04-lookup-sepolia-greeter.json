@@ -1,0 +1,132 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T08:50:47.313Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "GET",
+    "url": "https://eth-sepolia.blockscout.com/api/v2/smart-contracts/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "temporary_token",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 08:50:50 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "180",
+      "x-ratelimit-remaining": "179",
+      "x-ratelimit-reset": "10158"
+    },
+    "body": {
+      "constructor_args": null,
+      "is_partially_verified": false,
+      "is_changed_bytecode": false,
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "owner_",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "greeting_",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "greeting",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      "conflicting_implementations": null,
+      "certified": false,
+      "additional_sources": [
+        {
+          "file_path": "contracts/Base.sol",
+          "source_code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+        }
+      ],
+      "is_verified_via_sourcify": false,
+      "can_be_visualized_via_sol2uml": true,
+      "evm_version": "cancun",
+      "language": "solidity",
+      "is_verified_via_eth_bytecode_db": false,
+      "is_fully_verified": true,
+      "license_type": "none",
+      "is_blueprint": false,
+      "name": "Greeter",
+      "creation_bytecode": "0x60a060405234801561000f575f80fd5b5060405161047338038061047383398101604081905261002e91610062565b6001600160a01b0382166080525f61004682826101c7565b505050610286565b634e487b7160e01b5f52604160045260245ffd5b5f8060408385031215610073575f80fd5b82516001600160a01b0381168114610089575f80fd5b602084810151919350906001600160401b03808211156100a7575f80fd5b818601915086601f8301126100ba575f80fd5b8151818111156100cc576100cc61004e565b604051601f8201601f19908116603f011681019083821181831017156100f4576100f461004e565b81604052828152898684870101111561010b575f80fd5b5f93505b8284101561012c578484018601518185018701529285019261010f565b5f8684830101528096505050505050509250929050565b600181811c9082168061015757607f821691505b60208210810361017557634e487b7160e01b5f52602260045260245ffd5b50919050565b601f8211156101c257805f5260205f20601f840160051c810160208510156101a05750805b601f840160051c820191505b818110156101bf575f81556001016101ac565b50505b505050565b81516001600160401b038111156101e0576101e061004e565b6101f4816101ee8454610143565b8461017b565b602080601f831160018114610227575f84156102105750858301515b5f19600386901b1c1916600185901b17855561027e565b5f85815260208120601f198616915b8281101561025557888601518255948401946001909101908401610236565b508582101561027257878501515f19600388901b60f8161c191681555b505060018460011b0185555b505050505050565b6080516101d661029d5f395f603d01526101d65ff3fe608060405234801561000f575f80fd5b5060043610610034575f3560e01c80638da5cb5b14610038578063ef690cc01461007c575b5f80fd5b61005f7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020015b60405180910390f35b610084610091565b604051610073919061011c565b5f805461009d90610168565b80601f01602080910402602001604051908101604052809291908181526020018280546100c990610168565b80156101145780601f106100eb57610100808354040283529160200191610114565b820191905f5260205f20905b8154815290600101906020018083116100f757829003601f168201915b505050505081565b5f602080835283518060208501525f5b818110156101485785810183015185820160400152820161012c565b505f604082860101526040601f19601f8301168501019250505092915050565b600181811c9082168061017c57607f821691505b60208210810361019a57634e487b7160e01b5f52602260045260245ffd5b5091905056fea2646970667358221220208a358a0ca67b5abf5a858987d5cd25624e55ada52a3ade0332ea9c322a9cd864736f6c634300081800330000000000000000000000009d087fc03ae39b088326b67fa3c788236645b7170000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001568656c6c6f206578706c6f7265722d7665726966790000000000000000000000",
+      "external_libraries": [],
+      "proxy_type": null,
+      "implementations": [],
+      "verified_at": "2026-11-02T23:40:01.213440Z",
+      "is_verified_via_verifier_alliance": false,
+      "compiler_version": "v0.8.24+commit.e11b9ed9",
+      "decoded_constructor_args": null,
+      "sourcify_repo_url": null,
+      "optimization_runs": 200,
+      "compiler_settings": {
+        "evmVersion": "cancun",
+        "libraries": {},
+        "metadata": {
+          "appendCBOR": true,
+          "bytecodeHash": "ipfs",
+          "useLiteralContent": false
+        },
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "outputSelection": {
+          "*": {
+            "": ["*"],
+            "*": ["*"]
+          }
+        }
+      },
+      "is_verified": true,
+      "verified_twin_address_hash": null,
+      "optimization_enabled": true,
+      "deployed_bytecode": "0x608060405234801561000f575f80fd5b5060043610610034575f3560e01c80638da5cb5b14610038578063ef690cc01461007c575b5f80fd5b61005f7f0000000000000000000000009d087fc03ae39b088326b67fa3c788236645b71781565b6040516001600160a01b0390911681526020015b60405180910390f35b610084610091565b604051610073919061011c565b5f805461009d90610168565b80601f01602080910402602001604051908101604052809291908181526020018280546100c990610168565b80156101145780601f106100eb57610100808354040283529160200191610114565b820191905f5260205f20905b8154815290600101906020018083116100f757829003601f168201915b505050505081565b5f602080835283518060208501525f5b818110156101485785810183015185820160400152820161012c565b505f604082860101526040601f19601f8301168501019250505092915050565b600181811c9082168061017c57607f821691505b60208210810361019a57634e487b7160e01b5f52602260045260245ffd5b5091905056fea2646970667358221220208a358a0ca67b5abf5a858987d5cd25624e55ada52a3ade0332ea9c322a9cd864736f6c63430008180033",
+      "source_code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\n// explorer-verify live fixture 2026-11-02 chain 11155111 deployment A\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n",
+      "creation_status": "success",
+      "file_path": "contracts/Greeter.sol"
+    }
+  },
+  "recordedAt": "2026-11-04T08:50:47.313Z"
+}

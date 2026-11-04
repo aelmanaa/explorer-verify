@@ -1,0 +1,40 @@
+{
+  "source": "Live response from base-sepolia.blockscout.com, recorded 2026-11-04T08:32:28.651Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "GET",
+    "url": "https://base-sepolia.blockscout.com/api/v2/smart-contracts/0x123"
+  },
+  "response": {
+    "status": 422,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "temporary_token",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-length": "143",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 08:32:30 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "x-ratelimit-limit": "150",
+      "x-ratelimit-remaining": "145",
+      "x-ratelimit-reset": "149298"
+    },
+    "body": {
+      "errors": [
+        {
+          "title": "Invalid value",
+          "source": {
+            "pointer": "/address_hash_param"
+          },
+          "detail": "Invalid format. Expected ~r/^0x([A-Fa-f0-9]{40})$/"
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-04T08:32:28.651Z"
+}

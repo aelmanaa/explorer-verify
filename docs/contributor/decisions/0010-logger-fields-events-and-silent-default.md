@@ -77,7 +77,10 @@ values.
 
 - `verify.poll` `state` is one of `pending`, `queued` or `completed`. `verify.retry` `reason` is
   one of `rate-limited`, `network`, `server-error` or `duplicate-submission`. `event.schema.json`
-  lists both as enums, so a new value is a schema change.
+  lists both as enums, so a new value is a schema change. Amended on 2026-11-04: the Etherscan v2
+  client (#61) adds `not-indexed` and the Blockscout client (#92) adds `empty-submit`, each for a
+  whole submit sent again ([Etherscan](../research/2026-11-04-etherscan-client.md),
+  [Blockscout](../research/2026-11-04-blockscout-client.md)).
 - `verify.submitted` replaces "logs the handle through `logger.info`" in decision 0009,
   section 1. A caller that aborts or crashes after the submit still has the handle (R-FLOW-5).
   The logger may also print a line, but no program depends on it.

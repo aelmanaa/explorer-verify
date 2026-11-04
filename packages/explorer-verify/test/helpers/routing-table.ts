@@ -21,13 +21,18 @@ const ENTRY_KEYS: Readonly<Partial<Record<BackendName, [string[], string[]]>>> =
   "etherscan-v2": [["backend"], ["explorer"]],
   routescan: [["backend", "network"], []],
   sourcify: [["backend"], []],
+  blockscout: [["backend", "instance"], []],
 };
 
 /**
  * The API host and path each backend's derived `apiUrl` must have. A backend without a rule cannot
  * appear in the table: its issue adds the rule, and the resolver's template, with its first row.
+ * A Blockscout instance's host is the entry's `instance`, which `entryProblems` checks first.
  */
-const API_RULES: Readonly<Partial<Record<BackendName, (chainId: number) => [string, RegExp]>>> = {
+const API_RULES: Readonly<
+  Partial<Record<BackendName, (chainId: number, instance: string) => [string, RegExp]>>
+> = {
+  blockscout: (_chainId, instance) => [instance, /^\/api$/],
   "etherscan-v2": () => [ETHERSCAN.host, new RegExp(`^${ETHERSCAN.pathname}$`)],
   routescan: (chainId) => [
     "api.routescan.io",
@@ -83,12 +88,14 @@ function urlOf(value: string): URL | undefined {
 /**
  * The problems of a derived `apiUrl` for `backend` on `chainId`. The resolver builds it from fixed
  * templates, so these checks guard the templates and the per-row fields that go into them.
+ * `instance` is a Blockscout entry's host; for Blockscout, the empty default matches no host.
  */
 export function apiUrlProblems(
   value: string,
   backend: BackendName,
   chainId: number,
   where: string,
+  instance = "",
 ): string[] {
   const url = urlOf(value);
   if (url === undefined) {
@@ -115,7 +122,7 @@ export function apiUrlProblems(
     problems.push(`${where}: ${backend} has no host rule yet`);
     return problems;
   }
-  const [host, path] = rule(chainId);
+  const [host, path] = rule(chainId, instance);
   if (url.host !== host) {
     problems.push(`${where}: apiUrl host must be ${host} for ${backend}`);
   } else if (!path.test(url.pathname)) {
@@ -168,13 +175,18 @@ function entryProblems(
     problems.push(`${at}: network must be mainnet or testnet`);
   }
   const explorer = entry.get("explorer");
-  if (
-    entry.has("explorer") &&
-    (typeof explorer !== "string" ||
-      !HOST.test(explorer) ||
-      urlOf(`https://${explorer}`)?.host !== explorer)
-  ) {
-    problems.push(`${at}: explorer must be a lowercase host name, with no scheme, port or path`);
+  const instance = entry.get("instance");
+  const hosts: [string, unknown][] = [
+    ["explorer", explorer],
+    ["instance", instance],
+  ];
+  for (const [name, host] of hosts) {
+    if (
+      entry.has(name) &&
+      (typeof host !== "string" || !HOST.test(host) || urlOf(`https://${host}`)?.host !== host)
+    ) {
+      problems.push(`${at}: ${name} must be a lowercase host name, with no scheme, port or path`);
+    }
   }
   if (problems.length > 0) {
     return problems;
@@ -183,12 +195,19 @@ function entryProblems(
     backend,
     ...(typeof network === "string" ? { network } : {}),
     ...(typeof explorer === "string" ? { explorer } : {}),
+    ...(typeof instance === "string" ? { instance } : {}),
   });
   if (target === undefined) {
     return [`${at}: the resolver derives no URL for this entry`];
   }
   return [
-    ...apiUrlProblems(target.apiUrl, backend, chainId, at),
+    ...apiUrlProblems(
+      target.apiUrl,
+      backend,
+      chainId,
+      at,
+      typeof instance === "string" ? instance : "",
+    ),
     ...(target.explorerUrl === undefined
       ? []
       : explorerUrlProblems(target.explorerUrl(ADDRESS), at)),

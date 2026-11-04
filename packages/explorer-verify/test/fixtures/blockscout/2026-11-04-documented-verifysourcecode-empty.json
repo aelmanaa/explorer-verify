@@ -1,0 +1,32 @@
+{
+  "source": "Not a recorded response: the 2026-11-04 probe did not meet it. The prior art met it in live runs right after a deployment and describes it as status 1, message OK and an empty result (docs/contributor/prior-art.md); issue #92 gives the same shape. The body follows the recorded verifysourcecode answers with the result left empty.",
+  "request": {
+    "method": "POST",
+    "url": "https://base-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "contractaddress": "0x0d7ba9133629d6732a3ef5a3f5f09c68dac4be65",
+        "contractname": "contracts/Greeter.sol:Greeter",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "message": "OK",
+      "result": "",
+      "status": "1"
+    }
+  }
+}

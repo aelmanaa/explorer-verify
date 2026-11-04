@@ -1,0 +1,29 @@
+{
+  "source": "Not a recorded response: every job of the 2026-11-04 probe had passed by its first status request. The body is the example of the Blockscout RPC API reference (https://docs.blockscout.com/devs/apis/rpc/contract, read 2026-11-04), in the shape of the recorded checkverifystatus answers.",
+  "request": {
+    "method": "POST",
+    "url": "https://base-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "0d7ba9133629d6732a3ef5a3f5f09c68dac4be656aeaee3f"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "message": "OK",
+      "result": "Pending in queue",
+      "status": "1"
+    }
+  }
+}

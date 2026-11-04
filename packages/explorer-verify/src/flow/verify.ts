@@ -6,6 +6,7 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
+import { blockscout } from "../backends/blockscout.ts";
 import { etherscan } from "../backends/etherscan.ts";
 import { routescan } from "../backends/routescan.ts";
 import { sourcify } from "../backends/sourcify.ts";
@@ -66,7 +67,7 @@ export interface FlowDependencies {
 
 /** The backend clients `verify()` and `checkStatus()` use. */
 export const DEFAULT_DEPENDENCIES: FlowDependencies = {
-  backends: { sourcify, "etherscan-v2": etherscan, routescan },
+  backends: { sourcify, "etherscan-v2": etherscan, routescan, blockscout },
 };
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
