@@ -15,6 +15,7 @@ export { formatHandle, parseHandle } from "./flow/handle.ts";
 export { checkStatus } from "./flow/status.ts";
 export { verify } from "./flow/verify.ts";
 export { buildVerifyInput } from "./input/build.ts";
+export { routingTableDate } from "./routing/resolve.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";
 export { linkLibraries } from "./input/libraries.ts";
 export { validateInput } from "./input/validate.ts";

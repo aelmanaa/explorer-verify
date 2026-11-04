@@ -34,11 +34,14 @@
     "explorer-verify": "./dist/src/bin.js"
   },
   "exports": {
+    "./help.schema.json": "./schema/help.schema.json",
+    "./version.schema.json": "./schema/version.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dist/src/",
     "src/",
+    "schema/",
     "!**/*.test.*",
     "README.md",
     "LICENSE",

@@ -56,7 +56,17 @@ async function runWithPolls(t: TestContext, argv: readonly string[]) {
 
 /** A command table with one command that runs `body`. */
 function table(body: Command["run"], name = "custom"): Command[] {
-  return [{ name, summary: "A test command.", options: {}, maxPositionals: 0, run: body }];
+  return [
+    {
+      name,
+      summary: "A test command.",
+      usage: "",
+      examples: [{ args: name, description: "Run it." }],
+      options: {},
+      maxPositionals: 0,
+      run: body,
+    },
+  ];
 }
 
 describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
@@ -97,7 +107,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
     );
     assert.equal(
       Reflect.get(error, "hint"),
-      "Fix the arguments the message names, then run the command again.",
+      "Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.",
     );
   });
 
@@ -292,6 +302,8 @@ describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
     const broken: Command = {
       name: "broken",
       summary: "A command whose options cannot be read.",
+      usage: "",
+      examples: [{ args: "broken", description: "Run it." }],
       get options(): never {
         throw new Error(`table bug ${DUMMY_KEY}`);
       },

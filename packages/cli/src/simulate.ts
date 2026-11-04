@@ -187,16 +187,37 @@ export const SIMULATE: Command = {
   hidden: true,
   summary:
     "Run a simulated verification with no network, to test the output contract. Replaced by verify and status.",
+  usage: "",
+  examples: [
+    {
+      args: "simulate --json --outcome not-confirmed",
+      description: "Print a not-confirmed envelope with a handle, and exit 4.",
+    },
+    {
+      args: "simulate --verbose --polls 3",
+      description: "Show every stage event and three polls on stderr, then print verified.",
+    },
+  ],
   options: {
     outcome: {
       type: "string",
-      description: `The outcome: ${OUTCOMES.join(", ")}. Default verified.`,
+      value: "<name>",
+      description: `The outcome: ${OUTCOMES.join(", ")}, which polls until cancelled. Default verified.`,
     },
-    polls: { type: "string", description: "Polls before the outcome, 0 to 1000. Default 0." },
-    retries: { type: "string", description: "Retries before the submit, 0 to 1000. Default 0." },
+    polls: {
+      type: "string",
+      value: "<n>",
+      description: "Polls before the outcome, 0 to 1000. Default 0.",
+    },
+    retries: {
+      type: "string",
+      value: "<n>",
+      description: "verify.retry events before the submit, 0 to 1000. Default 0.",
+    },
     message: {
       type: "string",
-      description: "The message of the exception that internal-error throws.",
+      value: "<text>",
+      description: "The message of the exception that --outcome internal-error throws.",
     },
   },
   maxPositionals: 0,

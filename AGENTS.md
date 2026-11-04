@@ -76,6 +76,7 @@ build.
 | `pnpm run test:browser`         | Runs `verify()` and `checkStatus()` in headless Chromium on recorded answers   |
 | `pnpm run test:browser:harness` | Checks that broken page scripts and missing CORS headers fail the browser test |
 | `pnpm run site:build`           | Builds the docs site from `docs/user/` into `site/dist`; never deploys         |
+| `pnpm run cli-reference`        | Rewrites the CLI reference from the CLI's help; `check` fails on drift         |
 | `pnpm changeset`                | Adds a changeset for a user-facing change under `packages/`                    |
 
 Node 24 for development (`.nvmrc`); the floor is 22.18.0, because scripts and tests run TypeScript

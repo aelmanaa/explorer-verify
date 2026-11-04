@@ -9,6 +9,8 @@ import type { ParseArgsOptionsConfig } from "node:util";
 
 import type { InputIssue } from "explorer-verify";
 
+import { closest } from "./suggest.ts";
+
 /** One option a command or the CLI accepts. */
 export interface OptionSpec {
   /** `string` takes a value; `boolean` takes none. */
@@ -17,6 +19,8 @@ export interface OptionSpec {
   short?: string;
   /** Whether the option may repeat; its values then form a list. */
   multiple?: boolean;
+  /** The placeholder of a string option's value in the help text, such as `<mode>`. */
+  value?: string;
   /** One line for the help text. */
   description: string;
 }
@@ -37,14 +41,33 @@ export interface CommandSpec {
   readonly hidden?: boolean;
 }
 
-/** The options every command accepts (R-AX-5, R-AX-6, R-AX-14, R-AX-15). */
+/**
+ * The options every command accepts, in help order (R-AX-5, R-AX-6, R-AX-11, R-AX-14, R-AX-15).
+ * `-v` is not bound, because it can mean verbose or version.
+ */
 export const GLOBAL_OPTIONS: OptionSpecs = {
+  help: {
+    type: "boolean",
+    short: "h",
+    description: "Print the help of the command, or of the CLI, on stdout.",
+  },
+  version: {
+    type: "boolean",
+    description: "Print the CLI and core versions; with --json, the routing table's date too.",
+  },
   json: { type: "boolean", description: "Print one JSON envelope on stdout." },
   quiet: { type: "boolean", short: "q", description: "Show only errors on stderr." },
   verbose: { type: "boolean", description: "Show debug lines on stderr." },
-  "log-format": { type: "string", description: "text (default) or json lines on stderr." },
-  color: { type: "string", description: "auto (default), always or never." },
+  "log-format": {
+    type: "string",
+    value: "<format>",
+    description: "text (default) for people, or json for one JSON object per stderr line.",
+  },
+  color: { type: "string", value: "<mode>", description: "auto (default), always or never." },
 };
+
+/** The word that asks for help, as in `explorer-verify help verify`. */
+export const HELP_WORD = "help";
 
 /** What {@link readArguments} found. */
 export interface Arguments {
@@ -66,6 +89,13 @@ export interface Arguments {
    * the CLI's option names or an argument's position, never text the caller typed.
    */
   issues: InputIssue[];
+  /** Whether `--help`, `-h` or the word `help` asked for help. The command is then its topic. */
+  help: boolean;
+  /**
+   * The closest command or option to the first mistyped one (R-AX-10), such as `--dry-run`. It is
+   * one of the CLI's own names.
+   */
+  suggestion?: string;
 }
 
 /** One option or positional, with the position of its argument from 1. */
@@ -149,8 +179,9 @@ function expected(commands: readonly CommandSpec[]): string {
 
 /**
  * Reads the command line. It accepts the global options anywhere, and the options of the command
- * named by the first positional. Every other option, a missing or extra value, and an unknown
- * command are issues.
+ * named by the first positional, or by the second after the word `help`. Every other option, a
+ * missing or extra value, and an unknown command are issues. A missing command is not an issue
+ * when help or the version was asked for.
  *
  * @param argv - The arguments after the program name.
  * @param commands - The command table.
@@ -179,19 +210,29 @@ export function readArguments(
       positionals.push(token.value);
     }
   }
-  const [first, ...rest] = positionals;
+  // `help [command]` asks for help, like `--help`; the command after it is the topic.
+  const helpWord = positionals[0] === HELP_WORD;
+  const [first, ...rest] = helpWord ? positionals.slice(1) : positionals;
   const found = commands.find((command) => command.name === first);
   const allowed = new Map<string, OptionSpec>(Object.entries(GLOBAL_OPTIONS));
   for (const [name, spec] of Object.entries(found?.options ?? {})) {
     allowed.set(name, spec);
   }
+  // The names an unknown option is compared with: never a hidden command's, unless it was named.
+  const visible = commands.filter((command) => command.hidden !== true);
+  const candidates = [
+    ...allowed.keys(),
+    ...(found === undefined ? visible.flatMap((command) => Object.keys(command.options)) : []),
+  ];
 
   const values = new Map<string, OptionValue>();
   const lists = new Map<string, string[]>();
   const issues: InputIssue[] = [];
+  let optionSuggestion: string | undefined;
   // One issue per argument, so a group of unknown short options such as `-abc` is one issue.
   const refused = new Set<number>();
   let json = false;
+  const asked = new Set<string>();
   for (const token of tokens) {
     if (token.kind !== "option") {
       continue;
@@ -200,17 +241,25 @@ export function readArguments(
     if (spec === undefined) {
       if (!refused.has(token.position)) {
         refused.add(token.position);
-        issues.push(
-          found !== undefined && known.has(token.name)
-            ? { field: `--${token.name}`, message: `is not an option of ${found.name}` }
-            : { field: `argument ${String(token.position)}`, message: "is not an option" },
-        );
+        if (found !== undefined && known.has(token.name)) {
+          issues.push({ field: `--${token.name}`, message: `is not an option of ${found.name}` });
+        } else {
+          issues.push({ field: `argument ${String(token.position)}`, message: "is not an option" });
+          // An option of a command that was not named is valid, so nothing is suggested for it.
+          // Only the first suggestion is kept, so later options are not compared.
+          if (optionSuggestion === undefined && !known.has(token.name)) {
+            const close = closest(token.name, candidates);
+            optionSuggestion = close === undefined ? undefined : `--${close}`;
+          }
+        }
       }
       continue;
     }
     const label = `--${token.name}`;
     if (spec.type === "boolean") {
       json ||= token.name === "json";
+      // `--help=yes` is refused for its value, but still counts as asking for help.
+      asked.add(token.name);
       if (token.value === undefined) {
         values.set(token.name, true);
       } else {
@@ -233,13 +282,31 @@ export function readArguments(
     }
   }
 
-  if (found === undefined) {
+  const help = helpWord || values.get("help") === true;
+  // Help and the version need no command; an unknown one is still an issue.
+  const needsCommand = !helpWord && !asked.has("help") && !asked.has("version");
+  let commandSuggestion: string | undefined;
+  if (found === undefined && (first !== undefined || needsCommand)) {
     issues.push({
       field: "command",
       message: `${first === undefined ? "is missing" : "is not known"}; ${expected(commands)}`,
     });
+    commandSuggestion =
+      first === undefined
+        ? undefined
+        : closest(first, [...visible.map(({ name }) => name), HELP_WORD]);
   }
-  return found === undefined
-    ? { json, positionals: rest, values, issues }
-    : { json, command: found.name, positionals: rest, values, issues };
+  if (helpWord && rest.length > 0) {
+    issues.push({ field: HELP_WORD, message: "takes at most one command" });
+  }
+  const result: Arguments = { json, positionals: rest, values, issues, help };
+  if (found !== undefined) {
+    result.command = found.name;
+  }
+  // A mistyped command comes first: its options are unknown until it is fixed.
+  const suggestion = commandSuggestion ?? optionSuggestion;
+  if (suggestion !== undefined) {
+    result.suggestion = suggestion;
+  }
+  return result;
 }

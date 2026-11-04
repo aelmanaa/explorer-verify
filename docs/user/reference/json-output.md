@@ -140,4 +140,7 @@ covers results and errors.
 
 The CLI creates `cancelled` and `internal-error`; the library never throws them.
 [Errors](errors/index.md#exit-codes) explains what to do for each exit code, and the
-[CLI reference](cli.md) describes the CLI's streams.
+[CLI reference](cli.md) describes the CLI's streams. `explorer-verify --help --json` and `explorer-verify --version --json`
+print envelopes of their own, with `ok: true` and exit code 0. Their `result` is not a
+`VerifyResult`: validate them with `@explorer-verify/cli/help.schema.json` and
+`@explorer-verify/cli/version.schema.json`, not with this schema.

@@ -31,3 +31,16 @@ export function stdoutText(envelope: Envelope, json: boolean, color: boolean): s
   const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
+
+/**
+ * The stdout text of help or the version (R-AX-11): with `--json`, an envelope with `ok: true`
+ * whose `result` is `info`; without it, the text `toText` makes of it.
+ *
+ * @param info - The help or the version.
+ * @param json - Whether `--json` was given.
+ * @param toText - Makes the text of `info`.
+ * @returns The text, ending in a newline.
+ */
+export function infoText<T>(info: T, json: boolean, toText: (info: T) => string): string {
+  return json ? `${JSON.stringify({ schemaVersion: 1, ok: true, result: info })}\n` : toText(info);
+}

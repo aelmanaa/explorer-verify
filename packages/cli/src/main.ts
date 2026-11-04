@@ -21,6 +21,7 @@ import type { Arguments } from "./arguments.ts";
 import { stringOption, usageError } from "./command.ts";
 import type { Command, CommandContext } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
+import { helpResult, helpText } from "./help.ts";
 import {
   effectiveLevel,
   environmentLevel,
@@ -29,11 +30,12 @@ import {
   LOG_VARIABLE,
 } from "./log-level.ts";
 import type { LogFormat } from "./log-level.ts";
-import { stdoutText } from "./output.ts";
+import { infoText, stdoutText } from "./output.ts";
 import { createStderr } from "./stderr.ts";
 import type { OutputStream, Stderr } from "./stderr.ts";
 import { COLOR_MODES, terminalPolicy } from "./terminal.ts";
 import type { ColorMode, Environment } from "./terminal.ts";
+import { versionResult, versionText } from "./version.ts";
 
 /** The signals that cancel a run (exit code 130). */
 export type SignalName = "SIGINT" | "SIGTERM";
@@ -264,7 +266,7 @@ async function runCli(
     stderr.log("warn", `${LOG_VARIABLE} is not one of ${LOG_LEVELS.join(", ")}, so it is ignored.`);
   }
   const command = commands.find(({ name }) => name === args.command);
-  if (command !== undefined && args.positionals.length > command.maxPositionals) {
+  if (command !== undefined && !args.help && args.positionals.length > command.maxPositionals) {
     issues.push({
       field: command.name,
       message:
@@ -273,11 +275,22 @@ async function runCli(
           : `takes at most ${String(command.maxPositionals)} arguments`,
     });
   }
+  const version = args.values.get("version") === true;
+  if (state.received === undefined && issues.length === 0 && (args.help || version)) {
+    // Help and the version run nothing and exit 0 (R-AX-11); help wins when both are asked for.
+    state.fixed = true;
+    io.stdout.write(
+      args.help
+        ? infoText(helpResult(commands, command), args.json, helpText)
+        : infoText(versionResult(), args.json, versionText),
+    );
+    return 0;
+  }
   let outcome: VerifyOutcome;
   if (state.received !== undefined) {
     outcome = cancelledError(state.received, state.submitted);
   } else if (command === undefined || issues.length > 0) {
-    outcome = usageError(issues);
+    outcome = usageError(issues, args.suggestion);
   } else {
     outcome = await runCommand(command, args, io, stderr, state);
   }
