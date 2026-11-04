@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
-import { setImmediate } from "node:timers";
 
 import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
@@ -33,6 +32,7 @@ import type {
 } from "../../src/index.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict, validateEnvelope } from "./envelope-schema.ts";
 
 const SEPOLIA = 11155111;
@@ -212,15 +212,17 @@ async function run(t: TestContext, steps: readonly Step[], use: RunOptions = {})
   const tracked = promise.finally(() => {
     state.done = true;
   });
-  for (let round = 0; round < 500 && !state.done; round += 1) {
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    use.onRound?.(events, sent);
-    if (!state.done) {
+  await driveMockClock(
+    tracked,
+    () => {
       t.mock.timers.runAll();
-    }
-  }
+    },
+    {
+      onTurn: () => {
+        use.onRound?.(events, sent);
+      },
+    },
+  );
   assert.ok(state.done, "verify() did not settle");
   const outcome = await tracked;
   for (const event of events) {
@@ -1752,14 +1754,9 @@ describe("killers", () => {
         .finally(() => {
           state.done = true;
         });
-      for (let round = 0; round < 500 && !state.done; round += 1) {
-        await new Promise<void>((resolve) => {
-          setImmediate(resolve);
-        });
-        if (!state.done) {
-          t.mock.timers.runAll();
-        }
-      }
+      await driveMockClock(tracked, () => {
+        t.mock.timers.runAll();
+      });
       errorOf(await tracked, "not-confirmed");
       assert.equal(sent.length, 42);
       assert.equal(Date.now(), 120_000);

@@ -7,7 +7,15 @@
  * does for a user.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -306,12 +314,19 @@ export function removeProject(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
 
-/** Writes each file of `files`, by name, into the project folder, with its parent folders. */
+/**
+ * Writes each file of `files`, by name, into the project folder, with its parent folders. Each
+ * file is written next to its place under a temporary name, then renamed into place, so a process
+ * that reads it at the same time sees the old text or the new text, never an empty or partial
+ * file.
+ */
 export function writeFiles(dir: string, files: Readonly<Record<string, string>>): void {
   for (const [name, text] of Object.entries(files)) {
     const file = path.join(dir, name);
     mkdirSync(path.dirname(file), { recursive: true });
-    writeFileSync(file, text);
+    const temporary = `${file}.${String(process.pid)}.tmp`;
+    writeFileSync(temporary, text);
+    renameSync(temporary, file);
   }
 }
 

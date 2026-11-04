@@ -6,11 +6,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
-import { setImmediate } from "node:timers";
 
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { buildVerifyInput, linkLibraries, validateInput, verify } from "../../src/index.ts";
 import type { VerifyInput, VerifyResult } from "../../src/index.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 /** A JSON file, read relative to this test. */
 function readJson(path: string): unknown {
@@ -423,16 +423,9 @@ async function replayVerify(
       state.error = error;
     }
   })();
-  for (
-    let round = 0;
-    round < 3_000 && state.result === undefined && state.error === undefined;
-    round++
-  ) {
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
+  await driveMockClock(promise, () => {
     t.mock.timers.runAll();
-  }
+  });
   await promise;
   assert.equal(state.error, undefined);
   assert.ok(state.result !== undefined, "verify() did not settle");

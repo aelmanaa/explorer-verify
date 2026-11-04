@@ -6,11 +6,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
-import { setImmediate } from "node:timers/promises";
 
 import { main } from "../../src/main.ts";
 import { fakeExplorer } from "../helpers/fake-explorer.ts";
 import { fakeIo } from "../helpers/fake-io.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 import { blocks } from "../helpers/shell-examples.ts";
 import { PROJECT } from "../helpers/spawn-bin.ts";
 
@@ -22,8 +22,8 @@ const PAGE = readFileSync(
 const VERIFY = ["verify", "--input-json", join(PROJECT, "verify-input.json")];
 
 /**
- * Runs the CLI against a fake explorer that accepts the submission, ticking the mock clock until
- * the run ends, so a poll interval passes at once.
+ * Runs the CLI against a fake explorer that accepts the submission, running the pending mock
+ * timers until the run ends, so a poll interval passes at once.
  */
 async function run(
   t: TestContext,
@@ -32,14 +32,10 @@ async function run(
   t.mock.method(globalThis, "fetch", fakeExplorer("new"));
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const fake = fakeIo(argv);
-  const state = { done: false };
-  const running = main(fake.io).finally(() => {
-    state.done = true;
+  const running = main(fake.io);
+  await driveMockClock(running, () => {
+    t.mock.timers.runAll();
   });
-  while (!state.done) {
-    await setImmediate();
-    t.mock.timers.tick(500);
-  }
   const code = await running;
   t.mock.timers.reset();
   return { code, stderr: fake.stderr() };

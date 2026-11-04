@@ -4,7 +4,6 @@
 // verified".
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { setImmediate as nextTurn } from "node:timers/promises";
 import { inspect } from "node:util";
 
 import { ExplorerVerifyError, verify } from "../../src/index.ts";
@@ -16,6 +15,7 @@ import type {
   VerifyResult,
 } from "../../src/index.ts";
 import table from "../../src/routing/table.json" with { type: "json" };
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const KEY = "zz9dummyetherscankeyqq7xv";
 const ROUTE_KEY = "yy8routekeydummyvalue55";
@@ -34,20 +34,9 @@ afterEach(() => {
 });
 
 function drive<T>(pending: Promise<T>): Promise<T> {
-  const state = { settled: false };
-  pending
-    .catch(() => undefined)
-    .finally(() => {
-      state.settled = true;
-    });
-  void (async () => {
-    for (let round = 0; round < 3_000 && !state.settled; round += 1) {
-      await nextTurn();
-      if (!state.settled) {
-        mock.timers.runAll();
-      }
-    }
-  })();
+  void driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return pending;
 }
 

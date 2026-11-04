@@ -28,6 +28,7 @@ import type {
   VerifyResult,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
+import { driveMockClock, turnUntil } from "../helpers/mock-clock.ts";
 
 const CHAIN_ID = 11155111;
 const ADDRESS: Hex = "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC";
@@ -75,20 +76,9 @@ afterEach(() => {
  */
 function verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult> {
   const pending = publicVerify(input, options);
-  const state = { settled: false };
-  pending
-    .catch(() => undefined)
-    .finally(() => {
-      state.settled = true;
-    });
-  void (async () => {
-    for (let round = 0; round < 1_000 && !state.settled; round += 1) {
-      await nextTurn();
-      if (!state.settled) {
-        mock.timers.runAll();
-      }
-    }
-  })();
+  void driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return pending;
 }
 
@@ -374,32 +364,6 @@ function stubConsole(): ConsoleStub {
     error: (s) => out.push(`error ${s}`),
     warn: (s) => out.push(`warn ${s}`),
   };
-}
-
-/** Advances mock time until `promise` settles. */
-async function drive(
-  promise: Promise<unknown>,
-  tick: (ms: number) => void,
-  stepMs: number,
-  maxSteps: number,
-): Promise<void> {
-  const state = { settled: false };
-  const done = promise
-    .then(
-      () => undefined,
-      () => undefined,
-    )
-    .finally(() => {
-      state.settled = true;
-    });
-  for (let i = 0; i < maxSteps; i += 1) {
-    if (state.settled) {
-      break;
-    }
-    await nextTurn();
-    tick(stepMs);
-  }
-  await done;
 }
 
 async function verifyError(promise: Promise<unknown>): Promise<ExplorerVerifyError> {
@@ -979,6 +943,8 @@ describe("verify(): time budget", () => {
       warnings.push(w.name);
     };
     process.on("warning", onWarning);
+    // The first call in a process loads its client first, which takes real turns.
+    await turnUntil(() => types(rec.events).includes("verify.submitted"));
     for (let round = 0; round < 20; round += 1) {
       await nextTurn();
     }
@@ -1122,7 +1088,9 @@ describe("verify(): unsupported chain, rate limits, abort", () => {
     const fake = fakeFetch({ lookup: [{ status: 429, body: {} }] });
     const rec = recorder();
     const pending = outcomeOf(publicVerify(makeInput(), { fetch: fake.fetch, ...rec }));
-    await drive(pending, (ms) => mock.timers.tick(ms), 250, 400);
+    await driveMockClock(pending, () => {
+      mock.timers.runAll();
+    });
     const outcome = await pending;
     assert.ok(outcome instanceof ExplorerVerifyError);
     assert.equal(outcome.code, "rate-limited");
@@ -1483,12 +1451,9 @@ describe("verify(): doc examples", () => {
     });
     // The example uses timeoutMs 60000; mock time passes it at once.
     mock.timers.setTime(1_800_000_000_000);
-    await drive(
-      verifyMdExample(makeInput(), fake.fetch, out, store),
-      (ms) => mock.timers.tick(ms),
-      1_000,
-      2000,
-    );
+    await driveMockClock(verifyMdExample(makeInput(), fake.fetch, out, store), () => {
+      mock.timers.runAll();
+    });
     assert.deepEqual(out.out, []);
     const stored: unknown = JSON.parse(store.items.get("pending-verification") ?? "null");
     assert.deepEqual(stored, {
@@ -1519,12 +1484,7 @@ describe("verify(): doc examples", () => {
         }
       },
     });
-    for (let i = 0; i < 500; i += 1) {
-      if (handle !== undefined) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2));
-    }
+    await turnUntil(() => handle !== undefined);
     assert.ok(handle !== undefined);
     controller.abort();
     const error = await rejection(pending);
