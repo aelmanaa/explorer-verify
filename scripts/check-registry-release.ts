@@ -22,7 +22,7 @@ import { appendFileSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-import { errorMessage, gitIn, releasePackagesAt } from "./release-packages.ts";
+import { errorMessage, isMainModule, gitIn, releasePackagesAt } from "./release-packages.ts";
 import { STABLE_VERSION } from "./verify-release-tag.ts";
 
 /** What `npm view <spec> --json` returned. */
@@ -293,7 +293,7 @@ export async function main(
   );
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   try {
     process.stdout.write(
       `${(await main(process.argv.slice(2), process.cwd(), (spec) => npmView(spec), fetchAttestations)).join("\n")}\n`,

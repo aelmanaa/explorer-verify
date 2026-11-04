@@ -27,7 +27,13 @@ import path from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-import { errorMessage, gitIn, type ReleasePackage, releasePackagesAt } from "./release-packages.ts";
+import {
+  errorMessage,
+  isMainModule,
+  gitIn,
+  type ReleasePackage,
+  releasePackagesAt,
+} from "./release-packages.ts";
 
 /** The directory of maintainer public keys, relative to the repository root. */
 export const KEYS_DIRECTORY = ".github/release-keys";
@@ -459,7 +465,7 @@ export function main(
   };
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   try {
     const result = main(process.argv.slice(2), process.cwd(), process.env);
     if (result.ok) {

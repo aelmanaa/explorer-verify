@@ -91,7 +91,12 @@ export function runScript(
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
 ): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: "utf8" });
+  // Node 24.0.0 prints a type-stripping ExperimentalWarning that the output checks would see.
+  const result = spawnSync(
+    process.execPath,
+    ["--disable-warning=ExperimentalWarning", script, ...args],
+    { cwd, env, encoding: "utf8" },
+  );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 

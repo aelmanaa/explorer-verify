@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { parseChangesetFile } from "@changesets/parse";
 
-import { errorMessage } from "./release-packages.ts";
+import { errorMessage, isMainModule } from "./release-packages.ts";
 
 /** The folder of pending changesets. */
 export const CHANGESETS = ".changeset";
@@ -80,7 +80,7 @@ export function main(argv: readonly string[], scriptDirectory: string): string[]
   return majorProblems(root);
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   const problems = main(process.argv.slice(2), path.dirname(fileURLToPath(import.meta.url)));
   for (const problem of problems) {
     process.stderr.write(`${problem}\n`);

@@ -22,7 +22,7 @@ import path from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-import { errorMessage, gitIn, releasePackagesAt } from "./release-packages.ts";
+import { errorMessage, isMainModule, gitIn, releasePackagesAt } from "./release-packages.ts";
 import { STABLE_VERSION } from "./verify-release-tag.ts";
 
 /** One line of a `sha256sum` listing. */
@@ -211,7 +211,7 @@ export function main(argv: readonly string[], cwd: string): string[] {
   return checkTarballs(dir, readFileSync(sums, "utf8"), names, version, commit);
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   try {
     process.stdout.write(`${main(process.argv.slice(2), process.cwd()).join("\n")}\n`);
   } catch (error: unknown) {

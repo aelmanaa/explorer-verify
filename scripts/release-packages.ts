@@ -12,7 +12,9 @@
 // Prints one name (the default) or one directory under `packages/` per line. Exits 1 when no
 // package is published: the core stays private until the pull request that prepares 0.1.0.
 import { spawnSync } from "node:child_process";
+import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 /** The name of the core package, which is always first. */
@@ -170,7 +172,16 @@ export function run(argv: readonly string[], git: Git): string {
   return `${lines.join("\n")}\n`;
 }
 
-if (import.meta.main) {
+/**
+ * Whether the module at `moduleUrl` is the script Node was started with. `import.meta.main`
+ * would say the same, but Node added it in 24.2.0 and CI tests 24.0.0.
+ */
+export function isMainModule(moduleUrl: string): boolean {
+  const started = process.argv[1];
+  return started !== undefined && path.resolve(started) === fileURLToPath(moduleUrl);
+}
+
+if (isMainModule(import.meta.url)) {
   try {
     process.stdout.write(run(process.argv.slice(2), gitIn(process.cwd())));
   } catch (error: unknown) {
