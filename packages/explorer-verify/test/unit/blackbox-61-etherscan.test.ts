@@ -5,7 +5,6 @@
 // a dummy key. Time runs on node:test mock timers.
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { setImmediate as nextTurn } from "node:timers/promises";
 import { inspect } from "node:util";
 
 import { ExplorerVerifyError, checkStatus, verify } from "../../src/index.ts";
@@ -19,6 +18,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 // Lower-case dummy key: no generic redaction rule (the 34-character upper-case shape, key-like
 // parameter names) matches it, so only the library's knowledge of the key can remove it.
@@ -45,20 +45,9 @@ afterEach(() => {
 });
 
 function drive<T>(pending: Promise<T>): Promise<T> {
-  const state = { settled: false };
-  pending
-    .catch(() => undefined)
-    .finally(() => {
-      state.settled = true;
-    });
-  void (async () => {
-    for (let round = 0; round < 5_000 && !state.settled; round += 1) {
-      await nextTurn();
-      if (!state.settled) {
-        mock.timers.runAll();
-      }
-    }
-  })();
+  void driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return pending;
 }
 

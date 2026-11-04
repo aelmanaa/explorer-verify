@@ -27,6 +27,7 @@ import {
 import type { Client, FlowDependencies } from "../../src/flow/verify.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
@@ -319,6 +320,32 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
         assert.ok(!(outcome instanceof Error), String(outcome));
       });
     }
+
+    it(`${name}: driveMockClock keeps the mock clock still while a load takes 2,000 turns`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+      // A first dynamic import on a loaded CI runner took more turns than a driver that moved
+      // the clock 500 ms per turn had budget for: 240 turns spent 120 seconds (#155).
+      const clock: number[] = [];
+      const dependencies: FlowDependencies = {
+        backends: {
+          sourcify: async () => {
+            for (let turn = 0; turn < 2_000; turn += 1) {
+              await settleJobs();
+            }
+            clock.push(Date.now());
+            return exactSourcify;
+          },
+        },
+        table: TABLE,
+      };
+      const pending = outcomeOf(run(dependencies, { fetch: noFetch, timeoutMs: 1_000 }));
+      await driveMockClock(pending, () => {
+        t.mock.timers.runAll();
+      });
+      const outcome = await pending;
+      assert.ok(!(outcome instanceof Error), String(outcome));
+      assert.deepEqual(clock, [0]);
+    });
 
     it(`${name}: a load that never ends rejects with signal.reason when the signal aborts`, async () => {
       const controller = new AbortController();

@@ -265,6 +265,17 @@ A test gives the same result on every run, on every machine and in any order.
 - No network. Inject `fetch` and replay a recorded fixture.
 - No real timers or sleeps. Use the `node:test` mock timers (`mock.timers.enable()`) and advance
   them with `mock.timers.tick()`.
+- Drive a whole `verify()`, `checkStatus()` or `dryRun()` call on mock timers with
+  `driveMockClock` from `test/helpers/mock-clock.ts` in each package. The first call in a process
+  loads its explorer client with a dynamic `import()`, which takes real event-loop turns, and the
+  time budget runs during the load (decision 0031). `driveMockClock` runs only the pending timers
+  after each turn, so the clock stands still during the load, and it allows 100,000 turns. A loop
+  that calls `mock.timers.tick()` on every turn spends the budget during the load, and a loop with
+  a small turn limit can end before the load does. To wait for a step, such as the submit, use
+  `turnUntil`, not a fixed number of turns.
+- Write a file that a child process reads before the process starts, with `writeFiles` from
+  `test/helpers/skill.ts`. It replaces the file whole, so no process reads it empty or half
+  written.
 - No randomness. Fix every value a test depends on: ids, salts, dates.
 - No order dependence and no shared mutable state. Each test builds what it needs and cleans up in
   `afterEach`. A module-level value that tests change is a bug.

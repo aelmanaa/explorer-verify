@@ -10,7 +10,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { setImmediate as nextTurn } from "node:timers/promises";
 import { inspect } from "node:util";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -38,6 +37,7 @@ import type {
   VerifyResult,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 // Lower-case dummy keys: no generic redaction rule (34-char upper-case shape, key-like parameter
 // names) matches them, so only the library's knowledge of `apiKeys` can remove them.
@@ -98,20 +98,9 @@ afterEach(() => {
 
 /** Runs every pending mock timer after each real turn until `pending` settles. */
 function drive<T>(pending: Promise<T>): Promise<T> {
-  const state = { settled: false };
-  pending
-    .catch(() => undefined)
-    .finally(() => {
-      state.settled = true;
-    });
-  void (async () => {
-    for (let round = 0; round < 3_000 && !state.settled; round += 1) {
-      await nextTurn();
-      if (!state.settled) {
-        mock.timers.runAll();
-      }
-    }
-  })();
+  void driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return pending;
 }
 

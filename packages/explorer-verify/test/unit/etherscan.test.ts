@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
-import { setImmediate } from "node:timers";
 import { inspect } from "node:util";
 
 import type { Context, Target } from "../../src/backends/backend.ts";
@@ -29,6 +28,7 @@ import type {
 } from "../../src/types.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
 const ARB_SEPOLIA = 421614;
@@ -187,14 +187,9 @@ async function drive<T>(t: TestContext, promise: Promise<T>): Promise<T> {
     state.done = true;
   });
   tracked.catch(() => {});
-  for (let round = 0; round < 3_000 && !state.done; round += 1) {
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    if (!state.done) {
-      t.mock.timers.runAll();
-    }
-  }
+  await driveMockClock(tracked, () => {
+    t.mock.timers.runAll();
+  });
   return await tracked;
 }
 

@@ -4,8 +4,8 @@
 // skipped. Run after the build, as `pnpm test` does: the examples import `explorer-verify`,
 // `@explorer-verify/foundry` and `@explorer-verify/hardhat`, which resolve to each `dist/`.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { availableParallelism } from "node:os";
+import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readFileSync } from "node:fs";
+import { availableParallelism, tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -439,7 +439,7 @@ function runProblem(example: DocExample, spec: DocRun, run: Run): string | undef
   const exitCode = spec.exitCode ?? 0;
   const stdout = spec.stdout ?? example.output ?? "";
   if (run.status !== exitCode) {
-    return `${where}: exit code ${String(run.status)}, expected ${String(exitCode)}. stderr:\n${run.stderr}`;
+    return `${where}: exit code ${String(run.status)}, expected ${String(exitCode)}. stdout:\n${run.stdout}stderr:\n${run.stderr}`;
   }
   if (run.stdout !== stdout) {
     return `${where}: printed\n${run.stdout}expected\n${stdout}`;
@@ -514,28 +514,32 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
     const jobs = all
       .filter(runs)
       .flatMap((example) => runsOf(example).map((spec) => ({ example, spec })));
-    const problems = await withProjects(
-      async (projectOf) =>
-        // Each run is its own process. Only the tutorial's build script and the package guide's
-        // script write files, each in a folder no other example reads, so runs can overlap.
-        await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
-          const dir = projectOf(spec.setup ?? "core");
-          const file = exampleFile(example);
-          writeFiles(dir, { [file]: example.code });
-          const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
-            DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
-            ...NO_KEYS,
-            ...spec.env,
-          });
-          const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
-          return (
-            runProblem(example, spec, run) ??
-            (missing.length > 0
-              ? `${example.page}:${String(example.line)}, ${spec.what}: did not write ${missing.join(", ")}`
-              : undefined)
-          );
-        }),
-    );
+    const problems = await withProjects(async (projectOf) => {
+      // Every block's file is written before the first run starts. A block with several runs
+      // shares one file, and rewriting it as each run started let a process that was starting
+      // read it empty, run nothing and send no request.
+      for (const { example, spec } of jobs) {
+        writeFiles(projectOf(spec.setup ?? "core"), { [exampleFile(example)]: example.code });
+      }
+      // Each run is its own process. Only the tutorial's build script and the package guide's
+      // script write files, each in a folder no other example reads, so runs can overlap.
+      return await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
+        const dir = projectOf(spec.setup ?? "core");
+        const file = exampleFile(example);
+        const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
+          DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
+          ...NO_KEYS,
+          ...spec.env,
+        });
+        const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
+        return (
+          runProblem(example, spec, run) ??
+          (missing.length > 0
+            ? `${example.page}:${String(example.line)}, ${spec.what}: did not write ${missing.join(", ")}`
+            : undefined)
+        );
+      });
+    });
     assert.deepEqual(
       problems.filter((problem) => problem !== undefined),
       [],
@@ -734,7 +738,7 @@ describe("the user-docs checks catch a broken example", () => {
     assert.equal(runProblem(example, spec, { stdout: "ok\n", stderr: "", status: 0 }), undefined);
     assert.equal(
       runProblem(example, spec, { stdout: "ok\n", stderr: "boom\n", status: 1 }),
-      "guides/x.md:3, a probe: exit code 1, expected 0. stderr:\nboom\n",
+      "guides/x.md:3, a probe: exit code 1, expected 0. stdout:\nok\nstderr:\nboom\n",
     );
     assert.equal(
       runProblem(example, spec, { stdout: "other\n", stderr: "", status: 0 }),
@@ -752,5 +756,26 @@ describe("the user-docs checks catch a broken example", () => {
     assert.deepEqual(runsOf(example), [
       { page: "guides/x.md", example: 0, what: "the default run" },
     ]);
+  });
+});
+
+describe("the files a run reads (R-AX-2)", () => {
+  it("are replaced whole: a reader that opened the old file still reads it in full", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "explorer-verify-write-"));
+    try {
+      writeFiles(dir, { "block.ts": "console.log(1);\n" });
+      const reader = openSync(path.join(dir, "block.ts"), "r");
+      try {
+        writeFiles(dir, { "block.ts": "console.log(2);\n" });
+        // Rewritten in place, the open file would read as the new text, or empty mid-write.
+        assert.equal(readFileSync(reader, "utf8"), "console.log(1);\n");
+      } finally {
+        closeSync(reader);
+      }
+      assert.equal(readFileSync(path.join(dir, "block.ts"), "utf8"), "console.log(2);\n");
+      assert.deepEqual(readdirSync(dir), ["block.ts"]);
+    } finally {
+      removeProject(dir);
+    }
   });
 });

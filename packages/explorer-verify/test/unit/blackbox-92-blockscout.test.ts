@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { setImmediate as nextTurn } from "node:timers/promises";
 import { inspect } from "node:util";
 
 import { ExplorerVerifyError, checkStatus, verify } from "../../src/index.ts";
@@ -20,6 +19,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
 const ORIGIN = "https://base-sepolia.blockscout.com";
@@ -50,20 +50,9 @@ afterEach(() => {
 });
 
 function drive<T>(pending: Promise<T>): Promise<T> {
-  const state = { settled: false };
-  pending
-    .catch(() => undefined)
-    .finally(() => {
-      state.settled = true;
-    });
-  void (async () => {
-    for (let round = 0; round < 5_000 && !state.settled; round += 1) {
-      await nextTurn();
-      if (!state.settled) {
-        mock.timers.runAll();
-      }
-    }
-  })();
+  void driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return pending;
 }
 

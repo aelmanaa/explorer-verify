@@ -34,6 +34,7 @@ import type {
 } from "../../src/types.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
 const BASE_SEPOLIA = 84532;
@@ -183,14 +184,9 @@ async function drive<T>(t: TestContext, promise: Promise<T>): Promise<T> {
     state.done = true;
   });
   tracked.catch(() => {});
-  for (let round = 0; round < 400 && !state.done; round += 1) {
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    if (!state.done) {
-      t.mock.timers.runAll();
-    }
-  }
+  await driveMockClock(tracked, () => {
+    t.mock.timers.runAll();
+  });
   return await tracked;
 }
 

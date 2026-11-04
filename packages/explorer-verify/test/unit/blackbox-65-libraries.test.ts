@@ -3,10 +3,10 @@
 // and the public declarations. Kept as a regression test; every request goes to a fake fetch.
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { setImmediate as nextTurn } from "node:timers/promises";
 
 import { ExplorerVerifyError, linkLibraries, validateInput, verify } from "../../src/index.ts";
 import type { Hex, VerifyInput } from "../../src/index.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const CHAIN_ID = 11155111; // routing.md: sourcify
 const ADDRESS: Hex = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
@@ -305,24 +305,9 @@ afterEach(() => {
 
 /** Runs the mock timers until `pending` settles. */
 async function drive<T>(pending: Promise<T>): Promise<T> {
-  const state = { settled: false };
-  const watched = pending.then(
-    () => {
-      state.settled = true;
-      return undefined;
-    },
-    () => {
-      state.settled = true;
-      return undefined;
-    },
-  );
-  for (let round = 0; round < 3_000 && !state.settled; round += 1) {
-    await nextTurn();
-    if (!state.settled) {
-      mock.timers.runAll();
-    }
-  }
-  await watched;
+  await driveMockClock(pending, () => {
+    mock.timers.runAll();
+  });
   return await pending;
 }
 
