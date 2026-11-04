@@ -1,1 +1,24 @@
-{}
+{
+  "invalid-input": "0.0.0",
+  "not-confirmed": "0.0.0",
+  "unsupported-chain": "0.0.0",
+  "network": "0.0.0",
+  "rate-limited": "0.0.0",
+  "timeout": "0.0.0",
+  "unexpected-response": "0.0.0",
+  "in-progress": "0.0.0",
+  "unknown-state": "0.0.0",
+  "job-not-found": "0.0.0",
+  "cancelled": "0.0.0",
+  "incomplete-input": "0.0.0",
+  "insufficient-artifact": "0.0.0",
+  "unsupported-compiler": "0.0.0",
+  "verification-inconclusive": "0.0.0",
+  "source-mismatch": "0.0.0",
+  "missing-api-key": "0.0.0",
+  "api-key-rejected": "0.0.0",
+  "quota-exceeded": "0.0.0",
+  "internal-error": "0.0.0",
+  "no-metadata-hash": "0.0.0",
+  "metadata-unavailable": "0.0.0"
+}
