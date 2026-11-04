@@ -38,6 +38,10 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./server": {
+      "types": "./dist/src/server/handler.d.ts",
+      "default": "./dist/src/server/handler.js"
+    },
     "./envelope.schema.json": "./schema/envelope.schema.json",
     "./event.schema.json": "./schema/event.schema.json",
     "./package.json": "./package.json"

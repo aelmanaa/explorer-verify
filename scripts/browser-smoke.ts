@@ -9,7 +9,9 @@
 //    requests to the replay server are cross-origin, as in a dapp.
 // 4. Each run must give the keccak-256 vector digests, then `verified` with `exact` from
 //    `verify()` and from `checkStatus()` on two handles. A fresh load then resumes the first
-//    handle with `checkStatus()` alone.
+//    handle with `checkStatus()` alone. Each full run also runs `createVerifyHandler` from
+//    `explorer-verify/server` against an in-page fake Etherscan: it must forward a status poll
+//    with the key in the body and `redirect: "manual"`, and refuse `getabi` (R-SRV-1).
 //
 // A request out of the recorded order, a recorded answer nobody asked for, a request to any other
 // host, a WebSocket, a request header beyond the CORS-safelisted set and `content-type:
@@ -338,6 +340,29 @@ function expected(): unknown {
     handle: HANDLE,
     checkStatus: VERIFIED,
     otherCheckStatus: VERIFIED,
+    handler: {
+      forwarded: {
+        status: 200,
+        body: { status: "1", message: "OK", result: "Pass - Verified" },
+      },
+      refused: {
+        status: 403,
+        body: {
+          status: "0",
+          message: "NOTOK",
+          result:
+            "Only module contract with the verifysourcecode, checkverifystatus or getsourcecode action is forwarded.",
+          code: "action-not-allowed",
+        },
+      },
+      upstream: [
+        {
+          url: "https://api.etherscan.io/v2/api?chainid=11155111",
+          redirect: "manual",
+          keyInBody: true,
+        },
+      ],
+    },
   };
 }
 

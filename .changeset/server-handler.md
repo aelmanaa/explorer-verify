@@ -1,0 +1,5 @@
+---
+"explorer-verify": patch
+---
+
+The package has a second entry point, `explorer-verify/server`, with `createVerifyHandler`. It returns a function from `Request` to `Response` that holds your Etherscan key on your own server and forwards three actions to Etherscan's v2 API, with the key in the form body: `verifysourcecode`, `checkverifystatus`, and the lookup `getsourcecode`, whose answer it reduces so that no source code or ABI is relayed. It refuses other methods, other content types, encoded bodies, bodies above `maxBodyBytes` before parsing them, bodies that do not arrive within `timeoutMs` (20 s by default), requests with more than 16 fields, chains outside `chains`, any field that names a key, a route, an API URL or a host, and, with `deployers` set, a contract none of them created. An optional `rateLimit` hook runs before the body is read, and an optional `logger` gets each refusal and failure. Every upstream request sets `redirect: "manual"`, a redirect is refused, and each upstream request is retried at most once. No response holds the key. Issue: https://github.com/aelmanaa/explorer-verify/issues/42

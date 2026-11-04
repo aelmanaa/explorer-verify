@@ -31,15 +31,15 @@ run time, so c8 would report them at 0%.
 
 ## Layers
 
-| Layer            | Where                                                                                         | What it proves                                                                                                                                        | Status                             |
-| ---------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Unit             | `packages/*/test/unit/`, `scripts/test/`                                                      | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                                     | In place                           |
-| Browser smoke    | `scripts/browser-smoke.ts`, `packages/explorer-verify/test/browser/`, `scripts/test-browser/` | The core bundles and runs in a headless browser under real CORS (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | In place                           |
-| Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                   | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place                           |
-| Integration      | `packages/cli/test/integration/` (CLI); planned for the M3 handler                            | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI output contract in place (#98) |
-| Live             | planned (M2), maintainer only                                                                 | Real verification on public testnets per backend, with dated results                                                                                  | Planned                            |
-| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                            | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                           |
-| Agent evaluation | `test/agent-eval/`, maintainer only                                                           | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                     | Planned (#7)                       |
+| Layer            | Where                                                                                                          | What it proves                                                                                                                                        | Status                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Unit             | `packages/*/test/unit/`, `scripts/test/`                                                                       | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                                     | In place                                         |
+| Browser smoke    | `scripts/browser-smoke.ts`, `packages/explorer-verify/test/browser/`, `scripts/test-browser/`                  | The core bundles and runs in a headless browser under real CORS (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | In place                                         |
+| Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                                    | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place                                         |
+| Integration      | `packages/cli/test/integration/` (CLI); `packages/explorer-verify/test/unit/server-handler*.test.ts` (handler) | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI output contract in place (#98); handler done |
+| Live             | planned (M2), maintainer only                                                                                  | Real verification on public testnets per backend, with dated results                                                                                  | Planned                                          |
+| Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                                         |
+| Agent evaluation | `test/agent-eval/`, maintainer only                                                                            | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                     | Planned (#7)                                     |
 
 ## Agent readiness (R-AX)
 
@@ -163,7 +163,7 @@ ok   verify: 14402 bytes (ceiling 17283)
 OVER index: 26200 bytes (ceiling 26163)
 ```
 
-The entries are `verify`, `checkStatus`, `buildVerifyInput` and the whole index
+The entries are `verify`, `checkStatus`, `buildVerifyInput`, the whole index and `createVerifyHandler`
 ([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
 entry holds with esbuild's analyzer:
 

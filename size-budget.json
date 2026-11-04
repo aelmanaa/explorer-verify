@@ -41,6 +41,12 @@
       "code": "export { default } from \"./dist/src/routing/table.json\";",
       "measuredBytes": 286,
       "ceilingBytes": 344
+    },
+    {
+      "name": "createVerifyHandler",
+      "code": "export { createVerifyHandler } from \"explorer-verify/server\";",
+      "measuredBytes": 12024,
+      "ceilingBytes": 14429
     }
   ]
 }

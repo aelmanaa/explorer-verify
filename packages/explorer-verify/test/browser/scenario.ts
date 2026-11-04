@@ -6,6 +6,7 @@
 // internal and not exported, so the vectors run on its source file, bundled with the rest.
 import { checkStatus, verify } from "explorer-verify";
 import type { VerifyResult } from "explorer-verify";
+import { createVerifyHandler } from "explorer-verify/server";
 
 import { keccak256 } from "../../src/internal/keccak.ts";
 import vectors from "../fixtures/keccak256-vectors.json" with { type: "json" };
@@ -38,6 +39,60 @@ interface ScenarioResult {
   readonly checkStatus: Outcome | undefined;
   /** `checkStatus` on another job's handle, after the first one, in the same realm. */
   readonly otherCheckStatus: Outcome;
+  /** The server handler, run in this realm against an in-page fake Etherscan (R-SRV-1). */
+  readonly handler: HandlerResult;
+}
+
+/** What the server handler answered, and what it sent to the fake Etherscan. */
+interface HandlerResult {
+  readonly forwarded: { readonly status: number; readonly body: unknown };
+  readonly refused: { readonly status: number; readonly body: unknown };
+  readonly upstream: readonly {
+    readonly url: string;
+    readonly redirect: string | undefined;
+    readonly keyInBody: boolean;
+  }[];
+}
+
+/**
+ * Runs `createVerifyHandler` in this realm with a fake Etherscan `fetch`, so no request leaves the
+ * page: a status poll it forwards, then a `getabi` it refuses (R-SRV-1, R-SRV-3).
+ */
+async function runHandler(): Promise<HandlerResult> {
+  // A made-up key. Never a real one (R-SEC-1).
+  const apiKey = "dummy-key-0001";
+  const upstream: { url: string; redirect: string | undefined; keyInBody: boolean }[] = [];
+  const handler = createVerifyHandler({
+    apiKey,
+    chains: [SEPOLIA],
+    fetch: async (input, init) => {
+      const body = init?.body;
+      upstream.push({
+        url: input instanceof Request ? input.url : String(input),
+        redirect: init?.redirect,
+        keyInBody: body instanceof URLSearchParams && body.get("apikey") === apiKey,
+      });
+      return await Promise.resolve(
+        new Response(JSON.stringify({ status: "1", message: "OK", result: "Pass - Verified" }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    },
+  });
+  const form = (fields: Record<string, string>): Request =>
+    new Request(`https://dapp.example/api/verify?chainid=${String(SEPOLIA)}`, {
+      method: "POST",
+      body: new URLSearchParams(fields),
+    });
+  const forwarded = await handler(
+    form({ module: "contract", action: "checkverifystatus", guid: "abc123" }),
+  );
+  const refused = await handler(form({ module: "contract", action: "getabi", address: GREETER }));
+  return {
+    forwarded: { status: forwarded.status, body: await forwarded.json() },
+    refused: { status: refused.status, body: await refused.json() },
+    upstream,
+  };
 }
 
 function bytesOf(hex: string): Uint8Array {
@@ -102,6 +157,7 @@ async function runScenario(apiUrl: string): Promise<ScenarioResult> {
     handle,
     checkStatus: handle === undefined ? undefined : await settle(checkStatus(handle, options)),
     otherCheckStatus: await settle(checkStatus(OTHER_HANDLE, options)),
+    handler: await runHandler(),
   };
 }
 
