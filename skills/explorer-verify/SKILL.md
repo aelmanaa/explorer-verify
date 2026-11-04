@@ -315,8 +315,9 @@ handle, retry only with `checkStatus()`, never `verify()`.
 
 ## 5. From the command line
 
-The `@explorer-verify/cli` package adds the `explorer-verify` command. It is not published yet,
-and its `verify` and `status` commands come in a later release. The rules above hold for it too:
+The `@explorer-verify/cli` package adds the `explorer-verify` command. It is not published yet.
+`explorer-verify verify` runs `verify()` and `explorer-verify status <handle>` runs
+`checkStatus()`. The rules above hold for it too:
 
 - Start with `explorer-verify --help --json`. It prints the commands, their options and examples,
   the environment variables and the exit codes as one envelope. `explorer-verify help <command>`
@@ -343,6 +344,59 @@ It prints:
 ```text
 {"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: argument 3 is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
 ```
+
+Before a real `verify`, run the same command line with `--dry-run`. It validates the input,
+resolves the route and looks the contract up, then stops: it never submits, and it needs no API
+key. Run it without asking. Read the `lookup` field of its result:
+
+- `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing.
+- `none`: `verify` would submit. Ask the person before you run it without `--dry-run`.
+- `skipped`: the backend needs an API key and none is set, so no request was sent. Do not run
+  `verify`: it would exit 3 with `missing-api-key`. Ask the person to set the key.
+
+These examples run in a Foundry project, where `forge build --build-info` wrote the two files:
+
+```sh
+# exit code 0
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json
+```
+
+It prints:
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+```
+
+The routing table picks the first backend of the chain's row that works with the keys set, so with
+ETHERSCAN_API_KEY set the same command line may go to Etherscan instead. Read `backend` in the
+result. For a chain whose row has no Etherscan entry, Etherscan is reached only with
+`--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. With no key, the dry run skips
+the lookup:
+
+```sh
+# exit code 0
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
+```
+
+It prints:
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped"}}
+```
+
+Keys on the command line:
+
+- No flag takes a key. The CLI reads the ETHERSCAN_API_KEY and ROUTESCAN_API_KEY variables, or one key from
+  `--api-key-file <path>` or `--api-key-stdin`. A key flag needs `--backend`, and `--api-url` for a
+  route the routing table does not hold.
+- With `--api-url`, as Etherscan needs in this release, the variable is not sent: give the key with
+  `--api-key-file` or `--api-key-stdin`. The person sets the key; never ask them to paste it into
+  the chat, and never write it into a command line.
+- `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
+  optional `route` of `backend` and `apiUrl`. It holds no key. Only the output, log, `--dry-run`,
+  `--timeout` and key flags may go with it.
+- A run that ends pending exits 4 with the handle in the error. Resume with
+  `explorer-verify status <handle>`, never with a new `verify`.
 
 ## When to stop
 

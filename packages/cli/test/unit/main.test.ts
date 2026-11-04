@@ -8,7 +8,7 @@ import type { TestContext } from "node:test";
 import { ExplorerVerifyError, formatHandle } from "explorer-verify";
 import type { VerifyResult } from "explorer-verify";
 
-import type { Command } from "../../src/command.ts";
+import type { Command, RunCommand } from "../../src/command.ts";
 import { main } from "../../src/main.ts";
 import { POLL_MS } from "../../src/simulate.ts";
 import { fakeIo, jsonLines } from "../helpers/fake-io.ts";
@@ -55,7 +55,7 @@ async function runWithPolls(t: TestContext, argv: readonly string[]) {
 }
 
 /** A command table with one command that runs `body`. */
-function table(body: Command["run"], name = "custom"): Command[] {
+function table(body: RunCommand, name = "custom"): Command[] {
   return [
     {
       name,
@@ -122,7 +122,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
     assert.equal(result.code, 2);
     assert.match(
       result.stdout,
-      /command is missing; this version has no public commands yet; see the CLI reference; --log-format must be one of text, json/,
+      /command is missing; give one of verify, status; --log-format must be one of text, json/,
     );
   });
 

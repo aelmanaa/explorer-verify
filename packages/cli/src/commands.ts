@@ -4,6 +4,8 @@
  */
 import type { Command } from "./command.ts";
 import { SIMULATE } from "./simulate.ts";
+import { STATUS } from "./status.ts";
+import { VERIFY } from "./verify.ts";
 
 /** Every command, in help order. */
-export const COMMANDS: readonly Command[] = [SIMULATE];
+export const COMMANDS: readonly Command[] = [VERIFY, STATUS, SIMULATE];

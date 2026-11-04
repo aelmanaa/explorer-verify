@@ -6,6 +6,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const BIN: string = fileURLToPath(new URL("../../dist/src/bin.js", import.meta.url));
+const PRELOAD: string = fileURLToPath(new URL("fake-explorer-preload.ts", import.meta.url));
+
+/** The folder the documented examples run in: a Foundry build of the Greeter, and its request. */
+export const PROJECT: string = fileURLToPath(new URL("../fixtures/project/", import.meta.url));
 
 /** Variables of the test runner's environment that the CLI reads; each test sets its own. */
 const CLEARED = [
@@ -34,6 +38,13 @@ export interface BinOptions {
   stdin?: "ignore" | "open" | "ended" | { text: string };
   /** Runs the bin with stdin on a pseudo-terminal, through `python3`; stdout and stderr stay pipes. */
   stdinTerminal?: boolean;
+  /** The working folder of the bin. */
+  cwd?: string;
+  /**
+   * Loads the fake explorer before the bin, with this scenario, so no request reaches the network.
+   * `log` names a file that gets one JSON line per request.
+   */
+  fake?: { scenario?: string; log?: string };
   /** Called with each stderr chunk and the child, for example to send a signal. */
   onStderr?: (text: string, child: ChildProcess) => void;
 }
@@ -80,12 +91,22 @@ export function hasPty(): boolean {
 export function runBin(args: readonly string[], options: BinOptions = {}): Promise<BinResult> {
   return new Promise((resolve, reject) => {
     const stdin = options.stdin ?? "ignore";
+    const { fake } = options;
+    const bin = fake === undefined ? [BIN] : ["--import", PRELOAD, BIN];
+    const fakeEnv: Record<string, string> =
+      fake === undefined
+        ? {}
+        : {
+            FAKE_EXPLORER: fake.scenario ?? "verified",
+            ...(fake.log === undefined ? {} : { FAKE_EXPLORER_LOG: fake.log }),
+          };
     const [file, argv]: [string, string[]] =
       options.stdinTerminal === true
-        ? ["python3", ["-I", "-c", PTY_SCRIPT, process.execPath, BIN, ...args]]
-        : [process.execPath, [BIN, ...args]];
+        ? ["python3", ["-I", "-c", PTY_SCRIPT, process.execPath, ...bin, ...args]]
+        : [process.execPath, [...bin, ...args]];
     const child = spawn(file, argv, {
-      env: environment(options.env ?? {}),
+      ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+      env: environment({ ...fakeEnv, ...options.env }),
       stdio: [stdin === "ignore" ? "ignore" : "pipe", "pipe", "pipe"],
     });
     if (stdin === "ended") {

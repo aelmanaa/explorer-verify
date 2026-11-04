@@ -1,12 +1,25 @@
 /**
  * What the CLI writes to stdout (R-AX-5, R-AX-12): with `--json`, the one envelope of the outcome;
  * without it, a short summary of a result, and nothing for an error, whose lines go to stderr.
- * Both come from `toEnvelope`, so they hold the same redacted values and the same text for the
- * same outcome.
+ * Both come from the same envelope, so they hold the same redacted values and the same text for
+ * the same outcome.
  */
-import type { Envelope } from "explorer-verify";
+import type { DryRunResult, Envelope } from "explorer-verify";
 
 import { painter } from "./terminal.ts";
+
+/** The summary line of a dry run. */
+function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): string {
+  const head = `${paint("green", "dry run")} on ${result.backend} at ${result.apiHost}: `;
+  if (result.lookup === "skipped") {
+    return `${head}lookup skipped, because ${result.backend} needs an API key and none is set. Nothing was submitted.\n`;
+  }
+  if (result.lookup === "none") {
+    return `${head}no match, so verify would submit. Nothing was submitted.\n`;
+  }
+  const line = `${head}${result.lookup} match already, so verify would not submit.\n`;
+  return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
+}
 
 /**
  * The stdout text of an envelope.
@@ -25,6 +38,9 @@ export function stdoutText(envelope: Envelope, json: boolean, color: boolean): s
   }
   const paint = painter(color);
   const { result } = envelope;
+  if (result.status === "dry-run") {
+    return dryRunText(result, paint);
+  }
   if (result.status === "failed") {
     return `${paint("red", "failed")} on ${result.backend}: ${result.reason}\n`;
   }

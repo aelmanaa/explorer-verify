@@ -14,12 +14,12 @@ import {
   parseHandle,
   toEnvelope,
 } from "explorer-verify";
-import type { ExitCode, Handle, InputIssue, VerifyOutcome, VerifyResult } from "explorer-verify";
+import type { ExitCode, Handle, InputIssue } from "explorer-verify";
 
 import { readArguments } from "./arguments.ts";
-import type { Arguments } from "./arguments.ts";
+import type { Arguments, OptionValue } from "./arguments.ts";
 import { stringOption, usageError } from "./command.ts";
-import type { Command, CommandContext } from "./command.ts";
+import type { Command, CommandContext, CommandResult, RunCommand } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
 import { helpResult, helpText } from "./help.ts";
 import { keyVariableValues, readRouteOptions, scrubbing, withoutKeyVariables } from "./keys.ts";
@@ -146,7 +146,10 @@ export function tidyStack(stack: string, home: string): string {
 }
 
 /** How a command's run ended. A signal settles it as an error with no value. */
-type Settled = { result: VerifyResult } | { error: unknown };
+type Settled = { result: CommandResult } | { error: unknown };
+
+/** What a run ends with: a command's result or an error. */
+type Outcome = CommandResult | ExplorerVerifyError;
 
 /**
  * Runs a command with the context and a spinner. A signal aborts the context's signal and ends
@@ -159,7 +162,7 @@ async function runCommand(
   io: Io,
   stderr: Stderr,
   state: RunState,
-): Promise<VerifyOutcome> {
+): Promise<Outcome> {
   const { signal } = state.controller;
   const cancelled = new Promise<Settled>((resolve) => {
     signal.addEventListener(
@@ -171,9 +174,11 @@ async function runCommand(
     );
   });
   let routeOptions: RouteOptions = {};
-  const context: CommandContext = {
+  let values: ReadonlyMap<string, OptionValue> = args.values;
+  let fieldNames: ReadonlyMap<string, string> = new Map();
+  const context = (): CommandContext => ({
     positionals: args.positionals,
-    values: args.values,
+    values,
     signal,
     logger: stderr.logger,
     onEvent: (event) => {
@@ -184,24 +189,39 @@ async function runCommand(
     },
     env: withoutKeyVariables(io.env),
     routeOptions: () => routeOptions,
-  };
+  });
   stderr.startSpinner(`Running ${command.name}`);
   try {
     const running = Promise.resolve()
       .then(async () => {
-        if (command.routed === true) {
-          const read = await readRouteOptions({
+        let run: RunCommand;
+        if (command.prepare === undefined) {
+          run = command.run;
+        } else {
+          // The request is read before the keys, so its route decides where a key goes (R-AX-16).
+          const prepared = await command.prepare({
+            positionals: args.positionals,
             values: args.values,
-            env: io.env,
             stdin: io.stdin,
           });
+          values = prepared.values;
+          run = prepared.run;
+          fieldNames = prepared.fieldNames ?? fieldNames;
+        }
+        if (command.routed === true) {
+          const read = await readRouteOptions({ values, env: io.env, stdin: io.stdin });
           state.secrets.push(...read.secrets);
           if (read.options === undefined) {
-            throw usageError(read.issues);
+            throw usageError(
+              read.issues.map((issue) => ({
+                ...issue,
+                field: fieldNames.get(issue.field) ?? issue.field,
+              })),
+            );
           }
           routeOptions = read.options;
         }
-        return await command.run(context);
+        return await run(context());
       })
       .then(
         (result): Settled => ({ result }),
@@ -221,11 +241,12 @@ async function runCommand(
 
 /** Writes the outcome: stdout from its envelope, its error line on stderr; returns its exit code. */
 function finish(
-  outcome: VerifyOutcome,
+  outcome: Outcome,
   io: Io,
   stderr: Stderr,
   options: { json: boolean; color: boolean },
 ): ExitCode {
+  // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8).
   const envelope = toEnvelope(outcome);
   const code = exitCodeOf(outcome);
   const text = stdoutText(envelope, options.json, options.color);
@@ -308,7 +329,7 @@ async function runCli(
     );
     return 0;
   }
-  let outcome: VerifyOutcome;
+  let outcome: Outcome;
   if (state.received !== undefined) {
     outcome = cancelledError(state.received, state.submitted);
   } else if (command === undefined || issues.length > 0) {

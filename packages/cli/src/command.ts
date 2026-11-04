@@ -4,10 +4,10 @@
  * or throws into stdout, stderr and the exit code. A command only does its work.
  */
 import { ExplorerVerifyError } from "explorer-verify";
-import type { InputIssue, Logger, VerifyEvent, VerifyResult } from "explorer-verify";
+import type { DryRunResult, InputIssue, Logger, VerifyEvent, VerifyResult } from "explorer-verify";
 
 import type { CommandSpec, OptionValue } from "./arguments.ts";
-import type { RouteOptions } from "./keys.ts";
+import type { InputStream, RouteOptions } from "./keys.ts";
 import type { Environment } from "./terminal.ts";
 
 /** What a command's `run` receives. */
@@ -40,8 +40,40 @@ export interface Example {
   readonly description: string;
 }
 
-/** One row of the command table. */
-export interface Command extends CommandSpec {
+/** What a command returns: a result of `verify()` or `checkStatus()`, or of `dryRun()`. */
+export type CommandResult = VerifyResult | DryRunResult;
+
+/** Does a command's work. */
+export type RunCommand = (context: CommandContext) => Promise<CommandResult>;
+
+/** What a command's `prepare` receives: the command line, before any key is read. */
+export interface PrepareContext {
+  /** The positionals after the command name. */
+  readonly positionals: readonly string[];
+  /** The checked option values, global ones included, by long name. */
+  readonly values: ReadonlyMap<string, OptionValue>;
+  /** Opens stdin. Call it only when an option asks to read stdin, such as `--input-json -`. */
+  readonly stdin: () => InputStream;
+}
+
+/** What a command's `prepare` returns. */
+export interface Prepared {
+  /**
+   * The option values to run with: the command line's, plus any that the request gave, such as
+   * `backend` from the route of `--input-json`. The keys are read with these values.
+   */
+  readonly values: ReadonlyMap<string, OptionValue>;
+  /**
+   * The name to give an issue about an option that the request filled, such as `route.backend`
+   * for `--backend`. Absent when the command line gave every option.
+   */
+  readonly fieldNames?: ReadonlyMap<string, string>;
+  /** Does the work with what `prepare` read. */
+  readonly run: RunCommand;
+}
+
+/** The fields every row of the command table has. */
+interface CommandFields extends CommandSpec {
   /** One line for the help text. */
   readonly summary: string;
   /** The positionals of the usage line, such as `<handle>`. Empty when it takes none. */
@@ -50,12 +82,22 @@ export interface Command extends CommandSpec {
   readonly examples: readonly [Example, ...Example[]];
   /** The most positionals the command accepts after its name. */
   readonly maxPositionals: number;
-  /**
-   * Does the work. It returns a result, or throws an `ExplorerVerifyError`; anything else it
-   * throws becomes `internal-error`.
-   */
-  readonly run: (context: CommandContext) => Promise<VerifyResult>;
 }
+
+/**
+ * One row of the command table. A command either runs at once with `run`, or reads its request
+ * first with `prepare`, before the main loop reads the keys, so the request can name the route
+ * the keys go to (R-AX-16). Either one returns a result, or throws an `ExplorerVerifyError`;
+ * anything else it throws becomes `internal-error`.
+ */
+export type Command = CommandFields &
+  (
+    | { readonly run: RunCommand; readonly prepare?: undefined }
+    | {
+        readonly prepare: (context: PrepareContext) => Promise<Prepared>;
+        readonly run?: undefined;
+      }
+  );
 
 /** The hint of a usage error. */
 const USAGE_HINT =
@@ -105,4 +147,21 @@ export function stringOption(
 ): string | undefined {
   const value = values.get(name);
   return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * The values of an option that repeats, in command-line order: empty when it was not given.
+ *
+ * @param values - The checked option values.
+ * @param name - The option's long name.
+ * @returns The values.
+ */
+export function listOption(
+  values: ReadonlyMap<string, OptionValue>,
+  name: string,
+): readonly string[] {
+  const value = values.get(name);
+  return value === undefined || typeof value === "string" || typeof value === "boolean"
+    ? []
+    : value;
 }

@@ -28,6 +28,7 @@ export const ROUTE_OPTIONS: OptionSpecs = {
   backend: {
     type: "string",
     value: "<name>",
+    once: true,
     description: `Use this backend instead of the routing table's: ${BACKEND_NAMES.join(", ")}.`,
   },
   "api-url": {
@@ -255,6 +256,22 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
   };
 }
 
+/**
+ * The issue of `--api-key-stdin` with `--input-json -`, which would both read stdin (R-AX-9), or
+ * `undefined`. The request and the keys check it before either reads a byte.
+ *
+ * @param values - The checked option values.
+ * @returns The issue, naming `--api-key-stdin`.
+ */
+export function stdinConflict(values: ReadonlyMap<string, OptionValue>): InputIssue | undefined {
+  return values.get("api-key-stdin") === true && values.get("input-json") === "-"
+    ? {
+        field: "--api-key-stdin",
+        message: "cannot be combined with --input-json -: both would read stdin",
+      }
+    : undefined;
+}
+
 /** Reads the key that `--api-key-file` or `--api-key-stdin` names, if either is set. */
 async function flagKey(
   sources: RouteSources,
@@ -273,11 +290,9 @@ async function flagKey(
     return undefined;
   }
   const field = fromStdin ? "--api-key-stdin" : "--api-key-file";
-  if (fromStdin && values.get("input-json") === "-") {
-    issues.push({
-      field,
-      message: "cannot be combined with --input-json -: both would read stdin",
-    });
+  const conflict = stdinConflict(values);
+  if (conflict !== undefined) {
+    issues.push(conflict);
     return undefined;
   }
   if (destination.kind === "problem") {

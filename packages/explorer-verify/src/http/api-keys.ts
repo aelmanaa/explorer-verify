@@ -384,6 +384,29 @@ export function withKey(ctx: KeyContext, backend: BackendName, req: HttpRequest)
 }
 
 /**
+ * Whether the route's backend needs a key, none is bound to the route's host, and the caller did
+ * not inject `fetch`. {@link requireKey} throws in that case; a dry run skips its lookup instead.
+ *
+ * @param ctx - The route and the caller's keys.
+ * @param injectedFetch - Whether the caller passed `VerifyOptions.fetch`.
+ * @returns `true` when a request would go out without the key it needs.
+ * @example
+ * ```ts
+ * if (keyMissing({ route, apiKeys: settings.apiKeys }, settings.fetch !== undefined)) {
+ *   // The dry run skips the lookup.
+ * }
+ * ```
+ */
+export function keyMissing(ctx: KeyContext, injectedFetch: boolean): boolean {
+  const { route } = ctx;
+  return (
+    !injectedFetch &&
+    needsKey(route.backend) &&
+    keyFor(ctx, route.backend, route.apiBase) === undefined
+  );
+}
+
+/**
  * Throws `missing-api-key` before any request when the route's backend needs a key, none is bound
  * to the route's host, and the caller did not inject `fetch`. With an injected `fetch`, the request
  * may reach a server that adds the key (R-SRV-5), so it goes out without one and the explorer's
@@ -405,11 +428,7 @@ export function requireKey(
   secrets: readonly string[],
 ): void {
   const { route } = ctx;
-  if (
-    injectedFetch ||
-    !needsKey(route.backend) ||
-    keyFor(ctx, route.backend, route.apiBase) !== undefined
-  ) {
+  if (!keyMissing(ctx, injectedFetch)) {
     return;
   }
   const host = new URL(route.apiBase).host;

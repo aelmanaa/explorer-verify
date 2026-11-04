@@ -7,12 +7,101 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: people, CI jobs and agents that run the `explorer-verify` command.
 
 The command ships in the `@explorer-verify/cli` package, which is not published yet. It runs on
-Node 22.18 and later. This page describes the output contract that every command follows. The
-`verify` and `status` commands come next; until then, a hidden `simulate` command runs a
-verification with no network so the contract can be tested.
+Node 22.18 and later. `verify` verifies a contract from its build files, and `status` resumes a
+submitted verification from its handle. This page describes both, and the output contract that
+every command follows. A hidden `simulate` command runs a verification with no network, so the
+tests can drive every exit path; a later release removes it.
 
 The sections from Usage to Exit codes are generated from the CLI's own help, so they match
 `explorer-verify --help` for this version.
+
+## Verify
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 \
+  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --json
+```
+
+- The address may come first, without the word `verify`:
+  `explorer-verify 0x8275… --chain 11155111 --input …`.
+- `--input` repeats. Each file is read as JSON and passed to
+  [`buildVerifyInput()`](../guides/verify-a-contract-from-an-npm-package.md), which works out what it is: a
+  build-info, an artifact, Solidity metadata or a Standard JSON input. Pass the build-info and the
+  contract's artifact for Foundry (`forge build --build-info`) and Hardhat. A bare Standard JSON
+  input needs `--contract path:Name` and `--compiler-version`. Metadata needs its sources embedded,
+  as `useLiteralContent` writes them: the CLI does not read `.sol` files. Each file may be at most
+  64 MiB.
+- `--constructor-args`, `--creation-tx` and `--library path:Name=address` (repeatable) fill the
+  matching `VerifyInput` fields. `validateInput()` checks the whole input before anything is sent.
+- `--timeout <seconds>` sets the time budget of the run, polling included; the default is 120. A
+  run that ends while the job is still pending exits 4 with `not-confirmed` and the handle. Resume
+  it with `status`.
+- `--backend` and `--api-url` pick the route, as in [API keys and route options](#api-keys-and-route-options).
+  `--backend` can be given only once: this version runs on one backend at a time.
+- The `verify.submitted` line on stderr carries the handle, at the default level. Keep it.
+
+A usage or input error exits 2 before any request. An issue names the option, such as `--chain` or
+`--input[2]` for the second `--input`, and never repeats a path or a value.
+
+## Dry run
+
+`--dry-run` validates the input, resolves the route and looks the contract up, then stops before
+the submit. It needs no API key. It exits 0 and prints the
+[dry-run result](json-output.md#dry-run): the backend, its API host (with the port when it is not
+the default one, such as `127.0.0.1:5555`), and the lookup's answer.
+`lookup` is `exact` or `partial` when the explorer already holds the contract, so `verify` would
+not submit, and `none` when it would submit. When the backend needs an API key and none is set, the
+dry run sends no request and says `lookup: "skipped"`. Errors before the submit exit as they would
+without `--dry-run`.
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 \
+  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
+```
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped"}}
+```
+
+The route depends on the keys: the routing table picks the first backend of the chain's row that
+works with the keys set, so the same command line can go to Etherscan with `ETHERSCAN_API_KEY` set
+and to Sourcify without it. The dry run's `backend` says which. For a chain whose row has no
+Etherscan entry, Etherscan is reached only with
+`--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. Its key then goes in with
+`--api-key-file` or `--api-key-stdin`: `ETHERSCAN_API_KEY` is sent only to the routing table's
+host, so with `--api-url` it is not used, and `verify` exits 3 with `missing-api-key` before any
+request.
+
+## Status
+
+```sh
+explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json
+```
+
+`status <handle>` calls [`checkStatus()`](check-status.md): it polls the job from its handle and
+never submits. It takes the same `--timeout`, route options and keys as `verify`, and uses the same
+exit codes. Pass the route options the submit used: the handle never chooses the host.
+
+## The request as JSON
+
+`--input-json <file>` reads the whole request as one JSON document, and `--input-json -` reads it
+from stdin. The package `explorer-verify` ships its JSON Schema as
+`explorer-verify/input.schema.json`.
+
+- For `verify`: a `VerifyInput`, as `validateInput()` returns it, with an optional
+  `route: { "backend", "apiUrl" }`.
+- For `status`: `{ "handle": "ev1:…" }`, with an optional `route`.
+
+Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
+`--api-key-stdin` and `--timeout` may accompany it, and no argument. Any other option exits 2: put
+it in the request. The route of the request counts as `--backend` and `--api-url`, so
+`--api-key-file` can send its key there. Malformed JSON exits 2. Properties the schema does not
+list exit 2 with one issue that counts them and never names them. The request has no field for an
+API key.
+
+`--input-json -` exits 2 at once when stdin is a terminal, and with `--api-key-stdin`, which reads
+stdin too. The same request as flags and as JSON prints the same stdout.
 
 ## Help and version
 
@@ -56,10 +145,67 @@ explorer-verify help [<command>]
 
 - `explorer-verify --version --json`: Print the CLI and core versions and the routing table's date as one envelope.
 - `explorer-verify help --json`: List the commands, options, environment variables and exit codes as one envelope.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json`: Check a Foundry build and look the contract up, without submitting: one envelope.
+- `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json`: Poll the job of a handle until it ends or the time budget runs out.
 
 ## Commands
 
-This version has no public commands yet.
+| Command  | What it does                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------- |
+| `verify` | Verify a deployed contract's source. Looks it up first, and submits only when the explorer lacks it. |
+| `status` | Resume a submitted verification from its handle, such as after exit code 4. Never submits.           |
+
+### `verify`
+
+Verify a deployed contract's source. Looks it up first, and submits only when the explorer lacks it.
+
+```text
+explorer-verify verify <address> [options]
+```
+
+Examples:
+
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json`: Check a Foundry build and look the contract up, without submitting: one envelope.
+- `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json`: Verify from a Foundry build-info and artifact; the address may come first, without verify.
+- `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it.
+
+| Option                          | What it does                                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                   |
+| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                               |
+| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                  |
+| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                          |
+| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                             |
+| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                        |
+| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                             |
+| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                          |
+| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                  |
+| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                  |
+| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                            |
+| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.     |
+| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                             |
+| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package. |
+
+### `status`
+
+Resume a submitted verification from its handle, such as after exit code 4. Never submits.
+
+```text
+explorer-verify status <handle> [options]
+```
+
+Examples:
+
+- `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json`: Poll the job of a handle until it ends or the time budget runs out.
+
+| Option                  | What it does                                                                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`      | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                   |
+| `--api-url <url>`       | Use this explorer API URL instead of the routing table's.                                                                               |
+| `--api-key-file <path>` | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                  |
+| `--api-key-stdin`       | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                          |
+| `--timeout <seconds>`   | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.     |
+| `--input-json <file>`   | Read the whole status request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package. |
 
 ## Hidden commands
 
@@ -67,7 +213,7 @@ Usage messages and the CLI's own help do not list these commands, and a later re
 
 ### `simulate`
 
-Run a simulated verification with no network, to test the output contract. Replaced by verify and status.
+Run a simulated verification with no network, to test the output contract. A later release removes it.
 
 ```text
 explorer-verify simulate [options]

@@ -8,9 +8,11 @@ import { describe, it } from "node:test";
 import { routingTableDate } from "explorer-verify";
 
 import { envelopeProblems, helpProblems, oneEnvelope, versionProblems } from "../helpers/schema.ts";
-import { runBin } from "../helpers/spawn-bin.ts";
+import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
 
 const TIMEOUT = { timeout: 30_000 };
+// Each of these runs every documented example on the bin, one after the other.
+const EXAMPLES_TIMEOUT = { timeout: 90_000 };
 const ROOT = new URL("../../../../", import.meta.url);
 const CLI_MD = readFileSync(new URL("docs/user/reference/cli.md", ROOT), "utf8");
 const SKILL_MD = readFileSync(new URL("skills/explorer-verify/SKILL.md", ROOT), "utf8");
@@ -125,7 +127,11 @@ function optionCell(option: Record<string, unknown>): string {
 function optionRows(options: unknown): string[][] {
   return list(options).map((o) => {
     const option = record(o);
-    return [optionCell(option), text(option["description"])];
+    const description = text(option["description"]);
+    return [
+      optionCell(option),
+      option["repeatable"] === true ? `${description} Repeatable.` : description,
+    ];
   });
 }
 
@@ -137,7 +143,8 @@ function expectedExit(description: string): number {
 async function runExample(command: string, description: string): Promise<void> {
   assert.ok(!/["'\\$]/.test(command), "no shell quoting needed");
   const args = command.split(" ").slice(1);
-  const result = await runBin(args);
+  // The examples run in a Foundry project against the fake explorer: nothing reaches the network.
+  const result = await runBin(args, { cwd: PROJECT, fake: {} });
   assert.equal(result.code, expectedExit(description), `${command}\n${result.stderr}`);
   if (args.includes("--json")) {
     const envelope = oneEnvelope(result.stdout);
@@ -198,7 +205,11 @@ describe(
         const topic = args.includes("simulate") ? "simulate" : null;
         assert.equal(result["topic"], topic);
         if (topic === null) {
-          assert.deepEqual(result["commands"], [], "hidden commands are not listed");
+          assert.deepEqual(
+            list(result["commands"]).map((c) => record(c)["name"]),
+            ["verify", "status"],
+            "hidden commands are not listed",
+          );
         } else {
           assert.deepEqual(
             list(result["commands"]).map((c) => record(c)["name"]),
@@ -461,7 +472,7 @@ describe(
   "blackbox #103: every documented example runs with its exit code",
   { concurrency: true },
   () => {
-    it("the examples in the bin's help", TIMEOUT, async () => {
+    it("the examples in the bin's help", EXAMPLES_TIMEOUT, async () => {
       const seen: string[] = [];
       for (const topic of [[], ...documentedCommands().map((name) => [name])]) {
         const json = await helpJson(["help", ...topic]);
@@ -474,7 +485,7 @@ describe(
       assert.ok(seen.length >= 4);
     });
 
-    it("the examples in cli.md", TIMEOUT, async () => {
+    it("the examples in cli.md", EXAMPLES_TIMEOUT, async () => {
       const examples = exampleBullets(generatedSection());
       assert.ok(examples.length >= 4);
       for (const { command, description } of examples) {

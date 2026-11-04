@@ -288,6 +288,8 @@ export async function abortWins<T>(
  * @param route - The resolved route.
  * @param target - The contract the call is about.
  * @param dependencies - The backend clients and the jitter source.
+ * @param checkKey - Whether a backend that needs a key and has none throws `missing-api-key`. A
+ *   dry run passes `false` and skips its lookup instead.
  * @returns The call. Its budget starts now.
  * @throws ExplorerVerifyError `unsupported-chain` when this version has no client for the route.
  * @example
@@ -300,6 +302,7 @@ export function openCall(
   route: Route,
   target: Target,
   dependencies: FlowDependencies,
+  checkKey = true,
 ): Call {
   const backend = backendOf(route, target.chainId, dependencies);
   const routeKey = route.apiKey();
@@ -324,7 +327,9 @@ export function openCall(
     throw invalidOptions(clashes, secrets);
   }
   // Before any request: a keyed backend with no key bound to its host (R-AX-7).
-  requireKey({ route, apiKeys }, settings.fetch !== undefined, secrets);
+  if (checkKey) {
+    requireKey({ route, apiKeys }, settings.fetch !== undefined, secrets);
+  }
   // The one observer of this call: every request, retry and stage goes through it, so a broken
   // `onEvent` is reported once per call (decision 0010).
   const observer = createObserver({

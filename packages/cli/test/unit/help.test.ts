@@ -47,7 +47,7 @@ const TABLE: readonly Command[] = [
     maxPositionals: 1,
     run: NEVER,
   },
-  ...COMMANDS,
+  ...COMMANDS.filter((command) => command.hidden === true),
 ];
 
 /** Every command, of the shipped table and of the test table, each once. */
@@ -126,10 +126,13 @@ describe("help: the CLI's own help (R-AX-11)", () => {
 
   it("never lists a hidden command", () => {
     const text = helpText(helpResult(COMMANDS));
-    assert.ok(COMMANDS.every((command) => command.hidden === true));
-    assert.match(text, /^Commands:\n {2}This version has no public commands yet\.$/m);
+    assert.ok(COMMANDS.some((command) => command.hidden === true));
+    assert.match(text, /^Commands:\n {2}verify +Verify a deployed\b.*\n {2}status +Resume\b/m);
     assert.doesNotMatch(text, /simulate/);
-    assert.deepEqual(JSON.parse(JSON.stringify(helpResult(COMMANDS))).commands, []);
+    assert.deepEqual(
+      helpResult(COMMANDS).commands.map((command) => command.name),
+      ["verify", "status"],
+    );
   });
 
   it("runs every example of the CLI's own help without an issue", () => {

@@ -39,7 +39,7 @@ When Sourcify already has the contract, it prints one line and exits with 0:
 
 ## The envelope
 
-The envelope has one of three forms:
+The envelope has one of three forms, and a fourth for a dry run:
 
 ```json
 {
@@ -92,6 +92,30 @@ The rules:
   else. Ignore any field you do not know. Handle an error code you do not know by its `retryable`
   value and the exit code.
 
+### Dry run
+
+`toEnvelope()` of a `DryRunResult` gives a fourth form, with exit code 0, and
+`explorer-verify verify --dry-run --json` prints it. Its `result` is the `DryRunResult` of
+[`dryRun()`](verify.md#dry-run), and nothing was submitted:
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "result": {
+    "status": "dry-run",
+    "backend": "etherscan-v2",
+    "apiHost": "api.etherscan.io",
+    "lookup": "skipped"
+  }
+}
+```
+
+`lookup` is `exact`, `partial`, `none` or `skipped`. `skipped` means the backend needs an API key
+and none was set, so the dry run sent no request. A reader that knows only the other forms tells
+this one apart by `result.status`. `apiHost` is a host name, with the port when it is not the
+scheme's default, such as `127.0.0.1:5555`.
+
 `toEnvelope` and `exitCodeOf` throw `invalid-input` for a value that is neither a `VerifyResult` nor
 an `ExplorerVerifyError`, and `toEnvelope` throws it for options other than `{ secrets?: string[] }`.
 Only code that bypasses the types can pass such values.
@@ -112,6 +136,10 @@ fields it does not list, and accepts any error code or backend of the form
 `^[a-z0-9]+(-[a-z0-9]+)*$`, so a reader that validates against it keeps working when a later
 release adds a field, a code or a backend. Its descriptions list the codes and backends this
 release knows.
+
+`explorer-verify/input.schema.json` describes the request that the CLI's `--input-json` reads: a
+`VerifyInput` with an optional `route` for `verify`, or a `handle` with an optional `route` for
+`status`. It has no field for an API key. See [CLI](cli.md#the-request-as-json).
 
 ## Exit codes
 

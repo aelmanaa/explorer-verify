@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "explorer-verify request",
+  "description": "The whole request of the CLI's verify or status command as one JSON document, passed with --input-json <file|-> (R-AX-16). A verify request is a VerifyInput, as validateInput() checks it, with an optional route. A status request is a handle with an optional route. No field holds an API key: give keys through the environment, --api-key-file or --api-key-stdin. The CLI refuses unknown properties with one invalid-input issue that counts them and never names them.",
+  "oneOf": [{ "$ref": "#/$defs/verify" }, { "$ref": "#/$defs/status" }],
+  "$defs": {
+    "verify": {
+      "description": "The request of explorer-verify verify: a VerifyInput and an optional route.",
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "description": "EVM chain id the contract is deployed on.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "address": {
+          "description": "The deployed contract address.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "compiler": {
+          "description": "The compiler, its full version and the Standard JSON input of the deployment.",
+          "type": "object",
+          "properties": {
+            "kind": { "const": "solc" },
+            "version": {
+              "description": "The full solc version with its commit, such as 0.8.24+commit.e11b9ed9.",
+              "type": "string"
+            },
+            "input": {
+              "description": "The Standard JSON input. Fields other than language, sources and settings pass through to the explorer.",
+              "type": "object",
+              "properties": {
+                "language": { "const": "Solidity" },
+                "sources": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": { "content": { "type": "string" } },
+                    "required": ["content"]
+                  }
+                },
+                "settings": { "type": "object" }
+              },
+              "required": ["language", "sources", "settings"]
+            }
+          },
+          "required": ["kind", "version", "input"],
+          "additionalProperties": false
+        },
+        "contractName": {
+          "description": "The fully qualified contract name, path:Name.",
+          "type": "string",
+          "pattern": ":[A-Za-z_$][A-Za-z0-9_$]*$"
+        },
+        "constructorArgs": {
+          "description": "ABI-encoded constructor arguments, without the selector.",
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})*$"
+        },
+        "creationTxHash": {
+          "description": "The hash of the creation transaction.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "libraries": {
+          "description": "Library link addresses by the library's fully qualified name, path:Name.",
+          "type": "object",
+          "additionalProperties": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }
+        },
+        "route": { "$ref": "#/$defs/route" }
+      },
+      "required": ["chainId", "address", "compiler", "contractName"],
+      "additionalProperties": false
+    },
+    "status": {
+      "description": "The request of explorer-verify status: a handle and an optional route.",
+      "type": "object",
+      "properties": {
+        "handle": {
+          "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>.",
+          "type": "string",
+          "pattern": "^ev1:"
+        },
+        "route": { "$ref": "#/$defs/route" }
+      },
+      "required": ["handle"],
+      "additionalProperties": false
+    },
+    "route": {
+      "description": "The route override, as --backend and --api-url give it. It holds no key.",
+      "type": "object",
+      "properties": {
+        "backend": {
+          "description": "A backend name. Known values in this release: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "apiUrl": {
+          "description": "The explorer API URL: https, or http on localhost, 127.0.0.1 or [::1].",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

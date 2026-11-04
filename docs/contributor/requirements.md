@@ -250,14 +250,16 @@ Docs:
 CLI:
 
 - **R-AX-5** `--json` on every command. stdout holds exactly one versioned envelope for every exit
-  code, errors included, in one of three forms:
-  - `{ "schemaVersion": 1, "ok": true, "result": ... }`
+  code, errors included, in one of four forms:
+  - `{ "schemaVersion": 1, "ok": true, "result": ... }` for `verified` or `already-verified`
+  - `{ "schemaVersion": 1, "ok": true, "result": ... }` for a dry run, whose `result.status` is
+    `dry-run` (R-AX-8)
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
-  `status`, `result` is a `VerifyResult`; every other command documents its result type in the JSON
-  Schema. The error `code` tells an unknown explorer state
+  `status`, `result` is a `VerifyResult`, and for `verify --dry-run` a `DryRunResult` (R-AX-8);
+  every other command documents its result type in the JSON Schema. The error `code` tells an unknown explorer state
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, a
   release may add fields, error codes and backends, and changes nothing else. A reader treats an
   unknown error code by its `retryable` value and the process exit code. A JSON Schema for the
