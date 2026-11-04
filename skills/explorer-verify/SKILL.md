@@ -312,6 +312,37 @@ Within `schemaVersion` 1, a release may add fields and error codes. Ignore a fie
 know. Handle an unknown code by its `retryable` value and its exit code. If the error carries a
 handle, retry only with `checkStatus()`, never `verify()`.
 
+## 5. From the command line
+
+The `@explorer-verify/cli` package adds the `explorer-verify` command. It is not published yet,
+and its `verify` and `status` commands come in a later release. The rules above hold for it too:
+
+- Start with `explorer-verify --help --json`. It prints the commands, their options and examples,
+  the environment variables and the exit codes as one envelope. `explorer-verify help <command>`
+  gives the help of one command. Help never submits.
+- `explorer-verify --version --json` prints the CLI and core versions and `routingTableDate`, the
+  date of the routing table. Check it before you trust a chain's route.
+- Pass `--json` on every run. stdout then holds exactly one envelope, the same shape as
+  `toEnvelope()` returns, and logs and events go to stderr. Act on the exit code, as in the table
+  above.
+- The `verify.submitted` line on stderr carries the handle. Store it at once, as in step 2.
+- A mistyped command or option exits 2 with `invalid-input`, and the hint names the closest
+  command or option. Read the hint, fix the command line, and run it once more. The error never
+  repeats what was typed, because a mistyped value can be a key.
+
+This command line mistypes `--color`:
+
+```sh
+# exit code 2
+explorer-verify --version --json --colour=never
+```
+
+It prints:
+
+```text
+{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: argument 3 is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
+```
+
 ## When to stop
 
 An agent that retries without a limit can submit twice or poll for hours. Keep to these limits:

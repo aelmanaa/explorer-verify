@@ -107,6 +107,23 @@ export interface TableTarget {
 export const ROUTING_TABLE: RoutingTable = table;
 
 /**
+ * The date of the routing table shipped with this version: when its rows were last checked
+ * against their sources, as `YYYY-MM-DD` (R-RT-1). The CLI prints it with `--version --json` (R-AX-11).
+ *
+ * @returns The date.
+ *
+ * @example
+ * ```ts
+ * import { routingTableDate } from "explorer-verify";
+ *
+ * routingTableDate(); // "YYYY-MM-DD"
+ * ```
+ */
+export function routingTableDate(): string {
+  return ROUTING_TABLE.checked;
+}
+
+/**
  * Where one call sends its requests, and where a person sees the verified contract.
  *
  * @example

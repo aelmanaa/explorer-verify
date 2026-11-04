@@ -20,8 +20,11 @@ export const SKILL_FILE: string = path.join(PACKAGE_DIR, "skills/explorer-verify
 const FETCH_PRELOAD = new URL("skill-fetch.ts", import.meta.url).href;
 const require = createRequire(import.meta.url);
 const BUILD_FORMATS = path.join(PACKAGE_DIR, "test/fixtures/build-formats");
-/** The fence languages a skill example may use: code that runs, and the output it prints. */
-export const EXAMPLE_LANGUAGES: readonly string[] = ["ts", "text"];
+/**
+ * The fence languages a skill example may use: code that runs, and the output it prints. The CLI
+ * package runs the `sh` blocks against its built bin.
+ */
+export const EXAMPLE_LANGUAGES: readonly string[] = ["ts", "text", "sh"];
 
 const FENCE_OPEN = /^(`{3,}|~{3,})[ \t]*([^\s`]*)/;
 const API_SPAN = /^([A-Za-z_$][\w$]*)(\(.*\)|\[[^\]]*\])?$/;

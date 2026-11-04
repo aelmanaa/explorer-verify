@@ -10,6 +10,7 @@
     "scripts/check-release-workflows.ts",
     "scripts/check-tarballs.ts",
     "scripts/check-agent-docs.ts",
+    "scripts/generate-cli-reference.ts",
     "scripts/decision-sources.ts",
     "scripts/check-packed-files.ts",
     "scripts/package-docs.ts",

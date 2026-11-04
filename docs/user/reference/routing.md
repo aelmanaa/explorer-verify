@@ -65,6 +65,7 @@ name and only what varies per chain:
 | `explorer` | `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io` |
 
 The table also has `schemaVersion`, 2, and `checked`, the date its rows were last checked.
+`routingTableDate()` returns that date, and the CLI prints it with `explorer-verify --version --json`.
 
 The library derives every URL from the entry:
 

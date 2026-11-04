@@ -8,19 +8,122 @@ Audience: people, CI jobs and agents that run the `explorer-verify` command.
 
 The command ships in the `@explorer-verify/cli` package, which is not published yet. It runs on
 Node 22.18 and later. This page describes the output contract that every command follows. The
-`verify` and `status` commands come next; until then, a placeholder `simulate` command runs a
-verification with no network so the contract can be tested. A later release generates this page
-from the command's own help.
+`verify` and `status` commands come next; until then, a hidden `simulate` command runs a
+verification with no network so the contract can be tested.
+
+The sections from Usage to Exit codes are generated from the CLI's own help, so they match
+`explorer-verify --help` for this version.
+
+## Help and version
+
+- `explorer-verify --help`, `-h` or `explorer-verify help` prints the CLI's help on stdout and
+  exits 0. It leads with examples, then lists the usage, the commands, the options, the
+  environment variables and the exit codes, and links this page and `llms.txt`.
+- `explorer-verify help <command>` or `explorer-verify <command> --help` prints the help of one
+  command, its own options first. A hidden command has help too, when you name it.
+- With `--json`, help prints one envelope, `{ "schemaVersion": 1, "ok": true, "result": ... }`,
+  whose `result` holds the same content as the text: the topic, the usage, the examples, the
+  commands with their options, the global options, the environment variables, the exit codes and
+  the two links. The package ships its JSON Schema as `@explorer-verify/cli/help.schema.json`.
+- `explorer-verify --version` prints two lines: the version of `@explorer-verify/cli` and the
+  version of the `explorer-verify` core package it runs.
+- `explorer-verify --version --json` prints one envelope whose `result` holds `cli`, `core` and
+  `routingTableDate`, the date of the routing table the core ships, as `YYYY-MM-DD`. The package
+  ships its JSON Schema as `@explorer-verify/cli/version.schema.json`. For example, with made-up
+  versions:
+
+  ```text
+  {"schemaVersion":1,"ok":true,"result":{"cli":"0.1.0","core":"0.1.0","routingTableDate":"2026-11-03"}}
+  ```
+
+- With `--help` or `--version`, the command does not run, and no explorer is contacted. When
+  both are asked for, help wins.
+- A usage error wins over both: `explorer-verify --help --colour` exits 2. Help checks the option
+  names and the values of the global options, such as `--color`. It does not check the values of
+  a command's own options, because the command checks them when it runs:
+  `explorer-verify simulate --outcome bogus --help` prints the help and exits 0.
+
+<!-- Generated from the CLI's help by scripts/generate-cli-reference.ts. Edit the command table, not this part. -->
+
+## Usage
+
+```text
+explorer-verify <command> [options]
+explorer-verify help [<command>]
+```
+
+## Examples
+
+- `explorer-verify --version --json`: Print the CLI and core versions and the routing table's date as one envelope.
+- `explorer-verify help --json`: List the commands, options, environment variables and exit codes as one envelope.
+
+## Commands
+
+This version has no public commands yet.
+
+## Hidden commands
+
+Usage messages and the CLI's own help do not list these commands, and a later release removes them. `explorer-verify help <command>` still shows their help.
+
+### `simulate`
+
+Run a simulated verification with no network, to test the output contract. Replaced by verify and status.
+
+```text
+explorer-verify simulate [options]
+```
+
+Examples:
+
+- `explorer-verify simulate --json --outcome not-confirmed`: Print a not-confirmed envelope with a handle, and exit 4.
+- `explorer-verify simulate --verbose --polls 3`: Show every stage event and three polls on stderr, then print verified.
+
+| Option             | What it does                                                                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--outcome <name>` | The outcome: verified, already-verified, failed, missing-api-key, not-confirmed, network, unknown-state, internal-error, pending, which polls until cancelled. Default verified. |
+| `--polls <n>`      | Polls before the outcome, 0 to 1000. Default 0.                                                                                                                                  |
+| `--retries <n>`    | verify.retry events before the submit, 0 to 1000. Default 0.                                                                                                                     |
+| `--message <text>` | The message of the exception that --outcome internal-error throws.                                                                                                               |
 
 ## Global options
 
-| Option             | What it does                                                        |
-| ------------------ | ------------------------------------------------------------------- |
-| `--json`           | Print one JSON envelope on stdout, for every outcome                |
-| `-q`, `--quiet`    | Show only errors on stderr                                          |
-| `--verbose`        | Show debug lines on stderr                                          |
-| `--log-format <f>` | `text` (default) for people, or `json` for one JSON object per line |
-| `--color <mode>`   | `auto` (default), `always` or `never`                               |
+| Option                  | What it does                                                                |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `-h`, `--help`          | Print the help of the command, or of the CLI, on stdout.                    |
+| `--version`             | Print the CLI and core versions; with --json, the routing table's date too. |
+| `--json`                | Print one JSON envelope on stdout.                                          |
+| `-q`, `--quiet`         | Show only errors on stderr.                                                 |
+| `--verbose`             | Show debug lines on stderr.                                                 |
+| `--log-format <format>` | text (default) for people, or json for one JSON object per stderr line.     |
+| `--color <mode>`        | auto (default), always or never.                                            |
+
+## Environment variables
+
+| Variable              | What it does                                                               |
+| --------------------- | -------------------------------------------------------------------------- |
+| `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off. |
+| `NO_COLOR`            | Any value but empty turns colour off under --color auto.                   |
+| `TERM`                | dumb turns colour and the spinner off under --color auto.                  |
+| `CI`                  | Any value but empty turns the spinner and the pager off.                   |
+
+## Exit codes
+
+| Code | Meaning                                                                                                                      |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Verified: verified or already-verified. Help and the version also exit 0                                                     |
+| 1    | Failed: the explorer definitively rejected the submission                                                                    |
+| 2    | Usage or input error: nothing was submitted for verification                                                                 |
+| 3    | API key: missing, invalid or under-privileged                                                                                |
+| 4    | No verdict yet: not-confirmed (the output carries the handle) or verification-inconclusive                                   |
+| 5    | Network: the explorer was unavailable after retries                                                                          |
+| 6    | Unknown state: unknown-state (the output carries the handle) or internal-error, a bug in the CLI. Do not retry automatically |
+| 130  | Cancelled: SIGINT or SIGTERM stopped the run                                                                                 |
+
+[Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.
+
+<!-- End of the generated part. -->
+
+## Reading the command line
 
 `-v` is not bound, because it can mean verbose or version. `--quiet` with `--verbose` is a usage
 error. An option that takes one value keeps the last one when it is repeated. The CLI never
@@ -30,11 +133,27 @@ A usage error names the CLI's own options, such as `--color`, or the position of
 such as `argument 3`. It never repeats what you typed, because a mistyped option or value can be
 an API key. It lists at most 20 problems and counts the rest.
 
+When a command or an option is mistyped, the hint of the usage error names the single closest
+command or option by edit distance, such as `Did you mean --color?`. A name is close when at most
+a third of its characters differ, and one may always differ. Names shorter than three characters
+are not compared. A mistyped command comes before a mistyped option, and a hidden command is never
+suggested. The word `help` is a command name for this purpose, so `explorer-verify hlp` suggests
+`help`. When nothing is close, the hint names nothing. The suggestion is always one of the CLI's
+own names, never what you typed. A name whose length differs too much is skipped without
+comparing, so a long mistyped argument costs no time.
+
+Short options can be grouped: `-qh` is read as `-q -h`, and `-hh` as `-h` given twice, which is
+the same as `-h`. A boolean option given a value, such as `--help=yes`, is a usage error that
+names only that option.
+
 ## stdout
 
 - With `--json`, stdout holds exactly one line: the
   [JSON envelope](json-output.md#the-envelope), for every exit code, usage errors and
   cancellation included. `ok` is `true` exactly when the exit code is 0.
+- Help and the version print their own envelopes, with `ok: true` and a `result` of another
+  shape. Validate them with `@explorer-verify/cli/help.schema.json` and
+  `@explorer-verify/cli/version.schema.json`, not with the core envelope schema.
 - Without `--json`, stdout holds a short summary of a result, such as
   `verified: exact match on sourcify` and the explorer page. An error prints nothing on stdout.
 - The same input gives the same stdout, byte for byte, at every log level. stdout holds no
@@ -87,21 +206,6 @@ Each stream is decided on its own:
   `--log-format` is `text` and the level shows more than errors.
 - A pager runs only when stdout is a terminal and `CI` is unset or empty.
 
-## Exit codes
-
-| Code | Meaning                                                                                                           |
-| ---- | ----------------------------------------------------------------------------------------------------------------- |
-| 0    | `verified` or `already-verified`                                                                                  |
-| 1    | `failed`: the explorer definitively rejected the submission                                                       |
-| 2    | Usage or input error; nothing was submitted for verification                                                      |
-| 3    | Missing, invalid or under-privileged API key                                                                      |
-| 4    | No verdict yet: `not-confirmed` (the output carries the handle) or `verification-inconclusive`                    |
-| 5    | Network or explorer unavailable after retries                                                                     |
-| 6    | `unknown-state` (the output carries the handle) or `internal-error`, a bug in the CLI. Do not retry automatically |
-| 130  | Cancelled by SIGINT or SIGTERM                                                                                    |
-
-[Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.
-
 ## Cancel and unexpected errors
 
 SIGINT (Ctrl-C) and SIGTERM abort the run at once and exit 130. The output is a
@@ -118,19 +222,3 @@ An unexpected exception inside the CLI gives an [`internal-error`](errors/intern
 code 6, not retryable, no handle, and a message with keys removed. The error is always written to
 stderr, whatever the level. With `--verbose`, stderr also shows the redacted stack, with `~` in
 place of the home directory.
-
-## Placeholder for testing: `simulate`
-
-Until the `verify` and `status` commands land, the hidden `simulate` command runs a verification
-with no network, so a script or an agent can exercise the contract above. It is not listed in
-usage messages and will be removed.
-
-| Option             | What it does                                                                                                                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--outcome <name>` | `verified` (default), `already-verified`, `failed`, `missing-api-key`, `not-confirmed`, `network`, `unknown-state`, `internal-error`, or `pending`, which polls until cancelled |
-| `--polls <n>`      | Polls before the outcome, 0 to 1000; default 0                                                                                                                                  |
-| `--retries <n>`    | `verify.retry` events before the submit, 0 to 1000; default 0                                                                                                                   |
-| `--message <text>` | The message of the exception that `--outcome internal-error` throws                                                                                                             |
-
-For example, `explorer-verify simulate --json --outcome not-confirmed` prints a `not-confirmed`
-envelope with a handle and exits 4.

@@ -171,6 +171,16 @@ within 10 seconds. It also fails unless the site's `llms.txt` names the package 
 checked-out tag, so a site that still serves an older version fails. It tries up to five times, 15 seconds apart, because a new deployment can take a short time to
 reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
 
+## CLI reference
+
+Part of `docs/user/reference/cli.md` is generated from the CLI's help (R-AX-2): the usage, the
+examples, the commands, the options, the environment variables and the exit codes, between two
+HTML comment markers. `packages/cli/src/reference.ts` renders that part from the same help data
+that `explorer-verify --help` prints. `pnpm run cli-reference` rewrites it, and `pnpm run check`
+runs `node scripts/generate-cli-reference.ts --check`, which fails when the committed page
+differs. Change a command, an option or its description in the command table, then run
+`pnpm run cli-reference`. Text outside the markers is written by hand.
+
 ## Test runner
 
 `scripts/node-test.ts` runs `node --test` for the package `test:unit` and `test:randomize` scripts

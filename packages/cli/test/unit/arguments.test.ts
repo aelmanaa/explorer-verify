@@ -190,3 +190,137 @@ describe("the command table", () => {
     );
   });
 });
+
+describe("readArguments: help and version (R-AX-11)", () => {
+  it("reads --help, -h and the word help, with or without a command", () => {
+    for (const argv of [["--help"], ["-h"], ["help"], ["help", "--json"]]) {
+      const args = read(argv);
+      assert.equal(args.help, true, argv.join(" "));
+      assert.equal(args.command, undefined);
+      assert.deepEqual(args.issues, [], argv.join(" "));
+    }
+    const topic = read(["help", "alpha", "--fast"]);
+    assert.equal(topic.help, true);
+    assert.equal(topic.command, "alpha");
+    assert.deepEqual(topic.positionals, []);
+    assert.deepEqual(topic.issues, []);
+    const flag = read(["alpha", "--help"]);
+    assert.equal(flag.help, true);
+    assert.equal(flag.command, "alpha");
+    assert.equal(read(["alpha"]).help, false);
+  });
+
+  it("reports only takes no value for --help=yes, not a missing command", () => {
+    const args = read(["--help=yes"]);
+    assert.equal(args.help, false);
+    assert.deepEqual(args.issues, [{ field: "--help", message: "takes no value" }]);
+    assert.deepEqual(read(["--version=1"]).issues, [
+      { field: "--version", message: "takes no value" },
+    ]);
+  });
+
+  it("reads -hh as -h given twice", () => {
+    const args = read(["-hh"]);
+    assert.equal(args.help, true);
+    assert.deepEqual(args.issues, []);
+  });
+
+  it("gives help for a hidden command when it is named", () => {
+    assert.equal(read(["help", "secret"]).command, "secret");
+  });
+
+  it("refuses an unknown topic, and more than one", () => {
+    assert.deepEqual(read(["help", "gamma"]).issues, [
+      { field: "command", message: "is not known; give one of alpha, beta" },
+    ]);
+    assert.deepEqual(read(["help", "alpha", "beta"]).issues, [
+      { field: "help", message: "takes at most one command" },
+    ]);
+  });
+
+  it("reads --version without a command", () => {
+    const args = read(["--version", "--json"]);
+    assert.equal(args.values.get("version"), true);
+    assert.deepEqual(args.issues, []);
+    assert.deepEqual(read(["--version", "gamma"]).issues, [
+      { field: "command", message: "is not known; give one of alpha, beta" },
+    ]);
+  });
+});
+
+describe("readArguments: suggestions (R-AX-10)", () => {
+  const table: readonly CommandSpec[] = [
+    {
+      name: "verify",
+      options: { "dry-run": { type: "boolean", description: "Send nothing." } },
+    },
+    { name: "status", options: {} },
+    { name: "simulate", hidden: true, options: { outcome: { type: "string", description: "O." } } },
+  ];
+
+  it("suggests the closest command: verfy gives verify", () => {
+    const args = readArguments(["verfy"], table);
+    assert.equal(args.suggestion, "verify");
+    assert.deepEqual(args.issues, [
+      { field: "command", message: "is not known; give one of verify, status" },
+    ]);
+    assert.equal(readArguments(["help", "stauts"], table).suggestion, "status");
+    // The word help is suggested like a command.
+    assert.equal(readArguments(["hlp"], table).suggestion, "help");
+    assert.equal(readArguments(["hellp"], table).suggestion, "help");
+  });
+
+  it("suggests the closest option: --dryrun gives --dry-run", () => {
+    const args = readArguments(["verify", "--dryrun"], table);
+    assert.equal(args.suggestion, "--dry-run");
+    assert.deepEqual(args.issues, [{ field: "argument 2", message: "is not an option" }]);
+    assert.equal(readArguments(["verify", "--jsno"], table).suggestion, "--json");
+    assert.equal(readArguments(["--colour=never", "verify"], table).suggestion, "--color");
+  });
+
+  it("compares an option with every public command's options when no command is named", () => {
+    assert.equal(readArguments(["--dryrun", "--help"], table).suggestion, "--dry-run");
+  });
+
+  it("puts a mistyped command before a mistyped option", () => {
+    assert.equal(readArguments(["verfy", "--jsno"], table).suggestion, "verify");
+  });
+
+  it("keeps the first mistyped option's suggestion", () => {
+    assert.equal(readArguments(["verify", "--jsno", "--dryrun"], table).suggestion, "--json");
+  });
+
+  it("suggests nothing when nothing is close, and never a hidden command or its options", () => {
+    assert.equal(readArguments(["deploy"], table).suggestion, undefined);
+    assert.equal(readArguments(["simulat"], table).suggestion, undefined);
+    assert.equal(readArguments(["verify", "--outcom", "x"], table).suggestion, undefined);
+    assert.equal(readArguments(["verify", `--${DUMMY_KEY}`], table).suggestion, undefined);
+    assert.equal(readArguments(["verify", "-x"], table).suggestion, undefined);
+    assert.equal(readArguments(["verify"], table).suggestion, undefined);
+  });
+
+  it("suggests nothing for a valid option of a command that was not named", () => {
+    const args = readArguments(["--dry-run"], table);
+    assert.equal(args.suggestion, undefined);
+    assert.deepEqual(args.issues, [
+      { field: "argument 1", message: "is not an option" },
+      { field: "command", message: "is missing; give one of verify, status" },
+    ]);
+  });
+
+  it("reads 1 MB unknown options quickly, comparing only until a suggestion is found", () => {
+    const long = "y".repeat(1_000_000);
+    const started = performance.now();
+    const args = readArguments(["verify", `--${long}`, "--dryrun", `--${long}z`], table);
+    assert.ok(performance.now() - started < 2000, "readArguments took too long on 1 MB");
+    assert.equal(args.suggestion, "--dry-run");
+    assert.equal(args.issues.length, 3);
+    assert.ok(
+      args.issues.every((issue) => !issue.field.includes(long) && !issue.message.includes(long)),
+    );
+  });
+
+  it("compares a hidden command's options once that command is named", () => {
+    assert.equal(readArguments(["simulate", "--outcom", "x"], table).suggestion, "--outcome");
+  });
+});

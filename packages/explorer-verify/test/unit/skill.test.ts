@@ -161,7 +161,7 @@ describe("the shipped skill (R-AX-4)", () => {
     }
   });
 
-  it("uses only ts blocks for code, each followed by the text block it prints", () => {
+  it("uses only ts and sh blocks for code, each ts block followed by the text block it prints", () => {
     const languages = new Set(codeBlocks(skill).map((block) => block.lang));
     assert.deepEqual(
       [...languages].filter((lang) => !EXAMPLE_LANGUAGES.includes(lang)),

@@ -93,6 +93,7 @@ describe("public entry point", () => {
       "formatHandle",
       "linkLibraries",
       "parseHandle",
+      "routingTableDate",
       "toBackendName",
       "toEnvelope",
       "validateInput",

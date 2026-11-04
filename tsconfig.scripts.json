@@ -6,5 +6,6 @@
     "outDir": "node_modules/.cache/tsbuild/scripts",
     "tsBuildInfoFile": "node_modules/.cache/tsbuild/scripts.tsbuildinfo"
   },
-  "include": ["scripts", "site/.vitepress/config.ts"]
+  // The CLI reference generator imports the CLI's command table and help from source.
+  "include": ["scripts", "site/.vitepress/config.ts", "packages/cli/src"]
 }

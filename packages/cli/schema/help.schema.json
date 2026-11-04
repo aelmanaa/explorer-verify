@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "explorer-verify --help --json",
+  "description": "The envelope that `explorer-verify --help --json` and `explorer-verify help [<command>] --json` print on stdout, with exit code 0 (R-AX-11). The text help shows the same content. Within schemaVersion 1, a release may add fields, commands and options, so readers ignore fields they do not know. Keys appear in the order the properties below list them.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "ok": { "const": true },
+    "result": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "description": "The command the help is about, or null for the CLI's own help.",
+          "type": ["string", "null"]
+        },
+        "summary": { "type": "string" },
+        "usage": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "examples": {
+          "description": "The examples, which the text help shows first.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/example" },
+          "minItems": 1
+        },
+        "commands": {
+          "description": "The public commands, or only the topic.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" }
+        },
+        "globalOptions": { "type": "array", "items": { "$ref": "#/$defs/option" } },
+        "environment": {
+          "description": "The environment variables the CLI reads.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" },
+              "description": { "type": "string" }
+            },
+            "required": ["name", "description"]
+          }
+        },
+        "exitCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": { "enum": [0, 1, 2, 3, 4, 5, 6, 130] },
+              "meaning": { "type": "string" }
+            },
+            "required": ["code", "meaning"]
+          }
+        },
+        "docsUrl": {
+          "description": "The CLI reference.",
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "llmsUrl": {
+          "description": "The index of the docs for agents.",
+          "type": "string",
+          "pattern": "^https://"
+        }
+      },
+      "required": [
+        "topic",
+        "summary",
+        "usage",
+        "examples",
+        "commands",
+        "globalOptions",
+        "environment",
+        "exitCodes",
+        "docsUrl",
+        "llmsUrl"
+      ]
+    }
+  },
+  "required": ["schemaVersion", "ok", "result"],
+  "$defs": {
+    "example": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "The whole command line, starting with explorer-verify.",
+          "type": "string",
+          "pattern": "^explorer-verify "
+        },
+        "description": { "type": "string" }
+      },
+      "required": ["command", "description"]
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The long name with its dashes.",
+          "type": "string",
+          "pattern": "^--[a-z][a-z0-9-]*$"
+        },
+        "short": {
+          "description": "The one-letter alias with its dash, when there is one.",
+          "type": "string",
+          "pattern": "^-[a-zA-Z]$"
+        },
+        "value": {
+          "description": "The placeholder of the value. Absent when the option takes none.",
+          "type": "string"
+        },
+        "repeatable": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "repeatable", "description"]
+    },
+    "command": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "summary": { "type": "string" },
+        "usage": { "type": "string", "pattern": "^explorer-verify " },
+        "examples": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/example" },
+          "minItems": 1
+        },
+        "options": {
+          "description": "The command's own options; the global ones are in globalOptions.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/option" }
+        }
+      },
+      "required": ["name", "summary", "usage", "examples", "options"]
+    }
+  }
+}

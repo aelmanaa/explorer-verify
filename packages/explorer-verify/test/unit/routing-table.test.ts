@@ -17,6 +17,7 @@ import {
   ROUTING_TABLE,
   SOURCIFY_API_URL,
   resolveRoute,
+  routingTableDate,
   tableTarget,
 } from "../../src/routing/resolve.ts";
 import type { RouteChoice, RoutingTable, TableEntry, TableRow } from "../../src/routing/resolve.ts";
@@ -537,6 +538,11 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
 
   it("is dated (R-RT-1)", () => {
     assert.equal(ROUTING_TABLE.checked, "2026-11-03");
+  });
+
+  it("gives the table's date to routingTableDate(), which the CLI's --version --json prints (R-AX-11)", () => {
+    assert.equal(routingTableDate(), ROUTING_TABLE.checked);
+    assert.match(routingTableDate(), /^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

@@ -20,7 +20,15 @@ async function run(argv: readonly string[]) {
 }
 
 function command(name: string, body: Command["run"], maxPositionals = 0): Command {
-  return { name, summary: "A test command.", options: {}, maxPositionals, run: body };
+  return {
+    name,
+    summary: "A test command.",
+    usage: "",
+    examples: [{ args: name, description: "Run it." }],
+    options: {},
+    maxPositionals,
+    run: body,
+  };
 }
 
 const NEVER: Command["run"] = async () => await Promise.reject(new Error("must not run"));
@@ -68,6 +76,8 @@ describe("main: signals outside the command (R-AX-7)", () => {
     const early: Command = {
       name: "early",
       summary: "Fires a signal while its options are read.",
+      usage: "",
+      examples: [{ args: "early", description: "Run it." }],
       get options() {
         fake.signal("SIGTERM");
         return {};

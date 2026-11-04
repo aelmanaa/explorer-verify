@@ -22,7 +22,7 @@ still to come.
 | [JSON output and exit codes](reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
-| [CLI](reference/cli.md)                                                                        | stdout and stderr, `--json`, log levels, colour and exit codes           |
+| [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
 | [Match types](explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |
 | [Etherscan plans and attribution](explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client        |
 
