@@ -124,9 +124,16 @@ A block runs once, in a project with no build files and no recorded answers, unl
 test lists it. An entry sets the files the run starts from (a Foundry or Hardhat project, a
 package with build files, or the verification files a package ships, all made from the fixtures of
 the three packages), the recorded answers
-in order, the exit code and, for a second run of the same block, the output. To add an example
+in order, the exit code, environment variables and, for a second run of the same block, the
+output. Every run starts with `ETHERSCAN_API_KEY` and `ROUTESCAN_API_KEY` empty, so a key in the
+test runner's environment never changes a run; an entry may set a dummy one. To add an example
 that sends a request, add an entry with the answers it needs. The test names the page and line of
 each failure.
+
+`test/integration/ci-page.test.ts` in the CLI package runs the `sh` examples of the CI guide on the
+built bin, and runs its `scripts/verify.sh` with `bash` and `jq` for exit codes 0, 2, 3 and 4, and
+with a stand-in command whose hint holds `%`, CR and LF, which the script must escape. It skips the
+script when either tool is missing.
 
 ## Link check
 

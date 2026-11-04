@@ -57,6 +57,11 @@ interface DocRun {
   readonly storage?: Readonly<Record<string, string>>;
   /** Files the run must write, relative to the project; none when absent. */
   readonly files?: readonly string[];
+  /**
+   * Environment variables of the run. `ETHERSCAN_API_KEY` and `ROUTESCAN_API_KEY` are empty unless
+   * set here, so a key in the test runner's environment never changes a run.
+   */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 const NOT_CONFIRMED = [
@@ -77,6 +82,16 @@ const VERIFIED = [
 const RECORDED_HANDLE =
   "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const TUTORIAL = "tutorials/deploy-and-verify-from-a-dapp.md";
+const BROWSER = "guides/verify-from-a-browser.md";
+const NODE = "guides/verify-from-node.md";
+const EDGE = "guides/verify-from-an-edge-function.md";
+const CI = "guides/verify-from-ci-with-the-cli.md";
+/** The key variables every run starts with: empty, which the examples read as unset. */
+const NO_KEYS: Readonly<Record<string, string>> = { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" };
+/** A dummy Etherscan key in the environment, for the examples that read it from there. */
+const ETHERSCAN_KEY_ENV: Readonly<Record<string, string>> = {
+  ETHERSCAN_API_KEY: "dummy-etherscan-key-for-docs",
+};
 
 // A block with no entry here runs once in a `core` project with no answers, and must exit 0 and
 // print its output block, or nothing.
@@ -345,6 +360,66 @@ const RUNS: readonly DocRun[] = [
       "2026-11-02-job-exact-match",
     ],
   },
+  {
+    page: BROWSER,
+    example: 0,
+    what: "the lazily loaded verify() submits and ends verified: nothing to resume",
+    fixtures: VERIFIED,
+  },
+  {
+    page: BROWSER,
+    example: 0,
+    what: "verify() ends not-confirmed: the saved handle is resumed with checkStatus()",
+    fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match"],
+    stdout: "still checking: the handle stays saved\nverified\n",
+  },
+  {
+    page: NODE,
+    example: 0,
+    what: "no key in the environment: Sourcify verifies the contract",
+    fixtures: VERIFIED,
+  },
+  {
+    page: NODE,
+    example: 0,
+    what: "ETHERSCAN_API_KEY in the environment: Etherscan already holds the contract",
+    fixtures: ETHERSCAN_VERIFIED,
+    env: ETHERSCAN_KEY_ENV,
+    stdout: "already-verified on etherscan-v2\n",
+  },
+  {
+    page: NODE,
+    example: 0,
+    what: "the budget runs out: the handle is queued",
+    fixtures: NOT_CONFIRMED,
+    stdout: `queued ${RECORDED_HANDLE}\nqueued for a status check\n`,
+  },
+  {
+    page: NODE,
+    example: 1,
+    what: "the queue job resumes the handle with checkStatus()",
+    fixtures: ["2026-11-02-job-exact-match"],
+  },
+  {
+    page: EDGE,
+    example: 0,
+    what: "the Worker: 401 without a token, 500 without its secret, 400 for a body that is not JSON, then a submit and a status poll on Etherscan",
+    fixtures: [
+      ...ETHERSCAN_VERIFIED,
+      "etherscan/2026-11-03-checkverifystatus-form-post-key-in-body",
+    ],
+  },
+  {
+    page: CI,
+    example: 0,
+    what: "the CI script writes verify-input.json from a Foundry build",
+    setup: "foundry",
+    env: {
+      CHAIN_ID: "11155111",
+      CONTRACT_ADDRESS: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+    },
+    files: ["verify-input.json"],
+  },
 ];
 
 /** The runs of each block that runs: its entries in RUNS, or the default run. */
@@ -449,6 +524,8 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
           writeFiles(dir, { [file]: example.code });
           const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
             DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
+            ...NO_KEYS,
+            ...spec.env,
           });
           const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
           return (
