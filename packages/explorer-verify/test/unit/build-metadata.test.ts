@@ -64,6 +64,14 @@ const foundryArtifact = (): Record<string, unknown> => fixture("foundry-1.8.1/Gr
 const literalArtifact = (): Record<string, unknown> =>
   fixture("foundry-1.8.1-literal-viair/Greeter.json");
 const libraryArtifact = (): Record<string, unknown> => fixture("solc-0.8.24-library/Counter.json");
+/** A Foundry artifact's `bytecode.object`, which `buildVerifyInput` returns as `creationBytecode`. */
+function bytecodeObject(artifact: Record<string, unknown>): string {
+  const bytecode = artifact["bytecode"];
+  const object =
+    typeof bytecode === "object" && bytecode !== null ? Reflect.get(bytecode, "object") : undefined;
+  assert.ok(typeof object === "string");
+  return object;
+}
 /** The metadata string of Greeter in the Hardhat 2 build-info output. */
 const hardhat2Metadata = (): string =>
   stringAt(
@@ -153,7 +161,10 @@ describe("buildVerifyInput: Solidity metadata plus sources (R-IN-7)", () => {
       contractName: "src/Greeter.sol:Greeter",
     };
     assert.deepEqual(buildVerifyInput([raw], { sources: FOUNDRY_SOURCES }), expected);
-    assert.deepEqual(buildVerifyInput([foundryArtifact()], { sources: FOUNDRY_SOURCES }), expected);
+    assert.deepEqual(buildVerifyInput([foundryArtifact()], { sources: FOUNDRY_SOURCES }), {
+      ...expected,
+      creationBytecode: bytecodeObject(foundryArtifact()),
+    });
   });
 
   it("rebuilds from metadata with literal content and viaIR, with no sources passed", () => {
@@ -177,6 +188,7 @@ describe("buildVerifyInput: Solidity metadata plus sources (R-IN-7)", () => {
         },
       },
       contractName: "src/Greeter.sol:Greeter",
+      creationBytecode: bytecodeObject(literalArtifact()),
     });
   });
 

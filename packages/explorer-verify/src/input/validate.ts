@@ -15,6 +15,11 @@ const SHORT_VERSION = /^v?\d{1,4}\.\d{1,4}\.\d{1,4}$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const EVEN_HEX = /^0x(?:[0-9a-fA-F]{2})*$/;
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
+// Hex bytes and solc's library placeholders, `__$`, 34 hex digits and `$__` (20 bytes each), with
+// or without `0x`, as the compiler writes `evm.bytecode.object`.
+const CREATION_BYTECODE = /^(?:0x)?(?:[0-9a-fA-F]{2}|__\$[0-9a-fA-F]{34}\$__)+$/;
+// 65536 bytes as hex, and `0x`.
+const MAX_CREATION_BYTECODE = 2 + 2 * 65_536;
 const MAX_POSITIONS = 5;
 const MAX_PATH = 1024;
 // Unicode format characters: bidirectional overrides, zero-width characters and the like.
@@ -178,7 +183,12 @@ function describePositions(positions: number[], noun: string, what: string): str
 function checkSources(
   value: unknown,
   problems: Problems,
-): { sources?: SolidityStandardJsonInput["sources"]; paths: ReadonlySet<string> } | undefined {
+):
+  | {
+      sources?: SolidityStandardJsonInput["sources"];
+      paths: ReadonlySet<string>;
+    }
+  | undefined {
   const field = "compiler.input.sources";
   const entries = readFields(value);
   if (entries === undefined) {
@@ -448,10 +458,40 @@ function checkOptionalHex(
 }
 
 /**
+ * Whether `value` is a creation bytecode `validateInput` accepts: hex bytes and solc's `__$...$__`
+ * library placeholders, with or without `0x`, 1 to 65536 bytes. The length is checked before
+ * the pattern, so a huge string is never matched.
+ *
+ * @param value - The bytecode, as the compiler wrote it.
+ * @returns `true` when it is accepted.
+ * @example
+ * ```ts
+ * isCreationBytecode("6080604052"); // true
+ * ```
+ */
+export function isCreationBytecode(value: string): boolean {
+  return value.length <= MAX_CREATION_BYTECODE && CREATION_BYTECODE.test(value);
+}
+
+/** `creationBytecode` with `0x` and in lower case: `{}` when absent, `undefined` when invalid. */
+function checkCreationBytecode(value: unknown, problems: Problems): { value?: Hex } | undefined {
+  if (value === undefined) {
+    return {};
+  }
+  if (typeof value !== "string" || !isCreationBytecode(value)) {
+    return problems.add(
+      "creationBytecode",
+      "must be hex bytes and __$...$__ library placeholders, 1 to 65536 bytes",
+    );
+  }
+  return { value: `0x${value.replace(/^0x/, "").toLowerCase()}` };
+}
+
+/**
  * Checks a verification input before any request is sent (R-IN-6), and returns it normalised
  * (R-IN-1): the compiler version without a leading `v`, and the address, `constructorArgs`,
- * `creationTxHash` and each `libraries` address in lower case. Each backend adds the prefix or
- * checksum it needs.
+ * `creationTxHash`, `creationBytecode` and each `libraries` address in lower case. Each backend
+ * adds the prefix or checksum it needs.
  *
  * The result is a deep copy that shares no object with the input, so changing the input later does
  * not change it. Sources, settings and any extra Standard JSON fields go through a JSON round trip:
@@ -479,8 +519,10 @@ function checkOptionalHex(
  * `linkLibraries` compares it before it merges. Issues name `libraries.<position>`, counted from 1
  * in key order, never the key. The input is not changed: see {@link VerifyInput.libraries}.
  *
- * `constructorArgs` and `creationTxHash` are optional, not nullable: leave them out or set them to
- * `undefined`; `null` is rejected. `constructorArgs: "0x"` means the constructor takes no arguments.
+ * `constructorArgs`, `creationTxHash` and `creationBytecode` are optional, not nullable: leave them
+ * out or set them to `undefined`; `null` is rejected. `constructorArgs: "0x"` means the constructor
+ * takes no arguments. `creationBytecode` is 1 to 65536 bytes, may hold solc's `__$...$__` library
+ * placeholders, and comes back with `0x`; `""` and `"0x"` are rejected.
  *
  * @param input - The input to check. Any value is accepted, for example `JSON.parse` of a request
  *   body; a value whose fields cannot be read, such as a Proxy whose traps throw, is rejected.
@@ -533,6 +575,7 @@ export function validateInput(input: unknown): VerifyInput {
     "must be 0x followed by 64 hex digits",
     problems,
   );
+  const creationBytecode = checkCreationBytecode(fields.get("creationBytecode"), problems);
   const libraries = checkLibraries(fields.get("libraries"), compiler?.input, paths, problems);
 
   if (
@@ -543,7 +586,8 @@ export function validateInput(input: unknown): VerifyInput {
     compiler === undefined ||
     contractName === undefined ||
     constructorArgs === undefined ||
-    creationTxHash === undefined
+    creationTxHash === undefined ||
+    creationBytecode === undefined
   ) {
     throw invalid(problems);
   }
@@ -553,6 +597,9 @@ export function validateInput(input: unknown): VerifyInput {
   }
   if (creationTxHash.value !== undefined) {
     result.creationTxHash = creationTxHash.value;
+  }
+  if (creationBytecode.value !== undefined) {
+    result.creationBytecode = creationBytecode.value;
   }
   if (libraries.value !== undefined) {
     result.libraries = libraries.value;

@@ -176,6 +176,14 @@ function answerSourcify(state: Bucket, method: string, path: string, response: S
   send(response, 500, { error: "unexpected request" });
 }
 
+/** The creation bytecode of the project's Foundry Greeter artifact, with `0x`. */
+function greeterBytecode(): string {
+  const artifact = record(readJson(join(PROJECT, "out/Greeter.sol/Greeter.json")), "artifact");
+  const object = record(artifact["bytecode"], "bytecode")["object"];
+  assert.ok(typeof object === "string" && object.startsWith("0x"));
+  return object;
+}
+
 function answerEtherscan(url: URL, body: string, response: ServerResponse) {
   const form = new URLSearchParams(body);
   const action = form.get("action") ?? url.searchParams.get("action");
@@ -189,6 +197,19 @@ function answerEtherscan(url: URL, body: string, response: ServerResponse) {
       200,
       recordedBody("etherscan/2026-11-03-checkverifystatus-factory-child-02-pass.json"),
     );
+  } else if (action === "getcontractcreation") {
+    // The build files fill creationBytecode, so verify() derives the constructor arguments
+    // (R-IN-3): the creation code is the project's compiled bytecode plus one argument word.
+    send(response, 200, {
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          contractAddress: form.get("contractaddresses"),
+          creationBytecode: `${greeterBytecode()}${"0".repeat(63)}1`,
+        },
+      ],
+    });
   } else {
     send(response, 500, {
       status: "0",

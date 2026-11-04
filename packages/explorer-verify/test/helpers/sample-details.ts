@@ -57,4 +57,8 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
       { source: "ipfs", outcome: "unavailable", status: 429 },
     ],
   },
+  "constructor-args-unavailable": {
+    code: "constructor-args-unavailable",
+    reason: "prefix-mismatch",
+  },
 };

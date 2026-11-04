@@ -44,17 +44,33 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-IN-1** The caller passes the chain id, the contract address, the fully qualified contract name
   (`path:Name`), the compiler version (full form, `0.8.24+commit.e11b9ed9`) and the compiler's
   Standard JSON input. Optional fields: the constructor arguments (R-IN-3), the creation
-  transaction hash and the library link addresses, `libraries` (R-IN-4).
+  transaction hash, the compiled creation bytecode, `creationBytecode` (R-IN-3), and the library
+  link addresses, `libraries` (R-IN-4).
 - **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
   (decision 0005). A build helper (R-DX-2) makes it easy to produce.
-- **R-IN-3** Constructor arguments are optional. When absent, the library derives them from the
-  creation code: the explorer's `creationBytecode` (Etherscan `getcontractcreation`), or the
-  creation transaction input fetched through a JSON-RPC URL when the contract was deployed
-  directly. It removes the compiled creation bytecode from the start of that code; the remainder is
-  the ABI-encoded arguments. For a factory deployment the transaction input is the factory's code,
-  so only the explorer source applies
-  ([live probes, D](research/2026-11-03-m2-live-probes.md#d-similar-match-and-getcontractcreation-for-a-factory-deployment)).
-  When the caller supplies them, they win.
+- **R-IN-3** Constructor arguments are optional. When they are absent, the route's backend sends
+  arguments (the Etherscan-style backends and Blockscout) and the input holds `creationBytecode`,
+  `verify()` derives them from the creation code before the submit. The creation code is the
+  creation transaction input, read through the caller's `rpcUrl` when the receipt shows the
+  transaction created the contract directly, or the init code after the salt in a call to the
+  CREATE2 deployer; else Etherscan's `getcontractcreation` `creationBytecode` when an Etherscan
+  key is bound to the route. For a factory deployment the transaction input is the factory's
+  code, so only the explorer source applies
+  ([live probes, D](research/2026-11-03-m2-live-probes.md#d-similar-match-and-getcontractcreation-for-a-factory-deployment);
+  confirmed on Ethereum Sepolia on 2026-11-04). The creation code must start with
+  `creationBytecode`, every byte compared except the 20-byte `__$...$__` library placeholders;
+  the remainder, a whole number of 32-byte words, is the ABI-encoded arguments. When no
+  arguments are derived, `verify()` logs why and submits without them, as Etherscan verified
+  such submits in probe A: at `info` when no source is configured, at `warn` when a source gave
+  no usable answer or the contract came from a factory. A creation code that does not start
+  with `creationBytecode`, or a remainder that is not whole words, throws
+  `constructor-args-unavailable` before any submit on a backend that refuses another build
+  (the Etherscan-style backends); on Blockscout, which reports partial matches, it is logged and the
+  submit goes on
+  ([decision 0032](decisions/0032-derived-constructor-arguments-fail-soft-when-unavailable.md)).
+  When the caller supplies the arguments, they win: nothing is derived or requested. `rpcUrl`
+  follows the `route.apiUrl` rules, and its path segments and query values are redacted
+  (R-SEC-1).
 - **R-IN-4** Library link addresses are accepted for contracts that use external libraries, as
   `libraries`: addresses keyed by `path:Name`, where the path is a source of the input and not a
   local path. Validation rejects an address that differs from the one `settings.libraries`
@@ -94,7 +110,10 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   - an artifact with only ABI and bytecode. That is not enough to verify, and the error says so
     and names the remaining routes (R-IN-5, explorer similar-match).
 
-  The builder returns only `language`, `sources` and `settings` in the compiler input, and only
+  The builder also returns the contract's `creationBytecode` (R-IN-3) when the documents hold it,
+  a build-info output's `evm.bytecode.object` or an artifact's `bytecode`, and leaves it out when
+  they hold different values. It returns only `language`, `sources` and `settings` in the compiler
+  input, and only
   `content` and `keccak256` of each source. It rejects a local path (absolute, home, drive, file
   URL, or climbing above the root) in a source path, either side of a remapping, or a key of
   `settings.libraries` or `settings.outputSelection`, so no local path is published. It rejects

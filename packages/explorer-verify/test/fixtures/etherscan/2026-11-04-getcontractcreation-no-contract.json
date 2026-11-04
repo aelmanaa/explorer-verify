@@ -1,0 +1,30 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T11:26:13.337Z: getcontractcreation for the deployer account 0x9d087fC03ae39b088326b67fA3C788236645b717, which is not a contract on Ethereum Sepolia, the key in the form body. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getcontractcreation",
+        "contractaddresses": "0x9d087fC03ae39b088326b67fA3C788236645b717",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "No data found",
+      "result": null
+    }
+  }
+}

@@ -203,24 +203,26 @@ of the first page load. The client chunks keep the clients the page never calls 
 
 `pnpm run size` bundles each entry point from the built package with esbuild 0.28.2 for the
 browser, minified, and gzips it with the zlib of Node 24.21.0. It measures each entry without its
-clients, and each client on its own. On 2026-11-04, on main at commit f26cd8d, it measured:
+clients, and each client on its own. On 2026-11-04, on main at commit 4919790 with constructor
+argument derivation added (#64), it measured:
 
-| Import or chunk                                                     | Gzipped size |
-| ------------------------------------------------------------------- | ------------ |
-| `verify`, with the routing table                                    | 14,781 bytes |
-| `checkStatus`, without the routing table                            | 11,813 bytes |
-| Sourcify client                                                     | 2,885 bytes  |
-| Etherscan v2 client                                                 | 3,308 bytes  |
-| [Etherscan-compatible](../reference/etherscan-compatible.md) client | 3,286 bytes  |
-| Routescan client, with the Etherscan v2 request code it uses        | 3,385 bytes  |
-| Blockscout client                                                   | 2,934 bytes  |
-| `verify` as one file with every client, without the routing table   | 21,804 bytes |
-| `createVerifyHandler` from `explorer-verify/server`                 | 12,395 bytes |
+| Import or chunk                                                       | Gzipped size |
+| --------------------------------------------------------------------- | ------------ |
+| `verify`, with the routing table                                      | 15,322 bytes |
+| `checkStatus`, without the routing table                              | 12,074 bytes |
+| Sourcify client                                                       | 2,884 bytes  |
+| Etherscan v2 client                                                   | 3,513 bytes  |
+| [Etherscan-compatible](../reference/etherscan-compatible.md) client   | 3,496 bytes  |
+| Routescan client, with the Etherscan v2 request code it uses          | 3,591 bytes  |
+| Blockscout client                                                     | 2,945 bytes  |
+| Constructor argument derivation, loaded only when a call derives them | 1,960 bytes  |
+| `verify` as one file with every client, without the routing table     | 24,001 bytes |
+| `createVerifyHandler` from `explorer-verify/server`                   | 12,474 bytes |
 
 A page that verifies on Sourcify ships `verify` with the routing table plus the Sourcify client:
-17,666 bytes by this count. The count is a model: each part is gzipped as one file, without the
-cost a real split adds per file. The server handler runs on your server, so its size does not
-reach the page.
+18,206 bytes by this count. A call that derives constructor arguments also loads the derivation
+code. The count is a model: each part is gzipped as one file, without the cost a real split adds
+per file. The server handler runs on your server, so its size does not reach the page.
 
 ### Measured with Vite and esbuild
 

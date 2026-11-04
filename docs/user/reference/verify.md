@@ -58,7 +58,9 @@ Build `input` with `buildVerifyInput` from build files, or write it by hand. See
    throws `invalid-input`, and nothing is sent.
 2. Looks the contract up. When the explorer already has an `exact` or `partial` match, it returns
    `already-verified` with that match and submits nothing.
-3. Submits the source. When the explorer answers that the contract is already verified, it returns
+3. When the backend sends constructor arguments and you passed none, derives them from the
+   creation code (see [Constructor arguments](#constructor-arguments)). Then submits the source.
+   When the explorer answers that the contract is already verified, it returns
    `already-verified`.
 4. Waits `pollIntervalMs`, then asks for the job's state, until the job ends or `timeoutMs` is
    spent. A poll that fails with `network`, `rate-limited` or `unexpected-response`, after the
@@ -152,6 +154,7 @@ Every field is optional.
 | `route`                 | the routing table    | `{ backend?, apiUrl?, apiKey? }`: another backend from the chain's row, or another server, such as a self-hosted Sourcify. See [Routing](routing.md#route) and [API keys](api-keys.md) |
 | `allowSourcifyFallback` | `false`              | Lets a chain the routing table does not list go to the public Sourcify API. Without it, such a chain throws `unsupported-chain`. See [Routing](routing.md)                             |
 | `apiKeys`               | none                 | API keys by backend name, each sent only to its backend's host. See [API keys](api-keys.md)                                                                                            |
+| `rpcUrl`                | none                 | A JSON-RPC endpoint of the contract's chain, used only to derive constructor arguments. See [Constructor arguments](#constructor-arguments)                                            |
 
 `timeoutMs` and `pollIntervalMs` must be positive numbers of milliseconds; anything else throws
 `invalid-input`. A value above 2147483647, the largest delay `setTimeout` takes, is lowered to it.
@@ -205,22 +208,23 @@ its job has finished, that lookup finds the contract verified.
 Every failure throws an `ExplorerVerifyError`. An unknown or ambiguous state is never returned as
 a result. [Errors](errors/index.md) links a page with the fix for each code.
 
-| Code                        | When `verify()` throws it                                                                         | Exit code |
-| --------------------------- | ------------------------------------------------------------------------------------------------- | --------- |
-| `invalid-input`             | The input, an option or the route is invalid. Nothing was sent                                    | 2         |
-| `unsupported-chain`         | The routing table or the explorer does not serve the chain. See [Routing](routing.md#errors)      | 2         |
-| `timeout`                   | The budget ran out before the explorer accepted the submission. No handle                         | 5         |
-| `not-confirmed`             | The budget ran out, or 3 polls in a row failed, before the job ended. `details.handle` resumes it | 4         |
-| `verification-inconclusive` | The job ended without a verdict. No handle: call `verify()` again later                           | 4         |
-| `unknown-state`             | The explorer reported a final state the library cannot classify. Has a handle                     | 6         |
-| `job-not-found`             | The explorer no longer knows the job, and a lookup found the contract not verified, or failed     | 6         |
-| `in-progress`               | The explorer is already verifying this contract from another submission                           | 5         |
-| `network`                   | No request got an answer, retries included                                                        | 5         |
-| `rate-limited`              | The explorer answered 429 on every try                                                            | 5         |
-| `unexpected-response`       | The explorer answered something the library does not recognise                                    | 5         |
-| `missing-api-key`           | The route's backend needs a key and none is set for its host, or the explorer says it is missing  | 3         |
-| `api-key-rejected`          | The explorer refused the API key                                                                  | 3         |
-| `quota-exceeded`            | The API key's daily limit is spent                                                                | 3         |
+| Code                           | When `verify()` throws it                                                                                                                                                       | Exit code |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `invalid-input`                | The input, an option or the route is invalid. Nothing was sent                                                                                                                  | 2         |
+| `unsupported-chain`            | The routing table or the explorer does not serve the chain. See [Routing](routing.md#errors)                                                                                    | 2         |
+| `timeout`                      | The budget ran out before the explorer accepted the submission. No handle                                                                                                       | 5         |
+| `not-confirmed`                | The budget ran out, or 3 polls in a row failed, before the job ended. `details.handle` resumes it                                                                               | 4         |
+| `verification-inconclusive`    | The job ended without a verdict. No handle: call `verify()` again later                                                                                                         | 4         |
+| `unknown-state`                | The explorer reported a final state the library cannot classify. Has a handle                                                                                                   | 6         |
+| `job-not-found`                | The explorer no longer knows the job, and a lookup found the contract not verified, or failed                                                                                   | 6         |
+| `in-progress`                  | The explorer is already verifying this contract from another submission                                                                                                         | 5         |
+| `network`                      | No request got an answer, retries included                                                                                                                                      | 5         |
+| `rate-limited`                 | The explorer answered 429 on every try                                                                                                                                          | 5         |
+| `unexpected-response`          | The explorer answered something the library does not recognise                                                                                                                  | 5         |
+| `missing-api-key`              | The route's backend needs a key and none is set for its host, or the explorer says it is missing                                                                                | 3         |
+| `api-key-rejected`             | The explorer refused the API key                                                                                                                                                | 3         |
+| `quota-exceeded`               | The API key's daily limit is spent                                                                                                                                              | 3         |
+| `constructor-args-unavailable` | On an Etherscan-style backend, the creation code shows `creationBytecode` is not the deployed build. Nothing was submitted. See [Constructor arguments](#constructor-arguments) | 2         |
 
 A budget that runs out after the explorer accepted the submission always ends in `not-confirmed`,
 never `timeout`, so the handle is not lost. The same holds when status polls keep failing.
@@ -305,6 +309,99 @@ and `verify.result` last. `verify.retry` comes before each retry wait, wherever 
 retried. A call that throws emits no `verify.result`. `verify.poll` reports only polls that found
 the job still pending; the poll that ends the job is reported by `verify.result`. See
 [Logging and events](logging-and-events.md#events).
+
+## Constructor arguments
+
+Etherscan v2, Routescan, standalone Etherscan-compatible explorers and Blockscout take the ABI-encoded constructor arguments with the
+source; Sourcify reads them from the chain. Pass them as `constructorArgs` when you have them:
+they always win, and nothing below runs.
+
+When `constructorArgs` is absent, the route's backend takes constructor arguments,
+and the input has `creationBytecode`, `verify()` derives them before the submit. The creation code
+is the compiled creation bytecode followed by the arguments, so the arguments are what follows
+`creationBytecode` in it.
+
+`creationBytecode` is the compiler's `evm.bytecode.object` for the contract, with or without `0x`.
+`buildVerifyInput` fills it when the documents hold it: a build-info with its output, a Foundry
+artifact or a Hardhat artifact. It is never sent to an explorer.
+
+`verify()` reads the creation code from the first source that gives it:
+
+1. With the `rpcUrl` option and `creationTxHash`: it checks `eth_chainId`, then reads the
+   transaction.
+   - A call to the CREATE2 deployer `0x4e59b44847b379578588920cA78FbF26c0B4956C` holds a 32-byte
+     salt and then the init code; the init code is the creation code.
+   - For a transaction whose `to` is `null` or absent, it reads the receipt. When the receipt's
+     `contractAddress` is the contract, the transaction input is the creation code.
+   - Any other transaction did not create the contract directly: a factory did, or
+     `creationTxHash` names another transaction. Its input is not the creation code.
+2. On an Etherscan v2 route with a key bound to the route: Etherscan's `getcontractcreation`. Its
+   `creationBytecode` is the contract's own creation code with its arguments, also for a contract a
+   factory created. With an injected `fetch` and no key, this request is not sent: a server
+   handler does not forward it.
+
+A JSON-RPC request that fails, a result that is not usable, or a transaction that is not found
+moves on to the next source. So does a `getcontractcreation` request that fails with `network`,
+`rate-limited` or `unexpected-response`. The time budget and the signal cover these requests too.
+
+The creation code must start with `creationBytecode`. Every byte is compared except the 20-byte
+library placeholders (`__$`, 34 hex digits, `$__`), where the creation code holds the linked
+address. What follows must be a whole number of 32-byte words. Nothing follows for a constructor
+without arguments, and the submit then carries none.
+
+When no arguments are derived, `verify()` logs one line with a `reason` field and submits without
+arguments, as it did before derivation existed. Etherscan verified such submits in a live test on
+2026-11-03, and Blockscout reads the arguments from the chain too.
+
+| `reason`                        | When                                                                                         | Level  |
+| ------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
+| `no-source`                     | No `rpcUrl` with `creationTxHash`, and no Etherscan key bound to the route                   | `info` |
+| `no-creation-code`              | Every source asked gave no usable answer                                                     | `warn` |
+| `factory-deployment`            | The transaction did not create the contract directly, and no explorer gave the creation code | `warn` |
+| `prefix-mismatch`, `bad-length` | As below, on Blockscout, which reports a partial match for a build that differs              | `warn` |
+
+On Etherscan v2, Routescan and Etherscan-compatible explorers, which refuse a build other than the deployed one, a creation code
+that shows the build is wrong throws `constructor-args-unavailable` before any submit.
+`details.reason` says why:
+
+| `details.reason`  | When                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| `prefix-mismatch` | The creation code does not start with `creationBytecode`: the input or settings differ from the deployed build |
+| `bad-length`      | What follows `creationBytecode` is not a whole number of 32-byte words                                         |
+
+A source comment that differs from the deployed build changes the metadata hash at the end of the
+bytecode, and gives `prefix-mismatch`.
+
+`rpcUrl` follows the `route.apiUrl` rules: `https`, or `http` on `localhost`, `127.0.0.1` or
+`[::1]`, with no user name, password or fragment. Its path segments and query values of 8 or more
+characters count as keys, because providers put keys there: they are removed from every error,
+log line and event. The host name is not removed, so never put a key in it.
+
+<!-- fragment: it needs a build-info file, an Etherscan key and a live JSON-RPC endpoint. -->
+
+```ts fragment
+import { buildVerifyInput, verify } from "explorer-verify";
+
+declare const buildInfo: unknown; // a build-info file with its output, parsed
+const built = buildVerifyInput([buildInfo], { contract: "src/ArgsGreeter.sol:ArgsGreeter" });
+const result = await verify(
+  {
+    chainId: 11155111,
+    address: "0xc9bbbabe86d85a714bb3f955042277b2dcb3a1b6",
+    creationTxHash: "0x38021ccb091a8eab63cc6471e0240805b44c9099426c7904156790f269952af2",
+    ...built,
+  },
+  {
+    apiKeys: { "etherscan-v2": process.env.ETHERSCAN_API_KEY },
+    rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+  },
+);
+```
+
+Tested on Ethereum Sepolia on 2026-11-04, with solc 0.8.24: for a contract deployed directly, the
+transaction input equalled Etherscan's `creationBytecode`. For a contract created in a factory's
+constructor, and for one created through a CREATE2 deployer contract, `getcontractcreation`
+returned the contract's own creation code, and the compiled creation bytecode was its prefix.
 
 ## Tested live
 

@@ -5,7 +5,7 @@
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { readFields } from "../internal/read-fields.ts";
-import type { VerifyInput } from "../types.ts";
+import type { Hex, VerifyInput } from "../types.ts";
 import {
   checkSourceHashes,
   parseMetadata,
@@ -15,7 +15,7 @@ import {
 } from "./metadata.ts";
 import type { RebuiltInput, SolidityMetadata } from "./metadata.ts";
 import { isLocalPath } from "./paths.ts";
-import { validateInput } from "./validate.ts";
+import { isCreationBytecode, validateInput } from "./validate.ts";
 
 /**
  * Options for {@link buildVerifyInput}. Every field is optional.
@@ -69,6 +69,13 @@ export interface BuiltVerifyInput {
   compiler: VerifyInput["compiler"];
   /** The fully qualified contract name, as `path:Name`, with a path that is a key of the sources. */
   contractName: string;
+  /**
+   * The contract's compiled creation bytecode, when the documents hold it: `evm.bytecode.object`
+   * of a build-info output, or an artifact's `bytecode`. Absent when they do not, or when they
+   * hold different values for the contract. `verify()` uses it to derive missing constructor
+   * arguments (R-IN-3).
+   */
+  creationBytecode?: Hex;
 }
 
 const STANDARD_JSON_FIELDS = ["language", "sources", "settings"] as const;
@@ -130,6 +137,36 @@ class Findings {
   plainArtifact = false;
   /** 1-based positions of documents that match no shape. */
   readonly unknown: number[] = [];
+  /** Creation bytecode by `path:Name` as the documents name it, without `0x`, in lower case. */
+  readonly bytecodes = new Map<string, Set<string>>();
+}
+
+/**
+ * Records the creation bytecode of `name`: a string, or an object with an `object` string, as
+ * Foundry writes it. Anything that is not bytecode `validateInput` accepts is ignored.
+ */
+function readBytecode(name: string, value: unknown, findings: Findings): void {
+  const code = typeof value === "string" ? value : readFields(value)?.get("object");
+  if (typeof code !== "string" || !isCreationBytecode(code)) {
+    return;
+  }
+  // `isCreationBytecode` refuses an empty value, such as the `0x` of an abstract contract.
+  const digits = code.replace(/^0x/, "").toLowerCase();
+  const found = findings.bytecodes.get(name) ?? new Set<string>();
+  found.add(digits);
+  findings.bytecodes.set(name, found);
+}
+
+/** The `path:Name` entries of a metadata value's `settings.compilationTarget`. */
+function targetsOf(value: unknown): string[] {
+  const settings = readFields(readMetadata(value)?.get("settings"));
+  const names: string[] = [];
+  for (const [path, name] of readFields(settings?.get("compilationTarget")) ?? []) {
+    if (typeof name === "string") {
+      names.push(`${path}:${name}`);
+    }
+  }
+  return names;
 }
 
 /** `"positions 1, 3"` or `"position 2"`, at most {@link MAX_POSITIONS} listed. */
@@ -197,7 +234,13 @@ function readOutput(value: unknown, findings: Findings): void {
   for (const [path, byName] of contracts ?? []) {
     for (const [name, entry] of readFields(byName) ?? []) {
       findings.listed.add(`${path}:${name}`);
-      readMetadataFacts(readFields(entry)?.get("metadata"), findings, false);
+      const fields = readFields(entry);
+      readMetadataFacts(fields?.get("metadata"), findings, false);
+      readBytecode(
+        `${path}:${name}`,
+        readFields(readFields(fields?.get("evm"))?.get("bytecode"))?.get("object"),
+        findings,
+      );
     }
   }
 }
@@ -234,6 +277,7 @@ function readArtifact(fields: Map<string, unknown>, findings: Findings): void {
   const name = fields.get("contractName");
   if (typeof path === "string" && typeof name === "string") {
     findings.identities.add(`${path}:${name}`);
+    readBytecode(`${path}:${name}`, fields.get("bytecode"), findings);
   }
 }
 
@@ -282,11 +326,11 @@ function classify(document: unknown, position: number, findings: Findings): void
     // rawMetadata is the exact string solc wrote and the metadata object a parsed copy, so the
     // string is read first.
     const raw = fields.get("rawMetadata");
-    readMetadataFacts(
-      readMetadata(raw) === undefined ? fields.get("metadata") : raw,
-      findings,
-      true,
-    );
+    const metadata = readMetadata(raw) === undefined ? fields.get("metadata") : raw;
+    readMetadataFacts(metadata, findings, true);
+    for (const target of targetsOf(metadata)) {
+      readBytecode(target, fields.get("bytecode"), findings);
+    }
   } else if (fields.has("abi") && fields.has("bytecode")) {
     readArtifact(fields, findings);
   } else {
@@ -705,6 +749,27 @@ function pickContract(
   );
 }
 
+/**
+ * The creation bytecode the documents hold for `contractName`, or `undefined` when they hold none
+ * or more than one value for it.
+ */
+function bytecodeOf(
+  findings: Findings,
+  keys: ReadonlySet<string>,
+  contractName: string,
+): string | undefined {
+  const values = new Set<string>();
+  for (const [name, found] of findings.bytecodes) {
+    if (qualify(name, keys, findings) === contractName) {
+      for (const value of found) {
+        values.add(value);
+      }
+    }
+  }
+  const [only, ...more] = values;
+  return more.length === 0 ? only : undefined;
+}
+
 /** `options.sources` as a map, checked: an object whose every value is a string. */
 function readSourcesOption(value: unknown): Map<string, string> {
   const sources = new Map<string, string>();
@@ -928,11 +993,20 @@ export function buildVerifyInput(
   const version = pickVersion(findings, compilerVersion);
   const keys = new Set(sourceFields.keys());
   const contractName = pickContract(findings, keys, contract);
+  const creationBytecode = bytecodeOf(findings, keys, contractName);
   const checked = validateInput({
     chainId: PLACEHOLDER_CHAIN_ID,
     address: PLACEHOLDER_ADDRESS,
     compiler: { kind: "solc", version, input: { language, sources, settings } },
     contractName,
+    ...(creationBytecode === undefined ? {} : { creationBytecode }),
   });
-  return { compiler: checked.compiler, contractName: checked.contractName };
+  const built: BuiltVerifyInput = {
+    compiler: checked.compiler,
+    contractName: checked.contractName,
+  };
+  if (checked.creationBytecode !== undefined) {
+    built.creationBytecode = checked.creationBytecode;
+  }
+  return built;
 }

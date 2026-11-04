@@ -1,6 +1,6 @@
 {
-  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030 and 0031). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decision 0031). A page that verifies on one backend ships an entry plus that backend's chunk. An entry with oneFile is measured as one file with every client inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, and verify with table measures the verify entry with its rows (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
-  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify, verify (one file), verify with table, checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63. The routing table entry was measured on 2026-11-04 on main 5faa6a6 plus #122 (decision 0027); resolveInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput and createVerifyHandler keep the ceilings of decision 0014.",
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030, 0031 and 0032). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decision 0031). A page that verifies on one backend ships an entry plus that backend's chunk. An entry with oneFile is measured as one file with every client inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, and verify with table measures the verify entry with its rows (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
+  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify, verify (one file), verify with table, checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63; the constructor-args chunk on 2026-11-04 on main f26cd8d plus #64 (decision 0032). The routing table entry was measured on 2026-11-04 on main 5faa6a6 plus #122 (decision 0027); resolveInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput and createVerifyHandler keep the ceilings of decision 0014.",
   "entries": [
     {
       "name": "verify",
@@ -89,6 +89,11 @@
       "name": "blockscout",
       "measuredBytes": 2933,
       "ceilingBytes": 3520
+    },
+    {
+      "name": "constructor-args",
+      "measuredBytes": 1960,
+      "ceilingBytes": 2352
     }
   ]
 }

@@ -51,6 +51,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "internal-error": { retryable: false, exit: 6, hasHandle: false },
   "no-metadata-hash": { retryable: false, exit: 2, hasHandle: false },
   "metadata-unavailable": { retryable: true, exit: 5, hasHandle: false },
+  "constructor-args-unavailable": { retryable: false, exit: 2, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -102,6 +103,10 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
       code: "metadata-unavailable",
       hash: `ipfs:${text}`,
       attempts: [{ source: "ipfs", outcome: "unavailable", status: 502 }],
+    },
+    "constructor-args-unavailable": {
+      code: "constructor-args-unavailable",
+      reason: "bad-length",
     },
   };
   return all[code];

@@ -64,6 +64,12 @@
           "type": "string",
           "pattern": "^0x[0-9a-fA-F]{64}$"
         },
+        "creationBytecode": {
+          "description": "The compiled creation bytecode, the compiler's evm.bytecode.object, with or without 0x, library placeholders included. Used only to derive missing constructorArgs; never sent to an explorer.",
+          "type": "string",
+          "maxLength": 131074,
+          "pattern": "^(0x)?([0-9a-fA-F]{2}|__\\$[0-9a-fA-F]{34}\\$__)+$"
+        },
         "libraries": {
           "description": "Library link addresses by the library's fully qualified name, path:Name.",
           "type": "object",

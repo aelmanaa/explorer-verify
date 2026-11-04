@@ -150,6 +150,10 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     hash: `ipfs:${LEAKY_URL}`,
     attempts: [{ source: "sourcify", outcome: "hash-mismatch", status: 200 }],
   },
+  "constructor-args-unavailable": {
+    code: "constructor-args-unavailable",
+    reason: "bad-length",
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

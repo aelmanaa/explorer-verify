@@ -111,7 +111,7 @@
       "type": "object",
       "properties": {
         "code": {
-          "description": "The stable error code. Each has its own page, docs/user/reference/errors/<code>.md. A later release may add a code; treat an unknown one by retryable and the exit code. Known values in this release: invalid-input, not-confirmed, unsupported-chain, network, rate-limited, timeout, unexpected-response, in-progress, unknown-state, job-not-found, cancelled, incomplete-input, insufficient-artifact, unsupported-compiler, verification-inconclusive, source-mismatch, missing-api-key, api-key-rejected, quota-exceeded, internal-error, no-metadata-hash, metadata-unavailable.",
+          "description": "The stable error code. Each has its own page, docs/user/reference/errors/<code>.md. A later release may add a code; treat an unknown one by retryable and the exit code. Known values in this release: invalid-input, not-confirmed, unsupported-chain, network, rate-limited, timeout, unexpected-response, in-progress, unknown-state, job-not-found, cancelled, incomplete-input, insufficient-artifact, unsupported-compiler, verification-inconclusive, source-mismatch, missing-api-key, api-key-rejected, quota-exceeded, internal-error, no-metadata-hash, metadata-unavailable, constructor-args-unavailable.",
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },

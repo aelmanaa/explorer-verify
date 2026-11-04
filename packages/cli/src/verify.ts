@@ -97,6 +97,7 @@ export const VERIFY_REQUEST: JsonRequestSpec = {
     "contractName",
     "constructorArgs",
     "creationTxHash",
+    "creationBytecode",
     "libraries",
   ],
   nested: { compiler: ["kind", "version", "input"] },

@@ -51,10 +51,25 @@ export interface VerifyInput {
   };
   /** Fully qualified contract name, as `src/Token.sol:Token`. */
   contractName: string;
-  /** ABI-encoded constructor arguments without the selector. Derived from the creation code when absent. */
+  /**
+   * ABI-encoded constructor arguments without the selector. `0x` means none. When absent,
+   * `verify()` derives them from the creation code for a backend that takes them, if
+   * `creationBytecode` is set (R-IN-3). When set, they win: nothing is derived.
+   */
   constructorArgs?: Hex;
-  /** The creation transaction hash. Lets backends that support it attempt a creation match. */
+  /**
+   * The creation transaction hash. Lets backends that support it attempt a creation match, and
+   * with `VerifyOptions.rpcUrl` it is where `verify()` reads the creation code.
+   */
   creationTxHash?: Hex;
+  /**
+   * The compiled creation bytecode, the compiler's `evm.bytecode.object` with or without `0x`,
+   * library placeholders (`__$`, 34 hex digits, `$__`) included. `verify()` uses it only to
+   * derive missing `constructorArgs`: the creation code minus this prefix is the arguments
+   * (R-IN-3). It is never sent to an explorer. `buildVerifyInput` fills it when the documents
+   * hold it.
+   */
+  creationBytecode?: Hex;
   /**
    * Library link addresses, keyed by the library's fully qualified name, as
    * `{ "src/MathLib.sol:MathLib": "0x…" }` (R-IN-4). `verify()` checks them and sends
@@ -488,6 +503,22 @@ export interface VerifyOptions {
    * ```
    */
   apiKeys?: Partial<Record<BackendName, string | undefined>>;
+  /**
+   * A JSON-RPC endpoint of the contract's chain. `verify()` uses it only to derive missing
+   * constructor arguments (R-IN-3): it checks `eth_chainId`, then reads the transaction that
+   * `creationTxHash` names and its receipt. An absolute `https` URL, or `http` on `localhost`,
+   * `127.0.0.1` or `[::1]`, with no user name, password or fragment. Its path segments and query
+   * values of 8 or more characters are redacted from logs, events and errors, because providers
+   * put keys there; the host name is not, so never put a key in it.
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * const options: VerifyOptions = { rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com" };
+   * ```
+   */
+  rpcUrl?: string;
 }
 
 /**

@@ -156,14 +156,27 @@ function candidatesOf(error: ExplorerVerifyError): string[] {
 }
 
 /** Asserts the built input is exactly the build-info's standard part, with the version and name. */
+/**
+ * The creation bytecode of an artifact as `buildVerifyInput` returns it (R-IN-3): Hardhat's
+ * `bytecode` string or Foundry's `bytecode.object`.
+ */
+function bytecodeOf(artifact: Record<string, unknown>): string {
+  const bytecode = artifact["bytecode"];
+  const code = typeof bytecode === "string" ? bytecode : objectAt(artifact, "bytecode")["object"];
+  assert.ok(typeof code === "string" && code.startsWith("0x"));
+  return code;
+}
+
 function assertBuilt(
   built: BuiltVerifyInput,
   buildInfo: Record<string, unknown>,
   contractName: string,
+  artifact?: Record<string, unknown>,
 ): void {
   assert.deepEqual(built, {
     compiler: { kind: "solc", version: LONG_VERSION, input: standardJson(buildInfo) },
     contractName,
+    ...(artifact === undefined ? {} : { creationBytecode: bytecodeOf(artifact) }),
   });
   assert.deepEqual(Object.keys(built.compiler.input), ["language", "sources", "settings"]);
 }
@@ -174,7 +187,7 @@ describe("buildVerifyInput: shapes (R-IN-7)", () => {
   it("builds from a Foundry build-info and its artifact, version and name from the metadata", () => {
     const buildInfo = foundry.buildInfo();
     const built = buildVerifyInput([buildInfo, foundry.artifact()]);
-    assertBuilt(built, buildInfo, "src/Greeter.sol:Greeter");
+    assertBuilt(built, buildInfo, "src/Greeter.sol:Greeter", foundry.artifact());
   });
 
   it("builds from a Foundry build-info alone, with the version from its output metadata", () => {
@@ -194,13 +207,14 @@ describe("buildVerifyInput: shapes (R-IN-7)", () => {
       buildVerifyInput([buildInfo, hardhat2.artifact()]),
       buildInfo,
       "contracts/Greeter.sol:Greeter",
+      hardhat2.artifact(),
     );
   });
 
   it("builds from a Hardhat 3 build-info and its artifact", () => {
     const buildInfo = hardhat3.buildInfo();
     const built = buildVerifyInput([buildInfo, hardhat3.artifact()]);
-    assertBuilt(built, buildInfo, "project/contracts/Greeter.sol:Greeter");
+    assertBuilt(built, buildInfo, "project/contracts/Greeter.sol:Greeter", hardhat3.artifact());
   });
 
   it("builds from a Hardhat 3 build-info and its output file, with a bare name", () => {
@@ -317,7 +331,7 @@ describe("buildVerifyInput: shapes (R-IN-7)", () => {
     const buildInfo = foundry.buildInfo();
     buildInfo.output = { contracts: {} };
     const built = buildVerifyInput([buildInfo, foundry.artifact()]);
-    assertBuilt(built, buildInfo, "src/Greeter.sol:Greeter");
+    assertBuilt(built, buildInfo, "src/Greeter.sol:Greeter", foundry.artifact());
   });
 
   it("takes the one contract a build-info output lists when nothing else names one", () => {
@@ -673,7 +687,7 @@ describe("buildVerifyInput: builds and versions that do not match (R-IN-7)", () 
   it("ignores a document passed twice", () => {
     const buildInfo = hardhat3.buildInfo();
     const built = buildVerifyInput([buildInfo, hardhat3.artifact(), hardhat3.buildInfo()]);
-    assertBuilt(built, buildInfo, "project/contracts/Greeter.sol:Greeter");
+    assertBuilt(built, buildInfo, "project/contracts/Greeter.sol:Greeter", hardhat3.artifact());
   });
 
   it("fails when the build-info's long version and an artifact's metadata version differ", () => {

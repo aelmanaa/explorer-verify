@@ -1,0 +1,24 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:54.181Z: eth_getTransactionByHash for a made-up transaction hash.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com",
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionByHash",
+      "params": ["0xabababababababababababababababababababababababababababababababab"]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": null
+    }
+  }
+}
