@@ -60,9 +60,9 @@ bad key on a keyed tier, or when a key's daily limit is spent, stays unknown.
 
 - Routescan's answer for a refused key and for a spent daily limit. Not reached.
 - Etherscan's answer when a key passes its per-second limit. Not reached.
-- Etherscan's answer for a chain that its free plan does not cover. From memory, not recorded, it
-  starts `Free API access is not supported for this chain`. The Etherscan v2 client (#61) records
-  it live and maps it to exit code 3.
+- Etherscan's answer for a chain that its free plan does not cover. Answered on 2026-11-04: it is
+  `Free API access is not supported for this chain`, mapped to `api-key-rejected`, exit code 3
+  ([Etherscan v2 entries](2026-11-04-etherscan-rows.md#a-free-plan-key-on-the-paid-plan-chains)).
 
 ## Sources
 

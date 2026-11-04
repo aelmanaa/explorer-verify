@@ -72,6 +72,7 @@ never reads as "not verified", as `failed` or as success.
 | Any    | `Max daily rate limit reached` or `Daily limit of …`          | [`quota-exceeded`](errors/quota-exceeded.md), at once                                                                                                            |
 | Any    | `Missing/Invalid API Key`                                     | [`missing-api-key`](errors/missing-api-key.md)                                                                                                                   |
 | Any    | `Invalid API Key …`                                           | [`api-key-rejected`](errors/api-key-rejected.md)                                                                                                                 |
+| Any    | `Free API access is not supported for this chain …`           | [`api-key-rejected`](errors/api-key-rejected.md), with a hint to use a paid plan or Sourcify: the key's plan does not cover the chain                            |
 | Any    | `Missing or unsupported chainid parameter …`                  | [`unsupported-chain`](errors/unsupported-chain.md)                                                                                                               |
 | Any    | `You are using a deprecated V1 endpoint …`                    | [`unexpected-response`](errors/unexpected-response.md): the route points at a retired Etherscan host; the hint says to use `etherscan-v2` without `route.apiUrl` |
 | Lookup | `SourceCode` not empty, `SimilarMatch` empty or absent        | Verified, `exact`                                                                                                                                                |
@@ -131,5 +132,12 @@ the call throws that error.
   arguments, and with wrong ones, and recorded the arguments from the chain
   ([live probes](../../contributor/research/2026-11-03-m2-live-probes.md#a-etherscan-with-constructor-arguments-omitted-or-wrong)).
   This was one chain and two contracts.
+- Paid-plan chains: on 2026-11-04, a free-plan key on the 11 chains marked "Paid Plan required"
+  got normal answers to `getsourcecode` and `checkverifystatus`. The same key got
+  `Free API access is not supported for this chain …` for `account` `balance` on 8 of those chains
+  ([research note](../../contributor/research/2026-11-04-etherscan-rows.md#a-free-plan-key-on-the-paid-plan-chains)).
+  The answer to a submit with a free-plan key was not recorded. If Etherscan gives that text to any
+  request, the call throws [`api-key-rejected`](errors/api-key-rejected.md) with a hint to use a
+  key on a paid plan, or to verify on Sourcify with `route: { backend: "sourcify" }`.
 - Etherscan's plan rules apply to how you use your key
   ([Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md)).

@@ -117,6 +117,9 @@ export interface Dialect {
  *
  * `Max calls per sec rate limit reached` is retried by the HTTP layer as a 429 is. A daily limit
  * throws `quota-exceeded`, and a key answer `missing-api-key` or `api-key-rejected`, at once.
+ * `Free API access is not supported for this chain`, a free-plan key on a chain that needs a paid
+ * plan, is a key answer: `api-key-rejected`. For Etherscan v2, its hint names the paid plan and
+ * Sourcify.
  * Etherscan's unsupported `chainid` answer and Routescan's `chain not supported` both throw
  * `unsupported-chain`. Etherscan's `You are using a deprecated V1 endpoint` throws
  * `unexpected-response`, never `failed`, with a hint to use the `etherscan-v2` backend without

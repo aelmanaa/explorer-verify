@@ -1,0 +1,42 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T18:58:11.695Z: checkverifystatus on Base Mainnet (chainid 8453, \"Paid Plan required\" in the chainlist) with a made-up guid of 50 letters and a free-plan key in the form body. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=8453",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-length": "65",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 18:58:12 GMT",
+      "server": "nginx",
+      "svid": "base2new",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "5"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Unable to locate guid"
+    }
+  },
+  "recordedAt": "2026-11-04T18:58:11.695Z"
+}

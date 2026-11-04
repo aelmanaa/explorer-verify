@@ -65,17 +65,59 @@ The 57 entries add 462 bytes to the table on its own and 495 bytes to `verify wi
 it is the explorer hosts: 57 host names, many of them unlike the others (`basescan.org`,
 `xdcscan.com`, `sepolia.arbiscan.io`).
 
+## A free-plan key on the paid-plan chains
+
+Added for [#135](https://github.com/aelmanaa/explorer-verify/issues/135). Requests sent on
+2026-11-04 with the `fetch` of Node.js 24.21.0: form POSTs to
+`https://api.etherscan.io/v2/api?chainid=<id>` with an Etherscan key in the `apikey` field, for the
+address `0x4200000000000000000000000000000000000006`. The key is on the free plan: it got the
+refusal below on 8 chains. No source was submitted.
+
+The first run, between 18:57 and 18:59 UTC, was repeated from 20:03 to 20:04 UTC and gave the same
+answers; the second run is saved call by call, without the key, in
+`packages/explorer-verify/test/fixtures/etherscan/2026-11-04-paid-plan-probe-summary.json`.
+
+| Request                                      | Chains                                   | Answer                                                                                                                                             |
+| -------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contract` `getsourcecode`                   | all 11                                   | `status` `"1"`, the normal lookup answer                                                                                                           |
+| `contract` `checkverifystatus`, made-up guid | all 11                                   | `status` `"0"`, `Unable to locate guid`, as on a free-tier chain                                                                                   |
+| `contract` `getabi`, `getcontractcreation`   | 84532                                    | `status` `"1"`                                                                                                                                     |
+| `account` `balance`                          | 10, 56, 97, 100, 4663, 5042, 8453, 43114 | `status` `"0"`, `Free API access is not supported for this chain. Please upgrade your api plan for full chain coverage. https://etherscan.io/apis` |
+| `account` `balance`                          | 43113, 84532, 11155420                   | `status` `"1"`                                                                                                                                     |
+
+Five full answers on two chains are saved as fixtures in
+`packages/explorer-verify/test/fixtures/etherscan/`:
+`2026-11-04-getsourcecode-paid-plan-base-sepolia.json`,
+`2026-11-04-checkverifystatus-paid-plan-base-sepolia.json`,
+`2026-11-04-getsourcecode-paid-plan-base.json`, `2026-11-04-checkverifystatus-paid-plan-base.json`
+and `2026-11-04-account-balance-paid-plan-base.json`. The key is replaced by `[redacted]`.
+
+What this shows:
+
+- A free-plan key can look a contract up and poll a job on every paid-plan chain. The "Paid Plan
+  required" label does not block those two calls.
+- Etherscan's refusal text is `Free API access is not supported for this chain`, with `status`
+  `"0"` and HTTP 200. The client maps it, on any call, to `api-key-rejected` with a hint that names
+  the paid plan and Sourcify.
+- The three testnets 43113, 84532 and 11155420 answered every request above, `account` included.
+
+Not checked: the answer to `verifysourcecode` with a free-plan key on a paid-plan chain. A probe
+would publish a source, so none was sent. Decision 0027 keeps Sourcify first on these chains; this
+check does not change that order.
+
 ## Open questions
 
-- Etherscan's answer for a free-plan key on a paid-plan chain. The
-  [key placement note](2026-11-03-api-key-placement.md#open-questions) quotes it from memory as
-  starting `Free API access is not supported for this chain`. It was not requested for this note,
-  which used no key. The order above does not depend on the exact text.
+- Etherscan's answer to a submit with a free-plan key on a paid-plan chain. If it is the refusal
+  above, the client already maps it.
 - Whether every explorer host serves the page `/address/<address>#code`. The hosts come from the
   chainlist; the pages were not opened one by one.
 
 ## Sources
 
+- Live requests to `api.etherscan.io` with a free-plan key, Node.js 24.21.0 `fetch`, 2026-11-04:
+  every call and its answer in
+  `packages/explorer-verify/test/fixtures/etherscan/2026-11-04-paid-plan-probe-summary.json`, and
+  the five full answers in the fixtures named above
 - Etherscan chainlist: https://api.etherscan.io/v2/chainlist (read 2026-11-04)
 - Sourcify chains: https://sourcify.dev/server/chains (read 2026-11-04)
 - Issue: https://github.com/aelmanaa/explorer-verify/issues/122

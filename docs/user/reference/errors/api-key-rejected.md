@@ -11,6 +11,13 @@ Cause: the explorer refused the API key, as Etherscan's `Invalid API Key (#err2)
 mistyped, revoked, or issued by another explorer. `details.backend` names the backend. The error
 never holds the key.
 
+The client also throws this code for Etherscan's answer
+`Free API access is not supported for this chain`: the key is on a free plan and the chain needs a
+paid one. The Etherscan chainlist marks those chains "Paid
+Plan required" ([Routing](../routing.md#etherscan-rows-and-paid-plans)). The hint then says to use
+a key on a paid plan, or to verify on Sourcify, which needs no key, with
+`route: { backend: "sourcify" }`.
+
 Fix: check the key on the explorer's account page, then pass a valid key in `apiKeys` or
 `route.apiKey` and call again. [API keys](../api-keys.md) describes where each key goes.
 
