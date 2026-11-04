@@ -4,13 +4,15 @@ name: Docs deploy
 # (R-AX-17, decision 0015). It builds from the version's tag, never from a branch.
 #
 # Two ways in, both from `main` only:
-# - the promote workflow calls it before it moves npm `latest` to the version, and waits for it
-#   (ci(release) issues #86 and #87);
+# - the promote workflow's `docs` job calls it before it moves npm `latest` to the version, and
+#   the `latest` job needs that job (scripts/check-release-workflows.ts checks it);
 # - the maintainer dispatches it by hand from `main` to re-deploy the tagged docs of the version on
 #   `latest`, for example after a failed deploy. A docs fix ships in a patch release.
 # It never runs on a pull request, a push or a tag push. Its first step fails, rather than skips,
 # when the run is not a dispatch on `main`, so a caller that waits on it sees a failure. The
 # `github-pages` environment also allows `main` only.
+# No job or step has `if` or `continue-on-error`: either could let the workflow pass without the
+# deploy or the smoke check, so scripts/check-release-workflows.ts refuses them.
 
 on:
   workflow_dispatch:
