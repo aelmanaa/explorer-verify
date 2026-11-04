@@ -149,36 +149,54 @@ async function bounded(
   budget: Budget,
 ): Promise<Backend> {
   signal?.throwIfAborted();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cached = LOADED.get(load);
+  if (cached !== undefined) {
+    return cached;
+  }
+  // The deadline runs on AbortSignal.timeout, not setTimeout: a test or an app that fakes
+  // setTimeout and Date and runs every timer at once cannot end a load that is about to settle.
+  // Node's MockTimers does not drive it (checked on Node 24.0.0 and 24.21.0).
+  const deadline = AbortSignal.timeout(
+    Math.min(Math.max(0, budget.deadline - Date.now()), MAX_TIMER_MS),
+  );
   let onAbort: (() => void) | undefined;
+  let onDeadline: (() => void) | undefined;
   try {
-    return await new Promise<Backend>((resolve, reject) => {
+    const backend = await new Promise<Backend>((resolve, reject) => {
       onAbort = (): void => {
         const reason: unknown = signal?.reason;
         reject(reason);
       };
+      onDeadline = (): void => {
+        reject(
+          new ExplorerVerifyError(
+            { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
+            `Loading the ${name} client did not finish within the ${String(budget.timeoutMs)} ms budget.`,
+            { secrets: [] },
+          ),
+        );
+      };
       signal?.addEventListener("abort", onAbort, { once: true });
-      timer = setTimeout(
-        () => {
-          reject(
-            new ExplorerVerifyError(
-              { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
-              `Loading the ${name} client did not finish within the ${String(budget.timeoutMs)} ms budget.`,
-              { secrets: [] },
-            ),
-          );
-        },
-        Math.min(Math.max(0, budget.deadline - Date.now()), MAX_TIMER_MS),
-      );
+      deadline.addEventListener("abort", onDeadline, { once: true });
       load().then(resolve, reject);
     });
+    LOADED.set(load, backend);
+    return backend;
   } finally {
-    clearTimeout(timer);
     if (onAbort !== undefined) {
       signal?.removeEventListener("abort", onAbort);
     }
+    if (onDeadline !== undefined) {
+      deadline.removeEventListener("abort", onDeadline);
+    }
   }
 }
+
+/**
+ * Each client a loader has given, by loader: a later call takes it at once, with no wait and no
+ * timer. A loader that failed is not kept, so the next call tries again.
+ */
+const LOADED = new WeakMap<ClientLoader, Backend>();
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {

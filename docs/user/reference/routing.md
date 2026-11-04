@@ -174,7 +174,8 @@ verifies on Sourcify does not download the other clients. esbuild does the same 
 The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
 `timeout`. An abort of `signal` during the load rejects with `signal.reason`. A client that fails
 to load, such as a chunk the page cannot fetch, rejects the call with the loader's error, before
-any request to an explorer.
+any request to an explorer; the next call tries again. A client that loaded is kept, so later
+calls on the same backend do not wait for it.
 
 ## Errors
 

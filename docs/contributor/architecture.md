@@ -367,9 +367,11 @@ others, is the measured size plus 20% ([decision 0024](decisions/0024-compact-ro
 client with a dynamic `import()` and a literal path. `verify()`, `checkStatus()` and `dryRun()`
 resolve the route first and start the time budget. Then `withClient()` loads that route's client
 and no other, inside `abortWins`, and `openCall()` builds the call with the same budget. The load
-ends with `signal.reason` when the signal aborts, or `timeout` when the budget runs out. A loader
-that fails rejects the call with its error, before any request to an explorer. Tests pass client
-objects in place of loaders.
+ends with `signal.reason` when the signal aborts, or `timeout` when the budget runs out; the
+deadline runs on `AbortSignal.timeout`, which fake timers do not drive. A loaded client is kept by
+loader, so later calls take it at once. A loader that fails rejects the call with its error,
+before any request to an explorer, and is tried again on the next call. Tests pass client objects
+in place of loaders.
 
 A bundler that splits code puts each client in its own chunk, so a page downloads only the client
 its calls are routed to. `pnpm run size` measures each entry without its clients, each client

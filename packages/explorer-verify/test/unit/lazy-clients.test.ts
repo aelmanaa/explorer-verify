@@ -266,20 +266,43 @@ async function outcomeOf(promise: Promise<unknown>): Promise<unknown> {
 
 describe("a client load is bounded by the signal and the budget (R-FLOW-6, decision 0031)", () => {
   for (const [name, run] of RUNS) {
-    it(`${name}: a load that never ends throws timeout when the budget runs out`, async (t: TestContext) => {
-      t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
-      const outcome = outcomeOf(run(HUNG, { fetch: noFetch, timeoutMs: 1_000 }));
-      await settleJobs();
-      t.mock.timers.tick(999);
-      await settleJobs();
-      t.mock.timers.tick(1);
-      const error = await outcome;
+    // The load's deadline runs on AbortSignal.timeout, which fake timers do not drive, so this
+    // test waits for real: 5 ms.
+    it(`${name}: a load that never ends throws timeout when the budget runs out`, async () => {
+      const error = await outcomeOf(run(HUNG, { fetch: noFetch, timeoutMs: 5 }));
       assert.ok(error instanceof ExplorerVerifyError, String(error));
-      assert.deepEqual(error.details, { code: "timeout", backend: "sourcify", timeoutMs: 1_000 });
+      assert.deepEqual(error.details, { code: "timeout", backend: "sourcify", timeoutMs: 5 });
       assert.equal(
         error.message,
-        "Loading the sourcify client did not finish within the 1000 ms budget.",
+        "Loading the sourcify client did not finish within the 5 ms budget.",
       );
+    });
+
+    it(`${name}: fake timers run all at once do not end a load that settles a few turns later`, async (t: TestContext) => {
+      t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+      // A fresh loader, so nothing is cached: it settles after five real event-loop turns, as a
+      // dynamic import does on a slow runtime.
+      const dependencies: FlowDependencies = {
+        backends: {
+          sourcify: async () => {
+            for (let turn = 0; turn < 5; turn += 1) {
+              await settleJobs();
+            }
+            return exactSourcify;
+          },
+        },
+        table: TABLE,
+      };
+      const state = { settled: false };
+      const pending = outcomeOf(run(dependencies, { fetch: noFetch })).finally(() => {
+        state.settled = true;
+      });
+      while (!state.settled) {
+        t.mock.timers.runAll();
+        await settleJobs();
+      }
+      const outcome = await pending;
+      assert.ok(!(outcome instanceof Error), String(outcome));
     });
 
     it(`${name}: a load that never ends rejects with signal.reason when the signal aborts`, async () => {
@@ -333,5 +356,35 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
     const route = routeOf(SEPOLIA, settings, dependencies);
     const budget = { deadline: 123, timeoutMs: 456 };
     assert.equal(openCall(settings, route, TARGET, dependencies, true, budget).budget, budget);
+  });
+});
+
+describe("a loaded client is kept (decision 0031)", () => {
+  it("a second call with the same loader does not load again", async () => {
+    let loads = 0;
+    const loader = async (): Promise<Backend> => {
+      loads += 1;
+      return await Promise.resolve(exactSourcify);
+    };
+    const dependencies: FlowDependencies = { backends: { sourcify: loader }, table: TABLE };
+    await runVerify(INPUT, { fetch: noFetch }, dependencies);
+    await runVerify(INPUT, { fetch: noFetch }, dependencies);
+    assert.equal(loads, 1);
+  });
+
+  it("a loader that failed loads again on the next call", async () => {
+    let loads = 0;
+    const loader = async (): Promise<Backend> => {
+      loads += 1;
+      if (loads === 1) {
+        throw new TypeError("Failed to fetch dynamically imported module");
+      }
+      return await Promise.resolve(exactSourcify);
+    };
+    const dependencies: FlowDependencies = { backends: { sourcify: loader }, table: TABLE };
+    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), TypeError);
+    const result = await runVerify(INPUT, { fetch: noFetch }, dependencies);
+    assert.equal(result.status, "already-verified");
+    assert.equal(loads, 2);
   });
 });

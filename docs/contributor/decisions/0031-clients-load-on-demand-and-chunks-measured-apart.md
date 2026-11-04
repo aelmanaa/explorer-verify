@@ -24,6 +24,13 @@ stopgap until issue [#136](https://github.com/aelmanaa/explorer-verify/issues/13
   still pass a client object in place of a loader.
 - The load counts against `timeoutMs`: a load that does not end in time throws `timeout`. An abort
   of the caller's signal during the load rejects with `signal.reason` (R-FLOW-6).
+- The load's deadline runs on `AbortSignal.timeout`, not `setTimeout`. A test or an app that fakes
+  `setTimeout` and `Date` and runs every timer at once would otherwise end a load that is about to
+  settle. In CI on Node 24.0.0, a test that ran every fake timer at once hit the deadline before
+  the first dynamic import settled. Node's MockTimers does not drive `AbortSignal.timeout`.
+- Each loaded client is kept, by loader, for the life of the page or process. A later call takes
+  it at once, with no wait and no timer. A load that failed is not kept, so the next call tries
+  again.
 - A loader that fails, such as a chunk the page cannot fetch, rejects the call with the loader's
   error, unchanged, before any request to an explorer.
 - Nothing in the public API changes. The core stays runtime-neutral: a dynamic `import()` of a
