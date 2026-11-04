@@ -1,0 +1,51 @@
+{
+  "chainId": 11155111,
+  "address": "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+  "compiler": {
+    "kind": "solc",
+    "version": "0.8.24+commit.e11b9ed9",
+    "input": {
+      "language": "Solidity",
+      "sources": {
+        "src/Base.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+        },
+        "src/Greeter.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+        }
+      },
+      "settings": {
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "metadata": {
+          "useLiteralContent": false,
+          "bytecodeHash": "ipfs",
+          "appendCBOR": true
+        },
+        "outputSelection": {
+          "*": {
+            "": ["ast"],
+            "*": [
+              "abi",
+              "evm.bytecode.object",
+              "evm.bytecode.sourceMap",
+              "evm.bytecode.linkReferences",
+              "evm.deployedBytecode.object",
+              "evm.deployedBytecode.sourceMap",
+              "evm.deployedBytecode.linkReferences",
+              "evm.deployedBytecode.immutableReferences",
+              "evm.methodIdentifiers",
+              "metadata"
+            ]
+          }
+        },
+        "evmVersion": "cancun",
+        "viaIR": false,
+        "libraries": {}
+      }
+    }
+  },
+  "contractName": "src/Greeter.sol:Greeter"
+}

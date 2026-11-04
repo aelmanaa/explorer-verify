@@ -26,6 +26,17 @@
       "not": { "properties": { "error": {} }, "required": ["error"] }
     },
     {
+      "description": "A dry run: toEnvelope() of the result of dryRun(), which the CLI prints for verify --dry-run. Nothing was submitted. Exit code 0.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "ok": { "const": true },
+        "result": { "$ref": "#/$defs/dryRun" }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": { "properties": { "error": {} }, "required": ["error"] }
+    },
+    {
       "description": "An error from the catalogue. The exit code depends on error.code.",
       "type": "object",
       "properties": {
@@ -73,6 +84,27 @@
         }
       },
       "required": ["status", "backend", "reason"]
+    },
+    "dryRun": {
+      "description": "A DryRunResult: where verify would go and what the explorer holds now. Nothing was submitted.",
+      "type": "object",
+      "properties": {
+        "status": { "const": "dry-run" },
+        "backend": { "$ref": "#/$defs/backend" },
+        "apiHost": {
+          "description": "The API host verify would send to, such as sourcify.dev, with the port when it is not the scheme's default.",
+          "type": "string"
+        },
+        "lookup": {
+          "description": "exact or partial: the explorer holds a match, so verify would not submit. none: it holds none, so verify would submit. skipped: the backend needs an API key and none is set, so no request was sent.",
+          "enum": ["exact", "partial", "none", "skipped"]
+        },
+        "explorerUrl": {
+          "description": "The public page of the contract, for a match. Absent when the library knows none.",
+          "type": "string"
+        }
+      },
+      "required": ["status", "backend", "apiHost", "lookup"]
     },
     "error": {
       "description": "ExplorerVerifyError.toJSON(): the error without its cause, stack or details.",

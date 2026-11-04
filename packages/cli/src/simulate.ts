@@ -1,7 +1,7 @@
 /**
- * The `simulate` command: a placeholder that runs a verification without a network, so the output
- * contract can be tested on the built bin before the real commands land. The `verify` and
- * `status` issue (#101) replaces it.
+ * The `simulate` command: a hidden placeholder that runs a verification without a network, so the
+ * contract tests can reach every exit path and signal on the built bin. It stays until those tests
+ * run `verify` and `status` against a fake explorer; a later release removes it.
  *
  * It emits the stage events a real run emits, one debug log line whose fields are named `type`
  * and `fields` (reserved names, R-AX-14), optional retries and polls, then ends with the outcome
@@ -11,7 +11,7 @@ import { ExplorerVerifyError, formatHandle } from "explorer-verify";
 import type { Handle, InputIssue, VerifyResult } from "explorer-verify";
 
 import { stringOption, usageError } from "./command.ts";
-import type { Command, CommandContext } from "./command.ts";
+import type { Command, CommandContext, RunCommand } from "./command.ts";
 
 /** The outcomes `--outcome` can name: one per exit code, plus `pending`. */
 const OUTCOMES = [
@@ -181,7 +181,7 @@ async function run(context: CommandContext): Promise<VerifyResult> {
 }
 
 /** The `simulate` row of the command table. */
-export const SIMULATE: Command = {
+export const SIMULATE: Command & { readonly run: RunCommand } = {
   name: "simulate",
   // A placeholder for tests: no usage message or help text names it.
   hidden: true,
@@ -189,7 +189,7 @@ export const SIMULATE: Command = {
   // on the built bin. It sends nothing, so it uses neither.
   routed: true,
   summary:
-    "Run a simulated verification with no network, to test the output contract. Replaced by verify and status.",
+    "Run a simulated verification with no network, to test the output contract. A later release removes it.",
   usage: "",
   examples: [
     {

@@ -24,6 +24,11 @@ export const envelopeProblems: (value: unknown) => string[] = validator(
   "explorer-verify/envelope.schema.json",
 );
 
+/** Every place where `value` breaks the core's `input.schema.json`. Empty when it is valid. */
+export const inputProblems: (value: unknown) => string[] = validator(
+  "explorer-verify/input.schema.json",
+);
+
 /** Every place where `value` breaks `help.schema.json`. Empty when it is valid. */
 export const helpProblems: (value: unknown) => string[] = validator(
   "@explorer-verify/cli/help.schema.json",

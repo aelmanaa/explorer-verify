@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { runBin } from "../helpers/spawn-bin.ts";
+import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
 
 const SKILL = readFileSync(
   new URL("../../../../skills/explorer-verify/SKILL.md", import.meta.url),
@@ -65,7 +65,8 @@ describe("the skill's command-line examples (R-AX-4)", () => {
 
   for (const example of examples) {
     it(`SKILL.md line ${String(example.line)}: explorer-verify ${example.args.join(" ")}`, async () => {
-      const result = await runBin(example.args);
+      // In a Foundry project, against the fake explorer: nothing reaches the network.
+      const result = await runBin(example.args, { cwd: PROJECT, fake: {} });
       assert.equal(result.code, example.exitCode, `stderr:\n${result.stderr}`);
       assert.equal(result.stdout, example.stdout);
     });

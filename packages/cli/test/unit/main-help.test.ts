@@ -58,7 +58,7 @@ describe("main: help (R-AX-11)", () => {
   });
 
   it("prints a command's help for help <command> and <command> --help", async () => {
-    const [simulate] = COMMANDS;
+    const simulate = COMMANDS.find((command) => command.name === "simulate");
     assert.ok(simulate);
     const expected = helpText(helpResult(COMMANDS, simulate));
     for (const argv of [

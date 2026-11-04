@@ -234,6 +234,45 @@ every cause, it is a redacted copy: a plain `Error` with the original `name`
 (`ExplorerVerifyError`), message and `code`, not an `ExplorerVerifyError` instance. Read
 `cause.code` for the error code.
 
+## Dry run
+
+`dryRun(input, options)` runs the steps of `verify()` that send no submission, and says what
+`verify()` would do. It takes the same input and options. It validates the input, resolves the
+route, looks the contract up once, and stops. It never submits.
+
+```ts
+import { dryRun } from "explorer-verify";
+
+const result = await dryRun(input);
+console.log(result.status, result.backend, result.apiHost, result.lookup);
+```
+
+```text
+dry-run sourcify sourcify.dev exact
+```
+
+The result is a `DryRunResult`:
+
+- `status`: always `dry-run`.
+- `backend`: the backend `verify()` would use.
+- `apiHost`: the API host `verify()` would send to, such as `sourcify.dev`, with the port when it
+  is not the scheme's default, such as `127.0.0.1:5555`.
+- `lookup`: `exact` or `partial` when the explorer holds a match, so `verify()` would return
+  `already-verified` without a submit; `none` when it holds none, so `verify()` would submit;
+  `skipped` when the backend needs an API key and none is set, so no request was sent.
+- `explorerUrl`: the public page of the contract, for a match, when the library knows one.
+
+A dry run needs no API key. Where `verify()` would throw `missing-api-key`, a dry run sends nothing
+and returns `lookup: "skipped"`. With an injected `fetch`, it looks the contract up, because the
+`fetch` may reach a server that adds the key. It throws what `verify()` throws before its submit:
+`invalid-input`, `unsupported-chain`, and the errors of a failed lookup. It emits
+`verify.validated`, `verify.routed` and `verify.lookup`, whose `match` is `skipped` when no request
+was sent.
+
+The CLI runs it for `explorer-verify verify --dry-run` and prints the result in an envelope with
+`ok: true` and exit code 0 ([CLI](cli.md#dry-run)). `toEnvelope()` and `exitCodeOf()` take a
+`DryRunResult` too: they give that envelope and exit code 0.
+
 ## Abort and resume
 
 An aborted call rejects with `signal.reason`, unchanged, at the next wait or request. It carries no

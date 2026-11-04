@@ -89,6 +89,7 @@ describe("public entry point", () => {
       "ExplorerVerifyError",
       "buildVerifyInput",
       "checkStatus",
+      "dryRun",
       "exitCodeOf",
       "formatHandle",
       "linkLibraries",

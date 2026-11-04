@@ -46,6 +46,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                                  |
 | `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)        |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists)     |
+| `flow/dry-run.ts`                          | `dryRun()`: the steps of `verify()` before the submit, on its helpers (R-AX-8, decision 0029) (exists)     |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                              |
 | `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)              |
 | `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV) (exists)                               |
@@ -124,6 +125,10 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 
 - `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
   `checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>`.
+- `dryRun(input: VerifyInput, options?: VerifyOptions): Promise<DryRunResult>` validates, routes and
+  looks the contract up, then stops before the submit (R-AX-8,
+  [decision 0029](decisions/0029-dry-run-in-the-core.md)). It needs no key: where `verify()` would
+  throw `missing-api-key`, it sends nothing and returns `lookup: "skipped"`.
 - `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
   `pollIntervalMs`, `logger`, `onEvent`, `route` and `apiKeys`, keyed by backend name (decision
   0016). Every field is optional. M2 adds `rpcUrl`.
@@ -140,7 +145,7 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
   `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope
   (R-AX-5).
-- `exitCodeOf(outcome)` gives the exit code of a result or an error (R-AX-7), and
+- `exitCodeOf(outcome)` gives the exit code of a result, a `DryRunResult` or an error (R-AX-7), and
   `toEnvelope(outcome)` the versioned JSON envelope (R-AX-5): a result copied field by field or the
   error's `toJSON()`, in a fixed key order, with every string redacted. `schema/envelope.schema.json`
   ships in the package as `explorer-verify/envelope.schema.json`. The CLI and the server handler use
@@ -154,7 +159,9 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
 `types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
 `exitCodeOf` and `toEnvelope`, `flow/handle.ts` `parseHandle` and `formatHandle`,
 `input/validate.ts` `validateInput`, `input/libraries.ts` `linkLibraries`, `flow/verify.ts`
-`verify` and `flow/status.ts` `checkStatus`. `checkStatus` reuses the option reading, the call setup, the
+`verify`, `flow/status.ts` `checkStatus` and `flow/dry-run.ts` `dryRun`. `dryRun` reuses
+`settingsOf`, `routeOf` and `openCall`, with the key check off, and `keyMissing` of
+`http/api-keys.ts`. `checkStatus` reuses the option reading, the call setup, the
 poll loop, the failure cap, the last lookup and the result mapping of `flow/verify.ts`
 (`settingsOf`, `openCall`, `settle`). It polls at once instead of after one interval. Its handle's
 backend must equal the backend the route resolves for the handle's chain, or it throws

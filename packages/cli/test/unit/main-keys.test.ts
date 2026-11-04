@@ -10,7 +10,7 @@ import { after, describe, it } from "node:test";
 import { ExplorerVerifyError, verify } from "explorer-verify";
 import type { VerifyInput } from "explorer-verify";
 
-import type { Command, CommandContext } from "../../src/command.ts";
+import type { Command, CommandContext, RunCommand } from "../../src/command.ts";
 import { REFUSED_KEY_MESSAGE } from "../../src/keys.ts";
 import { main } from "../../src/main.ts";
 import { fakeIo, jsonLines } from "../helpers/fake-io.ts";
@@ -46,7 +46,7 @@ async function run(
 
 function routed(
   name: string,
-  body: (context: CommandContext) => Promise<Awaited<ReturnType<Command["run"]>>>,
+  body: (context: CommandContext) => Promise<Awaited<ReturnType<RunCommand>>>,
   options: Command["options"] = {},
 ): Command {
   return {
@@ -198,7 +198,7 @@ describe("main: route options reach the command (R-AX-9, R-RT-2)", () => {
   });
 });
 
-const NEVER: Command["run"] = async () => {
+const NEVER: RunCommand = async () => {
   throw new Error("must not run");
 };
 

@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import type { VerifyResult } from "explorer-verify";
 
-import type { Command } from "../../src/command.ts";
+import type { Command, RunCommand } from "../../src/command.ts";
 import { main, tidyStack } from "../../src/main.ts";
 import { fakeIo } from "../helpers/fake-io.ts";
 import { envelopeProblems, oneEnvelope } from "../helpers/schema.ts";
@@ -19,7 +19,7 @@ async function run(argv: readonly string[]) {
   return { code, stdout: fake.stdout(), stderr: fake.stderr() };
 }
 
-function command(name: string, body: Command["run"], maxPositionals = 0): Command {
+function command(name: string, body: RunCommand, maxPositionals = 0): Command {
   return {
     name,
     summary: "A test command.",
@@ -31,7 +31,7 @@ function command(name: string, body: Command["run"], maxPositionals = 0): Comman
   };
 }
 
-const NEVER: Command["run"] = async () => await Promise.reject(new Error("must not run"));
+const NEVER: RunCommand = async () => await Promise.reject(new Error("must not run"));
 
 describe("main: internal-error redaction (R-SEC-1)", () => {
   it("redacts a key that straddles the 500-character cut", async () => {

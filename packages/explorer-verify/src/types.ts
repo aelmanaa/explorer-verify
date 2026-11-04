@@ -101,6 +101,42 @@ export type VerifyResult =
   | { status: "failed"; backend: BackendName; reason: string };
 
 /**
+ * What `dryRun()` returns: where a `verify()` call with the same input and options would go, and
+ * what the explorer holds now (R-AX-8). Nothing was submitted.
+ *
+ * - `lookup` is the already-verified check: `exact` or `partial` when the explorer holds a match,
+ *   so `verify()` would return `already-verified` without a submit; `none` when it holds none, so
+ *   `verify()` would submit; `skipped` when the backend needs an API key and none is set, so no
+ *   request was sent.
+ * - `explorerUrl` is the public page of the contract, present only for a match the library knows a
+ *   page for.
+ *
+ * @example
+ * ```ts
+ * import type { DryRunResult } from "explorer-verify";
+ *
+ * function describe(result: DryRunResult): string {
+ *   return result.lookup === "skipped"
+ *     ? `${result.backend} needs an API key; the lookup was skipped`
+ *     : `${result.backend} at ${result.apiHost}: ${result.lookup}`;
+ * }
+ * ```
+ * @experimental
+ */
+export interface DryRunResult {
+  /** Always `dry-run`. */
+  status: "dry-run";
+  /** The backend `verify()` would use. */
+  backend: BackendName;
+  /** The API host `verify()` would send to, such as `sourcify.dev`. Never a scheme or a path. */
+  apiHost: string;
+  /** What the already-verified check found, or `skipped` when the backend has no key. */
+  lookup: "exact" | "partial" | "none" | "skipped";
+  /** The public page of the contract, for a match the library knows a page for. */
+  explorerUrl?: string;
+}
+
+/**
  * One log field value: flat and JSON-safe, so it maps to a JSON Lines record or an OpenTelemetry
  * attribute without conversion (R-DX-5).
  *

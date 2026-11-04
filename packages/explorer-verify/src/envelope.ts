@@ -10,7 +10,7 @@ import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { JOB_ID } from "./flow/handle.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
 import { REDACTED, redact } from "./redact.ts";
-import type { VerifyResult } from "./types.ts";
+import type { DryRunResult, VerifyResult } from "./types.ts";
 
 /**
  * What a `verify()` or `checkStatus()` call ends with: the result it returned or the error it
@@ -38,7 +38,8 @@ export type VerifyOutcome = VerifyResult | ExplorerVerifyError;
 
 /**
  * The versioned JSON document for an outcome (R-AX-5). `ok` is `true` exactly when the exit code
- * is 0. A `failed` result has `ok: false` and the result, with no `error`. Keys appear in the order
+ * is 0. A `failed` result has `ok: false` and the result, with no `error`. A `DryRunResult` has
+ * `ok: true`: a dry run submits nothing and exits 0 (R-AX-8). Keys appear in the order
  * shown, and `schema/envelope.schema.json` in the package describes every form.
  *
  * @example
@@ -61,6 +62,7 @@ export type Envelope =
       result: Extract<VerifyResult, { status: "verified" | "already-verified" }>;
     }
   | { schemaVersion: 1; ok: false; result: Extract<VerifyResult, { status: "failed" }> }
+  | { schemaVersion: 1; ok: true; result: DryRunResult }
   | { schemaVersion: 1; ok: false; error: ErrorJson };
 
 /**
@@ -82,11 +84,18 @@ export interface EnvelopeOptions {
   secrets?: readonly string[];
 }
 
+/** Every result status: those of `VerifyResult` and `dry-run`. */
+type Status = VerifyResult["status"] | DryRunResult["status"];
+
+/** A result `toEnvelope` takes: a `VerifyResult` or a `DryRunResult`. */
+type AnyResult = VerifyResult | DryRunResult;
+
 // The exit code of each result status (R-AX-7). A status without an entry fails to compile.
-const RESULT_EXIT_CODES: Readonly<Record<VerifyResult["status"], ExitCode>> = {
+const RESULT_EXIT_CODES: Readonly<Record<Status, ExitCode>> = {
   verified: 0,
   "already-verified": 0,
   failed: 1,
+  "dry-run": 0,
 };
 
 const MATCHES = ["exact", "partial"] as const;
@@ -118,7 +127,7 @@ function strictHandle(value: unknown): { prefix: string; jobId: string } | undef
   return valid ? handle : undefined;
 }
 
-const NOT_AN_OUTCOME = "The value is not a VerifyResult or an ExplorerVerifyError.";
+const NOT_AN_OUTCOME = "The value is not a VerifyResult, a DryRunResult or an ExplorerVerifyError.";
 const NOT_AN_OUTCOME_HINT =
   "Pass the result that verify() or checkStatus() returned, or the ExplorerVerifyError it threw.";
 const BAD_OPTIONS = "The options are invalid.";
@@ -143,10 +152,64 @@ function invalid(issues: InputIssue[], message = NOT_AN_OUTCOME, hint = NOT_AN_O
 }
 
 /** The status as a key of {@link RESULT_EXIT_CODES}, or `undefined`. */
-function statusOf(value: unknown): VerifyResult["status"] | undefined {
-  return value === "verified" || value === "already-verified" || value === "failed"
+function statusOf(value: unknown): Status | undefined {
+  return value === "verified" ||
+    value === "already-verified" ||
+    value === "failed" ||
+    value === "dry-run"
     ? value
     : undefined;
+}
+
+const LOOKUPS = ["exact", "partial", "none", "skipped"] as const;
+
+/**
+ * The `explorerUrl` field: `undefined` when absent, `null` when present but not a string, which
+ * adds an issue.
+ */
+function explorerUrlOf(
+  fields: Map<string, unknown>,
+  problems: Problems,
+): string | null | undefined {
+  const value = fields.get("explorerUrl");
+  return value === undefined
+    ? undefined
+    : (stringOf(value) ??
+        problems.add("outcome.explorerUrl", "must be a string when present") ??
+        null);
+}
+
+/** A new `DryRunResult`, its fields in a fixed order, each string redacted. */
+function copyDryRun(
+  fields: Map<string, unknown>,
+  backend: DryRunResult["backend"] | undefined,
+  problems: Problems,
+  secrets: readonly string[],
+): DryRunResult {
+  const apiHost =
+    stringOf(fields.get("apiHost")) ?? problems.add("outcome.apiHost", "must be a string");
+  const lookupValue = fields.get("lookup");
+  const lookup =
+    LOOKUPS.find((name) => name === lookupValue) ??
+    problems.add("outcome.lookup", "must be exact, partial, none or skipped");
+  const explorerUrl = explorerUrlOf(fields, problems);
+  if (
+    backend === undefined ||
+    apiHost === undefined ||
+    lookup === undefined ||
+    explorerUrl === null
+  ) {
+    throw invalid(problems.issues);
+  }
+  const result: DryRunResult = {
+    status: "dry-run",
+    backend,
+    apiHost: redact(apiHost, secrets),
+    lookup,
+  };
+  return explorerUrl === undefined
+    ? result
+    : { ...result, explorerUrl: redact(explorerUrl, secrets) };
 }
 
 /** `value` when it is a string, else `undefined`. */
@@ -212,7 +275,7 @@ function secretsOf(options: unknown): readonly string[] {
  * A new result with only the fields its status declares, in a fixed order, each string redacted.
  * Throws `invalid-input` for a value that bypassed the types.
  */
-function copyResult(result: unknown, secrets: readonly string[]): VerifyResult {
+function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
   const fields = readFields(result);
   if (fields === undefined) {
     throw invalid([{ field: "outcome", message: "must be an object whose fields can be read" }]);
@@ -220,7 +283,7 @@ function copyResult(result: unknown, secrets: readonly string[]): VerifyResult {
   const problems = new Problems();
   const status =
     statusOf(fields.get("status")) ??
-    problems.add("outcome.status", "must be verified, already-verified or failed");
+    problems.add("outcome.status", "must be verified, already-verified, failed or dry-run");
   const backendValue = stringOf(fields.get("backend"));
   const backend =
     (backendValue === undefined ? undefined : toBackendName(backendValue)) ??
@@ -233,18 +296,15 @@ function copyResult(result: unknown, secrets: readonly string[]): VerifyResult {
     }
     return { status, backend, reason: redact(reason, secrets) };
   }
+  if (status === "dry-run") {
+    return copyDryRun(fields, backend, problems, secrets);
+  }
   const matchValue = fields.get("match");
   const match =
     MATCHES.find((name) => name === matchValue) ??
     problems.add("outcome.match", "must be exact or partial");
-  const urlValue = fields.get("explorerUrl");
   // `null` stands for an explorerUrl that is present but not a string.
-  const explorerUrl =
-    urlValue === undefined
-      ? undefined
-      : (stringOf(urlValue) ??
-        problems.add("outcome.explorerUrl", "must be a string when present") ??
-        null);
+  const explorerUrl = explorerUrlOf(fields, problems);
   if (
     status === undefined ||
     backend === undefined ||
@@ -358,7 +418,7 @@ function copyError(
 function readOutcome(
   outcome: unknown,
   secrets: readonly string[],
-): { error: ErrorJson } | { result: VerifyResult } {
+): { error: ErrorJson } | { result: AnyResult } {
   const read = errorReader(outcome);
   return read === undefined
     ? { result: copyResult(outcome, secrets) }
@@ -366,7 +426,8 @@ function readOutcome(
 }
 
 /**
- * The CLI exit code of an outcome (R-AX-7): 0 for `verified` and `already-verified`, 1 for
+ * The CLI exit code of an outcome (R-AX-7): 0 for `verified`, `already-verified` and a
+ * `DryRunResult`, 1 for
  * `failed`, and {@link ERROR_EXIT_CODES} for an error. A server handler or a script uses it to
  * decide what to do next without parsing messages. It checks the outcome as {@link toEnvelope}
  * does, so the two never disagree.
@@ -375,7 +436,7 @@ function readOutcome(
  * accepted when its `name` is `"ExplorerVerifyError"` and its `toJSON()` returns a valid error
  * object.
  *
- * @param outcome - The result a call returned or the error it threw.
+ * @param outcome - The result a call returned, a `DryRunResult`, or the error a call threw.
  * @returns The exit code.
  * @throws ExplorerVerifyError `invalid-input` when `outcome` is neither, which only code that
  *   bypassed the types can pass.
@@ -393,7 +454,7 @@ function readOutcome(
  * ```
  * @experimental
  */
-export function exitCodeOf(outcome: VerifyOutcome): ExitCode {
+export function exitCodeOf(outcome: VerifyOutcome | DryRunResult): ExitCode {
   const read = readOutcome(outcome, []);
   return "error" in read
     ? ERROR_EXIT_CODES[read.error.code]
@@ -414,7 +475,7 @@ export function exitCodeOf(outcome: VerifyOutcome): ExitCode {
  * accepted when its `name` is `"ExplorerVerifyError"` and its `toJSON()` returns a valid error
  * object.
  *
- * @param outcome - The result a call returned or the error it threw.
+ * @param outcome - The result a call returned, a `DryRunResult`, or the error a call threw.
  * @param options - Key values to redact, such as the call's API key.
  * @returns The envelope, ready for `JSON.stringify`.
  * @throws ExplorerVerifyError `invalid-input` when `outcome` is neither, or `options` is not
@@ -434,12 +495,18 @@ export function exitCodeOf(outcome: VerifyOutcome): ExitCode {
  * ```
  * @experimental
  */
-export function toEnvelope(outcome: VerifyOutcome, options?: EnvelopeOptions): Envelope {
+export function toEnvelope(
+  outcome: VerifyOutcome | DryRunResult,
+  options?: EnvelopeOptions,
+): Envelope {
   const read = readOutcome(outcome, secretsOf(options));
   if ("error" in read) {
     return { schemaVersion: 1, ok: false, error: read.error };
   }
   const { result } = read;
+  if (result.status === "dry-run") {
+    return { schemaVersion: 1, ok: true, result };
+  }
   return result.status === "failed"
     ? { schemaVersion: 1, ok: false, result }
     : { schemaVersion: 1, ok: true, result };

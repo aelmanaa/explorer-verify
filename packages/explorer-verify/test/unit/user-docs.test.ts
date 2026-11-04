@@ -313,6 +313,12 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/verify.md",
     example: 3,
+    what: "dryRun() finds the contract verified and submits nothing",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "reference/verify.md",
+    example: 4,
     what: "keep the handle from verify.submitted",
     fixtures: [
       "2026-11-02-lookup-not-verified",

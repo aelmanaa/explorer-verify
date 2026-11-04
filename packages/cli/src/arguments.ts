@@ -20,6 +20,11 @@ export interface OptionSpec {
   short?: string;
   /** Whether the option may repeat; its values then form a list. */
   multiple?: boolean;
+  /**
+   * Whether giving the option twice is an issue, instead of keeping the last value: for an option
+   * whose repeat a caller could read as a request for more, such as `--backend`.
+   */
+  once?: boolean;
   /** The placeholder of a string option's value in the help text, such as `<mode>`. */
   value?: string;
   /** One line for the help text. */
@@ -79,6 +84,15 @@ export const GLOBAL_OPTIONS: OptionSpecs = {
 
 /** The word that asks for help, as in `explorer-verify help verify`. */
 export const HELP_WORD = "help";
+
+/** The command a contract address as the first argument runs (R-DX-1). */
+const ADDRESS_COMMAND = "verify";
+
+/** The issue message of an option with `once` given twice. */
+const ONCE_MESSAGE = "can be given only once";
+
+/** A contract address: `0x` and 40 hex digits. */
+const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 /** What {@link readArguments} found. */
 export interface Arguments {
@@ -228,8 +242,16 @@ export function readArguments(
   }
   // `help [command]` asks for help, like `--help`; the command after it is the topic.
   const helpWord = positionals[0] === HELP_WORD;
-  const [first, ...rest] = helpWord ? positionals.slice(1) : positionals;
-  const found = commands.find((command) => command.name === first);
+  const named = helpWord ? positionals.slice(1) : positionals;
+  const [first, ...after] = named;
+  let found = commands.find((command) => command.name === first);
+  let rest = after;
+  // The short form of R-DX-1: a contract address first runs `verify` with it.
+  const addressCommand = commands.find((command) => command.name === ADDRESS_COMMAND);
+  if (found === undefined && first !== undefined && ADDRESS.test(first) && addressCommand) {
+    found = addressCommand;
+    rest = named;
+  }
   const allowed = new Map<string, OptionSpec>(Object.entries(GLOBAL_OPTIONS));
   for (const [name, spec] of Object.entries(found === undefined ? {} : commandOptions(found))) {
     allowed.set(name, spec);
@@ -302,6 +324,8 @@ export function readArguments(
       list.push(value);
       lists.set(token.name, list);
       values.set(token.name, list);
+    } else if (spec.once === true && values.has(token.name)) {
+      issues.push({ field: label, message: ONCE_MESSAGE });
     } else {
       values.set(token.name, value);
     }
