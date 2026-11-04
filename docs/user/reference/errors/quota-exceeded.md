@@ -4,8 +4,9 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-From the Etherscan v2, Routescan and standalone clients on ([#61](https://github.com/aelmanaa/explorer-verify/issues/61), [#62](https://github.com/aelmanaa/explorer-verify/issues/62), [#63](https://github.com/aelmanaa/explorer-verify/issues/63)): in this release the routing table sends every chain it lists to Sourcify, which takes no key, so the library does not
-throw this code yet.
+The Etherscan v2 and Routescan clients throw this code; they read the same answers. The
+standalone client will throw it too ([#63](https://github.com/aelmanaa/explorer-verify/issues/63));
+it is not in this release yet.
 
 Cause: the API key's daily limit is spent. Etherscan answers `Max daily rate limit reached` when a
 key has used its daily calls, and `Daily limit of 500 source code submissions reached` when it has

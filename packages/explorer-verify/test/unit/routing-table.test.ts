@@ -22,6 +22,7 @@ import {
 } from "../../src/routing/resolve.ts";
 import type { RouteChoice, RoutingTable, TableEntry, TableRow } from "../../src/routing/resolve.ts";
 import type { Hex, RouteOverride, VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import { apiUrlProblems, explorerUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 
 // Made-up keys. Never real ones (R-SEC-1).
@@ -29,6 +30,8 @@ const ETHERSCAN_KEY = "etherscan-dummy-key-59a1";
 const ROUTESCAN_KEY = "routescan-dummy-key-59b2";
 const ROUTE_KEY = "standalone-dummy-key-59c3";
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+// The Sepolia Greeter of the recorded Etherscan and Sourcify lookups.
+const GREETER: Hex = "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC";
 const FUJI = 43113;
 const SEPOLIA = 11155111;
 const ETHERSCAN_API = "https://api.etherscan.io/v2/api";
@@ -537,7 +540,51 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
   });
 
   it("is dated (R-RT-1)", () => {
-    assert.equal(ROUTING_TABLE.checked, "2026-11-03");
+    assert.equal(ROUTING_TABLE.checked, "2026-11-04");
+  });
+
+  it("sends a call with an Etherscan key to api.etherscan.io, the key in the POST body only (R-RT-1, R-SEC-2, #122)", async () => {
+    const fake = replay(loadFixture("etherscan", "2026-11-04-getsourcecode-sepolia-greeter"));
+    const result = await runVerify(
+      { ...input(SEPOLIA), address: GREETER },
+      { fetch: fake.fetch, apiKeys: { "etherscan-v2": ETHERSCAN_KEY } },
+      DEFAULT_DEPENDENCIES,
+    );
+    assert.deepEqual(result, {
+      status: "already-verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: `https://sepolia.etherscan.io/address/${GREETER.toLowerCase()}#code`,
+    });
+    assert.equal(fake.calls.length, 1);
+    const [call] = fake.calls;
+    assert.equal(call?.method, "POST");
+    assert.equal(call.url, `${ETHERSCAN_API}?chainid=${String(SEPOLIA)}`);
+    assert.equal(new URLSearchParams(call.body).get("apikey"), ETHERSCAN_KEY);
+    assert.ok(!call.url.includes(ETHERSCAN_KEY));
+    assert.ok(![...call.headers.values()].some((value) => value.includes(ETHERSCAN_KEY)));
+  });
+
+  it("sends a call without a key to Sourcify on the same chain, with no key in the request (R-RT-1, #122)", async () => {
+    const fake = replay(loadFixture("sourcify", "2026-11-02-lookup-exact-match"));
+    const result = await runVerify(
+      { ...input(SEPOLIA), address: GREETER },
+      { fetch: fake.fetch },
+      DEFAULT_DEPENDENCIES,
+    );
+    assert.equal(result.backend, "sourcify");
+    assert.equal(fake.calls.length, 1);
+    const [call] = fake.calls;
+    assert.equal(
+      call?.url,
+      `${SOURCIFY_API_URL}/v2/contract/${String(SEPOLIA)}/${GREETER.toLowerCase()}`,
+    );
+    assert.equal(call.body, undefined);
+    assert.ok(!call.url.includes("apikey"));
+    assert.deepEqual(
+      [...call.headers.keys()].filter((name) => name.includes("key")),
+      [],
+    );
   });
 
   it("gives the table's date to routingTableDate(), which the CLI's --version --json prints (R-AX-11)", () => {

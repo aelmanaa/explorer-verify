@@ -4,15 +4,17 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-From the Etherscan v2, Routescan and standalone clients on ([#61](https://github.com/aelmanaa/explorer-verify/issues/61), [#62](https://github.com/aelmanaa/explorer-verify/issues/62), [#63](https://github.com/aelmanaa/explorer-verify/issues/63)): in this release the routing table sends every chain it lists to Sourcify, which takes no key, so the library does not
-throw this code yet.
+The Etherscan v2 and Routescan clients throw this code; they read the same answers. The
+standalone client will throw it too ([#63](https://github.com/aelmanaa/explorer-verify/issues/63));
+it is not in this release yet.
 
 Cause: the route's backend needs an API key and the call has none for it. Two cases throw this
 code:
 
 - Before any request: the backend is `etherscan-v2`, no key is bound to the route's API host, and
-  `fetch` is not set. A key in `apiKeys["etherscan-v2"]` is sent only to `api.etherscan.io`, so a
-  route whose `apiUrl` points at another host gets no key from `apiKeys`.
+  `fetch` is not set. A key in `apiKeys["etherscan-v2"]` is sent only to `api.etherscan.io`, and
+  only for a route the routing table chose: a route with `apiUrl` set, even to `api.etherscan.io`,
+  gets no key from `apiKeys`. Pass `route.apiKey` for it.
 - After a request: the explorer answered that the key is missing, as Etherscan's
   `Missing/Invalid API Key`. Etherscan gives this answer for no key, and for a key sent where it
   does not read one, such as a request header. With an injected `fetch`, the request goes out

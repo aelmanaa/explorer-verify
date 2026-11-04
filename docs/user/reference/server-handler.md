@@ -91,9 +91,9 @@ handler's answer, such as a 504, and not its own timeout.
 ## Point the client at it
 
 The browser keeps no key. It passes a `fetch` that sends each Etherscan request to your handler,
-with the same query, method and body, and leaves every other request alone. Pass it with a route
-to Etherscan v2: the routing table lists no Etherscan rows yet, so name the backend and the API URL.
-No other code changes between direct and proxied use.
+with the same query, method and body, and leaves every other request alone. Pass it with
+`route.backend` set to `etherscan-v2`: the browser has no key, so without it the routing table
+sends the call to Sourcify. No other code changes between direct and proxied use.
 
 <!-- no-run: it sends the requests to your own server's /api/verify route, which an offline run does not have. -->
 
@@ -110,7 +110,7 @@ const viaHandler: typeof fetch = async (input, init) => {
 
 const result = await verify(input, {
   fetch: viaHandler,
-  route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
+  route: { backend: "etherscan-v2" },
 });
 ```
 

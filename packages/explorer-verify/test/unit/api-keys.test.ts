@@ -219,7 +219,12 @@ describe("keyFor: the one attachment rule (R-SEC-2)", () => {
     };
     let outcome: unknown;
     try {
-      await runCheckStatus(handle, { fetch: fake.fetch, apiKeys: KEYS }, { backends: {} });
+      // Chain 421614 lists etherscan-v2 first (#122); route.backend picks its Sourcify entry.
+      await runCheckStatus(
+        handle,
+        { fetch: fake.fetch, apiKeys: KEYS, route: { backend: "sourcify" } },
+        { backends: {} },
+      );
     } catch (error: unknown) {
       outcome = error;
     }

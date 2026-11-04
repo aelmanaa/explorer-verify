@@ -13,9 +13,9 @@ the library follows them. It is the project's reading of
 2026-11-02 and again on 2026-11-04. It is not legal advice. For a definitive answer about your
 use, ask Etherscan.
 
-In this release explorer-verify has no Etherscan client yet; it comes with
-[#61](https://github.com/aelmanaa/explorer-verify/issues/61). Sourcify needs no key and is not
-covered by these terms.
+explorer-verify sends a call to Etherscan when the routing table lists Etherscan for the chain and
+you pass a key ([Routing](../reference/routing.md#etherscan-rows-and-paid-plans)). Sourcify needs
+no key and is not covered by these terms.
 
 ## The plan rule
 

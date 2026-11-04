@@ -1,14 +1,15 @@
 ---
 name: explorer-verify
-description: Verify deployed smart contract source code on a block explorer with the explorer-verify npm package. This release verifies on Sourcify; Etherscan, Blockscout and Routescan come later. Load this skill when asked to verify a contract, publish its source, or check or resume a verification, in a project built with Foundry or Hardhat or from Solidity metadata and sources. It covers building the input, verify(), storing the handle, checkStatus(), the result, the error codes, the exit codes and when to stop. verify() publishes the source on the explorer permanently, so call it only when the person asked to verify that contract on that chain.
+description: Verify deployed smart contract source code on a block explorer with the explorer-verify npm package. This release verifies on Sourcify, Etherscan v2 and Routescan; Blockscout comes later. Load this skill when asked to verify a contract, publish its source, or check or resume a verification, in a project built with Foundry or Hardhat or from Solidity metadata and sources. It covers building the input, verify(), storing the handle, checkStatus(), the result, the error codes, the exit codes and when to stop. verify() publishes the source on the explorer permanently, so call it only when the person asked to verify that contract on that chain.
 ---
 
 # Verify a contract with explorer-verify
 
 explorer-verify verifies the source of a deployed contract on a block explorer. In this release
-the routing table sends every chain it lists to Sourcify, which needs no API key. A chain it does
-not list throws `unsupported-chain` unless you pass `allowSourcifyFallback: true`. Etherscan,
-Blockscout and Routescan come later.
+the routing table sends a chain it lists to Etherscan v2 when the person passes an Etherscan key and
+the chain is on Etherscan's free tier, and to Sourcify, which needs no API key, otherwise. Routescan
+is reached only with `route.backend` and `route.apiUrl`. A chain the table does not list throws
+`unsupported-chain` unless you pass `allowSourcifyFallback: true`. Blockscout comes later.
 
 This skill ships in the npm package, next to the docs of the same version:
 

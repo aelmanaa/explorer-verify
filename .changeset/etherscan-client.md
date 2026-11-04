@@ -4,10 +4,7 @@
 
 Add the Etherscan API v2 client. `verify()` and `checkStatus()` use it for `route.backend` `etherscan-v2`. Every request is a form-encoded POST to `https://api.etherscan.io/v2/api?chainid=<id>`, with the key in the body and never in the URL.
 
-The routing table has no Etherscan rows yet, so a key in `apiKeys` alone does not reach Etherscan; it will once the table lists Etherscan for the chain. Until then, name the route:
-
-- On a server: `route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api", apiKey }`.
-- From a browser: `route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" }` and a `fetch` that sends the requests to your `createVerifyHandler`, which adds the key.
+The routing table lists Etherscan for the chains of the Etherscan chainlist, so a key in `apiKeys` reaches Etherscan on those chains. From a browser, pass `route: { backend: "etherscan-v2" }` and a `fetch` that sends the requests to your `createVerifyHandler`, which adds the key.
 
 Etherscan answers almost everything with HTTP 200 and puts the meaning in its `result` text. The client maps each known text to an outcome or a typed error. A text it does not know throws: it never reads as success, as "not verified" or as `failed`.
 
