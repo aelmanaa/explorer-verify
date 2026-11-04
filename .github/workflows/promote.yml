@@ -8,8 +8,9 @@
 #   the tagged commit publishes: the version is on npm, `beta` points at it, its gitHead is the
 #   tagged commit, `latest` is not above it, and its SLSA provenance statement names this
 #   repository, .github/workflows/release.yml, refs/tags/vX.Y.Z and the tagged commit.
-# - docs: the docs deploy and smoke step of decision 0015. Until it lands it fails, so the latest
-#   job cannot run (fail closed).
+# - docs: calls docs.yml, which builds the docs from tag vX.Y.Z, deploys them to GitHub Pages and
+#   checks every docsUrl over HTTPS (decision 0015). latest needs it, so a failed deploy or smoke
+#   check stops the promote before any dist-tag moves.
 # - latest: after a maintainer approves the npm-latest environment, the same registry check again,
 #   then `npm dist-tag add <name>@<version> latest` over OIDC for each package not yet on it, then
 #   the GitHub Release is published and marked latest.
@@ -79,19 +80,22 @@ jobs:
           node scripts/check-registry-release.ts --version "$VERSION" --commit "$COMMIT" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Decision 0015: the docs of the version are deployed and every docsUrl answers before latest
-  # moves. The deploy and smoke job lands with the docs site (#84, #87), which replaces this body
-  # with the call to docs.yml. Until then the job fails, and with it every promotion.
+  # moves. docs.yml builds the site from tag v<version>, deploys it to GitHub Pages in the
+  # github-pages environment, then its smoke job checks each code page, its Markdown copy and
+  # llms.txt over HTTPS. A failed build, deploy or smoke job fails this job, and latest does not
+  # start. scripts/check-release-workflows.ts fails when latest stops listing this job in needs.
   docs:
     name: Deploy the docs and check every docsUrl
     needs: verify
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    permissions: {}
-    steps:
-      - name: Refuse until the docs job lands
-        run: |
-          echo "::error::the docs deploy and smoke job of decision 0015 has not landed (#84/#87)"
-          exit 1
+    # A called workflow gets at most the permissions of the job that calls it. Its deploy job is
+    # the only one that uses pages and id-token; build and smoke keep contents: read.
+    permissions:
+      contents: read # checks out the tag
+      pages: write # deploys the site
+      id-token: write # the OIDC token actions/deploy-pages needs
+    uses: ./.github/workflows/docs.yml
+    with:
+      version: ${{ inputs.version }}
 
   latest:
     name: Move latest on npm

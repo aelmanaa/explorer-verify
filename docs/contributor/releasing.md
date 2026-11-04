@@ -11,18 +11,19 @@ same tarballs, same provenance.
 
 ## The pieces
 
-| Piece                               | What it does                                                                                                                                                                                  |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.github/workflows/release-pr.yml`  | On each push to `main`, opens or updates the Version Packages pull request with `pnpm run version-packages`. Publishes nothing                                                                |
-| `.github/workflows/release.yml`     | On a `vX.Y.Z` tag: checks the tag, builds, checks and packs, then publishes to `beta` behind the `npm-publish` environment                                                                    |
-| `.github/workflows/promote.yml`     | Dispatched from `main` with a version: checks it on npm, then moves `latest` to it behind the `npm-latest` environment. Never publishes                                                       |
-| `.github/release-keys/`             | The trust root: the public key of each maintainer who may sign a release tag ([README](../../.github/release-keys/README.md))                                                                 |
-| `.github/ruleset-protect-tags.json` | The tag ruleset: only a repository admin creates, moves or deletes a `v*` tag                                                                                                                 |
-| `scripts/release-packages.ts`       | Lists the published packages at a commit: every `packages/*/package.json` without `"private": true`, the core first                                                                           |
-| `scripts/verify-release-tag.ts`     | Checks the tag signature, that the tag names the version of every published package, that it is a plain `X.Y.Z`, and that the commit is on main                                               |
-| `scripts/check-tarballs.ts`         | Checks each tarball's SHA-256, name, version and `gitHead` against the pack job's record, and that no dependency range starts with `workspace:` or `catalog:`                                 |
-| `scripts/check-registry-release.ts` | Before a promote: the version is on npm, on `beta`, from the tagged commit, not below `latest`, with a provenance statement that names this repository, `release.yml`, the tag and the commit |
-| `scripts/check-changesets.ts`       | Run by `pnpm run check`: refuses a `major` changeset during 0.x                                                                                                                               |
+| Piece                                | What it does                                                                                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/release-pr.yml`   | On each push to `main`, opens or updates the Version Packages pull request with `pnpm run version-packages`. Publishes nothing                                                                |
+| `.github/workflows/release.yml`      | On a `vX.Y.Z` tag: checks the tag, builds, checks and packs, then publishes to `beta` behind the `npm-publish` environment                                                                    |
+| `.github/workflows/promote.yml`      | Dispatched from `main` with a version: checks it on npm, deploys its docs, then moves `latest` to it behind the `npm-latest` environment. Never publishes                                     |
+| `.github/release-keys/`              | The trust root: the public key of each maintainer who may sign a release tag ([README](../../.github/release-keys/README.md))                                                                 |
+| `.github/ruleset-protect-tags.json`  | The tag ruleset: only a repository admin creates, moves or deletes a `v*` tag                                                                                                                 |
+| `scripts/release-packages.ts`        | Lists the published packages at a commit: every `packages/*/package.json` without `"private": true`, the core first                                                                           |
+| `scripts/verify-release-tag.ts`      | Checks the tag signature, that the tag names the version of every published package, that it is a plain `X.Y.Z`, and that the commit is on main                                               |
+| `scripts/check-tarballs.ts`          | Checks each tarball's SHA-256, name, version and `gitHead` against the pack job's record, and that no dependency range starts with `workspace:` or `catalog:`                                 |
+| `scripts/check-registry-release.ts`  | Before a promote: the version is on npm, on `beta`, from the tagged commit, not below `latest`, with a provenance statement that names this repository, `release.yml`, the tag and the commit |
+| `scripts/check-changesets.ts`        | Run by `pnpm run check`: refuses a `major` changeset during 0.x                                                                                                                               |
+| `scripts/check-release-workflows.ts` | Run by `pnpm run check`: fails when the job that moves `latest` does not need the docs job or runs outside `npm-latest`, or when another job can deploy to Pages                              |
 
 The packages share one version through the changesets `fixed` group
 `["explorer-verify", "@explorer-verify/*"]`. A scoped package joins the release when its manifest
@@ -60,7 +61,10 @@ The maintainer does each of these once, before the first release. Agents do none
      Leave dist-tag management off. Stage publish stays allowed;
    - trusted publisher for the promote: workflow `promote.yml`, environment `npm-latest`. Allow
      dist-tag management (`npm dist-tag`) only. Leave publish off, so the promote workflow can never
-     publish a tarball. Stage publish stays allowed;
+     publish a tarball. Stage publish stays allowed. Keep the environment field set: the `docs`
+     job of the same run also holds an OIDC token, for Pages, before any approval. With the
+     environment named, npm accepts only the token of a job in `npm-latest`, which runs after the
+     maintainer approves it;
    - set "Publishing access" to require two-factor authentication and disallow tokens.
 
 A configuration that no run has used yet shows as "not yet validated" on npmjs.com. Check both
@@ -79,9 +83,10 @@ in the `main` ruleset, so a change to those paths cannot merge without the maint
 
 Two conditions come before the first `v0.1.0` tag:
 
-- The docs site (#84) has landed, and the promote calls its deploy (#87). Before #84, `docsUrl` pointed at `main` on GitHub, which always
-  resolves, so nothing could catch a broken link later. `check-packed-files.ts --release` in the
-  pack job fails while the built errors module contains `blob/main`.
+- The docs site has landed, and the promote deploys it before `latest` moves. Before the site,
+  `docsUrl` pointed at `main` on GitHub, which always resolves, so nothing could catch a broken
+  link later. `check-packed-files.ts --release` in the pack job fails while the built errors module
+  contains `blob/main`.
 - npm configures a trusted publisher only for a package that exists. For each new package name the
   maintainer publishes a placeholder once by hand, then configures the trusted publishers above:
 
@@ -165,17 +170,37 @@ one, in the pack job and again in the publish job.
    `.github/workflows/release.yml`, the ref `refs/tags/v<version>` and the tagged commit. The npm
    registry checked the statement's Sigstore signature when it accepted the publish; the script does
    not check it again.
-4. `docs` deploys the docs built from the tag and checks every `docsUrl` (decision 0015). `latest`
-   needs it.
+4. `docs` calls `docs.yml` with the version ([Docs deploy](#docs-deploy)). It builds the site from
+   the tag, deploys it to GitHub Pages and checks every `docsUrl` over HTTPS (decision 0015).
+   `latest` needs it: a failed build, deploy or smoke check ends the run before the approval, and
+   `latest` does not move. `scripts/check-release-workflows.ts`, part of `pnpm run check`, fails
+   when the `latest` job stops listing `docs` in `needs` (R-AX-10).
 5. Approve `npm-latest`. The `latest` job runs the registry check again, then
    `npm dist-tag add <name>@<version> latest` for each package not on it yet, then publishes the
    GitHub Release and marks it latest. If npm refuses the move over OIDC, run the same
    `npm dist-tag add` by hand with 2FA and re-run the workflow; packages already on `latest` are
    skipped.
 
-Until #87 wires the call to `docs.yml` ([Docs deploy](#docs-deploy)), the `docs` job only fails
-with an error that names #84 and #87, so no promotion can move `latest`. #87 replaces its body
-with the call.
+The order of a release is: signed tag, `beta` publish (approved), promote dispatch, docs deploy,
+smoke check, `latest` (approved). The `beta` publish does not deploy the docs, so the site keeps
+showing the version on `latest` until a promote of the next version reaches its docs job.
+
+The docs deploy runs before the approval of `npm-latest`. If you decline that approval, or the
+`latest` job fails for good, the site shows the docs of a version that is not on `latest`. Restore
+them by dispatching the docs deploy with the version on `latest`:
+
+```sh
+gh workflow run docs.yml --ref main -f version=<version on latest>
+```
+
+For the first release, `latest` holds only the 0.0.0 placeholder, which has no tag and no docs to
+restore. Leave the 0.1.0 docs in place and re-run the promote when ready; the site had nothing
+before it.
+
+`docs.yml` runs one deploy at a time (concurrency group `pages`), and GitHub keeps one pending run
+per group. A manual dispatch of `docs.yml` while the promote's docs call waits replaces that call:
+GitHub cancels it, the `docs` job fails, and `latest` is skipped. Wait for the manual deploy, then
+re-run the promote.
 
 ## Docs deploy
 
@@ -183,7 +208,7 @@ with the call.
 for one version (R-AX-17, decision 0015). Before 1.0 the site holds the version on npm `latest`
 only.
 
-- **Trigger.** The promote workflow calls it (`workflow_call`, wired by #87), or the maintainer dispatches it by
+- **Trigger.** The promote workflow calls it (`workflow_call`), or the maintainer dispatches it by
   hand (`workflow_dispatch`) to re-deploy the tagged docs of the version on `latest`, for example
   after a failed deploy. The deploy always builds from the tag, so a docs fix ships in a patch
   release. Both ways start from `main`. The first step fails the run, rather than skipping it,
@@ -219,6 +244,11 @@ To set up Pages once, the maintainer:
 - During `publish`: some packages are on npm and some are not. Re-run the failed job; it skips the
   versions already published. Never move or delete the tag once a package is on npm, and never
   republish a version: npm refuses a version that existed before.
+- During `docs`: nothing moved on npm. A failed build or smoke check from a problem in the tagged
+  docs needs a patch release, because the deploy always builds from the tag. A failure outside the
+  docs, such as a Pages outage, needs a re-run of the promote. If the deploy job succeeded and the
+  smoke check failed, the site now holds the new docs: re-deploy the version on `latest` by hand
+  (see [Promote to latest](#promote-to-latest)) unless you re-run the promote at once.
 - During `latest`: re-run the workflow; it moves only the packages not on `latest` yet.
 
 ## 0.x rules

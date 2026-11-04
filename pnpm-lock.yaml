@@ -222,6 +222,9 @@ catalogs:
     vitepress:
       specifier: 1.6.4
       version: 1.6.4
+    yaml:
+      specifier: 2.9.1
+      version: 2.9.1
 
 importers:
 
@@ -278,6 +281,9 @@ importers:
       vitepress:
         specifier: 'catalog:'
         version: 1.6.4(@algolia/client-search@5.61.0)(@types/node@22.20.5)(postcss@8.5.32)(search-insights@2.17.3)(typescript@7.0.2)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
 
   packages/cli:
     dependencies:
