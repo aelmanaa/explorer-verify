@@ -181,6 +181,15 @@ const RUNS: readonly DocRun[] = [
     fixtures: ETHERSCAN_VERIFIED,
   },
   {
+    page: "reference/routescan.md",
+    example: 0,
+    what: "checkStatus() on a job Routescan forgot: the lookup finds the contract verified",
+    fixtures: [
+      "routescan/2026-11-04-checkverifystatus-verification-not-found-unique-url",
+      "routescan/2026-11-04-getsourcecode-verified-unique-url",
+    ],
+  },
+  {
     page: "reference/check-status.md",
     example: 1,
     what: "verify() ends not-confirmed, then checkStatus() on the stored handle",

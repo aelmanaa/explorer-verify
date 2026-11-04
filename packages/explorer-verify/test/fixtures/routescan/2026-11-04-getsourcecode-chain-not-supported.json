@@ -1,0 +1,23 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T08:31:16.970Z, without a key.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/324/etherscan/api?module=contract&action=getsourcecode&address=0x636522C3785337399Aa9105498d2Bd95Dc01D749&nocache=1793781076970",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cf-cache-status": "MISS",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "chain not supported",
+      "result": null
+    }
+  },
+  "recordedAt": "2026-11-04T08:31:16.970Z"
+}

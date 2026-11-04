@@ -26,6 +26,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [JSON output and exit codes](user/reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](user/reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Etherscan](user/reference/etherscan.md)                                                            | What is sent to Etherscan, and how each answer becomes a result          |
+| [Routescan](user/reference/routescan.md)                                                            | What is sent to Routescan, and how each answer becomes a result          |
 | [Logging and events](user/reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](user/reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
 | [Match types](user/explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |

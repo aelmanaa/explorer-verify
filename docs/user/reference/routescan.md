@@ -1,0 +1,130 @@
+# Routescan
+
+Version: explorer-verify 0.0.0
+
+Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
+
+Audience: developers and agents who need to know what explorer-verify sends to Routescan and how it
+reads each answer.
+
+Routescan serves an Etherscan-compatible API for Avalanche and other chains. Each chain has its own
+API URL, with the network (`mainnet` or `testnet`) and the chain id in the path:
+
+```text
+https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api
+```
+
+The free tier needs no key and sends CORS headers, so a page in a browser can verify through it
+directly. [verify()](verify.md) and [checkStatus()](check-status.md) use this client.
+
+The routing table lists no Routescan rows yet, so a call reaches Routescan only through
+`route.backend` `routescan` with `route.apiUrl` set to the chain's URL ([Routing](routing.md)). A
+result then has no `explorerUrl`. This call resumes a job on Avalanche Fuji (43113) that Routescan
+has since forgotten; the lookup that follows finds the contract verified:
+
+```ts
+import { checkStatus } from "explorer-verify";
+
+const result = await checkStatus(
+  "ev1:routescan:43113:0x636522c3785337399aa9105498d2bd95dc01d749:f111a4c8-368c-51d2-8163-c7ab477a1d91",
+  {
+    route: {
+      backend: "routescan",
+      apiUrl: "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
+    },
+  },
+);
+console.log(`${result.status} ${result.backend}`);
+```
+
+```text
+verified routescan
+```
+
+`verify()` takes the same `route`:
+
+<!-- no-run: a live submit to Routescan; the example above runs. -->
+
+```ts no-run
+import { verify } from "explorer-verify";
+
+const result = await verify(input, {
+  route: {
+    backend: "routescan",
+    apiUrl: "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
+  },
+});
+console.log(result.status);
+```
+
+## API key
+
+A key is optional. It goes in the `apikey` request header, never in the URL or the body
+([API keys](api-keys.md)). Where it may go depends on where you set it:
+
+- `route.apiKey` is bound to the host of your `route.apiUrl`, whatever that host is. Set
+  `apiUrl` to a Routescan URL to send the key to `api.routescan.io`.
+- `apiKeys.routescan` goes only to `api.routescan.io`, and only on a route the routing table
+  lists. The table lists no Routescan rows yet, so in this release it is not sent.
+
+Without a key, requests go out with no `apikey` header, on the keyless tier. Routescan documents 2
+requests per second and 10,000 calls per day for that tier
+([rate limits](https://docs.routescan.io/plans-and-limits/rate-limits), read 2026-11-03).
+
+Keyed use from a browser is untested. The `apikey` header makes the browser send a CORS preflight
+first; Routescan answered one that named `apikey` on 2026-11-03, but no keyed request has been sent
+from a browser.
+
+## Requests
+
+No request sends a `chainid` parameter: the chain is in the URL.
+
+| Step   | Request                                                                              | Sends                                                     |
+| ------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Lookup | `GET <api>?module=contract&action=getsourcecode&address=<address>&nocache=<n>`       | Nothing. Safe to repeat                                   |
+| Submit | `POST <api>`, form-encoded: `module=contract`, `action=verifysourcecode`, the fields | The source. Outward and permanent: Routescan publishes it |
+| Status | `GET <api>?module=contract&action=checkverifystatus&guid=<job id>&nocache=<n>`       | Nothing. Safe to repeat                                   |
+
+The submit fields are the ones the [Etherscan](etherscan.md#requests) client sends.
+
+`nocache` holds random characters, drawn again for every attempt, retries included. Routescan's CDN answers a repeated GET URL from its cache: on
+2026-11-03 it served a cached `Pending in queue` 51 minutes after the job had passed. A lookup is a
+GET because Routescan answers `getsourcecode` sent as a form POST with
+`Invalid querystring request` (live, 2026-11-04).
+
+## How answers are read
+
+Routescan answers with HTTP 200 and the Etherscan fields `status`, `message` and `result`. The
+client reads them as the [Etherscan](etherscan.md#how-answers-are-read) client does, with these
+additions:
+
+| Step   | Answer                                           | Outcome                                                                                                                         |
+| ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Any    | `message` `chain not supported`, `result` `null` | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                              |
+| Any    | HTTP 429                                         | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop                                            |
+| Lookup | `SourceCode` not empty                           | Verified, `exact`. Routescan's lookup has no `SimilarMatch` field, so it never gives `partial`                                  |
+| Status | `Verification not found`                         | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below |
+| Status | `Missing guid`                                   | [`unexpected-response`](errors/unexpected-response.md)                                                                          |
+
+`Missing guid` means the status request was malformed. In `verify()` and `checkStatus()` it counts
+as a failed poll, as any `unexpected-response` does: polling goes on, and after 3 failed polls in a
+row one more lookup decides ([verify()](verify.md), steps 4 and 6).
+
+`chain not supported` also comes back for a chain Routescan serves when the URL names the wrong
+network, such as `mainnet` for Fuji.
+
+## Behaviour to know
+
+- Routescan forgets a job. On 2026-11-03 a job answered `Pass - Verified`, then
+  `Verification not found` 51 minutes after the submit, while the contract stayed verified. On
+  `Verification not found`, `verify()` and `checkStatus()` look the contract up once: verified
+  gives `verified`; otherwise the call throws `job-not-found` with the handle.
+- When the time budget runs out while the status still says `Pending in queue`, one more lookup
+  decides, as for every backend: a match gives `verified`.
+- Routescan's rate-limit answer has not been seen. A 429 is retried, and so is Etherscan's
+  `Max calls per sec rate limit reached` text. Any other answer throws an error and is never read
+  as a result.
+- The job id is a UUID, such as `f111a4c8-368c-51d2-8163-c7ab477a1d91`.
+- On 2026-11-04, a status request without a key confirmed the network of each of the 24 chains
+  that Routescan's supported-chains page listed on 2026-11-03; see the
+  [research note](../../contributor/research/2026-11-04-routescan-client.md#chains-confirmed-on-2026-11-04).

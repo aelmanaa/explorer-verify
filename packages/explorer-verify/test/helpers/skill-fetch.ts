@@ -6,7 +6,8 @@
  * front, such as `etherscan/<name>`, answers from that backend's fixtures. A name that ends in `*` answers
  * every request that matches its recording, and the next request that does not match moves on to
  * the next name. The run fails, with exit code 1 and a message on stderr, when a request differs
- * from its recording in method or URL, when a request is sent without `redirect: "manual"`, when a
+ * from its recording in method or URL (a `nocache` query parameter, which the Routescan client
+ * makes unique on every request, is left out of the comparison), when a request is sent without `redirect: "manual"`, when a
  * request comes after the last fixture, or when a fixture is left unused.
  *
  * It also speeds up long waits, so the examples run as users copy them, with their real poll
@@ -64,8 +65,21 @@ let next = 0;
 let requests = 0;
 let answered = false;
 
+/**
+ * `url` without its `nocache` query parameter, lower-cased. A URL that does not parse is compared
+ * as it is, so a bad fixture fails with the mismatch message below, not a TypeError.
+ */
+const comparable = (url: string): string => {
+  if (!URL.canParse(url)) {
+    return url.toLowerCase();
+  }
+  const parsed = new URL(url);
+  parsed.searchParams.delete("nocache");
+  return parsed.href.toLowerCase();
+};
+
 const matches = (fixture: Fixture, method: string, url: string): boolean =>
-  method === fixture.request.method && url.toLowerCase() === fixture.request.url.toLowerCase();
+  method === fixture.request.method && comparable(url) === comparable(fixture.request.url);
 
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;

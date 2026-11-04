@@ -173,6 +173,12 @@ export interface HttpRequest {
    * the retries stop.
    */
   readonly rateLimited?: (body: string) => boolean;
+  /**
+   * Returns a query parameter, such as `nocache=k3x9`, added to `url` on each attempt, retries
+   * included. Routescan uses it so that no attempt repeats a URL its CDN may have cached. Only the
+   * query changes, never the host.
+   */
+  readonly freshQuery?: () => string;
 }
 
 /**
@@ -197,6 +203,7 @@ interface Call {
   readonly headers: Record<string, string> | undefined;
   readonly retry: RetryMode;
   readonly rateLimited: ((body: string) => boolean) | undefined;
+  readonly freshQuery: (() => string) | undefined;
 }
 
 /** The result of one attempt. */
@@ -435,6 +442,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
     headers: headers === undefined ? undefined : copyHeaders(headers),
     retry: required(req, "retry", "request"),
     rateLimited: optional(req, "rateLimited", "request"),
+    freshQuery: optional(req, "freshQuery", "request"),
   };
 }
 
@@ -620,12 +628,16 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
     init.headers = { ...call.headers };
   }
   // Called as a plain function, never as a method of `call` (see readCall).
-  const { send } = call;
-  const response = await send(call.url, init);
+  const { send, freshQuery } = call;
+  const url =
+    freshQuery === undefined
+      ? call.url
+      : `${call.url}${call.url.includes("?") ? "&" : "?"}${freshQuery()}`;
+  const response = await send(url, init);
   const { status } = response;
   progress.status = status;
 
-  if (isRedirect(response, call.url)) {
+  if (isRedirect(response, url)) {
     discard(response);
     return { kind: "fatal", status, excerpt: "", message: REDIRECT_MESSAGE };
   }

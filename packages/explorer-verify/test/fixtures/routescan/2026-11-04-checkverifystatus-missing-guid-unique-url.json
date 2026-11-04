@@ -1,0 +1,23 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T08:31:15.280Z, without a key.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=checkverifystatus&nocache=1793781075280",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cf-cache-status": "MISS",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Missing guid"
+    }
+  },
+  "recordedAt": "2026-11-04T08:31:15.280Z"
+}

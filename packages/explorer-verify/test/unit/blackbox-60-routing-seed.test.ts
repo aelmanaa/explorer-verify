@@ -355,9 +355,15 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
     });
   }
 
+  for (const chainId of [43113, 43114]) {
+    it(`route.backend routescan on ${String(chainId)}, a row without it, throws unsupported-chain`, async () => {
+      const { error, calls } = await failure(chainId, { route: { backend: "routescan" } });
+      assert.deepEqual(error.details, { code: "unsupported-chain", chainId, backend: "routescan" });
+      assert.equal(calls.length, 0);
+    });
+  }
+
   for (const [chainId, backend] of [
-    [43113, "routescan"],
-    [43114, "routescan"],
     [84532, "etherscan-compatible"],
     [421614, "blockscout"],
   ] as const) {
