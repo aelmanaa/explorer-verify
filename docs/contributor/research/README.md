@@ -36,3 +36,6 @@ in review.
 | [2026-11-04-blockscout-client.md](2026-11-04-blockscout-client.md)                     | Which Blockscout API does the single-chain client use, which answers does it map, and where was each seen?                       |
 | [2026-11-04-lazy-client-chunks.md](2026-11-04-lazy-client-chunks.md)                   | Do the main bundlers put a client loaded with `import()` in its own chunk, and what does each client weigh on its own?           |
 | [2026-11-04-etherscan-compatible-client.md](2026-11-04-etherscan-compatible-client.md) | Does any prior-art standalone host answer, what does a retired Etherscan host answer, and how does the standalone client differ? |
+| Note                                                                                   | Question                                                                                                                         |
+| --------------------------------------------------------------------------------       | -------------------------------------------------------------------------------------------------------------------------------  |
+| [2026-11-03-mutation-testing.md](2026-11-03-mutation-testing.md)                       | Which tool can mutate the TypeScript sources and judge each mutant with the `node --test` unit tests, with no build step?        |

@@ -72,14 +72,19 @@
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json && node ../../scripts/package-docs.ts",
-    "clean": "node -e \"for (const p of ['dist','coverage','docs','skills','llms.txt']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
+    "clean": "node -e \"for (const p of ['dist','coverage','docs','skills','llms.txt','reports']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
     "test": "pnpm run test:unit",
     "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
     "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\"",
     "coverage": "c8 --check-coverage node --test \"test/unit/**/*.test.ts\"",
+    "test:mutation": "pnpm run build && stryker run --force && pnpm run mutation:check",
+    "test:mutation:incremental": "pnpm run build && stryker run && pnpm run mutation:check",
+    "mutation:check": "node ../../scripts/check-mutation-score.ts mutation-floors.json reports/mutation/mutation.json",
     "pkg:check": "publint --strict && attw --pack . --profile esm-only && node ../../scripts/check-packed-files.ts"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/tap-runner": "catalog:",
     "ajv": "catalog:",
     "c8": "catalog:"
   }

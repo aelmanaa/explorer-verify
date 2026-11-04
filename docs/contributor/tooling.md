@@ -3,22 +3,23 @@
 Audience: contributors setting up or changing the toolchain. The toolchain mirrors [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)
 (decision 0006).
 
-| Tool                         | Config                                                 | Role                                                                                                                                                        |
-| ---------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| pnpm 12.16.1                 | `package.json` `packageManager`, `pnpm-workspace.yaml` | Workspace; tool versions live in the `catalog:`                                                                                                             |
-| TypeScript 7                 | `tsconfig.base.json`                                   | `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `isolatedDeclarations`, `erasableSyntaxOnly`, `verbatimModuleSyntax`; imports use `.ts` |
-| oxlint (type-aware)          | `.oxlintrc.json`                                       | Lint; `import/no-nodejs-modules` on `packages/*/src` except `packages/foundry/src`; TSDoc required on exports                                               |
-| oxfmt                        | `.oxfmtrc.json`                                        | Format, width 100                                                                                                                                           |
-| knip                         | `knip.json`                                            | Unused files, exports and dependencies                                                                                                                      |
-| publint, are-the-types-wrong | `pkg:check` script                                     | Package manifest and type resolution                                                                                                                        |
-| c8                           | `packages/*/.c8rc.json`                                | Coverage, 95% floor per file                                                                                                                                |
-| esbuild 0.28.2               | `scripts/bundle.ts`                                    | Browser bundle for the size check and the browser smoke test                                                                                                |
-| Playwright 1.64.1            | `scripts/browser-smoke.ts`                             | Headless Chromium for the browser smoke test                                                                                                                |
-| TypeDoc 0.28.20              | `site/api-reference.ts`, `site/tsconfig.api.json`      | The API reference of the docs site, from TSDoc, with typedoc-plugin-markdown 4.14.1 and the TypeScript 6 API ([API reference](#api-reference))              |
-| lefthook                     | `lefthook.yml`                                         | pre-commit: lint fix, format, typecheck, type escapes; commit-msg: Conventional Commits                                                                     |
-| pre-push hook                | `scripts/install-git-hooks.ts`                         | Refuses pushes to `main`, then runs unit tests                                                                                                              |
-| changesets                   | `.changeset/config.json`                               | Release notes and versions                                                                                                                                  |
-| Dependabot                   | `.github/dependabot.yml`                               | Weekly updates with a 7-day cooldown                                                                                                                        |
+| Tool                          | Config                                                                 | Role                                                                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pnpm 12.16.1                  | `package.json` `packageManager`, `pnpm-workspace.yaml`                 | Workspace; tool versions live in the `catalog:`                                                                                                             |
+| TypeScript 7                  | `tsconfig.base.json`                                                   | `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `isolatedDeclarations`, `erasableSyntaxOnly`, `verbatimModuleSyntax`; imports use `.ts` |
+| oxlint (type-aware)           | `.oxlintrc.json`                                                       | Lint; `import/no-nodejs-modules` on `packages/*/src` except `packages/foundry/src`; TSDoc required on exports                                               |
+| oxfmt                         | `.oxfmtrc.json`                                                        | Format, width 100                                                                                                                                           |
+| knip                          | `knip.json`                                                            | Unused files, exports and dependencies                                                                                                                      |
+| publint, are-the-types-wrong  | `pkg:check` script                                                     | Package manifest and type resolution                                                                                                                        |
+| c8                            | `packages/*/.c8rc.json`                                                | Coverage, 95% floor per file                                                                                                                                |
+| esbuild 0.28.2                | `scripts/bundle.ts`                                                    | Browser bundle for the size check and the browser smoke test                                                                                                |
+| Playwright 1.64.1             | `scripts/browser-smoke.ts`                                             | Headless Chromium for the browser smoke test                                                                                                                |
+| TypeDoc 0.28.20               | `site/api-reference.ts`, `site/tsconfig.api.json`                      | The API reference of the docs site, from TSDoc, with typedoc-plugin-markdown 4.14.1 and the TypeScript 6 API ([API reference](#api-reference))              |
+| StrykerJS 10.0.0 (tap runner) | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json` | Mutation testing of the result mapping, the HTTP retry rules and the key redaction, with a score floor per file                                             |
+| lefthook                      | `lefthook.yml`                                                         | pre-commit: lint fix, format, typecheck, type escapes; commit-msg: Conventional Commits                                                                     |
+| pre-push hook                 | `scripts/install-git-hooks.ts`                                         | Refuses pushes to `main`, then runs unit tests                                                                                                              |
+| changesets                    | `.changeset/config.json`                                               | Release notes and versions                                                                                                                                  |
+| Dependabot                    | `.github/dependabot.yml`                                               | Weekly updates with a 7-day cooldown                                                                                                                        |
 
 ## Type-checking layout
 
@@ -288,10 +289,62 @@ the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
 `scripts/site-api.ts`,
 `scripts/site-copies.ts`, `scripts/check-site.ts` and `scripts/smoke-site.ts`, the last against a
 local server), `scripts/random-order.ts`, the size check
-(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), and the release
-scripts ([releasing.md](releasing.md)) with a 95% floor per file on lines, branches, functions and
+(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), the release
+scripts ([releasing.md](releasing.md)) and the mutation score check
+(`scripts/mutation-score.ts` and `scripts/check-mutation-score.ts`) with a 95% floor per file on lines, branches, functions and
 statements. The release script tests create temporary git repositories, and the tag test signs
 tags with keys it makes in a throwaway `GNUPGHOME`, so they need `git` and `gpg` on the `PATH`.
 `scripts/browser-smoke.ts` needs a browser and
 runs in its own CI job instead. The older scripts have no tests yet and are not in the
 coverage list; a script gets added when it gets tests.
+
+## Mutation testing
+
+`pnpm run test:mutation` runs StrykerJS from `packages/explorer-verify`.
+[testing.md](testing.md#mutation-testing) lists the mutated files, their floors and how to read the
+report; this section covers the setup.
+
+- Stryker has no runner for `node:test`. Its tap runner starts `node --test-reporter=tap` on each
+  test file, with a hook that records which mutants the file covers, and reads the TAP output.
+  Node strips the TypeScript types of the instrumented files as it does for the normal test run,
+  so Stryker needs no build of its own. Coverage is per test file: a mutant runs only the files
+  that reach it.
+- Both commands build the package first. Some unit tests, such as
+  `blackbox-34-resolve-bytecode.test.ts`, import `explorer-verify` by name, which resolves to
+  `dist/`; they need the build to pass the dry run, and cannot kill a mutant in `src/`.
+- `test/unit/skill.test.ts` and `test/unit/user-docs.test.ts` are left out: they test the built
+  `dist/`, which Stryker does not mutate.
+- Stryker runs in place (`inPlace`): it instruments the mutated files in `src/` itself, keeps the
+  originals in `packages/explorer-verify/.stryker-tmp/` and puts them back when the run ends, also
+  on Ctrl+C. A copy of the package would break tests that read `../../../../docs/` or another
+  package's fixtures by relative path. During a local run, do not edit or commit the mutated
+  files. If a run is killed hard (`kill -9`), restore them with
+  `git checkout -- packages/explorer-verify/src`.
+- No checker runs: a mutant that would not type-check runs anyway, fails or survives, and counts.
+- A test that reads the source text of a mutated file cannot pass on the instrumented copy, which
+  holds every mutant at once. Such a test is skipped when the file it reads contains
+  `stryMutAct_`, the name of Stryker's instrumentation call. One test in `verify.test.ts` does
+  this.
+- `concurrency` is 4: four test processes at a time, the core count of GitHub's standard runner,
+  which also keeps a local run from taking over a shared machine.
+- `timeoutFactor` is 3 and `timeoutMS` is 15000; Stryker's defaults are 1.5 and 5000. A mutant
+  times out when its tests run longer than their time in the dry run, times the factor, plus
+  `timeoutMS` and Stryker's overhead. With the defaults, a mutant that only slowed a test down counted as a timeout
+  (detected) on a loaded machine and survived on an idle one.
+- `scripts/check-mutation-score.ts` reads `reports/mutation/mutation.json`, prints one Markdown row
+  per file and exits 1 when a file is below its floor in `mutation-floors.json`, when a mutated
+  file has no floor, or when a file with a floor is missing from the report. Stryker's own
+  `thresholds.break` is one number for the whole run, so the per-file check is a script. A file
+  can have `maxUndetected`, a maximum count of survived and not-covered mutants, instead of a
+  `floor`; it suits a file with few mutants, where one mutant moves the score by several points.
+- `incremental` is on: each run writes `reports/stryker-incremental.json`.
+  `pnpm run test:mutation` passes `--force` and tests every mutant;
+  `pnpm run test:mutation:incremental` reuses the results of mutants and test files that did not
+  change. It sees changes to the mutated files and to `test/unit/*.test.ts` only. A change to any
+  other file is invisible to it: `test/helpers/`, fixtures, `schema/`, `docs/`, the `src/` files
+  the mutated code calls, `package.json`, the lockfile or a Stryker update. Only a full run
+  catches those; run `pnpm run test:mutation` after changing one.
+- The `@stryker-mutator/*` packages are devDependencies of the package and are pinned in the
+  catalog, like the other tools. They add no runtime dependency. `typed-rest-client`, a
+  dependency of `@stryker-mutator/core`, pins `qs` 6.15.1, which has four moderate advisories; an
+  override in `pnpm-workspace.yaml` raises it to 6.16.1.

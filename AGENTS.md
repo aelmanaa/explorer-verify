@@ -84,20 +84,22 @@ build.
 
 ## Commands
 
-| Command                         | What it does                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------ |
-| `pnpm install`                  | Installs dependencies and the git hooks                                        |
-| `pnpm run check`                | Format check, lint (type-aware), typecheck, type-escape, host and docs checks  |
-| `pnpm test`                     | Builds, then runs the unit tests and the script tests with `node --test`       |
-| `pnpm run coverage`             | Unit tests under c8; fails when any file is below 95% on any metric            |
-| `pnpm run test:randomize`       | Unit tests and script tests in a random order; prints the seed                 |
-| `pnpm run pkg:check`            | publint, are-the-types-wrong, packed docs and knip on the built package        |
-| `pnpm run size`                 | Bundles each public entry for the browser; fails above `size-budget.json`      |
-| `pnpm run test:browser`         | Runs `verify()` and `checkStatus()` in headless Chromium on recorded answers   |
-| `pnpm run test:browser:harness` | Checks that broken page scripts and missing CORS headers fail the browser test |
-| `pnpm run site:build`           | Builds the docs site from `docs/user/` into `site/dist`; never deploys         |
-| `pnpm run cli-reference`        | Rewrites the CLI reference from the CLI's help; `check` fails on drift         |
-| `pnpm changeset`                | Adds a changeset for a user-facing change under `packages/`                    |
+| Command                              | What it does                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `pnpm install`                       | Installs dependencies and the git hooks                                                |
+| `pnpm run check`                     | Format check, lint (type-aware), typecheck, type-escape, host and docs checks          |
+| `pnpm test`                          | Builds, then runs the unit tests and the script tests with `node --test`               |
+| `pnpm run coverage`                  | Unit tests under c8; fails when any file is below 95% on any metric                    |
+| `pnpm run test:randomize`            | Unit tests and script tests in a random order; prints the seed                         |
+| `pnpm run pkg:check`                 | publint, are-the-types-wrong, packed docs and knip on the built package                |
+| `pnpm run size`                      | Bundles each public entry for the browser; fails above `size-budget.json`              |
+| `pnpm run test:browser`              | Runs `verify()` and `checkStatus()` in headless Chromium on recorded answers           |
+| `pnpm run test:browser:harness`      | Checks that broken page scripts and missing CORS headers fail the browser test         |
+| `pnpm run test:mutation`             | Mutation testing with StrykerJS; fails when a file is below its floor                  |
+| `pnpm run test:mutation:incremental` | Mutation testing of what changed since the last run; misses helper and fixture changes |
+| `pnpm run site:build`                | Builds the docs site from `docs/user/` into `site/dist`; never deploys                 |
+| `pnpm run cli-reference`             | Rewrites the CLI reference from the CLI's help; `check` fails on drift                 |
+| `pnpm changeset`                     | Adds a changeset for a user-facing change under `packages/`                            |
 
 Node 24 for development (`.nvmrc`); the floor is 22.18.0, because scripts and tests run TypeScript
 natively. pnpm 12.16.1 (`packageManager`).

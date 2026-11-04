@@ -19,3 +19,9 @@ packages/explorer-verify/skills/
 
 # Build output: the API reference TypeDoc writes for the docs site (site/api-reference.ts)
 site/api/
+
+# Mutation testing: reports, backups of mutated files, and the tap runner output a timed-out test
+# process leaves behind (docs/contributor/tooling.md)
+packages/explorer-verify/reports/
+.stryker-tmp/
+packages/explorer-verify/stryker-output-*.json

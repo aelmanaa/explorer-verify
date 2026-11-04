@@ -1197,14 +1197,20 @@ describe("verify(): events and logging (R-DX-5, R-DX-6, R-SEC-1)", () => {
     );
   });
 
-  it("reads options.logger in one place only, and hands it to createObserver (R-SEC-1)", () => {
-    const source = readFileSync(new URL("../../src/flow/verify.ts", import.meta.url), "utf8");
-    assert.equal(source.match(/own\(options, "logger"\)/g)?.length, 1);
-    assert.equal(source.match(/options\??\.logger\b/g), null);
-    assert.equal(source.match(/createObserver\(/g)?.length, 1);
-    assert.equal(source.match(/\.\.\.options\b/g), null);
-    assert.equal(source.match(/\}\s*=\s*options\b/g), null);
-  });
+  // Under mutation testing (`pnpm run test:mutation`), Stryker instruments src/flow/verify.ts with
+  // every mutant at once (each behind a `stryMutAct_` call), so its text no longer matches.
+  const source = readFileSync(new URL("../../src/flow/verify.ts", import.meta.url), "utf8");
+  it(
+    "reads options.logger in one place only, and hands it to createObserver (R-SEC-1)",
+    { skip: source.includes("stryMutAct_") ? "reads the instrumented source" : false },
+    () => {
+      assert.equal(source.match(/own\(options, "logger"\)/g)?.length, 1);
+      assert.equal(source.match(/options\??\.logger\b/g), null);
+      assert.equal(source.match(/createObserver\(/g)?.length, 1);
+      assert.equal(source.match(/\.\.\.options\b/g), null);
+      assert.equal(source.match(/\}\s*=\s*options\b/g), null);
+    },
+  );
 
   it("writes nothing to console without a logger or onEvent (R-DX-5)", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
