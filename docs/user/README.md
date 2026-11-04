@@ -9,6 +9,7 @@ still to come.
 
 | Page                                                                                           | What it covers                                                           |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Deploy a contract from a dapp and verify it](tutorials/deploy-and-verify-from-a-dapp.md)      | Tutorial: deploy from a browser wallet, verify on Sourcify, resume       |
 | [Using explorer-verify from an agent](guides/using-from-an-agent.md)                           | Safe steps and the permanent submit, API keys, the Etherscan plan rule   |
 | [Verify a contract shipped in an npm package](guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
 | [Verify a contract from a Foundry project](guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
@@ -32,7 +33,7 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 
 | Folder         | Kind              | Planned first page                                                         |
 | -------------- | ----------------- | -------------------------------------------------------------------------- |
-| `tutorials/`   | Learning by doing | Deploy a contract from a dapp, then verify it                              |
+| `tutorials/`   | Learning by doing | In place: deploy a contract from a dapp, then verify it                    |
 | `guides/`      | Task how-tos      | Verify from a browser; verify from CI with the CLI                         |
 | `reference/`   | Exact facts       | API reference generated from TSDoc; errors; supported chains and explorers |
 | `explanation/` | Background        | In place: match types; Etherscan plans and attribution                     |

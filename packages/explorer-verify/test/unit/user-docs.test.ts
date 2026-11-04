@@ -4,7 +4,7 @@
 // skipped. Run after the build, as `pnpm test` does: the examples import `explorer-verify`,
 // `@explorer-verify/foundry` and `@explorer-verify/hardhat`, which resolve to each `dist/`.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -52,6 +52,10 @@ interface DocRun {
   readonly exitCode?: number;
   /** The expected stdout; the block's output block when absent, or nothing when it has none. */
   readonly stdout?: string;
+  /** The items `localStorage` starts with, as after a page reload; none when absent. */
+  readonly storage?: Readonly<Record<string, string>>;
+  /** Files the run must write, relative to the project; none when absent. */
+  readonly files?: readonly string[];
 }
 
 const NOT_CONFIRMED = [
@@ -63,6 +67,15 @@ const NOT_CONFIRMED = [
 const ALREADY_VERIFIED = ["2026-11-02-lookup-exact-match"];
 // Etherscan's getsourcecode answer for the Sepolia Greeter, recorded live on 2026-11-04.
 const ETHERSCAN_VERIFIED = ["etherscan/2026-11-04-getsourcecode-sepolia-greeter"];
+const VERIFIED = [
+  "2026-11-02-lookup-not-verified",
+  "2026-11-02-submit-accepted",
+  "2026-11-02-job-exact-match",
+];
+/** The handle of the job that `2026-11-02-submit-accepted` recorded. */
+const RECORDED_HANDLE =
+  "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
+const TUTORIAL = "tutorials/deploy-and-verify-from-a-dapp.md";
 
 // A block with no entry here runs once in a `core` project with no answers, and must exit 0 and
 // print its output block, or nothing.
@@ -197,6 +210,65 @@ const RUNS: readonly DocRun[] = [
     fixtures: ALREADY_VERIFIED,
   },
   {
+    page: TUTORIAL,
+    example: 0,
+    what: "the build script writes the deploy and verify files",
+    setup: "foundry",
+    files: ["public/contracts/Greeter.deploy.json", "public/contracts/Greeter.verify.json"],
+  },
+  {
+    page: TUTORIAL,
+    example: 3,
+    what: "verify() submits, shows the handle and ends verified",
+    fixtures: VERIFIED,
+  },
+  {
+    page: TUTORIAL,
+    example: 3,
+    what: "verify() finds the contract verified and submits nothing",
+    fixtures: ALREADY_VERIFIED,
+    stdout:
+      "already-verified (exact) https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc\n",
+  },
+  {
+    page: TUTORIAL,
+    example: 3,
+    what: "verify() ends not-confirmed: the handle stays saved",
+    fixtures: NOT_CONFIRMED,
+    stdout: [
+      `Submitted. Handle: ${RECORDED_HANDLE}`,
+      "Sourcify is still checking. Reload the page later to see the result.",
+      "",
+    ].join("\n"),
+  },
+  {
+    page: TUTORIAL,
+    example: 3,
+    what: "another submission is in progress: the code and hint are shown",
+    fixtures: ["2026-11-02-lookup-not-verified", "2026-11-02-submit-duplicate"],
+    stdout:
+      "in-progress: Wait for the explorer to finish its current verification of this contract, then call again.\n",
+  },
+  {
+    page: TUTORIAL,
+    example: 5,
+    what: "after a reload, checkStatus() resumes the saved handle",
+    fixtures: ["2026-11-02-job-exact-match"],
+    storage: { "greeter-verification": RECORDED_HANDLE },
+  },
+  {
+    page: TUTORIAL,
+    example: 5,
+    what: "a load with no saved handle sends nothing",
+    stdout: "",
+  },
+  {
+    page: TUTORIAL,
+    example: 6,
+    what: "verify() reaches Etherscan through the handler, which passes the origin check",
+    fixtures: ETHERSCAN_VERIFIED,
+  },
+  {
     page: "reference/verify.md",
     example: 3,
     what: "keep the handle from verify.submitted",
@@ -301,13 +373,22 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
       .flatMap((example) => runsOf(example).map((spec) => ({ example, spec })));
     const problems = await withProjects(
       async (projectOf) =>
-        // Each run is its own process, and no example writes a file, so runs can overlap.
+        // Each run is its own process, and only the tutorial's build script writes files, in a
+        // folder no other example reads, so runs can overlap.
         await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
           const dir = projectOf(spec.setup ?? "core");
           const file = exampleFile(example);
           writeFiles(dir, { [file]: example.code });
-          const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD]);
-          return runProblem(example, spec, run);
+          const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
+            DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
+          });
+          const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
+          return (
+            runProblem(example, spec, run) ??
+            (missing.length > 0
+              ? `${example.page}:${String(example.line)}, ${spec.what}: did not write ${missing.join(", ")}`
+              : undefined)
+          );
         }),
     );
     assert.deepEqual(

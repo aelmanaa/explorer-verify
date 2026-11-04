@@ -35,7 +35,10 @@ maintainer's.
 10. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
-[docs/README.md](docs/README.md).
+[docs/README.md](docs/README.md). The tutorial,
+[docs/user/tutorials/deploy-and-verify-from-a-dapp.md](docs/user/tutorials/deploy-and-verify-from-a-dapp.md),
+deploys a contract from a browser and verifies it on Sourcify, then on Etherscan
+through the server handler.
 [docs/user/reference/routing.md](docs/user/reference/routing.md) describes the routing table in
 `packages/explorer-verify/src/routing/table.json` and its checks. The index for agents is
 [llms.txt](llms.txt), and

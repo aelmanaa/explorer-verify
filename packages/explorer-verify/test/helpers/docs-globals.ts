@@ -13,7 +13,8 @@
  *   `src/Tally.sol:Tally`, from the core's `solc-0.8.24-library` fixture;
  * - `request`: a status poll, as a browser sends it to the server handler, for the Etherscan job
  *   that `etherscan/2026-11-03-checkverifystatus-form-post-key-in-body` recorded;
- * - `localStorage`: an in-memory store, so browser examples run on every Node version.
+ * - `localStorage`: an in-memory store, so browser examples run on every Node version. It starts
+ *   with the items of `DOCS_LOCAL_STORAGE`, a JSON object of strings, as after a page reload.
  */
 import { readFileSync } from "node:fs";
 
@@ -32,6 +33,12 @@ const built = buildVerifyInput([JSON.parse(fixture("foundry-1.8.1/Greeter.json")
 /** The `Storage` methods the examples call, kept in memory for one run. */
 class MemoryStorage {
   readonly #items = new Map<string, string>();
+
+  constructor(items: Readonly<Record<string, unknown>>) {
+    for (const [key, value] of Object.entries(items)) {
+      this.#items.set(key, String(value));
+    }
+  }
 
   get length(): number {
     return this.#items.size;
@@ -58,6 +65,12 @@ class MemoryStorage {
   }
 }
 
+/** The items `localStorage` starts with: the JSON object in `DOCS_LOCAL_STORAGE`, or none. */
+function storedItems(): Readonly<Record<string, unknown>> {
+  const items: unknown = JSON.parse(process.env.DOCS_LOCAL_STORAGE ?? "{}");
+  return typeof items === "object" && items !== null ? { ...items } : {};
+}
+
 const globals: Readonly<Record<string, unknown>> = {
   input: validateInput({
     chainId: 11155111,
@@ -81,7 +94,7 @@ const globals: Readonly<Record<string, unknown>> = {
       guid: "ctzxlls4kl2yziafqgangtjk3hgdbd3xhnzbg5d3tgla9wgsb3",
     }),
   }),
-  localStorage: new MemoryStorage(),
+  localStorage: new MemoryStorage(storedItems()),
 };
 
 for (const [name, value] of Object.entries(globals)) {
