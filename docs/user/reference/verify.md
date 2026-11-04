@@ -375,7 +375,9 @@ bytecode, and gives `prefix-mismatch`.
 `rpcUrl` follows the `route.apiUrl` rules: `https`, or `http` on `localhost`, `127.0.0.1` or
 `[::1]`, with no user name, password or fragment. Its path segments and query values of 8 or more
 characters count as keys, because providers put keys there: they are removed from every error,
-log line and event. The host name is not removed, so never put a key in it.
+log line and event. The host name is not removed, so never put a key in it. The CLI takes the URL
+from `--rpc-url-file` or `--rpc-url-stdin`, or from `--rpc-url` when no part can hold a key; see
+[RPC URL](cli.md#rpc-url).
 
 <!-- fragment: it needs a build-info file, an Etherscan key and a live JSON-RPC endpoint. -->
 

@@ -423,6 +423,9 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
   value, and never write it into code, a commit, a fixture or a test.
 - Do not print or read a key to check that it is set: no `echo`, `cat .env` or `printenv`. Run a
   dry run instead: its `backend` and `lookup` show whether the key was used.
+- Treat a JSON-RPC URL as a key: providers put keys in its path or query. On the command line,
+  pipe it with `--rpc-url-stdin` or name a file with `--rpc-url-file`. `--rpc-url` refuses a URL
+  with a part that can hold a key.
 - Pass a key to the library in `apiKeys`, by backend name, such as
   `{ apiKeys: { "etherscan-v2": key } }`. The library sends it only to that backend's own host and
   never in a URL. A standalone explorer's key goes in `route.apiKey`.

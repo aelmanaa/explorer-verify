@@ -54,6 +54,11 @@ export interface PrepareContext {
   readonly values: ReadonlyMap<string, OptionValue>;
   /** Opens stdin. Call it only when an option asks to read stdin, such as `--input-json -`. */
   readonly stdin: () => InputStream;
+  /**
+   * Adds values that the main loop removes from stdout and stderr (R-SEC-1), such as the parts of
+   * an RPC URL that can hold a key. Call it as soon as the value is read, before any check.
+   */
+  readonly addSecrets: (secrets: readonly string[]) => void;
 }
 
 /** What a command's `prepare` returns. */

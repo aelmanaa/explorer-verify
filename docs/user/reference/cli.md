@@ -38,6 +38,9 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
   it with `status`.
 - `--backend` and `--api-url` pick the route, as in [API keys and route options](#api-keys-and-route-options).
   `--backend` can be given only once: this version runs on one backend at a time.
+- `--rpc-url`, `--rpc-url-file` or `--rpc-url-stdin` gives a JSON-RPC endpoint, so `verify` can
+  derive missing constructor arguments from the `--creation-tx` transaction. See
+  [RPC URL](#rpc-url).
 - The `verify.submitted` line on stderr carries the handle, at the default level. Keep it.
 
 A usage or input error exits 2 before any request. An issue names the option, such as `--chain` or
@@ -52,7 +55,8 @@ the default one, such as `127.0.0.1:5555`), and the lookup's answer.
 `lookup` is `exact` or `partial` when the explorer already holds the contract, so `verify` would
 not submit, and `none` when it would submit. When the backend needs an API key and none is set, the
 dry run sends no request and says `lookup: "skipped"`. Errors before the submit exit as they would
-without `--dry-run`.
+without `--dry-run`. An [RPC URL](#rpc-url) is read and checked, but the dry run sends it no
+request.
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 \
@@ -94,14 +98,15 @@ from stdin. The package `explorer-verify` ships its JSON Schema as
 - For `status`: `{ "handle": "ev1:…" }`, with an optional `route`.
 
 Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
-`--api-key-stdin` and `--timeout` may accompany it, and no argument. Any other option exits 2: put
-it in the request. The route of the request counts as `--backend` and `--api-url`, so
-`--api-key-file` can send its key there. Malformed JSON exits 2. Properties the schema does not
-list exit 2 with one issue that counts them and never names them. The request has no field for an
-API key.
+`--api-key-stdin`, `--rpc-url`, `--rpc-url-file`, `--rpc-url-stdin` and `--timeout` may accompany
+it, and no argument. Any other option exits 2: put it in the request. The route of the request
+counts as `--backend` and `--api-url`, so `--api-key-file` can send its key there. Malformed JSON
+exits 2. Properties the schema does not list exit 2 with one issue that counts them and never names
+them. The request has no field for an API key or an RPC URL: give the RPC URL with one of its
+three options.
 
-`--input-json -` exits 2 at once when stdin is a terminal, and with `--api-key-stdin`, which reads
-stdin too. The same request as flags and as JSON prints the same stdout.
+`--input-json -` exits 2 at once when stdin is a terminal, and with `--api-key-stdin` or
+`--rpc-url-stdin`, which read stdin too. The same request as flags and as JSON prints the same stdout.
 
 ## Help and version
 
@@ -169,22 +174,25 @@ Examples:
 - `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json`: Verify from a Foundry build-info and artifact; the address may come first, without verify.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it.
 
-| Option                          | What it does                                                                                                                            |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                   |
-| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                               |
-| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                  |
-| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                          |
-| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                             |
-| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                        |
-| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                             |
-| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                          |
-| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                  |
-| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                  |
-| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                            |
-| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.     |
-| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                             |
-| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package. |
+| Option                          | What it does                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                     |
+| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                 |
+| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                    |
+| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                            |
+| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                               |
+| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                          |
+| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                               |
+| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                            |
+| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                    |
+| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                    |
+| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                              |
+| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                       |
+| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then. |
+| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                       |
+| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                               |
+| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                               |
+| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                   |
 
 ### `status`
 
@@ -351,6 +359,52 @@ error about a key file does not name its path either, because a path typed by mi
 key. The CLI removes every valid key it read, in any letter case, from stdout and stderr, at every
 level and in every format, as `[redacted]`. A value shorter than 8 characters is refused as a key
 and never printed, but not searched for in other output.
+
+## RPC URL
+
+`verify` derives missing constructor arguments from the creation transaction when it has a JSON-RPC
+endpoint of the chain, the `--creation-tx` hash and the build files' creation bytecode. The library
+option is `rpcUrl`; [verify()](verify.md#constructor-arguments) describes the derivation. Without
+an RPC URL, `verify` asks Etherscan for the creation code on an Etherscan v2 route with a key, and
+otherwise submits without arguments.
+
+Providers often put a key in the URL's path or query, so the CLI treats the URL like a key:
+
+| Option               | What it takes                                                              |
+| -------------------- | -------------------------------------------------------------------------- |
+| `--rpc-url <url>`    | A URL with no part that can hold a key                                     |
+| `--rpc-url-file <p>` | Any URL, read from the regular file `p`, with one trailing newline removed |
+| `--rpc-url-stdin`    | Any URL, piped on stdin, with one trailing newline removed                 |
+
+- A part that can hold a key is a path segment, a query name or value, a user name, a password or
+  a fragment of 8 or more characters, as typed, as parsed or decoded. `--rpc-url` refuses a URL
+  with such a part and exits 2, because a flag value shows in the process list and the shell
+  history. For example, `https://ethereum-sepolia-rpc.publicnode.com` works with `--rpc-url`, and
+  `https://eth-sepolia.example.com/v2/<key>` needs `--rpc-url-file` or `--rpc-url-stdin`.
+- A public URL without a key is refused too when it has a long path segment, such as
+  `https://rpc.ankr.com/eth_sepolia`. Pass it with `--rpc-url-file` or `--rpc-url-stdin`.
+- No environment variable holds the URL, and neither does the request of `--input-json`.
+- Only one of the three options may be given. `--rpc-url-file` reads only a regular file, as
+  `--api-key-file` does. `--rpc-url-stdin` exits 2 at once when stdin is a terminal, and with
+  `--api-key-stdin` or `--input-json -`.
+- The URL may be at most 8192 characters, from the set RFC 3986 allows, with no space or quote.
+  The library checks the rest: `https`, or `http` on `localhost`, `127.0.0.1` or `[::1]`, with no
+  user name, password or fragment. A refused URL exits 2 with `invalid-input` naming `rpcUrl`.
+- Each part that can hold a key is removed from stdout and stderr, in any letter case, at every
+  level and in every format, as `[redacted]`. An error never repeats the URL, a part of it or the
+  path of its file. The host name and a key split into pieces shorter than 8 characters are not
+  removed, so never put a key there.
+- A part is removed wherever it appears, so a plain word in the URL, such as `eth_sepolia`, also
+  shows as `[redacted]` in messages. In the JSON envelope and JSON log lines, the envelope's own
+  property names and values that are the CLI's own words, such as a backend name or a status,
+  stay as they are; any other property name with a part in it is redacted too.
+- An endpoint of another chain exits 2 with `invalid-input` naming `rpcUrl`, before the submit.
+
+```sh
+printf '%s\n' "$SEPOLIA_RPC_URL" | explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
+  --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --creation-tx 0x<hash> --rpc-url-stdin --json
+```
 
 ## stdout
 

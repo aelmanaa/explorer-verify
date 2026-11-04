@@ -71,7 +71,10 @@ interface RunState {
   submitted: string | undefined;
   /** Set once the outcome is fixed; later signals are ignored. */
   fixed: boolean;
-  /** Every key read, removed from everything written to stdout and stderr (R-SEC-1, R-AX-9). */
+  /**
+   * Every key read, and every part of an RPC URL that can hold one, removed from everything written
+   * to stdout and stderr (R-SEC-1, R-AX-9).
+   */
   readonly secrets: string[];
 }
 
@@ -203,6 +206,9 @@ async function runCommand(
             positionals: args.positionals,
             values: args.values,
             stdin: io.stdin,
+            addSecrets: (secrets) => {
+              state.secrets.push(...secrets);
+            },
           });
           values = prepared.values;
           run = prepared.run;

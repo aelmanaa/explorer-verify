@@ -665,3 +665,104 @@ describe("--input-json (R-AX-16)", () => {
     );
   });
 });
+
+describe("verify with an RPC URL (R-IN-3, R-AX-9)", () => {
+  // Plain lower-case dummies, in the path and in the query.
+  const PATH_SECRET = "verifycmdrpcpathsecret";
+  const QUERY_SECRET = "verifycmdrpcquerysecret";
+  const RPC_FILE = file("rpc.txt", `https://rpc.example.org/v2/${PATH_SECRET}?k=${QUERY_SECRET}\n`);
+
+  function assertNoSecret(result: Run): void {
+    const output = `${result.stdout}${result.stderr}`.toLowerCase();
+    assert.ok(!output.includes(PATH_SECRET) && !output.includes(QUERY_SECRET), output);
+  }
+
+  it("passes the URL of --rpc-url-file to a dry run, which checks it and calls nothing", async (t) => {
+    const result = await run(t, [
+      "verify",
+      ADDRESS,
+      "--chain",
+      "11155111",
+      ...FOUNDRY,
+      "--rpc-url-file",
+      RPC_FILE,
+      "--dry-run",
+      "--json",
+      "--verbose",
+    ]);
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(part(result, "result")["status"], "dry-run");
+    assert.ok(result.seen.every((request) => request.host !== "rpc.example.org"));
+    assertNoSecret(result);
+  });
+
+  it("the library checks the URL: plain http to another host exits 2 naming rpcUrl", async (t) => {
+    const path = file("rpc-http.txt", `http://rpc.example.org/${PATH_SECRET}`);
+    const result = await run(t, [
+      "verify",
+      ADDRESS,
+      "--chain",
+      "11155111",
+      ...FOUNDRY,
+      "--rpc-url-file",
+      path,
+      "--dry-run",
+      "--json",
+    ]);
+    assert.match(usage(result), /rpcUrl/);
+    assert.deepEqual(result.seen, []);
+    assertNoSecret(result);
+  });
+
+  it("lists the issues of --timeout and --rpc-url together, before reading the input", async (t) => {
+    const result = await run(t, [
+      "verify",
+      "--timeout",
+      "0",
+      "--rpc-url",
+      `https://rpc.example.org/${PATH_SECRET}`,
+      "--json",
+    ]);
+    const message = usage(result);
+    assert.match(message, /--timeout must be a whole number/);
+    assert.match(message, /--rpc-url has a part that can hold a key/);
+    assertNoSecret(result);
+  });
+
+  it("--rpc-url-file may accompany --input-json; the request has no field for it (R-AX-16)", async (t) => {
+    const ok = await run(t, [
+      "verify",
+      "--input-json",
+      REQUEST_FILE,
+      "--rpc-url-file",
+      RPC_FILE,
+      "--dry-run",
+      "--json",
+    ]);
+    assert.equal(ok.code, 0, ok.stdout);
+    const inRequest = file("rpc-in-request.json", JSON.stringify({ ...REQUEST, rpcUrl: "x" }));
+    assert.match(
+      usage(await run(t, ["verify", "--input-json", inRequest, "--json"])),
+      /has 1 property that is not a request field/,
+    );
+  });
+
+  it("--rpc-url-file can be given only once, like --rpc-url", async (t) => {
+    const result = await run(t, [
+      "verify",
+      "--rpc-url-file",
+      RPC_FILE,
+      "--rpc-url-file",
+      RPC_FILE,
+      "--json",
+    ]);
+    assert.match(usage(result), /--rpc-url-file can be given only once/);
+  });
+
+  it("status takes no RPC URL", async (t) => {
+    assert.match(
+      usage(await run(t, ["status", HANDLE, "--rpc-url-file", RPC_FILE, "--json"])),
+      /--rpc-url-file is not an option of status/,
+    );
+  });
+});

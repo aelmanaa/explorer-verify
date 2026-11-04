@@ -10,7 +10,7 @@
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 
-import { BACKEND_NAMES, toBackendName } from "explorer-verify";
+import { BACKEND_NAMES, ERROR_CODES, toBackendName } from "explorer-verify";
 import type { BackendName, InputIssue, RouteOverride, VerifyOptions } from "explorer-verify";
 
 import type { OptionSpecs, OptionValue } from "./arguments.ts";
@@ -133,8 +133,13 @@ export function keyProblem(key: string): string | undefined {
   return undefined;
 }
 
-/** The text with one trailing `\n` or `\r\n` removed. */
-function trimNewline(text: string): string {
+/**
+ * The text with one trailing `\n` or `\r\n` removed.
+ *
+ * @param text - The text read from a file or stdin.
+ * @returns The text without that newline.
+ */
+export function trimNewline(text: string): string {
   if (text.endsWith("\r\n")) {
     return text.slice(0, -2);
   }
@@ -144,8 +149,12 @@ function trimNewline(text: string): string {
 /**
  * `message` with the `code` of a Node system error, such as `ENOENT`, when it has one. The error's
  * message is dropped: it can hold the path or the data.
+ *
+ * @param message - The issue message.
+ * @param error - What the read threw.
+ * @returns The message, with the code when there is one.
  */
-function withCode(message: string, error: unknown): string {
+export function withCode(message: string, error: unknown): string {
   if (typeof error === "object" && error !== null && "code" in error) {
     const { code } = error;
     if (typeof code === "string" && /^[A-Z0-9_]{1,32}$/.test(code)) {
@@ -155,8 +164,14 @@ function withCode(message: string, error: unknown): string {
   return message;
 }
 
-/** Decodes chunks of a stream into text, stopping once more than `limit` bytes arrived. */
-async function readLimited(chunks: AsyncIterable<unknown>, limit: number): Promise<string> {
+/**
+ * Decodes chunks of a stream into text, stopping once more than `limit` bytes arrived.
+ *
+ * @param chunks - The stream.
+ * @param limit - The most bytes wanted; one chunk more may be read, so a longer text is seen.
+ * @returns The text.
+ */
+export async function readLimited(chunks: AsyncIterable<unknown>, limit: number): Promise<string> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let text = "";
@@ -176,14 +191,19 @@ async function readLimited(chunks: AsyncIterable<unknown>, limit: number): Promi
 }
 
 /** Thrown by {@link readFileStart} for a path that is not a regular file. */
-class NotRegularFile extends Error {}
+export class NotRegularFile extends Error {}
 
 /**
  * The first `limit` bytes of a regular file and one more, so a longer file is seen as too long.
  * The file is opened without blocking, so a FIFO with no writer or a terminal device cannot hang
  * the run, and anything but a regular file is refused before a byte is read.
+ *
+ * @param path - The path, as the option gave it.
+ * @param limit - The most bytes wanted.
+ * @returns The text read.
+ * @throws NotRegularFile for a path that is not a regular file.
  */
-async function readFileStart(path: string, limit: number): Promise<string> {
+export async function readFileStart(path: string, limit: number): Promise<string> {
   // `O_NONBLOCK` is undefined on Windows, where `| undefined` adds no flag.
   const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
   try {
@@ -256,18 +276,30 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
   };
 }
 
+/** The options that read stdin, in the order a conflict between two of them is reported. */
+const STDIN_READERS: readonly (readonly [option: string, label: string])[] = [
+  ["input-json", "--input-json -"],
+  ["api-key-stdin", "--api-key-stdin"],
+  ["rpc-url-stdin", "--rpc-url-stdin"],
+];
+
 /**
- * The issue of `--api-key-stdin` with `--input-json -`, which would both read stdin (R-AX-9), or
- * `undefined`. The request and the keys check it before either reads a byte.
+ * The issue of two options that would both read stdin, such as `--api-key-stdin` with
+ * `--input-json -` (R-AX-9), or `undefined`. The request, the keys and the RPC URL check it before
+ * any of them reads a byte. The issue names the later option of {@link STDIN_READERS}.
  *
  * @param values - The checked option values.
- * @returns The issue, naming `--api-key-stdin`.
+ * @returns The issue.
  */
 export function stdinConflict(values: ReadonlyMap<string, OptionValue>): InputIssue | undefined {
-  return values.get("api-key-stdin") === true && values.get("input-json") === "-"
+  const readers = STDIN_READERS.filter(([option]) =>
+    option === "input-json" ? values.get(option) === "-" : values.get(option) === true,
+  );
+  const [first, second] = readers;
+  return first !== undefined && second !== undefined
     ? {
-        field: "--api-key-stdin",
-        message: "cannot be combined with --input-json -: both would read stdin",
+        field: second[1],
+        message: `cannot be combined with ${first[1]}: both would read stdin`,
       }
     : undefined;
 }
@@ -436,11 +468,102 @@ export function withoutKeyVariables(env: Environment): Environment {
 const REDACTED = "[redacted]";
 
 /**
+ * The words of the output contract: backend names, error codes and result values. A string value
+ * that is exactly one of them is public, so the JSON scrubber keeps it, and the envelope stays
+ * valid even when an RPC URL has such a word as a path segment.
+ */
+const FIXED_WORDS: ReadonlySet<string> = new Set<string>([
+  ...BACKEND_NAMES,
+  ...ERROR_CODES,
+  "verified",
+  "already-verified",
+  "failed",
+  "dry-run",
+  "exact",
+  "partial",
+  "none",
+  "skipped",
+  "pending",
+]);
+
+/**
+ * The property names of the JSON envelope (`envelope.schema.json`). A name that is exactly one of
+ * them is public, so the JSON scrubber keeps it and the envelope keeps its shape.
+ */
+const ENVELOPE_KEYS: ReadonlySet<string> = new Set<string>([
+  "schemaVersion",
+  "ok",
+  "result",
+  "error",
+  "code",
+  "message",
+  "hint",
+  "retryable",
+  "docsUrl",
+  "handle",
+  "status",
+  "backend",
+  "match",
+  "lookup",
+  "apiHost",
+  "explorerUrl",
+  "reason",
+]);
+
+/** `text` scrubbed, unless it is exactly one of the public words in `kept`. */
+function scrubWord(text: string, pattern: RegExp, kept: ReadonlySet<string>): string {
+  return kept.has(text) ? text : text.replace(pattern, REDACTED);
+}
+
+/**
+ * A parsed JSON value with `pattern` replaced in its string values and property names. The words
+ * of {@link FIXED_WORDS} as values and of {@link ENVELOPE_KEYS} as names stay, so the structure of
+ * the envelope stays too. A secret in any other name is removed: secrecy wins over structure.
+ */
+function scrubValue(value: unknown, pattern: RegExp): unknown {
+  if (typeof value === "string") {
+    return scrubWord(value, pattern, FIXED_WORDS);
+  }
+  if (Array.isArray(value)) {
+    return value.map((each: unknown) => scrubValue(each, pattern));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([name, each]) => [
+        scrubWord(name, pattern, ENVELOPE_KEYS),
+        scrubValue(each, pattern),
+      ]),
+    );
+  }
+  return value;
+}
+
+/**
+ * `text` with every match of `pattern` replaced by `[redacted]`. A write that is one JSON object
+ * on one line, such as the envelope or a JSON log line, is scrubbed in its string values and
+ * property names, keeping the envelope's own names and the words of {@link FIXED_WORDS}, so its
+ * structure stays.
+ */
+function scrubbed(text: string, pattern: RegExp): string {
+  const line = text.endsWith("\n") ? text.slice(0, -1) : "";
+  if (line.startsWith("{") && line.endsWith("}") && !line.includes("\n")) {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      return `${JSON.stringify(scrubValue(parsed, pattern))}\n`;
+    } catch {
+      // Not JSON after all: scrubbed as text below.
+    }
+  }
+  return text.replace(pattern, REDACTED);
+}
+
+/**
  * A stream that writes through to `stream` with every key in `secrets` replaced by `[redacted]`
  * (R-SEC-1). It reads `secrets` at each write, so keys read after it was made are removed too.
  * Keys shorter than 8 characters are left alone: the library refuses them, and replacing them
  * could corrupt other text. A key holds only characters that JSON and the text lines write as
- * they are, so a plain replacement finds every copy.
+ * they are, so a plain replacement finds every copy. A write of one JSON object on one line keeps
+ * its structure: the envelope's own property names and the output contract's words stay.
  *
  * @param stream - The stream to write to.
  * @param secrets - The keys to remove; the caller may add to it later.
@@ -450,7 +573,7 @@ export function scrubbing(stream: OutputStream, secrets: readonly string[]): Out
   return {
     write: (text) => {
       const pattern = secretPattern(secrets);
-      stream.write(pattern === undefined ? text : text.replace(pattern, REDACTED));
+      stream.write(pattern === undefined ? text : scrubbed(text, pattern));
     },
     isTTY: stream.isTTY,
   };
