@@ -1,6 +1,7 @@
 # 0015: Docs site, docs versioning and one page per error code
 
-Status: Accepted (2026-11-03). Amends the `docsUrl` part of
+Status: Accepted (2026-11-03); `srcDir` amended by
+[decision 0028](0028-site-reads-from-the-repository-root.md). Amends the `docsUrl` part of
 [decision 0009](0009-options-handle-and-errors.md) and the site `llms.txt` part of
 [decision 0007](0007-agent-readiness-is-a-requirement-on-every-feature.md).
 
@@ -123,7 +124,8 @@ only. It is not written to `docs/user/` and does not ship in the npm package, wh
 carry the same TSDoc. R-AX-2 says so.
 TypeDoc 0.28.20 needs the TypeScript 6 API (peer range `5.0.x` to `6.0.x`, `npm view`
 2026-11-03), and TypeScript 7.0 ships no compiler API. The repository therefore adds
-`@typescript/typescript6` (6.0.2) through an npm alias for TypeDoc only. TypeScript 7 stays the
+`@typescript/typescript6` 6.0.2, which installs `typescript` 6.0.3, through an npm alias for
+TypeDoc only. TypeScript 7 stays the
 type checker. `validation.invalidLink`, `notExported`, `notDocumented` and `treatWarningsAsErrors`
 are on, and `gitRevision` is the release tag.
 

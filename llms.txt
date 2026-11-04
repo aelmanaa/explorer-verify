@@ -53,6 +53,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [Match types](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/match-types.md): what `exact` and `partial` mean per explorer, the metadata hash, builds that can only reach `partial`, automatic matching and why `verify()` looks up first
 - [Etherscan plans and attribution](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/etherscan-plans-and-attribution.md): which Etherscan plan a use needs, the "Powered by Etherscan.io APIs" rule, keys off the client and the server handler's position
 - [Logging and events](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/logging-and-events.md): the logger, the typed stage events, the event JSON Schema, and what happens when a callback throws
+- [API reference](https://aelmanaa.github.io/explorer-verify/api/index.md): every export of each package, generated from TSDoc, for the version on npm `latest`; the `.d.ts` files of an installed package carry the same comments
 
 ## Contributor docs
 

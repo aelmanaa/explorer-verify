@@ -57,13 +57,37 @@ export type VerifyOutcome = VerifyResult | ExplorerVerifyError;
  */
 export type Envelope =
   | {
+      /** The version of this document's form. */
       schemaVersion: 1;
+      /** `true`: the exit code is 0. */
       ok: true;
-      result: Extract<VerifyResult, { status: "verified" | "already-verified" }>;
+      /** The verified or already-verified result. */
+      result: Extract<VerifyResult, Record<"status", "verified" | "already-verified">>;
     }
-  | { schemaVersion: 1; ok: false; result: Extract<VerifyResult, { status: "failed" }> }
-  | { schemaVersion: 1; ok: true; result: DryRunResult }
-  | { schemaVersion: 1; ok: false; error: ErrorJson };
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `false`: the explorer rejected the submission. */
+      ok: false;
+      /** The failed result. */
+      result: Extract<VerifyResult, Record<"status", "failed">>;
+    }
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `true`: a dry run submits nothing, and the exit code is 0. */
+      ok: true;
+      /** The dry run's result. */
+      result: DryRunResult;
+    }
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `false`: the call threw. */
+      ok: false;
+      /** The error, as `ExplorerVerifyError.toJSON()` gives it, with API keys removed. */
+      error: ErrorJson;
+    };
 
 /**
  * Options for {@link toEnvelope}.

@@ -14,6 +14,7 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 | c8                           | `packages/*/.c8rc.json`                                | Coverage, 95% floor per file                                                                                                                                |
 | esbuild 0.28.2               | `scripts/bundle.ts`                                    | Browser bundle for the size check and the browser smoke test                                                                                                |
 | Playwright 1.64.1            | `scripts/browser-smoke.ts`                             | Headless Chromium for the browser smoke test                                                                                                                |
+| TypeDoc 0.28.20              | `site/api-reference.ts`, `site/tsconfig.api.json`      | The API reference of the docs site, from TSDoc, with typedoc-plugin-markdown 4.14.1 and the TypeScript 6 API ([API reference](#api-reference))              |
 | lefthook                     | `lefthook.yml`                                         | pre-commit: lint fix, format, typecheck, type escapes; commit-msg: Conventional Commits                                                                     |
 | pre-push hook                | `scripts/install-git-hooks.ts`                         | Refuses pushes to `main`, then runs unit tests                                                                                                              |
 | changesets                   | `.changeset/config.json`                               | Release notes and versions                                                                                                                                  |
@@ -129,12 +130,20 @@ page or the packaged `llms.txt` points to a file that is not in the tarball.
 
 ### Docs site
 
-The docs site is <https://aelmanaa.github.io/explorer-verify/> (R-AX-17, decision 0015). VitePress
-1.6.4, pinned exactly in the catalogue, builds it from `docs/user/` (`srcDir`), with `base` set to
-`/explorer-verify/`, clean URLs and local search. The config is `site/.vitepress/config.ts`, outside
-`docs/user/`, so GitHub and the package never see it. The pages stay plain Markdown: no
-frontmatter, Vue components or containers. The link rules, the sidebar and the copies live in
-`scripts/site-docs.ts`:
+The docs site is <https://aelmanaa.github.io/explorer-verify/> (R-AX-17, decisions 0015 and
+0028). VitePress 1.6.4, pinned exactly in the catalogue, builds it from `docs/user/` and from the
+generated [API reference](#api-reference) in `site/api/`. It sets `base` to `/explorer-verify/` and
+uses clean URLs and local search.
+
+VitePress reads pages from `srcDir` only, so `srcDir` is the repository root (decision 0028).
+`srcExclude` hides every other Markdown file, and `rewrites` serve `docs/user/` at the site root
+and `site/api/` under `api/`, so every URL stays the same. Vite's root is `srcDir` as well, which
+brings two rules: `envDir` is `site/`, so a `.env` file at the repository root never reaches the
+build, and the repository must not have a root `public/` folder, because Vite would serve it.
+
+The config is `site/.vitepress/config.ts`, outside `docs/user/`, so GitHub and the package never
+see it. The pages stay plain Markdown: no frontmatter, Vue components or containers. The link
+rules, the sidebar and the copies live in `scripts/site-docs.ts`:
 
 - `README.md` becomes `index.md`, the page of its folder.
 - Before VitePress reads a page, a link inside `docs/user/` stays relative, a link to the root
@@ -145,12 +154,13 @@ frontmatter, Vue components or containers. The link rules, the sidebar and the c
 - Inline code is marked `v-pre`, as VitePress already marks code blocks, so `{{` in code is shown as
   written. `{{` in prose fails the docs check.
 
-| Command                 | What it does                                                                                                            |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run site:build`   | `vitepress build site`, then `scripts/site-copies.ts`, which writes the Markdown copies and `llms.txt` into `site/dist` |
-| `pnpm run site:check`   | `scripts/check-site.ts` on the build: test 3 of decision 0015. Needs `pnpm run build` first                             |
-| `pnpm run site:dev`     | VitePress dev server                                                                                                    |
-| `pnpm run site:preview` | Serves `site/dist`                                                                                                      |
+| Command                 | What it does                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm run site:api`     | `site/api-reference.ts`: generates the API reference into `site/api/`                                                                            |
+| `pnpm run site:build`   | `site/api-reference.ts`, `vitepress build site`, then `scripts/site-copies.ts`, which writes the Markdown copies and `llms.txt` into `site/dist` |
+| `pnpm run site:check`   | `scripts/check-site.ts` on the build: test 3 of decision 0015. Needs `pnpm run build` first                                                      |
+| `pnpm run site:dev`     | Generates the API reference, then runs the VitePress dev server                                                                                  |
+| `pnpm run site:preview` | Serves `site/dist`                                                                                                                               |
 
 Dev-server advisories (2026-11-03): `pnpm audit` reports advisories against the Vite 5 and
 esbuild versions that VitePress 1.6.4 depends on, for the dev server only. They are accepted,
@@ -158,9 +168,11 @@ because CI and the deploy only build. Run `site:dev` and `site:preview` on local
 pass `--host`.
 
 `scripts/site-copies.ts` writes each user page next to its HTML as `<page>.md`, with the site's
-links, and `site/dist/llms.txt`. That `llms.txt` is the root one with only the user pages, each
-linked as its Markdown copy on the site, plus a line that names the version and the jsDelivr URL of
-other versions. The root and packaged `llms.txt` do not change.
+links, copies each page of the API reference to `api/`, and writes `site/dist/llms.txt`. That
+`llms.txt` is the root one with only the user pages, each linked as its Markdown copy on the site,
+plus a line that names the version and the jsDelivr URL of other versions, and an
+`## API reference` section that links the copy of each API page. The root and packaged `llms.txt`
+do not change.
 
 `scripts/check-site.ts` reads the codes from the built package and builds an error for each. It
 fails when a `docsUrl`, with the site address removed, has no HTML page or no `.md` copy in
@@ -174,6 +186,51 @@ maintainer adds `Docs site build` to the `main` ruleset.
 within 10 seconds. It also fails unless the site's `llms.txt` names the package version at the
 checked-out tag, so a site that still serves an older version fails. It tries up to five times, 15 seconds apart, because a new deployment can take a short time to
 reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
+
+### API reference
+
+The API reference on the site is generated from TSDoc (R-AX-2, R-DX-4, decision 0015).
+`site/api-reference.ts` runs TypeDoc with typedoc-plugin-markdown and writes one Markdown page per
+package entry point into `site/api/`, plus an index. `site/api/` is gitignored build output. It is
+never written to `docs/user/`, so the npm packages do not ship it; their `.d.ts` files carry the
+same TSDoc.
+
+- The entry points come from the `exports` of each `packages/*/package.json`: every export with a
+  `types` condition, mapped from `dist/` back to its source (`scripts/site-api.ts`). Each page is
+  titled as users import it, such as `explorer-verify/server`. Its file name is flat, without the
+  scope and with `-` for `/`, such as `api/explorer-verify-server`. A page and a folder must never
+  share a name, because a link to the page would reach the folder; the script fails if they do.
+  The CLI exports no types, so it has no page; its reference is generated from its help
+  ([CLI reference](#cli-reference)).
+- TypeDoc reads `site/tsconfig.api.json`: the sources of every entry point, with `explorer-verify`
+  mapped to the core's sources, so a type that a helper package takes from the core links to the
+  core's page.
+- The run fails before it writes a page when TypeDoc warns: an export or a member without TSDoc
+  (`notDocumented`, for every package), an unresolved `{@link}` (`invalidLink`), or a type the API
+  uses that no entry point exports (`notExported`). TypeDoc runs that last check only for the
+  project's own package, so the script runs it once per package. The run also fails when a page
+  holds `{{` in prose.
+- Source links point at the version's tag:
+  `https://github.com/aelmanaa/explorer-verify/blob/v<version>/<path>#L<line>`. `disableGit` is
+  on, so TypeDoc reads no git state, and the same sources give the same pages on any checkout.
+  The CI `site` job runs the script a second time into another folder and fails on any difference.
+- Members get HTML anchors with the prefix `api-` (`useHTMLAnchors` and `anchorPrefix`), so a link
+  to a member resolves whatever id VitePress gives its heading.
+
+TypeScript 7.0 "does not ship with an API"
+([announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/), 2026-07-08,
+read 2026-11-04), and TypeDoc 0.28.20 accepts `typescript` 5.0.x to 6.0.x only (`npm view typedoc
+peerDependencies`, 2026-11-04). TypeDoc support for TypeScript 7 is tracked in
+[TypeStrong/typedoc#3098](https://github.com/TypeStrong/typedoc/issues/3098), which targets
+TypeScript 7.1 and gives no date (read 2026-11-04). So TypeDoc lives in the `site` workspace
+package (`site/package.json`), whose `typescript` is an npm alias to `@typescript/typescript6`
+6.0.2, which installs `typescript` 6.0.3. That is the compatibility package the announcement
+describes. The alias comes from the `typedoc`
+named catalogue in `pnpm-workspace.yaml`. pnpm resolves TypeDoc's `typescript` peer from that
+package, so only TypeDoc gets the TypeScript 6 API; `tsc -b` and the lint still run TypeScript 7.
+A root `overrides` entry cannot do this: an `npm:` override leaves a peer range unchanged
+([pnpm overrides](https://pnpm.io/settings/dependency-resolution), read 2026-11-04). When a TypeDoc
+release supports the TypeScript 7.1 API, the `site` package and the alias go.
 
 ## CLI reference
 
@@ -228,6 +285,7 @@ them under c8, and `pnpm test` and `pnpm run test:unit` run it after the package
 small fixture trees in a temporary folder, and run the entry points as child processes against
 them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts`, `scripts/decision-sources.ts` and
 the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
+`scripts/site-api.ts`,
 `scripts/site-copies.ts`, `scripts/check-site.ts` and `scripts/smoke-site.ts`, the last against a
 local server), `scripts/random-order.ts`, the size check
 (`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), and the release

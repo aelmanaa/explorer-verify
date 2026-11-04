@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { RAW_MAIN } from "../agent-docs.ts";
 import {
+  API_SECTION,
   docsUrlsOf,
   rewriteForSite,
   SITE_URL,
@@ -16,6 +17,7 @@ import {
   sitePath,
   siteProblems,
   siteRewrites,
+  siteSourceExcludes,
   siteSidebar,
   SMOKE_TIMEOUT_MS,
   smokeProblems,
@@ -44,11 +46,18 @@ describe("sitePath", () => {
 });
 
 describe("siteRewrites", () => {
-  it("maps each README.md to index.md", () => {
-    writeFiles(root, { "docs/user/guides/README.md": "# Guides\n" });
+  it("serves docs/user at the root, each README.md as index.md, and site/api under api/", () => {
+    writeFiles(root, {
+      "docs/user/guides/README.md": "# Guides\n",
+      "site/api/index.md": "# API reference\n",
+      "site/api/core-server.md": "# core/server\n",
+    });
     assert.deepEqual(siteRewrites(root), {
-      "README.md": "index.md",
-      "guides/README.md": "guides/index.md",
+      "docs/user/README.md": "index.md",
+      "docs/user/guides/README.md": "guides/index.md",
+      "docs/user/guides/using-from-an-agent.md": "guides/using-from-an-agent.md",
+      "site/api/index.md": "api/index.md",
+      "site/api/core-server.md": "api/core-server.md",
     });
   });
 
@@ -58,6 +67,33 @@ describe("siteRewrites", () => {
       () => siteRewrites(root),
       /^Error: docs\/user\/README\.md and docs\/user\/index\.md would both be index\.md$/,
     );
+  });
+});
+
+describe("siteSourceExcludes", () => {
+  it("hides every Markdown file outside docs/user and site/api, and skips hidden entries", () => {
+    writeFiles(root, {
+      "README.md": "# Repository\n",
+      "notes.txt": "",
+      ".github/pull_request_template.md": "",
+      "docs/README.md": "# Docs\n",
+      "packages/core/README.md": "# core\n",
+      "site/package.json": "{}",
+      "site/.vitepress/config.ts": "",
+      "site/api/index.md": "# API reference\n",
+      "site/dist/index.md": "",
+      "site/notes.md": "",
+    });
+    assert.deepEqual(siteSourceExcludes(root), [
+      "AGENTS.md",
+      "README.md",
+      "docs/README.md",
+      "docs/contributor/**",
+      "packages/**",
+      "site/dist/**",
+      "site/notes.md",
+      "skills/**",
+    ]);
   });
 });
 
@@ -150,6 +186,41 @@ Read the agent page first.
     );
   });
 
+  it("adds a last section that links the Markdown copy of each API reference page", () => {
+    const text = `# explorer-verify
+
+> Verifies contract source.
+
+## User docs
+
+- [Index](${RAW_MAIN}docs/user/README.md): the index
+`;
+    const api = [
+      { page: "index.md", title: "API reference" },
+      { page: "core-server.md", title: "core/server" },
+    ];
+    assert.equal(
+      siteLlmsTxt(text, "1.2.3", api),
+      `# explorer-verify
+
+> Verifies contract source.
+
+This site holds the docs of explorer-verify 1.2.3. Each link is the Markdown copy of a page; drop \`.md\` for the HTML page. The npm package ships the docs of the installed version under \`docs/\`, and jsDelivr serves those of any published version: https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt.
+
+## User docs
+
+- [Index](${SITE_URL}index.md): the index
+
+${API_SECTION}
+
+Generated from the TSDoc of each package entry point. The \`.d.ts\` files in the npm packages carry the same comments.
+
+- [API reference](${SITE_URL}api/index.md): the list of entry points
+- [core/server](${SITE_URL}api/core-server.md): the exports of \`core/server\`
+`,
+    );
+  });
+
   it("throws without a summary blockquote", () => {
     assert.throws(() => siteLlmsTxt("# explorer-verify\n", "1.2.3"), /has no summary blockquote/);
   });
@@ -187,6 +258,23 @@ describe("siteSidebar", () => {
       },
     ]);
   });
+
+  it("ends with the API reference, its index first, once site/api holds pages", () => {
+    writeFiles(root, {
+      "site/api/core.md": "# core\n",
+      "site/api/core-server.md": "# core/server\n",
+      "site/api/index.md": "# API reference\n",
+    });
+    assert.deepEqual(siteSidebar(root).at(-1), {
+      text: "API reference",
+      collapsed: false,
+      items: [
+        { text: "API reference", link: "/api/" },
+        { text: "core", link: "/api/core" },
+        { text: "core/server", link: "/api/core-server" },
+      ],
+    });
+  });
 });
 
 describe("writeSiteCopies", () => {
@@ -213,6 +301,22 @@ describe("writeSiteCopies", () => {
       new RegExp(`\\(${SITE_URL}guides/using-from-an-agent\\.md\\)`),
     );
     assert.ok(existsSync(path.join(out, path.relative("docs/user", AGENT))));
+  });
+
+  it("copies the API reference pages under api/ and lists them in llms.txt", () => {
+    const page = "# core/server\n\nSee [core](core.md#api-verify).\n";
+    writeFiles(root, {
+      "site/api/index.md": "# API reference\n",
+      "site/api/core-server.md": page,
+    });
+    const out = path.join(root, "out");
+    assert.deepEqual(writeSiteCopies(root, out, "1.2.3").slice(-3), [
+      "api/index.md",
+      "api/core-server.md",
+      "llms.txt",
+    ]);
+    assert.equal(read(out, "api/core-server.md"), page);
+    assert.match(read(out, "llms.txt"), new RegExp(`\\(${SITE_URL}api/core-server\\.md\\)`));
   });
 });
 

@@ -31,17 +31,18 @@ still to come.
 | [Routescan](reference/routescan.md)                                                            | What is sent to Routescan, and how each answer becomes a result          |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
+| [API reference](https://aelmanaa.github.io/explorer-verify/api/)                               | Every export of each package, generated from TSDoc, on the docs site     |
 | [Match types](explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |
 | [Etherscan plans and attribution](explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client        |
 
 Pages land with the features they describe, in four kinds (the Diátaxis layout used by [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)):
 
-| Folder         | Kind              | Planned first page                                                         |
-| -------------- | ----------------- | -------------------------------------------------------------------------- |
-| `tutorials/`   | Learning by doing | In place: deploy a contract from a dapp, then verify it                    |
-| `guides/`      | Task how-tos      | Verify from a browser; verify from CI with the CLI                         |
-| `reference/`   | Exact facts       | API reference generated from TSDoc; errors; supported chains and explorers |
-| `explanation/` | Background        | In place: match types; Etherscan plans and attribution                     |
+| Folder         | Kind              | Planned first page                                      |
+| -------------- | ----------------- | ------------------------------------------------------- |
+| `tutorials/`   | Learning by doing | In place: deploy a contract from a dapp, then verify it |
+| `guides/`      | Task how-tos      | Verify from a browser; verify from CI with the CLI      |
+| `reference/`   | Exact facts       | Supported chains and explorers                          |
+| `explanation/` | Background        | In place: match types; Etherscan plans and attribution  |
 
 Each user page states the version it describes in a `Version:` line and links
 [llms.txt](../../llms.txt) near the top. Once published, the npm package will ship these pages
@@ -54,3 +55,7 @@ npm package, or jsDelivr for any published version:
 `https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt`. On the site, append `.md` to a
 page's URL for its Markdown copy; <https://aelmanaa.github.io/explorer-verify/llms.txt> lists
 every copy.
+
+The [API reference](https://aelmanaa.github.io/explorer-verify/api/) on the site lists every
+export of each package, generated from TSDoc. It is not in `docs/user/` and not in the package:
+the `.d.ts` files of an installed package carry the same comments.

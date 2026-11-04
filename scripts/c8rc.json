@@ -22,6 +22,7 @@
     "scripts/size-budget.ts",
     "scripts/check-site.ts",
     "scripts/site-copies.ts",
+    "scripts/site-api.ts",
     "scripts/site-docs.ts",
     "scripts/smoke-site.ts",
     "scripts/verify-release-tag.ts"

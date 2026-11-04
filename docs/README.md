@@ -32,6 +32,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Routescan](user/reference/routescan.md)                                                            | What is sent to Routescan, and how each answer becomes a result          |
 | [Logging and events](user/reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](user/reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
+| [API reference](https://aelmanaa.github.io/explorer-verify/api/)                                    | Every export of each package, generated from TSDoc, on the docs site     |
 | [Match types](user/explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |
 | [Etherscan plans and attribution](user/explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client        |
 | [Agent skill](../skills/explorer-verify/SKILL.md)                                                   | The skill shipped in the package, with examples tested against the build |
