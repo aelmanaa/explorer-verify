@@ -43,7 +43,8 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 
 - **R-IN-1** The caller passes the chain id, the contract address, the fully qualified contract name
   (`path:Name`), the compiler version (full form, `0.8.24+commit.e11b9ed9`) and the compiler's
-  Standard JSON input.
+  Standard JSON input. Optional fields: the constructor arguments (R-IN-3), the creation
+  transaction hash and the library link addresses, `libraries` (R-IN-4).
 - **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
   (decision 0005). A build helper (R-DX-2) makes it easy to produce.
 - **R-IN-3** Constructor arguments are optional. When absent, the library derives them from the
@@ -54,7 +55,16 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   so only the explorer source applies
   ([live probes, D](research/2026-11-03-m2-live-probes.md#d-similar-match-and-getcontractcreation-for-a-factory-deployment)).
   When the caller supplies them, they win.
-- **R-IN-4** Library link addresses are accepted for contracts that use external libraries.
+- **R-IN-4** Library link addresses are accepted for contracts that use external libraries, as
+  `libraries`: addresses keyed by `path:Name`, where the path is a source of the input and not a
+  local path. Validation rejects an address that differs from the one `settings.libraries`
+  already holds for the same library. `verify()` sends the compiler input unchanged: for a
+  contract linked after compiling, adding the addresses to `settings.libraries` changes the
+  metadata hash, and Sourcify then gave only a partial match while Etherscan found the address
+  itself
+  ([live probes, E](research/2026-11-03-m2-live-probes.md#e-a-contract-linked-to-an-external-library)).
+  `linkLibraries` merges the addresses into `settings.libraries` for an explorer that needs them
+  there ([decision 0025](decisions/0025-library-addresses-not-merged-by-default.md)).
 - **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
   metadata hash in the deployed bytecode, fetches the metadata and sources from a caller-configured
   IPFS gateway or fetch function (R-SEC-2) or from Sourcify, never from a built-in gateway host, and

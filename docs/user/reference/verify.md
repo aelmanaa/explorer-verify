@@ -68,6 +68,56 @@ and `explorerUrl`.
 A partial match found by the lookup is returned as `already-verified`, without a submit. To turn it
 into an exact match, submit the exact sources another way; an option for this is planned.
 
+## Linked libraries
+
+A contract that calls an external library has the library's address in its deployed code. Pass
+those addresses in `libraries`, keyed by the library's fully qualified name:
+
+```ts
+import { linkLibraries, validateInput, verify } from "explorer-verify";
+
+const input = validateInput({
+  chainId: 11155111,
+  address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  ...built, // from buildVerifyInput
+  libraries: { "src/MathLib.sol:MathLib": "0xd0B737fC4e4195144824eB07b2d1bb778525b86B" },
+});
+
+// Sends compiler.input unchanged.
+const result = await verify(input);
+
+// For an explorer that needs the addresses in the input:
+const linked = linkLibraries(input);
+// linked.compiler.input.settings.libraries:
+// { "src/MathLib.sol": { MathLib: "0xd0b737fc4e4195144824eb07b2d1bb778525b86b" } }
+```
+
+`validateInput` checks each entry. The key must be `path:Name`, with a path of
+`compiler.input.sources` that is not a local path (absolute, home, drive, file URL, or climbing
+above the root). The value must be an address. When `settings.libraries` already holds a value for
+the same library under its path, that value must be the same address, in any case; any other value
+is rejected. Each issue names
+`libraries.<position>`, counted from 1 in key order, and never repeats the key. Addresses come
+back in lower case.
+
+`verify()` sends `compiler.input` as it is and does not add the addresses. Foundry and Hardhat
+compile without the addresses and link afterwards. Solidity's metadata includes
+`settings.libraries`, so an input with the addresses added compiles to a different metadata hash
+than the deployed code. In a live test on 2026-11-03, with two contracts linked after compiling
+([probe E](../../contributor/research/2026-11-03-m2-live-probes.md#e-a-contract-linked-to-an-external-library)):
+
+| Backend   | Input with the addresses | Input without them |
+| --------- | ------------------------ | ------------------ |
+| Sourcify  | `partial`                | `exact`            |
+| Etherscan | exact match              | exact match        |
+
+In that test, Etherscan found the library address itself. Call `linkLibraries(input)` only for an explorer that
+needs the addresses in the input. It validates the input, keeps every entry `settings.libraries`
+already holds, and returns a new input. It also rejects a value for the same library under the
+empty path `""`, which solc applies to every file, unless it is the same address, and a
+`settings.libraries` or path entry that is not an object. When the contract was compiled with `settings.libraries`
+set, the input already holds the addresses: submit it as it is.
+
 ## Options
 
 Every field is optional.

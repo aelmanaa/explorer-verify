@@ -145,6 +145,11 @@ the build-info input:
 - Solidity metadata records a linked library's address in lower case, so `settings.libraries`
   holds it in lower case. The address is the same.
 
+Foundry links libraries after compiling, unless `libraries` is set in `foundry.toml`. Submit the
+input as it is: adding the addresses to `settings.libraries` changes the metadata hash, and in a
+live test on 2026-11-03 Sourcify then gave only a partial match. To record the addresses, pass them in `libraries`; see
+[Linked libraries](../reference/verify.md#linked-libraries).
+
 A contract in `test/` or `script/` that deploys another contract needs `--build-info`. Its
 metadata can list a source under `foundry-pp/`, which Foundry generates for the compile and does
 not write to the project. After a default build, the rebuild fails with `incomplete-input` naming

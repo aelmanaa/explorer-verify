@@ -38,6 +38,7 @@ These steps never submit. You can run them without asking.
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Build    | `buildVerifyInput(documents)` builds the compiler input and contract name from parsed build files. Sends nothing                   |
 | Validate | `validateInput(input)` checks the input locally and lists every problem. Sends nothing                                             |
+| Link     | `linkLibraries(input)` validates the input and adds `libraries` to `settings.libraries`. Sends nothing                             |
 | Dry run  | Not available yet. Planned: validates, resolves the explorer, builds the request and asks whether the contract is already verified |
 | Lookup   | Not available yet as its own call. `verify()` runs it before it submits                                                            |
 | Status   | [`checkStatus(handle)`](../reference/check-status.md) asks the explorer about a submission it already has. Never submits           |

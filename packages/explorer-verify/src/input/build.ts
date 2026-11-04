@@ -14,6 +14,7 @@ import {
   sourceFingerprint,
 } from "./metadata.ts";
 import type { RebuiltInput, SolidityMetadata } from "./metadata.ts";
+import { isLocalPath } from "./paths.ts";
 import { validateInput } from "./validate.ts";
 
 /**
@@ -72,10 +73,6 @@ export interface BuiltVerifyInput {
 
 const STANDARD_JSON_FIELDS = ["language", "sources", "settings"] as const;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-// After optional spaces: a Unix or Windows root (`/`, `\`, UNC), a home path (`~`, `~name/`), a
-// drive (`C:\`, `C:/` or drive-relative `C:file`) or a file URL, in any case.
-const ABSOLUTE_PATH = /^\s*(?:[/\\]|~|[a-z]:|file:)/i;
-const SEGMENT_SEPARATOR = /[/\\]/;
 const MAX_CANDIDATES = 20;
 const MAX_POSITIONS = 5;
 // The deepest nesting compared between two metadata documents, as validateInput allows.
@@ -163,28 +160,6 @@ function readBuildId(value: unknown, findings: Findings): void {
   if (typeof value === "string") {
     findings.buildIds.add(value);
   }
-}
-
-/**
- * Whether `path` would publish a location on the build machine: an absolute path, a home path, a
- * drive, a file URL, or a relative path whose `..` segments climb above the project root.
- */
-function isLocalPath(path: string): boolean {
-  if (ABSOLUTE_PATH.test(path)) {
-    return true;
-  }
-  let depth = 0;
-  for (const segment of path.split(SEGMENT_SEPARATOR)) {
-    if (segment === "..") {
-      depth--;
-      if (depth < 0) {
-        return true;
-      }
-    } else if (segment !== "" && segment !== ".") {
-      depth++;
-    }
-  }
-  return false;
 }
 
 /**
