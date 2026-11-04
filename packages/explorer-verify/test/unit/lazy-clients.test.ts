@@ -252,9 +252,12 @@ const RUNS: [
 /** Lets the pending promise jobs run, so the call reaches the client load. */
 async function settleJobs(): Promise<void> {
   await new Promise<void>((resolve) => {
-    setImmediate(resolve);
+    realImmediate(resolve);
   });
 }
+
+/** `setImmediate` as the runtime gives it, kept before any test mocks it. */
+const realImmediate = setImmediate;
 
 /** What `promise` settles with: `{ resolved }` or the rejection reason. */
 async function outcomeOf(promise: Promise<unknown>): Promise<unknown> {
@@ -269,7 +272,12 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
     // The load's deadline runs on AbortSignal.timeout, which fake timers do not drive, so this
     // test waits for real: 5 ms.
     it(`${name}: a load that never ends throws timeout when the budget runs out`, async () => {
-      const error = await outcomeOf(run(HUNG, { fetch: noFetch, timeoutMs: 5 }));
+      // Node does not keep a process alive for AbortSignal.timeout, and the hung loader holds no
+      // handle; this interval keeps the test process running until the deadline.
+      const alive = setInterval(() => undefined, 1_000);
+      const error = await outcomeOf(run(HUNG, { fetch: noFetch, timeoutMs: 5 })).finally(() => {
+        clearInterval(alive);
+      });
       assert.ok(error instanceof ExplorerVerifyError, String(error));
       assert.deepEqual(error.details, { code: "timeout", backend: "sourcify", timeoutMs: 5 });
       assert.equal(
@@ -278,32 +286,37 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
       );
     });
 
-    it(`${name}: fake timers run all at once do not end a load that settles a few turns later`, async (t: TestContext) => {
-      t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
-      // A fresh loader, so nothing is cached: it settles after five real event-loop turns, as a
-      // dynamic import does on a slow runtime.
-      const dependencies: FlowDependencies = {
-        backends: {
-          sourcify: async () => {
-            for (let turn = 0; turn < 5; turn += 1) {
-              await settleJobs();
-            }
-            return exactSourcify;
+    for (const apis of [
+      ["setTimeout", "Date"],
+      ["setTimeout", "setImmediate", "Date"],
+    ] as const) {
+      it(`${name}: fake ${apis.join(", ")} run all at once do not end a load that settles a few turns later`, async (t: TestContext) => {
+        t.mock.timers.enable({ apis: [...apis], now: 0 });
+        // A fresh loader, so nothing is cached: it settles after five real event-loop turns, as
+        // a first dynamic import does on Node 24.0.0.
+        const dependencies: FlowDependencies = {
+          backends: {
+            sourcify: async () => {
+              for (let turn = 0; turn < 5; turn += 1) {
+                await settleJobs();
+              }
+              return exactSourcify;
+            },
           },
-        },
-        table: TABLE,
-      };
-      const state = { settled: false };
-      const pending = outcomeOf(run(dependencies, { fetch: noFetch })).finally(() => {
-        state.settled = true;
+          table: TABLE,
+        };
+        const state = { settled: false };
+        const pending = outcomeOf(run(dependencies, { fetch: noFetch })).finally(() => {
+          state.settled = true;
+        });
+        while (!state.settled) {
+          t.mock.timers.runAll();
+          await settleJobs();
+        }
+        const outcome = await pending;
+        assert.ok(!(outcome instanceof Error), String(outcome));
       });
-      while (!state.settled) {
-        t.mock.timers.runAll();
-        await settleJobs();
-      }
-      const outcome = await pending;
-      assert.ok(!(outcome instanceof Error), String(outcome));
-    });
+    }
 
     it(`${name}: a load that never ends rejects with signal.reason when the signal aborts`, async () => {
       const controller = new AbortController();

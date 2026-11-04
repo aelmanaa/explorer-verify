@@ -28,6 +28,14 @@ stopgap until issue [#136](https://github.com/aelmanaa/explorer-verify/issues/13
   `setTimeout` and `Date` and runs every timer at once would otherwise end a load that is about to
   settle. In CI on Node 24.0.0, a test that ran every fake timer at once hit the deadline before
   the first dynamic import settled. Node's MockTimers does not drive `AbortSignal.timeout`.
+- Its timer does not keep a Node process alive. No `setTimeout` runs beside it, not even one that
+  only keeps the process alive: with fake timers, running it would move the fake clock to the
+  deadline and spend the budget of every request after the load. A real dynamic import holds its
+  own handles while it loads. The load itself is awaited directly: no step waits on a timer or a
+  macrotask once the import has settled.
+- A first dynamic import takes real event-loop turns: 17 on Node 24.0.0 and 1 on 22.18.0, 24.21.0
+  and 26.0.0, measured locally on 2026-11-04 for the Sourcify client. A test that runs fake timers
+  for a fixed number of turns must allow for them; two such loops were raised to 3,000 turns.
 - Each loaded client is kept, by loader, for the life of the page or process. A later call takes
   it at once, with no wait and no timer. A load that failed is not kept, so the next call tries
   again.

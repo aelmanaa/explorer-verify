@@ -155,7 +155,10 @@ async function bounded(
   }
   // The deadline runs on AbortSignal.timeout, not setTimeout: a test or an app that fakes
   // setTimeout and Date and runs every timer at once cannot end a load that is about to settle.
-  // Node's MockTimers does not drive it (checked on Node 24.0.0 and 24.21.0).
+  // Node's MockTimers does not drive it (checked on Node 22.18.0, 24.0.0 and 24.21.0). The load
+  // itself is awaited directly: nothing here waits on a timer or a macrotask.
+  // No setTimeout runs beside it, not even one that only keeps Node alive: a faked one would let
+  // the fake clock jump to the deadline and spend the budget of every request after the load.
   const deadline = AbortSignal.timeout(
     Math.min(Math.max(0, budget.deadline - Date.now()), MAX_TIMER_MS),
   );
