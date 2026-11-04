@@ -11,6 +11,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 | Page                                                                                                | What it covers                                                           |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Deploy a contract from a dapp and verify it](user/tutorials/deploy-and-verify-from-a-dapp.md)      | Tutorial: deploy from a browser wallet, verify on Sourcify, resume       |
 | [Verify a contract shipped in an npm package](user/guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
 | [Verify a contract from a Foundry project](user/guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
 | [Verify a contract from a Hardhat project](user/guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |

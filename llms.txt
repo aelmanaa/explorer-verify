@@ -7,6 +7,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 ## User docs
 
 - [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages and the planned ones
+- [Deploy a contract from a dapp and verify it](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/tutorials/deploy-and-verify-from-a-dapp.md): tutorial: ship the build files with a dapp, deploy from a browser wallet on Sepolia, verify on Sourcify with no key, resume after a reload, read the result, and verify on Etherscan through the server handler
 - [Using explorer-verify from an agent](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/using-from-an-agent.md): which calls are safe, which one submits, where keys come from
 - [Verify a contract shipped in an npm package](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-a-contract-from-an-npm-package.md): build the verification input from build-info, artifacts, Standard JSON or Solidity metadata and sources of unknown origin
 - [Verify a contract from a Hardhat project](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-from-a-hardhat-project.md): `@explorer-verify/hardhat` finds a contract's artifact and build-info in a Hardhat 2 or Hardhat 3 project and builds the input

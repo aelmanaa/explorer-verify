@@ -370,17 +370,21 @@ export function runExample(
   return { stdout: run.stdout, stderr: run.stderr, status: run.status };
 }
 
-/** {@link runExample} without blocking, so runs in separate processes can overlap. */
+/**
+ * {@link runExample} without blocking, so runs in separate processes can overlap. `env` adds
+ * variables for the run, such as one a preload reads.
+ */
 export async function startExample(
   dir: string,
   file: string,
   fixtures: readonly string[],
   preloads: readonly string[] = [],
+  env: Readonly<Record<string, string>> = {},
 ): Promise<Run> {
   return await new Promise((resolve) => {
     const child = spawn(process.execPath, exampleArgs(file, preloads), {
       cwd: dir,
-      env: exampleEnv(fixtures),
+      env: { ...exampleEnv(fixtures), ...env },
     });
     let stdout = "";
     let stderr = "";
