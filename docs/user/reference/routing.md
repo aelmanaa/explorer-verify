@@ -34,9 +34,10 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 ## The routing table
 
 The table is `src/routing/table.json` in the package. In this release it lists 94 chains. Every row
-has Sourcify, and the 57 chains of the Etherscan chainlist also have Etherscan v2. The Routescan
-and Blockscout clients have no rows yet; reach them with `route.backend` and `route.apiUrl`, as
-[Routescan](routescan.md) and [Blockscout](blockscout.md) show. A chain has a row when
+has Sourcify, and the 57 chains of the Etherscan chainlist also have Etherscan v2. The Routescan,
+Blockscout and Etherscan-compatible clients have no rows yet; reach them with `route.backend` and
+`route.apiUrl`, as [Routescan](routescan.md), [Blockscout](blockscout.md) and
+[Etherscan-compatible](etherscan-compatible.md) show. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
 [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
 started from. Both lists were read on 2026-11-04.
@@ -113,6 +114,8 @@ higher.
   of every Etherscan v2 request, in one place. A `chainid` in the query of your `route.apiUrl`, in
   any letter case, is dropped, so a request never goes to another chain than the call's.
 - Routescan URLs hold the network and the chain id in the path, so the route adds no query.
+- A standalone Etherscan-compatible explorer serves one chain, so the route adds no `chainid`. A
+  query in your `route.apiUrl` is kept as you wrote it ([Etherscan-compatible](etherscan-compatible.md)).
 - A Blockscout instance serves one chain at `<origin>/api`. Its `route.apiUrl` must end in `/api`
   once trailing slashes are removed, or the call throws `invalid-input` naming `route.apiUrl`. The
   client derives the lookup URL, `<apiUrl>/v2/smart-contracts/<address>`, from it, so a path
@@ -136,10 +139,9 @@ const result = await verify(input, { allowSourcifyFallback: true });
 
 `VerifyOptions.route` is `{ backend?, apiUrl?, apiKey? }`:
 
-- `backend` without `apiUrl` picks a backend from the chain's row. A backend this version has no
-  client for throws `invalid-input` naming `route.backend`, and the hint lists the backends it has.
-  In this release those are `sourcify`, `etherscan-v2`, `routescan` and `blockscout`. A backend
-  with a client that the row does not list throws `unsupported-chain`.
+- `backend` without `apiUrl` picks a backend from the chain's row. Every backend name has a
+  client in this release, and one that the row does not list throws `unsupported-chain`.
+  No row lists `etherscan-compatible`, so it needs `apiUrl` ([Etherscan-compatible](etherscan-compatible.md)).
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
   in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
   name, password or fragment. A query string is sent with every request and shown as `?REDACTED`

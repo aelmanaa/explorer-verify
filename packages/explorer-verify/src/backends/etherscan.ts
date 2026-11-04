@@ -1,6 +1,7 @@
 /**
  * The Etherscan API v2 client (R-BE-1), and {@link etherscanStyle}, which builds it and the other
- * clients of APIs that answer as Etherscan does, such as Routescan's (R-BE-5). For Etherscan, one
+ * clients of APIs that answer as Etherscan does: Routescan's (R-BE-5) and standalone explorers'
+ * (R-BE-2). For Etherscan, one
  * API base serves every chain, with `chainid` in the query of each request. Every request is a
  * form-encoded POST, so the key goes in the body and never in the URL (decision 0016, R-SEC-1).
  *
@@ -53,7 +54,10 @@ const NOT_INDEXED = "Unable to locate ContractCode at";
 const NO_CHAIN = "Missing or unsupported chainid parameter";
 // Routescan's answer for a chain or network it does not serve, in `message`, with `result` null.
 const CHAIN_NOT_SUPPORTED = "chain not supported";
+// Etherscan's answer on its retired v1 hosts, such as api.etherscan.io/api or
+// api-sepolia.basescan.org/api (live, 2026-11-03 and 2026-11-04).
 const V1_ENDPOINT = "You are using a deprecated V1 endpoint";
+const V1_HINT = "Use the etherscan-v2 backend without route.apiUrl.";
 const PENDING = "Pending in queue";
 const PASS = "Pass - Verified";
 const FAIL = "Fail - Unable to verify";
@@ -109,7 +113,9 @@ export interface Dialect {
  * `Max calls per sec rate limit reached` is retried by the HTTP layer as a 429 is. A daily limit
  * throws `quota-exceeded`, and a key answer `missing-api-key` or `api-key-rejected`, at once.
  * Etherscan's unsupported `chainid` answer and Routescan's `chain not supported` both throw
- * `unsupported-chain`.
+ * `unsupported-chain`. Etherscan's `You are using a deprecated V1 endpoint` throws
+ * `unexpected-response`, never `failed`, with a hint to use the `etherscan-v2` backend without
+ * `route.apiUrl`: the route points at a retired Etherscan host.
  *
  * @param dialect - The backend, its name in messages, and how it sends a lookup or a poll.
  * @returns The client.
@@ -321,11 +327,10 @@ export function etherscanStyle(dialect: Dialect): Backend {
       );
     }
     if (result?.startsWith(V1_ENDPOINT) === true) {
-      throw unexpected(
-        ctx,
-        answer,
-        "Etherscan answered that the request went to its deprecated v1 API; the route must name the v2 API.",
-        true,
+      throw new ExplorerVerifyError(
+        { code: "unexpected-response", backend: name, status: answer.status, excerpt: answer.text },
+        `${label} answered that the request went to Etherscan's deprecated v1 API.`,
+        { hint: V1_HINT, secrets: ctx.http.secrets },
       );
     }
     return result;
@@ -362,8 +367,29 @@ export function etherscanStyle(dialect: Dialect): Backend {
 export const etherscan: Backend = etherscanStyle({
   name: "etherscan-v2",
   label: "Etherscan",
-  read: (ctx, backend, fields) => form(ctx, backend, fields, "safe"),
+  read: post,
 });
+
+/**
+ * A lookup or a status request as Etherscan takes it: a form-encoded POST to
+ * `route.requestUrl("")`, safe to retry, with the key in the body when `withKey` allows one.
+ *
+ * @param ctx - The call's context.
+ * @param backend - The backend the request is for, passed to `withKey`.
+ * @param fields - `action` and its fields, without `module`.
+ * @returns The request.
+ * @example
+ * ```ts
+ * const req = post(ctx, "etherscan-compatible", { action: "getsourcecode", address });
+ * ```
+ */
+export function post(
+  ctx: Context,
+  backend: BackendName,
+  fields: Record<string, string>,
+): HttpRequest {
+  return form(ctx, backend, fields, "safe");
+}
 
 /**
  * A form-encoded POST to `route.requestUrl("")`, which for Etherscan holds `chainid` in the

@@ -4,9 +4,8 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-The Etherscan v2 and Routescan clients throw this code; they read the same answers. The
-standalone client will throw it too ([#63](https://github.com/aelmanaa/explorer-verify/issues/63));
-it is not in this release yet.
+The Etherscan v2, Routescan and [Etherscan-compatible](../etherscan-compatible.md) clients throw
+this code; they read the same answers.
 
 Cause: the explorer refused the API key, as Etherscan's `Invalid API Key (#err2)`. The key may be
 mistyped, revoked, or issued by another explorer. `details.backend` names the backend. The error

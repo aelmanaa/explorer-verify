@@ -82,6 +82,9 @@ export const DEFAULT_DEPENDENCIES: FlowDependencies = {
     sourcify: async () => (await import("../backends/sourcify.ts")).sourcify,
     /** Loads the Etherscan v2 client. */
     "etherscan-v2": async () => (await import("../backends/etherscan.ts")).etherscan,
+    /** Loads the standalone Etherscan-compatible client, which imports the Etherscan v2 client's request code. */
+    "etherscan-compatible": async () =>
+      (await import("../backends/etherscan-compatible.ts")).etherscanCompatible,
     /** Loads the Routescan client, which imports the Etherscan v2 client's request code. */
     routescan: async () => (await import("../backends/routescan.ts")).routescan,
     /** Loads the Blockscout client. */

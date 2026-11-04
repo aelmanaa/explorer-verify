@@ -1,0 +1,43 @@
+{
+  "source": "Live response from api-sepolia.basescan.org to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T12:53:38.308Z: getsourcecode as the etherscan-compatible client sends it, a form-encoded POST without chainid and without a key. The nel, report-to, cf-ray and alt-svc headers are removed.",
+  "request": {
+    "method": "POST",
+    "url": "https://api-sepolia.basescan.org/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "245",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 12:53:39 GMT",
+      "server": "cloudflare",
+      "svid": "base1",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "You are using a deprecated V1 endpoint, switch to Etherscan API V2 using https://docs.etherscan.io/v2-migration"
+    }
+  },
+  "recordedAt": "2026-11-04T12:53:38.308Z"
+}

@@ -28,11 +28,9 @@ Etherscan plan, Sourcify comes first even with a key; with a paid plan, add
 From a browser, keep the key on your server and pass `route: { backend: "etherscan-v2" }` with a
 `fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
 
-The standalone client comes next. The key options below are already checked, and a bad value
-throws `invalid-input` today. Where a section below says "from the clients on", the rule takes
-effect with that client and, for `apiKeys`, once the routing table lists the backend for the chain
-([#63](https://github.com/aelmanaa/explorer-verify/issues/63)). The [Routescan](routescan.md) client
-sends `route.apiKey` today.
+The [Routescan](routescan.md) and [Etherscan-compatible](etherscan-compatible.md) clients send
+`route.apiKey`. A key in `apiKeys` takes effect once the routing table lists its backend for the
+chain; the table lists no Routescan rows yet.
 
 ## `apiKeys`
 
@@ -80,8 +78,8 @@ a non-enumerable property or a Symbol key is ignored. The object must be a plain
 ## `route.apiKey`
 
 A standalone Etherscan-compatible explorer has its own host and its own key, so `apiKeys` cannot
-bind its key to one host. From the clients on, pass that key as `route.apiKey`, next to the
-explorer's `apiUrl`:
+bind its key to one host. Pass that key as `route.apiKey`, next to the explorer's `apiUrl`
+([Etherscan-compatible](etherscan-compatible.md)):
 
 ```ts
 const options = {
@@ -97,10 +95,9 @@ const options = {
 wins over `apiKeys` for that backend. It needs `route.apiUrl` in the same override: without it, the
 call throws `invalid-input` naming `route.apiKey`, so a key meant for one explorer never reaches the
 routing table's host for the chain. The same value rules apply. A backend that takes no key, such
-as `sourcify`, throws `invalid-input` naming `route.apiKey`. The `etherscan-compatible` client
-comes next, so this example throws `invalid-input` naming `route.backend` today. The `etherscan-v2`
-and `routescan` clients take `route.apiKey` now; for Routescan it goes in the `apikey` header
-([Routescan](routescan.md#api-key)).
+as `sourcify`, throws `invalid-input` naming `route.apiKey`. For `etherscan-compatible` and
+`etherscan-v2` the key goes in the `apikey` field of the form body; for Routescan it goes in the
+`apikey` header ([Routescan](routescan.md#api-key)).
 
 ## A missing key
 

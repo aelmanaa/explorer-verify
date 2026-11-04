@@ -8,6 +8,7 @@ import { setImmediate } from "node:timers";
 import type { BackendName } from "../../src/backend-names.ts";
 import type { Backend, Target } from "../../src/backends/backend.ts";
 import { blockscout } from "../../src/backends/blockscout.ts";
+import { etherscanCompatible } from "../../src/backends/etherscan-compatible.ts";
 import { etherscan } from "../../src/backends/etherscan.ts";
 import { routescan } from "../../src/backends/routescan.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
@@ -97,7 +98,7 @@ describe("the shipped clients load on first use (decision 0031)", () => {
       "etherscan-v2": etherscan,
       routescan,
       blockscout,
-      "etherscan-compatible": undefined,
+      "etherscan-compatible": etherscanCompatible,
     };
     for (const [name, client] of Object.entries(DEFAULT_DEPENDENCIES.backends)) {
       assert.equal(typeof client, "function", name);
@@ -108,6 +109,7 @@ describe("the shipped clients load on first use (decision 0031)", () => {
     assert.deepEqual(Object.keys(DEFAULT_DEPENDENCIES.backends), [
       "sourcify",
       "etherscan-v2",
+      "etherscan-compatible",
       "routescan",
       "blockscout",
     ]);

@@ -1017,9 +1017,9 @@ describe("verify(): invalid input, options and route", () => {
       { route: { apiUrl: "https://example.com/server#x" } },
     ],
     [
-      "route.backend etherscan-compatible, which has no client",
+      "route.apiKey for etherscan-compatible without route.apiUrl",
       makeInput(),
-      { route: { backend: "etherscan-compatible" } },
+      { route: { backend: "etherscan-compatible", apiKey: "dummy-standalone-key-17x" } },
     ],
   ];
   for (const [name, value, options] of cases) {
