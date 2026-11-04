@@ -65,6 +65,12 @@ export interface Context {
    * through `withKey`, which decides whether the request gets a key (R-SEC-2). Absent means none.
    */
   readonly apiKeys?: ApiKeysReader;
+  /**
+   * The caller's `pollIntervalMs`, for a client that waits between two tries of one step, as the
+   * Etherscan client does when a submit comes before the explorer has indexed the contract.
+   * Absent means 3000.
+   */
+  readonly pollIntervalMs?: number;
 }
 
 /**

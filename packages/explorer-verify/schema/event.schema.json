@@ -78,7 +78,9 @@
           "type": "integer",
           "minimum": 2
         },
-        "reason": { "enum": ["rate-limited", "network", "server-error", "duplicate-submission"] },
+        "reason": {
+          "enum": ["rate-limited", "network", "server-error", "duplicate-submission", "not-indexed"]
+        },
         "delayMs": {
           "description": "The wait before that attempt, in milliseconds.",
           "type": "integer",

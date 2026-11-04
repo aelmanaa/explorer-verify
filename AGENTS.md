@@ -5,8 +5,9 @@ explorer-verify will verify the source of deployed smart contracts on block expl
 a CLI, and a self-hosted server handler keeps Etherscan keys off the client.
 
 Status: in design; nothing is published to npm yet. The repository has the toolchain, a typed public
-contract (`packages/explorer-verify/src/types.ts`), the plan, the first explorer client
-(Sourcify, `packages/explorer-verify/src/backends/sourcify.ts`), `verify()`
+contract (`packages/explorer-verify/src/types.ts`), the plan, the explorer clients for Sourcify
+(`packages/explorer-verify/src/backends/sourcify.ts`) and Etherscan v2
+(`packages/explorer-verify/src/backends/etherscan.ts`), `verify()`
 (`packages/explorer-verify/src/flow/verify.ts`) and `checkStatus()`
 (`packages/explorer-verify/src/flow/status.ts`).
 
@@ -50,8 +51,9 @@ from a Foundry project in
 [docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md),
 and from a Hardhat project in
 [docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md).
-[docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
-sends and how it reads each answer. The logger and the stage events are in
+[docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) and
+[docs/user/reference/etherscan.md](docs/user/reference/etherscan.md) say what the Sourcify and
+Etherscan clients send and how they read each answer. The logger and the stage events are in
 [docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
 [docs/user/guides/run-the-server-handler.md](docs/user/guides/run-the-server-handler.md) runs the
 server handler in Next.js and Cloudflare Workers, from the examples in `examples/`.

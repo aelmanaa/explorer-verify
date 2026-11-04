@@ -6,6 +6,7 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
+import { etherscan } from "../backends/etherscan.ts";
 import { sourcify } from "../backends/sourcify.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
@@ -63,7 +64,9 @@ export interface FlowDependencies {
 }
 
 /** The backend clients `verify()` and `checkStatus()` use. */
-export const DEFAULT_DEPENDENCIES: FlowDependencies = { backends: { sourcify } };
+export const DEFAULT_DEPENDENCIES: FlowDependencies = {
+  backends: { sourcify, "etherscan-v2": etherscan },
+};
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
@@ -337,6 +340,7 @@ export function openCall(
     ctx: {
       route,
       apiKeys,
+      pollIntervalMs: settings.pollIntervalMs,
       http: httpContext(route, settings, observer, secrets, budget, dependencies),
     },
     budget,
@@ -749,12 +753,12 @@ async function lastLookup(
     if (mustRethrow(error, settings.signal)) {
       throw error;
     }
-    throw notConfirmed(call, handle, stopped.why, stopped.cause ?? error);
+    throw notConfirmed(call, handle, stopped.why, stopped.cause ?? error, "failed");
   }
   if (match !== undefined) {
     return finish(call, "verified", match);
   }
-  throw notConfirmed(call, handle, stopped.why, stopped.cause);
+  throw notConfirmed(call, handle, stopped.why, stopped.cause, "found no match");
 }
 
 /**
@@ -858,20 +862,22 @@ function graceContext(call: Call): Context {
 
 /**
  * `not-confirmed`: the job may still be running, and `checkStatus` with the handle continues.
- * The message says why polling stopped: the budget ran out, or the status polls kept failing.
+ * The message says why polling stopped, the budget ran out or the status polls kept failing, and
+ * whether the last lookup failed or found no match.
  */
 function notConfirmed(
   call: Call,
   handle: Handle,
   why: "budget" | "failures",
   cause: unknown,
+  lookup: "failed" | "found no match",
 ): ExplorerVerifyError {
   const { backend, settings, ctx } = call;
   const reason =
     why === "budget"
       ? `the ${String(settings.timeoutMs)} ms budget ran out`
       : `${String(MAX_POLL_FAILURES)} status polls in a row failed`;
-  const message = `The verification of job ${handle.jobId} on ${backend.name} is not confirmed: ${reason} before the job ended, and a last lookup found no match.`;
+  const message = `The verification of job ${handle.jobId} on ${backend.name} is not confirmed: ${reason} before the job ended, and a last lookup ${lookup}.`;
   return new ExplorerVerifyError(
     { code: "not-confirmed", handle },
     message,

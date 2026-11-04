@@ -41,7 +41,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                          |
 | `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                          |
 | `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                                   |
-| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts` exists)                  |
+| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts`, `etherscan.ts` exist)   |
 | `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                              |
 | `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)    |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists) |
@@ -106,6 +106,14 @@ Rules every client follows:
 The Sourcify client (`backends/sourcify.ts`) is the first one. The answers it maps and their
 sources are in [research/2026-11-02-sourcify-v2.md](research/2026-11-02-sourcify-v2.md); the user
 view is [docs/user/reference/sourcify.md](../user/reference/sourcify.md).
+
+The Etherscan v2 client (`backends/etherscan.ts`) sends every request as a form-encoded POST with
+the key in the body, and maps the `result` text, which comes with HTTP 200 for almost every
+answer. The HTTP layer retries its per-second rate-limit answer through `HttpRequest.rateLimited`,
+as it retries a 429. `backends/common.ts` holds what both clients share: reading an answer, the
+submit that is never sent again blindly, and the handle check. The answers and their sources are in
+[research/2026-11-04-etherscan-client.md](research/2026-11-04-etherscan-client.md); the user view is
+[docs/user/reference/etherscan.md](../user/reference/etherscan.md).
 
 ## Public entry points
 

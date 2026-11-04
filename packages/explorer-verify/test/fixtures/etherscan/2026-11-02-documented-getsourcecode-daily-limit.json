@@ -1,0 +1,30 @@
+{
+  "source": "Not a recorded response. The body has the shape of the recorded Etherscan v2 answers of 2026-11-03 (status \"0\", message \"NOTOK\"). The result text is the daily limit answer seen live on 2026-11-02 and quoted in packages/explorer-verify/src/http/api-keys.ts.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Max daily rate limit reached. 100000 (100%) of 100000 day/limit"
+    }
+  }
+}
