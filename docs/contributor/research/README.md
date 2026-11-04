@@ -34,3 +34,4 @@ in review.
 | [2026-11-04-bytecode-metadata-sources.md](2026-11-04-bytecode-metadata-sources.md) | Where can the metadata behind a bytecode's hash be fetched, and how is it checked against the hash?                             |
 | [2026-11-04-etherscan-rows.md](2026-11-04-etherscan-rows.md)                       | Which chains get an Etherscan v2 entry and in which order, checked on 2026-11-04, and what does it add in size?                 |
 | [2026-11-04-blockscout-client.md](2026-11-04-blockscout-client.md)                 | Which Blockscout API does the single-chain client use, which answers does it map, and where was each seen?                      |
+| [2026-11-04-lazy-client-chunks.md](2026-11-04-lazy-client-chunks.md)               | Do the main bundlers put a client loaded with `import()` in its own chunk, and what does each client weigh on its own?          |

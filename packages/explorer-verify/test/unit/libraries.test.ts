@@ -425,7 +425,7 @@ async function replayVerify(
   })();
   for (
     let round = 0;
-    round < 100 && state.result === undefined && state.error === undefined;
+    round < 3_000 && state.result === undefined && state.error === undefined;
     round++
   ) {
     await new Promise<void>((resolve) => {

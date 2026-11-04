@@ -157,7 +157,8 @@ anchors in the browser.
 `pnpm run test:browser` builds the package, then runs `scripts/browser-smoke.ts`:
 
 1. esbuild bundles `packages/explorer-verify/test/browser/entry.ts` for the browser (ESM, minified,
-   `platform: "browser"`). The entry imports `verify` and `checkStatus` by package name, so the
+   `platform: "browser"`, code splitting on, so each backend client is a chunk of its own). The
+   entry imports `verify` and `checkStatus` by package name, so the
    bundle holds the built `dist/`, as a dapp's would. The keccak-256 code is internal and not
    exported, so the bundle takes it from `src/internal/keccak.ts`. A Node built-in fails this step,
    also inside `try`/`catch` or a dynamic `import()` (R-RUN-1).
@@ -168,14 +169,16 @@ anchors in the browser.
      The page passes the server to the library as `route.apiUrl`. The server sends only the CORS
      headers Sourcify sends, as recorded in
      `test/fixtures/sourcify/2026-11-03-preflight-verify.json` and the other fixtures.
-3. The bundle runs in Node. Then a second server on another port of `127.0.0.1` serves it to
-   headless Chromium, so the requests to the replay server are cross-origin and Chromium applies
-   its CORS checks, preflight included. The test observes requests without intercepting them,
+3. The bundle runs in Node, loaded from a new temporary folder each time. Then a second server on
+   another port of `127.0.0.1` serves it to headless Chromium, so the requests to the replay
+   server are cross-origin and Chromium applies its CORS checks, preflight included. The test observes requests without intercepting them,
    because a Playwright request route answers CORS preflights itself. Other paths on the page
    server return 404.
 4. Each run must give the digests in `test/fixtures/keccak256-vectors.json`, then `verified` with
    `exact` from `verify()` and both `checkStatus()` calls. A fresh load in each runtime then
    resumes the first handle with `checkStatus()` alone, as after a page reload.
+5. Every run routes to Sourcify, so each Chromium run must load the Sourcify client's chunk and
+   no chunk of another client (decision 0031).
 
 The test fails on any of these (R-SEC-2):
 
@@ -229,15 +232,21 @@ browser.
 
 `pnpm run size` builds the package, then bundles each entry of `size-budget.json` at the
 repository root with the same esbuild settings, gzips it at level 6 and prints one line
-per entry. It exits 1 when an entry is above its `ceilingBytes`:
+per entry. Each entry is measured without the clients it loads with a dynamic `import()`. Each
+client is then measured on its own, without the modules the entry holds, and printed as a
+`chunk` line ([decision 0031](decisions/0031-clients-load-on-demand-and-chunks-measured-apart.md)).
+An entry with `oneFile`, `verify (one file)`, is measured as one file with every client
+inlined, as esbuild without splitting ships it. The check fails when an entry also imports a
+client statically, because no chunk is then split off. It exits 1 when an entry or a chunk is
+above its `ceilingBytes`, and fails when an entry loads a chunk that `chunks` gives no ceiling:
 
 ```text
-ok   verify: 14402 bytes (ceiling 17283)
-OVER index: 26200 bytes (ceiling 26163)
+ok   verify: 13611 bytes (ceiling 16334)
+OVER chunk routescan: 4100 bytes (ceiling 4032)
 ```
 
-The entries are `verify`, `checkStatus`, `buildVerifyInput`, the whole index and `createVerifyHandler`
-([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
+The entries are `verify`, `verify (one file)`, `checkStatus`, `buildVerifyInput`, the whole index
+and `createVerifyHandler` ([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
 entry holds with esbuild's analyzer:
 
 ```bash

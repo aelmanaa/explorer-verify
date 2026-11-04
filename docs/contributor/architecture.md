@@ -357,9 +357,26 @@ data. `scripts/compare-routing-table.ts` compares the table with the live public
 the differences; it never writes the table.
 
 `pnpm run size` measures the code entries with an empty table and the table's rows as their own
-entry, `routing table`. One more entry, `verify with table`, measures the whole bundle a page
-ships ([decision 0023](decisions/0023-routing-table-size-measured-apart.md)). Its ceiling, like the
+entry, `routing table`. One more entry, `verify with table`, measures the `verify` entry with the
+rows ([decision 0023](decisions/0023-routing-table-size-measured-apart.md)). Its ceiling, like the
 others, is the measured size plus 20% ([decision 0024](decisions/0024-compact-routing-table.md)).
+
+## Loading the clients
+
+`DEFAULT_DEPENDENCIES` in `flow/verify.ts` holds a loader per backend: a function that imports the
+client with a dynamic `import()` and a literal path. `verify()`, `checkStatus()` and `dryRun()`
+resolve the route first and start the time budget. Then `withClient()` loads that route's client
+and no other, inside `abortWins`, and `openCall()` builds the call with the same budget. The load
+ends with `signal.reason` when the signal aborts, or `timeout` when the budget runs out; the
+deadline runs on `AbortSignal.timeout`, which fake timers do not drive. A loaded client is kept by
+loader, so later calls take it at once. A loader that fails rejects the call with its error,
+before any request to an explorer, and is tried again on the next call. Tests pass client objects
+in place of loaders.
+
+A bundler that splits code puts each client in its own chunk, so a page downloads only the client
+its calls are routed to. `pnpm run size` measures each entry without its clients, each client
+chunk on its own under `chunks` in `size-budget.json`, and `verify` once more as one file
+([decision 0031](decisions/0031-clients-load-on-demand-and-chunks-measured-apart.md)).
 
 ## Verification flow
 
@@ -406,9 +423,9 @@ adds the key and forwards it.
 
 ## Extension points
 
-| Extension                | How                                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- |
-| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, routing rows              |
-| New chain                | A row in `routing/table.json`, or a per-call route override                                           |
-| New compiler or language | A new member of the `compiler` union, and its mapping in each backend that accepts it (decision 0004) |
-| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                          |
+| Extension                | How                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, a loader in `DEFAULT_DEPENDENCIES`, a `chunks` ceiling, routing rows |
+| New chain                | A row in `routing/table.json`, or a per-call route override                                                                                      |
+| New compiler or language | A new member of the `compiler` union, and its mapping in each backend that accepts it (decision 0004)                                            |
+| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                                                                     |

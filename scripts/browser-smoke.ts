@@ -1,12 +1,14 @@
 // Browser smoke test (R-RUN-1, R-FLOW-5, R-SEC-2).
 //
-// 1. Bundles packages/explorer-verify/test/browser/entry.ts for the browser with esbuild. Any Node
-//    built-in fails the build.
+// 1. Bundles packages/explorer-verify/test/browser/entry.ts for the browser with esbuild, with code
+//    splitting on, so each backend client is a chunk of its own (decision 0031). Any Node built-in
+//    fails the build.
 // 2. Starts a replay server on 127.0.0.1 that answers Sourcify's API from recorded fixtures, in
 //    order. The page passes it to the library as `route.apiUrl`. The server sends only the CORS
 //    headers Sourcify sends, so Chromium applies its real CORS checks, preflight included.
 // 3. Runs the bundle in Node, then serves it from another port to headless Chromium, so its
-//    requests to the replay server are cross-origin, as in a dapp.
+//    requests to the replay server are cross-origin, as in a dapp. Every run routes to Sourcify, so
+//    Chromium must load the Sourcify client's chunk and no other client's chunk.
 // 4. Each run must give the keccak-256 vector digests, then `verified` with `exact` from
 //    `verify()` and from `checkStatus()` on two handles. A fresh load then resumes the first
 //    handle with `checkStatus()` alone. Each full run also runs `createVerifyHandler` from
@@ -23,16 +25,18 @@
 //   --entry <file>                  another page script (scripts/test-browser/ uses broken ones)
 //   --drop-response-header <name>   leave a header out of every replay answer (CORS tests)
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingHttpHeaders, IncomingMessage, Server, ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
-import { bundleForBrowser } from "./bundle.ts";
+import { bundleChunks } from "./bundle.ts";
+import type { Chunks } from "./bundle.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = path.join(root, "packages/explorer-verify");
@@ -42,6 +46,8 @@ const CONFIG_GLOBAL = "explorerVerifySmokeConfig";
 const RESULT_GLOBAL = "explorerVerifySmoke";
 const RUN_TIMEOUT_MS = 60_000;
 const UNEXPECTED_BODY = '{"customCode":"smoke_unexpected_request"}';
+// The backend every run routes to: its client's chunk is the only client chunk a run may load.
+const ROUTED_CLIENT = "sourcify";
 
 // verify(): lookup, submit, one pending poll, the exact match. Then checkStatus() on its handle,
 // and checkStatus() on another job's handle in the same realm, which must poll that job.
@@ -391,11 +397,17 @@ function guardNode(): void {
   });
 }
 
-let nodeLoads = 0;
+/** The folders the Node runs load the bundle from, removed when the test ends. */
+const nodeFolders: string[] = [];
+process.once("exit", () => {
+  for (const folder of nodeFolders) {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
 
 /** Loads the bundle as a new module instance and returns what it leaves on the global object. */
 async function runInNode(
-  bundle: string,
+  bundle: Chunks,
   names: readonly string[],
   resume?: string,
 ): Promise<unknown> {
@@ -403,10 +415,15 @@ async function runInNode(
   nodeOrigins.add(replay.origin);
   try {
     Reflect.set(globalThis, CONFIG_GLOBAL, { apiUrl: replay.origin, resume });
-    nodeLoads += 1;
-    // A distinct URL per load, so each load is a new module instance with no state from the last.
-    const source = `${bundle}\n// load ${String(nodeLoads)}`;
-    await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+    // A new folder per load, so each load is a new instance of every module, chunks included,
+    // with no state from the last.
+    const folder = mkdtempSync(path.join(tmpdir(), "explorer-verify-smoke-"));
+    nodeFolders.push(folder);
+    writeFileSync(path.join(folder, "package.json"), '{"type":"module"}');
+    for (const [name, text] of bundle.files) {
+      writeFileSync(path.join(folder, name), text);
+    }
+    await import(pathToFileURL(path.join(folder, bundle.entry)).href);
     const pending: unknown = Reflect.get(globalThis, RESULT_GLOBAL);
     const result: unknown = await withinTimeout("Node", Promise.resolve(pending));
     replay.assertDone("Node");
@@ -419,17 +436,52 @@ async function runInNode(
 
 // --- Chromium -------------------------------------------------------------------------------------
 
+/**
+ * What a Chromium run loaded beyond the entry's files that it should not have: a chunk of a client
+ * other than {@link ROUTED_CLIENT}'s, or no chunk of its own for that client (decision 0031).
+ *
+ * @param bundle - The split bundle.
+ * @param scripts - The files the page requested, in order.
+ * @returns One message per problem.
+ */
+function chunkProblems(bundle: Chunks, scripts: readonly string[]): string[] {
+  const routed = bundle.dynamic.get(ROUTED_CLIENT) ?? [];
+  const [own] = routed;
+  if (own === undefined) {
+    return [`the bundle has no chunk of its own for the ${ROUTED_CLIENT} client`];
+  }
+  const allowed = new Set([...bundle.entryFiles, ...routed]);
+  const problems: string[] = [];
+  if (!scripts.includes(own)) {
+    problems.push(`the page did not load the ${ROUTED_CLIENT} client chunk ${own}`);
+  }
+  for (const [name, files] of bundle.dynamic) {
+    if (name !== ROUTED_CLIENT && files[0] !== undefined && scripts.includes(files[0])) {
+      problems.push(`a ${ROUTED_CLIENT} route loaded the ${name} client chunk ${files[0]}`);
+    }
+  }
+  for (const script of scripts) {
+    if (!allowed.has(script) && !problems.some((problem) => problem.endsWith(` ${script}`))) {
+      problems.push(`a ${ROUTED_CLIENT} route loaded ${script}`);
+    }
+  }
+  return problems;
+}
+
 /** Loads the bundle in a fresh browser context, with the page and the replay on two origins. */
 async function runInChromium(
   browser: Browser,
-  bundle: string,
+  bundle: Chunks,
   names: readonly string[],
   resume?: string,
 ): Promise<unknown> {
   const page =
     '<!doctype html><meta charset="utf-8"><title>explorer-verify smoke</title>' +
-    '<script type="module" src="/entry.js"></script>';
+    `<script type="module" src="/${bundle.entry}"></script>`;
+  // The bundle's files the page requested, in order.
+  const scripts: string[] = [];
   const pages = createServer((request, response) => {
+    const file = bundle.files.get((request.url ?? "/").slice(1));
     if (request.url === "/") {
       // A cookie for 127.0.0.1, which a request to the replay server carries only when it
       // includes credentials: the replay server fails on it.
@@ -439,8 +491,9 @@ async function runInChromium(
           "set-cookie": "explorer-verify-smoke=1; Path=/; SameSite=Lax",
         })
         .end(page);
-    } else if (request.url === "/entry.js") {
-      response.writeHead(200, { "content-type": "text/javascript; charset=utf-8" }).end(bundle);
+    } else if (file !== undefined) {
+      scripts.push((request.url ?? "/").slice(1));
+      response.writeHead(200, { "content-type": "text/javascript; charset=utf-8" }).end(file);
     } else {
       response.writeHead(404).end();
     }
@@ -513,6 +566,7 @@ async function runInChromium(
     } catch (error) {
       throw new Error(`${String(error)}; ${report()}`, { cause: error });
     }
+    assert.deepEqual(chunkProblems(bundle, scripts), [], "Chromium: client chunks loaded");
     return result;
   } finally {
     await context.close();
@@ -523,7 +577,7 @@ async function runInChromium(
 
 // --- main -----------------------------------------------------------------------------------------
 
-const bundle = await bundleForBrowser({ entry });
+const bundle = await bundleChunks({ entry });
 const want = expected();
 guardNode();
 assert.deepEqual(await runInNode(bundle, RUN_EXCHANGES), want, "the Node run");
@@ -554,5 +608,6 @@ process.once("beforeExit", () => {
 });
 process.stdout.write(
   "browser smoke: Node and Chromium ran the same bundle and agree: the keccak-256 vectors match; " +
+    `Chromium loaded the ${ROUTED_CLIENT} client chunk and no other; ` +
     "verify() and checkStatus() returned verified with exact, also after a fresh load\n",
 );

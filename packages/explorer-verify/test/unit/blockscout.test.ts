@@ -799,8 +799,10 @@ describe("blockscout explorerUrl and route (R-FLOW-3, R-SEC-2)", () => {
     assert.equal(fake.calls.length, 0);
   });
 
-  it("is a client of verify() and checkStatus()", () => {
-    assert.equal(DEFAULT_DEPENDENCIES.backends.blockscout, blockscout);
+  it("is a client of verify() and checkStatus(), loaded on first use (decision 0031)", async () => {
+    const client = DEFAULT_DEPENDENCIES.backends.blockscout;
+    assert.equal(typeof client, "function");
+    assert.equal(typeof client === "function" ? await client() : client, blockscout);
   });
 });
 

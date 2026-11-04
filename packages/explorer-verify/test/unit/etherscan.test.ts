@@ -187,7 +187,7 @@ async function drive<T>(t: TestContext, promise: Promise<T>): Promise<T> {
     state.done = true;
   });
   tracked.catch(() => {});
-  for (let round = 0; round < 200 && !state.done; round += 1) {
+  for (let round = 0; round < 3_000 && !state.done; round += 1) {
     await new Promise<void>((resolve) => {
       setImmediate(resolve);
     });

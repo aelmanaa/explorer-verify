@@ -398,7 +398,9 @@ Measurement:
   `size-budget.json` sets a ceiling for each public entry. The routing table loads as data; its size
   is reported separately: the code entries are measured with an empty table, and the table's rows
   have their own entry and ceiling. One more entry measures the whole `verify` bundle, table
-  included, under the `verify` ceiling (decision 0023).
+  included, under the `verify` ceiling (decision 0023). Each backend client loads with a dynamic
+  `import()` only when a call is routed to it. The entries are measured without the clients, and
+  each client chunk has its own ceiling under `chunks` (decision 0031).
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or
