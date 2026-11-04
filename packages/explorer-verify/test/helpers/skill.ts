@@ -306,10 +306,12 @@ export function removeProject(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
 
-/** Writes each file of `files`, by name, into the project folder. */
+/** Writes each file of `files`, by name, into the project folder, with its parent folders. */
 export function writeFiles(dir: string, files: Readonly<Record<string, string>>): void {
   for (const [name, text] of Object.entries(files)) {
-    writeFileSync(path.join(dir, name), text);
+    const file = path.join(dir, name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, text);
   }
 }
 

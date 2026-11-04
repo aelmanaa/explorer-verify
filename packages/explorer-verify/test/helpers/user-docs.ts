@@ -11,11 +11,13 @@
  * A flagged block needs its reason in an HTML comment on the nearest non-blank line before it:
  * `<!-- no-run: the reason -->` or `<!-- fragment: the reason -->`.
  */
-import { cpSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createProject, examples } from "./skill.ts";
+import { buildVerifyInput } from "explorer-verify";
+
+import { createProject, examples, writeFiles } from "./skill.ts";
 
 /** The user docs folder of the repository. */
 export const USER_DOCS_DIR: string = fileURLToPath(
@@ -199,7 +201,33 @@ export type DocSetup =
   | "foundry"
   | "foundry-multi"
   | "hardhat-3"
-  | "hardhat-2";
+  | "hardhat-2"
+  | "shipped-contracts";
+
+/**
+ * The files a package ships to verify its Greeter, written as the guide "Verify contracts your
+ * package ships" writes them: `compiler.input` and a manifest of `contractName` and
+ * `compiler.version`, from the built `buildVerifyInput` (the package name resolves to `dist/`) on
+ * the core's Foundry build fixture. That build holds `Greeter` and `Base` only, and is the build of
+ * the Greeter deployed on Sepolia that the Sourcify fixtures recorded.
+ * The type-check project holds them too, because the guide's example imports them.
+ */
+export function shippedContractFiles(): Record<string, string> {
+  const built = buildVerifyInput([
+    readFoundryFixture("build-info.json"),
+    readFoundryFixture("Greeter.json"),
+  ]);
+  const manifest = { contract: built.contractName, compilerVersion: built.compiler.version };
+  return {
+    "verification/Greeter.input.json": JSON.stringify(built.compiler.input),
+    "verification/Greeter.manifest.json": JSON.stringify(manifest),
+  };
+}
+
+/** A parsed file of the core's Foundry build fixture. */
+function readFoundryFixture(file: string): unknown {
+  return JSON.parse(readFileSync(path.join(BUILD_FORMATS, "foundry-1.8.1", file), "utf8"));
+}
 
 /** Copies a fixture file or folder into the project. */
 function copy(dir: string, from: string, to: string): void {
@@ -288,6 +316,10 @@ export function createDocsProject(setup: DocSetup): string {
       break;
     case "hardhat-2":
       copy(dir, path.join(hardhat, "hardhat-2.29.1/artifacts"), "artifacts");
+      break;
+    case "shipped-contracts":
+      // The verification files next to the package's own module, which imports them.
+      writeFiles(dir, shippedContractFiles());
       break;
   }
   return dir;

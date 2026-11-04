@@ -89,7 +89,8 @@ after the build, because the examples import `explorer-verify`, `@explorer-verif
 `@explorer-verify/hardhat` by name, and each name resolves to the package's `dist/`.
 
 1. It type-checks every block in one temporary project, with strict settings and the DOM library,
-   so a browser example can use `localStorage`.
+   so a browser example can use `localStorage`. The project also holds the verification files
+   that the guide for package authors imports.
 2. It runs every block with Node, with `fetch` replaced by the fake that replays recorded explorer
    answers (`test/helpers/skill-fetch.ts`). A fixture name is a Sourcify fixture, or
    `<backend>/<name>` for another backend's. A run must exit with its expected code, 0 by default,
@@ -120,8 +121,9 @@ comment. A flagged block has no output block. The test fails on any other flag, 
 on a flag without its reason.
 
 A block runs once, in a project with no build files and no recorded answers, unless `RUNS` in the
-test lists it. An entry sets the files the run starts from (a Foundry or Hardhat project, or a
-package with build files, all copied from the fixtures of the three packages), the recorded answers
+test lists it. An entry sets the files the run starts from (a Foundry or Hardhat project, a
+package with build files, or the verification files a package ships, all made from the fixtures of
+the three packages), the recorded answers
 in order, the exit code and, for a second run of the same block, the output. To add an example
 that sends a request, add an entry with the answers it needs. The test names the page and line of
 each failure.
