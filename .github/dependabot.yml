@@ -25,6 +25,11 @@ updates:
             "eslint-plugin-jsdoc",
             "@types/*",
           ]
+    ignore:
+      # The Node types follow the supported floor, Node 22.18.0. Types from a newer major would
+      # let code use APIs that Node 22 lacks and still type-check.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: chore
       include: scope
