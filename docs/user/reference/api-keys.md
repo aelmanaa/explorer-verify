@@ -143,6 +143,10 @@ becomes `route.apiKey` for that host. With `--backend etherscan-v2` or `--backen
 it fills that `apiKeys` entry. The rules above then decide which
 request carries it. See [the CLI reference](cli.md#api-keys-and-route-options).
 
+A JSON-RPC endpoint URL often holds a provider key too. The CLI takes it from `--rpc-url-file` or
+`--rpc-url-stdin`, and takes `--rpc-url` only for a URL with no part that can hold a key. See
+[RPC URL](cli.md#rpc-url).
+
 The library itself reads no environment variable: pass the key in `apiKeys`.
 
 ## Etherscan plan rule

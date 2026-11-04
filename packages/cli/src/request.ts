@@ -31,6 +31,9 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "dry-run",
   "api-key-file",
   "api-key-stdin",
+  "rpc-url",
+  "rpc-url-file",
+  "rpc-url-stdin",
   "timeout",
 ];
 
@@ -240,7 +243,8 @@ function companionIssues(
  * Reads the request of `--input-json <file|->` (R-AX-16) and checks its shape:
  *
  * - Only the options of {@link INPUT_JSON_COMPANIONS} may accompany it, and no positional.
- * - `-` reads stdin, refused with `--api-key-stdin` and when stdin is a terminal.
+ * - `-` reads stdin, refused with `--api-key-stdin` or `--rpc-url-stdin` and when stdin is a
+ *   terminal.
  * - The request is a JSON object with the command's fields and an optional `route` of `backend`
  *   and `apiUrl`, both strings. Their values fill `--backend` and `--api-url`, which the keys then
  *   follow.

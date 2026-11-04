@@ -17,6 +17,7 @@ import type {
 } from "./command.ts";
 import { readJsonFile, readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
+import { RPC_URL_OPTIONS, readRpcUrl } from "./rpc-url.ts";
 
 /** The longest `--timeout` in seconds: the longest timer Node runs, 2^31 - 1 ms. */
 const MAX_TIMEOUT_SECONDS = 2_147_483;
@@ -202,30 +203,51 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   });
 }
 
+/** What a run sends besides the input: whether it is a dry run, the budget and the RPC URL. */
+interface SendSettings {
+  readonly dry: boolean;
+  readonly timeoutMs: number | undefined;
+  readonly rpcUrl: string | undefined;
+}
+
 /** Calls `verify()`, or `dryRun()` for a dry run, with the input and the context's options. */
 async function send(
   context: CommandContext,
   input: VerifyInput,
-  dry: boolean,
-  timeoutMs: number | undefined,
+  settings: SendSettings,
 ): Promise<CommandResult> {
-  const options = callOptions(context, timeoutMs);
+  const { dry, timeoutMs, rpcUrl } = settings;
+  const options: VerifyOptions = {
+    ...callOptions(context, timeoutMs),
+    ...(rpcUrl === undefined ? {} : { rpcUrl }),
+  };
   return dry ? await dryRun(input, options) : await verify(input, options);
 }
 
-/** Reads the request, from the flags or from `--input-json`, before the keys are read. */
+/**
+ * Reads the request, from the flags or from `--input-json`, before the keys are read. The RPC URL
+ * is read first, so its parts that can hold a key are secrets before anything else can fail.
+ */
 async function prepare(context: PrepareContext): Promise<Prepared> {
   const { values } = context;
   const issues: InputIssue[] = [];
   const timeoutMs = timeoutOf(values, issues);
+  const rpc = await readRpcUrl(context);
+  if (rpc.issues !== undefined) {
+    throw usageError([...issues, ...rpc.issues]);
+  }
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  const dry = values.get("dry-run") === true;
+  const settings: SendSettings = {
+    dry: values.get("dry-run") === true,
+    timeoutMs,
+    rpcUrl: rpc.rpcUrl,
+  };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
     const input = await inputFromFlags(context);
-    return { values, run: async (run) => await send(run, input, dry, timeoutMs) };
+    return { values, run: async (run) => await send(run, input, settings) };
   }
   const request = await readJsonRequest(
     { path, values, positionals: context.positionals, stdin: context.stdin },
@@ -235,7 +257,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   return {
     values: request.values,
     fieldNames: request.fieldNames,
-    run: async (run) => await send(run, input, dry, timeoutMs),
+    run: async (run) => await send(run, input, settings),
   };
 }
 
@@ -283,6 +305,7 @@ const OPTIONS: OptionSpecs = {
     description: "The address of a linked library.",
   },
   timeout: TIMEOUT_OPTION,
+  ...RPC_URL_OPTIONS,
   "dry-run": {
     type: "boolean",
     description:

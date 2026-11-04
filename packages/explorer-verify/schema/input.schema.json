@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "explorer-verify request",
-  "description": "The whole request of the CLI's verify or status command as one JSON document, passed with --input-json <file|-> (R-AX-16). A verify request is a VerifyInput, as validateInput() checks it, with an optional route. A status request is a handle with an optional route. No field holds an API key: give keys through the environment, --api-key-file or --api-key-stdin. The CLI refuses unknown properties with one invalid-input issue that counts them and never names them.",
+  "description": "The whole request of the CLI's verify or status command as one JSON document, passed with --input-json <file|-> (R-AX-16). A verify request is a VerifyInput, as validateInput() checks it, with an optional route. A status request is a handle with an optional route. No field holds an API key or an RPC URL: give keys through the environment, --api-key-file or --api-key-stdin, and the RPC URL of verify through --rpc-url-file, --rpc-url-stdin or --rpc-url. The CLI refuses unknown properties with one invalid-input issue that counts them and never names them.",
   "oneOf": [{ "$ref": "#/$defs/verify" }, { "$ref": "#/$defs/status" }],
   "$defs": {
     "verify": {

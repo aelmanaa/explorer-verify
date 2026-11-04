@@ -346,7 +346,13 @@ CLI:
   it fills, or `--api-url` with `--backend` naming one of those or `etherscan-compatible`, which
   makes it `route.apiKey`. Otherwise the CLI exits 2, because the routing table picks a backend
   partly by the keys it has. Tests assert that a dummy key never appears on stdout, on stderr
-  or in JSON (extends R-SEC-1).
+  or in JSON (extends R-SEC-1). The JSON-RPC URL of `verify` (`VerifyOptions.rpcUrl`, R-IN-3)
+  can hold a provider key, so it comes from `--rpc-url-file` or `--rpc-url-stdin`, and from
+  `--rpc-url` only when no path segment, query name or value, user name, password or fragment
+  has 8 or more characters. No environment variable and no `--input-json` field holds it. The
+  CLI removes those parts from stdout and stderr, and tests assert that dummy ones never appear
+  there. A JSON envelope or log line keeps the envelope's property names and the CLI's own words when it
+  is scrubbed.
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). The docs URL is the code's own page,
   `reference/errors/<code>`, with no fragment: unversioned before 1.0, and per major from 1.0
