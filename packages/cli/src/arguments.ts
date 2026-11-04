@@ -9,6 +9,7 @@ import type { ParseArgsOptionsConfig } from "node:util";
 
 import type { InputIssue } from "explorer-verify";
 
+import { REFUSED_KEY_MESSAGE, REFUSED_KEY_OPTIONS, ROUTE_OPTIONS } from "./keys.ts";
 import { closest } from "./suggest.ts";
 
 /** One option a command or the CLI accepts. */
@@ -39,6 +40,16 @@ export interface CommandSpec {
   readonly options: OptionSpecs;
   /** A hidden command runs, but no message or help text names it. */
   readonly hidden?: boolean;
+  /**
+   * Whether the command talks to an explorer: it then accepts the route options and the key flags
+   * (R-AX-9, R-RT-2), and the main loop reads the keys before it runs.
+   */
+  readonly routed?: boolean;
+}
+
+/** The options a command accepts besides the global ones, the route options included. */
+export function commandOptions(command: CommandSpec): OptionSpecs {
+  return command.routed === true ? { ...ROUTE_OPTIONS, ...command.options } : command.options;
 }
 
 /**
@@ -193,9 +204,14 @@ export function readArguments(
 ): Arguments {
   const known = new Map<string, OptionSpec>(Object.entries(GLOBAL_OPTIONS));
   for (const command of commands) {
-    for (const [name, spec] of Object.entries(command.options)) {
+    for (const [name, spec] of Object.entries(commandOptions(command))) {
       known.set(name, spec);
     }
+  }
+  // A refused key option takes the next argument as its value, so a key typed after it is
+  // dropped with it and never read as a positional (R-AX-9).
+  for (const name of REFUSED_KEY_OPTIONS) {
+    known.set(name, { type: "string", description: REFUSED_KEY_MESSAGE });
   }
   const config: ParseArgsOptionsConfig = {};
   for (const [name, spec] of known) {
@@ -215,14 +231,16 @@ export function readArguments(
   const [first, ...rest] = helpWord ? positionals.slice(1) : positionals;
   const found = commands.find((command) => command.name === first);
   const allowed = new Map<string, OptionSpec>(Object.entries(GLOBAL_OPTIONS));
-  for (const [name, spec] of Object.entries(found?.options ?? {})) {
+  for (const [name, spec] of Object.entries(found === undefined ? {} : commandOptions(found))) {
     allowed.set(name, spec);
   }
   // The names an unknown option is compared with: never a hidden command's, unless it was named.
   const visible = commands.filter((command) => command.hidden !== true);
   const candidates = [
     ...allowed.keys(),
-    ...(found === undefined ? visible.flatMap((command) => Object.keys(command.options)) : []),
+    ...(found === undefined
+      ? visible.flatMap((command) => Object.keys(commandOptions(command)))
+      : []),
   ];
 
   const values = new Map<string, OptionValue>();
@@ -235,6 +253,13 @@ export function readArguments(
   const asked = new Set<string>();
   for (const token of tokens) {
     if (token.kind !== "option") {
+      continue;
+    }
+    if (REFUSED_KEY_OPTIONS.includes(token.name)) {
+      if (!refused.has(token.position)) {
+        refused.add(token.position);
+        issues.push({ field: `--${token.name}`, message: REFUSED_KEY_MESSAGE });
+      }
       continue;
     }
     const spec = allowed.get(token.name);

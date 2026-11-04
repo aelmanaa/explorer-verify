@@ -3,9 +3,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { GLOBAL_OPTIONS, readArguments } from "../../src/arguments.ts";
+import { commandOptions, GLOBAL_OPTIONS, readArguments } from "../../src/arguments.ts";
 import type { CommandSpec, OptionSpec } from "../../src/arguments.ts";
 import { COMMANDS } from "../../src/commands.ts";
+import { REFUSED_KEY_MESSAGE, REFUSED_KEY_OPTIONS } from "../../src/keys.ts";
 
 const DUMMY_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
 
@@ -147,7 +148,7 @@ describe("readArguments: commands and options", () => {
     ]);
     assert.ok(!JSON.stringify(args.issues).includes("ABCDEF"));
     assert.deepEqual(args.issues, [
-      { field: "argument 2", message: "is not an option" },
+      { field: "--api-key", message: REFUSED_KEY_MESSAGE },
       { field: "--fast", message: "takes no value" },
       { field: "argument 4", message: "is not an option" },
       { field: "argument 5", message: "is not an option" },
@@ -171,7 +172,7 @@ describe("the command table", () => {
   it("gives an option name the same type and short alias in every command that has it", () => {
     const seen = new Map<string, OptionSpec>(Object.entries(GLOBAL_OPTIONS));
     for (const command of COMMANDS) {
-      for (const [name, spec] of Object.entries(command.options)) {
+      for (const [name, spec] of Object.entries(commandOptions(command))) {
         const first = seen.get(name);
         if (first !== undefined) {
           assert.equal(spec.type, first.type, `${command.name} --${name}`);
@@ -322,5 +323,29 @@ describe("readArguments: suggestions (R-AX-10)", () => {
 
   it("compares a hidden command's options once that command is named", () => {
     assert.equal(readArguments(["simulate", "--outcom", "x"], table).suggestion, "--outcome");
+  });
+});
+
+describe("readArguments: refused key options come before suggestions (R-AX-9, R-AX-10)", () => {
+  const key = "plaindummykeyvalue";
+  for (const name of REFUSED_KEY_OPTIONS) {
+    for (const form of [[`--${name}`, key], [`--${name}=${key}`]]) {
+      it(`refuses ${form.length === 1 ? `--${name}=<key>` : `--${name} <key>`} without a suggestion`, () => {
+        const args = readArguments(["simulate", ...form], COMMANDS);
+        assert.deepEqual(args.issues, [{ field: `--${name}`, message: REFUSED_KEY_MESSAGE }]);
+        assert.equal(args.suggestion, undefined);
+        assert.deepEqual(args.positionals, []);
+        assert.ok(!JSON.stringify(args.issues).includes(key));
+      });
+    }
+  }
+
+  it("suggests a CLI name for another typo, never the refused value", () => {
+    const args = readArguments(
+      ["simulate", "--etherscan-api-key", key, "--api-key-fil", "k.txt"],
+      COMMANDS,
+    );
+    assert.equal(args.suggestion, "--api-key-file");
+    assert.ok(!JSON.stringify({ ...args, values: [...args.values] }).includes(key));
   });
 });

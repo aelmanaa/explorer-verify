@@ -19,6 +19,7 @@ function context(values: Record<string, string>, signal: AbortSignal, events: Ve
       events.push(event);
     },
     env: {},
+    routeOptions: () => ({}),
   };
   return result;
 }

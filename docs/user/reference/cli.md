@@ -78,12 +78,16 @@ Examples:
 - `explorer-verify simulate --json --outcome not-confirmed`: Print a not-confirmed envelope with a handle, and exit 4.
 - `explorer-verify simulate --verbose --polls 3`: Show every stage event and three polls on stderr, then print verified.
 
-| Option             | What it does                                                                                                                                                                     |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--outcome <name>` | The outcome: verified, already-verified, failed, missing-api-key, not-confirmed, network, unknown-state, internal-error, pending, which polls until cancelled. Default verified. |
-| `--polls <n>`      | Polls before the outcome, 0 to 1000. Default 0.                                                                                                                                  |
-| `--retries <n>`    | verify.retry events before the submit, 0 to 1000. Default 0.                                                                                                                     |
-| `--message <text>` | The message of the exception that --outcome internal-error throws.                                                                                                               |
+| Option                  | What it does                                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`      | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                            |
+| `--api-url <url>`       | Use this explorer API URL instead of the routing table's.                                                                                                                        |
+| `--api-key-file <path>` | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                           |
+| `--api-key-stdin`       | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                   |
+| `--outcome <name>`      | The outcome: verified, already-verified, failed, missing-api-key, not-confirmed, network, unknown-state, internal-error, pending, which polls until cancelled. Default verified. |
+| `--polls <n>`           | Polls before the outcome, 0 to 1000. Default 0.                                                                                                                                  |
+| `--retries <n>`         | verify.retry events before the submit, 0 to 1000. Default 0.                                                                                                                     |
+| `--message <text>`      | The message of the exception that --outcome internal-error throws.                                                                                                               |
 
 ## Global options
 
@@ -99,12 +103,14 @@ Examples:
 
 ## Environment variables
 
-| Variable              | What it does                                                               |
-| --------------------- | -------------------------------------------------------------------------- |
-| `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off. |
-| `NO_COLOR`            | Any value but empty turns colour off under --color auto.                   |
-| `TERM`                | dumb turns colour and the spinner off under --color auto.                  |
-| `CI`                  | Any value but empty turns the spinner and the pager off.                   |
+| Variable              | What it does                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off.               |
+| `NO_COLOR`            | Any value but empty turns colour off under --color auto.                                 |
+| `TERM`                | dumb turns colour and the spinner off under --color auto.                                |
+| `CI`                  | Any value but empty turns the spinner and the pager off.                                 |
+| `ETHERSCAN_API_KEY`   | The API key of etherscan-v2, sent only to its routing-table host. Empty counts as unset. |
+| `ROUTESCAN_API_KEY`   | The API key of routescan, sent only to its routing-table host. Empty counts as unset.    |
 
 ## Exit codes
 
@@ -145,6 +151,60 @@ comparing, so a long mistyped argument costs no time.
 Short options can be grouped: `-qh` is read as `-q -h`, and `-hh` as `-h` given twice, which is
 the same as `-h`. A boolean option given a value, such as `--help=yes`, is a usage error that
 names only that option.
+
+## API keys and route options
+
+A command that talks to an explorer reads its API keys from environment variables, from a file or
+from stdin. No flag takes a key as its value: a key on the command line shows in the process list
+and the shell history. [API keys](api-keys.md) says which host each key goes to.
+
+| Variable            | Fills                                                      |
+| ------------------- | ---------------------------------------------------------- |
+| `ETHERSCAN_API_KEY` | `apiKeys["etherscan-v2"]`, sent only to `api.etherscan.io` |
+| `ROUTESCAN_API_KEY` | `apiKeys.routescan`, sent only to `api.routescan.io`       |
+
+An empty variable counts as unset. A variable that is set but holds a bad key is a usage error
+that names the variable, even when the route does not use it.
+
+| Option               | What it does                                                             |
+| -------------------- | ------------------------------------------------------------------------ |
+| `--backend <name>`   | Use this backend instead of the routing table's choice (`route.backend`) |
+| `--api-url <url>`    | Use this explorer API URL (`route.apiUrl`); the library checks the URL   |
+| `--api-key-file <p>` | Read one key from the file `p`                                           |
+| `--api-key-stdin`    | Read one key from stdin                                                  |
+
+`--api-key-file` and `--api-key-stdin` remove one trailing newline (`\n` or `\r\n`) and need a
+place to send the key:
+
+- With `--api-url`, `--backend` must be `etherscan-v2`, `routescan` or `etherscan-compatible`.
+  The key becomes `route.apiKey` and goes only to that host. Use this for a standalone explorer:
+  `--backend etherscan-compatible --api-url <url> --api-key-file <p>`.
+- Without `--api-url`, `--backend` must be `etherscan-v2` or `routescan`. The key fills that
+  backend's `apiKeys` entry, in place of its variable.
+- Otherwise the command exits 2: with no `--backend`, or with a backend that takes no key, such as
+  `sourcify`. The routing table picks a backend partly by the keys it has, so a key without a named
+  backend could reach an explorer it was not meant for.
+
+`--api-key-file` reads only a regular file. A FIFO, a device or a directory exits 2 before any
+byte is read, so process substitution such as `--api-key-file <(pass show key)` does not work: pipe
+the key with `--api-key-stdin` instead.
+
+The two key flags cannot be combined. `--api-key-stdin` exits 2 at once, without reading, when
+stdin is a terminal, because the CLI never prompts. It also exits 2 with `--input-json -`, which
+reads stdin too. Pipe the key instead:
+
+```sh
+printf '%s' "$KEY" | explorer-verify <command> --backend etherscan-v2 --api-key-stdin
+```
+
+`--api-key`, `--apikey`, `--api_key`, `--key`, `--etherscan-api-key`, `--etherscan-key` and
+`--routescan-api-key` are refused with exit 2. The argument after them is dropped with them, unless
+it starts with `-`; it is then read as the next option. Either way the value never shows up as an
+argument or in a message. An error about a key names the variable or the flag, never the key. An
+error about a key file does not name its path either, because a path typed by mistake can be a
+key. The CLI removes every valid key it read, in any letter case, from stdout and stderr, at every
+level and in every format, as `[redacted]`. A value shorter than 8 characters is refused as a key
+and never printed, but not searched for in other output.
 
 ## stdout
 

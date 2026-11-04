@@ -113,15 +113,21 @@ Every value in `apiKeys`, valid or not, and `route.apiKey` are removed from ever
 error and result, as `[redacted]`, even when an explorer repeats them in an answer. See
 [API keys in errors](errors/index.md#api-keys-in-errors).
 
-## Environment variables
+## From the CLI
 
-The CLI, planned for a later release, will read keys from these variables and never from a flag
-value:
+The `explorer-verify` command reads keys from these variables, from `--api-key-file <path>` or from
+`--api-key-stdin`, and never from a flag value:
 
-| Variable            | Backend        |
-| ------------------- | -------------- |
-| `ETHERSCAN_API_KEY` | `etherscan-v2` |
-| `ROUTESCAN_API_KEY` | `routescan`    |
+| Variable            | Fills                     |
+| ------------------- | ------------------------- |
+| `ETHERSCAN_API_KEY` | `apiKeys["etherscan-v2"]` |
+| `ROUTESCAN_API_KEY` | `apiKeys.routescan`       |
+
+A key from `--api-key-file` or `--api-key-stdin` goes where the command line names. With
+`--api-url` and `--backend` naming `etherscan-v2`, `routescan` or `etherscan-compatible`, it
+becomes `route.apiKey` for that host. With `--backend etherscan-v2` or `--backend routescan` alone,
+it fills that `apiKeys` entry. The rules above then decide which
+request carries it. See [the CLI reference](cli.md#api-keys-and-route-options).
 
 The library itself reads no environment variable: pass the key in `apiKeys`.
 
