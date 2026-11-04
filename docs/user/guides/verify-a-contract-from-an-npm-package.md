@@ -34,15 +34,21 @@ const read = async (file: string): Promise<unknown> =>
 const deployedAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const built = buildVerifyInput([
-  await read("artifacts/build-info/solc-0_8_24-e2aa41ca.json"),
+  await read("artifacts/build-info/solc-0_8_24-e2aa41ca9499e8400cb1090c69ef55b1cafafa86.json"),
   await read("artifacts/contracts/Greeter.sol/Greeter.json"),
 ]);
-// built.contractName: "project/contracts/Greeter.sol:Greeter" (Hardhat 3 input source name)
+console.log(built.contractName); // the Hardhat 3 input source name
 
 const input = validateInput({ chainId: 11155111, address: deployedAddress, ...built });
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
+```
+
+It prints:
+
+```text
+project/contracts/Greeter.sol:Greeter
 ```
 
 The file reads are yours. `buildVerifyInput` itself takes parsed objects and uses no Node API, so it
@@ -92,8 +98,15 @@ const built = buildVerifyInput([JSON.parse(await text("out/Greeter.sol/Greeter.j
     "src/Greeter.sol": await text("src/Greeter.sol"),
   },
 });
-// built.contractName: "src/Greeter.sol:Greeter", from settings.compilationTarget
-// built.compiler.version: "0.8.24+commit.e11b9ed9", from compiler.version
+console.log(built.contractName); // from settings.compilationTarget
+console.log(built.compiler.version); // from compiler.version
+```
+
+It prints:
+
+```text
+src/Greeter.sol:Greeter
+0.8.24+commit.e11b9ed9
 ```
 
 Pass each file exactly as it was compiled. The builder hashes each source's UTF-8 bytes with

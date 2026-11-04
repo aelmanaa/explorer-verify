@@ -11,7 +11,9 @@ have it yet. In this release the routing table sends every chain it lists to Sou
 needs no API key; [Routing](routing.md) explains how a chain resolves. Nothing is published to npm
 yet.
 
-```ts
+<!-- fragment: the signature only; the example below runs. -->
+
+```ts fragment
 function verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>;
 ```
 
@@ -38,6 +40,12 @@ try {
     throw error;
   }
 }
+```
+
+When Sourcify already has the contract, the call submits nothing. It prints:
+
+```text
+already-verified (exact) https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
 ```
 
 Build `input` with `buildVerifyInput` from build files, or write it by hand. See
@@ -73,23 +81,33 @@ into an exact match, submit the exact sources another way; an option for this is
 A contract that calls an external library has the library's address in its deployed code. Pass
 those addresses in `libraries`, keyed by the library's fully qualified name:
 
+Here `built` is what `buildVerifyInput` returned for `src/Counter.sol:Counter`, which calls the
+library `Tally`:
+
 ```ts
 import { linkLibraries, validateInput, verify } from "explorer-verify";
 
 const input = validateInput({
   chainId: 11155111,
-  address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  address: "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
   ...built, // from buildVerifyInput
-  libraries: { "src/MathLib.sol:MathLib": "0xd0B737fC4e4195144824eB07b2d1bb778525b86B" },
+  libraries: { "src/Tally.sol:Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c" },
 });
 
 // Sends compiler.input unchanged.
 const result = await verify(input);
+console.log(result.status);
 
 // For an explorer that needs the addresses in the input:
 const linked = linkLibraries(input);
-// linked.compiler.input.settings.libraries:
-// { "src/MathLib.sol": { MathLib: "0xd0b737fc4e4195144824eb07b2d1bb778525b86b" } }
+console.log(JSON.stringify(linked.compiler.input.settings.libraries));
+```
+
+When Sourcify already has the contract, it prints:
+
+```text
+already-verified
+{"src/Tally.sol":{"Tally":"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c"}}
 ```
 
 `validateInput` checks each entry. The key must be `path:Name`, with a path of
@@ -222,6 +240,8 @@ handle. To resume after an abort, keep the handle from the `verify.submitted` ev
 emits it, and logs it at `info`, as soon as the explorer accepts the submission.
 
 ```ts
+import { verify } from "explorer-verify";
+
 const controller = new AbortController();
 let handle: string | undefined;
 const pending = verify(input, {

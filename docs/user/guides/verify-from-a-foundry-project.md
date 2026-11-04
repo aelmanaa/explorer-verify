@@ -35,8 +35,7 @@ const built = await verifyInputFromFoundry({
   root: ".",
   contract: "src/Greeter.sol:Greeter",
 });
-// built.contractName: "src/Greeter.sol:Greeter"
-// built.compiler.version: "0.8.24+commit.e11b9ed9"
+console.log(built.contractName, built.compiler.version);
 
 const input = validateInput({
   chainId: 11155111,
@@ -46,6 +45,12 @@ const input = validateInput({
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
+```
+
+It prints:
+
+```text
+src/Greeter.sol:Greeter 0.8.24+commit.e11b9ed9
 ```
 
 ## Options
@@ -77,7 +82,13 @@ const built = await verifyInputFromFoundry({
   contract: "lib/utils/Context.sol:Context",
   artifact: "out/Context.sol/Context.0.8.20.json",
 });
-// built.compiler.version: "0.8.20+commit.a1b79de6"
+console.log(built.compiler.version);
+```
+
+It prints:
+
+```text
+0.8.20+commit.a1b79de6
 ```
 
 The helper then takes the build-info whose metadata for the contract equals that artifact's, so
@@ -114,16 +125,23 @@ import { findFoundryBuild } from "@explorer-verify/foundry";
 import { buildVerifyInput } from "explorer-verify";
 
 const build = await findFoundryBuild({ root: ".", contract: "Greeter" });
-// build.contract: "src/Greeter.sol:Greeter"
-// build.files: {
-//   artifact: "out/Greeter.sol/Greeter.json",
-//   buildInfo: "out/build-info/cc03796b40982b2b.json",
-//   sources: [],
-// }
+console.log(build.contract);
+console.log(JSON.stringify(build.files, null, 2));
 const built = buildVerifyInput(build.documents, {
   contract: build.contract,
   sources: build.sources,
 });
+```
+
+After `forge build --build-info`, it prints:
+
+```text
+src/Greeter.sol:Greeter
+{
+  "artifact": "out/Greeter.sol/Greeter.json",
+  "buildInfo": "out/build-info/cc03796b40982b2b.json",
+  "sources": []
+}
 ```
 
 `build.documents` holds the parsed artifact, then the parsed build-info when one was found.

@@ -10,7 +10,9 @@ Audience: developers and agents who resume a verification that `verify()` submit
 `not-confirmed` error, an abort, a page reload or a process restart. It never submits, so it is safe
 to call without asking. Nothing is published to npm yet.
 
-```ts
+<!-- fragment: signatures only; the example below runs. -->
+
+```ts fragment
 function checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>;
 function formatHandle(handle: Handle): string;
 function parseHandle(value: unknown): Handle;
@@ -40,6 +42,12 @@ if (stored !== null) {
   localStorage.removeItem("pending-verification");
   console.log(result.status);
 }
+```
+
+When the job ends with an exact match, it prints:
+
+```text
+verified
 ```
 
 ## The handle

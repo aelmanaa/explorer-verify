@@ -24,7 +24,7 @@ error has:
 one, the handle in its one-line form. It never prints `cause`, the stack or an API key.
 
 ```ts
-import { ExplorerVerifyError } from "explorer-verify";
+import { ExplorerVerifyError, verify } from "explorer-verify";
 
 try {
   await verify(input);

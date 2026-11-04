@@ -31,6 +31,12 @@ console.log(JSON.stringify(toEnvelope(outcome, { secrets: [apiKey] })));
 process.exitCode = exitCodeOf(outcome);
 ```
 
+When Sourcify already has the contract, it prints one line and exits with 0:
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"already-verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+```
+
 ## The envelope
 
 The envelope has one of three forms:

@@ -124,6 +124,26 @@ jobs:
       - run: pnpm run build
       - run: pnpm run site:build
       - run: pnpm run site:check
+      # Relative links and anchors, offline: a link to a missing file or anchor fails the job.
+      # External links are checked once a week by .github/workflows/links.yml.
+      - name: Links and anchors in docs/user and llms.txt
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: --offline --include-fragments --no-progress docs/user llms.txt
+          jobSummary: false
+      # The site's links start with its base path, /explorer-verify/, and leave out .html. lychee
+      # resolves the home link to .../site/dist/explorer-verify, without a trailing slash, so the
+      # remap has none either.
+      - name: Links and anchors in the built site
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --offline --include-fragments --no-progress
+            --root-dir "${{ github.workspace }}/site/dist"
+            --remap "file://${{ github.workspace }}/site/dist/explorer-verify file://${{ github.workspace }}/site/dist"
+            --fallback-extensions html --index-files index.html
+            site/dist
+          jobSummary: false
 
   # Bundles the core for the browser and runs verify() and checkStatus() in Node and in headless
   # Chromium against a local server that replays recorded Sourcify answers with Sourcify's CORS

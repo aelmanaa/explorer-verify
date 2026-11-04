@@ -1,11 +1,12 @@
 /**
  * Reads the packaged skill (`skills/explorer-verify/SKILL.md`, which the build copies from the
- * repository root) and runs its examples against the built package (R-AX-4). The examples run in
- * a temporary project whose `node_modules/explorer-verify` links to this package, so
+ * repository root) and runs its examples against the built package (R-AX-4). The user-docs test
+ * runs the examples of `docs/user/` with the same helpers (R-AX-2, `user-docs.ts`). The examples
+ * run in a temporary project whose `node_modules/explorer-verify` links to this package, so
  * `import ... from "explorer-verify"` resolves through the package's `exports` to `dist/`, as it
  * does for a user.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -26,7 +27,7 @@ const BUILD_FORMATS = path.join(PACKAGE_DIR, "test/fixtures/build-formats");
  */
 export const EXAMPLE_LANGUAGES: readonly string[] = ["ts", "text", "sh"];
 
-const FENCE_OPEN = /^(`{3,}|~{3,})[ \t]*([^\s`]*)/;
+const FENCE_OPEN = /^(`{3,}|~{3,})[ \t]*([^\s`]*)([^`]*)$/;
 const API_SPAN = /^([A-Za-z_$][\w$]*)(\(.*\)|\[[^\]]*\])?$/;
 const MEMBER_PATH = /^(result|error)(\.[A-Za-z_$][\w$]*)+$/;
 const EVENT_NAME = /^verify\.[a-z-]+$/;
@@ -35,6 +36,8 @@ const EVENT_NAME = /^verify\.[a-z-]+$/;
 export interface CodeBlock {
   /** The info string's first word, such as `ts`. Empty when there is none. */
   readonly lang: string;
+  /** The other words of the info string, such as `no-run` in `ts no-run`. */
+  readonly flags: readonly string[];
   /** The block's lines, joined with `\n`, with a final newline. */
   readonly code: string;
   /** The 1-based line of the opening fence. */
@@ -44,6 +47,8 @@ export interface CodeBlock {
 /** A `ts` block of the skill and the `text` block that follows it, which holds its output. */
 export interface Example {
   readonly line: number;
+  /** The words after `ts` in the info string. */
+  readonly flags: readonly string[];
   readonly code: string;
   /** The documented stdout, or `undefined` when no `text` block follows. */
   readonly output: string | undefined;
@@ -66,15 +71,31 @@ export interface ApiName {
 /** The fenced code blocks of a Markdown text. Throws on a fence that is never closed. */
 export function codeBlocks(markdown: string): CodeBlock[] {
   const blocks: CodeBlock[] = [];
-  let open: { fence: string; lang: string; line: number; lines: string[] } | undefined;
+  let open:
+    | { fence: string; lang: string; flags: string[]; line: number; lines: string[] }
+    | undefined;
   for (const [index, line] of markdown.split("\n").entries()) {
     if (open === undefined) {
       const match = FENCE_OPEN.exec(line);
       if (match !== null) {
-        open = { fence: String(match[1]), lang: String(match[2]), line: index + 1, lines: [] };
+        const flags = String(match[3])
+          .split(/\s+/)
+          .filter((word) => word !== "");
+        open = {
+          fence: String(match[1]),
+          lang: String(match[2]),
+          flags,
+          line: index + 1,
+          lines: [],
+        };
       }
     } else if (line.trimEnd() === open.fence) {
-      blocks.push({ lang: open.lang, code: `${open.lines.join("\n")}\n`, line: open.line });
+      blocks.push({
+        lang: open.lang,
+        flags: open.flags,
+        code: `${open.lines.join("\n")}\n`,
+        line: open.line,
+      });
       open = undefined;
     } else {
       open.lines.push(line);
@@ -95,7 +116,12 @@ export function examples(markdown: string): Example[] {
     }
     const next = blocks[index + 1];
     return [
-      { line: block.line, code: block.code, output: next?.lang === "text" ? next.code : undefined },
+      {
+        line: block.line,
+        flags: block.flags,
+        code: block.code,
+        output: next?.lang === "text" ? next.code : undefined,
+      },
     ];
   });
 }
@@ -207,15 +233,36 @@ export function typeNamesModule(
   return `${lines.join("\n")}\n`;
 }
 
+/** What {@link createProject} changes in the default project. */
+export interface ProjectOptions {
+  /**
+   * Other workspace packages to link into `node_modules`, by package name, each to its folder
+   * under `packages/`, such as `{ "@explorer-verify/foundry": "foundry" }`. Each must be built.
+   */
+  readonly workspacePackages?: Readonly<Record<string, string>>;
+  /** Type-check with the DOM library too, for examples that use browser globals. */
+  readonly dom?: boolean;
+  /** Leave out the Foundry artifact and its sources, for a project that brings its own files. */
+  readonly bare?: boolean;
+}
+
 /**
  * A new temporary project with the package linked as `node_modules/explorer-verify`, a
  * `tsconfig.json` for Node, and the files the examples read: a Foundry artifact at
  * `out/Greeter.sol/Greeter.json` and its sources under `src/`.
  */
-export function createProject(): string {
+export function createProject(options: ProjectOptions = {}): string {
   const dir = mkdtempSync(path.join(tmpdir(), "explorer-verify-skill-"));
-  mkdirSync(path.join(dir, "node_modules"));
+  mkdirSync(path.join(dir, "node_modules/@explorer-verify"), { recursive: true });
   symlinkSync(PACKAGE_DIR, path.join(dir, "node_modules/explorer-verify"), "dir");
+  for (const [name, folder] of Object.entries(options.workspacePackages ?? {})) {
+    symlinkSync(path.join(PACKAGE_DIR, "..", folder), path.join(dir, "node_modules", name), "dir");
+  }
+  writeFileSync(path.join(dir, "package.json"), `${JSON.stringify({ type: "module" })}\n`);
+  writeTsconfig(dir, options.dom === true);
+  if (options.bare === true) {
+    return dir;
+  }
   mkdirSync(path.join(dir, "out/Greeter.sol"), { recursive: true });
   copyFileSync(
     path.join(BUILD_FORMATS, "foundry-1.8.1/Greeter.json"),
@@ -225,12 +272,16 @@ export function createProject(): string {
   for (const file of ["Base.sol", "Greeter.sol"]) {
     copyFileSync(path.join(BUILD_FORMATS, "sources", file), path.join(dir, "src", file));
   }
-  writeFileSync(path.join(dir, "package.json"), `${JSON.stringify({ type: "module" })}\n`);
+  return dir;
+}
+
+/** Writes the project's `tsconfig.json`: strict, for Node, each `.ts` file a module. */
+function writeTsconfig(dir: string, dom: boolean): void {
   const typeRoots = path.join(path.dirname(require.resolve("@types/node/package.json")), "..");
   const tsconfig = {
     compilerOptions: {
       target: "ES2023",
-      lib: ["ES2023"],
+      lib: dom ? ["ES2023", "DOM"] : ["ES2023"],
       module: "nodenext",
       moduleResolution: "nodenext",
       typeRoots: [typeRoots],
@@ -241,12 +292,13 @@ export function createProject(): string {
       verbatimModuleSyntax: true,
       erasableSyntaxOnly: true,
       skipLibCheck: true,
+      resolveJsonModule: true,
+      moduleDetection: "force",
       noEmit: true,
     },
     include: ["*.ts"],
   };
   writeFileSync(path.join(dir, "tsconfig.json"), `${JSON.stringify(tsconfig, null, 2)}\n`);
-  return dir;
 }
 
 /** Removes a project made by {@link createProject}. */
@@ -301,13 +353,53 @@ export interface Run {
 /**
  * Runs `file` of the project with Node, from the project folder, with `fetch` replaced by a fake
  * that answers from the named Sourcify fixtures in order (see `skill-fetch.ts`). A name ending in
- * `*` answers every request that matches its recording, until one does not.
+ * `*` answers every request that matches its recording, until one does not. Each module URL in
+ * `preloads` loads after the fake, with `--import`.
  */
-export function runExample(dir: string, file: string, fixtures: readonly string[]): Run {
-  const run = spawnSync(process.execPath, ["--import", FETCH_PRELOAD, file], {
+export function runExample(
+  dir: string,
+  file: string,
+  fixtures: readonly string[],
+  preloads: readonly string[] = [],
+): Run {
+  const run = spawnSync(process.execPath, exampleArgs(file, preloads), {
     cwd: dir,
     encoding: "utf8",
-    env: { ...process.env, SKILL_FIXTURES: JSON.stringify(fixtures) },
+    env: exampleEnv(fixtures),
   });
   return { stdout: run.stdout, stderr: run.stderr, status: run.status };
+}
+
+/** {@link runExample} without blocking, so runs in separate processes can overlap. */
+export async function startExample(
+  dir: string,
+  file: string,
+  fixtures: readonly string[],
+  preloads: readonly string[] = [],
+): Promise<Run> {
+  return await new Promise((resolve) => {
+    const child = spawn(process.execPath, exampleArgs(file, preloads), {
+      cwd: dir,
+      env: exampleEnv(fixtures),
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("close", (status) => {
+      resolve({ stdout, stderr, status });
+    });
+  });
+}
+
+function exampleArgs(file: string, preloads: readonly string[]): string[] {
+  return [...[FETCH_PRELOAD, ...preloads].flatMap((url) => ["--import", url]), file];
+}
+
+function exampleEnv(fixtures: readonly string[]): NodeJS.ProcessEnv {
+  return { ...process.env, SKILL_FIXTURES: JSON.stringify(fixtures) };
 }
