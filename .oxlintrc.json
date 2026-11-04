@@ -122,6 +122,37 @@
       }
     },
     {
+      // The CLI runs on Node only (decision 0008): it imports Node built-ins, and its bin reads
+      // the environment and passes it in. The rest of its code takes the environment as a value.
+      "files": ["packages/cli/src/**"],
+      "rules": {
+        "import/no-nodejs-modules": "off",
+        // `import { env } from "node:process"` would get past no-process-env.
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "node:process",
+                "message": "Only src/bin.ts reads the process; take what you need from Io."
+              },
+              {
+                "name": "process",
+                "message": "Only src/bin.ts reads the process; take what you need from Io."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/cli/src/bin.ts"],
+      "rules": {
+        "node/no-process-env": "off",
+        "eslint/no-restricted-imports": "off"
+      }
+    },
+    {
       "files": ["packages/*/test/**"],
       "rules": {
         "jsdoc-js/require-jsdoc": "off",

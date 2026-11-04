@@ -47,4 +47,5 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
   "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
   "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
+  "internal-error": { code: "internal-error" },
 };

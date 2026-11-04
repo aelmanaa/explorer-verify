@@ -44,6 +44,7 @@ export const ERROR_CODES = [
   "missing-api-key",
   "api-key-rejected",
   "quota-exceeded",
+  "internal-error",
 ] as const;
 
 /**
@@ -294,11 +295,19 @@ export type ErrorDetails =
        * and passed a name outside `BACKEND_NAMES`.
        */
       backend: BackendName | "unknown";
+    }
+  | {
+      /**
+       * An unexpected exception reached the CLI's top level: a bug in explorer-verify. The library
+       * never throws this code. The CLI creates it, so its JSON output has a typed error.
+       */
+      code: "internal-error";
     };
 
 /**
  * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
- * 4 still pending, 5 network or explorer unavailable, 6 unknown state, 130 cancelled.
+ * 4 still pending, 5 network or explorer unavailable, 6 unknown state or internal error,
+ * 130 cancelled.
  *
  * @example
  * ```ts
@@ -343,6 +352,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "missing-api-key": 3,
   "api-key-rejected": 3,
   "quota-exceeded": 3,
+  "internal-error": 6,
 };
 
 /**
@@ -485,7 +495,7 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     retryable: false,
   },
   cancelled: {
-    hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+    hint: "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
     retryable: false,
   },
   "incomplete-input": {
@@ -518,6 +528,10 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
   },
   "quota-exceeded": {
     hint: "The key's daily limit is spent. Call again after the explorer resets the limit, or use a key on a plan with a higher limit.",
+    retryable: false,
+  },
+  "internal-error": {
+    hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
     retryable: false,
   },
 };
@@ -636,6 +650,9 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
     case "api-key-rejected":
     case "quota-exceeded":
       copy = { code: details.code, backend: backendOf(details.backend) };
+      break;
+    case "internal-error":
+      copy = { code: "internal-error" };
       break;
   }
   return copy;

@@ -83,7 +83,7 @@ The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code
 | 3         | Missing, invalid or under-privileged API key                                                                   | `missing-api-key`, `api-key-rejected`, `quota-exceeded`                                                                      |
 | 4         | No verdict yet: still pending at the time budget (the output carries the handle), or the job ended without one | `not-confirmed`, `verification-inconclusive`                                                                                 |
 | 5         | Network or explorer unavailable after retries; call again later                                                | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`                                                   |
-| 6         | Unknown state; the output carries the handle. A person checks it                                               | `unknown-state`, `job-not-found`                                                                                             |
+| 6         | Unknown state; the output carries the handle. Or a bug in the CLI, with no handle. A person checks it          | `unknown-state`, `job-not-found`, `internal-error` (created by the CLI)                                                      |
 | 130       | Cancelled                                                                                                      | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                                       |
 
 `unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
@@ -144,3 +144,4 @@ code. `docsUrl` links that page.
 - [`missing-api-key`](missing-api-key.md)
 - [`api-key-rejected`](api-key-rejected.md)
 - [`quota-exceeded`](quota-exceeded.md)
+- [`internal-error`](internal-error.md)

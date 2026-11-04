@@ -48,6 +48,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "missing-api-key": { retryable: false, exit: 3, hasHandle: false },
   "api-key-rejected": { retryable: false, exit: 3, hasHandle: false },
   "quota-exceeded": { retryable: false, exit: 3, hasHandle: false },
+  "internal-error": { retryable: false, exit: 6, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -93,6 +94,7 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
     "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
     "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
+    "internal-error": { code: "internal-error" },
   };
   return all[code];
 }

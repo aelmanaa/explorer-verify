@@ -249,7 +249,7 @@ CLI:
   it (decision 0010). An unexpected exception inside the CLI gives an envelope with the code
   `internal-error`: exit code 6, `retryable` false, no handle, a redacted message and the hint
   "This is a bug in explorer-verify. Report it with the command you ran, without your API key."
-  The CLI issue (#7) adds `internal-error` to `ERROR_CODES` and to the errors page. stderr may
+  The CLI package issue (#98) adds `internal-error` to `ERROR_CODES` and to the errors page. stderr may
   also carry a one-line human summary.
 
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
@@ -258,7 +258,8 @@ CLI:
   - Otherwise (`--color=auto`, the default), a non-empty `NO_COLOR` or `TERM=dumb` turns colour
     off on both streams, and each stream is coloured only when it is a terminal.
   - Spinners and line redraws appear only when stderr is a terminal, `CI` is unset or empty,
-    `--log-format` is `text` and `--quiet` is not set.
+    `TERM` is not `dumb`, `--log-format` is `text` and the level shows more than errors (not `--quiet`, and not
+    `error` or `off` from `EXPLORER_VERIFY_LOG`).
   - A pager runs only when stdout is a terminal and `CI` is unset or empty.
 
   The CLI never prompts.
@@ -324,9 +325,11 @@ CLI:
   everything below `error`, the `verify.submitted` line included; `off` also suppresses errors on
   stderr, while the stdout envelope is unchanged. `EXPLORER_VERIFY_LOG=debug|info|warn|error|off`
   sets the level when no flag does; `warn` shows errors, warnings and `verify.retry`, without the
-  `verify.submitted` and `verify.result` lines. Any other value is ignored, with one `warn` line
-  on stderr that names the variable and never its value; the warning appears even when a flag
-  sets the level. `--quiet` with `--verbose` exits 2
+  `verify.submitted` and `verify.result` lines. An empty value counts as unset. Any other value,
+  compared exactly, is ignored, with one `warn` line on stderr that names the variable and never
+  its value. The variable is checked even when a flag sets the level, and the warning follows the
+  level like any `warn` line, so `--verbose` shows it and `--quiet` hides it. `--quiet` with
+  `--verbose` exits 2
   (`invalid-input`). The CLI reads the variable; the core never reads the environment. stdout is
   byte-identical at every level. `-v` is not bound.
 

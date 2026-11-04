@@ -98,6 +98,7 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "missing-api-key": { code: "missing-api-key", backend: "etherscan-v2" },
   "api-key-rejected": { code: "api-key-rejected", backend: "routescan" },
   "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
+  "internal-error": { code: "internal-error" },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -153,7 +154,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 6,
   },
   cancelled: {
-    hint: "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+    hint: "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
     retryable: false,
     exitCode: 130,
   },
@@ -196,6 +197,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "The key's daily limit is spent. Call again after the explorer resets the limit, or use a key on a plan with a higher limit.",
     retryable: false,
     exitCode: 3,
+  },
+  "internal-error": {
+    hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
+    retryable: false,
+    exitCode: 6,
   },
 };
 
@@ -328,6 +334,7 @@ describe("ExplorerVerifyError", () => {
       case "missing-api-key":
       case "api-key-rejected":
       case "quota-exceeded":
+      case "internal-error":
         assert.fail(`unexpected code ${details.code}`);
     }
   });
@@ -405,10 +412,12 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
 
   it("maps to 4 and 6 only codes whose details carry the handle, as R-AX-7 promises", () => {
     // R-AX-7 and decision 0011: verification-inconclusive exits 4 with no handle, because the
-    // finished job cannot give another answer; the fix is a new verify().
+    // finished job cannot give another answer; the fix is a new verify(). R-AX-5 and decision
+    // 0010: internal-error exits 6 with no handle, because no explorer job is involved.
+    const withoutHandle: readonly ErrorCode[] = ["verification-inconclusive", "internal-error"];
     for (const code of ERROR_CODES) {
       const exit = ERROR_EXIT_CODES[code];
-      if ((exit === 4 || exit === 6) && code !== "verification-inconclusive") {
+      if ((exit === 4 || exit === 6) && !withoutHandle.includes(code)) {
         assert.ok(HANDLE_CODES.includes(code), `${code} exits ${String(exit)} without a handle`);
       }
     }
@@ -1017,7 +1026,7 @@ describe("cancelled (R-AX-7)", () => {
     assert.equal(error.retryable, false);
     assert.equal(
       error.hint,
-      "The run was cancelled. If verify.submitted was printed, resume with checkStatus and that handle.",
+      "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
     );
     assert.equal(error.docsUrl, docsUrlOf("cancelled"));
   });

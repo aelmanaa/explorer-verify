@@ -22,6 +22,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [JSON output and exit codes](user/reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](user/reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Logging and events](user/reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
+| [CLI](user/reference/cli.md)                                                                        | stdout and stderr, `--json`, log levels, colour and exit codes           |
 | [Agent skill](../skills/explorer-verify/SKILL.md)                                                   | The skill shipped in the package, with examples tested against the build |
 
 ## Contributors
