@@ -1,0 +1,68 @@
+name: Links
+
+# Checks the external links of the user docs, llms.txt and the READMEs once a week. Pull request CI
+# checks relative links and anchors offline (the `site` job of ci.yml). When a link is broken, this
+# workflow opens one issue, or comments on the open one, and fails. .lycheeignore lists the URLs
+# it skips, each with its reason.
+#
+# It runs on a schedule and on a manual dispatch only, never on a pull request, and only in this
+# repository, never on a fork. It needs no secret: it uses the workflow's own GITHUB_TOKEN.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: links
+  cancel-in-progress: false
+
+jobs:
+  links:
+    name: External links
+    if: github.repository == 'aelmanaa/explorer-verify'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check links
+        id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --include-fragments --no-progress --accept "100..=103,200..=299,429"
+            docs/user llms.txt README.md 'packages/*/README.md'
+          output: lychee/out.md
+          fail: false
+      # With `fail: false`, the lychee step fails only when it found no links (failIfEmpty) or
+      # could not run lychee at all. Both reach this step, as a broken link does.
+      - name: Open or update the issue
+        if: ${{ !cancelled() && (steps.lychee.outcome == 'failure' || steps.lychee.outputs.exit_code != '0') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Broken links in the docs"
+          number="$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)"
+          {
+            echo "The weekly link check failed: $RUN_URL"
+            echo
+            cat lychee/out.md 2>/dev/null || echo "lychee wrote no report; see the run log."
+          } > issue-body.md
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file issue-body.md
+          else
+            gh issue create --title "$title" --body-file issue-body.md \
+              --label "type:docs" --label "area:docs" --label "status:needs-triage"
+          fi
+          exit 1

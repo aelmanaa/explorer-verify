@@ -1,0 +1,17 @@
+# URLs lychee skips, one regular expression per line. lychee reads this file from the working
+# directory, so the pull request checks (offline) and the weekly check (links.yml) both use it.
+# Remove an entry when its reason no longer holds.
+
+# Etherscan answers 403 to automated clients, so a live link reads as broken.
+^https://([a-z0-9-]+\.)?etherscan\.io/
+
+# npm answers 403 to automated clients, and the packages are not published yet.
+^https://(www\.)?npmjs\.com/
+
+# The docs site is deployed with the first release; until then every page answers 404. The pull
+# request CI checks the built site offline instead.
+^https://aelmanaa\.github\.io/explorer-verify/
+
+# GitHub builds heading anchors, and the #readme anchor, in the browser, so lychee finds no such
+# id in the HTML it fetches. Links to GitHub pages without a fragment are still checked.
+^https://github\.com/[^#]*#

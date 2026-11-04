@@ -42,13 +42,29 @@ import { createVerifyHandler } from "explorer-verify/server";
 
 const handler = createVerifyHandler({
   apiKey: etherscanKey, // read from your server's secrets, never from the request
-  chains: [1, 11155111],
-  deployers: [yourDeployerAddress],
+  chains: [1, 11155111, 421614], // Ethereum, Sepolia and Arbitrum Sepolia
+  deployers: [deployerAddress], // the addresses your dapp deploys from
   logger: console,
 });
 
 // Any runtime with Request and Response:
 const response = await handler(request);
+console.log(response.status, await response.text());
+```
+
+`deployerAddress` stands for your own deployer address. For a status poll of a job that Etherscan
+has verified, it prints the handler's `debug` line for the upstream request, then the answer. In
+Node, `console.debug` writes to stdout; to keep it quiet, pass a logger whose `debug` does
+nothing.
+
+```text
+POST https://api.etherscan.io/v2/api?REDACTED: attempt 1 of 2 {
+  backend: 'etherscan-v2',
+  method: 'POST',
+  url: 'https://api.etherscan.io/v2/api?REDACTED',
+  attempt: 1
+}
+200 {"status":"1","message":"OK","result":"Pass - Verified"}
 ```
 
 Mount it on one route of your application, such as `POST /api/verify`. Examples for frameworks come

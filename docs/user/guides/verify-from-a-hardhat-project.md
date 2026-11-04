@@ -26,14 +26,13 @@ copy of the core and `instanceof ExplorerVerifyError` works on the helper's erro
 
 ```ts
 import { verifyInputFromHardhat } from "@explorer-verify/hardhat";
-import { validateInput, verify } from "explorer-verify";
+import { validateInput } from "explorer-verify";
 
 const built = await verifyInputFromHardhat({
   root: ".",
   contract: "contracts/Greeter.sol:Greeter",
 });
-// built.contractName: "project/contracts/Greeter.sol:Greeter" on Hardhat 3,
-// "contracts/Greeter.sol:Greeter" on Hardhat 2.
+console.log(built.contractName);
 
 const input = validateInput({
   chainId: 11155111,
@@ -42,8 +41,16 @@ const input = validateInput({
 });
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
-const result = await verify(input);
+// const result = await verify(input);
 ```
+
+On Hardhat 3 it prints the input source name, which adds `project/`:
+
+```text
+project/contracts/Greeter.sol:Greeter
+```
+
+On Hardhat 2 it prints `contracts/Greeter.sol:Greeter`.
 
 ## Build with the deploy profile
 
@@ -97,11 +104,16 @@ import { findHardhatBuild } from "@explorer-verify/hardhat";
 import { buildVerifyInput } from "explorer-verify";
 
 const build = await findHardhatBuild({ root: ".", contract: "Greeter" });
-// build.files on Hardhat 3:
-// ["artifacts/contracts/Greeter.sol/Greeter.json",
-//  "artifacts/build-info/<id>.json",
-//  "artifacts/build-info/<id>.output.json"]
+console.log(build.files.join("\n"));
 const built = buildVerifyInput(build.documents);
+```
+
+On Hardhat 3 it prints the artifact, the build-info and its output file:
+
+```text
+artifacts/contracts/Greeter.sol/Greeter.json
+artifacts/build-info/solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0.json
+artifacts/build-info/solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0.output.json
 ```
 
 `verifyInputFromHardhat` returns the same result as passing those documents to `buildVerifyInput`
@@ -118,13 +130,27 @@ To record the addresses, pass them in `libraries`, keyed by `path:Name`. Each ke
 `linkReferences` is a source path, and each name under it a library:
 
 ```ts
-// linkReferences: { "project/contracts/Tally.sol": { Tally: [...] } }
-const input = validateInput({
-  chainId,
-  address,
-  ...built,
-  libraries: { "project/contracts/Tally.sol:Tally": tallyAddress },
+import { verifyInputFromHardhat } from "@explorer-verify/hardhat";
+import { validateInput } from "explorer-verify";
+
+const built = await verifyInputFromHardhat({
+  root: ".",
+  contract: "contracts/Counter.sol:Counter",
 });
+// The artifact's linkReferences: { "project/contracts/Tally.sol": { Tally: [...] } }
+const input = validateInput({
+  chainId: 11155111,
+  address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  ...built,
+  libraries: { "project/contracts/Tally.sol:Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c" },
+});
+console.log(JSON.stringify(input.libraries));
+```
+
+On Hardhat 3 it prints the address in lower case:
+
+```text
+{"project/contracts/Tally.sol:Tally":"0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c"}
 ```
 
 `verify()` submits the input as it is, without the addresses. Sourcify wants `settings.libraries`

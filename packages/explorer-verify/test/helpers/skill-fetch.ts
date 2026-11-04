@@ -2,7 +2,8 @@
  * Preloaded with `node --import` into each run of a skill example (see `skill.ts`).
  *
  * It replaces `globalThis.fetch` with a fake that answers from the recorded Sourcify fixtures
- * named in the `SKILL_FIXTURES` environment variable, in order. A name that ends in `*` answers
+ * named in the `SKILL_FIXTURES` environment variable, in order. A name with a backend folder in
+ * front, such as `etherscan/<name>`, answers from that backend's fixtures. A name that ends in `*` answers
  * every request that matches its recording, and the next request that does not match moves on to
  * the next name. The run fails, with exit code 1 and a message on stderr, when a request differs
  * from its recording in method or URL, when a request is sent without `redirect: "manual"`, when a
@@ -50,7 +51,12 @@ const steps: { fixture: Fixture; repeat: boolean }[] = Array.isArray(names)
   ? names.map((name: unknown) => {
       const text = String(name);
       const repeat = text.endsWith("*");
-      return { fixture: loadFixture("sourcify", repeat ? text.slice(0, -1) : text), repeat };
+      const [backend, file] = text.includes("/") ? text.split("/", 2) : ["sourcify", text];
+      const fixture = String(file);
+      return {
+        fixture: loadFixture(String(backend), repeat ? fixture.slice(0, -1) : fixture),
+        repeat,
+      };
     })
   : [];
 const problems: string[] = [];

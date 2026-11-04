@@ -226,10 +226,10 @@ Docs:
 - **R-AX-2** The npm package ships `docs/user/` as `docs/`, plus an `llms.txt` whose links are
   relative to the packaged docs. An agent working in `node_modules` reads the docs of the installed
   version. The repository-root `llms.txt` (R-AX-1) links GitHub. Each page states the version it
-  describes. The CLI reference is generated from the CLI's own help, so it does not drift from the
-  code. The API reference is generated from TSDoc into the docs site build only (R-AX-17). It is
-  not written to `docs/user/` and does not ship in the package, whose `.d.ts` files carry the
-  TSDoc.
+  describes. Every `ts` example in the user docs compiles and runs against the build. The CLI
+  reference is generated from the CLI's own help, so it does not drift from the code. The API
+  reference is generated from TSDoc into the docs site build only (R-AX-17). It is not written to
+  `docs/user/` and does not ship in the package, whose `.d.ts` files carry the TSDoc.
 - **R-AX-3** A page "Using explorer-verify from an agent" says which calls are outward and permanent
   (submit) and which are safe (validate, dry run, lookup, status), where keys come from, and the
   Etherscan plan rule (R-SEC-3). Every user page links `llms.txt` near the top.
