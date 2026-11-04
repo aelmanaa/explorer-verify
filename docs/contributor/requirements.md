@@ -235,7 +235,9 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   `verify.routed`, `verify.poll`, `verify.retry` and `verify.result` (decision 0013). A call that
   throws emits no `verify.result`. `verify.poll` `state` is one of `pending`, `queued` or
   `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error`,
-  `duplicate-submission`, `not-indexed` or `empty-submit`. An exception thrown
+  `duplicate-submission`, `not-indexed` or `empty-submit`. `verify.retry` names the backend the
+  request goes to: a retried request to `rpcUrl` or `ipfsGateway` emits none, and is logged at
+  `warn` with a `label` field in place of `backend` (#134). An exception thrown
   by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
   outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
   the same redaction step. Within a schema version, releases only add event types and fields.

@@ -11,7 +11,7 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import { request } from "../../src/http/fetch.ts";
 import type { Budget, HttpContext, HttpRequest } from "../../src/http/fetch.ts";
 import type { Observer } from "../../src/observe.ts";
-import type { Logger } from "../../src/types.ts";
+import type { LogFields, Logger } from "../../src/types.ts";
 
 type Fetch = typeof fetch;
 
@@ -59,6 +59,14 @@ function recorder(): { logger: Logger; lines: string[] } {
     lines.push(message);
   };
   return { logger: { debug: record, info: record, warn: record, error: record }, lines };
+}
+
+/** An observer whose logger keeps the fields of each line. */
+function fieldsObserver(lines: LogFields[]): Observer {
+  const record = (_message: string, fields?: LogFields): void => {
+    lines.push(fields ?? {});
+  };
+  return observerOf({ debug: record, info: record, warn: record, error: record });
 }
 
 function observerOf(logger: Logger): Observer {
@@ -311,6 +319,30 @@ describe("request: a field on Object.prototype has no effect (R-SEC-2)", () => {
     assert.deepEqual(polluted.lines, []);
   });
 
+  it("ignores a polluted label; an own label replaces the backend in log lines (#134)", async () => {
+    const { fetch } = answering(ok);
+    const own: LogFields[] = [];
+    await request(
+      { backend: "sourcify", label: "ipfs", secrets: [], fetch, observer: fieldsObserver(own) },
+      get(),
+    );
+    assert.equal(own[0]?.["label"], "ipfs");
+    assert.equal(own[0]?.["backend"], undefined);
+
+    const polluted: LogFields[] = [];
+    await withPollution(
+      "label",
+      "rpc",
+      async () =>
+        await request(
+          { backend: "sourcify", secrets: [], fetch, observer: fieldsObserver(polluted) },
+          get(),
+        ),
+    );
+    assert.equal(polluted[0]?.["backend"], "sourcify");
+    assert.equal(polluted[0]?.["label"], undefined);
+  });
+
   it("ignores a polluted random; an own random sets the backoff", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
     const own = answering(busy, ok);
@@ -533,6 +565,7 @@ describe("request: a required field only on a prototype is missing (R-SEC-2)", (
 describe("request: a getter or Proxy trap that throws is invalid-input (R-SEC-1, R-SEC-2)", () => {
   const contextFields = [
     "backend",
+    "label",
     "fetch",
     "signal",
     "observer",
@@ -667,6 +700,7 @@ describe("request: each field is read once per call (R-SEC-2)", () => {
     const ctx = counted<HttpContext>(
       {
         backend: "sourcify",
+        label: "rpc",
         secrets: [],
         fetch,
         signal: new AbortController().signal,
@@ -691,7 +725,7 @@ describe("request: each field is read once per call (R-SEC-2)", () => {
     const response = await drive(t, request(ctx, req));
     assert.equal(response.status, 200);
     assert.equal(calls.length, 2);
-    assert.equal(reads.size, 19);
+    assert.equal(reads.size, 20);
     for (const [key, count] of reads) {
       assert.equal(count, 1, key);
     }

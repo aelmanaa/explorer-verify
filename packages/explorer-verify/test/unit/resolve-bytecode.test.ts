@@ -21,6 +21,7 @@ import { base58, ipfsCid } from "../../src/input/resolvers/ipfs.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
+import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const SEPOLIA = 11155111;
@@ -1380,4 +1381,46 @@ describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () =
     assert.doesNotMatch(lines.join("\n"), /DUMMYKEY/);
     assert.doesNotMatch(JSON.stringify(error.details), /DUMMYKEY/);
   });
+});
+
+describe("resolveInputFromBytecode: retries to the caller's endpoints are logged (#134, R-DX-5, R-SEC-1)", () => {
+  const rpcUrl = `https://rpc.example.org/v2/${DUMMY_KEY}`;
+  const gateway = `https://gw.example.org/?token=${DUMMY_KEY}`;
+  const cases = [
+    {
+      label: "rpc",
+      options: (fetch: typeof globalThis.fetch): ResolveInputOptions => ({ rpcUrl, fetch }),
+    },
+    {
+      label: "ipfs",
+      options: (fetch: typeof globalThis.fetch): ResolveInputOptions => ({
+        bytecode: vector("ipfs").runtime,
+        sourcify: false,
+        ipfsGateway: gateway,
+        fetch,
+      }),
+    },
+  ] as const;
+  for (const { label, options } of cases) {
+    it(`logs each ${label} retry at warn with label ${label}, no backend name and no key`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+      const { logger, lines } = recordingLogger();
+      const busy = Array.from({ length: 5 }, () => textResponse("busy", 503));
+      const { fetch, calls } = replay(...busy);
+      const pending = resolveInputFromBytecode(TARGET, { ...options(fetch), logger });
+      await driveMockClock(pending, () => {
+        t.mock.timers.runAll();
+      });
+      const error = await rejection(pending);
+      expectCode(error, "metadata-unavailable");
+      assert.equal(calls.length, 5);
+      const retries = lines.filter((line) => line.startsWith("warn") && line.includes("retrying"));
+      assert.equal(retries.length, 4, lines.join("\n"));
+      assert.ok(retries.every((line) => line.includes(`"label":"${label}"`)));
+      const text = lines.join("\n");
+      assert.doesNotMatch(text, /"backend"|sourcify/);
+      assert.doesNotMatch(text, /DUMMYKEY/);
+      assert.doesNotMatch(JSON.stringify(error.details), /DUMMYKEY|sourcify/);
+    });
+  }
 });

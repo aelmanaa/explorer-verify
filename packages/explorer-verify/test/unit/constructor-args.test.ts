@@ -784,6 +784,53 @@ describe("constructor argument derivation (R-IN-3)", () => {
     assert.ok(lines.some((line) => line.startsWith("Derived the constructor arguments")));
   });
 
+  it("logs JSON-RPC retries with label rpc, no backend name, no verify.retry and no key (#134, R-DX-5, R-SEC-1)", async () => {
+    const { fetch, seen } = fake({
+      rpc: { eth_chainId: json({ error: `busy at ${RPC_URL}` }, 503) },
+      creation: etherscanFixture("2026-11-04-getcontractcreation-args-greeter"),
+    });
+    const lines: { level: string; message: string; fields: LogFields }[] = [];
+    const record =
+      (level: string) =>
+      (message: string, fields?: LogFields): void => {
+        lines.push({ level, message, fields: fields ?? {} });
+      };
+    const logger: Logger = {
+      debug: record("debug"),
+      info: record("info"),
+      warn: record("warn"),
+      error: record("error"),
+    };
+    const events: VerifyEvent[] = [];
+    await drive(
+      verify(inputOf(GREETER), {
+        ...WITH_KEY,
+        fetch,
+        rpcUrl: RPC_URL,
+        logger,
+        onEvent: (event) => {
+          events.push(event);
+        },
+      }),
+    );
+    assert.equal(whats(seen).filter((what) => what === "eth_chainId").length, 5);
+    const rpcLines = lines.filter((line) => line.fields["label"] === "rpc");
+    assert.equal(rpcLines.filter((line) => line.level === "warn").length, 4);
+    assert.equal(rpcLines.filter((line) => line.level === "debug").length, 5);
+    assert.ok(rpcLines.every((line) => !("backend" in line.fields)));
+    assert.ok(
+      rpcLines.every((line) => line.fields["url"] === "https://rpc.example.org/v2/[redacted]"),
+    );
+    assert.deepEqual(
+      events.filter((event) => event.type === "verify.retry"),
+      [],
+    );
+    const text = JSON.stringify([lines, events]);
+    assert.ok(!text.includes(RPC_SECRET), text);
+    assert.ok(!text.includes(KEY), text);
+    assert.equal(submittedArgs(seen), GREETER.constructorArgs.slice(2));
+  });
+
   it("falls back when the transaction is not found", async () => {
     const { fetch, seen } = fake({
       rpc: {

@@ -108,9 +108,9 @@ export interface ResolveInputOptions {
   /** Time budget for the whole call, in milliseconds. Defaults to 120000. */
   timeoutMs?: number;
   /**
-   * Receives log lines with secrets removed. Nothing is logged when it is absent. Requests to
-   * Sourcify are logged with their retries; requests to `rpcUrl` and `ipfsGateway` are not, only
-   * the outcome of each attempt.
+   * Receives log lines with secrets removed. Nothing is logged when it is absent. Every request
+   * is logged with its retries. Lines for requests to `rpcUrl` and `ipfsGateway` carry a `label`
+   * field, `rpc` or `ipfs`, and no backend name.
    */
   logger?: Logger;
 }
@@ -337,21 +337,20 @@ function readSettings(target: BytecodeTarget, options: ResolveInputOptions | und
 }
 
 /**
- * The HTTP context of one request. Sourcify requests carry the observer, so their retries are
- * logged. Requests to the caller's endpoints do not: the HTTP layer would name a backend in each
- * line, and these endpoints are not backends. Their failures become an attempt instead.
+ * The HTTP context of one request. Every request carries the observer, so its retries are logged.
+ * Requests to the caller's endpoints carry their `label` and are logged without a backend name.
  */
 function context(call: Call, source: MetadataAttempt["source"]): HttpContext {
   const { settings } = call;
   return {
-    // The HTTP layer names a backend in its errors and log lines. Errors from the caller's
-    // endpoints are caught and become an attempt, and those requests are not logged, so this
-    // name never reaches the caller for them.
+    // The HTTP layer names a backend in its errors. Errors from the caller's endpoints are caught
+    // and become an attempt, so this name never reaches the caller for them.
     backend: "sourcify",
     secrets: settings.secrets,
     budget: call.budget,
     fetch: settings.fetch,
-    ...(source === "sourcify" ? { observer: call.observer } : {}),
+    observer: call.observer,
+    ...(source === "sourcify" ? {} : { label: source }),
     ...(source === "rpc" ? { maxResponseBytes: RPC_BODY_BYTES } : {}),
     ...(source === "ipfs" ? { maxResponseBytes: GATEWAY_BODY_BYTES } : {}),
     ...(settings.signal === undefined ? {} : { signal: settings.signal }),
