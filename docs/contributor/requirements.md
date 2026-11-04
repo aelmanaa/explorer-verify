@@ -142,9 +142,12 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   returns a `Response`, and runs in Node, edge runtimes and serverless platforms. Framework adapters stay thin.
 - **R-SRV-2** The handler holds the Etherscan key. The browser calls the handler; the handler calls
   Etherscan.
-- **R-SRV-3** It forwards only the verify-submit and status actions, never arbitrary explorer API
-  calls (Etherscan terms forbid a general proxy, see
-  [research/2026-11-02-etherscan-terms.md](research/2026-11-02-etherscan-terms.md)).
+- **R-SRV-3** It forwards only the verify-submit and status actions and a read-only lookup of one
+  address, never arbitrary explorer API calls (Etherscan terms forbid a general proxy, see
+  [research/2026-11-02-etherscan-terms.md](research/2026-11-02-etherscan-terms.md)). The lookup
+  answer is reduced to what the client classifies, so no source is relayed
+  ([decision 0021](decisions/0021-server-handler-forwards-a-reduced-lookup.md)). The proxy
+  verification actions follow in M3 (#94).
 - **R-SRV-4** Guards: chain allowlist, request size limit, per-client rate limit hook, and an
   optional check that the address was created by an allowed deployer or factory.
 - **R-SRV-5** The client side uses the handler by injecting a `fetch` that targets it. No other
@@ -391,7 +394,7 @@ Measurement:
   forbid exposing a key in client code and operating a proxy that passes API data to third parties;
   whether a verify-only handler counts as such a proxy is the project's reading, not legal advice,
   and operators should confirm with Etherscan; and that the handler forwards only the verify-submit
-  and status actions (R-SRV-3).
+  and status actions and a reduced read-only lookup (R-SRV-3).
 
 ### Quality (R-QA)
 

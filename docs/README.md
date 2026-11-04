@@ -18,6 +18,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [checkStatus()](user/reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](user/reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |
 | [Routing](user/reference/routing.md)                                                                | How a chain resolves to a backend, the routing table and its options     |
+| [Server handler](user/reference/server-handler.md)                                                  | `createVerifyHandler`: keep the Etherscan key on your server, its guards |
 | [Errors](user/reference/errors/index.md)                                                            | Every error code, with its cause and fix                                 |
 | [JSON output and exit codes](user/reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](user/reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |

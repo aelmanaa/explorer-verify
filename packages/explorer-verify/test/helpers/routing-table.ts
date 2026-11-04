@@ -4,6 +4,9 @@
 import { toBackendName } from "../../src/backend-names.ts";
 import type { BackendName } from "../../src/backend-names.ts";
 import { redact } from "../../src/redact.ts";
+import { ETHERSCAN_API_URL } from "../../src/routing/resolve.ts";
+
+const ETHERSCAN = new URL(ETHERSCAN_API_URL);
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TABLE_KEYS = ["schemaVersion", "checked", "chains"];
@@ -15,7 +18,7 @@ const ENTRY_KEYS = ["backend", "apiUrl", "explorerUrl"];
  * in the table: its issue adds the rule with its first row.
  */
 const API_RULES: Readonly<Partial<Record<BackendName, (chainId: number) => [string, RegExp]>>> = {
-  "etherscan-v2": () => ["api.etherscan.io", /^\/v2\/api$/],
+  "etherscan-v2": () => [ETHERSCAN.host, new RegExp(`^${ETHERSCAN.pathname}$`)],
   routescan: (chainId) => [
     "api.routescan.io",
     new RegExp(`^/v2/network/(mainnet|testnet)/evm/${String(chainId)}/etherscan/api$`),

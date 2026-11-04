@@ -22,7 +22,7 @@ also carries the server handler, and scoped add-ons for Node-only code.
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
 optional features stay out of it (R-RUN-5). `explorer-verify`, `@explorer-verify/foundry` and
-`@explorer-verify/hardhat` exist today. The `/server` subpath arrives in M3, the other add-ons in M4. `@explorer-verify/foundry`
+`@explorer-verify/hardhat` exist today, and the core has its `/server` subpath. The other add-ons arrive in M4. `@explorer-verify/foundry`
 depends on the core's public entry point only: it finds and reads a contract's files under `out/`
 and leaves every format check to `buildVerifyInput` (R-DX-2).
 
@@ -47,7 +47,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists) |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                          |
 | `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)          |
-| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV)                                    |
+| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV) (exists)                           |
 | `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                            |
 | `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                         |
 | `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                            |

@@ -172,6 +172,18 @@ export interface RouteChoice {
  */
 export const SOURCIFY_API_URL = "https://sourcify.dev/server";
 
+/**
+ * Etherscan's v2 API base: the one `apiUrl` the routing table may list for `etherscan-v2`, since
+ * every chain shares it and `requestUrl` adds the chain as `chainid`. The table check and the
+ * server handler read it, so the host has one source.
+ *
+ * @example
+ * ```ts
+ * new URL(ETHERSCAN_API_URL).host; // "api.etherscan.io"
+ * ```
+ */
+export const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
+
 const SOURCIFY_REPO_URL = "https://repo.sourcify.dev";
 // Hostnames as `URL` reports them: lowercase, IPv4 normalised, IPv6 compressed in brackets.
 const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];

@@ -132,6 +132,12 @@ export interface HttpContext {
   readonly budget?: Budget;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. Tests fix it. */
   readonly random?: () => number;
+  /**
+   * The most requests one {@link request} call sends, the first one included: an integer from 1
+   * to {@link MAX_ATTEMPTS}. Defaults to {@link MAX_ATTEMPTS}. The server handler sends at most
+   * two, so its retries and the client's do not multiply.
+   */
+  readonly maxAttempts?: number;
 }
 
 /**
@@ -177,6 +183,7 @@ interface Call {
   readonly maxResponseBytes: number | undefined;
   readonly budget: Budget | undefined;
   readonly random: () => number;
+  readonly maxAttempts: number | undefined;
   readonly url: string;
   readonly method: HttpRequest["method"];
   readonly body: HttpRequest["body"];
@@ -266,6 +273,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
   const call = readCall(ctx, req);
   checkLimits(call);
   const { log, emit, budget } = call;
+  const maxAttempts = call.maxAttempts ?? MAX_ATTEMPTS;
   const url = loggableUrl(call.url);
   const target = `${call.method} ${url}`;
   const where = { backend: call.backend, method: call.method, url };
@@ -277,7 +285,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
     if (failure !== undefined && delayMs !== undefined) {
       const next = attempt + 1;
       log.warn(
-        `${target}: ${describe(failure)}; retrying in ${String(delayMs)} ms (attempt ${String(next)} of ${String(MAX_ATTEMPTS)})`,
+        `${target}: ${describe(failure)}; retrying in ${String(delayMs)} ms (attempt ${String(next)} of ${String(maxAttempts)})`,
         {
           ...where,
           attempt: next,
@@ -299,7 +307,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
     if (budget !== undefined && budget.deadline - Date.now() <= 0) {
       throw timeoutError(call, target, budget.timeoutMs);
     }
-    log.debug(`${target}: attempt ${String(attempt)} of ${String(MAX_ATTEMPTS)}`, {
+    log.debug(`${target}: attempt ${String(attempt)} of ${String(maxAttempts)}`, {
       ...where,
       attempt,
     });
@@ -330,7 +338,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
     }
     failure = result;
     delayMs =
-      attempt < MAX_ATTEMPTS
+      attempt < maxAttempts
         ? retryDelay(budget, call.retry, attempt, result, call.random)
         : undefined;
   } while (delayMs !== undefined);
@@ -410,6 +418,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
             timeoutMs: required(budget, "timeoutMs", "context.budget"),
           },
     random: optional(ctx, "random", "context") ?? Math.random,
+    maxAttempts: optional(ctx, "maxAttempts", "context"),
     url: required(req, "url", "request"),
     method: required(req, "method", "request"),
     body: optional(req, "body", "request"),
@@ -475,6 +484,16 @@ function checkLimits(call: Call): void {
   ]
     .filter(({ value }) => value !== undefined && !(Number.isFinite(value) && value > 0))
     .map(({ field }) => ({ field, message: "must be a positive finite number" }));
+  const attempts = call.maxAttempts;
+  if (
+    attempts !== undefined &&
+    !(Number.isInteger(attempts) && attempts >= 1 && attempts <= MAX_ATTEMPTS)
+  ) {
+    issues.push({
+      field: "maxAttempts",
+      message: `must be an integer from 1 to ${String(MAX_ATTEMPTS)}`,
+    });
+  }
   if (issues.length > 0) {
     throw new ExplorerVerifyError(
       { code: "invalid-input", issues },
