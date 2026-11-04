@@ -1,0 +1,25 @@
+{
+  "source": "Live response from api.routescan.io to a POST request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T08:29:45.952Z, without a key.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": "module=contract&action=getsourcecode&address=0x636522C3785337399Aa9105498d2Bd95Dc01D749"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cf-cache-status": "DYNAMIC",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Invalid querystring request"
+    }
+  },
+  "recordedAt": "2026-11-04T08:29:45.952Z"
+}

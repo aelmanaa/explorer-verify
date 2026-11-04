@@ -785,13 +785,15 @@ describe("missing-api-key check (api-keys.md `## A missing key`)", () => {
     globalThis.fetch = original;
   });
 
-  it('route.backend "etherscan-v2" on a chain whose row lists only Sourcify throws unsupported-chain, sends nothing (R-RT-2)', async () => {
-    const error = await errorOf(verify(makeInput(), { route: { backend: "etherscan-v2" } }));
-    assert.equal(error.code, "unsupported-chain");
-    assert.equal(globalCalls.length, 0);
-  });
+  for (const backend of ["etherscan-v2", "routescan"] as const) {
+    it(`route.backend "${backend}" on a chain whose row lists only Sourcify throws unsupported-chain, sends nothing (R-RT-2)`, async () => {
+      const error = await errorOf(verify(makeInput(), { route: { backend } }));
+      assert.equal(error.code, "unsupported-chain");
+      assert.equal(globalCalls.length, 0);
+    });
+  }
 
-  for (const backend of ["routescan", "etherscan-compatible", "blockscout"] as const) {
+  for (const backend of ["etherscan-compatible", "blockscout"] as const) {
     it(`route.backend "${backend}" without fetch throws invalid-input naming route.backend, not missing-api-key`, async () => {
       const error = await errorOf(verify(makeInput(), { route: { backend } }));
       assert.equal(error.code, "invalid-input");

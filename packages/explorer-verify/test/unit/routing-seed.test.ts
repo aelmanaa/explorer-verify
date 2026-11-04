@@ -110,9 +110,9 @@ describe("routing table rows of 2026-11-03 (R-RT-1)", () => {
     assert.equal(tableIds.length, 94);
   });
 
-  it("lists only Sourcify; the Etherscan v2 client has no rows yet (R-RT-1)", () => {
+  it("lists only Sourcify; the Etherscan v2 and Routescan clients have no rows yet (R-RT-1)", () => {
     const clients = Object.keys(DEFAULT_DEPENDENCIES.backends);
-    assert.deepEqual(clients, ["sourcify", "etherscan-v2"]);
+    assert.deepEqual(clients, ["sourcify", "etherscan-v2", "routescan"]);
     for (const row of ROUTING_TABLE.chains) {
       assert.deepEqual(row.backends, [{ backend: "sourcify" }], String(row.chainId));
     }
