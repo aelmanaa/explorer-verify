@@ -6,9 +6,10 @@
  */
 import type { ExitCode } from "explorer-verify";
 
-import { GLOBAL_OPTIONS, HELP_WORD } from "./arguments.ts";
+import { commandOptions, GLOBAL_OPTIONS, HELP_WORD } from "./arguments.ts";
 import type { OptionSpec, OptionSpecs } from "./arguments.ts";
 import type { Command, Example } from "./command.ts";
+import { KEY_VARIABLES } from "./keys.ts";
 import { LOG_LEVELS, LOG_VARIABLE } from "./log-level.ts";
 
 /** The CLI reference on the docs site. */
@@ -38,6 +39,10 @@ export const ENVIRONMENT: readonly VariableHelp[] = [
   { name: "NO_COLOR", description: "Any value but empty turns colour off under --color auto." },
   { name: "TERM", description: "dumb turns colour and the spinner off under --color auto." },
   { name: "CI", description: "Any value but empty turns the spinner and the pager off." },
+  ...KEY_VARIABLES.map(({ name, backend }) => ({
+    name,
+    description: `The API key of ${backend}, sent only to its routing-table host. Empty counts as unset.`,
+  })),
 ];
 
 /** One exit code and what it means. */
@@ -156,7 +161,7 @@ export function commandHelp(command: Command): CommandHelp {
     summary: command.summary,
     usage: `${PROGRAM} ${command.name}${positionals} [options]`,
     examples: command.examples.map(exampleHelp),
-    options: optionsHelp(command.options),
+    options: optionsHelp(commandOptions(command)),
   };
 }
 

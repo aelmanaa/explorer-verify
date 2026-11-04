@@ -22,6 +22,8 @@ import { stringOption, usageError } from "./command.ts";
 import type { Command, CommandContext } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
 import { helpResult, helpText } from "./help.ts";
+import { keyVariableValues, readRouteOptions, scrubbing, withoutKeyVariables } from "./keys.ts";
+import type { InputStream, RouteOptions } from "./keys.ts";
 import {
   effectiveLevel,
   environmentLevel,
@@ -50,6 +52,8 @@ export interface Io {
   readonly stdout: OutputStream;
   /** Receives logs, events, errors and the spinner. */
   readonly stderr: OutputStream;
+  /** Opens stdin. The CLI calls it only when a flag asks it to read stdin, such as `--api-key-stdin`. */
+  readonly stdin: () => InputStream;
   /** Calls `listener` on SIGINT and SIGTERM, and returns a function that stops it. */
   readonly onSignal: (listener: (signal: SignalName) => void) => () => void;
 }
@@ -67,6 +71,8 @@ interface RunState {
   submitted: string | undefined;
   /** Set once the outcome is fixed; later signals are ignored. */
   fixed: boolean;
+  /** Every key read, removed from everything written to stdout and stderr (R-SEC-1, R-AX-9). */
+  readonly secrets: string[];
 }
 
 /**
@@ -97,18 +103,18 @@ function choice<T extends string>(
  * the fixed hint, and the exception's message redacted whole, then cut short, so a key across the
  * cut never leaves a fragment (R-SEC-1). The redacted cause keeps the stack for the debug line.
  */
-function internalError(error: unknown): ExplorerVerifyError {
+function internalError(error: unknown, secrets: readonly string[]): ExplorerVerifyError {
   let text: string;
   try {
     text = error instanceof Error ? `${error.name}: ${error.message}` : typeof error;
   } catch {
     text = "an exception whose message cannot be read";
   }
-  const redacted = new ExplorerVerifyError({ code: "internal-error" }, text, { secrets: [] });
+  const redacted = new ExplorerVerifyError({ code: "internal-error" }, text, { secrets });
   return new ExplorerVerifyError(
     { code: "internal-error" },
     `An unexpected error occurred: ${redacted.message.slice(0, MESSAGE_LENGTH)}`,
-    { secrets: [], cause: error },
+    { secrets, cause: error },
   );
 }
 
@@ -164,6 +170,7 @@ async function runCommand(
       { once: true },
     );
   });
+  let routeOptions: RouteOptions = {};
   const context: CommandContext = {
     positionals: args.positionals,
     values: args.values,
@@ -175,12 +182,27 @@ async function runCommand(
       }
       stderr.onEvent(event);
     },
-    env: io.env,
+    env: withoutKeyVariables(io.env),
+    routeOptions: () => routeOptions,
   };
   stderr.startSpinner(`Running ${command.name}`);
   try {
     const running = Promise.resolve()
-      .then(async () => await command.run(context))
+      .then(async () => {
+        if (command.routed === true) {
+          const read = await readRouteOptions({
+            values: args.values,
+            env: io.env,
+            stdin: io.stdin,
+          });
+          state.secrets.push(...read.secrets);
+          if (read.options === undefined) {
+            throw usageError(read.issues);
+          }
+          routeOptions = read.options;
+        }
+        return await command.run(context);
+      })
       .then(
         (result): Settled => ({ result }),
         (error: unknown): Settled => ({ error }),
@@ -191,7 +213,7 @@ async function runCommand(
     }
     return settled.error instanceof ExplorerVerifyError
       ? settled.error
-      : internalError(settled.error);
+      : internalError(settled.error, state.secrets);
   } finally {
     stderr.stopSpinner();
   }
@@ -313,16 +335,24 @@ async function runCli(
  * @param commands - The command table; the tests pass their own.
  * @returns The exit code.
  */
-export async function main(io: Io, commands: readonly Command[] = COMMANDS): Promise<ExitCode> {
+export async function main(given: Io, commands: readonly Command[] = COMMANDS): Promise<ExitCode> {
   // Until the command line is read, a literal `--json` before any `--` counts, so a failure that
   // happens first still prints an envelope (R-AX-5).
-  const end = io.argv.indexOf("--");
-  let json = io.argv.slice(0, end === -1 ? undefined : end).includes("--json");
+  const end = given.argv.indexOf("--");
+  let json = given.argv.slice(0, end === -1 ? undefined : end).includes("--json");
   const state: RunState = {
     controller: new AbortController(),
     received: undefined,
     submitted: undefined,
     fixed: false,
+    // The key variables are secrets before the command line is read, so no path prints them.
+    secrets: keyVariableValues(given.env),
+  };
+  // The last guard of R-SEC-1: every key read is removed from both streams, whatever wrote it.
+  const io: Io = {
+    ...given,
+    stdout: scrubbing(given.stdout, state.secrets),
+    stderr: scrubbing(given.stderr, state.secrets),
   };
   const stopListening = io.onSignal((signal) => {
     if (!state.fixed && state.received === undefined) {
@@ -336,7 +366,7 @@ export async function main(io: Io, commands: readonly Command[] = COMMANDS): Pro
       json = value;
     });
   } catch (error) {
-    code = failSafe(error, io, json);
+    code = failSafe(error, io, json, state.secrets);
   }
   state.fixed = true;
   stopListening();
@@ -344,7 +374,7 @@ export async function main(io: Io, commands: readonly Command[] = COMMANDS): Pro
 }
 
 /** The exit code of a bug in the CLI itself, with its `internal-error` written where possible. */
-function failSafe(error: unknown, io: Io, json: boolean): ExitCode {
+function failSafe(error: unknown, io: Io, json: boolean, secrets: readonly string[]): ExitCode {
   // A bug in the CLI itself. The level and format the caller chose may be what failed, so this
   // path ignores them on purpose and always writes the error in text at the default level.
   const stderr = createStderr({
@@ -355,7 +385,7 @@ function failSafe(error: unknown, io: Io, json: boolean): ExitCode {
     spinner: false,
   });
   try {
-    return finish(internalError(error), io, stderr, { json, color: false });
+    return finish(internalError(error, secrets), io, stderr, { json, color: false });
   } catch {
     // stdout refused the output too; the exit code is all that is left.
     return ERROR_EXIT_CODES["internal-error"];

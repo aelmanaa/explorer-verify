@@ -7,6 +7,7 @@ import { ExplorerVerifyError } from "explorer-verify";
 import type { InputIssue, Logger, VerifyEvent, VerifyResult } from "explorer-verify";
 
 import type { CommandSpec, OptionValue } from "./arguments.ts";
+import type { RouteOptions } from "./keys.ts";
 import type { Environment } from "./terminal.ts";
 
 /** What a command's `run` receives. */
@@ -21,8 +22,14 @@ export interface CommandContext {
   readonly logger: Logger;
   /** The stderr event writer. Pass it to the library. */
   readonly onEvent: (event: VerifyEvent) => void;
-  /** The environment variables. */
+  /** The environment variables, without the key variables: the keys come from `routeOptions`. */
   readonly env: Environment;
+  /**
+   * Returns `apiKeys` and `route` from the route options, the key variables and the key flags
+   * (R-AX-9). Spread it into the library's options. Empty for a command that is not `routed`.
+   * A function, so printing the context shows no key.
+   */
+  readonly routeOptions: () => RouteOptions;
 }
 
 /** One example of a command line, for the help text and the CLI reference. */

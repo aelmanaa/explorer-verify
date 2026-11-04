@@ -185,6 +185,9 @@ export const SIMULATE: Command = {
   name: "simulate",
   // A placeholder for tests: no usage message or help text names it.
   hidden: true,
+  // Reads the keys and the route options like the real commands, so their contract can be tested
+  // on the built bin. It sends nothing, so it uses neither.
+  routed: true,
   summary:
     "Run a simulated verification with no network, to test the output contract. Replaced by verify and status.",
   usage: "",

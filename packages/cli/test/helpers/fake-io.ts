@@ -1,5 +1,6 @@
 // An in-process stand-in for the process: argv, environment, two captured streams with a chosen
 // terminal state, and a signal source the test fires by hand.
+import type { InputStream } from "../../src/keys.ts";
 import type { Io, SignalName } from "../../src/main.ts";
 
 export interface FakeIo {
@@ -10,18 +11,39 @@ export interface FakeIo {
   signal: (name: SignalName) => void;
   /** How many signal listeners are registered now. */
   listeners: () => number;
+  /** How many times the CLI opened stdin. */
+  stdinOpened: () => number;
 }
 
 export interface FakeIoOptions {
   env?: Record<string, string | undefined>;
   stdoutIsTerminal?: boolean;
   stderrIsTerminal?: boolean;
+  /** The chunks stdin yields; none by default. */
+  stdin?: readonly unknown[];
+  stdinIsTerminal?: boolean;
+  /** Makes reading stdin throw this. */
+  stdinError?: Error;
+}
+
+/** A stdin that yields `chunks`, or throws `error` when reading. */
+export function fakeStdin(chunks: readonly unknown[], isTTY = false, error?: Error): InputStream {
+  return {
+    isTTY,
+    [Symbol.asyncIterator]: async function* () {
+      if (error !== undefined) {
+        throw error;
+      }
+      yield* chunks;
+    },
+  };
 }
 
 export function fakeIo(argv: readonly string[], options: FakeIoOptions = {}): FakeIo {
   let out = "";
   let err = "";
   const listeners = new Set<(signal: SignalName) => void>();
+  let opened = 0;
   const io: Io = {
     argv,
     env: options.env ?? {},
@@ -36,6 +58,10 @@ export function fakeIo(argv: readonly string[], options: FakeIoOptions = {}): Fa
         err += text;
       },
       isTTY: options.stderrIsTerminal ?? false,
+    },
+    stdin: () => {
+      opened += 1;
+      return fakeStdin(options.stdin ?? [], options.stdinIsTerminal ?? false, options.stdinError);
     },
     onSignal: (listener) => {
       listeners.add(listener);
@@ -54,6 +80,7 @@ export function fakeIo(argv: readonly string[], options: FakeIoOptions = {}): Fa
       }
     },
     listeners: () => listeners.size,
+    stdinOpened: () => opened,
   };
 }
 

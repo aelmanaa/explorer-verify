@@ -189,7 +189,7 @@ describe("help: environment variables and exit codes", () => {
   it("lists the variables the CLI reads", () => {
     assert.deepEqual(
       ENVIRONMENT.map((variable) => variable.name),
-      [LOG_VARIABLE, "NO_COLOR", "TERM", "CI"],
+      [LOG_VARIABLE, "NO_COLOR", "TERM", "CI", "ETHERSCAN_API_KEY", "ROUTESCAN_API_KEY"],
     );
   });
 });

@@ -306,7 +306,11 @@ CLI:
   `--api-key-stdin` and `--input-json -` exit 2 at once instead of waiting. A key given this way
   fills `VerifyOptions.apiKeys` for the route's backend: `ETHERSCAN_API_KEY` fills
   `apiKeys["etherscan-v2"]` and `ROUTESCAN_API_KEY` fills `apiKeys.routescan`. A standalone
-  explorer's key fills `route.apiKey` (decision 0016). Tests assert that a dummy key never appears on stdout, on stderr
+  explorer's key fills `route.apiKey` (decision 0016). A key from `--api-key-file` or
+  `--api-key-stdin` needs `--backend` naming `etherscan-v2` or `routescan`, whose `apiKeys` entry
+  it fills, or `--api-url` with `--backend` naming one of those or `etherscan-compatible`, which
+  makes it `route.apiKey`. Otherwise the CLI exits 2, because the routing table picks a backend
+  partly by the keys it has. Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1).
 - **R-AX-10** Errors name the cause and the fix, and carry a stable code and a docs URL. The CLI and
   the library share one catalogue (R-DX-3). The docs URL is the code's own page,

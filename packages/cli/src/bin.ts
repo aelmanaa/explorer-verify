@@ -42,6 +42,8 @@ const code = await main({
   env: process.env,
   stdout: process.stdout,
   stderr: process.stderr,
+  // Opened only when a flag asks for stdin, so a run without one never touches it.
+  stdin: () => process.stdin,
   onSignal: (listener) => {
     listeners.add(listener);
     return () => {
