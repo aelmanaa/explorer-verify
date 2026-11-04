@@ -215,8 +215,11 @@ small fixture trees in a temporary folder, and run the entry points as child pro
 them. c8 covers the agent-docs scripts (`scripts/agent-docs.ts`, `scripts/decision-sources.ts` and
 the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
 `scripts/site-copies.ts`, `scripts/check-site.ts` and `scripts/smoke-site.ts`, the last against a
-local server), `scripts/random-order.ts` and the size check
-(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`) with a 95% floor per
-file on lines, branches, functions and statements. `scripts/browser-smoke.ts` needs a browser and
+local server), `scripts/random-order.ts`, the size check
+(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), and the release
+scripts ([releasing.md](releasing.md)) with a 95% floor per file on lines, branches, functions and
+statements. The release script tests create temporary git repositories, and the tag test signs
+tags with keys it makes in a throwaway `GNUPGHOME`, so they need `git` and `gpg` on the `PATH`.
+`scripts/browser-smoke.ts` needs a browser and
 runs in its own CI job instead. The older scripts have no tests yet and are not in the
 coverage list; a script gets added when it gets tests.

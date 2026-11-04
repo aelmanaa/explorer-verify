@@ -1,2 +1,9 @@
 # Every change is reviewed by the maintainer.
 * @aelmanaa
+
+# The release trust root, the workflows and the release scripts. A release reads them from the
+# tagged commit, so a change to them needs the maintainer's review (docs/contributor/releasing.md).
+/.github/ @aelmanaa
+/scripts/*release* @aelmanaa
+/scripts/check-tarballs.ts @aelmanaa
+/scripts/check-packed-files.ts @aelmanaa

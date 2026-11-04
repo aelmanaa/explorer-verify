@@ -27,3 +27,4 @@ in review.
 | [2026-11-03-api-key-placement.md](2026-11-03-api-key-placement.md)               | Where do Etherscan v2 and Routescan take an API key, and what do they answer for a missing, refused or spent one?               |
 | [2026-11-03-hardhat-build-layout.md](2026-11-03-hardhat-build-layout.md)         | Where do Hardhat 2 and Hardhat 3 write a contract's artifact and build-info, and how does one name the other?                   |
 | [2026-11-03-docs-site-and-versioning.md](2026-11-03-docs-site-and-versioning.md) | Where should the public docs live, built with which generator, and how should they and `docsUrl` be versioned?                  |
+| [2026-11-03-versioning-0x-or-1-0.md](2026-11-03-versioning-0x-or-1-0.md)         | Should the first release be 0.1.0 or 1.0.0, and what do npm ranges and changesets do with 0.x?                                  |
