@@ -8,9 +8,12 @@
 // at the tagged commit, and the promote workflow, which runs on `main`, reads it at the commit of
 // the version's tag. A package added on `main` after the tag is not part of that version.
 //
-// Usage: node scripts/release-packages.ts [--commit REF] [--names | --directories]
+// Usage: node scripts/release-packages.ts [--commit REF] [--names | --directories | --any]
 // Prints one name (the default) or one directory under `packages/` per line. Exits 1 when no
 // package is published: the core stays private until the pull request that prepares 0.1.0.
+// With --any it prints `true` when at least one package is published and `false` when every
+// package is private, and exits 0 either way. release-pr.yml reads it to skip the Version
+// Packages pull request while every package is private.
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
@@ -145,7 +148,7 @@ export function releasePackagesAt(commit: string, git: Git): ReleasePackage[] {
  * @param argv The arguments after the script name.
  * @param git Runs `git` in the repository.
  * @returns What to print.
- * @throws When no package is published, or on a usage error.
+ * @throws When no package is published and `--any` is not set, or on a usage error.
  */
 export function run(argv: readonly string[], git: Git): string {
   const { values } = parseArgs({
@@ -154,13 +157,18 @@ export function run(argv: readonly string[], git: Git): string {
       commit: { type: "string" },
       names: { type: "boolean" },
       directories: { type: "boolean" },
+      any: { type: "boolean" },
     },
   });
-  if (values.names === true && values.directories === true) {
-    throw new Error("pass --names or --directories, not both");
+  const modes = [values.names, values.directories, values.any].filter((mode) => mode === true);
+  if (modes.length > 1) {
+    throw new Error("pass one of --names, --directories or --any");
   }
   const commit = values.commit ?? "HEAD";
   const packages = releasePackagesAt(commit, git);
+  if (values.any === true) {
+    return `${String(packages.length > 0)}\n`;
+  }
   if (packages.length === 0) {
     throw new Error(
       `no package is published at ${commit}: every packages/*/package.json is private. The pull request that prepares the first release removes "private": true (docs/contributor/releasing.md)`,
