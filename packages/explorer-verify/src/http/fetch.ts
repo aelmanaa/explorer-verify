@@ -68,6 +68,12 @@ const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
 export type RetryMode = "safe" | "submit";
 
 /**
+ * What a request goes to when it is not a backend: `rpc` for the caller's JSON-RPC endpoint and
+ * `ipfs` for the caller's IPFS gateway.
+ */
+export type RequestLabel = "rpc" | "ipfs";
+
+/**
  * The time budget of the whole call, polling included. A request never runs past `deadline`.
  *
  * @example
@@ -98,8 +104,17 @@ export interface Budget {
  * ```
  */
 export interface HttpContext {
-  /** The backend the requests go to, named in errors. */
+  /**
+   * The backend named in errors. For a request that does not go to a backend, the backend of the
+   * call it serves, set together with {@link HttpContext.label}.
+   */
   readonly backend: BackendName;
+  /**
+   * Set when the requests go to an endpoint the caller configured, not to a backend. Log lines
+   * then carry this `label` field in place of `backend`, and no `verify.retry` event is emitted:
+   * that event names the backend a request goes to. The retry is still logged at `warn`.
+   */
+  readonly label?: RequestLabel;
   /**
    * The caller's `fetch`, the only way out to the network (R-SRV-5). Defaults to
    * `globalThis.fetch`, read when each request starts.
@@ -187,6 +202,7 @@ export interface HttpRequest {
  */
 interface Call {
   readonly backend: BackendName;
+  readonly label: RequestLabel | undefined;
   readonly send: typeof fetch;
   readonly signal: AbortSignal | undefined;
   readonly log: Observer["log"];
@@ -256,7 +272,8 @@ interface Progress {
  * - Logs only the URL's origin and path, with `?REDACTED` in place of a query string, through the
  *   redacting logger, with the backend, method, URL and attempt as fields (R-SEC-1, R-DX-5). A
  *   retry is logged at `warn`; a failure the call throws is never logged at `error`.
- * - Emits a `verify.retry` event before each retry wait (R-DX-6).
+ * - Emits a `verify.retry` event before each retry wait (R-DX-6), unless `ctx.label` is set. With
+ *   a label, log lines carry `label` in place of `backend`.
  * - A logger or `onEvent` callback that throws does not change the request (decision 0010).
  * - Reads each field of `ctx`, of its budget and observer, and of `req` once, as an own property,
  *   so this layer never uses a value added to `Object.prototype` (R-SEC-2). The `RequestInit` it
@@ -293,7 +310,11 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
   const maxAttempts = call.maxAttempts ?? MAX_ATTEMPTS;
   const url = loggableUrl(call.url);
   const target = `${call.method} ${url}`;
-  const where = { backend: call.backend, method: call.method, url };
+  const { label } = call;
+  const where =
+    label === undefined
+      ? { backend: call.backend, method: call.method, url }
+      : { label, method: call.method, url };
 
   let attempt = 0;
   let failure: Failure | undefined;
@@ -311,13 +332,15 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
           delayMs,
         },
       );
-      emit({
-        type: "verify.retry",
-        backend: call.backend,
-        attempt: next,
-        reason: failure.reason,
-        delayMs,
-      });
+      if (label === undefined) {
+        emit({
+          type: "verify.retry",
+          backend: call.backend,
+          attempt: next,
+          reason: failure.reason,
+          delayMs,
+        });
+      }
       await sleep(delayMs, call.signal);
     }
     attempt += 1;
@@ -420,6 +443,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
   const headers = optional(req, "headers", "request");
   return {
     backend: required(ctx, "backend", "context"),
+    label: optional(ctx, "label", "context"),
     send: optional(ctx, "fetch", "context") ?? globalThis.fetch,
     signal,
     log: required(observer, "log", "context.observer"),

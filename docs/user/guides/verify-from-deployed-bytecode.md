@@ -102,8 +102,8 @@ name is not redacted, so never put a key in it.
 
 Requests never follow a redirect. A JSON-RPC answer above 1 MiB, a gateway answer above 4 MiB and
 a Sourcify answer above 16 MiB are refused, and Sourcify metadata above 4 MiB is not hashed. The
-logger gets Sourcify's request and retry lines; for `rpcUrl` and `ipfsGateway` it gets only the
-outcome of each attempt.
+logger gets the request and retry lines of every request. Lines for `rpcUrl` and `ipfsGateway`
+carry a `label` field, `rpc` or `ipfs`, in place of a backend name.
 
 ## When it fails
 

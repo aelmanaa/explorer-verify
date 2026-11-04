@@ -52,7 +52,9 @@ The research found three facts that shape the design:
   call ends at once with `metadata-unavailable`: every later request would time out too.
 - Requests to Sourcify carry the call's logger, retries included. Requests to `rpcUrl` and
   `ipfsGateway` do not, because the HTTP layer would name a backend in each line; only the
-  outcome of each attempt is logged.
+  outcome of each attempt is logged. Amended on 2026-11-04 by #134: the HTTP layer takes a
+  `label` (`rpc` or `ipfs`) that replaces the backend name in log lines, so every request
+  carries the logger and its retries are logged. A labelled request emits no `verify.retry`.
 
 ### What is trusted
 

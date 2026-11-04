@@ -116,8 +116,9 @@ const SKIPPED: Record<SkipReason, string> = {
  * arguments are derived, it logs why and returns `input` unchanged, so the submit goes out without
  * arguments as before: at `info` when no source is configured, at `warn` otherwise (decision
  * 0032). A mismatch on a backend that refuses another build throws instead. Requests to `rpcUrl`
- * share the call's budget and signal but not its observer: the HTTP layer would name the backend
- * in each line, and the endpoint is not one.
+ * share the call's budget, signal and observer. Their log lines carry `label: "rpc"` and no
+ * backend name, and their retries emit no `verify.retry` event, which names a backend. A `timeout`
+ * error still names the route's backend: the budget is the call's.
  *
  * @param call - The `verify()` call, with its loaded client.
  * @param input - The checked input.
@@ -140,6 +141,8 @@ export async function withDerivedArgs(
   const { secrets, budget, fetch, signal, random } = ctx.http;
   const http: HttpContext = {
     backend: backend.name,
+    label: "rpc",
+    observer,
     secrets,
     maxResponseBytes: RPC_BODY_BYTES,
     ...(budget === undefined ? {} : { budget }),

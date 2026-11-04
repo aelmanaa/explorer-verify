@@ -49,8 +49,9 @@ is not also logged at `error`, so a program that logs the thrown error shows eac
 
 The fields of a request line are `backend`, `method`, `url` and `attempt`. A retry line adds
 `reason`, `status` (`null` when no response arrived) and `delayMs`. A URL shows its origin and path
-only; a query string becomes `?REDACTED`. Field names are diagnostics, like messages, and may change
-in any release.
+only; a query string becomes `?REDACTED`. A request to your `rpcUrl` or `ipfsGateway` is not a
+request to a backend: its lines carry `label`, `rpc` or `ipfs`, in place of `backend`. Field names
+are diagnostics, like messages, and may change in any release.
 
 pino takes the fields first. Wrap it in one line per method:
 
@@ -90,6 +91,8 @@ the verification goes on.
   `empty-submit` means Blockscout gave an empty answer to the submit, and the submit is sent again
   after a lookup ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment)).
   `attempt` is the number of the attempt after the wait, so the first retry is attempt 2.
+  `verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits
+  none. Its retries are logged at `warn`, with `label` set to `rpc`.
 - `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
   `verify.retry` and `verify.result`.
 - A call that throws emits no `verify.result`. The thrown error is the outcome.
