@@ -50,6 +50,8 @@ error code next to it, and the JSON envelope and exit codes are in
 [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input from
 compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md),
+shipping the input in a package that deploys its own contracts in
+[docs/user/guides/verify-contracts-your-package-ships.md](docs/user/guides/verify-contracts-your-package-ships.md),
 from a Foundry project in
 [docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md),
 and from a Hardhat project in

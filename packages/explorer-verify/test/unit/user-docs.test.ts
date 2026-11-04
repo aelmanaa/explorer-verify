@@ -26,6 +26,7 @@ import {
   exampleFile,
   globalsModule,
   runs,
+  shippedContractFiles,
   typeChecked,
   USER_DOCS_DIR,
   userDocPages,
@@ -91,6 +92,32 @@ const RUNS: readonly DocRun[] = [
     example: 1,
     what: "rebuild the input from Foundry metadata and sources in a package",
     setup: "npm-package",
+  },
+  {
+    page: "guides/verify-contracts-your-package-ships.md",
+    example: 0,
+    what: "write the Standard JSON input and the manifest from a Foundry build",
+    setup: "foundry",
+  },
+  {
+    page: "guides/verify-contracts-your-package-ships.md",
+    example: 1,
+    what: "verify the recorded Greeter deployment from the shipped files: already verified",
+    setup: "shipped-contracts",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "guides/verify-contracts-your-package-ships.md",
+    example: 1,
+    what: "verify the recorded Greeter deployment from the shipped files: submitted and verified",
+    setup: "shipped-contracts",
+    fixtures: [
+      "2026-11-02-lookup-not-verified",
+      "2026-11-02-submit-accepted",
+      "2026-11-02-job-exact-match",
+    ],
+    stdout:
+      "verified exact https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc\n",
   },
   {
     page: "guides/verify-from-a-foundry-project.md",
@@ -359,7 +386,8 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
   });
 
   it("type-checks every block that is not a fragment against the build", async () => {
-    const files: Record<string, string> = {};
+    // The files a block imports, besides the packages: the verification files a package ships.
+    const files: Record<string, string> = shippedContractFiles();
     for (const example of all.filter(typeChecked)) {
       files[exampleFile(example)] = example.code;
     }
@@ -373,8 +401,8 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
       .flatMap((example) => runsOf(example).map((spec) => ({ example, spec })));
     const problems = await withProjects(
       async (projectOf) =>
-        // Each run is its own process, and only the tutorial's build script writes files, in a
-        // folder no other example reads, so runs can overlap.
+        // Each run is its own process. Only the tutorial's build script and the package guide's
+        // script write files, each in a folder no other example reads, so runs can overlap.
         await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
           const dir = projectOf(spec.setup ?? "core");
           const file = exampleFile(example);

@@ -10,7 +10,8 @@ Nothing is released yet. `buildVerifyInput`, `validateInput` and [`verify`](../r
 An SDK often ships compiled contracts as JSON files in its npm package. You may not know whether
 Hardhat 2, Hardhat 3 or Foundry produced them. `buildVerifyInput` takes the parsed files, works out
 what each one is from its shape, and returns the `compiler` part of the verification input and the
-fully qualified contract name.
+fully qualified contract name. If you write the package and deploy its contracts, see
+[Verify contracts your package ships](verify-contracts-your-package-ships.md).
 
 ## Steps
 
