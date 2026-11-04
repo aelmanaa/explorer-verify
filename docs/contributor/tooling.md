@@ -29,6 +29,10 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 - `packages/foundry/tsconfig.build.json` and `tsconfig.test.json`: the Foundry build helper and
   its tests, with Node types (decision 0008). Both reference the core's build project, so the
   core's declarations are built first and the helper sees only its public entry point.
+- `examples/tsconfig.test.json`: the example applications and their tests, with Node types and
+  the DOM lib. `examples/tsconfig.worker.json` checks the Cloudflare Worker again with
+  `types: []`, so it uses only web-platform globals. Both reference the core's build project: the
+  examples import `explorer-verify` by name, as an application does, which resolves to `dist/`.
 - `tsconfig.scripts.json`: repository scripts.
 
 `tsconfig.test.json` maps the name `explorer-verify` to `src/index.ts` with `paths`, for types

@@ -285,6 +285,16 @@ importers:
         specifier: 'catalog:'
         version: 2.9.1
 
+  examples:
+    dependencies:
+      explorer-verify:
+        specifier: workspace:*
+        version: link:../packages/explorer-verify
+    devDependencies:
+      c8:
+        specifier: 'catalog:'
+        version: 12.0.0
+
   packages/cli:
     dependencies:
       explorer-verify:

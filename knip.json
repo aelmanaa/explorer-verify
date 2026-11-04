@@ -24,6 +24,16 @@
       "entry": ["src/index.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "examples": {
+      "entry": [
+        "server-nextjs/app/api/verify/route.ts",
+        "server-nextjs/lib/verify-client.ts",
+        "server-cloudflare/src/index.ts",
+        "server-cloudflare/client/verify-client.ts",
+        "test/**/*.test.ts"
+      ],
+      "project": ["**/*.ts"]
+    },
     "packages/cli": {
       "entry": ["src/bin.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]

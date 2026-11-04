@@ -53,6 +53,8 @@ and from a Hardhat project in
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
 sends and how it reads each answer. The logger and the stage events are in
 [docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
+[docs/user/guides/run-the-server-handler.md](docs/user/guides/run-the-server-handler.md) runs the
+server handler in Next.js and Cloudflare Workers, from the examples in `examples/`.
 [docs/user/explanation/match-types.md](docs/user/explanation/match-types.md) explains exact and
 partial matches, and
 [docs/user/explanation/etherscan-plans-and-attribution.md](docs/user/explanation/etherscan-plans-and-attribution.md)
@@ -92,6 +94,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | `packages/foundry/`                   | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
 | `packages/hardhat/`                   | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
 | `packages/cli/`                       | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
+| `examples/`                           | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, type-checked and tested                                       |
 | `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
 | `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
 | `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
