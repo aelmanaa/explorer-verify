@@ -39,12 +39,16 @@ These calls never submit. Run them without asking:
 | -------------------- | ------------------------------------------------------------------- |
 | `buildVerifyInput()` | Builds the compiler input and contract name from parsed build files |
 | `validateInput()`    | Checks an input locally and lists every problem. Sends nothing      |
+| `dryRun()`           | Looks the contract up and says whether `verify()` would submit      |
 | `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing             |
 | `checkStatus()`      | Asks the explorer about a submission it already has. Never submits  |
 | `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                  |
 | `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                 |
 | `toEnvelope()`       | Turns a result or an error into the JSON envelope. Sends nothing    |
 | `exitCodeOf()`       | Gives the exit code of a result or an error. Sends nothing          |
+
+The [agent page](../../docs/user/guides/using-from-an-agent.md#safe-steps) lists every call and
+command as safe or outward.
 
 ## 1. Build the input
 
@@ -294,8 +298,8 @@ It prints:
 false invalid-input false 2
 ```
 
-Act on the exit code, or on `ERROR_EXIT_CODES[code]`. The table describes `exitCodeOf()`, and the
-exit codes of the CLI that a later release adds. A script sets `process.exitCode` itself, as the
+Act on the exit code, or on `ERROR_EXIT_CODES[code]`. The table describes `exitCodeOf()` and the
+exit codes of the CLI. A script sets `process.exitCode` itself, as the
 examples do. See [When to stop](#when-to-stop) for how often to retry.
 
 | Exit code | Outcome                                                                                                                                                                                    | What to do                                                                                                                                                                                                                                               |
@@ -389,9 +393,9 @@ Keys on the command line:
 - No flag takes a key. The CLI reads the ETHERSCAN_API_KEY and ROUTESCAN_API_KEY variables, or one key from
   `--api-key-file <path>` or `--api-key-stdin`. A key flag needs `--backend`, and `--api-url` for a
   route the routing table does not hold.
-- With `--api-url`, as Etherscan needs in this release, the variable is not sent: give the key with
-  `--api-key-file` or `--api-key-stdin`. The person sets the key; never ask them to paste it into
-  the chat, and never write it into a command line.
+- With `--api-url`, as Etherscan needs on a chain whose row has no Etherscan entry, the variable
+  is not sent: give the key with `--api-key-file` or `--api-key-stdin`. The person sets the key;
+  never ask them to paste it into the chat, and never write it into a command line.
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
   optional `route` of `backend` and `apiUrl`. It holds no key. Only the output, log, `--dry-run`,
   `--timeout` and key flags may go with it.
@@ -403,8 +407,8 @@ Keys on the command line:
 An agent that retries without a limit can submit twice or poll for hours. Keep to these limits:
 
 - Call `checkStatus()` at most 3 times for one handle, a few minutes apart.
-- After `verification-inconclusive`, an exit code 5 or `job-not-found`, call `verify()` again at
-  most once.
+- After `verification-inconclusive` or an exit code 5, call `verify()` again at most once.
+- After `job-not-found`, ask the person first, then call `verify()` at most once.
 - Then stop, and report the handle, the error code and the hint to the person.
 - After exit code 1, report `result.reason`. Do not change the sources or the settings and submit
   again unless the person asks.
@@ -416,6 +420,8 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
 
 - Read a key from an environment variable or a key file. Never pass it as a command-line flag
   value, and never write it into code, a commit, a fixture or a test.
+- Do not print or read a key to check that it is set: no `echo`, `cat .env` or `printenv`. Run a
+  dry run instead: its `backend` and `lookup` show whether the key was used.
 - Pass a key to the library in `apiKeys`, by backend name, such as
   `{ apiKeys: { "etherscan-v2": key } }`. The library sends it only to that backend's own host and
   never in a URL. A standalone explorer's key goes in `route.apiKey`.
@@ -435,7 +441,7 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
 ## Do not
 
 - Do not call `verify()` to check whether a contract is verified. It submits when the explorer
-  lacks the source.
+  lacks the source. Call `dryRun()` instead.
 - Do not call `verify()` while a handle is stored, or again after `not-confirmed`. Call
   `checkStatus()` with the handle.
 - Do not run two `verify()` calls for the same contract at once.
