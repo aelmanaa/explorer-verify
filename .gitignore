@@ -16,3 +16,6 @@ CLAUDE.local.md
 packages/explorer-verify/docs/
 packages/explorer-verify/llms.txt
 packages/explorer-verify/skills/
+
+# Build output: the API reference TypeDoc writes for the docs site (site/api-reference.ts)
+site/api/

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The program TypeDoc reads for the API reference (decision 0015): the sources of every package
+  // entry point, with the core package's names mapped to its sources, so a type that a helper
+  // package takes from the core links to the core's page. TypeDoc reads it with the TypeScript 6
+  // API; `tsc -b` never builds it.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "composite": false,
+    "isolatedDeclarations": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "lib": ["ES2023", "DOM"],
+    "paths": {
+      "explorer-verify": ["../packages/explorer-verify/src/index.ts"],
+      "explorer-verify/server": ["../packages/explorer-verify/src/server/handler.ts"],
+      "explorer-verify/resolve": ["../packages/explorer-verify/src/input/resolvers/bytecode.ts"]
+    }
+  },
+  "include": [
+    "../packages/explorer-verify/src",
+    "../packages/explorer-verify/src/routing/table.json",
+    "../packages/foundry/src",
+    "../packages/hardhat/src"
+  ]
+}

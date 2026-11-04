@@ -1,0 +1,10 @@
+{
+  "name": "explorer-verify-site",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "typedoc": "catalog:",
+    "typedoc-plugin-markdown": "catalog:",
+    "typescript": "catalog:typedoc"
+  }
+}

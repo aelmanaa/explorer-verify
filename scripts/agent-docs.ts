@@ -435,7 +435,7 @@ function versionLine(text: string): { line: number; version: string } | undefine
  * Problems with `{{` in the prose of a user page, outside code and HTML comments. The docs site
  * compiles each page as a Vue template, which evaluates `{{ }}` as an expression (decision 0015).
  */
-function braceProblems(file: string, text: string): string[] {
+export function braceProblems(file: string, text: string): string[] {
   const problems: string[] = [];
   forEachProseLine(text, (line, index) => {
     if (line.includes("{{")) {

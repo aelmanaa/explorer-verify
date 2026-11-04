@@ -9,8 +9,17 @@
 //   `llms.txt`. Any other link into the repository points to the file on GitHub at the version's
 //   tag, because the site is built from that tag.
 // - The site's `llms.txt` is the root one with only the user pages, each linked as its Markdown
-//   copy on the site, plus a line that names the version.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+//   copy on the site, plus a line that names the version and a section that lists the pages of
+//   the API reference.
+// - The API reference (scripts/site-api.ts) is generated into `site/api/` and served under `api/`.
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 import {
@@ -25,6 +34,8 @@ import {
   splitTarget,
   USER_DOCS,
 } from "./agent-docs.ts";
+import { API_OUT, API_SITE_DIR, apiPages } from "./site-api.ts";
+import type { ApiPage } from "./site-api.ts";
 
 /** The address of the docs site. Every `docsUrl` starts with it before 1.0. */
 export const SITE_URL = "https://aelmanaa.github.io/explorer-verify/";
@@ -35,7 +46,7 @@ export const SITE_ROOT = "site";
 /** The folder of the built site, relative to the repository root. */
 export const SITE_OUT = "site/dist";
 /** The prefix of a link to a file of this repository on GitHub, before the git ref. */
-const GITHUB_BLOB = "https://github.com/aelmanaa/explorer-verify/blob/";
+export const GITHUB_BLOB = "https://github.com/aelmanaa/explorer-verify/blob/";
 /** The URL of the docs of one published version on jsDelivr, with `<version>` to fill in. */
 const JSDELIVR_LLMS = "https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt";
 
@@ -47,24 +58,60 @@ export function sitePath(page: string): string {
 }
 
 /**
- * The VitePress `rewrites` map: each page under `docs/user/` whose site path differs from its
- * source path. Throws when two pages would get the same path.
+ * The VitePress `rewrites` map, from each page's path under the repository root, VitePress's
+ * `srcDir`, to its path on the site: a page under `docs/user/` goes to the site root (`README.md`
+ * as `index.md`), and a page of the API reference in `site/api/` goes under `api/`. Throws when
+ * two pages would get the same path.
  */
 export function siteRewrites(root: string): Record<string, string> {
-  const pages = listFiles(root, USER_DOCS, ".md").map((file) =>
-    path.posix.relative(USER_DOCS, file),
-  );
   const rewrites: Record<string, string> = {};
-  for (const page of pages) {
-    const target = sitePath(page);
-    if (target !== page) {
-      if (pages.includes(target)) {
-        throw new Error(`${USER_DOCS}/${page} and ${USER_DOCS}/${target} would both be ${target}`);
-      }
-      rewrites[page] = target;
+  const sources = new Map<string, string>();
+  const add = (source: string, target: string): void => {
+    const other = sources.get(target);
+    if (other !== undefined) {
+      throw new Error(`${other} and ${source} would both be ${target}`);
     }
+    sources.set(target, source);
+    rewrites[source] = target;
+  };
+  for (const file of listFiles(root, USER_DOCS, ".md")) {
+    add(file, sitePath(path.posix.relative(USER_DOCS, file)));
+  }
+  for (const { page } of apiPages(path.join(root, API_OUT))) {
+    add(path.posix.join(API_OUT, page), path.posix.join(API_SITE_DIR, page));
   }
   return rewrites;
+}
+
+/**
+ * The VitePress `srcExclude` patterns. VitePress reads the pages from the repository root, so it
+ * sees both `docs/user/` and the generated `site/api/`; these patterns hide every other Markdown
+ * file: each top-level file, and each folder that holds neither of the two. Hidden entries are
+ * left out, because VitePress skips them already.
+ */
+export function siteSourceExcludes(root: string): string[] {
+  const kept = [USER_DOCS, API_OUT];
+  const excludes: string[] = [];
+  const visit = (directory: string): void => {
+    const entries = readdirSync(path.join(root, directory), { withFileTypes: true })
+      .filter((entry) => !entry.name.startsWith("."))
+      .map((entry) => ({ name: entry.name, directory: entry.isDirectory() }))
+      .toSorted((a, b) => (a.name < b.name ? -1 : 1));
+    for (const entry of entries) {
+      const relative = path.posix.join(directory, entry.name);
+      if (!entry.directory) {
+        if (entry.name.endsWith(".md")) {
+          excludes.push(relative);
+        }
+      } else if (kept.some((folder) => folder.startsWith(`${relative}/`))) {
+        visit(relative);
+      } else if (!kept.includes(relative)) {
+        excludes.push(`${relative}/**`);
+      }
+    }
+  };
+  visit(".");
+  return excludes;
 }
 
 /**
@@ -92,12 +139,16 @@ export function rewriteForSite(file: string, text: string, version: string): str
   });
 }
 
+/** The H2 section of the site's `llms.txt` that lists the pages of the API reference. */
+export const API_SECTION = "## API reference";
+
 /**
  * The site's `llms.txt`, from the root one: links to user pages point to their Markdown copies on
  * the site, list items that link anything else are dropped, and so are sections left empty. A
- * line after the summary names the version and where the docs of other versions are.
+ * line after the summary names the version and where the docs of other versions are. When `api`
+ * lists pages of the API reference, a last section links their Markdown copies.
  */
-export function siteLlmsTxt(text: string, version: string): string {
+export function siteLlmsTxt(text: string, version: string, api: readonly ApiPage[] = []): string {
   const userDocs = `${RAW_MAIN}${USER_DOCS}/`;
   const kept: string[] = [];
   let dropping = false;
@@ -132,7 +183,21 @@ export function siteLlmsTxt(text: string, version: string): string {
     "",
     `${siteVersionText(version)} Each link is the Markdown copy of a page; drop \`.md\` for the HTML page. The npm package ships the docs of the installed version under \`docs/\`, and jsDelivr serves those of any published version: ${JSDELIVR_LLMS}.`,
   );
-  return dropEmptySections(kept).join("\n");
+  const lines = dropEmptySections(kept);
+  if (api.length > 0) {
+    lines.push(
+      API_SECTION,
+      "",
+      "Generated from the TSDoc of each package entry point. The `.d.ts` files in the npm packages carry the same comments.",
+      "",
+      ...api.map(
+        ({ page, title }) =>
+          `- [${title}](${SITE_URL}${API_SITE_DIR}/${page}): ${page === "index.md" ? "the list of entry points" : `the exports of \`${title}\``}`,
+      ),
+      "",
+    );
+  }
+  return lines.join("\n");
 }
 
 /** The sentence of the site's `llms.txt` that names the version; the smoke check looks for it. */
@@ -216,12 +281,24 @@ export function siteSidebar(root: string): SidebarGroup[] {
       groups.push({ text: group.text, collapsed: group.collapsed, items });
     }
   }
+  const api = apiPages(path.join(root, API_OUT));
+  if (api.length > 0) {
+    groups.push({
+      text: "API reference",
+      collapsed: false,
+      items: api.map(({ page, title }) => ({
+        text: title,
+        link: siteLink(path.posix.join(API_SITE_DIR, page)),
+      })),
+    });
+  }
   return groups;
 }
 
 /**
  * Writes the Markdown copy of every user page next to its HTML in `outDir`, with its links
- * rewritten for the site, copies every other file under `docs/user/` as is, and writes the site's
+ * rewritten for the site, copies every other file under `docs/user/` as is, copies each page of
+ * the API reference to `api/`, its links being relative already, and writes the site's
  * `llms.txt`. Returns the paths written, relative to `outDir`.
  */
 export function writeSiteCopies(root: string, outDir: string, version: string): string[] {
@@ -240,9 +317,16 @@ export function writeSiteCopies(root: string, outDir: string, version: string): 
     }
     written.push(destination);
   }
+  const api = apiPages(path.join(root, API_OUT));
+  for (const { page } of api) {
+    const destination = path.posix.join(API_SITE_DIR, page);
+    mkdirSync(path.join(outDir, path.posix.dirname(destination)), { recursive: true });
+    copyFileSync(path.join(root, API_OUT, page), path.join(outDir, destination));
+    written.push(destination);
+  }
   writeFileSync(
     path.join(outDir, "llms.txt"),
-    siteLlmsTxt(readFileSync(path.join(root, "llms.txt"), "utf8"), version),
+    siteLlmsTxt(readFileSync(path.join(root, "llms.txt"), "utf8"), version, api),
   );
   written.push("llms.txt");
   return written;

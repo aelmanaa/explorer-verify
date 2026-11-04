@@ -18,7 +18,13 @@ export interface SolidityStandardJsonInput {
   /** Always `"Solidity"` for this input kind. */
   language: "Solidity";
   /** Source files by path, with their content. */
-  sources: Record<string, { content: string }>;
+  sources: Record<
+    string,
+    {
+      /** The source text, as the compiler read it. */
+      content: string;
+    }
+  >;
   /** Compiler settings: optimizer, EVM version, libraries, metadata and so on. */
   settings: Record<string, unknown>;
 }
@@ -85,20 +91,33 @@ export interface VerifyInput {
  */
 export type VerifyResult =
   | {
+      /** The explorer verified the source in this call. */
       status: "verified";
+      /** The backend that verified it. */
       backend: BackendName;
+      /** `partial` when the explorer matched the code but not its metadata hash. */
       match: "exact" | "partial";
       /** The public page of the contract. Absent when the library knows none. */
       explorerUrl?: string;
     }
   | {
+      /** The explorer had verified the source before this call; nothing was submitted. */
       status: "already-verified";
+      /** The backend that holds the verified source. */
       backend: BackendName;
+      /** `partial` when the explorer matched the code but not its metadata hash. */
       match: "exact" | "partial";
       /** The public page of the contract. Absent when the library knows none. */
       explorerUrl?: string;
     }
-  | { status: "failed"; backend: BackendName; reason: string };
+  | {
+      /** The explorer definitively rejected the submission. */
+      status: "failed";
+      /** The backend that rejected it. */
+      backend: BackendName;
+      /** The explorer's code and message, with API keys removed and cut to 300 characters. */
+      reason: string;
+    };
 
 /**
  * What `dryRun()` returns: where a `verify()` call with the same input and options would go, and
@@ -250,6 +269,7 @@ export interface Logger {
  */
 export type VerifyEvent =
   | {
+      /** The event type. */
       readonly type: "verify.validated";
       /** EVM chain id the contract is deployed on. */
       readonly chainId: number;
@@ -257,6 +277,7 @@ export type VerifyEvent =
       readonly address: Hex;
     }
   | {
+      /** The event type. */
       readonly type: "verify.routed";
       /** The backend the call goes to. */
       readonly backend: BackendName;
@@ -264,6 +285,7 @@ export type VerifyEvent =
       readonly apiHost: string;
     }
   | {
+      /** The event type. */
       readonly type: "verify.lookup";
       /** The backend that was asked. */
       readonly backend: BackendName;
@@ -271,6 +293,7 @@ export type VerifyEvent =
       readonly match: "exact" | "partial" | "none" | "skipped";
     }
   | {
+      /** The event type. */
       readonly type: "verify.submitted";
       /** The backend that accepted the submission. */
       readonly backend: BackendName;
@@ -278,6 +301,7 @@ export type VerifyEvent =
       readonly handle: string;
     }
   | {
+      /** The event type. */
       readonly type: "verify.poll";
       /** The backend that was polled. */
       readonly backend: BackendName;
@@ -287,6 +311,7 @@ export type VerifyEvent =
       readonly state: "pending" | "queued" | "completed";
     }
   | {
+      /** The event type. */
       readonly type: "verify.retry";
       /** The backend the request goes to. */
       readonly backend: BackendName;
@@ -304,6 +329,7 @@ export type VerifyEvent =
       readonly delayMs: number;
     }
   | {
+      /** The event type. */
       readonly type: "verify.result";
       /** The backend that gave the result. */
       readonly backend: BackendName;
@@ -313,6 +339,7 @@ export type VerifyEvent =
       readonly match: "exact" | "partial";
     }
   | {
+      /** The event type. */
       readonly type: "verify.result";
       /** The backend that gave the result. */
       readonly backend: BackendName;

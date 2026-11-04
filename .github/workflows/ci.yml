@@ -103,9 +103,9 @@ jobs:
       - name: Bundle size within size-budget.json
         run: pnpm run size
 
-  # Builds the docs site from docs/user with VitePress and checks the build output: the docsUrl of
-  # every error code maps to a page with its Markdown copy, and llms.txt lists only copies that
-  # exist (R-AX-10, R-AX-17, decision 0015). It never deploys: it has no Pages permission and
+  # Builds the docs site from docs/user and the generated API reference with VitePress and checks
+  # the build output: the docsUrl of every error code maps to a page with its Markdown copy, and
+  # llms.txt lists only copies that exist (R-AX-10, R-AX-17, decision 0015). It never deploys: it has no Pages permission and
   # uploads nothing. .github/workflows/docs.yml deploys.
   site:
     name: Docs site build
@@ -122,8 +122,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run build
+      # site:build first generates the API reference with TypeDoc (site/api-reference.ts). It fails
+      # on an export without TSDoc, an unresolved {@link} or a type no entry point exports
+      # (R-AX-2, R-DX-4).
       - run: pnpm run site:build
       - run: pnpm run site:check
+      # The API reference is build output, not committed. A second run into another folder must
+      # give the same pages, so the deployed reference depends only on the sources at the tag.
+      - name: API reference is deterministic
+        run: |
+          node site/api-reference.ts "$RUNNER_TEMP/api"
+          diff -r site/api "$RUNNER_TEMP/api"
       # Relative links and anchors, offline: a link to a missing file or anchor fails the job.
       # External links are checked once a week by .github/workflows/links.yml.
       - name: Links and anchors in docs/user and llms.txt
