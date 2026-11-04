@@ -133,3 +133,5 @@ Etherscan.io APIs". Etherscan's Free, Lite and Standard plans cover personal and
 such as a developer verifying their own testnet deployments. Etherscan's terms also forbid exposing
 a key in client code. This is a reading of the terms at <https://etherscan.io/apiterms>
 (1 October 2026), not legal advice.
+[Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md) explains the
+rule.

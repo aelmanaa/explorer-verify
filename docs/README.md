@@ -24,6 +24,8 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Sourcify](user/reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Logging and events](user/reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](user/reference/cli.md)                                                                        | stdout and stderr, `--json`, log levels, colour and exit codes           |
+| [Match types](user/explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |
+| [Etherscan plans and attribution](user/explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client        |
 | [Agent skill](../skills/explorer-verify/SKILL.md)                                                   | The skill shipped in the package, with examples tested against the build |
 
 ## Contributors

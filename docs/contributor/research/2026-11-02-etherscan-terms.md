@@ -48,9 +48,16 @@ for a definitive answer.
 ## Sources
 
 - [Etherscan API terms](https://etherscan.io/apiterms), "Last updated: 1 October 2026", read on
-  2026-11-02. Every quote and clause above comes from this page. The table and the open point are
-  this project's reading of it.
+  2026-11-02 and 2026-11-04. Every quote and clause above comes from this page. The table and the
+  open point are this project's reading of it.
 
 ## Corrections
 
 - 2026-11-02: added the `## Sources` section. No claim changed.
+- 2026-11-04: read the terms again ("Last updated: 1 October 2026", unchanged). The quotes above
+  still match. The attribution clause also asks for a link to <https://etherscan.io> "where
+  technically practicable", applies to output derived from API data, and says "Attribution is not
+  required for purely private use that is not displayed or made available to any other person".
+  The user page
+  [Etherscan plans and attribution](../../user/explanation/etherscan-plans-and-attribution.md)
+  states these rules.
