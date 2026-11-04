@@ -13,6 +13,7 @@
         "src/input/resolvers/bytecode.ts",
         "test/**/*.test.ts",
         "test/browser/entry.ts",
+        "test/browser/late-start.ts",
         "test/browser/broken/*.ts"
       ],
       "project": ["src/**/*.ts", "test/**/*.ts"]

@@ -1,6 +1,7 @@
 // Tests scripts/browser-smoke.ts itself: each broken page script, and each CORS header the replay
-// server leaves out, must fail the smoke test with the check meant to catch it. Needs Chromium and
-// a build, so the browser CI job runs it, not test:scripts.
+// server leaves out, must fail the smoke test with the check meant to catch it. A page that starts
+// its scenario late must pass. Needs Chromium and a build, so the browser CI job runs it, not
+// test:scripts.
 //
 // Usage: node scripts/test-browser/browser-smoke.test.ts [--executable-path <file>]
 import assert from "node:assert/strict";
@@ -11,7 +12,8 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = path.resolve(here, "../browser-smoke.ts");
-const broken = path.resolve(here, "../../packages/explorer-verify/test/browser/broken");
+const pages = path.resolve(here, "../../packages/explorer-verify/test/browser");
+const broken = path.join(pages, "broken");
 const at = process.argv.indexOf("--executable-path");
 const executable = at === -1 ? [] : ["--executable-path", process.argv[at + 1] ?? ""];
 
@@ -85,5 +87,15 @@ describe("browser-smoke.ts fails on", () => {
     );
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--executable-path needs a value/);
+  });
+});
+
+describe("browser-smoke.ts passes", () => {
+  // A page that starts its scenario after a top-level await, past the load event, as
+  // broken/other-client.ts does. Read at the load event, its result was still unset, and the test
+  // stopped on unused exchanges before its other checks ran (#157).
+  it("a page that starts its scenario after the load event", () => {
+    const { status, output } = runSmoke(["--entry", path.join(pages, "late-start.ts")]);
+    assert.equal(status, 0, output);
   });
 });
