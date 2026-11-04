@@ -13,8 +13,9 @@ also carries the server handler, and scoped add-ons for Node-only code.
 
 | Package                    | Entry points               | Contents                                                                                                        | Runtime                                      |
 | -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine, input resolvers                           | Any (browser, Node, edge)                    |
+| `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine                                            | Any (browser, Node, edge)                    |
 | `explorer-verify`          | `explorer-verify/server`   | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key. Uses only `Request` and `Response` | Node, edge runtimes and serverless platforms |
+| `explorer-verify`          | `explorer-verify/resolve`  | Input resolvers: `resolveInputFromBytecode` (decision 0026)                                                     | Any (browser, Node, edge)                    |
 | `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                                         |
 | `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                                         |
 | `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 2 and 3 build-info and emits `VerifyInput` parts (decision 0018)                | Node                                         |
@@ -22,7 +23,7 @@ also carries the server handler, and scoped add-ons for Node-only code.
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
 optional features stay out of it (R-RUN-5). `explorer-verify`, `@explorer-verify/foundry` and
-`@explorer-verify/hardhat` exist today, and the core has its `/server` subpath. The other add-ons arrive in M4. `@explorer-verify/foundry`
+`@explorer-verify/hardhat` exist today, and the core has its `/server` and `/resolve` subpaths. The other add-ons arrive in M4. `@explorer-verify/foundry`
 depends on the core's public entry point only: it finds and reads a contract's files under `out/`
 and leaves every format check to `buildVerifyInput` (R-DX-2).
 
@@ -30,27 +31,28 @@ and leaves every format check to `buildVerifyInput` (R-DX-2).
 
 Planned layout of `packages/explorer-verify/src/`:
 
-| Module                                     | Responsibility                                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `VerifyOptions`, `Handle` (exists)                        |
-| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                                |
-| `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part)         |
-| `input/validate.ts`                        | R-IN-6 checks                                                                                          |
-| `input/build.ts`                           | `buildVerifyInput`: detects each document's shape and builds the input (R-IN-7) (exists)               |
-| `input/metadata.ts`                        | Rebuilds Standard JSON from Solidity metadata and checks source hashes (R-IN-7) (exists)               |
-| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                          |
-| `input/resolvers/*.ts`                     | Input resolvers, starting with bytecode metadata to Sourcify or IPFS (R-IN-5)                          |
-| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                                   |
-| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts`, `etherscan.ts` exist)   |
-| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                              |
-| `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)    |
-| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists) |
-| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                          |
-| `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)          |
-| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV) (exists)                           |
-| `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                            |
-| `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                         |
-| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                            |
+| Module                                     | Responsibility                                                                                             |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `types.ts`                                 | Public types: `VerifyInput`, `VerifyResult`, `VerifyOptions`, `Handle` (exists)                            |
+| `backend-names.ts`                         | `BACKEND_NAMES`, `BackendName` (exists)                                                                    |
+| `errors.ts`                                | `ExplorerVerifyError` and the code catalogue: hints, docs URLs, key redaction (exists in part)             |
+| `input/validate.ts`                        | R-IN-6 checks                                                                                              |
+| `input/build.ts`                           | `buildVerifyInput`: detects each document's shape and builds the input (R-IN-7) (exists)                   |
+| `input/metadata.ts`                        | Rebuilds Standard JSON from Solidity metadata and checks source hashes (R-IN-7) (exists)                   |
+| `input/constructor-args.ts`                | Derives constructor arguments from the creation code (R-IN-3)                                              |
+| `input/resolvers/*.ts`                     | Input resolvers: bytecode metadata to Sourcify or IPFS, with the CBOR reader and the CID (R-IN-5) (exists) |
+| `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                                       |
+| `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts`, `etherscan.ts` exist)       |
+| `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                                  |
+| `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)        |
+| `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists)     |
+| `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                              |
+| `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)              |
+| `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV) (exists)                               |
+| `internal/read-fields.ts`                  | Shared readers for untrusted values: own fields, address, chain id (exists)                                |
+| `internal/keccak.ts`                       | Keccak-256 for the source hashes in Solidity metadata (decision 0012) (exists)                             |
+| `internal/sha256.ts`                       | SHA-256 for the IPFS hash of the metadata (decision 0026) (exists)                                         |
+| `internal/vendor/`                         | Vendored third-party code with its licence notice (R-RUN-4)                                                |
 
 ## Backend interface
 

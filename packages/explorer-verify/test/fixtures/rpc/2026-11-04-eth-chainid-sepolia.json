@@ -1,0 +1,18 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com, recorded 2026-11-04T08:25:42.485Z.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "result": "0xaa36a7",
+      "id": 1
+    }
+  }
+}

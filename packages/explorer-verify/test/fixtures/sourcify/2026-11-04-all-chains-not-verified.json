@@ -1,0 +1,17 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-04T08:25:42.209Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/all-chains/0x000000000000000000000000000000000000dead"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "results": []
+    }
+  }
+}

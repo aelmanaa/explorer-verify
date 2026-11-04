@@ -15,6 +15,7 @@ still to come.
 | [Verify contracts your package ships](guides/verify-contracts-your-package-ships.md)           | Ship the Standard JSON input and a manifest, verify after a deployment   |
 | [Verify a contract from a Foundry project](guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
 | [Verify a contract from a Hardhat project](guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |
+| [Verify from deployed bytecode](guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode |
 | [Run the server handler](guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS    |
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |

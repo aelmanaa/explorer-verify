@@ -1,0 +1,128 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-04T08:25:42.286Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc?fields=metadata,sources"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cache-control": "public,max-age=3600",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "metadata": {
+        "compiler": {
+          "version": "0.8.24+commit.e11b9ed9"
+        },
+        "language": "Solidity",
+        "output": {
+          "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "owner_",
+                  "type": "address"
+                },
+                {
+                  "internalType": "string",
+                  "name": "greeting_",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "nonpayable",
+              "type": "constructor"
+            },
+            {
+              "inputs": [],
+              "name": "greeting",
+              "outputs": [
+                {
+                  "internalType": "string",
+                  "name": "",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            }
+          ],
+          "devdoc": {
+            "kind": "dev",
+            "methods": {},
+            "version": 1
+          },
+          "userdoc": {
+            "kind": "user",
+            "methods": {},
+            "version": 1
+          }
+        },
+        "settings": {
+          "compilationTarget": {
+            "contracts/Greeter.sol": "Greeter"
+          },
+          "evmVersion": "cancun",
+          "libraries": {},
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "remappings": []
+        },
+        "sources": {
+          "contracts/Base.sol": {
+            "keccak256": "0xc935aaf5ff95faa284edecea19897c2d6125bb66b0f006d2917cabd4f66632ba",
+            "license": "MIT",
+            "urls": [
+              "bzz-raw://fcc8bbfade08b7b6871237c75a36b0ab9424160c06b91334f3a18856d546253b",
+              "dweb:/ipfs/Qmefz1KgqC9HH3dexHskXmsgbbC3mXjfbNpjYnUMQqRzDr"
+            ]
+          },
+          "contracts/Greeter.sol": {
+            "keccak256": "0x29bd284f965d65d8a48cc7c5d352ac989e0bb3b5d8dfb8f912402b19b400b16d",
+            "license": "MIT",
+            "urls": [
+              "bzz-raw://d628bbe0d7380112a97cdce1a5d9e739dcb711b1b00b1941486af4031f086136",
+              "dweb:/ipfs/QmRRAnHt8bprhu49T2LHWZTpAjVopEfe8ToSi7P2ofTT6r"
+            ]
+          }
+        },
+        "version": 1
+      },
+      "sources": {
+        "contracts/Base.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n"
+        },
+        "contracts/Greeter.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\n// explorer-verify live fixture 2026-11-02 chain 11155111 deployment A\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n"
+        }
+      },
+      "matchId": "58142236",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "exact_match",
+      "verifiedAt": "2026-11-02T23:39:56Z",
+      "match": "exact_match",
+      "chainId": "11155111",
+      "address": "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+    }
+  }
+}

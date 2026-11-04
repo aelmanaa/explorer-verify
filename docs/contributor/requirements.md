@@ -66,11 +66,16 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   `linkLibraries` merges the addresses into `settings.libraries` for an explorer that needs them
   there ([decision 0025](decisions/0025-library-addresses-not-merged-by-default.md)).
 - **R-IN-5** A resolver can produce the input instead of the caller: the first one reads the
-  metadata hash in the deployed bytecode, fetches the metadata and sources from a caller-configured
-  IPFS gateway or fetch function (R-SEC-2) or from Sourcify, never from a built-in gateway host, and
-  rebuilds the Standard JSON input with the R-IN-7 builder. A second route
-  copies the Standard JSON input of a contract already verified on Sourcify. Resolvers are
-  pluggable (R-EXT-2).
+  metadata hash in the deployed bytecode (passed, or read with `eth_getCode` from a
+  caller-supplied JSON-RPC URL), fetches the metadata and sources from a verified copy on Sourcify
+  at the same address on any chain, or from a caller-configured IPFS gateway (R-SEC-2), never from
+  a built-in gateway host, and rebuilds the Standard JSON input with the R-IN-7 builder. Metadata
+  is used only when its IPFS hash, computed as solc computes it, equals the bytecode's; for a Swarm
+  hash, only an exact Sourcify match on the same chain is used. Bytecode without a hash throws
+  `no-metadata-hash`; metadata that no source returns throws `metadata-unavailable` with each
+  attempt ([decision 0026](decisions/0026-bytecode-metadata-resolver.md)). A second route copies
+  the Standard JSON input of a contract already verified on Sourcify, whatever its metadata hash;
+  it is not built yet. Resolvers are pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format. Validation errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any

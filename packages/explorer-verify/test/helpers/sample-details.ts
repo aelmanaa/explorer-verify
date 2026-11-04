@@ -48,4 +48,13 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
   "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
   "internal-error": { code: "internal-error" },
+  "no-metadata-hash": { code: "no-metadata-hash", found: "version-only" },
+  "metadata-unavailable": {
+    code: "metadata-unavailable",
+    hash: "ipfs:QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb",
+    attempts: [
+      { source: "sourcify", outcome: "not-found", status: 200 },
+      { source: "ipfs", outcome: "unavailable", status: 429 },
+    ],
+  },
 };

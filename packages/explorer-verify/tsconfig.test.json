@@ -10,7 +10,8 @@
     // types, the name maps to the sources, so lint and typecheck pass before a build.
     "paths": {
       "explorer-verify": ["./src/index.ts"],
-      "explorer-verify/server": ["./src/server/handler.ts"]
+      "explorer-verify/server": ["./src/server/handler.ts"],
+      "explorer-verify/resolve": ["./src/input/resolvers/bytecode.ts"]
     }
   },
   // Tests run on Node and import the sources directly. tsconfig.build.json checks src/ again

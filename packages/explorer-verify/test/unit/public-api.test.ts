@@ -123,6 +123,8 @@ describe("public entry point", () => {
       "api-key-rejected",
       "quota-exceeded",
       "internal-error",
+      "no-metadata-hash",
+      "metadata-unavailable",
     ]);
   });
 

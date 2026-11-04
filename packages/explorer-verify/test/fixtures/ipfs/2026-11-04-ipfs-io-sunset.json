@@ -1,0 +1,17 @@
+{
+  "source": "Live response from ipfs.io, recorded 2026-11-04T08:25:42.770Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://ipfs.io/ipfs/QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb"
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "cache-control": "public, max-age=900",
+      "content-type": "text/plain; charset=utf-8",
+      "retry-after": "900"
+    },
+    "body": "This IPFS gateway is switching to a service worker gateway only. See https://gatewaychanges.ipfs.io#/ipfs/QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb for more information.\n"
+  }
+}

@@ -315,10 +315,11 @@ function readOverride(
 }
 
 /**
- * Checks an override API URL. Returns the base and query string, or the issue message. The
+ * Checks an override API URL, or another URL the caller configures, such as the resolver's
+ * `rpcUrl` and `ipfsGateway`. Returns the base and query string, or the issue message. The
  * `URL` parse error is dropped, never kept as a cause, because it carries the input.
  */
-function checkApiUrl(value: unknown): { apiBase: string; search: string } | string {
+export function checkApiUrl(value: unknown): { apiBase: string; search: string } | string {
   if (typeof value !== "string") {
     return "must be a string";
   }
