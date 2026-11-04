@@ -16,6 +16,8 @@ import {
   routeOf,
   settingsOf,
   settle,
+  startBudget,
+  withClient,
 } from "./verify.ts";
 import type { FlowDependencies } from "./verify.ts";
 
@@ -43,11 +45,14 @@ import type { FlowDependencies } from "./verify.ts";
  * @param options - The same options as `verify()`. Pass the same `route` the submit used.
  * @returns `verified`, `already-verified` or `failed`, as `verify()` returns them.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
+ * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
+ *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for a bad handle or options, or a handle whose
  *   backend is not the route's; `not-confirmed` with the handle when the job is still pending;
  *   `job-not-found` when the explorer no longer knows the job and the contract is not verified;
  *   `verification-inconclusive` when the job ended without a verdict (call `verify()` again);
- *   `unknown-state`, `network`, `rate-limited` and `unexpected-response`.
+ *   `timeout` when the client does not load within the budget; `unknown-state`, `network`,
+ *   `rate-limited` and `unexpected-response`.
  * @example
  * ```ts
  * import { ExplorerVerifyError, checkStatus, formatHandle, verify } from "explorer-verify";
@@ -107,13 +112,19 @@ export async function runCheckStatus(
     chainId: handle.chainId,
     address: `0x${handle.address.slice(2).toLowerCase()}`,
   };
-  const call = openCall(settings, route, target, dependencies);
-  announceRoute(
-    call,
-    `Resuming ${call.backend.name} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,
-  );
-  // settle() looks the contract up for a job the explorer no longer knows, as in verify().
-  return await abortWins(settings.signal, async () => await settle(call, handle, 0));
+  // The client loads inside abortWins, as in verify(): an abort during the load rejects with
+  // signal.reason, whatever the load does after it.
+  return await abortWins(settings.signal, async () => {
+    const budget = startBudget(settings);
+    const loaded = await withClient(route, dependencies, settings, budget);
+    const call = openCall(settings, route, target, loaded, true, budget);
+    announceRoute(
+      call,
+      `Resuming ${call.backend.name} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,
+    );
+    // settle() looks the contract up for a job the explorer no longer knows, as in verify().
+    return await settle(call, handle, 0);
+  });
 }
 
 /**

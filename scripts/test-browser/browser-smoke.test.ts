@@ -52,6 +52,11 @@ const cases: [string, string[], RegExp][] = [
     /the Node run/,
   ],
   [
+    "a page that loads a second client's chunk (decision 0031)",
+    ["--entry", path.join(broken, "other-client.ts")],
+    /a sourcify route loaded the etherscan client chunk etherscan-\w+\.js/,
+  ],
+  [
     "answers without access-control-allow-origin",
     ["--drop-response-header", "access-control-allow-origin"],
     /No 'Access-Control-Allow-Origin' header is present/,

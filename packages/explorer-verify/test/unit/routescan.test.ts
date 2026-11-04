@@ -488,8 +488,10 @@ const action = (sent: Call): string | null =>
   new URLSearchParams(sent.body ?? "").get("action");
 
 describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2)", () => {
-  it("the shipped clients include Routescan", () => {
-    assert.equal(DEFAULT_DEPENDENCIES.backends.routescan, routescan);
+  it("the shipped clients include Routescan, loaded on first use (decision 0031)", async () => {
+    const client = DEFAULT_DEPENDENCIES.backends.routescan;
+    assert.equal(typeof client, "function");
+    assert.equal(typeof client === "function" ? await client() : client, routescan);
   });
 
   it("runs lookup, submit and polls to verified exact without a key (recorded 2026-11-03)", async (t) => {

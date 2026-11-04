@@ -9,9 +9,22 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 
-import { EMPTY_TABLE, bundleForBrowser, gzipSize } from "../bundle.ts";
-import { compareSizes, formatReport, parseBudget } from "../size-budget.ts";
-import type { BudgetEntry } from "../size-budget.ts";
+import {
+  EMPTY_TABLE,
+  bundleApart,
+  bundleChunks,
+  bundleForBrowser,
+  filesSize,
+  gzipSize,
+} from "../bundle.ts";
+import {
+  compareChunks,
+  compareSizes,
+  formatReport,
+  parseBudget,
+  parseChunks,
+} from "../size-budget.ts";
+import type { BudgetEntry, ChunkBudget } from "../size-budget.ts";
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -136,6 +149,7 @@ describe("parseBudget", () => {
       measuredBytes: 100,
       ceilingBytes: 120,
       withoutTable: false,
+      oneFile: false,
     });
   });
 
@@ -182,8 +196,22 @@ describe("parseBudget", () => {
 
 describe("compareSizes and formatReport (R-RUN-3)", () => {
   const entries: BudgetEntry[] = [
-    { name: "verify", code: "x", measuredBytes: 100, ceilingBytes: 120, withoutTable: true },
-    { name: "index", code: "y", measuredBytes: 200, ceilingBytes: 240, withoutTable: false },
+    {
+      name: "verify",
+      code: "x",
+      measuredBytes: 100,
+      ceilingBytes: 120,
+      withoutTable: true,
+      oneFile: false,
+    },
+    {
+      name: "index",
+      code: "y",
+      measuredBytes: 200,
+      ceilingBytes: 240,
+      withoutTable: false,
+      oneFile: true,
+    },
   ];
 
   it("accepts a size equal to the ceiling and reports no failure", () => {
@@ -273,5 +301,306 @@ describe("check-size.ts", () => {
     const result = run({ entries: [entry({ code: 'export * from "node:fs";' })] });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Could not resolve "node:fs"/);
+  });
+});
+
+// --- dynamic imports (decision 0031) --------------------------------------------------------------
+
+/**
+ * Writes an entry that loads two clients with a dynamic `import()`, as the flow engine does. Both
+ * clients import `shared.ts`, which the entry imports too, and `common.ts`, which it does not.
+ */
+function withClients(): string {
+  mkdirSync(path.join(dir, "clients"));
+  writeFileSync(path.join(dir, "shared.ts"), 'export const SHARED = "shared-code-in-the-entry";\n');
+  writeFileSync(
+    path.join(dir, "clients", "common.ts"),
+    'export const COMMON = "common-code-of-the-clients";\n',
+  );
+  for (const name of ["alpha", "beta"]) {
+    writeFileSync(
+      path.join(dir, "clients", `${name}.ts`),
+      'import { SHARED } from "../shared.ts";\nimport { COMMON } from "./common.ts";\n' +
+        `export const client = [SHARED, COMMON, "${name}-client-code"];\n`,
+    );
+  }
+  return (
+    'import { SHARED } from "./shared.ts";\n' +
+    "export const loaders = {\n" +
+    '  alpha: async () => (await import("./clients/alpha.ts")).client,\n' +
+    '  beta: async () => (await import("./clients/beta.ts")).client,\n' +
+    "};\n" +
+    "export const shared = SHARED;\n"
+  );
+}
+
+/** Writes `a/client.ts` and `b/client.ts` and returns an entry that loads both. */
+function twoNamedClient(): string {
+  mkdirSync(path.join(dir, "a"));
+  mkdirSync(path.join(dir, "b"));
+  writeFileSync(path.join(dir, "a", "client.ts"), "export const a = 1;\n");
+  writeFileSync(path.join(dir, "b", "client.ts"), "export const b = 2;\n");
+  return 'export const load = [() => import("./a/client.ts"), () => import("./b/client.ts")];';
+}
+
+describe("bundleForBrowser with dynamic imports", () => {
+  it("inlines each dynamic import into the one file", async () => {
+    const code = await bundleForBrowser({ contents: withClients(), resolveDir: dir });
+    assert.match(code, /alpha-client-code/);
+    assert.match(code, /beta-client-code/);
+  });
+});
+
+describe("bundleChunks (decision 0031)", () => {
+  it("puts each dynamically imported module in a chunk of its own", async () => {
+    const bundle = await bundleChunks({ contents: withClients(), resolveDir: dir });
+    assert.equal(bundle.entry, "entry.js");
+    assert.ok(bundle.entryFiles.includes("entry.js"));
+    assert.deepEqual([...bundle.dynamic.keys()].toSorted(), ["alpha", "beta"]);
+    const entryCode = bundle.entryFiles.map((file) => bundle.files.get(file)).join("");
+    assert.doesNotMatch(entryCode, /alpha-client-code|beta-client-code|common-code/);
+    assert.match(entryCode, /shared-code-in-the-entry/);
+    for (const name of ["alpha", "beta"]) {
+      const files = bundle.dynamic.get(name) ?? [];
+      const [own] = files;
+      assert.match(own ?? "", new RegExp(`^${name}-\\w+\\.js$`));
+      assert.match(bundle.files.get(own ?? "") ?? "", new RegExp(`${name}-client-code`));
+      const added = files.map((file) => bundle.files.get(file)).join("");
+      assert.match(added, /common-code-of-the-clients/);
+      assert.ok(files.every((file) => !bundle.entryFiles.includes(file)));
+    }
+    assert.ok(filesSize(bundle, bundle.entryFiles) > 0);
+  });
+
+  it("bundles an entry file with no dynamic import into one file", async () => {
+    const file = path.join(dir, "entry.ts");
+    writeFileSync(file, "export const greeting = `hello`;\n");
+    const bundle = await bundleChunks({ entry: file });
+    assert.deepEqual(bundle.entryFiles, ["entry.js"]);
+    assert.equal(bundle.dynamic.size, 0);
+    assert.equal(filesSize(bundle, ["entry.js"]), gzipSize(bundle.files.get("entry.js") ?? ""));
+  });
+
+  it("refuses two dynamically imported modules with the same file name", async () => {
+    await assert.rejects(
+      bundleChunks({ contents: twoNamedClient(), resolveDir: dir }),
+      /two dynamically imported modules are named client/,
+    );
+  });
+
+  it("filesSize refuses a file the bundle does not have", async () => {
+    const bundle = await bundleChunks({ contents: "export const x = 1;", resolveDir: dir });
+    assert.throws(() => filesSize(bundle, ["missing.js"]), /the bundle has no file missing\.js/);
+  });
+});
+
+describe("bundleApart (decision 0031)", () => {
+  it("measures the entry without its dynamic imports, and each one without the entry's modules", async () => {
+    const apart = await bundleApart({ contents: withClients(), resolveDir: dir });
+    assert.match(apart.entry, /shared-code-in-the-entry/);
+    assert.doesNotMatch(apart.entry, /alpha-client-code|beta-client-code|common-code/);
+    assert.deepEqual([...apart.chunks.keys()], ["alpha", "beta"]);
+    for (const [name, code] of apart.chunks) {
+      assert.match(code, new RegExp(`${name}-client-code`));
+      assert.match(code, /common-code-of-the-clients/);
+      assert.doesNotMatch(code, /shared-code-in-the-entry/, "the entry holds it already");
+    }
+  });
+
+  it("measures an entry file the same way", async () => {
+    const file = path.join(dir, "entry.ts");
+    writeFileSync(file, withClients());
+    const apart = await bundleApart({ entry: file });
+    assert.deepEqual([...apart.chunks.keys()], ["alpha", "beta"]);
+  });
+
+  it("counts no chunk for a dynamic import that tree-shaking removes", async () => {
+    const contents = withClients().replace("export const loaders", "const loaders");
+    const apart = await bundleApart({ contents, resolveDir: dir });
+    assert.equal(apart.chunks.size, 0);
+  });
+
+  it("keeps the routing table's rows out of the chunks too", async () => {
+    withTable();
+    writeFileSync(
+      path.join(dir, "client.ts"),
+      'import { rows } from "./routing/resolve.ts";\nexport const client = rows;\n',
+    );
+    const contents = 'export const load = () => import("./client.ts");';
+    const kept = await bundleApart({ contents, resolveDir: dir });
+    assert.match(kept.chunks.get("client") ?? "", /424242/);
+    const without = await bundleApart({ contents, resolveDir: dir }, { withoutTable: true });
+    assert.doesNotMatch(without.chunks.get("client") ?? "", /424242/);
+  });
+
+  it("still fails on a Node built-in behind a dynamic import (R-RUN-1)", async () => {
+    await assert.rejects(
+      bundleApart({
+        contents: 'export async function f() { try { await import("node:crypto"); } catch {} }',
+        resolveDir: dir,
+      }),
+      /the bundle leaves imports unresolved: node:crypto/,
+    );
+  });
+
+  it("refuses a dynamically loaded module that loads another one", async () => {
+    writeFileSync(path.join(dir, "inner.ts"), "export const inner = 1;\n");
+    writeFileSync(path.join(dir, "outer.ts"), 'export const load = () => import("./inner.ts");\n');
+    await assert.rejects(
+      bundleApart({ contents: 'export const load = () => import("./outer.ts");', resolveDir: dir }),
+      /outer loads more modules with a dynamic import\(\), which is not measured/,
+    );
+  });
+
+  it("refuses two dynamically imported modules with the same file name", async () => {
+    await assert.rejects(
+      bundleApart({ contents: twoNamedClient(), resolveDir: dir }),
+      /two dynamically imported modules are named client/,
+    );
+  });
+});
+
+/** A `chunks` item of size-budget.json, with `overrides` applied. */
+function chunk(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { name: "sourcify", measuredBytes: 100, ceilingBytes: 120, ...overrides };
+}
+
+describe("parseChunks (decision 0031)", () => {
+  it("reads every chunk in file order, and none when the file has no chunks", () => {
+    assert.deepEqual(parseChunks({ chunks: [chunk(), chunk({ name: "etherscan" })] }), [
+      { name: "sourcify", measuredBytes: 100, ceilingBytes: 120 },
+      { name: "etherscan", measuredBytes: 100, ceilingBytes: 120 },
+    ]);
+    assert.deepEqual(parseChunks({ entries: [] }), []);
+    assert.deepEqual(parseChunks(null), []);
+  });
+
+  const bad: [string, unknown, RegExp][] = [
+    ["chunks that are not a list", { chunks: {} }, /`chunks` must be a list/],
+    ["a chunk that is not an object", { chunks: [5] }, /chunks\[0\]\.name/],
+    ["a zero size", { chunks: [chunk({ measuredBytes: 0 })] }, /chunks\[0\]\.measuredBytes/],
+    [
+      "a ceiling below the measured size",
+      { chunks: [chunk({ ceilingBytes: 99 })] },
+      /chunks\[0\]\.ceilingBytes is below measuredBytes/,
+    ],
+    [
+      "a repeated name",
+      { chunks: [chunk(), chunk()] },
+      /chunks\[1\]\.name "sourcify" appears twice/,
+    ],
+  ];
+  for (const [label, parsed, message] of bad) {
+    it(`rejects ${label}`, () => {
+      assert.throws(() => parseChunks(parsed), message);
+    });
+  }
+});
+
+describe("compareChunks (decision 0031)", () => {
+  const chunks: ChunkBudget[] = [{ name: "sourcify", measuredBytes: 100, ceilingBytes: 120 }];
+
+  it("counts a chunk at its largest size over the entries", () => {
+    const sizes = new Map([
+      [
+        "sourcify",
+        new Map([
+          ["verify", 110],
+          ["index", 121],
+        ]),
+      ],
+    ]);
+    assert.deepEqual(compareChunks(chunks, sizes), [
+      { name: "chunk sourcify", bytes: 121, ceilingBytes: 120, ok: false },
+    ]);
+    assert.deepEqual(compareChunks(chunks, new Map([["sourcify", new Map([["verify", 120]])]])), [
+      { name: "chunk sourcify", bytes: 120, ceilingBytes: 120, ok: true },
+    ]);
+  });
+
+  it("fails a chunk that an entry loads and that has no ceiling", () => {
+    const sizes = new Map([
+      ["sourcify", new Map([["verify", 1]])],
+      ["etherscan", new Map([["verify", 1]])],
+    ]);
+    assert.throws(
+      () => compareChunks(chunks, sizes),
+      /entries load etherscan with a dynamic import\(\), and size-budget\.json sets no ceiling/,
+    );
+  });
+
+  it("fails a ceiling for a chunk that no entry loads", () => {
+    assert.throws(() => compareChunks(chunks, new Map()), /no entry loads the chunk sourcify/);
+    assert.throws(
+      () => compareChunks(chunks, new Map([["sourcify", new Map()]])),
+      /no entry loads the chunk sourcify: remove it/,
+    );
+  });
+});
+
+/**
+ * The code of a size entry that re-exports {@link withClients}'s entry by its path: check-size.ts
+ * resolves the code from the package folder.
+ */
+function clientsEntry(): string {
+  const file = path.join(dir, "entry.ts");
+  writeFileSync(file, withClients());
+  return `export * from ${JSON.stringify(file)};`;
+}
+
+describe("check-size.ts with chunks (decision 0031)", () => {
+  it("reports the entry without its clients, then each client chunk", () => {
+    const result = run({
+      entries: [entry({ name: "with clients", code: clientsEntry(), ceilingBytes: 10_000 })],
+      chunks: [
+        { name: "alpha", measuredBytes: 1, ceilingBytes: 10_000 },
+        { name: "beta", measuredBytes: 1, ceilingBytes: 10_000 },
+      ],
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^ok {3}with clients: \d+ bytes \(ceiling 10000\)$/m);
+    assert.match(result.stdout, /^ok {3}chunk alpha: \d+ bytes \(ceiling 10000\)$/m);
+    assert.match(result.stdout, /^ok {3}chunk beta: \d+ bytes \(ceiling 10000\)$/m);
+  });
+
+  it("fails when a client chunk has no ceiling", () => {
+    const result = run({
+      entries: [entry({ name: "with clients", code: clientsEntry(), ceilingBytes: 10_000 })],
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /entries load alpha, beta with a dynamic import\(\)/);
+  });
+});
+
+describe("the one-file entry and static client imports (decision 0031)", () => {
+  it("parseBudget reads oneFile, false when absent, and refuses a value that is not a boolean", () => {
+    const [one, split] = parseBudget({
+      entries: [entry({ oneFile: true }), entry({ name: "split" })],
+    });
+    assert.equal(one?.oneFile, true);
+    assert.equal(split?.oneFile, false);
+    assert.throws(
+      () => parseBudget({ entries: [entry({ oneFile: "yes" })] }),
+      /entries\[0\]\.oneFile must be true or false/,
+    );
+  });
+
+  it("check-size.ts measures a oneFile entry with its clients inlined and reports no chunk", () => {
+    const result = run({
+      entries: [
+        entry({ name: "one file", code: clientsEntry(), ceilingBytes: 10_000, oneFile: true }),
+      ],
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^ok {3}one file: \d+ bytes \(ceiling 10000\)$/m);
+    assert.doesNotMatch(result.stdout, /chunk/);
+  });
+
+  it("bundleApart refuses an entry that also imports a client statically", async () => {
+    const contents = `${withClients()}export { client } from "./clients/alpha.ts";\n`;
+    await assert.rejects(
+      bundleApart({ contents, resolveDir: dir }),
+      /the entry imports alpha\.ts statically as well as with import\(\), so no chunk is split off/,
+    );
   });
 });

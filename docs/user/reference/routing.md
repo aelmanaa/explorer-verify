@@ -162,6 +162,20 @@ names a host. Pass the same `route`, `apiKeys` and `allowSourcifyFallback` the s
 the route resolves to the same backend. When it resolves to another backend than the handle names,
 `checkStatus()` throws `invalid-input` naming `backend` and sends nothing.
 
+## Client chunks
+
+Each backend's client is a module of its own. A call loads only the client of the backend its
+route resolves to, with a dynamic `import()`, after the input and the options pass their checks.
+
+Vite, Rollup and webpack put each client in a chunk of its own by default, so a page that only
+verifies on Sourcify does not download the other clients. esbuild does the same with
+`--splitting --format=esm`; without `--splitting`, every client is in the one output file.
+
+The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
+`timeout`. An abort of `signal` during the load rejects with `signal.reason`. A client that fails
+to load, such as a chunk the page cannot fetch, rejects the call with the loader's error, before
+any request to an explorer.
+
 ## Errors
 
 | Code                | When                                                                                                         |

@@ -13,6 +13,8 @@ import {
   openCall,
   routeOf,
   settingsOf,
+  startBudget,
+  withClient,
 } from "./verify.ts";
 import type { FlowDependencies } from "./verify.ts";
 
@@ -34,6 +36,8 @@ import type { FlowDependencies } from "./verify.ts";
  * @param options - The same options as `verify()`. `pollIntervalMs` is not used.
  * @returns The backend, its API host and the lookup's answer.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
+ * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
+ *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for bad input or options; `unsupported-chain`;
  *   and `network`, `rate-limited`, `timeout`, `unexpected-response` or a key error when the lookup
  *   fails.
@@ -76,7 +80,9 @@ export async function runDryRun(
     const checked = validateInput(input);
     const route = routeOf(checked.chainId, settings, dependencies);
     const target: Target = { chainId: checked.chainId, address: checked.address };
-    const call = openCall(settings, route, target, dependencies, false);
+    const budget = startBudget(settings);
+    const loaded = await withClient(route, dependencies, settings, budget);
+    const call = openCall(settings, route, target, loaded, false, budget);
     const { backend, ctx, observer } = call;
     observer.emit({ type: "verify.validated", chainId: target.chainId, address: target.address });
     announceRoute(call, `Dry run for ${target.address} on chain ${String(target.chainId)}`);

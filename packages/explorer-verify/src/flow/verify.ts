@@ -6,10 +6,6 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
-import { blockscout } from "../backends/blockscout.ts";
-import { etherscan } from "../backends/etherscan.ts";
-import { routescan } from "../backends/routescan.ts";
-import { sourcify } from "../backends/sourcify.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
@@ -52,23 +48,137 @@ const POLL_FAILURES: readonly ExplorerVerifyError["code"][] = [
 ];
 
 /**
+ * Loads a backend's client. Each shipped client sits behind a dynamic `import()`, so a bundler
+ * that splits code puts it in its own chunk, and a call loads only the client its route names
+ * (decision 0031).
+ */
+export type ClientLoader = () => Promise<Backend>;
+
+/** A backend's client, loaded, or the function that loads it. */
+export type Client = Backend | ClientLoader;
+
+/**
  * What the flow engine takes besides the caller's input and options. `verify()` passes the
  * defaults; the tests pass a fixed `random` for the backoff jitter, a backend table without a
  * client to reach the error for it, or a routing table with rows for clients to come.
  */
 export interface FlowDependencies {
-  /** The client of each backend. */
-  readonly backends: Readonly<Partial<Record<BackendName, Backend>>>;
+  /** The client of each backend, or the function that loads it. */
+  readonly backends: Readonly<Partial<Record<BackendName, Client>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
   /** The routing table. Defaults to the shipped one; the tests pass rows for clients to come. */
   readonly table?: RoutingTable;
 }
 
-/** The backend clients `verify()` and `checkStatus()` use. */
+/**
+ * The backend clients `verify()`, `checkStatus()` and `dryRun()` use. Each one loads through a
+ * dynamic `import()` with a literal path, so a bundler that splits code puts it in a chunk of its
+ * own, and a call loads only the client its route names (decision 0031).
+ */
 export const DEFAULT_DEPENDENCIES: FlowDependencies = {
-  backends: { sourcify, "etherscan-v2": etherscan, routescan, blockscout },
+  backends: {
+    /** Loads the Sourcify client. */
+    sourcify: async () => (await import("../backends/sourcify.ts")).sourcify,
+    /** Loads the Etherscan v2 client. */
+    "etherscan-v2": async () => (await import("../backends/etherscan.ts")).etherscan,
+    /** Loads the Routescan client, which imports the Etherscan v2 client's request code. */
+    routescan: async () => (await import("../backends/routescan.ts")).routescan,
+    /** Loads the Blockscout client. */
+    blockscout: async () => (await import("../backends/blockscout.ts")).blockscout,
+  },
 };
+
+/**
+ * Starts a call's time budget: `settings.timeoutMs` from now. Each call takes it before it loads
+ * its client, so the load counts against the budget too.
+ *
+ * @param settings - The options from {@link settingsOf}.
+ * @returns The budget.
+ * @example
+ * ```ts
+ * const budget = startBudget(settingsOf({ timeoutMs: 60_000 }));
+ * ```
+ */
+export function startBudget(settings: Settings): Budget {
+  return { deadline: Date.now() + settings.timeoutMs, timeoutMs: settings.timeoutMs };
+}
+
+/**
+ * Loads the client of the route's backend when it is a {@link ClientLoader}, and returns the
+ * dependencies with that client in place, ready for {@link openCall}. No other client loads. A
+ * client already loaded, or missing, leaves the dependencies as they are: `openCall` throws
+ * `unsupported-chain` for a missing one.
+ *
+ * The load ends when the caller's signal aborts, with `signal.reason`, or when the budget runs
+ * out, with `timeout` (R-FLOW-6): a chunk that never arrives cannot hold the call.
+ *
+ * @param route - The resolved route.
+ * @param dependencies - The backend clients, loaded or not.
+ * @param settings - The options from {@link settingsOf}: the signal.
+ * @param budget - The call's budget, from {@link startBudget}.
+ * @returns The dependencies with the route's client loaded.
+ * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
+ *   the budget runs out; what the loader throws, such as the error of a chunk that fails to load.
+ * @example
+ * ```ts
+ * const budget = startBudget(settings);
+ * const loaded = await withClient(route, DEFAULT_DEPENDENCIES, settings, budget);
+ * const call = openCall(settings, route, target, loaded, true, budget);
+ * ```
+ */
+export async function withClient(
+  route: Route,
+  dependencies: FlowDependencies,
+  settings: Settings,
+  budget: Budget,
+): Promise<FlowDependencies> {
+  const client = dependencies.backends[route.backend];
+  if (typeof client !== "function") {
+    return dependencies;
+  }
+  const backend = await bounded(client, route.backend, settings.signal, budget);
+  return { ...dependencies, backends: { ...dependencies.backends, [route.backend]: backend } };
+}
+
+/** Runs `load`, and rejects first when `signal` aborts or the budget runs out. */
+async function bounded(
+  load: ClientLoader,
+  name: BackendName,
+  signal: AbortSignal | undefined,
+  budget: Budget,
+): Promise<Backend> {
+  signal?.throwIfAborted();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  try {
+    return await new Promise<Backend>((resolve, reject) => {
+      onAbort = (): void => {
+        const reason: unknown = signal?.reason;
+        reject(reason);
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      timer = setTimeout(
+        () => {
+          reject(
+            new ExplorerVerifyError(
+              { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
+              `Loading the ${name} client did not finish within the ${String(budget.timeoutMs)} ms budget.`,
+              { secrets: [] },
+            ),
+          );
+        },
+        Math.min(Math.max(0, budget.deadline - Date.now()), MAX_TIMER_MS),
+      );
+      load().then(resolve, reject);
+    });
+  } finally {
+    clearTimeout(timer);
+    if (onAbort !== undefined) {
+      signal?.removeEventListener("abort", onAbort);
+    }
+  }
+}
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
@@ -153,6 +263,8 @@ type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
  * @returns `verified` or `already-verified` with the match and, when the library knows one, the
  *   public page of the contract; or `failed` with the explorer's reason, API keys removed.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
+ * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
+ *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for bad input or options; `unsupported-chain`;
  *   `timeout` when the budget runs out before the explorer accepts the submission;
  *   `not-confirmed`, with the handle, when it runs out while the job is pending;
@@ -220,7 +332,9 @@ async function verifyWith(
   const checked = validateInput(input);
   const route = routeOf(checked.chainId, settings, dependencies);
   const target: Target = { chainId: checked.chainId, address: checked.address };
-  const call = openCall(settings, route, target, dependencies);
+  const budget = startBudget(settings);
+  const loaded = await withClient(route, dependencies, settings, budget);
+  const call = openCall(settings, route, target, loaded, true, budget);
   const { backend } = call;
   const { emit, log } = call.observer;
   emit({ type: "verify.validated", chainId: checked.chainId, address: checked.address });
@@ -291,7 +405,9 @@ export async function abortWins<T>(
  * @param dependencies - The backend clients and the jitter source.
  * @param checkKey - Whether a backend that needs a key and has none throws `missing-api-key`. A
  *   dry run passes `false` and skips its lookup instead.
- * @returns The call. Its budget starts now.
+ * @param budget - The call's budget. Defaults to one that starts now; the flows pass the one they
+ *   started before loading the client.
+ * @returns The call.
  * @throws ExplorerVerifyError `unsupported-chain` when this version has no client for the route.
  * @example
  * ```ts
@@ -304,6 +420,7 @@ export function openCall(
   target: Target,
   dependencies: FlowDependencies,
   checkKey = true,
+  budget: Budget = startBudget(settings),
 ): Call {
   const backend = backendOf(route, target.chainId, dependencies);
   const routeKey = route.apiKey();
@@ -338,10 +455,6 @@ export function openCall(
     onEvent: settings.onEvent,
     secrets,
   });
-  const budget: Budget = {
-    deadline: Date.now() + settings.timeoutMs,
-    timeoutMs: settings.timeoutMs,
-  };
   return {
     backend,
     ctx: {
@@ -612,6 +725,11 @@ function backendOf(route: Route, chainId: number, dependencies: FlowDependencies
   const backend = dependencies.backends[route.backend];
   if (backend === undefined) {
     throw unsupported(chainId, route.backend, "client");
+  }
+  if (typeof backend === "function") {
+    throw new TypeError(
+      `The ${route.backend} client is not loaded: pass the dependencies through withClient() first.`,
+    );
   }
   return backend;
 }

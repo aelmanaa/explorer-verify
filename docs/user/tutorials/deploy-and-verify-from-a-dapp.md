@@ -393,7 +393,9 @@ if (pending !== undefined) {
 ```
 
 Point your bundler at `src/main.ts`. The tests of this repository do not run this module; each
-module it imports is tested as described on its own step.
+module it imports is tested as described on its own step. A bundler that splits code puts each
+explorer client in a chunk of its own, and this page loads only the Sourcify client: see
+[client chunks](../reference/routing.md#client-chunks).
 
 ## Step 5: Resume after a page reload
 
