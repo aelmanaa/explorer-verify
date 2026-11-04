@@ -172,6 +172,8 @@ route resolves to, with a dynamic `import()`, after the input and the options pa
 Vite, Rollup and webpack put each client in a chunk of its own by default, so a page that only
 verifies on Sourcify does not download the other clients. esbuild does the same with
 `--splitting --format=esm`; without `--splitting`, every client is in the one output file.
+[Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide lists the size
+of each client.
 
 The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
 `timeout`. An abort of `signal` during the load rejects with `signal.reason`. A client that fails
