@@ -47,6 +47,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "missing-api-key": { exit: 3, retryable: false },
   "api-key-rejected": { exit: 3, retryable: false },
   "quota-exceeded": { exit: 3, retryable: false },
+  "internal-error": { exit: 6, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -102,6 +103,7 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "missing-api-key": () => ({ code: "missing-api-key", backend: "etherscan-v2" }),
   "api-key-rejected": () => ({ code: "api-key-rejected", backend: "etherscan-v2" }),
   "quota-exceeded": () => ({ code: "quota-exceeded", backend: "etherscan-v2" }),
+  "internal-error": () => ({ code: "internal-error" }),
 };
 
 function detailsFor(code: ErrorCode, text: string): ErrorDetails {

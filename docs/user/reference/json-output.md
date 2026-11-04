@@ -135,8 +135,9 @@ covers results and errors.
 | `in-progress`               | Error  | `false` | 5         |
 | `unknown-state`             | Error  | `false` | 6         |
 | `job-not-found`             | Error  | `false` | 6         |
+| `internal-error`            | Error  | `false` | 6         |
 | `cancelled`                 | Error  | `false` | 130       |
 
-Exit code 3 is for a missing, invalid or under-privileged API key. No error code uses it yet: key
-errors arrive with the first backend that needs a key. [Errors](errors/index.md#exit-codes)
-explains what to do for each exit code.
+The CLI creates `cancelled` and `internal-error`; the library never throws them.
+[Errors](errors/index.md#exit-codes) explains what to do for each exit code, and the
+[CLI reference](cli.md) describes the CLI's streams.

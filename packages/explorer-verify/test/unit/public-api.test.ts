@@ -120,6 +120,7 @@ describe("public entry point", () => {
       "missing-api-key",
       "api-key-rejected",
       "quota-exceeded",
+      "internal-error",
     ]);
   });
 

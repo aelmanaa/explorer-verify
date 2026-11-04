@@ -1,0 +1,71 @@
+{
+  "name": "@explorer-verify/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The explorer-verify command: verify deployed smart-contract source from a terminal, a CI job or an agent, with one JSON envelope on stdout and documented exit codes.",
+  "keywords": [
+    "ethereum",
+    "evm",
+    "smart-contracts",
+    "verification",
+    "source-verification",
+    "cli",
+    "etherscan",
+    "blockscout",
+    "sourcify",
+    "routescan"
+  ],
+  "homepage": "https://github.com/aelmanaa/explorer-verify#readme",
+  "bugs": {
+    "url": "https://github.com/aelmanaa/explorer-verify/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aelmanaa/explorer-verify.git",
+    "directory": "packages/cli"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Amine El Manaa",
+    "url": "https://github.com/aelmanaa"
+  },
+  "type": "module",
+  "bin": {
+    "explorer-verify": "./dist/src/bin.js"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/src/",
+    "src/",
+    "!**/*.test.*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "node -e \"for (const p of ['dist','coverage']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
+    "test": "pnpm run test:unit && pnpm run test:integration",
+    "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
+    "test:integration": "node ../../scripts/node-test.ts integration \"test/integration/**/*.test.ts\"",
+    "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\"",
+    "coverage": "tsc -b tsconfig.build.json && c8 --check-coverage node --test \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\"",
+    "pkg:check": "publint --strict && attw --pack . --profile esm-only"
+  },
+  "dependencies": {
+    "explorer-verify": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "catalog:",
+    "c8": "catalog:"
+  }
+}

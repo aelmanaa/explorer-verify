@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../node_modules/.cache/tsbuild/cli-test",
+    "tsBuildInfoFile": "../../node_modules/.cache/tsbuild/cli-test.tsbuildinfo",
+    "types": ["node"]
+  },
+  // The tests import the CLI sources directly, and the integration tests spawn the built bin.
+  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }],
+  "include": ["src", "test"]
+}

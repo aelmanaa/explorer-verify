@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // The CLI runs on Node only (decision 0008), so it has Node types and may import Node built-ins.
+    "types": ["node"]
+  },
+  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }],
+  "include": ["src"]
+}

@@ -39,7 +39,8 @@ User docs live in [docs/user/](docs/user/README.md); the index for people is
 `packages/explorer-verify/src/routing/table.json` and its checks. The index for agents is
 [llms.txt](llms.txt), and
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
-are safe and which one submits. The error reference is
+are safe and which one submits. The CLI's output contract is in
+[docs/user/reference/cli.md](docs/user/reference/cli.md). The error reference is
 [docs/user/reference/errors/index.md](docs/user/reference/errors/index.md), with one page per
 error code next to it, and the JSON envelope and exit codes are in
 [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input from
@@ -84,6 +85,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                                                                          |
 | `packages/foundry/`                   | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
 | `packages/hardhat/`                   | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
+| `packages/cli/`                       | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
 | `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
 | `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
 | `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
@@ -107,9 +109,10 @@ natively. pnpm 12.16.1 (`packageManager`).
   each with a reason. Prefer a typed alternative over adding one.
 - `packages/*/src` never imports a Node built-in and never reads `process.env`. Every network call
   goes through the `fetch` the caller injects or the default `globalThis.fetch`. The exceptions
-  are `packages/foundry/src` and `packages/hardhat/src`, the Node-only build helpers (decisions
-  0008 and 0018), which read files with `node:fs`; a lint override names each one. They still
-  never read `process.env`.
+  are the Node-only packages. `packages/foundry/src` and `packages/hardhat/src`, the build helpers
+  (decisions 0008 and 0018), read files with `node:fs` and never read `process.env`.
+  `packages/cli/src` (decision 0008) may import Node built-ins, and only its bin reads
+  `process.env`. A lint override names each package.
 - Never print, log or commit an API key, including in tests and fixtures. Errors redact keys.
 - A change that adds or changes a public function, error, CLI command or user page meets
   [agent readiness (R-AX)](docs/contributor/requirements.md#agent-readiness-r-ax), or the pull

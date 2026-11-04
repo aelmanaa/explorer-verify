@@ -9,11 +9,12 @@ JSON output for exit code 130 has a typed error. The library never throws it: wh
 `signal` aborts, the call rejects with `signal.reason` unchanged. `details.handle` is present when
 the explorer accepted the submission before the cancel.
 
-Fix: if the CLI printed `verify.submitted`, or `details.handle` is present, resume with
-`checkStatus()` and that handle. Otherwise run the command again.
+Fix: if the envelope has `error.handle`, the explorer accepted the submission. Resume from that
+handle with `explorer-verify status <handle>` (from the `status` command on, #101), or with
+`checkStatus()` in code, instead of submitting again. Otherwise run the command again.
 
-Default hint: The run was cancelled. If verify.submitted was printed, resume with checkStatus and
-that handle.
+Default hint: The run was cancelled. If error.handle is set, resume with explorer-verify status
+and that handle instead of submitting again.
 
 Retryable: no.
 
