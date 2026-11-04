@@ -1,0 +1,39 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:53.593Z: eth_getTransactionReceipt for the transaction that deployed ArgsFactory at 0xe9daf98340a966703ab9e41be7d4b6b3687f79bc, whose constructor created ArgsChild at 0x942a73EF02F5d035F42B667f66af6fe763F4949F.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com",
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionReceipt",
+      "params": ["0x5a9082cf244e416f2ce5673e4ef066f5cf991f5066ea1a08e4a8795269e83c32"]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x2",
+        "status": "0x1",
+        "cumulativeGasUsed": "0x4383011",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "transactionHash": "0x5a9082cf244e416f2ce5673e4ef066f5cf991f5066ea1a08e4a8795269e83c32",
+        "transactionIndex": "0x4e",
+        "blockHash": "0x071100998fa5edcded4a94c2f1cc10880fd6be0ad0dfe1cf77f6bb394da98ab0",
+        "blockNumber": "0xb80d15",
+        "gasUsed": "0xd9b16",
+        "effectiveGasPrice": "0x12",
+        "from": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+        "to": null,
+        "contractAddress": "0xe9daf98340a966703ab9e41be7d4b6b3687f79bc"
+      }
+    }
+  }
+}

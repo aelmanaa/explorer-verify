@@ -1,0 +1,46 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:53.444Z: eth_getTransactionByHash for the transaction that deployed ArgsFactory at 0xe9daf98340a966703ab9e41be7d4b6b3687f79bc, whose constructor created ArgsChild at 0x942a73EF02F5d035F42B667f66af6fe763F4949F.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com",
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionByHash",
+      "params": ["0x5a9082cf244e416f2ce5673e4ef066f5cf991f5066ea1a08e4a8795269e83c32"]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x2",
+        "chainId": "0xaa36a7",
+        "nonce": "0x1934",
+        "gas": "0xdbb4a",
+        "maxFeePerGas": "0x15",
+        "maxPriorityFeePerGas": "0x2",
+        "to": null,
+        "value": "0x0",
+        "accessList": [],
+        "input": "0x60a060405234801561000f575f80fd5b50602a60405161001e9061004f565b908152602001604051809103905ff08015801561003d573d5f803e3d5ffd5b506001600160a01b031660805261005b565b60fa8061011283390190565b60805160a26100705f395f602e015260a25ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c8063237b5e9614602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f3fea2646970667358221220e6dfb85df444917fc79f00515a0cf67c1a1113d28e73380c0c1f6570aeca8d2b64736f6c6343000818003360a060405234801561000f575f80fd5b506040516100fa3803806100fa83398101604081905261002e91610036565b60805261004d565b5f60208284031215610046575f80fd5b5051919050565b60805160986100625f395f602e015260985ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80633fa4f24514602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b60405190815260200160405180910390f3fea2646970667358221220545f21dc6dc883d21d3cb680f51697075a643ccbea3cff3d39137b6203c3aa9064736f6c63430008180033",
+        "r": "0xe0caa6a71894c001e5198652d67f9a9fccb8cfedbb6d3327fd2ac35566f94f3b",
+        "s": "0x7055e8bfff9a1a0182f97973ef8f020c1d0e17cf11561e5f081a75aa31ba918e",
+        "yParity": "0x0",
+        "v": "0x0",
+        "hash": "0x5a9082cf244e416f2ce5673e4ef066f5cf991f5066ea1a08e4a8795269e83c32",
+        "blockHash": "0x071100998fa5edcded4a94c2f1cc10880fd6be0ad0dfe1cf77f6bb394da98ab0",
+        "blockNumber": "0xb80d15",
+        "transactionIndex": "0x4e",
+        "from": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+        "gasPrice": "0x12",
+        "blockTimestamp": "0x6aeb0fd0"
+      }
+    }
+  }
+}

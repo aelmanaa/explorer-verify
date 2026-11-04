@@ -1,0 +1,40 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:54.401Z: getcontractcreation for ArgsChild at 0x942a73EF02F5d035F42B667f66af6fe763F4949F, created by the constructor of ArgsFactory at 0xe9daf98340a966703ab9e41be7d4b6b3687f79bc on Ethereum Sepolia, the key in the form body. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getcontractcreation",
+        "contractaddresses": "0x942a73EF02F5d035F42B667f66af6fe763F4949F",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "contractAddress": "0x942a73ef02f5d035f42b667f66af6fe763f4949f",
+          "contractCreator": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+          "txHash": "0x5a9082cf244e416f2ce5673e4ef066f5cf991f5066ea1a08e4a8795269e83c32",
+          "blockNumber": "12061973",
+          "timestamp": "1793789904",
+          "contractFactory": "0xe9daf98340a966703ab9e41be7d4b6b3687f79bc",
+          "creationBytecode": "0x60a060405234801561000f575f80fd5b506040516100fa3803806100fa83398101604081905261002e91610036565b60805261004d565b5f60208284031215610046575f80fd5b5051919050565b60805160986100625f395f602e015260985ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80633fa4f24514602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b60405190815260200160405180910390f3fea2646970667358221220545f21dc6dc883d21d3cb680f51697075a643ccbea3cff3d39137b6203c3aa9064736f6c63430008180033000000000000000000000000000000000000000000000000000000000000002a"
+        }
+      ]
+    }
+  }
+}

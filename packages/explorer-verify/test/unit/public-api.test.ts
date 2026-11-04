@@ -31,6 +31,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   route: true,
   apiKeys: true,
   allowSourcifyFallback: true,
+  rpcUrl: true,
 };
 const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true, apiKey: true };
 const emptyRoute: RouteOverride = {};
@@ -53,7 +54,7 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has the M1 fields, apiKeys and allowSourcifyFallback (decisions 0009, 0010 and 0016, R-RT-3)", () => {
+  it("VerifyOptions has the M1 fields, apiKeys, allowSourcifyFallback and rpcUrl (decisions 0009, 0010 and 0016, R-RT-3, R-IN-3)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
@@ -64,6 +65,7 @@ describe("public types", () => {
       "route",
       "apiKeys",
       "allowSourcifyFallback",
+      "rpcUrl",
     ]);
   });
 
@@ -126,6 +128,7 @@ describe("public entry point", () => {
       "internal-error",
       "no-metadata-hash",
       "metadata-unavailable",
+      "constructor-args-unavailable",
     ]);
   });
 

@@ -33,6 +33,7 @@ const verifyOptionKeys: Equals<
   | "route"
   | "apiKeys"
   | "allowSourcifyFallback"
+  | "rpcUrl"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;

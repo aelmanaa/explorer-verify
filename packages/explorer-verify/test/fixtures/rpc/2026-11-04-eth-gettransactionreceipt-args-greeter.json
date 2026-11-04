@@ -1,0 +1,39 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:53.519Z: eth_getTransactionReceipt for the transaction that deployed ArgsGreeter at 0xc9bbbabe86d85a714bb3f955042277b2dcb3a1b6 directly.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com",
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionReceipt",
+      "params": ["0x38021ccb091a8eab63cc6471e0240805b44c9099426c7904156790f269952af2"]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x2",
+        "status": "0x1",
+        "cumulativeGasUsed": "0x3e44083",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "transactionHash": "0x38021ccb091a8eab63cc6471e0240805b44c9099426c7904156790f269952af2",
+        "transactionIndex": "0x60",
+        "blockHash": "0x4b6550f3145b7a835d6ce9c12c92bba7f585acc7ab4c982f29e8572f3f3073f7",
+        "blockNumber": "0xb80d14",
+        "gasUsed": "0x101fdb",
+        "effectiveGasPrice": "0x12",
+        "from": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+        "to": null,
+        "contractAddress": "0xc9bbbabe86d85a714bb3f955042277b2dcb3a1b6"
+      }
+    }
+  }
+}

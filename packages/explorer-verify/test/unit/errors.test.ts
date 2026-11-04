@@ -105,6 +105,10 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     hash: `ipfs:${DUMMY_KEY}`,
     attempts: [{ source: "ipfs", outcome: "not-found", status: 404 }],
   },
+  "constructor-args-unavailable": {
+    code: "constructor-args-unavailable",
+    reason: "prefix-mismatch",
+  },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -218,6 +222,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
     retryable: true,
     exitCode: 5,
+  },
+  "constructor-args-unavailable": {
+    hint: "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
+    retryable: false,
+    exitCode: 2,
   },
 };
 
@@ -353,6 +362,7 @@ describe("ExplorerVerifyError", () => {
       case "internal-error":
       case "no-metadata-hash":
       case "metadata-unavailable":
+      case "constructor-args-unavailable":
         assert.fail(`unexpected code ${details.code}`);
     }
   });

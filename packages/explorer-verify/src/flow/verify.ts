@@ -12,11 +12,14 @@ import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
 import type { ApiKeysReader } from "../http/api-keys.ts";
 import { MAX_TIMER_MS, REQUEST_TIMEOUT_MS, sleep } from "../http/fetch.ts";
 import type { Budget, HttpContext } from "../http/fetch.ts";
+import { endpointSecrets } from "../http/rpc.ts";
+import type { Endpoint } from "../http/rpc.ts";
+import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-args.ts";
 import { validateInput } from "../input/validate.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
 import { MIN_SECRET_LENGTH } from "../redact.ts";
-import { resolveRoute, unsupported } from "../routing/resolve.ts";
+import { checkApiUrl, resolveRoute, unsupported } from "../routing/resolve.ts";
 import type { Route, RoutingTable } from "../routing/resolve.ts";
 import type {
   Handle,
@@ -58,6 +61,16 @@ export type ClientLoader = () => Promise<Backend>;
 export type Client = Backend | ClientLoader;
 
 /**
+ * Loads the constructor argument derivation (R-IN-3). It sits behind a dynamic `import()`, so a
+ * call that derives nothing does not load it (decisions 0031 and 0032).
+ */
+export type DeriveLoader = () => Promise<typeof WithDerivedArgs>;
+
+/** The shipped derivation, loaded with a dynamic `import()` the first time a call derives. */
+const loadDerivation: DeriveLoader = async () =>
+  (await import("../input/constructor-args.ts")).withDerivedArgs;
+
+/**
  * What the flow engine takes besides the caller's input and options. `verify()` passes the
  * defaults; the tests pass a fixed `random` for the backoff jitter, a backend table without a
  * client to reach the error for it, or a routing table with rows for clients to come.
@@ -69,6 +82,8 @@ export interface FlowDependencies {
   readonly random?: () => number;
   /** The routing table. Defaults to the shipped one; the tests pass rows for clients to come. */
   readonly table?: RoutingTable;
+  /** Loads the constructor argument derivation. Defaults to the shipped one; tests pass others. */
+  readonly derivation?: DeriveLoader;
 }
 
 /**
@@ -140,19 +155,32 @@ export async function withClient(
   if (typeof client !== "function") {
     return dependencies;
   }
-  const backend = await bounded(client, route.backend, settings.signal, budget);
+  const backend = await bounded(
+    client,
+    LOADED,
+    `the ${route.backend} client`,
+    route.backend,
+    settings.signal,
+    budget,
+  );
   return { ...dependencies, backends: { ...dependencies.backends, [route.backend]: backend } };
 }
 
-/** Runs `load`, and rejects first when `signal` aborts or the budget runs out. */
-async function bounded(
-  load: ClientLoader,
+/**
+ * Runs `load`, and rejects first when `signal` aborts or the budget runs out. `memo` keeps what
+ * each loader gave, so a later call takes it at once. `what` names the code in the `timeout`
+ * message, and `name` is the backend the `timeout` details name.
+ */
+async function bounded<T extends object>(
+  load: () => Promise<T>,
+  memo: WeakMap<() => Promise<T>, T>,
+  what: string,
   name: BackendName,
   signal: AbortSignal | undefined,
   budget: Budget,
-): Promise<Backend> {
+): Promise<T> {
   signal?.throwIfAborted();
-  const cached = LOADED.get(load);
+  const cached = memo.get(load);
   if (cached !== undefined) {
     return cached;
   }
@@ -168,7 +196,7 @@ async function bounded(
   let onAbort: (() => void) | undefined;
   let onDeadline: (() => void) | undefined;
   try {
-    const backend = await new Promise<Backend>((resolve, reject) => {
+    const loaded = await new Promise<T>((resolve, reject) => {
       onAbort = (): void => {
         const reason: unknown = signal?.reason;
         reject(reason);
@@ -177,7 +205,7 @@ async function bounded(
         reject(
           new ExplorerVerifyError(
             { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
-            `Loading the ${name} client did not finish within the ${String(budget.timeoutMs)} ms budget.`,
+            `Loading ${what} did not finish within the ${String(budget.timeoutMs)} ms budget.`,
             { secrets: [] },
           ),
         );
@@ -186,8 +214,8 @@ async function bounded(
       deadline.addEventListener("abort", onDeadline, { once: true });
       load().then(resolve, reject);
     });
-    LOADED.set(load, backend);
-    return backend;
+    memo.set(load, loaded);
+    return loaded;
   } finally {
     if (onAbort !== undefined) {
       signal?.removeEventListener("abort", onAbort);
@@ -203,6 +231,9 @@ async function bounded(
  * timer. A loader that failed is not kept, so the next call tries again.
  */
 const LOADED = new WeakMap<ClientLoader, Backend>();
+
+/** The derivation each loader has given, by loader, as {@link LOADED} keeps clients. */
+const DERIVATIONS = new WeakMap<DeriveLoader, typeof WithDerivedArgs>();
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
@@ -222,7 +253,14 @@ export interface Settings {
   readonly apiKeys: ApiKeysReader;
   /** Returns every string value of `apiKeys`, valid or not, removed from all the call outputs. */
   readonly keySecrets: () => readonly string[];
+  /** The checked `rpcUrl`, for the constructor argument derivation (R-IN-3). */
+  readonly rpcUrl: Endpoint | undefined;
+  /** The parts of `rpcUrl` that may hold a key, removed from all the call outputs. */
+  readonly rpcSecrets: readonly string[];
 }
+
+/** The options read in one pass, before the keys and `rpcUrl` are checked. */
+type ReadSettings = Omit<Settings, "apiKeys" | "keySecrets" | "rpcUrl" | "rpcSecrets">;
 
 /** Everything one call shares once the route is known. */
 export interface Call {
@@ -370,7 +408,10 @@ async function verifyWith(
     return finish(call, "already-verified", found);
   }
 
-  const submitted = await backend.submit(checked, call.ctx);
+  const submitted = await backend.submit(
+    await withArgs(call, checked, dependencies.derivation ?? loadDerivation),
+    call.ctx,
+  );
   if (submitted.state === "already-verified") {
     return finish(call, "already-verified", submitted.match);
   }
@@ -386,6 +427,34 @@ async function verifyWith(
   });
 
   return await settle(call, handle, settings.pollIntervalMs);
+}
+
+/**
+ * `input` with the constructor arguments derived from the creation code (R-IN-3), when the caller
+ * passed none, the backend sends arguments and the input has `creationBytecode`; otherwise `input`
+ * unchanged. The derivation code loads with `load` only then, so a call that derives nothing does
+ * not load it; the load ends on abort or when the budget runs out, as a client's does (decision
+ * 0031). See `withDerivedArgs` for what it logs and throws (decision 0032).
+ */
+async function withArgs(call: Call, input: VerifyInput, load: DeriveLoader): Promise<VerifyInput> {
+  const { creationBytecode } = input;
+  if (
+    input.constructorArgs !== undefined ||
+    call.backend.takesConstructorArgs !== true ||
+    creationBytecode === undefined
+  ) {
+    return input;
+  }
+  const { backend, settings, budget } = call;
+  const derive = await bounded(
+    load,
+    DERIVATIONS,
+    "the constructor argument code",
+    backend.name,
+    settings.signal,
+    budget,
+  );
+  return await derive(call, input, creationBytecode);
 }
 
 /**
@@ -452,6 +521,7 @@ export function openCall(
   const secrets = [
     ...routeSecrets(route, target.chainId, target.address, backend.name),
     ...keySecrets,
+    ...settings.rpcSecrets,
     ...(routeKey === undefined ? [] : [routeKey]),
   ];
   const { apiKeys } = settings;
@@ -594,14 +664,17 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       allowSourcifyFallback: undefined,
       apiKeys: () => ({}),
       keySecrets: () => [],
+      rpcUrl: undefined,
+      rpcSecrets: [],
     };
   }
   const raw: unknown = options;
   if (typeof raw !== "object" || raw === null) {
     throw invalidOptions([{ field: "options", message: "must be an object" }]);
   }
-  let read: Omit<Settings, "apiKeys" | "keySecrets">;
+  let read: ReadSettings;
   let rawKeys: unknown;
+  let rawRpcUrl: unknown;
   const issues: InputIssue[] = [];
   try {
     const signal = own(options, "signal");
@@ -627,6 +700,7 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       ),
     };
     rawKeys = own(options, "apiKeys");
+    rawRpcUrl = own(options, "rpcUrl");
   } catch {
     // A getter or Proxy trap threw. Its error is dropped: it may repeat a caller value.
     throw invalidOptions([{ field: "options", message: "could not be read" }]);
@@ -635,11 +709,23 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
   // Read after the other options, so a bad key value never hides an issue in them.
   const keys = readApiKeys(rawKeys);
   issues.push(...keys.issues);
+  const rpc = rawRpcUrl === undefined ? undefined : checkApiUrl(rawRpcUrl);
+  if (typeof rpc === "string") {
+    issues.push({ field: "rpcUrl", message: rpc });
+  }
+  const rpcUrl = typeof rpc === "string" ? undefined : rpc;
+  const rpcSecrets = rpcUrl === undefined ? [] : endpointSecrets(rpcUrl);
   if (issues.length > 0) {
-    throw invalidOptions(issues, keys.secrets);
+    throw invalidOptions(issues, [...keys.secrets, ...rpcSecrets]);
   }
   const { keys: checked, secrets } = keys;
-  return { ...read, apiKeys: () => checked, keySecrets: () => secrets };
+  return {
+    ...read,
+    apiKeys: () => checked,
+    keySecrets: () => secrets,
+    rpcUrl,
+    rpcSecrets,
+  };
 }
 
 /** An own option, read once, or `undefined` when `options` does not have it. */
@@ -651,10 +737,7 @@ function own<K extends keyof VerifyOptions>(
 }
 
 /** Adds an issue for each of `signal`, `fetch`, `logger` and `onEvent` of the wrong kind. */
-function checkKinds(
-  settings: Omit<Settings, "apiKeys" | "keySecrets">,
-  issues: InputIssue[],
-): void {
+function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
   const signal: unknown = settings.signal;
   if (signal !== undefined && !(signal instanceof AbortSignal)) {
     issues.push({ field: "signal", message: "must be an AbortSignal" });

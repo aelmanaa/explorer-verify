@@ -98,6 +98,11 @@ export interface Dialect {
     backend: BackendName,
     fields: Record<string, string>,
   ) => HttpRequest;
+  /**
+   * Whether the client reads the creation code with `getcontractcreation` (R-IN-3). Set for
+   * Etherscan, whose answer was checked live on 2026-11-03 and 2026-11-04.
+   */
+  readonly creation?: boolean;
 }
 
 /**
@@ -346,7 +351,52 @@ export function etherscanStyle(dialect: Dialect): Backend {
     return unexpectedAnswer(ctx, name, label, answer, what, whole);
   }
 
-  return { name, lookup, submit, poll, explorerUrl };
+  /**
+   * The creation code with `getcontractcreation`. `verify()` asks only when a key is bound to the
+   * route: a keyless request may reach a server handler, which does not forward this action. The
+   * record whose `contractAddress` is the contract gives its `creationBytecode`. `No data found`
+   * and a record without it give `undefined`; any other answer throws.
+   */
+  async function creationCode(target: Target, ctx: Context): Promise<string | undefined> {
+    const answer = await send(
+      ctx,
+      read(ctx, name, {
+        action: "getcontractcreation",
+        contractaddresses: target.address,
+      }),
+    );
+    const message = answer.fields?.get("message");
+    known(ctx, answer, target.chainId);
+    const result = answer.fields?.get("result");
+    if (answer.status === 200 && answer.fields?.get("status") === "1" && Array.isArray(result)) {
+      for (const entry of result) {
+        const fields = readFields(entry);
+        const address = fields?.get("contractAddress");
+        const code = fields?.get("creationBytecode");
+        if (typeof address === "string" && address.toLowerCase() === target.address) {
+          return typeof code === "string" && /^0x(?:[0-9a-fA-F]{2})+$/.test(code)
+            ? code
+            : undefined;
+        }
+      }
+      return undefined;
+    }
+    if (answer.status === 200 && message === "No data found") {
+      return undefined;
+    }
+    throw unexpected(ctx, answer, "the creation code request");
+  }
+
+  return {
+    name,
+    lookup,
+    submit,
+    poll,
+    explorerUrl,
+    takesConstructorArgs: true,
+    refusesOtherBuilds: true,
+    ...(dialect.creation === true ? { creationCode } : {}),
+  };
 }
 
 /**
@@ -368,6 +418,7 @@ export const etherscan: Backend = etherscanStyle({
   name: "etherscan-v2",
   label: "Etherscan",
   read: post,
+  creation: true,
 });
 
 /**

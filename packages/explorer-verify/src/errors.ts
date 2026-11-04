@@ -47,6 +47,7 @@ export const ERROR_CODES = [
   "internal-error",
   "no-metadata-hash",
   "metadata-unavailable",
+  "constructor-args-unavailable",
 ] as const;
 
 /**
@@ -362,6 +363,19 @@ export type ErrorDetails =
       hash: string;
       /** Each source tried, in order. */
       attempts: MetadataAttempt[];
+    }
+  | {
+      /**
+       * The creation code shows that `creationBytecode` is not the deployed build (R-IN-3), on a
+       * backend that would refuse another build, so `verify()` sent nothing to the explorer
+       * (decision 0032).
+       */
+      code: "constructor-args-unavailable";
+      /**
+       * `prefix-mismatch`: the creation code does not start with `creationBytecode`.
+       * `bad-length`: what follows `creationBytecode` is not a whole number of 32-byte words.
+       */
+      reason: "prefix-mismatch" | "bad-length";
     };
 
 /**
@@ -415,6 +429,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "internal-error": 6,
   "no-metadata-hash": 2,
   "metadata-unavailable": 5,
+  "constructor-args-unavailable": 2,
 };
 
 /**
@@ -604,6 +619,10 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
     retryable: true,
   },
+  "constructor-args-unavailable": {
+    hint: "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
+    retryable: false,
+  },
 };
 
 /**
@@ -735,6 +754,12 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
         code: "metadata-unavailable",
         hash: text(details.hash, secrets),
         attempts: Array.isArray(details.attempts) ? details.attempts.map(copyAttempt) : [],
+      };
+      break;
+    case "constructor-args-unavailable":
+      copy = {
+        code: "constructor-args-unavailable",
+        reason: oneOf(details.reason, ["prefix-mismatch", "bad-length"]),
       };
       break;
   }

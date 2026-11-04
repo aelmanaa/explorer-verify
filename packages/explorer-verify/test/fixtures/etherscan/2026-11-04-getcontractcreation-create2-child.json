@@ -1,0 +1,40 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T11:26:10.752Z: getcontractcreation for ArgsChild at 0x440ec21dD6187B65111520575412085b4A6D62b7, created by the CREATE2 deployer 0x4e59b44847b379578588920cA78FbF26c0B4956C on Ethereum Sepolia, the key in the form body. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getcontractcreation",
+        "contractaddresses": "0x440ec21dD6187B65111520575412085b4A6D62b7",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "contractAddress": "0x440ec21dd6187b65111520575412085b4a6d62b7",
+          "contractCreator": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+          "txHash": "0xb00dc67e6beebe28b9aefb28655918a23cbf0aef5e7f670b3dfe6fe435225384",
+          "blockNumber": "12061979",
+          "timestamp": "1793789976",
+          "contractFactory": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+          "creationBytecode": "0x60a060405234801561000f575f80fd5b506040516100fa3803806100fa83398101604081905261002e91610036565b60805261004d565b5f60208284031215610046575f80fd5b5051919050565b60805160986100625f395f602e015260985ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80633fa4f24514602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b60405190815260200160405180910390f3fea2646970667358221220545f21dc6dc883d21d3cb680f51697075a643ccbea3cff3d39137b6203c3aa9064736f6c634300081800330000000000000000000000000000000000000000000000000000000000000007"
+        }
+      ]
+    }
+  }
+}

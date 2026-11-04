@@ -1,0 +1,46 @@
+{
+  "source": "Live response from ethereum-sepolia-rpc.publicnode.com to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T10:59:53.669Z: eth_getTransactionByHash for the call to the CREATE2 deployer 0x4e59b44847b379578588920cA78FbF26c0B4956C that created ArgsChild at 0x440ec21dD6187B65111520575412085b4A6D62b7.",
+  "request": {
+    "method": "POST",
+    "url": "https://ethereum-sepolia-rpc.publicnode.com",
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionByHash",
+      "params": ["0xb00dc67e6beebe28b9aefb28655918a23cbf0aef5e7f670b3dfe6fe435225384"]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x2",
+        "chainId": "0xaa36a7",
+        "nonce": "0x1935",
+        "gas": "0x6e621",
+        "maxFeePerGas": "0x28",
+        "maxPriorityFeePerGas": "0x2",
+        "to": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+        "value": "0x0",
+        "accessList": [],
+        "input": "0x000000000000000000000000000000000000000000000000000000000000006460a060405234801561000f575f80fd5b506040516100fa3803806100fa83398101604081905261002e91610036565b60805261004d565b5f60208284031215610046575f80fd5b5051919050565b60805160986100625f395f602e015260985ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80633fa4f24514602a575b5f80fd5b60507f000000000000000000000000000000000000000000000000000000000000000081565b60405190815260200160405180910390f3fea2646970667358221220545f21dc6dc883d21d3cb680f51697075a643ccbea3cff3d39137b6203c3aa9064736f6c634300081800330000000000000000000000000000000000000000000000000000000000000007",
+        "r": "0x2ab5f6b656d9e8a608fffad3dd05846cc94579bab226201f7b5a7c3d40711fcd",
+        "s": "0x2967e925610c89e43ba6c20a86cf5f5ae9d948547dbbb420ead183055209c374",
+        "yParity": "0x1",
+        "v": "0x1",
+        "hash": "0xb00dc67e6beebe28b9aefb28655918a23cbf0aef5e7f670b3dfe6fe435225384",
+        "blockHash": "0x221a8c536e8d630afd6887d45916d41ba472e57b08b167ad36396f8a41b9b244",
+        "blockNumber": "0xb80d1b",
+        "transactionIndex": "0x68",
+        "from": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+        "gasPrice": "0x12",
+        "blockTimestamp": "0x6aeb1018"
+      }
+    }
+  }
+}

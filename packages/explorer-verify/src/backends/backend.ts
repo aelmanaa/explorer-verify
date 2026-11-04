@@ -33,7 +33,8 @@ export interface Target {
 
 /**
  * The input of a submit: a {@link VerifyInput} that `validateInput` has already checked and
- * normalised. Later releases derive missing constructor arguments before the submit (R-IN-3).
+ * normalised, with the constructor arguments that `verify()` derived when they were missing
+ * (R-IN-3).
  */
 export type ResolvedInput = VerifyInput;
 
@@ -155,4 +156,24 @@ export interface Backend {
    * contracts no public page shows, such as a self-hosted or local one (R-FLOW-3).
    */
   readonly explorerUrl: (target: Target, ctx: Context) => string | undefined;
+  /**
+   * Whether a submit sends constructor arguments. When it does, `verify()` derives missing ones
+   * from the creation code before the submit (R-IN-3). Absent means it does not.
+   */
+  readonly takesConstructorArgs?: boolean;
+  /**
+   * Whether the explorer refuses a build other than the deployed one, so a creation code that
+   * does not match `creationBytecode` is an early error rather than a submit without arguments
+   * (decision 0032). Absent means it may accept another build, as a partial match.
+   */
+  readonly refusesOtherBuilds?: boolean;
+  /**
+   * The contract's creation code as the explorer records it, `0x` and hex, such as Etherscan's
+   * `getcontractcreation` `creationBytecode`: for a contract a factory created, the inner init
+   * code with its arguments. `undefined` when the explorer has no record. `verify()` calls it only
+   * when a key is bound to the route. Only clients whose explorer has such a record define it.
+   *
+   * @throws ExplorerVerifyError for an answer that is neither a record nor "no record".
+   */
+  readonly creationCode?: (target: Target, ctx: Context) => Promise<string | undefined>;
 }

@@ -92,6 +92,7 @@ export const blockscout: Backend = {
   submit,
   poll,
   explorerUrl,
+  takesConstructorArgs: true,
 };
 
 /**

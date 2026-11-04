@@ -50,6 +50,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "internal-error": { exit: 6, retryable: false },
   "no-metadata-hash": { exit: 2, retryable: false },
   "metadata-unavailable": { exit: 5, retryable: true },
+  "constructor-args-unavailable": { exit: 2, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -111,6 +112,10 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
     code: "metadata-unavailable",
     hash: `ipfs:${text}`,
     attempts: [{ source: "rpc", outcome: "unavailable" }],
+  }),
+  "constructor-args-unavailable": () => ({
+    code: "constructor-args-unavailable",
+    reason: "bad-length",
   }),
 };
 

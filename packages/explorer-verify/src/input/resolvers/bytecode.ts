@@ -11,12 +11,20 @@
 import { ExplorerVerifyError } from "../../errors.ts";
 import type { InputIssue, MetadataAttempt } from "../../errors.ts";
 import { MAX_TIMER_MS, request } from "../../http/fetch.ts";
-import type { Budget, HttpContext } from "../../http/fetch.ts";
+import type { Budget, HttpContext, HttpRequest } from "../../http/fetch.ts";
+import {
+  endpointSecrets,
+  jsonFields,
+  RPC_BODY_BYTES,
+  rpcRequest,
+  rpcResult,
+  servesChain,
+} from "../../http/rpc.ts";
+import type { Endpoint } from "../../http/rpc.ts";
 import { keccak256 } from "../../internal/keccak.ts";
 import { addressDigits, readChainId, readFields, readOwn } from "../../internal/read-fields.ts";
 import { createObserver } from "../../observe.ts";
 import type { Observer } from "../../observe.ts";
-import { MIN_SECRET_LENGTH } from "../../redact.ts";
 import { checkApiUrl, SOURCIFY_API_URL } from "../../routing/resolve.ts";
 import type { Hex, Logger } from "../../types.ts";
 import { buildVerifyInput } from "../build.ts";
@@ -115,8 +123,6 @@ const MAX_SOURCIFY_COPIES = 3;
 const SOURCE_CONCURRENCY = 6;
 /** The largest bytecode read, in bytes: well above the 24 KiB of EIP-170. */
 const MAX_BYTECODE_BYTES = 65_536;
-/** The largest JSON-RPC answer read: 1 MiB. */
-const RPC_BODY_BYTES = 1_048_576;
 /** The largest gateway answer read, metadata or one source: 4 MiB. */
 const GATEWAY_BODY_BYTES = 4_194_304;
 
@@ -127,12 +133,6 @@ const DWEB_PREFIX = "dweb:/ipfs/";
 
 const OPTIONS_HINT =
   "Fix the fields in details.issues. Pass bytecode or rpcUrl, and https URLs for rpcUrl and ipfsGateway.";
-
-/** A checked URL the caller configured: origin and path, and the query string kept apart. */
-interface Endpoint {
-  readonly apiBase: string;
-  readonly search: string;
-}
 
 /** The checked options. */
 interface Settings {
@@ -182,33 +182,6 @@ function bytecodeBytes(value: unknown): Uint8Array | undefined {
   return typeof value === "string" && value.length <= 2 + 2 * MAX_BYTECODE_BYTES
     ? hexBytes(value)
     : undefined;
-}
-
-/**
- * The parts of a configured URL that may hold a key: each path segment and each query value of
- * at least {@link MIN_SECRET_LENGTH} characters, as written and decoded. Providers put keys in
- * either place, so both are redacted from logs and errors.
- */
-function urlSecrets(base: Endpoint): string[] {
-  const url = new URL(`${base.apiBase}${base.search}`);
-  const parts = [...url.pathname.split("/"), ...[...url.searchParams].map(([, value]) => value)];
-  const found = new Set<string>();
-  for (const part of parts) {
-    for (const each of [part, safeDecode(part)]) {
-      if (each.length >= MIN_SECRET_LENGTH) {
-        found.add(each);
-      }
-    }
-  }
-  return [...found];
-}
-
-function safeDecode(part: string): string {
-  try {
-    return decodeURIComponent(part);
-  } catch {
-    return part;
-  }
 }
 
 /** A URL option, checked, or `undefined` when absent. Adds an issue when it is invalid. */
@@ -337,7 +310,9 @@ function readSettings(target: BytecodeTarget, options: ResolveInputOptions | und
   }
   const sources = readSources(read.sources, issues);
   checkKinds(read, issues);
-  const secrets = [rpcUrl, gateway].flatMap((each) => (each === undefined ? [] : urlSecrets(each)));
+  const secrets = [rpcUrl, gateway].flatMap((each) =>
+    each === undefined ? [] : endpointSecrets(each),
+  );
   const code =
     bytecode !== undefined ? { bytes: bytecode } : rpcUrl === undefined ? undefined : { rpcUrl };
   if (issues.length > 0 || chainId === undefined || digits === undefined || code === undefined) {
@@ -392,24 +367,21 @@ function unavailable(call: Call, message: string): ExplorerVerifyError {
 }
 
 /**
- * One GET or POST through the HTTP layer. Returns the status and body, or records an
- * `unavailable` attempt and returns `undefined` when the HTTP layer gave up. When the time budget
- * ran out, it records a `timeout` attempt and throws `metadata-unavailable` at once: every later
- * request would time out too.
+ * One request through the HTTP layer: a GET of `req` when it is a URL. Returns the status and
+ * body, or records an `unavailable` attempt and returns `undefined` when the HTTP layer gave up.
+ * When the time budget ran out, it records a `timeout` attempt and throws `metadata-unavailable`
+ * at once: every later request would time out too.
  */
 async function send(
   call: Call,
   source: MetadataAttempt["source"],
-  url: string,
-  body?: string,
+  req: string | HttpRequest,
 ): Promise<{ status: number; text: string } | undefined> {
   try {
-    const response = await request(context(call, source), {
-      url,
-      method: body === undefined ? "GET" : "POST",
-      retry: "safe",
-      ...(body === undefined ? {} : { body, headers: { "content-type": "application/json" } }),
-    });
+    const response = await request(
+      context(call, source),
+      typeof req === "string" ? { url: req, method: "GET", retry: "safe" } : req,
+    );
     return { status: response.status, text: await response.text() };
   } catch (error: unknown) {
     // An abort, or anything that is not a library error, is thrown as it is.
@@ -428,17 +400,10 @@ async function send(
       attempt.status = 429;
     }
     call.attempts.push(attempt);
-    call.observer.log.warn(`${source}: no usable answer`, { source, code: error.code });
-    return undefined;
-  }
-}
-
-/** A JSON body as fields, or `undefined` when it is not a JSON object. */
-function jsonFields(text: string): Map<string, unknown> | undefined {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return readFields(parsed);
-  } catch {
+    call.observer.log.warn(`${source}: no usable answer`, {
+      source,
+      code: error.code,
+    });
     return undefined;
   }
 }
@@ -450,13 +415,8 @@ async function rpc(
   method: string,
   params: unknown[],
 ): Promise<unknown> {
-  const answer = await send(
-    call,
-    "rpc",
-    `${rpcUrl.apiBase}${rpcUrl.search}`,
-    JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-  );
-  const result = answer?.status === 200 ? jsonFields(answer.text)?.get("result") : undefined;
+  const answer = await send(call, "rpc", rpcRequest(rpcUrl, method, params));
+  const result = answer === undefined ? undefined : rpcResult(answer.status, answer.text);
   if (answer !== undefined && result === undefined) {
     call.attempts.push({ source: "rpc", outcome: "unavailable", status: answer.status });
   }
@@ -470,11 +430,7 @@ async function rpc(
 async function readBytecode(call: Call, rpcUrl: Endpoint): Promise<Uint8Array> {
   const { chainId, address, secrets } = call.settings;
   const served = await rpc(call, rpcUrl, "eth_chainId", []);
-  if (
-    typeof served !== "string" ||
-    !/^0x[0-9a-fA-F]{1,16}$/.test(served) ||
-    Number(served) !== chainId
-  ) {
+  if (!servesChain(served, chainId)) {
     throw invalid([{ field: "rpcUrl", message: "serves another chain than chainId" }], secrets);
   }
   const bytes = bytecodeBytes(await rpc(call, rpcUrl, "eth_getCode", [address, "latest"]));
