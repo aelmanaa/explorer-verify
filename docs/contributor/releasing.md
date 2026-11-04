@@ -11,19 +11,19 @@ same tarballs, same provenance.
 
 ## The pieces
 
-| Piece                                | What it does                                                                                                                                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.github/workflows/release-pr.yml`   | On each push to `main`, opens or updates the Version Packages pull request with `pnpm run version-packages`. Publishes nothing                                                                |
-| `.github/workflows/release.yml`      | On a `vX.Y.Z` tag: checks the tag, builds, checks and packs, then publishes to `beta` behind the `npm-publish` environment                                                                    |
-| `.github/workflows/promote.yml`      | Dispatched from `main` with a version: checks it on npm, deploys its docs, then moves `latest` to it behind the `npm-latest` environment. Never publishes                                     |
-| `.github/release-keys/`              | The trust root: the public key of each maintainer who may sign a release tag ([README](../../.github/release-keys/README.md))                                                                 |
-| `.github/ruleset-protect-tags.json`  | The tag ruleset: only a repository admin creates, moves or deletes a `v*` tag                                                                                                                 |
-| `scripts/release-packages.ts`        | Lists the published packages at a commit: every `packages/*/package.json` without `"private": true`, the core first                                                                           |
-| `scripts/verify-release-tag.ts`      | Checks the tag signature, that the tag names the version of every published package, that it is a plain `X.Y.Z`, and that the commit is on main                                               |
-| `scripts/check-tarballs.ts`          | Checks each tarball's SHA-256, name, version and `gitHead` against the pack job's record, and that no dependency range starts with `workspace:` or `catalog:`                                 |
-| `scripts/check-registry-release.ts`  | Before a promote: the version is on npm, on `beta`, from the tagged commit, not below `latest`, with a provenance statement that names this repository, `release.yml`, the tag and the commit |
-| `scripts/check-changesets.ts`        | Run by `pnpm run check`: refuses a `major` changeset during 0.x                                                                                                                               |
-| `scripts/check-release-workflows.ts` | Run by `pnpm run check`: fails when the job that moves `latest` does not need the docs job or runs outside `npm-latest`, or when another job can deploy to Pages                              |
+| Piece                                | What it does                                                                                                                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/release-pr.yml`   | On each push to `main`, opens or updates the Version Packages pull request with `pnpm run version-packages`. Does nothing, and passes, while every package is private. Publishes nothing                                                |
+| `.github/workflows/release.yml`      | On a `vX.Y.Z` tag: checks the tag, builds, checks and packs, then publishes to `beta` behind the `npm-publish` environment                                                                                                              |
+| `.github/workflows/promote.yml`      | Dispatched from `main` with a version: checks it on npm, deploys its docs, then moves `latest` to it behind the `npm-latest` environment. Never publishes                                                                               |
+| `.github/release-keys/`              | The trust root: the public key of each maintainer who may sign a release tag ([README](../../.github/release-keys/README.md))                                                                                                           |
+| `.github/ruleset-protect-tags.json`  | The tag ruleset: only a repository admin creates, moves or deletes a `v*` tag                                                                                                                                                           |
+| `scripts/release-packages.ts`        | Lists the published packages at a commit: every `packages/*/package.json` without `"private": true`, the core first. With `--any`, prints `true` or `false`                                                                             |
+| `scripts/verify-release-tag.ts`      | Checks the tag signature, that the tag names the version of every published package, that it is a plain `X.Y.Z`, and that the commit is on main                                                                                         |
+| `scripts/check-tarballs.ts`          | Checks each tarball's SHA-256, name, version and `gitHead` against the pack job's record, and that no dependency range starts with `workspace:` or `catalog:`                                                                           |
+| `scripts/check-registry-release.ts`  | Before a promote: the version is on npm, on `beta`, from the tagged commit, not below `latest`, with a provenance statement that names this repository, `release.yml`, the tag and the commit                                           |
+| `scripts/check-changesets.ts`        | Run by `pnpm run check`: refuses a `major` changeset during 0.x                                                                                                                                                                         |
+| `scripts/check-release-workflows.ts` | Run by `pnpm run check`: fails when the job that moves `latest` does not need the docs job or runs outside `npm-latest`, when another job can deploy to Pages, or when the Version Packages job runs without the published-package gate |
 
 The packages share one version through the changesets `fixed` group
 `["explorer-verify", "@explorer-verify/*"]`. A scoped package joins the release when its manifest
@@ -38,8 +38,8 @@ the dist-tag move use npm trusted publishing over OIDC (R-SEC-4).
 
 The maintainer does each of these once, before the first release. Agents do none of them.
 
-1. Actions settings: turn on "Allow GitHub Actions to create and approve pull requests"
-   (Settings, Actions, General), so `release-pr.yml` can open the Version Packages pull request.
+1. A token for the Version Packages pull request. See
+   [Version Packages pull request token](#version-packages-pull-request-token).
 2. Environment `npm-publish` (Settings, Environments): required reviewer `aelmanaa`, "Prevent
    self-review" off (the maintainer approves their own release), deployment branches and tags set
    to "Selected branches and tags" with the one tag rule `v*`. No secrets.
@@ -69,6 +69,42 @@ The maintainer does each of these once, before the first release. Agents do none
 
 A configuration that no run has used yet shows as "not yet validated" on npmjs.com. Check both
 configurations, and their permissions, on the day of the tag.
+
+### Version Packages pull request token
+
+While every `packages/*/package.json` is private, `release-pr.yml` opens no pull request. Its
+`packages` job runs `node scripts/release-packages.ts --any`, which prints `false`, so the
+`version-pr` job is skipped and the run passes. `scripts/check-release-workflows.ts` fails when the
+`version-pr` job loses that gate.
+
+Once the pull request that prepares 0.1.0 removes `"private": true`, the `version-pr` job runs. It
+must not open the pull request with the default `GITHUB_TOKEN`. GitHub starts no new workflow run
+for an event that `GITHUB_TOKEN` causes, except `workflow_dispatch` and `repository_dispatch`, and
+recommends a GitHub App installation token or a personal access token instead
+([Triggering a workflow from a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow),
+read 2026-11-04). With `GITHUB_TOKEN`, the six required checks would never run on the pull request,
+and it could not merge.
+
+Before the first release, the maintainer:
+
+1. Creates a GitHub App owned by `aelmanaa`, installed on `explorer-verify` only, with these
+   repository permissions and no others: Contents read and write (pushes
+   `changeset-release/main`), Pull requests read and write (opens and updates the pull request),
+   and Metadata read-only (GitHub sets it on every App). No webhook, no account permissions.
+   A fine-grained personal access token limited to `explorer-verify`, with the same three
+   permissions and an expiry date, also works; an App token is short-lived and is not tied to a
+   person.
+2. Stores the App's client ID as the repository variable `RELEASE_APP_CLIENT_ID` and its private
+   key as the repository secret `RELEASE_APP_PRIVATE_KEY` (or the fine-grained token as the secret
+   `RELEASE_PR_TOKEN`).
+3. In the pull request that prepares 0.1.0, adds a step to the `version-pr` job before
+   changesets/action that creates the token (`actions/create-github-app-token`, pinned by commit
+   SHA), and passes it to changesets/action as its `github-token` input. `GITHUB_TOKEN` in the
+   step's `env` stays as it is: `@changesets/changelog-github` only reads with it.
+4. Leaves "Allow GitHub Actions to create and approve pull requests" (Settings, Actions, General)
+   off. That setting applies to `GITHUB_TOKEN` only
+   ([Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository),
+   read 2026-11-04), and the workflow no longer needs it.
 
 ### Who can change what a release runs
 
@@ -112,8 +148,8 @@ private package, so `private` has to go first.
    error code to `packages/explorer-verify/released-error-codes.json` with the new version
    (`scripts/record-released-codes.ts`), and sets the version line of every user page. A listed
    code keeps its page in `docs/user/reference/errors/` for good (R-AX-10, decision 0015).
-2. Start the pull request's checks (a pull request opened by `GITHUB_TOKEN` does not start them by
-   itself), review the versions and changelogs, and squash-merge it.
+2. Wait for the pull request's checks (they start because the App or fine-grained token opened it),
+   review the versions and changelogs, and squash-merge it.
 3. Wait for CI on `main` to pass on the merge commit. Then sign and push the tag on that commit:
 
    ```sh

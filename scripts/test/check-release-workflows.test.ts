@@ -22,7 +22,27 @@ const REPOSITORY: WorkflowTexts = {
   promote: readFileSync(path.join(ROOT, WORKFLOWS.promote), "utf8"),
   release: readFileSync(path.join(ROOT, WORKFLOWS.release), "utf8"),
   docs: readFileSync(path.join(ROOT, WORKFLOWS.docs), "utf8"),
+  releasePr: readFileSync(path.join(ROOT, WORKFLOWS.releasePr), "utf8"),
 };
+
+const RELEASE_PR = `on: push
+permissions: {}
+jobs:
+  packages:
+    outputs:
+      any: \${{ steps.list.outputs.any }}
+    steps:
+      - id: list
+        run: echo "any=$(node scripts/release-packages.ts --any)" >> "$GITHUB_OUTPUT"
+  version-pr:
+    needs: packages
+    if: needs.packages.outputs.any == 'true'
+    steps:
+      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51
+`;
+
+const ungated = (job: string): string =>
+  `${WORKFLOWS.releasePr}: job ${job} runs changesets/action without needing a job that runs scripts/release-packages.ts --any and having if: needs.<that job>.outputs.any == 'true' (decision 0017)`;
 
 const DOCS = `on:
   workflow_dispatch:
@@ -86,7 +106,13 @@ const bypass = (job: string, where: string): string =>
   `${WORKFLOWS.docs}: job ${job}: ${where}, which can let the workflow pass without the deploy or the smoke check (decision 0015)`;
 
 function problems(texts: Partial<WorkflowTexts>): string[] {
-  return workflowProblems({ promote: promote(LATEST), release: RELEASE, docs: DOCS, ...texts });
+  return workflowProblems({
+    promote: promote(LATEST),
+    release: RELEASE,
+    docs: DOCS,
+    releasePr: RELEASE_PR,
+    ...texts,
+  });
 }
 
 describe("release workflow order (R-AX-10, R-SEC-4, decision 0015)", () => {
@@ -302,6 +328,52 @@ describe("release workflow order (R-AX-10, R-SEC-4, decision 0015)", () => {
     );
   });
 
+  it("accepts the release pull request gate written with ${{ }} or another job name", () => {
+    const wrapped = RELEASE_PR.replace(
+      "    if: needs.packages.outputs.any == 'true'\n",
+      "    if: ${{ needs.packages.outputs.any=='true' }}\n",
+    );
+    assert.deepEqual(problems({ releasePr: wrapped }), []);
+    const renamed = RELEASE_PR.replaceAll("packages", "gate").replace(
+      "scripts/release-gate.ts",
+      "scripts/release-packages.ts",
+    );
+    assert.deepEqual(problems({ releasePr: renamed }), []);
+  });
+
+  it("refuses a Version Packages job that does not wait for a published package (decision 0017)", () => {
+    const variants = [
+      RELEASE_PR.replace("    if: needs.packages.outputs.any == 'true'\n", ""),
+      RELEASE_PR.replace(
+        "    if: needs.packages.outputs.any == 'true'\n",
+        "    if: always() || needs.packages.outputs.any == 'true'\n",
+      ),
+      RELEASE_PR.replace("    if: needs.packages.outputs.any == 'true'\n", "    if: true\n"),
+      RELEASE_PR.replace("    needs: packages\n", ""),
+      RELEASE_PR.replace(" --any)", ")"),
+      RELEASE_PR.replace("needs.packages.outputs.any", "needs.other.outputs.any"),
+    ];
+    for (const releasePr of variants) {
+      assert.deepEqual(problems({ releasePr }), [ungated("version-pr")]);
+    }
+    const second = `${RELEASE_PR}  again:\n    steps:\n      - uses: changesets/action\n`;
+    assert.deepEqual(problems({ releasePr: second }), [ungated("again")]);
+  });
+
+  it("refuses a release-pr.yml without changesets/action or without permissions: {}", () => {
+    const none = RELEASE_PR.replace(
+      "      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51\n",
+      "      - uses: changesets/action-extra@v1\n",
+    );
+    assert.deepEqual(problems({ releasePr: none }), [
+      `${WORKFLOWS.releasePr}: no job runs changesets/action`,
+    ]);
+    assert.deepEqual(
+      problems({ releasePr: RELEASE_PR.replace("permissions: {}\n", "permissions: write-all\n") }),
+      [top(WORKFLOWS.releasePr)],
+    );
+  });
+
   it("throws on a workflow without jobs", () => {
     assert.throws(
       () => problems({ docs: "on: workflow_call\n" }),
@@ -327,6 +399,7 @@ describe("check-release-workflows.ts", () => {
         [WORKFLOWS.promote]: promote(LATEST.replace("    needs: [verify, docs]\n", "")),
         [WORKFLOWS.release]: RELEASE,
         [WORKFLOWS.docs]: DOCS,
+        [WORKFLOWS.releasePr]: RELEASE_PR,
       });
       const result = runScript(path.join(SCRIPTS, "check-release-workflows.ts"), [root], ROOT);
       assert.equal(
@@ -347,6 +420,7 @@ describe("check-release-workflows.ts", () => {
         [WORKFLOWS.promote]: "jobs: [\n",
         [WORKFLOWS.release]: RELEASE,
         [WORKFLOWS.docs]: DOCS,
+        [WORKFLOWS.releasePr]: RELEASE_PR,
       });
       const found = main([root], SCRIPTS);
       assert.equal(found.length, 1);

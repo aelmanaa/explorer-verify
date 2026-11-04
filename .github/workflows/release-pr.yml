@@ -3,13 +3,15 @@
 # each user page, then the lockfile) on the branch changeset-release/main and opens or updates the
 # pull request from it. It publishes nothing and creates no tag: a release starts only from a
 # maintainer-signed tag (release.yml).
-# The action pushes through the GitHub API with the default GITHUB_TOKEN, so the commit is signed
-# by GitHub and no personal or App token exists. Two settings follow from that:
-# - Settings, Actions, General, "Allow GitHub Actions to create and approve pull requests" must be
-#   on, or the action cannot open the pull request.
-# - A pull request created or updated by GITHUB_TOKEN does not start its workflows by itself. A
-#   maintainer starts them ("Approve workflows to run", or closing and reopening the pull
-#   request); until then its required checks stay pending and it cannot merge.
+#
+# The `packages` job runs `scripts/release-packages.ts --any`. While every packages/*/package.json
+# is private, it prints false, the `version-pr` job is skipped and the run passes: before the first
+# release (decision 0017) a Version Packages pull request is not wanted.
+# scripts/check-release-workflows.ts, part of `pnpm run check`, fails when this gate goes away.
+#
+# A pull request opened with the default GITHUB_TOKEN starts no workflow, so its required checks
+# would never run. Before the first release the maintainer gives this job a GitHub App or
+# fine-grained token, and "Allow GitHub Actions to create and approve pull requests" stays off.
 # docs/contributor/releasing.md has the steps.
 name: Release pull request
 
@@ -24,9 +26,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  packages:
+    name: Published packages
+    if: github.repository == 'aelmanaa/explorer-verify'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      any: ${{ steps.list.outputs.any }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check for a published package
+        id: list
+        run: |
+          any="$(node scripts/release-packages.ts --any)"
+          echo "any=${any}" >> "$GITHUB_OUTPUT"
+          if [ "${any}" != true ]; then
+            echo "Every package is private: no Version Packages pull request until the first release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   version-pr:
     name: Version Packages pull request
-    if: github.repository == 'aelmanaa/explorer-verify'
+    needs: packages
+    if: needs.packages.outputs.any == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:

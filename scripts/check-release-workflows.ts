@@ -1,7 +1,10 @@
 // Checks the order the release workflows enforce (R-AX-10, R-AX-17, R-SEC-4, decision 0015):
 //
-// - promote.yml and release.yml set `permissions: {}` at the top, so only a job's own
-//   `permissions` grant anything.
+// - promote.yml, release.yml and release-pr.yml set `permissions: {}` at the top, so only a job's
+//   own `permissions` grant anything.
+// - release-pr.yml: every job that runs changesets/action lists in `needs` a job that runs
+//   `scripts/release-packages.ts --any`, and has exactly `if: needs.<that job>.outputs.any == 'true'`,
+//   so no Version Packages pull request opens while every package is private (decision 0017).
 // - promote.yml: the `docs` job calls docs.yml with the version input. Every other job that runs
 //   `npm dist-tag` or takes an OIDC token can move `latest`: it lists `docs` in `needs`, runs in
 //   the `npm-latest` environment, and has no `if` that would let it run after a failed job.
@@ -31,6 +34,7 @@ export const WORKFLOWS = {
   promote: ".github/workflows/promote.yml",
   release: ".github/workflows/release.yml",
   docs: ".github/workflows/docs.yml",
+  releasePr: ".github/workflows/release-pr.yml",
 } as const;
 
 /** The job of promote.yml that deploys and checks the docs. */
@@ -43,6 +47,7 @@ export interface WorkflowTexts {
   promote: string;
   release: string;
   docs: string;
+  releasePr: string;
 }
 
 /** One job of a workflow, with the fields the check reads. */
@@ -263,8 +268,49 @@ function docsProblems(workflow: Workflow): string[] {
   return problems;
 }
 
+const CHANGESETS_ACTION = /^changesets\/action(?:@|$)/;
+
+// A step that prints whether any package is published.
+const ANY_PACKAGE = /\brelease-packages\.ts\b[^\n]*\s--any\b/;
+
 /**
- * Lists the problems of the three workflows.
+ * The text of an `if`, without the `${{ }}` wrapper and without whitespace.
+ * @param condition The `if` as written.
+ * @returns The bare expression.
+ */
+function bareCondition(condition: string): string {
+  const compact = condition.replaceAll(/\s/g, "");
+  return compact.startsWith("${{") && compact.endsWith("}}") ? compact.slice(3, -2) : compact;
+}
+
+function releasePrProblems(workflow: Workflow): string[] {
+  const file = WORKFLOWS.releasePr;
+  const problems = noTopPermissions(file, workflow);
+  const { jobs } = workflow;
+  const gates = jobs.filter((job) => ANY_PACKAGE.test(job.runs)).map((job) => job.name);
+  const versioners = jobs.filter((job) =>
+    job.actions.some((action) => CHANGESETS_ACTION.test(action)),
+  );
+  if (versioners.length === 0) {
+    problems.push(`${file}: no job runs changesets/action`);
+  }
+  for (const job of versioners) {
+    const gated = gates.some(
+      (gate) =>
+        job.needs.includes(gate) &&
+        bareCondition(job.condition) === `needs.${gate}.outputs.any=='true'`,
+    );
+    if (!gated) {
+      problems.push(
+        `${file}: job ${job.name} runs changesets/action without needing a job that runs scripts/release-packages.ts --any and having if: needs.<that job>.outputs.any == 'true' (decision 0017)`,
+      );
+    }
+  }
+  return problems;
+}
+
+/**
+ * Lists the problems of the four workflows.
  * @param texts The text of each workflow.
  * @returns One message per problem; empty when the workflows keep the order.
  * @throws When a workflow is not YAML or has no `jobs` mapping.
@@ -274,12 +320,13 @@ export function workflowProblems(texts: WorkflowTexts): string[] {
     ...promoteProblems(readWorkflow(WORKFLOWS.promote, texts.promote)),
     ...releaseProblems(readWorkflow(WORKFLOWS.release, texts.release)),
     ...docsProblems(readWorkflow(WORKFLOWS.docs, texts.docs)),
+    ...releasePrProblems(readWorkflow(WORKFLOWS.releasePr, texts.releasePr)),
   ];
 }
 
 /** The line printed when the check passes. */
 export const PASSED =
-  "release workflows: latest waits for the docs deploy and smoke check; only the promote deploys the docs";
+  "release workflows: latest waits for the docs deploy and smoke check; only the promote deploys the docs; the Version Packages pull request waits for a published package";
 
 /**
  * Runs the command line.
@@ -295,6 +342,7 @@ export function main(argv: readonly string[], scriptDirectory: string): string[]
       promote: read(WORKFLOWS.promote),
       release: read(WORKFLOWS.release),
       docs: read(WORKFLOWS.docs),
+      releasePr: read(WORKFLOWS.releasePr),
     });
   } catch (error: unknown) {
     return [errorMessage(error).split("\n", 1).join("")];

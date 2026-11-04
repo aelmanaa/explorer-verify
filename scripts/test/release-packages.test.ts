@@ -118,9 +118,25 @@ describe("release packages (decision 0017)", () => {
     assert.equal(run([], git), "explorer-verify\n@explorer-verify/cli\n");
     assert.equal(run(["--names"], git), "explorer-verify\n@explorer-verify/cli\n");
     assert.equal(run(["--directories", "--commit", "v0.1.0"], git), "explorer-verify\ncli\n");
-    assert.throws(() => run(["--names", "--directories"], git), /not both/);
+    assert.throws(() => run(["--names", "--directories"], git), /one of --names/);
     const none = stubGit({ "explorer-verify": manifest(CORE, "0.0.0", true) });
     assert.throws(() => run([], none), /no package is published at HEAD.*removes "private": true/);
+  });
+
+  it("says with --any whether a package is published, for the release pull request", () => {
+    const one = stubGit({
+      cli: manifest("@explorer-verify/cli", "0.1.0", true),
+      "explorer-verify": manifest(CORE, "0.1.0"),
+    });
+    assert.equal(run(["--any"], one), "true\n");
+    const none = stubGit({
+      cli: manifest("@explorer-verify/cli", "0.0.0", true),
+      "explorer-verify": manifest(CORE, "0.0.0", true),
+    });
+    assert.equal(run(["--any"], none), "false\n");
+    assert.equal(run(["--any", "--commit", "v0.1.0"], stubGit({})), "false\n");
+    assert.throws(() => run(["--any", "--names"], one), /one of --names, --directories or --any/);
+    assert.throws(() => run(["--any", "--directories"], one), /one of --names/);
   });
 
   describe("against a git repository", () => {
@@ -158,6 +174,16 @@ describe("release packages (decision 0017)", () => {
       const failed = runScript(SCRIPT, ["--commit", first], root, gitEnv());
       assert.equal(failed.status, 1);
       assert.match(failed.stderr, /no package is published/);
+    });
+
+    it("prints false with --any at a commit where every package is private", () => {
+      const now = runScript(SCRIPT, ["--any"], root, gitEnv());
+      assert.equal(now.status, 0);
+      assert.equal(now.stdout, "true\n");
+      const earlier = runScript(SCRIPT, ["--any", "--commit", first], root, gitEnv());
+      assert.equal(earlier.status, 0);
+      assert.equal(earlier.stdout, "false\n");
+      assert.equal(earlier.stderr, "");
     });
 
     it("throws when git cannot start", () => {
