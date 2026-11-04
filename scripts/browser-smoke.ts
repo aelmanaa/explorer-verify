@@ -33,7 +33,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
-import type { Browser } from "playwright";
+import type { Browser, Page } from "playwright";
 
 import { bundleChunks } from "./bundle.ts";
 import type { Chunks } from "./bundle.ts";
@@ -468,6 +468,27 @@ function chunkProblems(bundle: Chunks, scripts: readonly string[]): string[] {
   return problems;
 }
 
+/**
+ * The result the page leaves on {@link RESULT_GLOBAL}, once it settles. `goto` returns at the load
+ * event, and a page script can start the scenario later: a module with a top-level `await`, such
+ * as one that first loads a client chunk, runs on after the load event. The global is read only
+ * once it is set, so such a page runs to its end; read at once, it was still undefined, and the
+ * checks below ran while the scenario was waiting to poll.
+ *
+ * @param tab - The page.
+ * @returns The page's result.
+ */
+async function resultOf(tab: Page): Promise<unknown> {
+  // No timeout of its own: withinTimeout bounds the wait.
+  await tab.waitForFunction((name) => Reflect.get(globalThis, name) !== undefined, RESULT_GLOBAL, {
+    timeout: 0,
+  });
+  return await tab.evaluate(
+    async (name): Promise<unknown> => await Reflect.get(globalThis, name),
+    RESULT_GLOBAL,
+  );
+}
+
 /** Loads the bundle in a fresh browser context, with the page and the replay on two origins. */
 async function runInChromium(
   browser: Browser,
@@ -547,13 +568,7 @@ async function runInChromium(
     let result: unknown;
     try {
       await tab.goto(`${origin}/`);
-      result = await withinTimeout(
-        "Chromium",
-        tab.evaluate(
-          async (name): Promise<unknown> => await Reflect.get(globalThis, name),
-          RESULT_GLOBAL,
-        ),
-      );
+      result = await withinTimeout("Chromium", resultOf(tab));
       // Requests the library sends after its promise settles still count.
       await tab.waitForLoadState("networkidle");
     } catch (error) {

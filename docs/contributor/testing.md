@@ -178,7 +178,9 @@ anchors in the browser.
    server return 404.
 4. Each run must give the digests in `test/fixtures/keccak256-vectors.json`, then `verified` with
    `exact` from `verify()` and both `checkStatus()` calls. A fresh load in each runtime then
-   resumes the first handle with `checkStatus()` alone, as after a page reload.
+   resumes the first handle with `checkStatus()` alone, as after a page reload. In Chromium the
+   test waits until the page has set its result. A module with a top-level `await` can start the
+   scenario after the load event, and the checks must not run before it ends.
 5. Every run routes to Sourcify, so each Chromium run must load the Sourcify client's chunk and
    no chunk of another client (decision 0031).
 
@@ -200,8 +202,9 @@ run ends in about 20 seconds.
 `pnpm run test:browser:harness` checks the smoke test itself. It runs `scripts/browser-smoke.ts`
 with each broken page script in `packages/explorer-verify/test/browser/broken/` (`--entry`), and
 with `access-control-allow-origin` or `access-control-allow-headers` left out of the replay answers
-(`--drop-response-header`). Each run must fail with its own message. It takes about 65 seconds and
-needs a build first.
+(`--drop-response-header`). Each run must fail with its own message. One more run,
+`test/browser/late-start.ts`, waits 1 second in a top-level `await`, past the load event, then
+starts the scenario. It must pass. The harness needs a build first.
 
 ### Run it locally
 
