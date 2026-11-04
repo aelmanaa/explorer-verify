@@ -187,14 +187,22 @@ describe("routing table rows (R-RT-1)", () => {
     assert.equal(tableIds.length, 94);
   });
 
-  it("lists Sourcify on every row, and only the backends with a client; Routescan and Blockscout have no rows yet (R-RT-1)", () => {
+  it("lists Sourcify on every row, and only the backends with a client; Routescan, Blockscout and standalone explorers have no rows yet (R-RT-1)", () => {
     const clients = Object.keys(DEFAULT_DEPENDENCIES.backends);
-    assert.deepEqual(clients, ["sourcify", "etherscan-v2", "routescan", "blockscout"]);
+    assert.deepEqual(clients, [
+      "sourcify",
+      "etherscan-v2",
+      "etherscan-compatible",
+      "routescan",
+      "blockscout",
+    ]);
     for (const row of ROUTING_TABLE.chains) {
       const names = row.backends.map((entry) => entry.backend);
       assert.ok(names.includes("sourcify"), String(row.chainId));
       assert.ok(!names.includes("routescan"), String(row.chainId));
       assert.ok(!names.includes("blockscout"), String(row.chainId));
+      // No standalone host answered on 2026-11-03 or 2026-11-04 (#63).
+      assert.ok(!names.includes("etherscan-compatible"), String(row.chainId));
       assert.ok(
         names.every((name) => clients.includes(name)),
         String(row.chainId),

@@ -4,9 +4,8 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-The Etherscan v2 and Routescan clients throw this code; they read the same answers. The
-standalone client will throw it too ([#63](https://github.com/aelmanaa/explorer-verify/issues/63));
-it is not in this release yet.
+The Etherscan v2, Routescan and [Etherscan-compatible](../etherscan-compatible.md) clients throw
+this code; they read the same answers.
 
 Cause: the route's backend needs an API key and the call has none for it. Two cases throw this
 code:

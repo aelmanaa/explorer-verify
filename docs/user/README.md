@@ -32,6 +32,7 @@ still to come.
 | [Etherscan](reference/etherscan.md)                                                            | What is sent to Etherscan, and how each answer becomes a result          |
 | [Routescan](reference/routescan.md)                                                            | What is sent to Routescan, and how each answer becomes a result          |
 | [Blockscout](reference/blockscout.md)                                                          | What is sent to Blockscout, and how each answer becomes a result         |
+| [Etherscan-compatible explorers](reference/etherscan-compatible.md)                            | What is sent to a standalone explorer with Etherscan's API, and its key  |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
 | [API reference](https://aelmanaa.github.io/explorer-verify/api/)                               | Every export of each package, generated from TSDoc, on the docs site     |

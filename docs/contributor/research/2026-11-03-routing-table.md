@@ -228,3 +228,29 @@ support.
   2026-11-03)
 - Survey of the standalone hosts and the chainlist: https://github.com/aelmanaa/explorer-verify/issues/60
 - Prior art's verifier table: [prior-art.md](../prior-art.md)
+
+## Corrections
+
+- 2026-11-04 (issue #63): adds the result of the 2026-11-03 survey for each of the 12 standalone
+  API hosts, which this note gave only as counts. The survey sent `dig` and one keyless request to
+  each host with curl 8.7.1 on 2026-11-03. The same checks on 2026-11-04 gave the same results
+  ([standalone client note](2026-11-04-etherscan-compatible-client.md)). No host answered, so no
+  `etherscan-compatible` row ships.
+
+  | Chain id | API host from the prior art       | 2026-11-03 result                                                |
+  | -------- | --------------------------------- | ---------------------------------------------------------------- |
+  | 157      | `api-puppyscan.shib.io`           | Does not resolve                                                 |
+  | 296      | `api.hashscan.io`                 | Does not resolve                                                 |
+  | 1001     | `api-kairos.kaiascan.io`          | Does not resolve                                                 |
+  | 1112     | `api-scan.wemix.com`              | Does not resolve                                                 |
+  | 1114     | `api-scan.test2.btcs.network`     | Does not resolve                                                 |
+  | 200810   | `api-testnet.btrscan.com`         | HTTP 404                                                         |
+  | 534351   | `api-sepolia.scrollscan.dev`      | HTTP 301 to `api-sepolia.scrollscan.com`, which does not resolve |
+  | 686868   | `api-testnet-scan.merlinchain.io` | Does not resolve                                                 |
+  | 688689   | `api-atlantic.pharosscan.xyz`     | Does not resolve                                                 |
+  | 5042002  | `api-testnet.arcscan.app`         | Does not resolve                                                 |
+  | 12227332 | `api-xt4scan.ngd.network`         | Does not resolve                                                 |
+  | 21000001 | `api-testnet.cornscan.io`         | Does not resolve                                                 |
+
+  Each API URL is `https://<host>/api`. The explorers' web hosts, such as `kairos.kaiascan.io`,
+  `hashscan.io` and `testnet.arcscan.app`, did resolve on 2026-11-03.

@@ -370,15 +370,15 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
     });
   }
 
-  for (const [chainId, backend] of [[84532, "etherscan-compatible"]] as const) {
-    it(`route.backend ${backend} on ${chainId} throws invalid-input naming route.backend`, async () => {
-      const { error, calls } = await failure(chainId, { route: { backend } });
-      assert.equal(error.details.code, "invalid-input");
-      assert.match(JSON.stringify(error.details), /route\.backend/u);
-      assert.match(error.hint, /sourcify/u);
-      assert.equal(calls.length, 0);
+  it("route.backend etherscan-compatible on 84532, a row without it, throws unsupported-chain (#63)", async () => {
+    const { error, calls } = await failure(84532, { route: { backend: "etherscan-compatible" } });
+    assert.deepEqual(error.details, {
+      code: "unsupported-chain",
+      chainId: 84532,
+      backend: "etherscan-compatible",
     });
-  }
+    assert.equal(calls.length, 0);
+  });
 
   it("route.backend blockscout on 421614, a row without it, throws unsupported-chain (#92)", async () => {
     const { error, calls } = await failure(421614, { route: { backend: "blockscout" } });

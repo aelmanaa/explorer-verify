@@ -1,6 +1,6 @@
 # explorer-verify
 
-> explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet. `verify()` works with Sourcify, Etherscan v2, Routescan and Blockscout. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
+> explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet. `verify()` works with Sourcify, Etherscan v2, Routescan, Blockscout and standalone Etherscan-compatible explorers. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
 
 Submitting a verification is outward and permanent. Read the agent page before you call the library or the CLI on someone's behalf.
 
@@ -54,6 +54,7 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [Etherscan](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/etherscan.md): what is sent to Etherscan v2, how each `result` text becomes a result or an error, and Similar Match
 - [Routescan](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/routescan.md): what is sent to Routescan, its per-chain URL, the optional key in a header, and the answers it adds to Etherscan's
 - [Blockscout](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/blockscout.md): what is sent to a Blockscout instance, how each answer becomes a result or an error, partial matches, the empty-answer retry and rate limits
+- [Etherscan-compatible explorers](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/etherscan-compatible.md): what is sent to a standalone explorer that serves Etherscan's API on its own host, the key in `route.apiKey`, no `chainid`, and the retired Etherscan host answer
 - [Match types](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/match-types.md): what `exact` and `partial` mean per explorer, the metadata hash, builds that can only reach `partial`, automatic matching and why `verify()` looks up first
 - [Etherscan plans and attribution](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/etherscan-plans-and-attribution.md): which Etherscan plan a use needs, the "Powered by Etherscan.io APIs" rule, keys off the client and the server handler's position
 - [Logging and events](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/logging-and-events.md): the logger, the typed stage events, the event JSON Schema, and what happens when a callback throws

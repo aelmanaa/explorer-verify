@@ -741,7 +741,7 @@ describe("route.apiKey (api-keys.md, TSDoc)", () => {
     });
   }
 
-  it("refuses the standalone-explorer example in this release without echoing the key", async () => {
+  it("sends the standalone-explorer example's key only to its host, in the form body, and never echoes it (#63)", async () => {
     // Copied from api-keys.md, `## route.apiKey`.
     const explorerKey = ROUTE_KEY;
     const options = {
@@ -751,7 +751,43 @@ describe("route.apiKey (api-keys.md, TSDoc)", () => {
         apiKey: explorerKey,
       },
     } satisfies VerifyOptions;
-    await assertRefused(runVerify, options, /^route\./u, ROUTE_KEY);
+    const seen = observer();
+    const calls: Call[] = [];
+    const verified = {
+      status: "1",
+      message: "OK",
+      result: [{ SourceCode: "contract Tiny {}", ContractName: "Tiny" }],
+    };
+    const fetchEtherscanStyle: typeof fetch = async (target, init) => {
+      const url = target instanceof Request ? target.url : String(target);
+      calls.push({
+        step: "lookup",
+        method: init?.method ?? "GET",
+        url,
+        body: bodyText(init?.body),
+        headers: headerText(init?.headers),
+      });
+      return new Response(JSON.stringify(verified), { status: 200 });
+    };
+    const outcome = await outcomeOf(
+      runVerify({
+        ...options,
+        fetch: fetchEtherscanStyle,
+        logger: seen.logger,
+        onEvent: seen.onEvent,
+      }),
+    );
+    assert.ok(!(outcome instanceof ExplorerVerifyError), JSON.stringify(outcome));
+    assert.equal(outcome.status, "already-verified");
+    assert.equal(outcome.backend, "etherscan-compatible");
+    assert.equal(calls.length, 1);
+    const [only] = calls;
+    assert.ok(only !== undefined);
+    assert.equal(only.method, "POST");
+    assert.equal(only.url, "https://explorer.example.org/api");
+    assert.equal(new URLSearchParams(only.body).get("apikey"), ROUTE_KEY);
+    assert.ok(!only.headers.includes(ROUTE_KEY));
+    assertNoKey(everything(outcome, seen, []));
   });
 
   it("refuses route.apiKey even when apiKeys is valid, and echoes neither key", async () => {
@@ -800,23 +836,31 @@ describe("missing-api-key check (api-keys.md `## A missing key`)", () => {
     assert.equal(globalCalls.length, 0);
   });
 
-  for (const backend of ["etherscan-compatible"] as const) {
-    it(`route.backend "${backend}" without fetch throws invalid-input naming route.backend, not missing-api-key`, async () => {
-      const error = await errorOf(verify(makeInput(), { route: { backend } }));
-      assert.equal(error.code, "invalid-input");
-      assert.ok(issueFields(error).includes("route.backend"));
-      assert.equal(globalCalls.length, 0);
-    });
+  it('route.backend "etherscan-compatible" without route.apiUrl throws unsupported-chain, not missing-api-key, and sends nothing (#63)', async () => {
+    // The routing table lists no standalone explorer, so only route.apiUrl reaches one.
+    const error = await errorOf(
+      verify(makeInput(), {
+        route: { backend: "etherscan-compatible" },
+        apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
+      }),
+    );
+    assert.equal(error.code, "unsupported-chain");
+    assertNoKey(JSON.stringify(error) + inspect(error, { depth: 10 }));
+    assert.equal(globalCalls.length, 0);
+  });
 
-    it(`route.backend "${backend}" with fetch and a key throws invalid-input, sends nothing`, async () => {
-      await assertRefused(
-        runVerify,
-        { route: { backend }, apiKeys: { "etherscan-v2": ETHERSCAN_KEY } },
-        "route.backend",
-        ETHERSCAN_KEY,
-      );
-    });
-  }
+  it('route.backend "etherscan-compatible" with route.apiUrl and no key sends the request keyless: no missing-api-key check (#63)', async () => {
+    // A standalone explorer may not need a key; only its answer can tell. The default fetch here
+    // answers 500 to every request.
+    const error = await errorOf(
+      verify(makeInput(), {
+        route: { backend: "etherscan-compatible", apiUrl: "https://explorer.example.org/api" },
+      }),
+    );
+    assert.notEqual(error.code, "missing-api-key");
+    assert.ok(globalCalls.length > 0);
+    assert.ok(globalCalls.every((url) => url === "https://explorer.example.org/api"));
+  });
 
   it("a handle for etherscan-v2 throws invalid-input naming backend, with and without fetch, and sends nothing", async () => {
     const handle = makeHandle({
