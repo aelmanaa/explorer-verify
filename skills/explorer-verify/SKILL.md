@@ -38,6 +38,7 @@ These calls never submit. Run them without asking:
 | -------------------- | ------------------------------------------------------------------- |
 | `buildVerifyInput()` | Builds the compiler input and contract name from parsed build files |
 | `validateInput()`    | Checks an input locally and lists every problem. Sends nothing      |
+| `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing             |
 | `checkStatus()`      | Asks the explorer about a submission it already has. Never submits  |
 | `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                  |
 | `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                 |

@@ -2,6 +2,7 @@ import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Hex, SolidityStandardJsonInput, VerifyInput } from "../types.ts";
+import { isLocalPath } from "./paths.ts";
 
 // Group 1 is the version without the optional `v`. Nightly builds carry `-nightly.YYYY.M.D`,
 // official pre-releases `-pre.N`.
@@ -359,6 +360,76 @@ function checkContractName(
   return value;
 }
 
+/**
+ * The address of one library entry in lower case, or what is wrong with the entry. `linked` is
+ * `settings.libraries` of the input, when it is an object. A value it already holds for the same
+ * library under the library's path must be the same address in any case. An entry under the empty
+ * path, which solc applies to every file, is not compared: `linkLibraries` checks the shape.
+ */
+function checkLibrary(
+  name: string,
+  address: unknown,
+  paths: ReadonlySet<string> | undefined,
+  linked: Map<string, unknown> | undefined,
+): { address: Hex } | string {
+  const key = "must be keyed by path:Name of compiler.input.sources";
+  const colon = name.lastIndexOf(":");
+  const path = name.slice(0, colon);
+  const library = name.slice(colon + 1);
+  if (colon < 1 || !IDENTIFIER.test(library) || !isSafePath(path)) {
+    return key;
+  }
+  if (isLocalPath(path)) {
+    return "must not be keyed by a local path";
+  }
+  if (paths?.has(path) === false) {
+    return key;
+  }
+  const digits = addressDigits(address);
+  if (digits === undefined) {
+    return "must be 0x followed by 40 hex digits";
+  }
+  const lower: Hex = `0x${digits.toLowerCase()}`;
+  const same = readFields(linked?.get(path))?.get(library);
+  if (same !== undefined && (typeof same !== "string" || same.toLowerCase() !== lower)) {
+    return "conflicts with compiler.input.settings.libraries";
+  }
+  return { address: lower };
+}
+
+/**
+ * The library link addresses in lower case (R-IN-4): `{}` when absent, `undefined` when invalid.
+ * Each issue names `libraries.<position>`, from 1 in the object's key order, never the key: the
+ * key holds a path the input chose.
+ */
+function checkLibraries(
+  value: unknown,
+  input: SolidityStandardJsonInput | undefined,
+  paths: ReadonlySet<string> | undefined,
+  problems: Problems,
+): { value?: Record<string, Hex> } | undefined {
+  if (value === undefined) {
+    return {};
+  }
+  const entries = readFields(value);
+  if (entries === undefined) {
+    return problems.add("libraries", "must be an object");
+  }
+  const good: [string, Hex][] = [];
+  let position = 0;
+  for (const [name, address] of entries) {
+    position++;
+    const checked = checkLibrary(name, address, paths, readFields(input?.settings["libraries"]));
+    if (typeof checked === "string") {
+      problems.add(`libraries.${String(position)}`, checked);
+    } else {
+      good.push([name, checked.address]);
+    }
+  }
+  // Object.fromEntries defines each key as an own property, so a key named __proto__ stays a key.
+  return good.length === entries.size ? { value: Object.fromEntries(good) } : undefined;
+}
+
 /** An optional hex field in lower case: `{}` when absent, `undefined` when present and invalid. */
 function checkOptionalHex(
   fields: Map<string, unknown>,
@@ -378,8 +449,9 @@ function checkOptionalHex(
 
 /**
  * Checks a verification input before any request is sent (R-IN-6), and returns it normalised
- * (R-IN-1): the compiler version without a leading `v`, and the address, `constructorArgs` and
- * `creationTxHash` in lower case. Each backend adds the prefix or checksum it needs.
+ * (R-IN-1): the compiler version without a leading `v`, and the address, `constructorArgs`,
+ * `creationTxHash` and each `libraries` address in lower case. Each backend adds the prefix or
+ * checksum it needs.
  *
  * The result is a deep copy that shares no object with the input, so changing the input later does
  * not change it. Sources, settings and any extra Standard JSON fields go through a JSON round trip:
@@ -398,6 +470,14 @@ function checkOptionalHex(
  *
  * `compiler.version` needs an 8-character commit hash, so solc 0.1.1 and 0.1.2, whose long
  * versions carry a 7-character hash, are rejected.
+ *
+ * `libraries` (R-IN-4) is keyed by `path:Name`. The path must be a key of
+ * `compiler.input.sources` and must not be a local path: absolute, home, drive, file URL, or
+ * climbing above the root. When `settings.libraries` already holds a value for the same library
+ * under its path, the value must be the same address in any case; any other value is rejected. An
+ * entry under the empty path, which solc applies to every file, is not compared here;
+ * `linkLibraries` compares it before it merges. Issues name `libraries.<position>`, counted from 1
+ * in key order, never the key. The input is not changed: see {@link VerifyInput.libraries}.
  *
  * `constructorArgs` and `creationTxHash` are optional, not nullable: leave them out or set them to
  * `undefined`; `null` is rejected. `constructorArgs: "0x"` means the constructor takes no arguments.
@@ -453,9 +533,11 @@ export function validateInput(input: unknown): VerifyInput {
     "must be 0x followed by 64 hex digits",
     problems,
   );
+  const libraries = checkLibraries(fields.get("libraries"), compiler?.input, paths, problems);
 
   if (
     problems.issues.length > 0 ||
+    libraries === undefined ||
     chainId === undefined ||
     address === undefined ||
     compiler === undefined ||
@@ -471,6 +553,9 @@ export function validateInput(input: unknown): VerifyInput {
   }
   if (creationTxHash.value !== undefined) {
     result.creationTxHash = creationTxHash.value;
+  }
+  if (libraries.value !== undefined) {
+    result.libraries = libraries.value;
   }
   return result;
 }

@@ -114,11 +114,24 @@ Hardhat links libraries when it deploys, not when it compiles, so the build-info
 no `libraries` and the input the helper returns has none either. The artifact records each link
 in `linkReferences`.
 
-- Sourcify: submit the input as it is. Sourcify wants `settings.libraries` exactly as it was at
-  compile time; adding the library addresses changes the metadata hash and gives only a partial
-  match. See [Sourcify](../reference/sourcify.md#behaviour-to-know).
-- Etherscan: passing the library addresses for a linked contract is not supported yet; issue
-  [#65](https://github.com/aelmanaa/explorer-verify/issues/65) tracks it.
+To record the addresses, pass them in `libraries`, keyed by `path:Name`. Each key of
+`linkReferences` is a source path, and each name under it a library:
+
+```ts
+// linkReferences: { "project/contracts/Tally.sol": { Tally: [...] } }
+const input = validateInput({
+  chainId,
+  address,
+  ...built,
+  libraries: { "project/contracts/Tally.sol:Tally": tallyAddress },
+});
+```
+
+`verify()` submits the input as it is, without the addresses. Sourcify wants `settings.libraries`
+exactly as it was at compile time: adding the addresses changes the metadata hash. In a live test
+on 2026-11-03, Sourcify then gave only a partial match, and Etherscan found the address itself. `linkLibraries(input)` adds the
+addresses to `settings.libraries` for an explorer that needs them there. See
+[Linked libraries](../reference/verify.md#linked-libraries).
 
 ## Errors
 

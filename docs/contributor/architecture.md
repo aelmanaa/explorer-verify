@@ -124,6 +124,9 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   returns it normalised: the version without a leading `v`, and the address, constructor
   arguments and creation transaction hash in lower case. The result is a deep copy. It throws
   `invalid-input` with every problem found. `verify()` will call it first.
+- `linkLibraries(input: unknown): VerifyInput` validates the input and merges `libraries` into
+  `settings.libraries` (R-IN-4). `verify()` does not call it
+  ([decision 0025](decisions/0025-library-addresses-not-merged-by-default.md)).
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
   `details`, a union keyed by code. `toJSON()` is the `error` object of the CLI's JSON envelope
   (R-AX-5).
@@ -139,9 +142,9 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   the handle as soon as the submit is accepted, so an aborted call can still be resumed (R-DX-6).
 
 `types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
-`exitCodeOf` and `toEnvelope`, `flow/handle.ts`
-`parseHandle` and `formatHandle`, `input/validate.ts` `validateInput`, `flow/verify.ts` `verify`
-and `flow/status.ts` `checkStatus`. `checkStatus` reuses the option reading, the call setup, the
+`exitCodeOf` and `toEnvelope`, `flow/handle.ts` `parseHandle` and `formatHandle`,
+`input/validate.ts` `validateInput`, `input/libraries.ts` `linkLibraries`, `flow/verify.ts`
+`verify` and `flow/status.ts` `checkStatus`. `checkStatus` reuses the option reading, the call setup, the
 poll loop, the failure cap, the last lookup and the result mapping of `flow/verify.ts`
 (`settingsOf`, `openCall`, `settle`). It polls at once instead of after one interval. Its handle's
 backend must equal the backend the route resolves for the handle's chain, or it throws

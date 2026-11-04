@@ -91,6 +91,7 @@ describe("public entry point", () => {
       "checkStatus",
       "exitCodeOf",
       "formatHandle",
+      "linkLibraries",
       "parseHandle",
       "toBackendName",
       "toEnvelope",

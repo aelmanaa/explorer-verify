@@ -103,5 +103,6 @@ at once, with no lookup.
 - Linked libraries: for a contract linked to a library after compiling, as Foundry and Hardhat do,
   submit `settings.libraries` as it was at compile time. On 2026-11-03, adding the library
   addresses to `settings.libraries` gave only a partial match, because the addresses change the
-  metadata hash.
+  metadata hash. `verify()` sends the input unchanged; see
+  [Linked libraries](verify.md#linked-libraries).
 - Jobs on testnets finished in about one second on 2026-11-02.

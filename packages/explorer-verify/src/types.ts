@@ -49,6 +49,16 @@ export interface VerifyInput {
   constructorArgs?: Hex;
   /** The creation transaction hash. Lets backends that support it attempt a creation match. */
   creationTxHash?: Hex;
+  /**
+   * Library link addresses, keyed by the library's fully qualified name, as
+   * `{ "src/MathLib.sol:MathLib": "0x…" }` (R-IN-4). `verify()` checks them and sends
+   * `compiler.input` unchanged (decision 0025): for a contract linked after compiling, adding the
+   * addresses to `settings.libraries` changes the metadata hash. In a live test on 2026-11-03,
+   * Sourcify then gave only a partial match.
+   * Call `linkLibraries` to merge them into `settings.libraries` for an explorer that needs them
+   * there.
+   */
+  libraries?: Record<string, Hex>;
 }
 
 /**
