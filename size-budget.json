@@ -1,6 +1,6 @@
 {
-  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023 and 0024). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, so a page that imports verify ships about the sum of the two. The verify with table entry measures that whole bundle (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decisions 0014 and 0024). The ceilings set on 2026-11-03 for #60 are the budget the Etherscan v2 and Routescan clients (#61, #62) must fit in. Raise a ceiling only in a pull request that says why, with its own decision record.",
-  "measured": "2026-11-04 on main 64c1d58 plus #60, esbuild 0.28.2, Node 24.21.0 zlib; routing table of 2026-11-03 with 94 rows (#60, decision 0024); buildVerifyInput and createVerifyHandler keep their ceilings, which this change does not grow",
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024 and 0026). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, so a page that imports verify ships about the sum of the two. The verify with table entry measures that whole bundle (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decisions 0014 and 0024). The ceilings set on 2026-11-03 for #60 are the budget the Etherscan v2 and Routescan clients (#61, #62) must fit in. Raise a ceiling only in a pull request that says why, with its own decision record.",
+  "measured": "2026-11-04 on main 64c1d58 plus #60, esbuild 0.28.2, Node 24.21.0 zlib; routing table of 2026-11-03 with 94 rows (#60, decision 0024); buildVerifyInput and createVerifyHandler keep their ceilings. Each entry's measuredBytes is the size when its ceiling was set; the resolver entry was added on 2026-11-04 on main 22f60f4 (decision 0026), and the other ceilings are unchanged",
   "entries": [
     {
       "name": "verify",
@@ -47,6 +47,13 @@
       "code": "export { createVerifyHandler } from \"explorer-verify/server\";",
       "measuredBytes": 12024,
       "ceilingBytes": 14429
+    },
+    {
+      "name": "resolveInputFromBytecode",
+      "$comment": "The bytecode-metadata resolver on its own subpath (decision 0026), measured as users ship it, routing table included, 2026-11-04 on main 22f60f4 plus #34. It carries buildVerifyInput, the HTTP layer and the error class; the bundler drops the routing table rows, which it does not read.",
+      "code": "export { resolveInputFromBytecode } from \"explorer-verify/resolve\";",
+      "measuredBytes": 21076,
+      "ceilingBytes": 25292
     }
   ]
 }

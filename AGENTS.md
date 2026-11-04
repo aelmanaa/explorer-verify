@@ -55,7 +55,9 @@ shipping the input in a package that deploys its own contracts in
 from a Foundry project in
 [docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md),
 and from a Hardhat project in
-[docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md).
+[docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md),
+and from a deployed contract's bytecode alone in
+[docs/user/guides/verify-from-deployed-bytecode.md](docs/user/guides/verify-from-deployed-bytecode.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md),
 [docs/user/reference/etherscan.md](docs/user/reference/etherscan.md) and
 [docs/user/reference/routescan.md](docs/user/reference/routescan.md) say what the Sourcify,
@@ -94,22 +96,23 @@ natively. pnpm 12.16.1 (`packageManager`).
 
 ## Where things are
 
-| Path                                  | Contents                                                                                                                                                         |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/explorer-verify/src/`       | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
-| `packages/explorer-verify/src/server` | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
-| `packages/explorer-verify/test/unit/` | Unit tests, `*.test.ts`                                                                                                                                          |
-| `packages/foundry/`                   | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
-| `packages/hardhat/`                   | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
-| `packages/cli/`                       | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
-| `examples/`                           | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, type-checked and tested                                       |
-| `scripts/`                            | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
-| `docs/user/`                          | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
-| `llms.txt`                            | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
-| `skills/`                             | The agent skill; the build copies it into the package, and the tests run its examples against the build                                                          |
-| `docs/contributor/`                   | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                                                          |
-| `.github/`                            | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                                                                     |
-| `.changeset/`                         | Pending release notes                                                                                                                                            |
+| Path                                           | Contents                                                                                                                                                         |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/explorer-verify/src/`                | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
+| `packages/explorer-verify/src/server`          | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
+| `packages/explorer-verify/src/input/resolvers` | `explorer-verify/resolve`: `resolveInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                               |
+| `packages/explorer-verify/test/unit/`          | Unit tests, `*.test.ts`                                                                                                                                          |
+| `packages/foundry/`                            | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
+| `packages/hardhat/`                            | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
+| `packages/cli/`                                | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
+| `examples/`                                    | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, type-checked and tested                                       |
+| `scripts/`                                     | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
+| `docs/user/`                                   | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
+| `llms.txt`                                     | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
+| `skills/`                                      | The agent skill; the build copies it into the package, and the tests run its examples against the build                                                          |
+| `docs/contributor/`                            | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                                                          |
+| `.github/`                                     | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                                                                     |
+| `.changeset/`                                  | Pending release notes                                                                                                                                            |
 
 ## Rules for every change
 

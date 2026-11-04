@@ -6,7 +6,7 @@
 import { toBackendName } from "./backend-names.ts";
 import type { BackendName } from "./backend-names.ts";
 import { formatHandle } from "./flow/format-handle.ts";
-import { addressDigits } from "./internal/read-fields.ts";
+import { addressDigits, readFields } from "./internal/read-fields.ts";
 import { redact, redactExcerpt, redactJobId } from "./redact.ts";
 import type { Handle } from "./types.ts";
 
@@ -45,6 +45,8 @@ export const ERROR_CODES = [
   "api-key-rejected",
   "quota-exceeded",
   "internal-error",
+  "no-metadata-hash",
+  "metadata-unavailable",
 ] as const;
 
 /**
@@ -81,6 +83,37 @@ export interface InputIssue {
   field: string;
   /** What is wrong with it. Never repeats the value, which may hold a secret. */
   message: string;
+}
+
+/**
+ * One source `resolveInputFromBytecode` tried, and what happened.
+ *
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { MetadataAttempt } from "explorer-verify";
+ *
+ * function tried(error: ExplorerVerifyError): MetadataAttempt[] {
+ *   return error.details.code === "metadata-unavailable" ? error.details.attempts : [];
+ * }
+ * ```
+ * @experimental
+ */
+export interface MetadataAttempt {
+  /**
+   * Where the resolver asked: `rpc` for the bytecode at the JSON-RPC endpoint, `ipfs` for the
+   * metadata at the IPFS gateway, `sourcify` for a verified copy on Sourcify.
+   */
+  source: "rpc" | "ipfs" | "sourcify";
+  /**
+   * `not-found`: the source answered that it does not hold it. `hash-mismatch`: it answered with
+   * metadata whose hash differs from the bytecode's. `not-metadata`: the file has the right hash
+   * but is not Solidity metadata a rebuild can use. `unavailable`: no usable answer, after
+   * retries. `timeout`: the time budget ran out; the resolver stops there.
+   */
+  outcome: "not-found" | "hash-mismatch" | "not-metadata" | "unavailable" | "timeout";
+  /** The HTTP status of the last answer, when there was one. */
+  status?: number;
 }
 
 /**
@@ -302,6 +335,33 @@ export type ErrorDetails =
        * never throws this code. The CLI creates it, so its JSON output has a typed error.
        */
       code: "internal-error";
+    }
+  | {
+      /**
+       * The deployed bytecode holds no metadata hash, so `resolveInputFromBytecode` cannot find
+       * the metadata.
+       */
+      code: "no-metadata-hash";
+      /**
+       * What the end of the bytecode holds: `no-code` (nothing is deployed at the address),
+       * `no-metadata` (no CBOR block, as with `appendCBOR: false`) or `version-only` (only the
+       * compiler version, as with `bytecodeHash: "none"`).
+       */
+      found: "no-code" | "no-metadata" | "version-only";
+    }
+  | {
+      /**
+       * `resolveInputFromBytecode` could not read the bytecode from the JSON-RPC endpoint, or no
+       * source it tried returned the metadata the bytecode's hash names.
+       */
+      code: "metadata-unavailable";
+      /**
+       * The hash from the bytecode: `ipfs:` and the CID, or `bzzr0:` or `bzzr1:` and 64 hex
+       * digits. Empty when the bytecode could not be read.
+       */
+      hash: string;
+      /** Each source tried, in order. */
+      attempts: MetadataAttempt[];
     };
 
 /**
@@ -353,6 +413,8 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "api-key-rejected": 3,
   "quota-exceeded": 3,
   "internal-error": 6,
+  "no-metadata-hash": 2,
+  "metadata-unavailable": 5,
 };
 
 /**
@@ -534,6 +596,14 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
     retryable: false,
   },
+  "no-metadata-hash": {
+    hint: "Build the input from the build files with buildVerifyInput instead.",
+    retryable: false,
+  },
+  "metadata-unavailable": {
+    hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
+    retryable: true,
+  },
 };
 
 /**
@@ -654,12 +724,50 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
     case "internal-error":
       copy = { code: "internal-error" };
       break;
+    case "no-metadata-hash":
+      copy = {
+        code: "no-metadata-hash",
+        found: oneOf(details.found, ["no-metadata", "no-code", "version-only"]),
+      };
+      break;
+    case "metadata-unavailable":
+      copy = {
+        code: "metadata-unavailable",
+        hash: text(details.hash, secrets),
+        attempts: Array.isArray(details.attempts) ? details.attempts.map(copyAttempt) : [],
+      };
+      break;
   }
   return copy;
 }
 
 // The helpers below take `unknown`: the types say what callers pass, but an error must never throw
 // or leak when code that bypasses the types passes something else.
+
+/** `value` when it is one of `allowed`, else the first of `allowed`. */
+function oneOf<T extends string>(value: unknown, allowed: readonly [T, ...T[]]): T {
+  return allowed.find((each) => each === value) ?? allowed[0];
+}
+
+/** A new attempt with only its declared fields. Anything that is not an object becomes an empty attempt. */
+function copyAttempt(attempt: unknown): MetadataAttempt {
+  const fields = readFields(attempt);
+  const copy: MetadataAttempt = {
+    source: oneOf(fields?.get("source"), ["rpc", "ipfs", "sourcify"]),
+    outcome: oneOf(fields?.get("outcome"), [
+      "unavailable",
+      "not-found",
+      "hash-mismatch",
+      "not-metadata",
+      "timeout",
+    ]),
+  };
+  const status = fields?.get("status");
+  if (status !== undefined) {
+    copy.status = numberOf(status);
+  }
+  return copy;
+}
 
 /** A known backend name, or `undefined`. */
 function knownBackend(value: unknown): BackendName | undefined {

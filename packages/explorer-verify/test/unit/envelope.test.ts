@@ -144,6 +144,12 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
   "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
   "internal-error": { code: "internal-error" },
+  "no-metadata-hash": { code: "no-metadata-hash", found: "no-metadata" },
+  "metadata-unavailable": {
+    code: "metadata-unavailable",
+    hash: `ipfs:${LEAKY_URL}`,
+    attempts: [{ source: "sourcify", outcome: "hash-mismatch", status: 200 }],
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

@@ -99,6 +99,12 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
   "api-key-rejected": { code: "api-key-rejected", backend: "routescan" },
   "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
   "internal-error": { code: "internal-error" },
+  "no-metadata-hash": { code: "no-metadata-hash", found: "version-only" },
+  "metadata-unavailable": {
+    code: "metadata-unavailable",
+    hash: `ipfs:${DUMMY_KEY}`,
+    attempts: [{ source: "ipfs", outcome: "not-found", status: 404 }],
+  },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -202,6 +208,16 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
     retryable: false,
     exitCode: 6,
+  },
+  "no-metadata-hash": {
+    hint: "Build the input from the build files with buildVerifyInput instead.",
+    retryable: false,
+    exitCode: 2,
+  },
+  "metadata-unavailable": {
+    hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
+    retryable: true,
+    exitCode: 5,
   },
 };
 
@@ -335,6 +351,8 @@ describe("ExplorerVerifyError", () => {
       case "api-key-rejected":
       case "quota-exceeded":
       case "internal-error":
+      case "no-metadata-hash":
+      case "metadata-unavailable":
         assert.fail(`unexpected code ${details.code}`);
     }
   });

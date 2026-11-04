@@ -10,6 +10,7 @@
       "entry": [
         "src/index.ts",
         "src/server/handler.ts",
+        "src/input/resolvers/bytecode.ts",
         "test/**/*.test.ts",
         "test/browser/entry.ts",
         "test/browser/broken/*.ts"

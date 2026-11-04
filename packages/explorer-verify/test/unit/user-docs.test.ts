@@ -144,6 +144,18 @@ const RUNS: readonly DocRun[] = [
     setup: "hardhat-3",
   },
   {
+    page: "guides/verify-from-deployed-bytecode.md",
+    example: 0,
+    what: "resolve the Sepolia Greeter from its bytecode, then find it verified",
+    fixtures: [
+      "rpc/2026-11-04-eth-chainid-sepolia",
+      "rpc/2026-11-04-eth-getcode-greeter",
+      "2026-11-04-all-chains-greeter",
+      "2026-11-04-contract-metadata-sources",
+      ...ALREADY_VERIFIED,
+    ],
+  },
+  {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
     what: "verifyInputFromHardhat on Hardhat 2",

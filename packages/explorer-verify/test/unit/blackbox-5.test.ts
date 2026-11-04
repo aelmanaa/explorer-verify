@@ -48,6 +48,8 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "api-key-rejected": { exit: 3, retryable: false },
   "quota-exceeded": { exit: 3, retryable: false },
   "internal-error": { exit: 6, retryable: false },
+  "no-metadata-hash": { exit: 2, retryable: false },
+  "metadata-unavailable": { exit: 5, retryable: true },
 };
 
 const HANDLE: Handle = {
@@ -104,6 +106,12 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "api-key-rejected": () => ({ code: "api-key-rejected", backend: "etherscan-v2" }),
   "quota-exceeded": () => ({ code: "quota-exceeded", backend: "etherscan-v2" }),
   "internal-error": () => ({ code: "internal-error" }),
+  "no-metadata-hash": () => ({ code: "no-metadata-hash", found: "no-code" }),
+  "metadata-unavailable": (text) => ({
+    code: "metadata-unavailable",
+    hash: `ipfs:${text}`,
+    attempts: [{ source: "rpc", outcome: "unavailable" }],
+  }),
 };
 
 function detailsFor(code: ErrorCode, text: string): ErrorDetails {

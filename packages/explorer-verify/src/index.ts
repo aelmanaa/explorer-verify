@@ -8,6 +8,7 @@ export type {
   ExitCode,
   ExplorerVerifyErrorOptions,
   InputIssue,
+  MetadataAttempt,
 } from "./errors.ts";
 export { exitCodeOf, toEnvelope } from "./envelope.ts";
 export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";

@@ -49,6 +49,8 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "api-key-rejected": { retryable: false, exit: 3, hasHandle: false },
   "quota-exceeded": { retryable: false, exit: 3, hasHandle: false },
   "internal-error": { retryable: false, exit: 6, hasHandle: false },
+  "no-metadata-hash": { retryable: false, exit: 2, hasHandle: false },
+  "metadata-unavailable": { retryable: true, exit: 5, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -95,6 +97,12 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "api-key-rejected": { code: "api-key-rejected", backend: "etherscan-v2" },
     "quota-exceeded": { code: "quota-exceeded", backend: "etherscan-v2" },
     "internal-error": { code: "internal-error" },
+    "no-metadata-hash": { code: "no-metadata-hash", found: "no-metadata" },
+    "metadata-unavailable": {
+      code: "metadata-unavailable",
+      hash: `ipfs:${text}`,
+      attempts: [{ source: "ipfs", outcome: "unavailable", status: 502 }],
+    },
   };
   return all[code];
 }

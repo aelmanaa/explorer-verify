@@ -42,6 +42,10 @@
       "types": "./dist/src/server/handler.d.ts",
       "default": "./dist/src/server/handler.js"
     },
+    "./resolve": {
+      "types": "./dist/src/input/resolvers/bytecode.d.ts",
+      "default": "./dist/src/input/resolvers/bytecode.js"
+    },
     "./envelope.schema.json": "./schema/envelope.schema.json",
     "./event.schema.json": "./schema/event.schema.json",
     "./package.json": "./package.json"

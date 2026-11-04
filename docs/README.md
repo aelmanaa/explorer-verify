@@ -16,6 +16,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Verify contracts your package ships](user/guides/verify-contracts-your-package-ships.md)           | Ship the Standard JSON input and a manifest, verify after a deployment   |
 | [Verify a contract from a Foundry project](user/guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
 | [Verify a contract from a Hardhat project](user/guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |
+| [Verify from deployed bytecode](user/guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode |
 | [Run the server handler](user/guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS    |
 | [verify()](user/reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](user/reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |

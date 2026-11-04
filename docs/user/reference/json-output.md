@@ -129,6 +129,7 @@ covers results and errors.
 | `insufficient-artifact`     | Error  | `false` | 2         |
 | `unsupported-compiler`      | Error  | `false` | 2         |
 | `source-mismatch`           | Error  | `false` | 2         |
+| `no-metadata-hash`          | Error  | `false` | 2         |
 | `missing-api-key`           | Error  | `false` | 3         |
 | `api-key-rejected`          | Error  | `false` | 3         |
 | `quota-exceeded`            | Error  | `false` | 3         |
@@ -139,6 +140,7 @@ covers results and errors.
 | `timeout`                   | Error  | `false` | 5         |
 | `unexpected-response`       | Error  | `false` | 5         |
 | `in-progress`               | Error  | `false` | 5         |
+| `metadata-unavailable`      | Error  | `false` | 5         |
 | `unknown-state`             | Error  | `false` | 6         |
 | `job-not-found`             | Error  | `false` | 6         |
 | `internal-error`            | Error  | `false` | 6         |
