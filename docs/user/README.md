@@ -1,5 +1,3 @@
-| [Blockscout](reference/blockscout.md) | What is sent to a Blockscout instance, and how each answer becomes a result |
-
 # User documentation
 
 Version: explorer-verify 0.0.0
@@ -12,7 +10,7 @@ still to come.
 | Page                                                                                           | What it covers                                                           |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Deploy a contract from a dapp and verify it](tutorials/deploy-and-verify-from-a-dapp.md)      | Tutorial: deploy from a browser wallet, verify on Sourcify, resume       |
-| [Using explorer-verify from an agent](guides/using-from-an-agent.md)                           | Safe steps and the permanent submit, API keys, the Etherscan plan rule   |
+| [Using explorer-verify from an agent](guides/using-from-an-agent.md)                           | Safe and outward calls, dry run, API keys, exit codes, Etherscan plans   |
 | [Verify a contract shipped in an npm package](guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
 | [Verify contracts your package ships](guides/verify-contracts-your-package-ships.md)           | Ship the Standard JSON input and a manifest, verify after a deployment   |
 | [Verify a contract from a Foundry project](guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
@@ -29,6 +27,7 @@ still to come.
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Etherscan](reference/etherscan.md)                                                            | What is sent to Etherscan, and how each answer becomes a result          |
 | [Routescan](reference/routescan.md)                                                            | What is sent to Routescan, and how each answer becomes a result          |
+| [Blockscout](reference/blockscout.md)                                                          | What is sent to Blockscout, and how each answer becomes a result         |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
 | [API reference](https://aelmanaa.github.io/explorer-verify/api/)                               | Every export of each package, generated from TSDoc, on the docs site     |

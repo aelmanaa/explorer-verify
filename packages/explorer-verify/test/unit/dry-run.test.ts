@@ -105,7 +105,11 @@ describe("dryRun (R-AX-8)", () => {
       lookup: "exact",
       explorerUrl: GREETER_PAGE,
     });
-    assert.ok(lines.some((line) => line.includes("would not submit")));
+    assert.ok(
+      lines.includes(
+        "Dry run: sourcify already holds the contract (exact match), so verify() would not submit.",
+      ),
+    );
   });
 
   it("gives no explorer page for a route to another server", async () => {

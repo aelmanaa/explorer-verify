@@ -120,6 +120,19 @@ const RUNS: readonly DocRun[] = [
       "verified exact https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc\n",
   },
   {
+    page: "guides/using-from-an-agent.md",
+    example: 0,
+    what: "a dry run whose lookup finds no match: verify() would submit (R-AX-3)",
+    fixtures: ["2026-11-02-lookup-not-verified"],
+  },
+  {
+    page: "guides/using-from-an-agent.md",
+    example: 0,
+    what: "a dry run whose lookup finds an exact match: nothing to submit (R-AX-3)",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "sourcify already holds the contract, exact match: nothing to submit\n",
+  },
+  {
     page: "guides/verify-from-a-foundry-project.md",
     example: 0,
     what: "verifyInputFromFoundry in a Foundry project",
