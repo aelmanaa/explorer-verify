@@ -56,7 +56,8 @@ esm.sh builds each npm package as ES modules and rewrites the package's imports 
 
 To serve the package's own files instead, copy `node_modules/explorer-verify/dist/src/` to your
 site and map `explorer-verify` to its `index.js`. The browser then loads each module file on its
-own, and loads the routing table as a JSON module. A JSON module needs the file served as
+own, an explorer client's file only when a call is routed to it, and loads the routing table as a
+JSON module. A JSON module needs the file served as
 `application/json`; browsers support JSON modules since 2025
 ([MDN, import attributes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import/with),
 read on 2026-11-04, page modified 2026-09-11).
@@ -180,25 +181,75 @@ lists every code.
 
 ## Bundle size
 
-`pnpm run size` in the repository bundles each entry point with esbuild for the browser, minified,
-and gzips it. On 2026-11-04 it measured:
+`verify()` and `checkStatus()` hold the routing, the input checks and the polling, but no explorer
+client. Each client (Sourcify, Etherscan v2, Etherscan-compatible, Routescan and Blockscout) is a
+module of its own. A call loads only the client of the backend its route resolves to, with a
+dynamic `import()`, and keeps it for later calls
+([client chunks](../reference/routing.md#client-chunks)). A page that verifies on Sourcify
+downloads the entry and the Sourcify client, and never the other four. The first call on a backend
+waits for its client to load, and that wait counts against `timeoutMs`.
 
-| Import                                              | Gzipped size |
-| --------------------------------------------------- | ------------ |
-| `verify`, with the routing table                    | 21,718 bytes |
-| `checkStatus`, without the routing table            | 18,592 bytes |
-| `createVerifyHandler` from `explorer-verify/server` | 12,395 bytes |
+What reaches the page depends on your bundler:
 
-The server handler runs on your server, so its size does not reach the page.
+- Vite, Rollup and webpack write each client as a chunk of its own by default. The page fetches a
+  client's chunk on the first call routed to it.
+- esbuild does the same with `splitting: true` and `format: "esm"`. Without splitting, every client
+  stays in the one output file, and the page downloads all five with the entry.
 
-In this version, `verify` and `checkStatus` carry every explorer client: Sourcify, Etherscan v2,
-Routescan and Blockscout. A planned change,
-[issue #136](https://github.com/aelmanaa/explorer-verify/issues/136), loads each client with a
-dynamic `import()` only when a call is routed to it. A bundler then writes each client as its own
-chunk and the page loads it on first use; a page that serves the package's own files loads the
-client's module file the same way. Whether a CDN build keeps the clients apart is up to the CDN,
-and is not tested. Until that change lands, the dynamic `import()` in the example above is what
-keeps the library out of the first page load.
+The `import("explorer-verify")` in the example above still matters: it keeps the entry itself out
+of the first page load. The client chunks keep the clients the page never calls out of every load.
+
+### Measured in the repository
+
+`pnpm run size` bundles each entry point from the built package with esbuild 0.28.2 for the
+browser, minified, and gzips it with the zlib of Node 24.21.0. It measures each entry without its
+clients, and each client on its own. On 2026-11-04, on main at commit f26cd8d, it measured:
+
+| Import or chunk                                                     | Gzipped size |
+| ------------------------------------------------------------------- | ------------ |
+| `verify`, with the routing table                                    | 14,781 bytes |
+| `checkStatus`, without the routing table                            | 11,813 bytes |
+| Sourcify client                                                     | 2,885 bytes  |
+| Etherscan v2 client                                                 | 3,308 bytes  |
+| [Etherscan-compatible](../reference/etherscan-compatible.md) client | 3,286 bytes  |
+| Routescan client, with the Etherscan v2 request code it uses        | 3,385 bytes  |
+| Blockscout client                                                   | 2,934 bytes  |
+| `verify` as one file with every client, without the routing table   | 21,804 bytes |
+| `createVerifyHandler` from `explorer-verify/server`                 | 12,395 bytes |
+
+A page that verifies on Sourcify ships `verify` with the routing table plus the Sourcify client:
+17,666 bytes by this count. The count is a model: each part is gzipped as one file, without the
+cost a real split adds per file. The server handler runs on your server, so its size does not
+reach the page.
+
+### Measured with Vite and esbuild
+
+[Decision 0031](../../contributor/decisions/0031-clients-load-on-demand-and-chunks-measured-apart.md)
+built `export { verify } from "explorer-verify"` with an empty routing table, at main ff437c9 on
+2026-11-04, before the Etherscan-compatible client was added, and gzipped each output file on its
+own:
+
+| Build                       | Entry             | Sourcify client | Page that verifies on Sourcify |
+| --------------------------- | ----------------- | --------------- | ------------------------------ |
+| Vite 5.4.21 (Rollup 4.67.4) | 17,056            | 3,635           | 20,691                         |
+| esbuild 0.28.2, splitting   | 18,046 (3 files)  | 3,610           | 21,656                         |
+| esbuild 0.28.2, one file    | 21,663 (one file) | in the entry    | 21,663                         |
+
+With Vite, the entry is about 4 KB smaller than the same build with the clients imported
+statically (21,106 bytes), until the first call. With esbuild and splitting, the entry is about
+3.6 KB smaller than the one file. Either way, a client added in a later version adds a chunk that
+only its own calls load, and leaves the entry as it is.
+
+### Not tested
+
+- webpack. Its behaviour above comes from its documentation.
+- Loading the client chunks from a CDN. Whether a CDN build such as esm.sh keeps each client in a
+  module of its own is up to the CDN. When you serve the package's own files, the dynamic `import()`
+  makes the browser fetch `backends/<name>.js` on the first call routed to that backend, but no test
+  loads those files in a browser.
+
+The browser smoke test bundles the library with esbuild, splitting on, and runs it in headless
+Chromium: a call routed to Sourcify loads the Sourcify chunk and no other client's chunk.
 
 ## Sources
 
@@ -212,6 +263,12 @@ keeps the library out of the first page load.
   default for `.json` and accepts `with { type: 'json' }`. Read on 2026-11-04.
 - Vite, [Features](https://vite.dev/guide/features): JSON imports and async chunks from dynamic
   imports. v8.3.4, read on 2026-11-04.
+- esbuild, [Splitting](https://esbuild.github.io/api/#splitting): code reached through `import()`
+  goes to a separate file when `splitting` is on, with ESM output only. Read on 2026-11-04.
+- Rollup, [Code splitting](https://rollupjs.org/tutorial/#code-splitting): a dynamic import creates
+  a separate chunk loaded on demand. Read on 2026-11-04.
+- webpack, [Dynamic imports](https://webpack.js.org/guides/code-splitting/#dynamic-imports): `import()`
+  splits a module into a bundle of its own. Read on 2026-11-04.
 - esm.sh, [home page](https://esm.sh/): builds npm packages as ES modules and rewrites their
   imports. Read on 2026-11-04.
 - Etherscan, [API terms](https://etherscan.io/apiterms): no keys in client-side applications. Read
