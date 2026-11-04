@@ -33,7 +33,7 @@ The sections from Usage to Exit codes are generated from the CLI's own help, so 
   versions:
 
   ```text
-  {"schemaVersion":1,"ok":true,"result":{"cli":"0.1.0","core":"0.1.0","routingTableDate":"2026-11-03"}}
+  {"schemaVersion":1,"ok":true,"result":{"cli":"0.1.0","core":"0.1.0","routingTableDate":"2026-11-04"}}
   ```
 
 - With `--help` or `--version`, the command does not run, and no explorer is contacted. When

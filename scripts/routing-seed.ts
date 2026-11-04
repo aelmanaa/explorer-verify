@@ -5,8 +5,10 @@
 // scripts/compare-routing-table.ts is the command; the tests call these functions with recorded
 // responses and a fake fetch.
 //
-// The rule that built the table: a chain gets a row with Sourcify when Sourcify lists it as
-// supported and it is in the Etherscan chainlist or in the prior art's rows.
+// The rules that built the table: a chain gets a row with Sourcify when Sourcify lists it as
+// supported and it is in the Etherscan chainlist or in the prior art's rows. A chain in the
+// chainlist also gets an `etherscan-v2` entry with the chainlist's explorer host: first when the
+// free tier covers the chain, after Sourcify when it needs a paid plan (decision 0027).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -42,7 +44,12 @@ export interface Seed {
 /** The parts of the routing table the comparison reads. */
 export interface TableRows {
   readonly checked: string;
-  readonly rows: readonly { readonly chainId: number; readonly backends: readonly string[] }[];
+  readonly rows: readonly {
+    readonly chainId: number;
+    readonly backends: readonly string[];
+    /** The `explorer` host of the row's `etherscan-v2` entry, when it has one. */
+    readonly explorer?: string;
+  }[];
 }
 
 /** The four inputs of a comparison. */
@@ -150,16 +157,24 @@ export function parseSeed(value: unknown): Seed {
  * Reads the routing table.
  *
  * @param value - The parsed `table.json`.
- * @returns Its date and, per row, the chain id and the backend names.
+ * @returns Its date and, per row, the chain id, the backend names and the Etherscan explorer host.
  */
 export function parseTable(value: unknown): TableRows {
   const what = "routing table";
   return {
     checked: textAt(value, "checked", what),
-    rows: listAt(value, "chains", what).map((row) => ({
-      chainId: chainIdAt(row, "chainId", what),
-      backends: listAt(row, "backends", what).map((entry) => textAt(entry, "backend", what)),
-    })),
+    rows: listAt(value, "chains", what).map((row) => {
+      const entries = listAt(row, "backends", what);
+      const explorer = field(
+        entries.find((entry) => field(entry, "backend") === "etherscan-v2"),
+        "explorer",
+      );
+      return {
+        chainId: chainIdAt(row, "chainId", what),
+        backends: entries.map((entry) => textAt(entry, "backend", what)),
+        ...(typeof explorer === "string" ? { explorer } : {}),
+      };
+    }),
   };
 }
 
@@ -207,6 +222,7 @@ export function compare(lists: Lists): string[] {
       lines.push(`table: chain ${String(id)} is in neither the chainlist nor the prior art`);
     }
   }
+  lines.push(...etherscanEntries(lists));
   const frozen = new Map(lists.seed.etherscan.map((chain) => [chain.chainId, chain]));
   for (const chain of lists.chainlist) {
     const before = frozen.get(chain.chainId);
@@ -227,6 +243,47 @@ export function compare(lists: Lists): string[] {
   for (const id of frozen.keys()) {
     if (!inChainlist.has(id)) {
       lines.push(`etherscan: chain ${String(id)} left the chainlist`);
+    }
+  }
+  return lines;
+}
+
+/**
+ * The differences between the table's `etherscan-v2` entries and the live chainlist: a row of a
+ * chainlist chain without the entry, an explorer host other than the chainlist's, an entry in the
+ * wrong place for the chain's plan, and an entry for a chain the chainlist no longer lists.
+ */
+function etherscanEntries(lists: Lists): string[] {
+  const lines: string[] = [];
+  const live = new Map(lists.chainlist.map((chain) => [chain.chainId, chain]));
+  for (const row of lists.table.rows) {
+    const id = `chain ${String(row.chainId)}`;
+    const chain = live.get(row.chainId);
+    const at = row.backends.indexOf("etherscan-v2");
+    if (chain === undefined) {
+      if (at !== -1) {
+        lines.push(`table: ${id} lists etherscan-v2, which the chainlist no longer lists`);
+      }
+      continue;
+    }
+    if (at === -1) {
+      lines.push(`table: ${id} has no etherscan-v2 entry; it is in the Etherscan chainlist`);
+      continue;
+    }
+    if (row.explorer !== chain.explorer) {
+      lines.push(
+        `table: ${id} etherscan-v2 explorer is ${row.explorer ?? "missing"}; the chainlist says ${chain.explorer}`,
+      );
+    }
+    const sourcify = row.backends.indexOf("sourcify");
+    if (chain.paidPlan && sourcify === -1) {
+      lines.push(
+        `table: ${id} lists etherscan-v2 with no sourcify entry first; it needs a paid plan`,
+      );
+    } else if (chain.paidPlan && sourcify > at) {
+      lines.push(`table: ${id} lists etherscan-v2 before sourcify; it needs a paid plan`);
+    } else if (!chain.paidPlan && at !== 0) {
+      lines.push(`table: ${id} lists etherscan-v2 after another backend; it is free-tier`);
     }
   }
   return lines;

@@ -33,27 +33,29 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 94 chains, each with
-Sourcify only. The Etherscan v2 and Routescan clients have no rows yet; reach them with
-`route.apiUrl`, as [Etherscan](etherscan.md) and [Routescan](routescan.md) show. A chain has a row when
+The table is `src/routing/table.json` in the package. In this release it lists 94 chains. Every row
+has Sourcify, and the 57 chains of the Etherscan chainlist also have Etherscan v2. The Routescan
+client has no rows yet; reach it with `route.backend` and `route.apiUrl`, as
+[Routescan](routescan.md) shows. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
 [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
-started from. Both lists were read on 2026-11-03.
+started from. Both lists were read on 2026-11-04.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
 C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532) and Arbitrum Sepolia (421614). To see
-whether a chain has a row, search `table.json` for its chain id. A later release adds the Etherscan
-v2 and Routescan entries, as their clients land. Until then, verify on a chain without a row with
-`allowSourcifyFallback: true`.
+whether a chain has a row, search `table.json` for its chain id. A later release adds Routescan
+entries. Verify on a chain without a row with `allowSourcifyFallback: true`.
 
 The rows are the list under the table's top-level `chains` key. Each row holds the chain id and its
-backends, in order of preference. An entry holds the backend
-name and only what varies per chain:
+backends, in order of preference. An entry holds the backend name and only what varies per chain:
 
 ```json
 {
-  "chainId": 43113,
-  "backends": [{ "backend": "routescan", "network": "testnet" }, { "backend": "sourcify" }]
+  "chainId": 11155111,
+  "backends": [
+    { "backend": "etherscan-v2", "explorer": "sepolia.etherscan.io" },
+    { "backend": "sourcify" }
+  ]
 }
 ```
 
@@ -84,6 +86,25 @@ The unit tests check every row: the fields of each backend, the backend names, t
 API host and path of each derived URL. The table decides which hosts receive a key, so a malformed
 row fails CI.
 
+### Etherscan rows and paid plans
+
+Each Etherscan entry names the explorer host the chainlist gives for the chain, so an Etherscan
+result has an `explorerUrl`, such as `https://sepolia.etherscan.io/address/<address>#code`.
+
+Etherscan's free tier covers 46 of the 57 chains. On those, Etherscan v2 comes first: a call with
+`apiKeys["etherscan-v2"]` goes to `api.etherscan.io` with the key, and a call without it goes to
+Sourcify and sends no key.
+
+The other 11 chains need a paid Etherscan plan: 10 (OP Mainnet), 56 (BNB Smart Chain Mainnet), 97
+(BNB Smart Chain Testnet), 100 (Gnosis), 4663 (Robinhood Chain), 5042 (Arc Mainnet), 8453 (Base
+Mainnet), 43113 (Avalanche Fuji), 43114 (Avalanche C-Chain), 84532 (Base Sepolia) and 11155420 (OP
+Sepolia). On those, Sourcify comes first, so a free-plan key does not turn a call that Sourcify
+serves into an Etherscan refusal. With a paid plan, set `route: { backend: "etherscan-v2" }` and
+pass the key in `apiKeys`; from the CLI, pass `--backend etherscan-v2`. The plan rule of
+[API keys](api-keys.md#etherscan-plan-rule) is separate from this list and applies to every chain:
+a public dapp, or any use by a business, protocol, foundation or DAO, needs an Advanced plan or
+higher.
+
 ## Request URLs
 
 - Etherscan v2 serves every chain from one URL. The route adds `chainid=<chain id>` to the query
@@ -111,13 +132,13 @@ const result = await verify(input, { allowSourcifyFallback: true });
 
 - `backend` without `apiUrl` picks a backend from the chain's row. A backend this version has no
   client for throws `invalid-input` naming `route.backend`, and the hint lists the backends it has.
-  In this release those are `sourcify`, `etherscan-v2` and `routescan`. A backend with a client that the row
-  does not list throws `unsupported-chain`.
+  In this release those are `sourcify`, `etherscan-v2` and `routescan`. A backend with a client
+  that the row does not list throws `unsupported-chain`.
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
   in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
   name, password or fragment. A query string is sent with every request and shown as `?REDACTED`
   in logs. Results have no `explorerUrl` unless `apiUrl` is the table's own URL for the backend
-  and chain.
+  and chain, such as `https://api.etherscan.io/v2/api` for a chain with an Etherscan row.
 - `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it. See
   [API keys](api-keys.md).
 

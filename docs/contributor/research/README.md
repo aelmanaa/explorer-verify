@@ -32,3 +32,4 @@ in review.
 | [2026-11-04-etherscan-client.md](2026-11-04-etherscan-client.md)                   | Which Etherscan v2 `result` texts does the client map, where was each seen, and how is Similar Match read?                      |
 | [2026-11-04-routescan-client.md](2026-11-04-routescan-client.md)                   | How does Routescan answer each client request, which networks do its chains use, and how does the client map each answer?       |
 | [2026-11-04-bytecode-metadata-sources.md](2026-11-04-bytecode-metadata-sources.md) | Where can the metadata behind a bytecode's hash be fetched, and how is it checked against the hash?                             |
+| [2026-11-04-etherscan-rows.md](2026-11-04-etherscan-rows.md)                       | Which chains get an Etherscan v2 entry and in which order, checked on 2026-11-04, and what does it add in size?                 |

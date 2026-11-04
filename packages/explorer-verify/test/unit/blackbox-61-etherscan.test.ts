@@ -28,6 +28,9 @@ const CHAIN_ID = 421614;
 const ADDRESS: Hex = "0x6355ef85c81f3545ad9cb404f3defb7f219810ec";
 const GUID = "yatwfd5yijmxufgkexd8ygesyexubjazunjnbgkemvwbm7vhrw";
 const VERSION = "0.8.24+commit.e11b9ed9";
+// Arbitrum Sepolia's explorer host in the routing table (#122): a route whose apiUrl is the table's
+// own Etherscan API keeps the table's contract page (routing.md).
+const EXPLORER_URL = `https://sepolia.arbiscan.io/address/${ADDRESS}#code`;
 const ARGS_HEX = "000000000000000000000000000000000000000000000000000000000000002a";
 
 // ---------------------------------------------------------------------------------------------
@@ -320,7 +323,12 @@ describe("blackbox #61: full verify run (R-BE-1, R-DX-6)", () => {
       checkverifystatus: [PENDING, PASS],
     });
     const result = await drive(verify(makeInput(), run.options));
-    assert.deepEqual(result, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    assert.deepEqual(result, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: EXPLORER_URL,
+    });
     assert.deepEqual(actions(run), [
       "getsourcecode",
       "verifysourcecode",
@@ -350,7 +358,7 @@ describe("blackbox #61: full verify run (R-BE-1, R-DX-6)", () => {
     assert.equal(poll.state, "pending");
     assertRequestsSafe(run);
     assertNoKeyVisible(run, result);
-    assert.ok(!("explorerUrl" in result), "route.apiUrl result has no explorerUrl");
+    assert.equal(result.explorerUrl, EXPLORER_URL, "the table's own API keeps the table's page");
     const look = run.calls[0];
     assert.equal(look?.body.get("address")?.toLowerCase(), ADDRESS);
     const status = run.calls[2];
@@ -481,6 +489,7 @@ describe("blackbox #61: submit mapping (R-FLOW-4, R-FLOW-7)", () => {
         status: "already-verified",
         backend: "etherscan-v2",
         match: "partial",
+        explorerUrl: EXPLORER_URL,
       });
       assert.ok(!actions(run).includes("checkverifystatus"));
       assertRequestsSafe(run);
@@ -562,6 +571,7 @@ describe("blackbox #61: any-call answers (R-BE-1, R-FLOW-6)", () => {
       status: "already-verified",
       backend: "etherscan-v2",
       match: "exact",
+      explorerUrl: EXPLORER_URL,
     });
     assert.deepEqual(retryReasons(run), ["rate-limited"]);
     const retry = run.events.find((event) => event.type === "verify.retry");
@@ -700,6 +710,7 @@ describe("blackbox #61: poll mapping (R-FLOW-3, R-FLOW-4, R-FLOW-7)", () => {
         status: "already-verified",
         backend: "etherscan-v2",
         match: "exact",
+        explorerUrl: EXPLORER_URL,
       });
     });
   }
@@ -721,7 +732,12 @@ describe("blackbox #61: poll mapping (R-FLOW-3, R-FLOW-4, R-FLOW-7)", () => {
       checkverifystatus: [notok(FAIL_TEXT)],
     });
     const result = await drive(verify(makeInput(), run.options));
-    assert.deepEqual(result, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    assert.deepEqual(result, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: EXPLORER_URL,
+    });
   });
 
   it("Fail - Unable to verify with a not-verified lookup returns failed with the text", async () => {
@@ -819,7 +835,12 @@ describe("blackbox #61: poll mapping (R-FLOW-3, R-FLOW-4, R-FLOW-7)", () => {
         checkverifystatus: [notok(text)],
       });
       const result = await drive(verify(makeInput(), run.options));
-      assert.deepEqual(result, { status: "verified", backend: "etherscan-v2", match: "exact" });
+      assert.deepEqual(result, {
+        status: "verified",
+        backend: "etherscan-v2",
+        match: "exact",
+        explorerUrl: EXPLORER_URL,
+      });
     });
   }
 
@@ -863,6 +884,7 @@ describe("blackbox #61: lookup mapping (R-FLOW-3, R-FLOW-4)", () => {
         status: "already-verified",
         backend: "etherscan-v2",
         match: "exact",
+        explorerUrl: EXPLORER_URL,
       });
       assert.deepEqual(actions(run), ["getsourcecode"]);
       const lookup = run.events.find((event) => event.type === "verify.lookup");
@@ -877,6 +899,7 @@ describe("blackbox #61: lookup mapping (R-FLOW-3, R-FLOW-4)", () => {
       status: "already-verified",
       backend: "etherscan-v2",
       match: "partial",
+      explorerUrl: EXPLORER_URL,
     });
   });
 
@@ -932,7 +955,12 @@ describe("blackbox #61: checkStatus (R-FLOW-5)", () => {
   it("polls a handle: Pending in queue then Pass - Verified gives verified exact", async () => {
     const run = setup({ checkverifystatus: [PENDING, PASS] });
     const result = await drive(checkStatus(makeHandle(), run.options));
-    assert.deepEqual(result, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    assert.deepEqual(result, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: EXPLORER_URL,
+    });
     assert.deepEqual(eventTypes(run), ["verify.routed", "verify.poll", "verify.result"]);
     assertRequestsSafe(run);
     assertNoKeyVisible(run, result);
@@ -955,13 +983,19 @@ describe("blackbox #61: checkStatus (R-FLOW-5)", () => {
       status: "already-verified",
       backend: "etherscan-v2",
       match: "partial",
+      explorerUrl: EXPLORER_URL,
     });
   });
 
   it("Fail - Unable to verify on checkStatus with an exact lookup returns verified exact", async () => {
     const run = setup({ checkverifystatus: [notok(FAIL_TEXT)], getsourcecode: [LOOKUP_EXACT] });
     const result = await drive(checkStatus(makeHandle(), run.options));
-    assert.deepEqual(result, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    assert.deepEqual(result, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: EXPLORER_URL,
+    });
   });
 
   it("checkStatus pending until the budget is spent throws not-confirmed with the same handle", async () => {

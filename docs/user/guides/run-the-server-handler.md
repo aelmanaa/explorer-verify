@@ -16,9 +16,10 @@ it passes to `verify()`. The full examples are in the repository under
 [`examples/server-cloudflare/`](../../../examples/server-cloudflare/src/index.ts). Each code block
 on this page is a file from those folders, unchanged.
 
-The Etherscan v2 client of `verify()` comes in a later release
-([#61](https://github.com/aelmanaa/explorer-verify/issues/61)). Until then, the handler accepts the
-requests that client will send, and `verify()` sends Sourcify requests unchanged.
+The browser calls `verify()` with `route: { backend: "etherscan-v2" }` and a `fetch` that sends
+the Etherscan requests to the handler, as
+[Point the client at it](../reference/server-handler.md#point-the-client-at-it) shows. Sourcify
+requests go out unchanged.
 
 ## Etherscan's terms
 

@@ -177,19 +177,13 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/api-keys.md",
     example: 0,
-    what: "an Etherscan key in route.apiKey: Etherscan finds the Greeter verified",
+    what: "an Etherscan key in apiKeys: the Sepolia row sends it to Etherscan, which finds the Greeter verified",
     fixtures: ETHERSCAN_VERIFIED,
-  },
-  {
-    page: "reference/api-keys.md",
-    example: 1,
-    what: "an Etherscan key in apiKeys alone; the chain routes to Sourcify",
-    fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/etherscan.md",
     example: 0,
-    what: "route to Etherscan with route.apiKey: Etherscan finds the Greeter verified",
+    what: "an Etherscan key in apiKeys: Etherscan finds the Greeter verified, with the explorer page",
     fixtures: ETHERSCAN_VERIFIED,
   },
   {

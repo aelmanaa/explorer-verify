@@ -6,22 +6,14 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers and agents who pass an explorer API key to `verify()` or `checkStatus()`.
 
-In this release the routing table sends every chain it lists to Sourcify, which needs no key. The
-Etherscan v2 client is in this release, but the table has no Etherscan rows yet, so a key in
-`apiKeys` alone never reaches Etherscan: it goes only to the table's host for a route the table
-chose. To use Etherscan now, pass the key as `route.apiKey` with the backend and the API URL:
+The routing table lists Etherscan v2 for the 57 chains of the Etherscan chainlist
+([Routing](routing.md#etherscan-rows-and-paid-plans)). Pass your Etherscan key in `apiKeys`:
 
 ```ts
 import { verify } from "explorer-verify";
 
 // On a server. Never ship an Etherscan key to a browser.
-const result = await verify(input, {
-  route: {
-    backend: "etherscan-v2",
-    apiUrl: "https://api.etherscan.io/v2/api",
-    apiKey: etherscanKey,
-  },
-});
+const result = await verify(input, { apiKeys: { "etherscan-v2": etherscanKey } });
 console.log(`${result.status} ${result.backend}`);
 ```
 
@@ -29,8 +21,12 @@ console.log(`${result.status} ${result.backend}`);
 already-verified etherscan-v2
 ```
 
-From a browser, keep the key on your server and pass `route: { backend: "etherscan-v2", apiUrl }`
-with a `fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
+Without the key, the same call goes to Sourcify and sends no key. On the 11 chains that need a paid
+Etherscan plan, Sourcify comes first even with a key; with a paid plan, add
+`route: { backend: "etherscan-v2" }`.
+
+From a browser, keep the key on your server and pass `route: { backend: "etherscan-v2" }` with a
+`fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
 
 The standalone client comes next. The key options below are already checked, and a bad value
 throws `invalid-input` today. Where a section below says "from the clients on", the rule takes
@@ -40,21 +36,9 @@ sends `route.apiKey` today.
 
 ## `apiKeys`
 
-`VerifyOptions.apiKeys` holds one key per backend name. Each key goes where this table says, once
-the routing table lists that backend for the chain. In this release it lists none of them, so
-this call sends no key yet:
-
-```ts
-import { verify } from "explorer-verify";
-
-// Sends the key to Etherscan only once the routing table lists etherscan-v2 for the chain.
-const result = await verify(input, { apiKeys: { "etherscan-v2": etherscanKey } });
-console.log(result.backend);
-```
-
-```text
-sourcify
-```
+`VerifyOptions.apiKeys` holds one key per backend name. Each key goes where this table says, for a
+chain whose routing table row lists that backend. A chain whose row lists no Etherscan entry, or a
+route whose `apiUrl` you set, gets no key from `apiKeys`.
 
 | Backend                | Host the key goes to                  | Where in the request                           | Needed                       |
 | ---------------------- | ------------------------------------- | ---------------------------------------------- | ---------------------------- |
@@ -120,9 +104,10 @@ and `routescan` clients take `route.apiKey` now; for Routescan it goes in the `a
 
 ## A missing key
 
-This section applies from the clients on. When the route's backend needs a key (`etherscan-v2`)
-and no key is bound to its host, the call throws [`missing-api-key`](errors/missing-api-key.md)
-before any request.
+When the route's backend needs a key (`etherscan-v2`) and no key is bound to its host, the call
+throws [`missing-api-key`](errors/missing-api-key.md) before any request. The routing table skips
+Etherscan for a call without its key, so this happens when `route.backend` names `etherscan-v2`, or
+when `route.apiUrl` points it at a server without `route.apiKey`.
 
 With `fetch` set, the check is skipped: an injected `fetch` may lead to your own server, which adds
 the key, as the planned server handler does. The request goes out without a key. If the explorer
@@ -173,3 +158,8 @@ a key in client code. This is a reading of the terms at <https://etherscan.io/ap
 (1 October 2026), not legal advice.
 [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md) explains the
 rule.
+
+Separately, the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) marks 11 chains "Paid
+Plan required" (read 2026-11-04). The routing table puts Sourcify first on those chains, so a
+key goes to Etherscan there only when you set `route.backend` to `etherscan-v2`
+([Routing](routing.md#etherscan-rows-and-paid-plans)).

@@ -214,9 +214,10 @@ function assertSourcifyRoute(
 }
 
 describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
-  it("has schemaVersion 2 and checked 2026-11-03", () => {
+  it("has schemaVersion 2 and checked 2026-11-04", () => {
+    // #122 checked the rows again on 2026-11-04 when it added the Etherscan v2 entries.
     assert.equal(TABLE.schemaVersion, 2);
-    assert.equal(TABLE.checked, "2026-11-03");
+    assert.equal(TABLE.checked, "2026-11-04");
   });
 
   it("lists 94 chains in ascending order, one row per chain", () => {
@@ -228,9 +229,14 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     );
   });
 
-  it("gives every row Sourcify only, the one backend with a client", () => {
+  it("gives every row Sourcify, and lists only the backends with a client (#122)", () => {
     for (const row of TABLE.rows) {
-      assert.deepEqual(row.backends, [{ backend: "sourcify" }], `chain ${row.chainId}`);
+      const names = row.backends.map((entry) => entry.backend);
+      assert.ok(names.includes("sourcify"), `chain ${row.chainId}`);
+      assert.ok(
+        names.every((name) => name === "sourcify" || name === "etherscan-v2"),
+        `chain ${row.chainId}`,
+      );
     }
   });
 
@@ -343,7 +349,8 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
     assertSourcifyRoute(1, await run(1, { route: { backend: "sourcify" } }));
   });
 
-  for (const chainId of [1, 11155111]) {
+  // Chains 31 and 300 are prior-art rows outside the Etherscan chainlist: Sourcify only (#122).
+  for (const chainId of [31, 300]) {
     it(`route.backend etherscan-v2 on ${String(chainId)}, a row without it, throws unsupported-chain`, async () => {
       const { error, calls } = await failure(chainId, { route: { backend: "etherscan-v2" } });
       assert.deepEqual(error.details, {
@@ -479,7 +486,9 @@ describe("blackbox #60: keys go only to their documented host (api-keys.md)", ()
   const apiKeys = { "etherscan-v2": ETHERSCAN_KEY, routescan: ROUTESCAN_KEY };
 
   for (const chainId of [...NAMED_CHAINS, 324]) {
-    if (!LISTED.has(chainId)) {
+    // A row that lists etherscan-v2 first sends a caller with an Etherscan key there (#122).
+    const first = TABLE.rows.find((row) => row.chainId === chainId)?.backends[0]?.backend;
+    if (first !== "sourcify") {
       continue;
     }
     it(`chain ${chainId}: no key in any request to sourcify.dev`, async () => {

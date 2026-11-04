@@ -120,11 +120,13 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   (JSON), versioned with the package, and holds only what varies per chain; the API URL and the
   explorer URL are derived from it (decision 0024). It has a row for each chain, in the Etherscan
   chainlist or in the prior art's 67 rows, that a backend with a client in the release serves, and
-  lists only such backends. It carries the date its rows were checked. On 2026-11-03 that is 94
-  chains, each with Sourcify. A row lists its backends in order of preference. A call goes to the
-  first backend in the row that works with the caller's keys: a backend that needs a key is
-  skipped when the caller passed none for it. When no backend in the row works, the call takes the
-  first and fails with `missing-api-key` before any request.
+  lists only such backends. It carries the date its rows were checked. On 2026-11-04 that is 94
+  chains, each with Sourcify, and the 57 chains of the Etherscan chainlist also with Etherscan v2. A
+  row lists its backends in order of preference; on a chain that needs a paid Etherscan plan,
+  Sourcify comes before Etherscan v2 (decision 0027). A call goes to the first backend in the row
+  that works with the caller's keys: a backend that needs a key is skipped when the caller passed
+  none for it. When no backend in the row works, the call takes the first and fails with
+  `missing-api-key` before any request.
 - **R-RT-2** The caller can override the route per call, add chains, or pick a backend by name.
 - **R-RT-3** A chain missing from the table falls back to Sourcify when the caller allows it, and
   otherwise fails with an error naming the chain. The option is `allowSourcifyFallback`, false by

@@ -1,99 +1,441 @@
 {
   "schemaVersion": 2,
-  "checked": "2026-11-03",
+  "checked": "2026-11-04",
   "chains": [
-    { "chainId": 1, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 10, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 1,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "etherscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 10,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "optimistic.etherscan.io" }
+      ]
+    },
     { "chainId": 31, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 50, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 51, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 56, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 50,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "xdcscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 51,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.xdcscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 56,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "bscscan.com" }
+      ]
+    },
     { "chainId": 81, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 97, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 100, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 130, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 97,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "testnet.bscscan.com" }
+      ]
+    },
+    {
+      "chainId": 100,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "gnosisscan.io" }
+      ]
+    },
+    {
+      "chainId": 130,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "uniscan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 133, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 137, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 143, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 146, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 199, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 137,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "polygonscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 143,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "monadscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 146,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sonicscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 199,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "bttcscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 240, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 252, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 252,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "fraxscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 296, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 300, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 338, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 480, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 480,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "worldscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 919, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 988, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 988,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "stablescan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 998, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 999, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 999,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "hyperevmscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 1001, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 1029, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 1029,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.bttcscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 1112, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 1114, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 1301, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 1328, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 1329, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 1301,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.uniscan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 1328,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.seiscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 1329,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "seiscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 1740, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 1946, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 2201, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 2201,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.stablescan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 2391, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 2523, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 2741, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 2523,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "hoodi.fraxscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 2741,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "abscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 2910, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 4202, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 4326, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 4352, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 4663, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 4801, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 5000, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 5003, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 5042, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 4326,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "mega.etherscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 4352,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "memecorescan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 4663,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "robin.etherscan.io" }
+      ]
+    },
+    {
+      "chainId": 4801,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.worldscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 5000,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "mantlescan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 5003,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.mantlescan.xyz" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 5042,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "arc.etherscan.io" }
+      ]
+    },
     { "chainId": 5611, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 6343, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 8453, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 9745, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 9746, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 10143, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 6343,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet-mega.etherscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 8453,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "basescan.org" }
+      ]
+    },
+    {
+      "chainId": 9745,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "plasmascan.to" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 9746,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.plasmascan.to" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 10143,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.monadscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 10200, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 11124, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 14601, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 11124,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.abscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 14601,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.sonicscan.org" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 16602, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 33111, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 37111, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 42161, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 42220, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 42161,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "arbiscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 42220,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "celoscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 42431, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 43113, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 43114, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 43522, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 43113,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "testnet.snowscan.xyz" }
+      ]
+    },
+    {
+      "chainId": 43114,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "snowscan.xyz" }
+      ]
+    },
+    {
+      "chainId": 43522,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.memecorescan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 46630, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 53302, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 59141, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 59144, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 59141,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.lineascan.build" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 59144,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "lineascan.build" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 59902, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 80002, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 80069, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 80094, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 84532, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 80002,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "amoy.polygonscan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 80069,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "testnet.berascan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 80094,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "berascan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 84532,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "sepolia.basescan.org" }
+      ]
+    },
     { "chainId": 98867, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 167000, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 167013, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 167000,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "taikoscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 167013,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "hoodi.taikoscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 202601, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 421614, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 421614,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.arbiscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 534351, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 560048, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 560048,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "hoodi.etherscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 688689, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 737373, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 737373,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "bokuto.katanascan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 743111, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 747474, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 747474,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "katanascan.com" },
+        { "backend": "sourcify" }
+      ]
+    },
     { "chainId": 763373, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 808813, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 5042002, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 6281971, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 11142220, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 11155111, "backends": [{ "backend": "sourcify" }] },
-    { "chainId": 11155420, "backends": [{ "backend": "sourcify" }] },
+    {
+      "chainId": 11142220,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.celoscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 11155111,
+      "backends": [
+        { "backend": "etherscan-v2", "explorer": "sepolia.etherscan.io" },
+        { "backend": "sourcify" }
+      ]
+    },
+    {
+      "chainId": 11155420,
+      "backends": [
+        { "backend": "sourcify" },
+        { "backend": "etherscan-v2", "explorer": "sepolia-optimism.etherscan.io" }
+      ]
+    },
     { "chainId": 12227332, "backends": [{ "backend": "sourcify" }] },
     { "chainId": 999999999, "backends": [{ "backend": "sourcify" }] }
   ]

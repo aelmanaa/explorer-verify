@@ -4,8 +4,9 @@
 // `RouteOverride.apiKey`. Every call goes through the package entry point with a fake `fetch`
 // shaped like Sourcify's answers. Time runs on node:test mock timers.
 //
-// In this release every chain routes to Sourcify, which takes no key. So the tests check that a
-// key is validated, never sent, and never shows up anywhere the caller can see.
+// The tests run on chain 31, whose routing table row lists Sourcify only, which takes no key. So
+// they check that a key is validated, never sent, and never shows up anywhere the caller can see.
+// (Chain 11155111 lists Etherscan v2 first since #122, so a key goes to Etherscan there.)
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
@@ -45,7 +46,7 @@ const ROUTESCAN_KEY = "rr4dummyroutescankeyww2pl";
 const ROUTE_KEY = "ss8dummystandalonekeyyy3m";
 const KEYS = [ETHERSCAN_KEY, ROUTESCAN_KEY, ROUTE_KEY];
 
-const CHAIN_ID = 11155111;
+const CHAIN_ID = 31;
 const ADDRESS: Hex = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const JOB_ID = "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const NEW_CODES = ["missing-api-key", "api-key-rejected", "quota-exceeded"] as const;
