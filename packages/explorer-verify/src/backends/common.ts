@@ -1,16 +1,17 @@
 /**
  * Helpers the backend clients share: sending a request and reading its body, a submit that is
- * never sent again blindly, and the handle check before a poll. Internal: the package entry point
- * does not export it.
+ * never sent again blindly, the wait before a whole submit is sent again, the Etherscan-style
+ * submit fields, the handle check before a poll, and the error for an answer a client does not
+ * know. Internal: the package entry point does not export it.
  */
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
-import { request } from "../http/fetch.ts";
+import { request, sleep } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { Handle } from "../types.ts";
-import type { Backend, Context, Match, SubmitOutcome, Target } from "./backend.ts";
+import type { Backend, Context, Match, ResolvedInput, SubmitOutcome, Target } from "./backend.ts";
 
 /** The longest `failed` reason, or inconclusive reason, kept from the explorer's text. */
 export const REASON_LENGTH = 300;
@@ -128,9 +129,37 @@ export async function submitOnce(
     `${label} submit: ${first.error.message} Looking the contract up before submitting again.`,
     { backend: name, code: first.error.code },
   );
-  let match: Match | undefined;
+  const match = await lookupAfterUnclear(ctx, target, lookup);
+  if (match !== undefined) {
+    return { state: "already-verified", match };
+  }
+  const second = await attempt();
+  if (second.kind === "answer") {
+    return await read(second.answer);
+  }
+  throw second.error;
+}
+
+/**
+ * Looks the contract up after a submit without a clear answer. A failed lookup throws its error,
+ * whose message then says the submit may already have been accepted.
+ *
+ * @param ctx - The call's context.
+ * @param target - The contract.
+ * @param lookup - The client's lookup.
+ * @returns The match, or `undefined` when the contract is not verified.
+ * @example
+ * ```ts
+ * const match = await lookupAfterUnclear(ctx, target, lookup);
+ * ```
+ */
+export async function lookupAfterUnclear(
+  ctx: Context,
+  target: Target,
+  lookup: Backend["lookup"],
+): Promise<Match | undefined> {
   try {
-    match = await lookup(target, ctx);
+    return await lookup(target, ctx);
   } catch (error: unknown) {
     if (error instanceof ExplorerVerifyError) {
       throw new ExplorerVerifyError(
@@ -141,14 +170,159 @@ export async function submitOnce(
     }
     throw error;
   }
-  if (match !== undefined) {
-    return { state: "already-verified", match };
+}
+
+/** The wait between two whole submits, when the context has no `pollIntervalMs`. */
+const RESUBMIT_WAIT_MS = 3_000;
+
+/** How a client sends a whole submit again while the explorer gives an answer that may clear up. */
+export interface Resubmit {
+  /** The backend, for the error, the log line and the event. */
+  readonly backend: BackendName;
+  /** The `verify.retry` reason. */
+  readonly reason: "not-indexed" | "empty-submit";
+  /** What the explorer said, as a sentence start: `Etherscan found no contract code at the address`. */
+  readonly what: string;
+  /** The hint of the error that ends the loop. */
+  readonly hint: string;
+  /** The most submits, the first included. */
+  readonly maxTries: number;
+  /** The last time, as a `Date.now()` value, a submit may be sent. Absent means no limit. */
+  readonly until?: number;
+}
+
+/**
+ * Before submit `attempt + 1`: throws `timeout` when it would pass the budget's deadline, and
+ * `unexpected-response` after `maxTries` submits or once `until` has passed. Otherwise logs at
+ * `warn`, emits `verify.retry` and waits `pollIntervalMs`, cut to what is left before `until`.
+ *
+ * @param ctx - The call's context.
+ * @param answer - The answer that asks for a new submit.
+ * @param attempt - The number of submits sent so far.
+ * @param loop - The backend's rules.
+ * @example
+ * ```ts
+ * await waitToResubmit(ctx, answer, attempt, { backend, reason: "not-indexed", what, hint, maxTries: 10 });
+ * ```
+ */
+export async function waitToResubmit(
+  ctx: Context,
+  answer: Answer,
+  attempt: number,
+  loop: Resubmit,
+): Promise<void> {
+  const { backend, reason, what, hint, maxTries, until = Infinity } = loop;
+  const { budget, secrets, observer, signal } = ctx.http;
+  const now = Date.now();
+  const delayMs = Math.min(ctx.pollIntervalMs ?? RESUBMIT_WAIT_MS, until - now);
+  const tries = `${String(attempt)} ${attempt === 1 ? "submit" : "submits"}`;
+  if (budget !== undefined && now + delayMs >= budget.deadline) {
+    throw new ExplorerVerifyError(
+      { code: "timeout", backend, timeoutMs: budget.timeoutMs },
+      `${what} after ${tries}, within the ${String(budget.timeoutMs)} ms budget.`,
+      { hint, secrets },
+    );
   }
-  const second = await attempt();
-  if (second.kind === "answer") {
-    return await read(second.answer);
+  if (attempt >= maxTries || delayMs <= 0) {
+    throw new ExplorerVerifyError(
+      { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
+      `${what} after ${tries}.`,
+      { hint, secrets },
+    );
   }
-  throw second.error;
+  observer?.log.warn(
+    `${what} yet; submitting again in ${String(delayMs)} ms (submit ${String(attempt + 1)} of at most ${String(maxTries)})`,
+    { backend, attempt: attempt + 1, reason, delayMs },
+  );
+  observer?.emit({ type: "verify.retry", backend, attempt: attempt + 1, reason, delayMs });
+  await sleep(delayMs, signal);
+}
+
+/**
+ * The `verifysourcecode` fields of an Etherscan-style API for a Standard JSON input, without the
+ * constructor arguments: `sourceCode` holds only `language`, `sources` and `settings`, and
+ * `compilerversion` has one leading `v`.
+ *
+ * @param input - The checked input.
+ * @returns The form fields, `module` excluded.
+ * @example
+ * ```ts
+ * const fields = standardJsonFields(input);
+ * ```
+ */
+export function standardJsonFields(input: ResolvedInput): Record<string, string> {
+  const { language, sources, settings } = input.compiler.input;
+  return {
+    action: "verifysourcecode",
+    codeformat: "solidity-standard-json-input",
+    sourceCode: JSON.stringify({ language, sources, settings }),
+    contractaddress: input.address,
+    contractname: input.contractName,
+    compilerversion: `v${input.compiler.version.replace(/^v/, "")}`,
+  };
+}
+
+/**
+ * The `result` field of an answer when it is text.
+ *
+ * @param answer - The answer.
+ * @returns The text, or `undefined`.
+ * @example
+ * ```ts
+ * resultOf(answer)?.startsWith("Pending in queue");
+ * ```
+ */
+export function resultOf(answer: Answer): string | undefined {
+  const result = answer.fields?.get("result");
+  return typeof result === "string" ? result : undefined;
+}
+
+/**
+ * `unexpected-response` with the answer's status and text. `what` names the request, as
+ * `the lookup`, or is the whole message when `whole` is set.
+ *
+ * @param ctx - The call's context, for its secrets.
+ * @param backend - The backend.
+ * @param label - The backend's name in the message, such as `Etherscan`.
+ * @param answer - The answer.
+ * @param what - The request, or the whole message.
+ * @param whole - Whether `what` is the whole message.
+ * @returns The error.
+ * @example
+ * ```ts
+ * throw unexpected(ctx, "blockscout", "Blockscout", answer, "the lookup");
+ * ```
+ */
+export function unexpected(
+  ctx: Context,
+  backend: BackendName,
+  label: string,
+  answer: Answer,
+  what: string,
+  whole = false,
+): ExplorerVerifyError {
+  return new ExplorerVerifyError(
+    { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
+    whole
+      ? what
+      : `${label} gave an answer to ${what} that this client does not recognise (status ${String(answer.status)}).`,
+    { secrets: ctx.http.secrets },
+  );
+}
+
+/**
+ * The contract's page from the routing table, or `undefined` when the route has none.
+ *
+ * @param target - The contract.
+ * @param ctx - The call's context.
+ * @returns The page.
+ * @example
+ * ```ts
+ * const backend: Backend = { name, lookup, submit, poll, explorerUrl };
+ * ```
+ */
+export function explorerUrl(target: Target, ctx: Context): string | undefined {
+  return ctx.route.explorerUrl?.(target.address);
 }
 
 /**

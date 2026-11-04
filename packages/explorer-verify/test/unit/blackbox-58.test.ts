@@ -794,7 +794,13 @@ describe("missing-api-key check (api-keys.md `## A missing key`)", () => {
     });
   }
 
-  for (const backend of ["etherscan-compatible", "blockscout"] as const) {
+  it('route.backend "blockscout", which has a client since #92, on a chain whose row lists only Sourcify throws unsupported-chain, sends nothing', async () => {
+    const error = await errorOf(verify(makeInput(), { route: { backend: "blockscout" } }));
+    assert.equal(error.code, "unsupported-chain");
+    assert.equal(globalCalls.length, 0);
+  });
+
+  for (const backend of ["etherscan-compatible"] as const) {
     it(`route.backend "${backend}" without fetch throws invalid-input naming route.backend, not missing-api-key`, async () => {
       const error = await errorOf(verify(makeInput(), { route: { backend } }));
       assert.equal(error.code, "invalid-input");

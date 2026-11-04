@@ -59,9 +59,10 @@ and from a Hardhat project in
 and from a deployed contract's bytecode alone in
 [docs/user/guides/verify-from-deployed-bytecode.md](docs/user/guides/verify-from-deployed-bytecode.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md),
-[docs/user/reference/etherscan.md](docs/user/reference/etherscan.md) and
-[docs/user/reference/routescan.md](docs/user/reference/routescan.md) say what the Sourcify,
-Etherscan and Routescan clients send and how they read each answer. The logger and the stage events are in
+[docs/user/reference/etherscan.md](docs/user/reference/etherscan.md),
+[docs/user/reference/routescan.md](docs/user/reference/routescan.md) and
+[docs/user/reference/blockscout.md](docs/user/reference/blockscout.md) say what the Sourcify,
+Etherscan, Routescan and Blockscout clients send and how they read each answer. The logger and the stage events are in
 [docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
 [docs/user/guides/run-the-server-handler.md](docs/user/guides/run-the-server-handler.md) runs the
 server handler in Next.js and Cloudflare Workers, from the examples in `examples/`.

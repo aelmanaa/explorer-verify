@@ -40,6 +40,8 @@ const ROUTESCAN_API = `https://api.routescan.io/v2/network/testnet/evm/${String(
 const ETHERSCAN: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
 const ROUTESCAN: TableEntry = { backend: "routescan", network: "testnet" };
 const SOURCIFY: TableEntry = { backend: "sourcify" };
+const BLOCKSCOUT_HOST = "eth-sepolia.blockscout.com";
+const BLOCKSCOUT: TableEntry = { backend: "blockscout", instance: BLOCKSCOUT_HOST };
 
 function row(chainId: number, backends: TableEntry[]): TableRow {
   return { chainId, backends };
@@ -714,8 +716,30 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
     ],
     [
       "a backend with no host rule yet",
+      brokenTable(brokenRow(1, { backend: "etherscan-compatible" })),
+      /etherscan-compatible has no host rule yet/,
+    ],
+    [
+      "a blockscout entry without an instance (R-BE-3)",
       brokenTable(brokenRow(1, { backend: "blockscout" })),
-      /blockscout has no host rule yet/,
+      /instance is missing/,
+    ],
+    [
+      "a blockscout instance with a scheme or path",
+      brokenTable(
+        brokenRow(1, { backend: "blockscout", instance: "https://x.blockscout.com/api" }),
+      ),
+      /instance must be a lowercase host name/,
+    ],
+    [
+      "a blockscout instance that is not text",
+      brokenTable(brokenRow(1, { backend: "blockscout", instance: 1 })),
+      /instance must be a lowercase host name/,
+    ],
+    [
+      "an instance field on another backend",
+      brokenTable(brokenRow(1, { ...sourcify, instance: "x.blockscout.com" })),
+      /instance is not a known field/,
     ],
     [
       "a backend listed twice",
@@ -867,10 +891,17 @@ describe("routing table: the URL checks on derived URLs (R-SEC-2, #59)", () => {
     ],
     [
       "a backend with no host rule yet",
+      "etherscan-compatible",
+      1,
+      "https://explorer.example.org/api",
+      /etherscan-compatible has no host rule yet/,
+    ],
+    [
+      "a blockscout URL without the entry's instance",
       "blockscout",
       1,
       "https://eth.blockscout.com/api",
-      /blockscout has no host rule yet/,
+      /apiUrl host must be/,
     ],
   ];
   for (const [label, backend, chainId, url, problem] of urls) {
@@ -892,6 +923,25 @@ describe("routing table: the URL checks on derived URLs (R-SEC-2, #59)", () => {
       const target = tableTarget(chainId, entry) ?? assert.fail("no target");
       assert.deepEqual(apiUrlProblems(target.apiUrl, target.backend, chainId, "entry"), []);
     }
+    const blockscout = tableTarget(SEPOLIA, BLOCKSCOUT) ?? assert.fail("no target");
+    assert.deepEqual(
+      apiUrlProblems(blockscout.apiUrl, "blockscout", SEPOLIA, "entry", BLOCKSCOUT_HOST),
+      [],
+    );
+    assert.ok(
+      apiUrlProblems(
+        `https://${BLOCKSCOUT_HOST}/api/v2`,
+        "blockscout",
+        SEPOLIA,
+        "e",
+        BLOCKSCOUT_HOST,
+      ).length > 0,
+    );
+  });
+
+  it("passes a table with a blockscout entry, the instance checked as a host (R-BE-3)", () => {
+    const table: RoutingTable = { ...TABLE, chains: [row(SEPOLIA, [SOURCIFY, BLOCKSCOUT])] };
+    assert.deepEqual(tableProblems(table), []);
   });
 
   const pages: [string, string, RegExp][] = [
@@ -934,6 +984,29 @@ describe("tableTarget: one place derives every URL (decision 0024)", () => {
     assert.equal(
       tableTarget(43114, { backend: "routescan", network: "mainnet" })?.apiUrl,
       "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api",
+    );
+    const blockscout = tableTarget(SEPOLIA, BLOCKSCOUT) ?? assert.fail("no target");
+    assert.equal(blockscout.backend, "blockscout");
+    assert.equal(blockscout.apiUrl, `https://${BLOCKSCOUT_HOST}/api`);
+    assert.equal(
+      blockscout.explorerUrl?.("0x/a?b#c"),
+      `https://${BLOCKSCOUT_HOST}/address/0x%2Fa%3Fb%23c?tab=contract`,
+    );
+  });
+
+  it("routes a row's blockscout entry to the instance, with its page and host (R-BE-3, R-SEC-2)", () => {
+    const table: RoutingTable = { ...TABLE, chains: [row(SEPOLIA, [BLOCKSCOUT, SOURCIFY])] };
+    const route = resolveRoute(SEPOLIA, undefined, { table });
+    assert.equal(route.backend, "blockscout");
+    assert.equal(route.apiBase, `https://${BLOCKSCOUT_HOST}/api`);
+    assert.equal(route.tableHost, BLOCKSCOUT_HOST);
+    assert.equal(
+      route.requestUrl(`/v2/smart-contracts/${ADDRESS}`),
+      `https://${BLOCKSCOUT_HOST}/api/v2/smart-contracts/${ADDRESS}`,
+    );
+    assert.equal(
+      explorerLink(route)(ADDRESS),
+      `https://${BLOCKSCOUT_HOST}/address/${ADDRESS}?tab=contract`,
     );
   });
 

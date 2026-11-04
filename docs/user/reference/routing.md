@@ -35,8 +35,8 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 The table is `src/routing/table.json` in the package. In this release it lists 94 chains. Every row
 has Sourcify, and the 57 chains of the Etherscan chainlist also have Etherscan v2. The Routescan
-client has no rows yet; reach it with `route.backend` and `route.apiUrl`, as
-[Routescan](routescan.md) shows. A chain has a row when
+and Blockscout clients have no rows yet; reach them with `route.backend` and `route.apiUrl`, as
+[Routescan](routescan.md) and [Blockscout](blockscout.md) show. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
 [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
 started from. Both lists were read on 2026-11-04.
@@ -59,13 +59,14 @@ backends, in order of preference. An entry holds the backend name and only what 
 }
 ```
 
-| Field      | Meaning                                                                            |
-| ---------- | ---------------------------------------------------------------------------------- |
-| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                       |
-| `backends` | The chain's backends, in order of preference. A chain with no backend has no row   |
-| `backend`  | A name in `BACKEND_NAMES`                                                          |
-| `network`  | `routescan` only, required: `mainnet` or `testnet`                                 |
-| `explorer` | `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io` |
+| Field      | Meaning                                                                                |
+| ---------- | -------------------------------------------------------------------------------------- |
+| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                           |
+| `backends` | The chain's backends, in order of preference. A chain with no backend has no row       |
+| `backend`  | A name in `BACKEND_NAMES`                                                              |
+| `network`  | `routescan` only, required: `mainnet` or `testnet`                                     |
+| `explorer` | `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io`     |
+| `instance` | `blockscout` only, required: the instance's host, such as `eth-sepolia.blockscout.com` |
 
 The table also has `schemaVersion`, 2, and `checked`, the date its rows were last checked.
 `routingTableDate()` returns that date, and the CLI prints it with `explorer-verify --version --json`.
@@ -77,6 +78,7 @@ The library derives every URL from the entry:
 | `sourcify`     | `https://sourcify.dev/server`                                                | `https://repo.sourcify.dev/<chain id>/<address>`                        |
 | `etherscan-v2` | `https://api.etherscan.io/v2/api`                                            | `https://<explorer>/address/<address>#code`, or none without `explorer` |
 | `routescan`    | `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api` | None yet                                                                |
+| `blockscout`   | `https://<instance>/api`                                                     | `https://<instance>/address/<address>?tab=contract`                     |
 
 A chain without a row that goes to Sourcify through `allowSourcifyFallback` gets the same Sourcify
 page. `<address>` is the address in lower case, as `verify()` uses it (see
@@ -111,6 +113,10 @@ higher.
   of every Etherscan v2 request, in one place. A `chainid` in the query of your `route.apiUrl`, in
   any letter case, is dropped, so a request never goes to another chain than the call's.
 - Routescan URLs hold the network and the chain id in the path, so the route adds no query.
+- A Blockscout instance serves one chain at `<origin>/api`. Its `route.apiUrl` must end in `/api`
+  once trailing slashes are removed, or the call throws `invalid-input` naming `route.apiUrl`. The
+  client derives the lookup URL, `<apiUrl>/v2/smart-contracts/<address>`, from it, so a path
+  before `/api`, as in `https://example.org/explorer/api`, is kept ([Blockscout](blockscout.md)).
 
 ## Options
 
@@ -132,8 +138,8 @@ const result = await verify(input, { allowSourcifyFallback: true });
 
 - `backend` without `apiUrl` picks a backend from the chain's row. A backend this version has no
   client for throws `invalid-input` naming `route.backend`, and the hint lists the backends it has.
-  In this release those are `sourcify`, `etherscan-v2` and `routescan`. A backend with a client
-  that the row does not list throws `unsupported-chain`.
+  In this release those are `sourcify`, `etherscan-v2`, `routescan` and `blockscout`. A backend
+  with a client that the row does not list throws `unsupported-chain`.
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
   in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
   name, password or fragment. A query string is sent with every request and shown as `?REDACTED`

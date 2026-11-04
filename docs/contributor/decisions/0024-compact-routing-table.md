@@ -29,6 +29,11 @@ chain id.
   - `sourcify`: nothing more.
   - `etherscan-v2`: an optional `explorer` host, such as `sepolia.etherscan.io`.
   - `routescan`: `network`, `mainnet` or `testnet`, required.
+  - `blockscout`: `instance`, the instance's host, required. Amended on 2026-11-04 by #92: API
+    base `https://<instance>/api`, page `https://<instance>/address/<address>?tab=contract`. The
+    table check reads `instance` as a bare lowercase host, as it reads `explorer`. No Blockscout
+    rows ship yet: the hosts of the five prior-art instances were not checked live
+    ([research](../research/2026-11-04-blockscout-client.md)).
 
 ### Derivation
 

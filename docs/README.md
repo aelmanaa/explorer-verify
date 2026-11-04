@@ -1,3 +1,5 @@
+| [Blockscout](user/reference/blockscout.md) | What is sent to a Blockscout instance, and how each answer becomes a result |
+
 # explorer-verify docs
 
 Audience: everyone. This is the index for people; agents start at [AGENTS.md](../AGENTS.md).

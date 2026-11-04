@@ -33,3 +33,4 @@ in review.
 | [2026-11-04-routescan-client.md](2026-11-04-routescan-client.md)                   | How does Routescan answer each client request, which networks do its chains use, and how does the client map each answer?       |
 | [2026-11-04-bytecode-metadata-sources.md](2026-11-04-bytecode-metadata-sources.md) | Where can the metadata behind a bytecode's hash be fetched, and how is it checked against the hash?                             |
 | [2026-11-04-etherscan-rows.md](2026-11-04-etherscan-rows.md)                       | Which chains get an Etherscan v2 entry and in which order, checked on 2026-11-04, and what does it add in size?                 |
+| [2026-11-04-blockscout-client.md](2026-11-04-blockscout-client.md)                 | Which Blockscout API does the single-chain client use, which answers does it map, and where was each seen?                      |

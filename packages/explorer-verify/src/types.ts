@@ -298,7 +298,8 @@ export type VerifyEvent =
         | "network"
         | "server-error"
         | "duplicate-submission"
-        | "not-indexed";
+        | "not-indexed"
+        | "empty-submit";
       /** The wait before that attempt, in milliseconds. */
       readonly delayMs: number;
     }

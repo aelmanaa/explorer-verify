@@ -196,6 +196,12 @@ const RUNS: readonly DocRun[] = [
     ],
   },
   {
+    page: "reference/blockscout.md",
+    example: 0,
+    what: "route to a Blockscout instance with route.apiUrl: the lookup finds the Greeter verified",
+    fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
+  },
+  {
     page: "reference/check-status.md",
     example: 1,
     what: "verify() ends not-confirmed, then checkStatus() on the stored handle",

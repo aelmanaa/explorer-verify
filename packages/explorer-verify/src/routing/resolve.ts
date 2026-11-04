@@ -26,6 +26,7 @@ import table from "./table.json" with { type: "json" };
  * const sourcify: TableEntry = { backend: "sourcify" };
  * const routescan: TableEntry = { backend: "routescan", network: "testnet" };
  * const etherscan: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
+ * const blockscout: TableEntry = { backend: "blockscout", instance: "eth-sepolia.blockscout.com" };
  * ```
  */
 export interface TableEntry {
@@ -39,6 +40,12 @@ export interface TableEntry {
    * time.
    */
   readonly explorer?: string;
+  /**
+   * `blockscout` only, and required there: the instance's host, such as
+   * `eth-sepolia.blockscout.com`. The API is `https://<instance>/api`. The table test checks that
+   * it is a bare lowercase host name in CI; the resolver does not check it at run time.
+   */
+  readonly instance?: string;
 }
 
 /**
@@ -245,11 +252,13 @@ const API_URL_HINT =
  *   `https://<explorer>/address/<address>#code` when the entry names an `explorer` host, else none.
  * - `routescan`: `https://api.routescan.io/v2/network/<network>/evm/<chainId>/etherscan/api`, with
  *   `network` `mainnet` or `testnet`; no page yet.
+ * - `blockscout`: `https://<instance>/api`; page `https://<instance>/address/<address>?tab=contract`.
  *
  * @param chainId - The row's chain id.
  * @param entry - The table entry.
  * @returns The derived target, or `undefined` for a backend the table cannot route (an unknown
- *   name, a backend without a template, or a Routescan entry without a valid network).
+ *   name, a backend without a template, a Routescan entry without a valid network, or a Blockscout
+ *   entry without an instance).
  * @example
  * ```ts
  * tableTarget(43113, { backend: "routescan", network: "testnet" })?.apiUrl;
@@ -257,7 +266,7 @@ const API_URL_HINT =
  * ```
  */
 export function tableTarget(chainId: number, entry: TableEntry): TableTarget | undefined {
-  const { backend, network, explorer } = entry;
+  const { backend, network, explorer, instance } = entry;
   const id = String(chainId);
   return backend === "sourcify"
     ? {
@@ -280,7 +289,14 @@ export function tableTarget(chainId: number, entry: TableEntry): TableTarget | u
             apiUrl: `https://api.routescan.io/v2/network/${network}/evm/${id}/etherscan/api`,
             explorerUrl: undefined,
           }
-        : undefined;
+        : backend === "blockscout" && instance !== undefined
+          ? {
+              backend,
+              apiUrl: `https://${instance}/api`,
+              explorerUrl: (address) =>
+                `https://${instance}/address/${encodeURIComponent(address)}?tab=contract`,
+            }
+          : undefined;
 }
 
 /**
@@ -443,6 +459,10 @@ export function resolveRoute(
         if (typeof checked === "string") {
           issues.push({ field: "route.apiUrl", message: checked });
           hint ??= API_URL_HINT;
+        } else if (named === "blockscout" && !checked.apiBase.endsWith("/api")) {
+          // The client derives the REST lookup from the instance's /api.
+          issues.push({ field: "route.apiUrl", message: "must end in /api for blockscout" });
+          hint ??= "Pass the instance's API URL, such as https://eth-sepolia.blockscout.com/api.";
         } else {
           target = checked;
         }

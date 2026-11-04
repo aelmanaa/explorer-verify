@@ -1016,7 +1016,11 @@ describe("verify(): invalid input, options and route", () => {
       makeInput(),
       { route: { apiUrl: "https://example.com/server#x" } },
     ],
-    ["route.backend blockscout", makeInput(), { route: { backend: "blockscout" } }],
+    [
+      "route.backend etherscan-compatible, which has no client",
+      makeInput(),
+      { route: { backend: "etherscan-compatible" } },
+    ],
   ];
   for (const [name, value, options] of cases) {
     it(`throws invalid-input for ${name}, sends nothing and emits no event`, async () => {

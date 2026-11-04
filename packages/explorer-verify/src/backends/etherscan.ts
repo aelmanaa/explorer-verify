@@ -14,7 +14,6 @@ import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { keyErrorOf, withKey } from "../http/api-keys.ts";
-import { sleep } from "../http/fetch.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
@@ -31,18 +30,18 @@ import type {
 import {
   attemptSubmit,
   checkHandle,
+  explorerUrl,
   REASON_LENGTH,
+  resultOf,
   send,
+  standardJsonFields,
   submitOnce,
   UNCONFIRMED_STATUSES,
+  unexpected as unexpectedAnswer,
+  waitToResubmit,
 } from "./common.ts";
 import type { Answer, SubmitAttempt } from "./common.ts";
 
-/**
- * The wait between two submits for a contract the explorer has not indexed yet, when the context
- * has no `pollIntervalMs`. `verify()` always sets it; a client called on its own may not.
- */
-const NOT_INDEXED_WAIT_MS = 3_000;
 /** The most submits sent while the explorer finds no contract code at the address, the first included. */
 export const MAX_NOT_INDEXED_TRIES = 10;
 const NOT_INDEXED_HINT =
@@ -160,15 +159,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
    * not JSON) is never sent again blindly: the client looks the contract up first.
    */
   async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {
-    const { language, sources, settings } = input.compiler.input;
-    const fields: Record<string, string> = {
-      action: "verifysourcecode",
-      codeformat: "solidity-standard-json-input",
-      sourceCode: JSON.stringify({ language, sources, settings }),
-      contractaddress: input.address,
-      contractname: input.contractName,
-      compilerversion: `v${input.compiler.version.replace(/^v/, "")}`,
-    };
+    const fields = standardJsonFields(input);
     const args = (input.constructorArgs ?? "").replace(/^0x/i, "");
     if (args !== "") {
       // Etherscan's docs name `constructorArguments`; the misspelled field is the one its own
@@ -206,44 +197,17 @@ export function etherscanStyle(dialect: Dialect): Backend {
     unconfirmed: (answer: Answer) => ExplorerVerifyError | undefined,
     attempt = 1,
   ): Promise<SubmitAttempt> {
-    const delayMs = ctx.pollIntervalMs ?? NOT_INDEXED_WAIT_MS;
-    const { budget, secrets, observer, signal } = ctx.http;
     const sent = await attemptSubmit(ctx, req, unconfirmed);
     if (sent.kind === "unconfirmed" || resultOf(sent.answer)?.startsWith(NOT_INDEXED) !== true) {
       return sent;
     }
-    const tries = `${String(attempt)} ${attempt === 1 ? "submit" : "submits"}`;
-    if (budget !== undefined && Date.now() + delayMs >= budget.deadline) {
-      throw new ExplorerVerifyError(
-        { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
-        `${label} found no contract code at the address after ${tries}, within the ${String(budget.timeoutMs)} ms budget.`,
-        { hint: NOT_INDEXED_HINT, secrets },
-      );
-    }
-    if (attempt >= MAX_NOT_INDEXED_TRIES) {
-      throw new ExplorerVerifyError(
-        {
-          code: "unexpected-response",
-          backend: name,
-          status: sent.answer.status,
-          excerpt: sent.answer.text,
-        },
-        `${label} found no contract code at the address after ${tries}.`,
-        { hint: NOT_INDEXED_HINT, secrets },
-      );
-    }
-    observer?.log.warn(
-      `${label} found no contract code at the address yet; submitting again in ${String(delayMs)} ms (submit ${String(attempt + 1)} of at most ${String(MAX_NOT_INDEXED_TRIES)})`,
-      { backend: name, attempt: attempt + 1, reason: "not-indexed", delayMs },
-    );
-    observer?.emit({
-      type: "verify.retry",
+    await waitToResubmit(ctx, sent.answer, attempt, {
       backend: name,
-      attempt: attempt + 1,
       reason: "not-indexed",
-      delayMs,
+      what: `${label} found no contract code at the address`,
+      hint: NOT_INDEXED_HINT,
+      maxTries: MAX_NOT_INDEXED_TRIES,
     });
-    await sleep(delayMs, signal);
     return await untilIndexed(ctx, req, unconfirmed, attempt + 1);
   }
 
@@ -367,23 +331,14 @@ export function etherscanStyle(dialect: Dialect): Backend {
     return result;
   }
 
-  /**
-   * `unexpected-response` with the answer's status and text. `what` names the request, as
-   * `the lookup`, or is the whole message when `whole` is set.
-   */
+  /** `unexpected-response` for this client; see `unexpectedAnswer` in common.ts. */
   function unexpected(
     ctx: Context,
     answer: Answer,
     what: string,
     whole = false,
   ): ExplorerVerifyError {
-    return new ExplorerVerifyError(
-      { code: "unexpected-response", backend: name, status: answer.status, excerpt: answer.text },
-      whole
-        ? what
-        : `${label} gave an answer to ${what} that this client does not recognise (status ${String(answer.status)}).`,
-      { secrets: ctx.http.secrets },
-    );
+    return unexpectedAnswer(ctx, name, label, answer, what, whole);
   }
 
   return { name, lookup, submit, poll, explorerUrl };
@@ -409,11 +364,6 @@ export const etherscan: Backend = etherscanStyle({
   label: "Etherscan",
   read: (ctx, backend, fields) => form(ctx, backend, fields, "safe"),
 });
-
-/** The contract's page from the routing table, such as `https://sepolia.etherscan.io/address/<address>#code`. */
-function explorerUrl(target: Target, ctx: Context): string | undefined {
-  return ctx.route.explorerUrl?.(target.address);
-}
 
 /**
  * A form-encoded POST to `route.requestUrl("")`, which for Etherscan holds `chainid` in the
@@ -468,12 +418,6 @@ export function rateLimited(body: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** The `result` field when it is text. */
-function resultOf(answer: Answer): string | undefined {
-  const result = answer.fields?.get("result");
-  return typeof result === "string" ? result : undefined;
 }
 
 function startsWithAny(text: string, prefixes: readonly string[]): boolean {

@@ -1,0 +1,46 @@
+{
+  "source": "Live response from base-sepolia.blockscout.com, recorded 2026-11-04T08:35:23.828Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://base-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "0d7ba9133629d6732a3ef5a3f5f09c68dac4be656aeaee3f"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 08:35:25 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "5",
+      "x-ratelimit-reset": "1474050"
+    },
+    "body": {
+      "message": "OK",
+      "result": "Pass - Verified",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-04T08:35:23.828Z"
+}
