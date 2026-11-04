@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import type { BackendName } from "../../src/backend-names.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { runCheckStatus } from "../../src/flow/status.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
@@ -11,27 +12,15 @@ import type { ApiKeys } from "../../src/http/api-keys.ts";
 import { SOURCIFY_API_URL, resolveRoute } from "../../src/routing/resolve.ts";
 import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
-import { tableProblems } from "../helpers/routing-table.ts";
+import { apiUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 
 const ETHERSCAN_KEY = "etherscan-dummy-key-59a1";
 const SEPOLIA = 11155111;
 const ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const ETHERSCAN: TableEntry = {
-  backend: "etherscan-v2",
-  apiUrl: "https://api.etherscan.io/v2/api",
-  explorerUrl: "https://sepolia.etherscan.io/address/{address}#code",
-};
-const SOURCIFY: TableEntry = {
-  backend: "sourcify",
-  apiUrl: SOURCIFY_API_URL,
-  explorerUrl: `https://repo.sourcify.dev/${String(SEPOLIA)}/{address}`,
-};
+const ETHERSCAN: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
+const SOURCIFY: TableEntry = { backend: "sourcify" };
 function tableOf(...backends: TableEntry[]): RoutingTable {
-  return {
-    schemaVersion: 1,
-    checked: "2026-11-03",
-    chains: [{ chainId: SEPOLIA, name: "Sepolia", checked: "2026-11-03", backends }],
-  };
+  return { schemaVersion: 2, checked: "2026-11-03", chains: [{ chainId: SEPOLIA, backends }] };
 }
 function input(chainId: number): VerifyInput {
   return {
@@ -146,16 +135,16 @@ describe("routing: cases from the mutation review of #59", () => {
   for (const [label, chainId] of broken) {
     it(`${label} fails the table check`, () => {
       const table = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         checked: "2026-11-03",
-        chains: [{ chainId, name: "C", checked: "2026-11-03", backends: [SOURCIFY] }],
+        chains: [{ chainId, backends: [SOURCIFY] }],
       };
       assert.ok(
         tableProblems(table).some((p) => /chainId must be a positive safe integer/.test(p)),
       );
     });
   }
-  const urls: [string, string, string][] = [
+  const urls: [string, BackendName, string][] = [
     ["T15 etherscan path with a suffix", "etherscan-v2", "https://api.etherscan.io/v2/apix"],
     ["T16 sourcify path with a suffix", "sourcify", "https://sourcify.dev/server/x"],
     ["T17 sourcify on another path", "sourcify", "https://sourcify.dev/other"],
@@ -163,16 +152,11 @@ describe("routing: cases from the mutation review of #59", () => {
     ["T19 sourcify subdomain", "sourcify", "https://evil.sourcify.dev/server"],
   ];
   for (const [label, backend, apiUrl] of urls) {
-    it(`${label} fails the table check`, () => {
-      const entry = { backend, apiUrl, explorerUrl: "https://repo.sourcify.dev/1/{address}" };
-      const table = {
-        schemaVersion: 1,
-        checked: "2026-11-03",
-        chains: [{ chainId: 1, name: "C", checked: "2026-11-03", backends: [entry] }],
-      };
+    it(`${label} fails the URL check`, () => {
+      const problems = apiUrlProblems(apiUrl, backend, 1, "entry");
       assert.ok(
-        tableProblems(table).some((p) => /apiUrl (host|path) must/.test(p)),
-        JSON.stringify(tableProblems(table)),
+        problems.some((p) => /apiUrl (host|path) must/.test(p)),
+        JSON.stringify(problems),
       );
     });
   }

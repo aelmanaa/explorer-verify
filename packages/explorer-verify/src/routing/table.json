@@ -1,66 +1,100 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "checked": "2026-11-03",
   "chains": [
-    {
-      "chainId": 1,
-      "name": "Ethereum Mainnet",
-      "checked": "2026-11-03",
-      "backends": [
-        {
-          "backend": "sourcify",
-          "apiUrl": "https://sourcify.dev/server",
-          "explorerUrl": "https://repo.sourcify.dev/1/{address}"
-        }
-      ]
-    },
-    {
-      "chainId": 43113,
-      "name": "Avalanche Fuji Testnet",
-      "checked": "2026-11-03",
-      "backends": [
-        {
-          "backend": "sourcify",
-          "apiUrl": "https://sourcify.dev/server",
-          "explorerUrl": "https://repo.sourcify.dev/43113/{address}"
-        }
-      ]
-    },
-    {
-      "chainId": 84532,
-      "name": "Base Sepolia Testnet",
-      "checked": "2026-11-03",
-      "backends": [
-        {
-          "backend": "sourcify",
-          "apiUrl": "https://sourcify.dev/server",
-          "explorerUrl": "https://repo.sourcify.dev/84532/{address}"
-        }
-      ]
-    },
-    {
-      "chainId": 421614,
-      "name": "Arbitrum Sepolia Testnet",
-      "checked": "2026-11-03",
-      "backends": [
-        {
-          "backend": "sourcify",
-          "apiUrl": "https://sourcify.dev/server",
-          "explorerUrl": "https://repo.sourcify.dev/421614/{address}"
-        }
-      ]
-    },
-    {
-      "chainId": 11155111,
-      "name": "Ethereum Sepolia Testnet",
-      "checked": "2026-11-03",
-      "backends": [
-        {
-          "backend": "sourcify",
-          "apiUrl": "https://sourcify.dev/server",
-          "explorerUrl": "https://repo.sourcify.dev/11155111/{address}"
-        }
-      ]
-    }
+    { "chainId": 1, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 10, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 31, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 50, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 51, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 56, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 81, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 97, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 100, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 130, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 133, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 137, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 143, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 146, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 199, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 240, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 252, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 296, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 300, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 338, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 480, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 919, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 988, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 998, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 999, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1001, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1029, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1112, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1114, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1301, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1328, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1329, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1740, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 1946, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 2201, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 2391, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 2523, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 2741, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 2910, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 4202, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 4326, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 4352, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 4663, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 4801, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 5000, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 5003, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 5042, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 5611, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 6343, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 8453, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 9745, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 9746, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 10143, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 10200, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 11124, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 14601, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 16602, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 33111, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 37111, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 42161, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 42220, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 42431, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 43113, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 43114, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 43522, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 46630, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 53302, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 59141, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 59144, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 59902, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 80002, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 80069, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 80094, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 84532, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 98867, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 167000, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 167013, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 202601, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 421614, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 534351, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 560048, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 688689, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 737373, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 743111, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 747474, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 763373, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 808813, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 5042002, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 6281971, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 11142220, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 11155111, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 11155420, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 12227332, "backends": [{ "backend": "sourcify" }] },
+    { "chainId": 999999999, "backends": [{ "backend": "sourcify" }] }
   ]
 }

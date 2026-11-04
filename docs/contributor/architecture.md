@@ -255,12 +255,16 @@ signal)`, which polling uses (R-FLOW-6).
 
 ## Routing
 
-`routing/table.json` maps each chain id to its backends, in order of preference (R-RT-1). Each
-backend entry has the full API base for that backend and chain (`apiUrl`: `https:`, no query, no
-trailing slash; for Routescan it holds the network and chain id) and the public page of a contract
-(`explorerUrl`, a template with one `{address}` token). The row and the table each carry a
-`checked` date. The table is data, imported as a JSON module with `with { type: "json" }`. The
-user reference is [Routing](../user/reference/routing.md).
+`routing/table.json` maps each chain id to its backends, in order of preference (R-RT-1). The
+table is schema 2 ([decision 0024](decisions/0024-compact-routing-table.md)): a row has `chainId`
+and `backends`, and an entry holds the backend name and only what varies per chain, `network`
+for Routescan and an optional `explorer` host for Etherscan v2. The table carries one `checked`
+date. It is data, imported as a JSON module with `with { type: "json" }`. The user reference is
+[Routing](../user/reference/routing.md).
+
+`tableTarget(chainId, entry)` derives each entry's API base and contract page from fixed
+templates, in one place; the Sourcify fallback goes through it too. An entry it cannot derive is
+dropped from the row, so its host gets no request and no key.
 
 `resolveRoute(chainId, override, choice)` in `routing/resolve.ts` resolves a call. `choice` holds
 the caller's checked keys, `allowSourcifyFallback`, the backends with a client and, in tests, another
@@ -305,12 +309,13 @@ The route keeps the caller's query string apart from the base:
   URL with it and never append to `apiBase` themselves.
 - `redactedApiUrl` is `apiBase` followed by `?REDACTED` when the caller's URL had a query. Only the
   query is redacted. The host and path appear as given, so a key must never go in them.
-- `explorerUrl(address)` fills the entry's template. It is `undefined` when `route.apiUrl` is not
-  the table's URL for the backend and chain: the public page would show a contract verified on a
+- `explorerUrl(address)` is the contract page `tableTarget` derives, with the address
+  percent-encoded. It is `undefined` when the table knows no page for the backend, and when
+  `route.apiUrl` is not the table's URL for the backend and chain: the public page would show a contract verified on a
   self-hosted or local server as not verified, so a result from such a route has no `explorerUrl`
   (R-FLOW-3).
 - `overridden` says whether `apiBase` came from `route.apiUrl`. `tableHost` is the host of the
-  table's `apiUrl` for the backend and chain, or `undefined` when the table lists none. `keyFor`
+  API base the table derives for the backend and chain, or `undefined` when the table lists none. `keyFor`
   sends a key from `apiKeys` only when the route is not overridden and the request goes to
   `https://<tableHost>` on the default port; an overridden route gets only `route.apiKey`
   (decision 0016).
@@ -320,17 +325,21 @@ error has no `cause`, because the URL parser's error holds the input. The return
 frozen plain object.
 
 The unit tests check the shipped table (`test/helpers/routing-table.ts`): its schema and types;
-unique, ascending, positive safe-integer chain ids; known backend names, each once per row; the
-`apiUrl` of each backend (`https://api.etherscan.io/v2/api`,
+unique, ascending, positive safe-integer chain ids; known backend names, each once per row, with
+only the fields of their format; then, on the URLs `tableTarget` derives, the API host and path of
+each backend (`https://api.etherscan.io/v2/api`,
 `https://api.routescan.io/v2/network/<mainnet|testnet>/evm/<chainId>/etherscan/api` with the row's
-chain id, `https://sourcify.dev/server`); the explorer template; the dates; and that no value
+chain id, `https://sourcify.dev/server`) and the contract page; the date; and that no value
 matches a redaction pattern. A backend without a host rule cannot appear in the table until its
-issue adds one. Another test checks that every backend in the table has a client in this release.
+issue adds one. Other tests check that every backend in the table has a client in this release,
+and that the table has a row for every chain of the frozen Etherscan chainlist in the research
+data. `scripts/compare-routing-table.ts` compares the table with the live public lists and prints
+the differences; it never writes the table.
 
 `pnpm run size` measures the code entries with an empty table and the table's rows as their own
 entry, `routing table`. One more entry, `verify with table`, measures the whole bundle a page
-ships under the `verify` ceiling of decision 0014
-([decision 0023](decisions/0023-routing-table-size-measured-apart.md)).
+ships ([decision 0023](decisions/0023-routing-table-size-measured-apart.md)). Its ceiling, like the
+others, is the measured size plus 20% ([decision 0024](decisions/0024-compact-routing-table.md)).
 
 ## Verification flow
 

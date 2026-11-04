@@ -16,6 +16,7 @@
     "scripts/record-released-codes.ts",
     "scripts/released-codes.ts",
     "scripts/release-packages.ts",
+    "scripts/routing-seed.ts",
     "scripts/size-budget.ts",
     "scripts/check-site.ts",
     "scripts/site-copies.ts",

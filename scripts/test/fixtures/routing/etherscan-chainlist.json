@@ -1,0 +1,38 @@
+{
+  "comments": "List of API endpoints maintained by Etherscan EAAS. Available Status codes are (0)=Offline, (1)=Ok, (2)=Degraded",
+  "totalcount": 4,
+  "result": [
+    {
+      "chainname": "Ethereum Mainnet",
+      "chainid": "1",
+      "blockexplorer": "https://etherscan.io/",
+      "apiurl": "https://api.etherscan.io/v2/api?chainid=1",
+      "status": 1,
+      "comment": "Free-tier available"
+    },
+    {
+      "chainname": "Sepolia Testnet",
+      "chainid": "11155111",
+      "blockexplorer": "https://sepolia.etherscan.io/",
+      "apiurl": "https://api.etherscan.io/v2/api?chainid=11155111",
+      "status": 1,
+      "comment": "Free-tier available"
+    },
+    {
+      "chainname": "Base Mainnet",
+      "chainid": "8453",
+      "blockexplorer": "https://basescan.org/",
+      "apiurl": "https://api.etherscan.io/v2/api?chainid=8453",
+      "status": 1,
+      "comment": "Paid Plan required"
+    },
+    {
+      "chainname": "Avalanche Fuji Testnet",
+      "chainid": "43113",
+      "blockexplorer": "https://testnet.snowscan.xyz/",
+      "apiurl": "https://api.etherscan.io/v2/api?chainid=43113",
+      "status": 1,
+      "comment": "Paid Plan required"
+    }
+  ]
+}

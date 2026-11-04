@@ -1,7 +1,7 @@
-// Tests for the routing table and the resolver (#59): the table's format and its checks, the
-// backend selection, the Sourcify fallback, and the route fields the key rule reads (R-RT-1 to
-// R-RT-3, R-SEC-2, decision 0016). The resolver tests pass their own table; the table tests run
-// on the shipped file and on broken copies of it.
+// Tests for the routing table and the resolver (#59, #60): the table's compact format and its
+// checks, the backend selection, the Sourcify fallback, and the route fields the key rule reads
+// (R-RT-1 to R-RT-3, R-SEC-2, decisions 0016 and 0024). The resolver tests pass their own table;
+// the table tests run on the shipped file and on broken copies of it.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -12,10 +12,16 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import { keyFor, requireKey } from "../../src/http/api-keys.ts";
 import type { ApiKeys } from "../../src/http/api-keys.ts";
-import { ROUTING_TABLE, SOURCIFY_API_URL, resolveRoute } from "../../src/routing/resolve.ts";
+import {
+  ETHERSCAN_API_URL,
+  ROUTING_TABLE,
+  SOURCIFY_API_URL,
+  resolveRoute,
+  tableTarget,
+} from "../../src/routing/resolve.ts";
 import type { RouteChoice, RoutingTable, TableEntry, TableRow } from "../../src/routing/resolve.ts";
 import type { Hex, RouteOverride, VerifyInput, VerifyOptions } from "../../src/types.ts";
-import { tableProblems } from "../helpers/routing-table.ts";
+import { apiUrlProblems, explorerUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 
 // Made-up keys. Never real ones (R-SEC-1).
 const ETHERSCAN_KEY = "etherscan-dummy-key-59a1";
@@ -27,37 +33,19 @@ const SEPOLIA = 11155111;
 const ETHERSCAN_API = "https://api.etherscan.io/v2/api";
 const ROUTESCAN_API = `https://api.routescan.io/v2/network/testnet/evm/${String(FUJI)}/etherscan/api`;
 
-const ETHERSCAN: TableEntry = {
-  backend: "etherscan-v2",
-  apiUrl: ETHERSCAN_API,
-  explorerUrl: "https://sepolia.etherscan.io/address/{address}#code",
-};
-const ROUTESCAN: TableEntry = {
-  backend: "routescan",
-  apiUrl: ROUTESCAN_API,
-  explorerUrl: `https://routescan.io/address/{address}?chainid=${String(FUJI)}`,
-};
-
-function sourcifyEntry(chainId: number): TableEntry {
-  return {
-    backend: "sourcify",
-    apiUrl: SOURCIFY_API_URL,
-    explorerUrl: `https://repo.sourcify.dev/${String(chainId)}/{address}`,
-  };
-}
+const ETHERSCAN: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
+const ROUTESCAN: TableEntry = { backend: "routescan", network: "testnet" };
+const SOURCIFY: TableEntry = { backend: "sourcify" };
 
 function row(chainId: number, backends: TableEntry[]): TableRow {
-  return { chainId, name: `Chain ${String(chainId)}`, checked: "2026-11-03", backends };
+  return { chainId, backends };
 }
 
 /** A table in the format the M2 rows will use: Etherscan, Routescan and Sourcify. */
 const TABLE: RoutingTable = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   checked: "2026-11-03",
-  chains: [
-    row(FUJI, [ROUTESCAN, sourcifyEntry(FUJI)]),
-    row(SEPOLIA, [ETHERSCAN, sourcifyEntry(SEPOLIA)]),
-  ],
+  chains: [row(FUJI, [ROUTESCAN, SOURCIFY]), row(SEPOLIA, [ETHERSCAN, SOURCIFY])],
 };
 
 function resolve(chainId: number, override?: RouteOverride, choice: RouteChoice = {}) {
@@ -116,7 +104,7 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
   it("ignores a row entry whose backend is not a known name", () => {
     const table: RoutingTable = {
       ...TABLE,
-      chains: [row(SEPOLIA, [{ ...ETHERSCAN, backend: "etherscan" }, sourcifyEntry(SEPOLIA)])],
+      chains: [row(SEPOLIA, [{ ...ETHERSCAN, backend: "etherscan" }, SOURCIFY])],
     };
     const route = resolveRoute(SEPOLIA, undefined, {
       table,
@@ -131,7 +119,7 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
   it("picks the first backend with a client in this version (R-RT-1)", () => {
     const table: RoutingTable = {
       ...TABLE,
-      chains: [row(SEPOLIA, [ETHERSCAN, { ...ROUTESCAN }, sourcifyEntry(SEPOLIA)])],
+      chains: [row(SEPOLIA, [ETHERSCAN, { ...ROUTESCAN }, SOURCIFY])],
     };
     const route = resolveRoute(SEPOLIA, undefined, {
       table,
@@ -144,16 +132,16 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
     assert.equal(none.backend, "routescan");
   });
 
-  it("gives the contract page from the row's template (R-FLOW-3)", () => {
+  it("derives the contract page from the row (R-FLOW-3, decision 0024)", () => {
     const keyed = resolve(SEPOLIA, undefined, { apiKeys: { "etherscan-v2": ETHERSCAN_KEY } });
     assert.equal(
       explorerLink(keyed)(ADDRESS),
       `https://sepolia.etherscan.io/address/${ADDRESS}#code`,
     );
-    assert.equal(
-      explorerLink(resolve(FUJI))(ADDRESS),
-      `https://routescan.io/address/${ADDRESS}?chainid=${String(FUJI)}`,
-    );
+    // No page is derived for an Etherscan entry without an explorer host, nor for Routescan yet.
+    const bare: RoutingTable = { ...TABLE, chains: [row(SEPOLIA, [{ backend: "etherscan-v2" }])] };
+    assert.equal(resolveRoute(SEPOLIA, undefined, { table: bare }).explorerUrl, undefined);
+    assert.equal(resolve(FUJI).explorerUrl, undefined);
   });
 });
 
@@ -208,12 +196,15 @@ describe("resolveRoute: route.backend and route.apiUrl (R-RT-2)", () => {
   });
 
   it("keeps the row's page when route.apiUrl names the row's own API (R-FLOW-3)", () => {
-    const route = resolve(FUJI, { backend: "routescan", apiUrl: `${ROUTESCAN_API}/` });
-    assert.equal(route.apiBase, ROUTESCAN_API);
+    const route = resolve(SEPOLIA, { backend: "etherscan-v2", apiUrl: `${ETHERSCAN_API}/` });
+    assert.equal(route.apiBase, ETHERSCAN_API);
     assert.equal(
       explorerLink(route)(ADDRESS),
-      `https://routescan.io/address/${ADDRESS}?chainid=${String(FUJI)}`,
+      `https://sepolia.etherscan.io/address/${ADDRESS}#code`,
     );
+    const routescan = resolve(FUJI, { backend: "routescan", apiUrl: `${ROUTESCAN_API}/` });
+    assert.equal(routescan.apiBase, ROUTESCAN_API);
+    assert.equal(routescan.tableHost, "api.routescan.io");
   });
 
   it("refuses a route.backend that has no client in this version, before the table (R-RT-2)", () => {
@@ -544,28 +535,32 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
     }
   });
 
-  it("dates the table with its newest row (R-RT-1)", () => {
-    const newest = ROUTING_TABLE.chains
-      .map((chain) => chain.checked)
-      .toSorted()
-      .at(-1);
-    assert.equal(ROUTING_TABLE.checked, newest);
+  it("is dated (R-RT-1)", () => {
+    assert.equal(ROUTING_TABLE.checked, "2026-11-03");
   });
 });
 
 function brokenTable(...chains: unknown[]): unknown {
-  return { schemaVersion: 1, checked: "2026-11-03", chains };
+  return { schemaVersion: 2, checked: "2026-11-03", chains };
 }
 
 function brokenRow(chainId: unknown, ...backends: unknown[]): Record<string, unknown> {
-  return { chainId, name: "Chain", checked: "2026-11-03", backends };
+  return { chainId, backends };
 }
 
 describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", () => {
-  const sourcify = sourcifyEntry(1);
+  const sourcify = SOURCIFY;
 
   it("accepts a table with Etherscan, Routescan and Sourcify rows", () => {
     assert.deepEqual(tableProblems(TABLE), []);
+    assert.deepEqual(
+      tableProblems(brokenTable(brokenRow(1, { backend: "etherscan-v2" }, sourcify))),
+      [],
+    );
+    assert.deepEqual(
+      tableProblems(brokenTable(brokenRow(43114, { backend: "routescan", network: "mainnet" }))),
+      [],
+    );
   });
 
   const broken: [string, unknown, RegExp][] = [
@@ -580,106 +575,79 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       /chain 1: chain ids must be unique and ascending/,
     ],
     [
-      "an http: URL",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "http://sourcify.dev/server" })),
-      /apiUrl must use https:/,
+      "an entry that still carries an apiUrl (schema 1)",
+      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.dev/server" })),
+      /apiUrl is not a known field/,
     ],
     [
-      "a query string",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.dev/server?x=1" })),
-      /apiUrl must not hold a query string/,
+      "an entry that still carries an explorerUrl (schema 1)",
+      brokenTable(brokenRow(1, { ...sourcify, explorerUrl: "https://x.example/{address}" })),
+      /explorerUrl is not a known field/,
     ],
     [
-      "an empty query string",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.dev/server?" })),
-      /apiUrl must not hold a query string/,
+      "a Sourcify entry with a network",
+      brokenTable(brokenRow(1, { ...sourcify, network: "mainnet" })),
+      /network is not a known field/,
     ],
     [
-      "a fragment",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.dev/server#" })),
-      /apiUrl must not hold a fragment/,
+      "an Etherscan entry with a network",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, network: "mainnet" })),
+      /network is not a known field/,
     ],
     [
-      "a user name",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://u@sourcify.dev/server" })),
-      /user name or password/,
+      "a Routescan entry with an explorer",
+      brokenTable(brokenRow(FUJI, { ...ROUTESCAN, explorer: "testnet.snowtrace.io" })),
+      /explorer is not a known field/,
     ],
     [
-      "a trailing slash",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.dev/server/" })),
-      /no trailing slash/,
+      "a Routescan entry without a network",
+      brokenTable(brokenRow(FUJI, { backend: "routescan" })),
+      /network is missing/,
     ],
     [
-      "an upper-case host",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://Sourcify.dev/server" })),
-      /written as origin and path/,
+      "a Routescan entry with another network",
+      brokenTable(brokenRow(FUJI, { ...ROUTESCAN, network: "devnet" })),
+      /network must be mainnet or testnet/,
     ],
     [
-      "a Routescan URL whose chain id differs from the row",
-      brokenTable(
-        brokenRow(FUJI, { ...ROUTESCAN, apiUrl: ROUTESCAN_API.replace(String(FUJI), "43114") }),
-      ),
-      /apiUrl path must match/,
+      "a Routescan network given as a number",
+      brokenTable(brokenRow(FUJI, { ...ROUTESCAN, network: 1 })),
+      /network must be mainnet or testnet/,
     ],
     [
-      "a Routescan URL with another network segment",
-      brokenTable(
-        brokenRow(FUJI, { ...ROUTESCAN, apiUrl: ROUTESCAN_API.replace("testnet", "devnet") }),
-      ),
-      /apiUrl path must match/,
+      "an explorer host with a scheme",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "https://etherscan.io" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "an etherscan-v2 row on another host",
-      brokenTable(
-        brokenRow(1, { ...ETHERSCAN, apiUrl: "https://api.etherscan.io.evil.example/v2/api" }),
-      ),
-      /apiUrl host must be api\.etherscan\.io/,
+      "an explorer host with a path",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "etherscan.io/x" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "an etherscan-v2 row on a port",
-      brokenTable(brokenRow(1, { ...ETHERSCAN, apiUrl: "https://api.etherscan.io:8443/v2/api" })),
-      /apiUrl host must be api\.etherscan\.io/,
+      "an explorer host with a port",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "etherscan.io:8443" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "an etherscan-v2 row on the v1 path",
-      brokenTable(brokenRow(1, { ...ETHERSCAN, apiUrl: "https://api.etherscan.io/api" })),
-      /apiUrl path must match/,
+      "an explorer host with a user name",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "u@etherscan.io" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "a sourcify row on another host",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "https://sourcify.example.org/server" })),
-      /apiUrl host must be sourcify\.dev/,
+      "an upper-case explorer host",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "Etherscan.io" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "an explorer template without {address}",
-      brokenTable(brokenRow(1, { ...sourcify, explorerUrl: "https://repo.sourcify.dev/1/" })),
-      /exactly one \{address\}/,
+      "an explorer host without a dot",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "localhost" })),
+      /explorer must be a lowercase host name/,
     ],
     [
-      "an explorer template with two {address}",
-      brokenTable(
-        brokenRow(1, { ...sourcify, explorerUrl: "https://repo.sourcify.dev/{address}/{address}" }),
-      ),
-      /exactly one \{address\}/,
-    ],
-    [
-      "an http: explorer template",
-      brokenTable(
-        brokenRow(1, { ...sourcify, explorerUrl: "http://repo.sourcify.dev/1/{address}" }),
-      ),
-      /explorerUrl must be an https: URL/,
-    ],
-    [
-      "an explorer template with a user name",
-      brokenTable(
-        brokenRow(1, { ...sourcify, explorerUrl: "https://u:p@repo.sourcify.dev/1/{address}" }),
-      ),
-      /explorerUrl must not hold a user name/,
-    ],
-    [
-      "an explorer template that is not text",
-      brokenTable(brokenRow(1, { ...sourcify, explorerUrl: 1 })),
-      /explorerUrl must be a string/,
+      "an explorer host that is not text",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: 1 })),
+      /explorer must be a lowercase host name/,
     ],
     [
       "an unknown backend",
@@ -687,8 +655,13 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       /backend must be a name in BACKEND_NAMES/,
     ],
     [
+      "a backend name that is not text",
+      brokenTable(brokenRow(1, { backend: 1 })),
+      /backend must be a name in BACKEND_NAMES/,
+    ],
+    [
       "a backend with no host rule yet",
-      brokenTable(brokenRow(1, { ...sourcify, backend: "blockscout" })),
+      brokenTable(brokenRow(1, { backend: "blockscout" })),
       /blockscout has no host rule yet/,
     ],
     [
@@ -696,12 +669,12 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       brokenTable(brokenRow(1, sourcify, sourcify)),
       /sourcify is listed twice/,
     ],
-    [
-      "an apiUrl that is not a URL",
-      brokenTable(brokenRow(1, { ...sourcify, apiUrl: "sourcify" })),
-      /apiUrl is not an absolute URL/,
-    ],
     ["a row without backends", brokenTable(brokenRow(1)), /backends must be a non-empty list/],
+    [
+      "a row whose backends are not a list",
+      brokenTable({ chainId: 1, backends: sourcify }),
+      /backends must be a non-empty list/,
+    ],
     [
       "a backend entry that is not an object",
       brokenTable(brokenRow(1, "sourcify")),
@@ -713,15 +686,16 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       /apiKey is not a known field/,
     ],
     [
-      "a missing row field",
-      brokenTable({ chainId: 1, backends: [sourcify], checked: "2026-11-03" }),
-      /name is missing/,
+      "a row that still carries a name (schema 1)",
+      brokenTable({ ...brokenRow(1, sourcify), name: "Chain" }),
+      /name is not a known field/,
     ],
     [
-      "a blank name",
-      brokenTable({ ...brokenRow(1, sourcify), name: " " }),
-      /name must be a non-empty string/,
+      "a row that still carries a date (schema 1)",
+      brokenTable({ ...brokenRow(1, sourcify), checked: "2026-11-03" }),
+      /checked is not a known field/,
     ],
+    ["a missing row field", brokenTable({ chainId: 1 }), /backends is missing/],
     [
       "a zero chain id",
       brokenTable(brokenRow(0, sourcify)),
@@ -735,38 +709,43 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
     ["a row that is not an object", brokenTable(null), /chains\[0\]: must be an object/],
     [
       "a date that does not exist",
-      brokenTable({ ...brokenRow(1, sourcify), checked: "2026-02-30" }),
-      /checked must be a YYYY-MM-DD date/,
-    ],
-    [
-      "a row checked after the table",
-      brokenTable({ ...brokenRow(1, sourcify), checked: "2026-11-04" }),
-      /must not be after the table's date/,
-    ],
-    [
-      "a bad table date",
-      { schemaVersion: 1, checked: "03/11/2026", chains: [] },
+      { schemaVersion: 2, checked: "2026-02-30", chains: [] },
       /table: checked must be a YYYY-MM-DD date/,
     ],
     [
-      "another schema version",
-      { schemaVersion: 2, checked: "2026-11-03", chains: [] },
-      /schemaVersion must be 1/,
+      "a bad table date",
+      { schemaVersion: 2, checked: "03/11/2026", chains: [] },
+      /table: checked must be a YYYY-MM-DD date/,
+    ],
+    [
+      "a table date that is not text",
+      { schemaVersion: 2, checked: 20261103, chains: [] },
+      /table: checked must be a YYYY-MM-DD date/,
+    ],
+    [
+      "schema version 1",
+      { schemaVersion: 1, checked: "2026-11-03", chains: [] },
+      /schemaVersion must be 2/,
     ],
     [
       "chains that are not a list",
-      { schemaVersion: 1, checked: "2026-11-03", chains: {} },
+      { schemaVersion: 2, checked: "2026-11-03", chains: {} },
       /chains must be a list/,
     ],
     [
+      "a table that keeps its source list (moved to the research data)",
+      { schemaVersion: 2, checked: "2026-11-03", sources: [], chains: [] },
+      /sources is not a known field/,
+    ],
+    [
       "an unknown table field",
-      { schemaVersion: 1, checked: "2026-11-03", chains: [], extra: 1 },
+      { schemaVersion: 2, checked: "2026-11-03", chains: [], extra: 1 },
       /extra is not a known field/,
     ],
     ["a table that is not an object", [], /the table must be an object/],
     [
       "a value shaped like a key",
-      brokenTable({ ...brokenRow(1, sourcify), name: "Chain apikey=abcdefgh12345678" }),
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "apikey=abcdefgh12345678" })),
       /matches a key pattern/,
     ],
   ];
@@ -779,4 +758,169 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       );
     });
   }
+});
+
+describe("routing table: the URL checks on derived URLs (R-SEC-2, #59)", () => {
+  const urls: [string, BackendName, number, string, RegExp][] = [
+    ["an http: URL", "sourcify", 1, "http://sourcify.dev/server", /apiUrl must use https:/],
+    ["a query string", "sourcify", 1, "https://sourcify.dev/server?x=1", /query string/],
+    ["an empty query string", "sourcify", 1, "https://sourcify.dev/server?", /query string/],
+    ["a fragment", "sourcify", 1, "https://sourcify.dev/server#", /fragment/],
+    ["a user name", "sourcify", 1, "https://u@sourcify.dev/server", /user name or password/],
+    ["a trailing slash", "sourcify", 1, "https://sourcify.dev/server/", /no trailing slash/],
+    ["an upper-case host", "sourcify", 1, "https://Sourcify.dev/server", /origin and path/],
+    ["text that is not a URL", "sourcify", 1, "sourcify", /not an absolute URL/],
+    [
+      "a Routescan URL whose chain id differs from the row",
+      "routescan",
+      FUJI,
+      ROUTESCAN_API.replace(String(FUJI), "43114"),
+      /apiUrl path must match/,
+    ],
+    [
+      "a Routescan URL with another network segment",
+      "routescan",
+      FUJI,
+      ROUTESCAN_API.replace("testnet", "devnet"),
+      /apiUrl path must match/,
+    ],
+    [
+      "an etherscan-v2 URL on another host",
+      "etherscan-v2",
+      1,
+      "https://api.etherscan.io.evil.example/v2/api",
+      /apiUrl host must be api\.etherscan\.io/,
+    ],
+    [
+      "an etherscan-v2 URL on a port",
+      "etherscan-v2",
+      1,
+      "https://api.etherscan.io:8443/v2/api",
+      /apiUrl host must be api\.etherscan\.io/,
+    ],
+    [
+      "an etherscan-v2 URL on the v1 path",
+      "etherscan-v2",
+      1,
+      "https://api.etherscan.io/api",
+      /apiUrl path must match/,
+    ],
+    [
+      "a sourcify URL on another host",
+      "sourcify",
+      1,
+      "https://sourcify.example.org/server",
+      /apiUrl host must be sourcify\.dev/,
+    ],
+    [
+      "a backend with no host rule yet",
+      "blockscout",
+      1,
+      "https://eth.blockscout.com/api",
+      /blockscout has no host rule yet/,
+    ],
+  ];
+  for (const [label, backend, chainId, url, problem] of urls) {
+    it(`fails on ${label}`, () => {
+      const problems = apiUrlProblems(url, backend, chainId, "entry");
+      assert.ok(
+        problems.some((text) => problem.test(text)),
+        `expected ${String(problem)} in ${JSON.stringify(problems)}`,
+      );
+    });
+  }
+
+  it("passes the URLs the resolver derives", () => {
+    for (const [chainId, entry] of [
+      [1, ETHERSCAN],
+      [FUJI, ROUTESCAN],
+      [SEPOLIA, SOURCIFY],
+    ] satisfies [number, TableEntry][]) {
+      const target = tableTarget(chainId, entry) ?? assert.fail("no target");
+      assert.deepEqual(apiUrlProblems(target.apiUrl, target.backend, chainId, "entry"), []);
+    }
+  });
+
+  const pages: [string, string, RegExp][] = [
+    ["an http: page", `http://etherscan.io/address/${ADDRESS}`, /must be an https: URL/],
+    ["a page that is not a URL", "etherscan.io", /must be an https: URL/],
+    [
+      "a page with a user name",
+      `https://u:p@etherscan.io/address/${ADDRESS}`,
+      /must not hold a user name/,
+    ],
+    ["a page without the address", "https://etherscan.io/address/", /hold the address/],
+  ];
+  for (const [label, url, problem] of pages) {
+    it(`fails on ${label}`, () => {
+      const problems = explorerUrlProblems(url, "entry");
+      assert.ok(
+        problems.some((text) => problem.test(text)),
+        `expected ${String(problem)} in ${JSON.stringify(problems)}`,
+      );
+    });
+  }
+});
+
+describe("tableTarget: one place derives every URL (decision 0024)", () => {
+  it("derives the API base and page of each backend", () => {
+    const sourcify = tableTarget(SEPOLIA, SOURCIFY) ?? assert.fail("no target");
+    assert.equal(sourcify.apiUrl, SOURCIFY_API_URL);
+    assert.equal(
+      sourcify.explorerUrl?.(ADDRESS),
+      `https://repo.sourcify.dev/${String(SEPOLIA)}/${ADDRESS}`,
+    );
+    const etherscan = tableTarget(SEPOLIA, ETHERSCAN) ?? assert.fail("no target");
+    assert.equal(etherscan.apiUrl, ETHERSCAN_API_URL);
+    assert.equal(
+      etherscan.explorerUrl?.(ADDRESS),
+      `https://sepolia.etherscan.io/address/${ADDRESS}#code`,
+    );
+    assert.equal(tableTarget(SEPOLIA, { backend: "etherscan-v2" })?.explorerUrl, undefined);
+    assert.equal(tableTarget(FUJI, ROUTESCAN)?.apiUrl, ROUTESCAN_API);
+    assert.equal(
+      tableTarget(43114, { backend: "routescan", network: "mainnet" })?.apiUrl,
+      "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api",
+    );
+  });
+
+  it("percent-encodes the address in both page templates (R-FLOW-3)", () => {
+    // Hex is `0x${string}`, so an odd address needs no cast. Without encodeURIComponent, the
+    // slash, question mark and hash would change the page's path, query and fragment.
+    const odd: Hex = "0x/a?b#c";
+    const etherscan = tableTarget(1, ETHERSCAN)?.explorerUrl ?? assert.fail("no page");
+    assert.equal(etherscan(odd), "https://sepolia.etherscan.io/address/0x%2Fa%3Fb%23c#code");
+    const sourcify = tableTarget(SEPOLIA, SOURCIFY)?.explorerUrl ?? assert.fail("no page");
+    assert.equal(sourcify(odd), `https://repo.sourcify.dev/${String(SEPOLIA)}/0x%2Fa%3Fb%23c`);
+    // The fallback route of a chain without a row gets the same Sourcify page.
+    const fallback = resolveRoute(999_999, undefined, {
+      table: TABLE,
+      allowSourcifyFallback: true,
+    });
+    assert.equal(explorerLink(fallback)(odd), "https://repo.sourcify.dev/999999/0x%2Fa%3Fb%23c");
+    const dots: Hex = "0x/../?#";
+    assert.equal(etherscan(dots), "https://sepolia.etherscan.io/address/0x%2F..%2F%3F%23#code");
+  });
+
+  it("derives nothing for an entry it cannot route", () => {
+    for (const entry of [
+      { backend: "routescan" },
+      { backend: "routescan", network: "devnet" },
+      { backend: "blockscout" },
+      { backend: "etherscan-compatible" },
+      { backend: "etherscan" },
+    ] satisfies TableEntry[]) {
+      assert.equal(tableTarget(1, entry), undefined, JSON.stringify(entry));
+    }
+  });
+
+  it("drops a Routescan entry without a valid network from a row, so it gets no key", () => {
+    const table: RoutingTable = {
+      ...TABLE,
+      chains: [row(FUJI, [{ backend: "routescan", network: "devnet" }, SOURCIFY])],
+    };
+    const route = resolveRoute(FUJI, undefined, { table });
+    assert.equal(route.backend, "sourcify");
+    assert.equal(route.tableHost, "sourcify.dev");
+  });
 });

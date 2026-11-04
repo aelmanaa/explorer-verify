@@ -1,21 +1,31 @@
-// Checks a routing table against the rules of #59 (R-RT-1, R-SEC-2). The table decides which hosts
-// get requests and keys, so a malformed row is a security bug. The unit tests run it on the shipped
-// table and on broken copies of it.
+// Checks a routing table against the rules of #59 and the compact format of #60 (R-RT-1, R-SEC-2,
+// decision 0024). The table decides which hosts get requests and keys, so a malformed row is a
+// security bug. The checks run on the table as written and on the URLs the resolver derives from
+// it. The unit tests run them on the shipped table and on broken copies of it.
 import { toBackendName } from "../../src/backend-names.ts";
 import type { BackendName } from "../../src/backend-names.ts";
 import { redact } from "../../src/redact.ts";
-import { ETHERSCAN_API_URL } from "../../src/routing/resolve.ts";
+import { ETHERSCAN_API_URL, tableTarget } from "../../src/routing/resolve.ts";
 
 const ETHERSCAN = new URL(ETHERSCAN_API_URL);
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TABLE_KEYS = ["schemaVersion", "checked", "chains"];
-const ROW_KEYS = ["chainId", "name", "checked", "backends"];
-const ENTRY_KEYS = ["backend", "apiUrl", "explorerUrl"];
+const ROW_KEYS = ["chainId", "backends"];
+const HOST_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
+const HOST = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})+$`);
+const ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+/** The fields each backend's entry may hold: [required, optional]. */
+const ENTRY_KEYS: Readonly<Partial<Record<BackendName, [string[], string[]]>>> = {
+  "etherscan-v2": [["backend"], ["explorer"]],
+  routescan: [["backend", "network"], []],
+  sourcify: [["backend"], []],
+};
 
 /**
- * The API host and path each backend's `apiUrl` must have. A backend without a rule cannot appear
- * in the table: its issue adds the rule with its first row.
+ * The API host and path each backend's derived `apiUrl` must have. A backend without a rule cannot
+ * appear in the table: its issue adds the rule, and the resolver's template, with its first row.
  */
 const API_RULES: Readonly<Partial<Record<BackendName, (chainId: number) => [string, RegExp]>>> = {
   "etherscan-v2": () => [ETHERSCAN.host, new RegExp(`^${ETHERSCAN.pathname}$`)],
@@ -34,11 +44,16 @@ function fieldsOf(value: unknown): Map<string, unknown> | undefined {
   return new Map(Object.entries(value));
 }
 
-/** What is wrong with the keys of `fields`, compared with `expected`. */
-function keyProblems(fields: Map<string, unknown>, expected: string[], where: string): string[] {
+/** What is wrong with the keys of `fields`, compared with the required and optional ones. */
+function keyProblems(
+  fields: Map<string, unknown>,
+  required: string[],
+  optional: string[],
+  where: string,
+): string[] {
   const keys = [...fields.keys()];
-  const missing = expected.filter((key) => !keys.includes(key));
-  const extra = keys.filter((key) => !expected.includes(key));
+  const missing = required.filter((key) => !keys.includes(key));
+  const extra = keys.filter((key) => !required.includes(key) && !optional.includes(key));
   return [
     ...missing.map((key) => `${where}: ${key} is missing`),
     ...extra.map((key) => `${where}: ${key} is not a known field`),
@@ -57,10 +72,7 @@ function dateOf(value: unknown): string | undefined {
 }
 
 /** `value` parsed as a URL, or `undefined`. */
-function urlOf(value: unknown): URL | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
+function urlOf(value: string): URL | undefined {
   try {
     return new URL(value);
   } catch {
@@ -68,15 +80,18 @@ function urlOf(value: unknown): URL | undefined {
   }
 }
 
-/** The problems of an `apiUrl` for `backend` on `chainId`. */
-function apiUrlProblems(
-  value: unknown,
+/**
+ * The problems of a derived `apiUrl` for `backend` on `chainId`. The resolver builds it from fixed
+ * templates, so these checks guard the templates and the per-row fields that go into them.
+ */
+export function apiUrlProblems(
+  value: string,
   backend: BackendName,
   chainId: number,
   where: string,
 ): string[] {
   const url = urlOf(value);
-  if (url === undefined || typeof value !== "string") {
+  if (url === undefined) {
     return [`${where}: apiUrl is not an absolute URL`];
   }
   const problems: string[] = [];
@@ -109,20 +124,18 @@ function apiUrlProblems(
   return problems;
 }
 
-/** The problems of an `explorerUrl` template. */
-function explorerUrlProblems(value: unknown, where: string): string[] {
-  if (typeof value !== "string") {
-    return [`${where}: explorerUrl must be a string`];
+/** The problems of a derived explorer page, filled with a sample address. */
+export function explorerUrlProblems(value: string, where: string): string[] {
+  const url = urlOf(value);
+  if (url?.protocol !== "https:") {
+    return [`${where}: explorerUrl must be an https: URL`];
   }
   const problems: string[] = [];
-  if (value.split("{address}").length !== 2) {
-    problems.push(`${where}: explorerUrl must hold exactly one {address}`);
-  }
-  const url = urlOf(value.replace("{address}", "0x5FbDB2315678afecb367f032d93F642f64180aa3"));
-  if (url?.protocol !== "https:") {
-    problems.push(`${where}: explorerUrl must be an https: URL`);
-  } else if (url.username !== "" || url.password !== "") {
+  if (url.username !== "" || url.password !== "") {
     problems.push(`${where}: explorerUrl must not hold a user name or password`);
+  }
+  if (!url.pathname.includes(ADDRESS)) {
+    problems.push(`${where}: explorerUrl must hold the address in its path`);
   }
   return problems;
 }
@@ -138,10 +151,55 @@ function strings(value: unknown): string[] {
   return [];
 }
 
+/** The problems of one backend entry of the row for `chainId`. */
+function entryProblems(
+  entry: Map<string, unknown>,
+  backend: BackendName,
+  chainId: number,
+  at: string,
+): string[] {
+  const keys = ENTRY_KEYS[backend];
+  if (keys === undefined) {
+    return [`${at}: ${backend} has no host rule yet`];
+  }
+  const problems = keyProblems(entry, ...keys, at);
+  const network = entry.get("network");
+  if (entry.has("network") && network !== "mainnet" && network !== "testnet") {
+    problems.push(`${at}: network must be mainnet or testnet`);
+  }
+  const explorer = entry.get("explorer");
+  if (
+    entry.has("explorer") &&
+    (typeof explorer !== "string" ||
+      !HOST.test(explorer) ||
+      urlOf(`https://${explorer}`)?.host !== explorer)
+  ) {
+    problems.push(`${at}: explorer must be a lowercase host name, with no scheme, port or path`);
+  }
+  if (problems.length > 0) {
+    return problems;
+  }
+  const target = tableTarget(chainId, {
+    backend,
+    ...(typeof network === "string" ? { network } : {}),
+    ...(typeof explorer === "string" ? { explorer } : {}),
+  });
+  if (target === undefined) {
+    return [`${at}: the resolver derives no URL for this entry`];
+  }
+  return [
+    ...apiUrlProblems(target.apiUrl, backend, chainId, at),
+    ...(target.explorerUrl === undefined
+      ? []
+      : explorerUrlProblems(target.explorerUrl(ADDRESS), at)),
+  ];
+}
+
 /**
  * Every problem of a routing table, or none. Checks the schema and types; unique, ascending,
- * positive safe-integer chain ids; known backends, each at most once per row; the API host and
- * path of each backend; the explorer template; the dates; and that no value looks like a key.
+ * positive safe-integer chain ids; known backends, each at most once per row, with only the fields
+ * their format has; the API host and path the resolver derives for each entry; the derived
+ * explorer page; the date; and that no value looks like a key.
  *
  * @param value - The parsed table.
  * @returns One line per problem.
@@ -151,12 +209,11 @@ export function tableProblems(value: unknown): string[] {
   if (table === undefined) {
     return ["the table must be an object"];
   }
-  const problems = keyProblems(table, TABLE_KEYS, "table");
-  if (table.get("schemaVersion") !== 1) {
-    problems.push("table: schemaVersion must be 1");
+  const problems = keyProblems(table, TABLE_KEYS, [], "table");
+  if (table.get("schemaVersion") !== 2) {
+    problems.push("table: schemaVersion must be 2");
   }
-  const tableDate = dateOf(table.get("checked"));
-  if (tableDate === undefined) {
+  if (dateOf(table.get("checked")) === undefined) {
     problems.push("table: checked must be a YYYY-MM-DD date");
   }
   const chains = table.get("chains");
@@ -172,7 +229,7 @@ export function tableProblems(value: unknown): string[] {
       problems.push(`${where}: must be an object`);
       return;
     }
-    problems.push(...keyProblems(row, ROW_KEYS, where));
+    problems.push(...keyProblems(row, ROW_KEYS, [], where));
     const chainId = row.get("chainId");
     if (typeof chainId !== "number" || !Number.isSafeInteger(chainId) || chainId <= 0) {
       problems.push(`${where}: chainId must be a positive safe integer`);
@@ -183,16 +240,6 @@ export function tableProblems(value: unknown): string[] {
       problems.push(`${where}: chain ids must be unique and ascending`);
     }
     previous = Math.max(previous, chainId);
-    const name = row.get("name");
-    if (typeof name !== "string" || name.trim() === "") {
-      problems.push(`${where}: name must be a non-empty string`);
-    }
-    const checked = dateOf(row.get("checked"));
-    if (checked === undefined) {
-      problems.push(`${where}: checked must be a YYYY-MM-DD date`);
-    } else if (tableDate !== undefined && checked > tableDate) {
-      problems.push(`${where}: checked must not be after the table's date`);
-    }
     const backends = row.get("backends");
     if (!Array.isArray(backends) || backends.length === 0) {
       problems.push(`${where}: backends must be a non-empty list`);
@@ -206,7 +253,6 @@ export function tableProblems(value: unknown): string[] {
         problems.push(`${at}: must be an object`);
         return;
       }
-      problems.push(...keyProblems(entry, ENTRY_KEYS, at));
       const rawName = entry.get("backend");
       const backend = typeof rawName === "string" ? toBackendName(rawName) : undefined;
       if (backend === undefined) {
@@ -217,8 +263,7 @@ export function tableProblems(value: unknown): string[] {
         problems.push(`${at}: ${backend} is listed twice`);
       }
       seen.add(backend);
-      problems.push(...apiUrlProblems(entry.get("apiUrl"), backend, chainId, at));
-      problems.push(...explorerUrlProblems(entry.get("explorerUrl"), at));
+      problems.push(...entryProblems(entry, backend, chainId, at));
     });
   });
   for (const text of strings(value)) {

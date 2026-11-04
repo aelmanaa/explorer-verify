@@ -28,3 +28,4 @@ in review.
 | [2026-11-03-hardhat-build-layout.md](2026-11-03-hardhat-build-layout.md)         | Where do Hardhat 2 and Hardhat 3 write a contract's artifact and build-info, and how does one name the other?                   |
 | [2026-11-03-docs-site-and-versioning.md](2026-11-03-docs-site-and-versioning.md) | Where should the public docs live, built with which generator, and how should they and `docsUrl` be versioned?                  |
 | [2026-11-03-versioning-0x-or-1-0.md](2026-11-03-versioning-0x-or-1-0.md)         | Should the first release be 0.1.0 or 1.0.0, and what do npm ranges and changesets do with 0.x?                                  |
+| [2026-11-03-routing-table.md](2026-11-03-routing-table.md)                       | Which chains does the routing table list, from which public lists, and what changed against the prior art?                      |

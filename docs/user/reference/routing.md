@@ -33,67 +33,61 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists five chains, each
-with Sourcify only, checked against [Sourcify's chain list](https://sourcify.dev/server/chains) on
-2026-11-03:
+The table is `src/routing/table.json` in the package. In this release it lists 94 chains, each with
+Sourcify only, the one backend with a client. A chain has a row when
+[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
+[Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
+started from. Both lists were read on 2026-11-03.
 
-| Chain id | Chain                    | Backends |
-| -------- | ------------------------ | -------- |
-| 1        | Ethereum Mainnet         | sourcify |
-| 43113    | Avalanche Fuji Testnet   | sourcify |
-| 84532    | Base Sepolia Testnet     | sourcify |
-| 421614   | Arbitrum Sepolia Testnet | sourcify |
-| 11155111 | Ethereum Sepolia Testnet | sourcify |
+The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
+C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532) and Arbitrum Sepolia (421614). To see
+whether a chain has a row, search `table.json` for its chain id. A later release adds the Etherscan
+v2 and Routescan entries, as their clients land. Until then, verify on a chain without a row with
+`allowSourcifyFallback: true`.
 
-A later release adds the other chains and the Etherscan v2 and Routescan entries, as their
-clients land. Until then, verify on another chain with `allowSourcifyFallback: true`.
-
-Each row has this shape:
+The rows are the list under the table's top-level `chains` key. Each row holds the chain id and its
+backends, in order of preference. An entry holds the backend
+name and only what varies per chain:
 
 ```json
 {
   "chainId": 43113,
-  "name": "Avalanche Fuji Testnet",
-  "checked": "2026-11-03",
-  "backends": [
-    {
-      "backend": "routescan",
-      "apiUrl": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
-      "explorerUrl": "https://routescan.io/address/{address}?chainid=43113"
-    },
-    {
-      "backend": "sourcify",
-      "apiUrl": "https://sourcify.dev/server",
-      "explorerUrl": "https://repo.sourcify.dev/43113/{address}"
-    }
-  ]
+  "backends": [{ "backend": "routescan", "network": "testnet" }, { "backend": "sourcify" }]
 }
 ```
 
-| Field         | Meaning                                                                                                                                  |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `chainId`     | The EVM chain id. Rows are in ascending order, one per chain                                                                             |
-| `name`        | The chain's name, for people                                                                                                             |
-| `checked`     | The date the row was last checked against its sources                                                                                    |
-| `backends`    | The chain's backends, in order of preference. A chain with no backend has no row                                                         |
-| `backend`     | A name in `BACKEND_NAMES`                                                                                                                |
-| `apiUrl`      | The full API base for this backend and chain: `https:`, no query string, no trailing slash. For Routescan it holds the network and chain |
-| `explorerUrl` | The public page of a contract, with one `{address}` token                                                                                |
+| Field      | Meaning                                                                            |
+| ---------- | ---------------------------------------------------------------------------------- |
+| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                       |
+| `backends` | The chain's backends, in order of preference. A chain with no backend has no row   |
+| `backend`  | A name in `BACKEND_NAMES`                                                          |
+| `network`  | `routescan` only, required: `mainnet` or `testnet`                                 |
+| `explorer` | `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io` |
 
-The table also has `schemaVersion`, 1, and `checked`, the date of its newest row.
+The table also has `schemaVersion`, 2, and `checked`, the date its rows were last checked.
 
-The unit tests check every row: the backend names, the dates, and the API host and path of each
-backend. `etherscan-v2` must be `https://api.etherscan.io/v2/api`; `routescan` must be
-`https://api.routescan.io/v2/network/<mainnet or testnet>/evm/<the row's chain id>/etherscan/api`;
-`sourcify` must be `https://sourcify.dev/server`. The table decides which hosts receive a key, so
-a malformed row fails CI.
+The library derives every URL from the entry:
+
+| Backend        | API base                                                                     | Contract page                                                           |
+| -------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `sourcify`     | `https://sourcify.dev/server`                                                | `https://repo.sourcify.dev/<chain id>/<address>`                        |
+| `etherscan-v2` | `https://api.etherscan.io/v2/api`                                            | `https://<explorer>/address/<address>#code`, or none without `explorer` |
+| `routescan`    | `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api` | None yet                                                                |
+
+A chain without a row that goes to Sourcify through `allowSourcifyFallback` gets the same Sourcify
+page. `<address>` is the address in lower case, as `verify()` uses it (see
+[verify](verify.md)), and percent-encoded. The EIP-55 checksum is not checked.
+
+The unit tests check every row: the fields of each backend, the backend names, the date, and the
+API host and path of each derived URL. The table decides which hosts receive a key, so a malformed
+row fails CI.
 
 ## Request URLs
 
 - Etherscan v2 serves every chain from one URL. The route adds `chainid=<chain id>` to the query
   of every Etherscan v2 request, in one place. A `chainid` in the query of your `route.apiUrl`, in
   any letter case, is dropped, so a request never goes to another chain than the call's.
-- Routescan URLs hold the network and the chain id, so the route uses the row's URL as it is.
+- Routescan URLs hold the network and the chain id in the path, so the route adds no query.
 
 ## Options
 

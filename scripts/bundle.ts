@@ -8,7 +8,7 @@ import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
 
 /** The routing table as the code entries of the size check see it: no rows (R-RUN-3). */
-export const EMPTY_TABLE = '{"schemaVersion":1,"checked":"","chains":[]}';
+export const EMPTY_TABLE = '{"schemaVersion":2,"checked":"","chains":[]}';
 
 /** How to bundle. */
 export interface BundleOptions {

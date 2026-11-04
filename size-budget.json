@@ -1,25 +1,25 @@
 {
-  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014 and 0023). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, so a page that imports verify ships about the sum of the two. The verify with table entry measures that whole bundle under the verify ceiling (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up, except for verify with table, which keeps the verify ceiling of decision 0014. Raise a ceiling only in a pull request that says why.",
-  "measured": "2026-11-03, esbuild 0.28.2, Node 24.21.0 zlib; routing table on 2026-11-03 (#59)",
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023 and 0024). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, so a page that imports verify ships about the sum of the two. The verify with table entry measures that whole bundle (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decisions 0014 and 0024). The ceilings set on 2026-11-03 for #60 are the budget the Etherscan v2 and Routescan clients (#61, #62) must fit in. Raise a ceiling only in a pull request that says why, with its own decision record.",
+  "measured": "2026-11-04 on main 64c1d58 plus #60, esbuild 0.28.2, Node 24.21.0 zlib; routing table of 2026-11-03 with 94 rows (#60, decision 0024); buildVerifyInput and createVerifyHandler keep their ceilings, which this change does not grow",
   "entries": [
     {
       "name": "verify",
       "code": "export { verify } from \"explorer-verify\";",
-      "measuredBytes": 14402,
-      "ceilingBytes": 17283,
+      "measuredBytes": 16829,
+      "ceilingBytes": 20195,
       "withoutTable": true
     },
     {
       "name": "verify with table",
       "code": "export { verify } from \"explorer-verify\";",
-      "measuredBytes": 16793,
-      "ceilingBytes": 17283
+      "measuredBytes": 17414,
+      "ceilingBytes": 20897
     },
     {
       "name": "checkStatus",
       "code": "export { checkStatus } from \"explorer-verify\";",
-      "measuredBytes": 13038,
-      "ceilingBytes": 15646,
+      "measuredBytes": 15292,
+      "ceilingBytes": 18351,
       "withoutTable": true
     },
     {
@@ -32,15 +32,15 @@
     {
       "name": "index",
       "code": "export * from \"explorer-verify\";",
-      "measuredBytes": 21802,
-      "ceilingBytes": 26163,
+      "measuredBytes": 24149,
+      "ceilingBytes": 28979,
       "withoutTable": true
     },
     {
       "name": "routing table",
       "code": "export { default } from \"./dist/src/routing/table.json\";",
-      "measuredBytes": 286,
-      "ceilingBytes": 344
+      "measuredBytes": 471,
+      "ceilingBytes": 566
     },
     {
       "name": "createVerifyHandler",
