@@ -1,0 +1,1650 @@
+{
+  "$comment": "Research data behind the routing table of 2026-11-03 (issue #60, decision 0024). It does not ship. etherscan is a frozen copy of the Etherscan chainlist; routescan is the mainnet list of Routescan's supported-chains page plus chain 43113 from the Routescan research note of 2026-11-03; confirmed is true only where a live request confirmed the network; priorArt is the prior art's 67 rows re-checked; rows are the shipped table's rows with their names and the list each comes from; sources lists what the table was checked against. scripts/compare-routing-table.ts reads it.",
+  "checked": "2026-11-03",
+  "sources": {
+    "etherscanChainlist": "https://api.etherscan.io/v2/chainlist",
+    "sourcifyChains": "https://sourcify.dev/server/chains",
+    "routescanSupportedChains": "https://docs.routescan.io/getting-started/supported-chains"
+  },
+  "rows": [
+    {
+      "chainId": 1,
+      "name": "Ethereum Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 10,
+      "name": "OP Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 31,
+      "name": "Rootstock Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 50,
+      "name": "XDC Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 51,
+      "name": "XDC Apothem Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 56,
+      "name": "BNB Smart Chain Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 81,
+      "name": "Astar Shibuya",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 97,
+      "name": "BNB Smart Chain Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 100,
+      "name": "Gnosis",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 130,
+      "name": "Unichain Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 133,
+      "name": "HSKChain Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 137,
+      "name": "Polygon Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 143,
+      "name": "Monad Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 146,
+      "name": "Sonic Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 199,
+      "name": "BitTorrent Chain Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 240,
+      "name": "Cronos zkEVM Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 252,
+      "name": "Fraxtal Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 296,
+      "name": "Hedera Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 300,
+      "name": "ZKsync Era Sepolia Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 338,
+      "name": "Cronos Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 480,
+      "name": "World Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 919,
+      "name": "Mode Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 988,
+      "name": "Stable Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 998,
+      "name": "Hyperliquid EVM Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 999,
+      "name": "HyperEVM Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 1001,
+      "name": "Kaia Kairos Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 1029,
+      "name": "BitTorrent Chain Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 1112,
+      "name": "WEMIX3.0 Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 1114,
+      "name": "Core Blockchain Testnet2",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 1301,
+      "name": "Unichain Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 1328,
+      "name": "Sei Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 1329,
+      "name": "Sei Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 1740,
+      "name": "Metal L2 Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 1946,
+      "name": "Soneium Minato Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 2201,
+      "name": "Stable Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 2391,
+      "name": "TAC SPB",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 2523,
+      "name": "Fraxtal Hoodi Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 2741,
+      "name": "Abstract Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 2910,
+      "name": "Morph Hoodi",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 4202,
+      "name": "Lisk Sepolia Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 4326,
+      "name": "MegaETH Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 4352,
+      "name": "Memecore Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 4663,
+      "name": "Robinhood Chain",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 4801,
+      "name": "World Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 5000,
+      "name": "Mantle Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 5003,
+      "name": "Mantle Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 5042,
+      "name": "Arc Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 5611,
+      "name": "opBNB Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 6343,
+      "name": "MegaETH Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 8453,
+      "name": "Base Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 9745,
+      "name": "Plasma Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 9746,
+      "name": "Plasma Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 10143,
+      "name": "Monad Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 10200,
+      "name": "Gnosis Chiado Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 11124,
+      "name": "Abstract Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 14601,
+      "name": "Sonic Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 16602,
+      "name": "0G Galileo Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 33111,
+      "name": "Curtis",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 37111,
+      "name": "Lens Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 42161,
+      "name": "Arbitrum One Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 42220,
+      "name": "Celo Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 42431,
+      "name": "Tempo Testnet Moderato",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 43113,
+      "name": "Avalanche Fuji Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 43114,
+      "name": "Avalanche C-Chain",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 43522,
+      "name": "Memecore Insectarium Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 46630,
+      "name": "Robinhood Chain Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 53302,
+      "name": "Superseed Sepolia Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 59141,
+      "name": "Linea Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 59144,
+      "name": "Linea Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 59902,
+      "name": "Metis Sepolia Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 80002,
+      "name": "Polygon Amoy Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 80069,
+      "name": "Berachain Bepolia Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 80094,
+      "name": "Berachain Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 98867,
+      "name": "Plume Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 167000,
+      "name": "Taiko Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 167013,
+      "name": "Taiko Hoodi",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 202601,
+      "name": "Ronin Saigon Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 534351,
+      "name": "Scroll Sepolia Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 560048,
+      "name": "Ethereum Hoodi Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 688689,
+      "name": "Pharos Atlantic Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 737373,
+      "name": "Katana Bokuto",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 743111,
+      "name": "Hemi Sepolia",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 747474,
+      "name": "Katana Mainnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 763373,
+      "name": "Ink Sepolia",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 808813,
+      "name": "BOB Sepolia",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 5042002,
+      "name": "Arc Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 6281971,
+      "name": "DogeOS Chikyu Testnet",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 11142220,
+      "name": "Celo Sepolia Testnet",
+      "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 11155111,
+      "name": "Ethereum Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 11155420,
+      "name": "OP Sepolia Testnet",
+      "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 12227332,
+      "name": "Neo X Testnet T4",
+      "from": ["prior-art"]
+    },
+    {
+      "chainId": 999999999,
+      "name": "Zora Sepolia Testnet",
+      "from": ["prior-art"]
+    }
+  ],
+  "etherscan": [
+    {
+      "chainId": 1,
+      "name": "Ethereum Mainnet",
+      "explorer": "etherscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 10,
+      "name": "OP Mainnet",
+      "explorer": "optimistic.etherscan.io",
+      "paidPlan": true
+    },
+    {
+      "chainId": 50,
+      "name": "XDC Mainnet",
+      "explorer": "xdcscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 51,
+      "name": "XDC Apothem Testnet",
+      "explorer": "testnet.xdcscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 56,
+      "name": "BNB Smart Chain Mainnet",
+      "explorer": "bscscan.com",
+      "paidPlan": true
+    },
+    {
+      "chainId": 97,
+      "name": "BNB Smart Chain Testnet",
+      "explorer": "testnet.bscscan.com",
+      "paidPlan": true
+    },
+    {
+      "chainId": 100,
+      "name": "Gnosis",
+      "explorer": "gnosisscan.io",
+      "paidPlan": true
+    },
+    {
+      "chainId": 130,
+      "name": "Unichain Mainnet",
+      "explorer": "uniscan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 137,
+      "name": "Polygon Mainnet",
+      "explorer": "polygonscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 143,
+      "name": "Monad Mainnet",
+      "explorer": "monadscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 146,
+      "name": "Sonic Mainnet",
+      "explorer": "sonicscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 199,
+      "name": "BitTorrent Chain Mainnet",
+      "explorer": "bttcscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 252,
+      "name": "Fraxtal Mainnet",
+      "explorer": "fraxscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 480,
+      "name": "World Mainnet",
+      "explorer": "worldscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 988,
+      "name": "Stable Mainnet",
+      "explorer": "stablescan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 999,
+      "name": "HyperEVM Mainnet",
+      "explorer": "hyperevmscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 1029,
+      "name": "BitTorrent Chain Testnet",
+      "explorer": "testnet.bttcscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 1301,
+      "name": "Unichain Sepolia Testnet",
+      "explorer": "sepolia.uniscan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 1328,
+      "name": "Sei Testnet",
+      "explorer": "testnet.seiscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 1329,
+      "name": "Sei Mainnet",
+      "explorer": "seiscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 2201,
+      "name": "Stable Testnet",
+      "explorer": "testnet.stablescan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 2523,
+      "name": "Fraxtal Hoodi Testnet",
+      "explorer": "hoodi.fraxscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 2741,
+      "name": "Abstract Mainnet",
+      "explorer": "abscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 4326,
+      "name": "MegaETH Mainnet",
+      "explorer": "mega.etherscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 4352,
+      "name": "Memecore Mainnet",
+      "explorer": "memecorescan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 4663,
+      "name": "Robinhood Chain",
+      "explorer": "robin.etherscan.io",
+      "paidPlan": true
+    },
+    {
+      "chainId": 4801,
+      "name": "World Sepolia Testnet",
+      "explorer": "sepolia.worldscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 5000,
+      "name": "Mantle Mainnet",
+      "explorer": "mantlescan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 5003,
+      "name": "Mantle Sepolia Testnet",
+      "explorer": "sepolia.mantlescan.xyz",
+      "paidPlan": false
+    },
+    {
+      "chainId": 5042,
+      "name": "Arc Mainnet",
+      "explorer": "arc.etherscan.io",
+      "paidPlan": true
+    },
+    {
+      "chainId": 6343,
+      "name": "MegaETH Testnet",
+      "explorer": "testnet-mega.etherscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 8453,
+      "name": "Base Mainnet",
+      "explorer": "basescan.org",
+      "paidPlan": true
+    },
+    {
+      "chainId": 9745,
+      "name": "Plasma Mainnet",
+      "explorer": "plasmascan.to",
+      "paidPlan": false
+    },
+    {
+      "chainId": 9746,
+      "name": "Plasma Testnet",
+      "explorer": "testnet.plasmascan.to",
+      "paidPlan": false
+    },
+    {
+      "chainId": 10143,
+      "name": "Monad Testnet",
+      "explorer": "testnet.monadscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 11124,
+      "name": "Abstract Sepolia Testnet",
+      "explorer": "sepolia.abscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 14601,
+      "name": "Sonic Testnet",
+      "explorer": "testnet.sonicscan.org",
+      "paidPlan": false
+    },
+    {
+      "chainId": 42161,
+      "name": "Arbitrum One Mainnet",
+      "explorer": "arbiscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 42220,
+      "name": "Celo Mainnet",
+      "explorer": "celoscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 43113,
+      "name": "Avalanche Fuji Testnet",
+      "explorer": "testnet.snowscan.xyz",
+      "paidPlan": true
+    },
+    {
+      "chainId": 43114,
+      "name": "Avalanche C-Chain",
+      "explorer": "snowscan.xyz",
+      "paidPlan": true
+    },
+    {
+      "chainId": 43522,
+      "name": "Memecore Insectarium Testnet",
+      "explorer": "testnet.memecorescan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 59141,
+      "name": "Linea Sepolia Testnet",
+      "explorer": "sepolia.lineascan.build",
+      "paidPlan": false
+    },
+    {
+      "chainId": 59144,
+      "name": "Linea Mainnet",
+      "explorer": "lineascan.build",
+      "paidPlan": false
+    },
+    {
+      "chainId": 80002,
+      "name": "Polygon Amoy Testnet",
+      "explorer": "amoy.polygonscan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 80069,
+      "name": "Berachain Bepolia Testnet",
+      "explorer": "testnet.berascan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 80094,
+      "name": "Berachain Mainnet",
+      "explorer": "berascan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia Testnet",
+      "explorer": "sepolia.basescan.org",
+      "paidPlan": true
+    },
+    {
+      "chainId": 167000,
+      "name": "Taiko Mainnet",
+      "explorer": "taikoscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 167013,
+      "name": "Taiko Hoodi",
+      "explorer": "hoodi.taikoscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia Testnet",
+      "explorer": "sepolia.arbiscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 560048,
+      "name": "Hoodi Testnet",
+      "explorer": "hoodi.etherscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 737373,
+      "name": "Katana Bokuto",
+      "explorer": "bokuto.katanascan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 747474,
+      "name": "Katana Mainnet",
+      "explorer": "katanascan.com",
+      "paidPlan": false
+    },
+    {
+      "chainId": 11142220,
+      "name": "Celo Sepolia Testnet",
+      "explorer": "sepolia.celoscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 11155111,
+      "name": "Sepolia Testnet",
+      "explorer": "sepolia.etherscan.io",
+      "paidPlan": false
+    },
+    {
+      "chainId": 11155420,
+      "name": "OP Sepolia Testnet",
+      "explorer": "sepolia-optimism.etherscan.io",
+      "paidPlan": true
+    }
+  ],
+  "routescan": [
+    {
+      "chainId": 1,
+      "name": "Ethereum",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 151,
+      "name": "Redbelly",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 288,
+      "name": "Boba Ethereum",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 1234,
+      "name": "StepNetwork",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 2786,
+      "name": "Apertum",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 3011,
+      "name": "PLAYA3ULL Games",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 4337,
+      "name": "Beam",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 5000,
+      "name": "Mantle",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 5566,
+      "name": "StraitsX",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 6119,
+      "name": "UPTN",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 6900,
+      "name": "Nibiru",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 8021,
+      "name": "Numine",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 8227,
+      "name": "Space",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 10507,
+      "name": "Numbers",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 13322,
+      "name": "Fifa Blockchain",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 43111,
+      "name": "Hemi",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 43113,
+      "name": "Avalanche Fuji Testnet",
+      "network": "testnet",
+      "confirmed": true
+    },
+    {
+      "chainId": 43114,
+      "name": "C-Chain",
+      "network": "mainnet",
+      "confirmed": true
+    },
+    {
+      "chainId": 43419,
+      "name": "GUNZ",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 68414,
+      "name": "Henesys",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 81457,
+      "name": "Blast",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 84358,
+      "name": "Titan",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 88888,
+      "name": "Chiliz",
+      "network": "mainnet",
+      "confirmed": false
+    },
+    {
+      "chainId": 432204,
+      "name": "Dexalot",
+      "network": "mainnet",
+      "confirmed": false
+    }
+  ],
+  "priorArt": [
+    {
+      "chainId": 31,
+      "name": "Rootstock Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explorer.testnet.rsk.co",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 51,
+      "name": "XDC Apothem Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://testnet.xdcscan.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 81,
+      "name": "Astar Shibuya",
+      "provider": "blockscout",
+      "explorer": "https://shibuya.blockscout.com",
+      "apiUrl": "https://shibuya.blockscout.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The Blockscout URL is kept for M3. Sourcify ships."
+    },
+    {
+      "chainId": 97,
+      "name": "BNB Smart Chain Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://testnet.bscscan.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 133,
+      "name": "HSKChain Testnet",
+      "provider": "sourcify",
+      "explorer": "https://hashkeychain-testnet-explorer.alt.technology",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 157,
+      "provider": "etherscan-standalone",
+      "explorer": "https://puppyscan.shib.io",
+      "apiUrl": "https://api-puppyscan.shib.io/api",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "The standalone API host did not answer, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 240,
+      "name": "Cronos zkEVM Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explorer.zkevm.cronos.org/testnet",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 296,
+      "name": "Hedera Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://hashscan.io/testnet",
+      "apiUrl": "https://api.hashscan.io/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 300,
+      "name": "ZKsync Era Sepolia Testnet",
+      "provider": "sourcify",
+      "explorer": "https://sepolia.explorer.zksync.io",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 338,
+      "name": "Cronos Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explorer.cronos.org/testnet",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 679,
+      "provider": "unknown",
+      "explorer": "https://janction-testnet-explorer.alt.technology",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 919,
+      "name": "Mode Testnet",
+      "provider": "sourcify",
+      "explorer": "https://sepolia.explorer.mode.network",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 998,
+      "name": "Hyperliquid EVM Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explore-testnet.hyperpc.app",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 1001,
+      "name": "Kaia Kairos Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://kairos.kaiascan.io",
+      "apiUrl": "https://api-kairos.kaiascan.io/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 1112,
+      "name": "WEMIX3.0 Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://scan.wemix.com/wemixTestnet",
+      "apiUrl": "https://api-scan.wemix.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 1114,
+      "name": "Core Blockchain Testnet2",
+      "provider": "etherscan-standalone",
+      "explorer": "https://scan.test2.btcs.network",
+      "apiUrl": "https://api-scan.test2.btcs.network/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 1123,
+      "provider": "unknown",
+      "explorer": "https://testnet-explorer.bsquared.network",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 1301,
+      "name": "Unichain Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.uniscan.xyz",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 1328,
+      "name": "Sei Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://seitrace.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 1687,
+      "provider": "unknown",
+      "explorer": "https://sepolia-testnet-explorer.mintchain.io",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 1740,
+      "name": "Metal L2 Testnet",
+      "provider": "sourcify",
+      "explorer": "https://testnet.explorer.metall2.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 1946,
+      "name": "Soneium Minato Testnet",
+      "provider": "blockscout",
+      "explorer": "https://soneium-minato.blockscout.com",
+      "apiUrl": "https://soneium-minato.blockscout.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The Blockscout URL is kept for M3. Sourcify ships."
+    },
+    {
+      "chainId": 2391,
+      "name": "TAC SPB",
+      "provider": "sourcify",
+      "explorer": "https://spb.explorer.tac.build",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 2910,
+      "name": "Morph Hoodi",
+      "provider": "sourcify",
+      "explorer": "https://explorer-hoodi.morphl2.io",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 4202,
+      "name": "Lisk Sepolia Testnet",
+      "provider": "blockscout",
+      "explorer": "https://sepolia-blockscout.lisk.com",
+      "apiUrl": "https://sepolia-blockscout.lisk.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The Blockscout URL is kept for M3. Sourcify ships."
+    },
+    {
+      "chainId": 4801,
+      "name": "World Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.worldscan.org",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 5003,
+      "name": "Mantle Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.mantlescan.xyz",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 5611,
+      "name": "opBNB Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://opbnb-testnet.bscscan.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Not in the Etherscan chainlist; Sourcify ships."
+    },
+    {
+      "chainId": 6343,
+      "name": "MegaETH Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://megaeth-testnet-v2.blockscout.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 9746,
+      "name": "Plasma Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://testnet.plasmascan.to",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 10143,
+      "name": "Monad Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://testnet.monadexplorer.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 10200,
+      "name": "Gnosis Chiado Testnet",
+      "provider": "blockscout",
+      "explorer": "https://gnosis-chiado.blockscout.com",
+      "apiUrl": "https://gnosis-chiado.blockscout.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The Blockscout URL is kept for M3. Sourcify ships."
+    },
+    {
+      "chainId": 11124,
+      "name": "Abstract Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.abscan.org",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 14601,
+      "name": "Sonic Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://explorer.testnet.soniclabs.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 16602,
+      "name": "0G Galileo Testnet",
+      "provider": "sourcify",
+      "explorer": "https://chainscan-galileo.0g.ai",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 33111,
+      "name": "Curtis",
+      "provider": "etherscan-v2",
+      "explorer": "https://explorer.curtis.apechain.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Not in the Etherscan chainlist; Sourcify ships."
+    },
+    {
+      "chainId": 33431,
+      "provider": "unknown",
+      "explorer": "https://edge-testnet.explorer.alchemy.com",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 37111,
+      "name": "Lens Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explorer.testnet.lens.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 42431,
+      "name": "Tempo Testnet Moderato",
+      "provider": "sourcify",
+      "explorer": "https://explore.moderato.tempo.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 43113,
+      "name": "Avalanche Fuji Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://testnet.snowtrace.io",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 46630,
+      "name": "Robinhood Chain Testnet",
+      "provider": "sourcify",
+      "explorer": "https://explorer.testnet.chain.robinhood.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 53302,
+      "name": "Superseed Sepolia Testnet",
+      "provider": "sourcify",
+      "explorer": "https://sepolia-explorer.superseed.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 59141,
+      "name": "Linea Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.lineascan.build",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 59902,
+      "name": "Metis Sepolia Testnet",
+      "provider": "sourcify",
+      "explorer": "https://sepolia-explorer.metisdevops.link",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 80002,
+      "name": "Polygon Amoy Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://amoy.polygonscan.com",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.basescan.org",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 98867,
+      "name": "Plume Testnet",
+      "provider": "sourcify",
+      "explorer": "https://testnet-explorer.plumenetwork.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 99999,
+      "provider": "unknown",
+      "explorer": "https://explorer.ab.testnet.adifoundation.ai",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 192940,
+      "provider": "unknown",
+      "explorer": "https://explorer-testnet.mindnetwork.xyz",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 200810,
+      "name": "Bitlayer Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://testnet.btrscan.com",
+      "apiUrl": "https://api-testnet.btrscan.com/api",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "The standalone API host did not answer, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 202601,
+      "name": "Ronin Saigon Testnet",
+      "provider": "sourcify",
+      "explorer": "https://saigon-explorer.roninchain.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.arbiscan.io",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 534351,
+      "name": "Scroll Sepolia Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://sepolia.scrollscan.dev",
+      "apiUrl": "https://api-sepolia.scrollscan.dev/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 560048,
+      "name": "Ethereum Hoodi Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://hoodi.etherscan.io",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 686868,
+      "provider": "etherscan-standalone",
+      "explorer": "https://testnet-scan.merlinchain.io",
+      "apiUrl": "https://api-testnet-scan.merlinchain.io/api",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "The standalone API host did not answer, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 688689,
+      "name": "Pharos Atlantic Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://atlantic.pharosscan.xyz",
+      "apiUrl": "https://api-atlantic.pharosscan.xyz/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 743111,
+      "name": "Hemi Sepolia",
+      "provider": "sourcify",
+      "explorer": "https://testnet.explorer.hemi.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 763373,
+      "name": "Ink Sepolia",
+      "provider": "sourcify",
+      "explorer": "https://explorer-sepolia.inkonchain.com",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 808813,
+      "name": "BOB Sepolia",
+      "provider": "sourcify",
+      "explorer": "https://bob-sepolia.explorer.gobob.xyz",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    },
+    {
+      "chainId": 2019775,
+      "provider": "unknown",
+      "explorer": "https://sepolia-explorer.jovay.io/l2",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "No known backend, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 5042002,
+      "name": "Arc Testnet",
+      "provider": "etherscan-standalone",
+      "explorer": "https://testnet.arcscan.app",
+      "apiUrl": "https://api-testnet.arcscan.app/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 6281971,
+      "name": "DogeOS Chikyu Testnet",
+      "provider": "blockscout",
+      "explorer": "https://blockscout.testnet.dogeos.com",
+      "apiUrl": "https://blockscout.testnet.dogeos.com/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The Blockscout URL is kept for M3. Sourcify ships."
+    },
+    {
+      "chainId": 11155111,
+      "name": "Ethereum Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia.etherscan.io",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 11155420,
+      "name": "OP Sepolia Testnet",
+      "provider": "etherscan-v2",
+      "explorer": "https://sepolia-optimism.etherscan.io",
+      "sourcify": true,
+      "etherscanChainlist": true,
+      "shipped": ["sourcify"],
+      "reason": "Sourcify ships now; the Etherscan v2 entry waits for its client (#61) and is kept in this file."
+    },
+    {
+      "chainId": 12227332,
+      "name": "Neo X Testnet T4",
+      "provider": "etherscan-standalone",
+      "explorer": "https://xt4scan.ngd.network",
+      "apiUrl": "https://api-xt4scan.ngd.network/api",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "The standalone API host did not answer; it waits for #63. Sourcify ships."
+    },
+    {
+      "chainId": 21000001,
+      "provider": "etherscan-standalone",
+      "explorer": "https://testnet.cornscan.io",
+      "apiUrl": "https://api-testnet.cornscan.io/api",
+      "sourcify": false,
+      "etherscanChainlist": false,
+      "shipped": [],
+      "reason": "The standalone API host did not answer, and Sourcify does not list the chain; no row."
+    },
+    {
+      "chainId": 999999999,
+      "name": "Zora Sepolia Testnet",
+      "provider": "sourcify",
+      "explorer": "https://sepolia.explorer.zora.energy",
+      "sourcify": true,
+      "etherscanChainlist": false,
+      "shipped": ["sourcify"],
+      "reason": "Kept: Sourcify lists the chain as supported."
+    }
+  ]
+}

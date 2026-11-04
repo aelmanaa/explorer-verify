@@ -100,7 +100,8 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
   }
 
   it("resolves a chain id the table does not list only with allowSourcifyFallback (R-RT-3)", () => {
-    for (const chainId of [2, 999_999_999, Number.MAX_SAFE_INTEGER]) {
+    // 999_999_999 has a row since #60, so the large id here is one below it.
+    for (const chainId of [2, 999_999_998, Number.MAX_SAFE_INTEGER]) {
       assert.equal(thrown(() => resolveRoute(chainId)).code, "unsupported-chain");
       const route = resolveRoute(chainId, undefined, { allowSourcifyFallback: true });
       assert.equal(route.backend, "sourcify");

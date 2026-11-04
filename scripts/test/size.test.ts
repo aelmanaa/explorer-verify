@@ -72,7 +72,7 @@ function withTable(): string {
   mkdirSync(path.join(dir, "routing"));
   writeFileSync(
     path.join(dir, "routing", "table.json"),
-    JSON.stringify({ schemaVersion: 1, checked: "2026-11-03", chains: [{ chainId: 424242 }] }),
+    JSON.stringify({ schemaVersion: 2, checked: "2026-11-03", chains: [{ chainId: 424242 }] }),
   );
   writeFileSync(
     path.join(dir, "routing", "resolve.ts"),
@@ -94,7 +94,7 @@ describe("bundleForBrowser without the routing table (R-RUN-3)", () => {
     );
     assert.doesNotMatch(code, /424242/);
     assert.match(code, /chains:\[\]/);
-    assert.deepEqual(JSON.parse(EMPTY_TABLE), { schemaVersion: 1, checked: "", chains: [] });
+    assert.deepEqual(JSON.parse(EMPTY_TABLE), { schemaVersion: 2, checked: "", chains: [] });
   });
 });
 

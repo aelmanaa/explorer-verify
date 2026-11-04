@@ -3,6 +3,9 @@
  * lists each chain's backends in order of preference; a caller can pick another listed backend,
  * point a backend at another server, or let a chain missing from the table fall back to Sourcify
  * (R-RT-1 to R-RT-3). Hosts come only from the table or the caller's options (R-SEC-2).
+ *
+ * The table holds only what varies per chain. {@link tableTarget} derives each backend's API URL
+ * and explorer page from fixed templates, in one place (decision 0024).
  */
 import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
@@ -15,27 +18,27 @@ import type { Hex, RouteOverride } from "../types.ts";
 import table from "./table.json" with { type: "json" };
 
 /**
- * One backend of a chain in the routing table.
+ * One backend of a chain in the routing table: the backend's name and the little that varies per
+ * chain. The API URL and the explorer page are derived by {@link tableTarget}.
  *
  * @example
  * ```ts
- * const entry: TableEntry = {
- *   backend: "sourcify",
- *   apiUrl: "https://sourcify.dev/server",
- *   explorerUrl: "https://repo.sourcify.dev/11155111/{address}",
- * };
+ * const sourcify: TableEntry = { backend: "sourcify" };
+ * const routescan: TableEntry = { backend: "routescan", network: "testnet" };
+ * const etherscan: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
  * ```
  */
 export interface TableEntry {
   /** A name in `BACKEND_NAMES`. */
   readonly backend: string;
+  /** `routescan` only, and required there: the network segment, `mainnet` or `testnet`. */
+  readonly network?: string;
   /**
-   * The full API base for this backend and chain: `https:`, no query string, no trailing slash.
-   * For Routescan it holds the network segment and the chain id.
+   * `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io`. The table
+   * test checks that it is a bare lowercase host name in CI; the resolver does not check it at run
+   * time.
    */
-  readonly apiUrl: string;
-  /** The public page of a contract, with exactly one `{address}` token. */
-  readonly explorerUrl: string;
+  readonly explorer?: string;
 }
 
 /**
@@ -43,16 +46,12 @@ export interface TableEntry {
  *
  * @example
  * ```ts
- * const row: TableRow = { chainId: 11155111, name: "Ethereum Sepolia Testnet", checked: "2026-11-03", backends: [entry] };
+ * const row: TableRow = { chainId: 11155111, backends: [{ backend: "sourcify" }] };
  * ```
  */
 export interface TableRow {
   /** The EVM chain id, a positive safe integer. Rows are in ascending chain id order. */
   readonly chainId: number;
-  /** The chain's name, for people. */
-  readonly name: string;
-  /** The date the row was last checked against its sources, as `YYYY-MM-DD`. */
-  readonly checked: string;
   /** The chain's backends, in order of preference. */
   readonly backends: readonly TableEntry[];
 }
@@ -62,16 +61,39 @@ export interface TableRow {
  *
  * @example
  * ```ts
- * const empty: RoutingTable = { schemaVersion: 1, checked: "2026-11-03", chains: [] };
+ * const empty: RoutingTable = { schemaVersion: 2, checked: "2026-11-03", chains: [] };
  * ```
  */
 export interface RoutingTable {
-  /** The format version, 1. */
+  /** The format version, 2. */
   readonly schemaVersion: number;
-  /** The date of the newest check of any row, as `YYYY-MM-DD`. */
+  /**
+   * The date the rows were last checked against their sources, as `YYYY-MM-DD`. The sources are
+   * listed in the research note of that date.
+   */
   readonly checked: string;
   /** One row per chain. A chain with no usable backend has no row. */
   readonly chains: readonly TableRow[];
+}
+
+/**
+ * A table entry with its derived URLs.
+ *
+ * @example
+ * ```ts
+ * const target: TableTarget | undefined = tableTarget(11155111, { backend: "sourcify" });
+ * target?.apiUrl; // "https://sourcify.dev/server"
+ * target?.explorerUrl?.("0x5FbDB2315678afecb367f032d93F642f64180aa3");
+ * // "https://repo.sourcify.dev/11155111/0x5FbDB2315678afecb367f032d93F642f64180aa3"
+ * ```
+ */
+export interface TableTarget {
+  /** The backend. */
+  readonly backend: BackendName;
+  /** The full API base for this backend and chain: `https:`, no query, no trailing slash. */
+  readonly apiUrl: string;
+  /** The public page of the contract at an address, or `undefined` when none is known. */
+  readonly explorerUrl: ((address: Hex) => string) | undefined;
 }
 
 /**
@@ -118,7 +140,8 @@ export interface Route {
    */
   readonly requestUrl: (path: string) => string;
   /**
-   * The page that shows a verified contract at `address`, from the table entry's template.
+   * The page that shows a verified contract at `address`, derived from the table entry, or
+   * `undefined` when the table knows no page for the backend and chain. Also
    * `undefined` when `route.apiUrl` moved the API to a server other than the table's: the
    * explorer's page shows only contracts verified through the table's API.
    */
@@ -173,7 +196,7 @@ export interface RouteChoice {
 export const SOURCIFY_API_URL = "https://sourcify.dev/server";
 
 /**
- * Etherscan's v2 API base: the one `apiUrl` the routing table may list for `etherscan-v2`, since
+ * Etherscan's v2 API base: the one API base `tableTarget` derives for `etherscan-v2`, since
  * every chain shares it and `requestUrl` adds the chain as `chainid`. The table check and the
  * server handler read it, so the host has one source.
  *
@@ -197,8 +220,51 @@ const API_KEY_HINT =
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 
-/** A table entry whose backend is a known name. */
-type Entry = TableEntry & { readonly backend: BackendName };
+/**
+ * Derives a table entry's API URL and explorer page for `chainId` (decision 0024):
+ *
+ * - `sourcify`: `https://sourcify.dev/server`; page `https://repo.sourcify.dev/<chainId>/<address>`.
+ * - `etherscan-v2`: `https://api.etherscan.io/v2/api`; page
+ *   `https://<explorer>/address/<address>#code` when the entry names an `explorer` host, else none.
+ * - `routescan`: `https://api.routescan.io/v2/network/<network>/evm/<chainId>/etherscan/api`, with
+ *   `network` `mainnet` or `testnet`; no page yet.
+ *
+ * @param chainId - The row's chain id.
+ * @param entry - The table entry.
+ * @returns The derived target, or `undefined` for a backend the table cannot route (an unknown
+ *   name, a backend without a template, or a Routescan entry without a valid network).
+ * @example
+ * ```ts
+ * tableTarget(43113, { backend: "routescan", network: "testnet" })?.apiUrl;
+ * // "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api"
+ * ```
+ */
+export function tableTarget(chainId: number, entry: TableEntry): TableTarget | undefined {
+  const { backend, network, explorer } = entry;
+  const id = String(chainId);
+  return backend === "sourcify"
+    ? {
+        backend,
+        apiUrl: SOURCIFY_API_URL,
+        explorerUrl: (address) => `${SOURCIFY_REPO_URL}/${id}/${encodeURIComponent(address)}`,
+      }
+    : backend === "etherscan-v2"
+      ? {
+          backend,
+          apiUrl: ETHERSCAN_API_URL,
+          explorerUrl:
+            explorer === undefined
+              ? undefined
+              : (address) => `https://${explorer}/address/${encodeURIComponent(address)}#code`,
+        }
+      : backend === "routescan" && (network === "mainnet" || network === "testnet")
+        ? {
+            backend,
+            apiUrl: `https://api.routescan.io/v2/network/${network}/evm/${id}/etherscan/api`,
+            explorerUrl: undefined,
+          }
+        : undefined;
+}
 
 /**
  * The two override fields, or `undefined` when `value` is not a plain object (prototype
@@ -378,23 +444,19 @@ export function resolveRoute(
   }
 
   const row = (choice.table ?? ROUTING_TABLE).chains.find((each) => each.chainId === chainId);
-  const fallback: Entry = {
-    backend: "sourcify",
-    apiUrl: SOURCIFY_API_URL,
-    explorerUrl: `${SOURCIFY_REPO_URL}/${String(chainId)}/{address}`,
-  };
-  const listed: Entry[] = (row?.backends ?? []).flatMap((each) => {
-    const known = toBackendName(each.backend);
-    return known === undefined ? [] : [{ ...each, backend: known }];
-  });
+  const targets = (entries: readonly TableEntry[]): TableTarget[] =>
+    entries.flatMap((each) => tableTarget(chainId, each) ?? []);
+  const listed = targets(row?.backends ?? []);
+  // The Sourcify fallback: for a chain with no row, or a route.apiUrl without a row entry.
+  const fallback = targets([{ backend: "sourcify" }]);
   const keys = choice.apiKeys ?? {};
   let backend: BackendName;
-  let entry: Entry | undefined;
+  let entry: TableTarget | undefined;
   let apiBase: string;
   let search = "";
   if (target === undefined) {
     const candidates =
-      row === undefined && choice.allowSourcifyFallback === true ? [fallback] : listed;
+      row === undefined && choice.allowSourcifyFallback === true ? fallback : listed;
     // Backends with a client come first. When none has one, the first entry stays, and the flow
     // throws `unsupported-chain` for it once the handle's backend has been checked.
     const served = candidates.filter((each) => choice.clients?.includes(each.backend) !== false);
@@ -415,9 +477,7 @@ export function resolveRoute(
   } else {
     ({ apiBase, search } = target);
     backend = named ?? "sourcify";
-    entry =
-      listed.find((each) => each.backend === backend) ??
-      (backend === "sourcify" ? fallback : undefined);
+    entry = [...listed, ...fallback].find((each) => each.backend === backend);
   }
 
   // Etherscan v2 serves every chain from one URL, so the chain goes in the query, set here only.
@@ -433,7 +493,6 @@ export function resolveRoute(
       );
     query = `?${[...kept, `chainid=${String(chainId)}`].join("&")}`;
   }
-  const template = entry?.apiUrl === apiBase ? entry.explorerUrl : undefined;
   return Object.freeze({
     backend,
     apiBase,
@@ -449,11 +508,7 @@ export function resolveRoute(
       }
       return `${apiBase}${path}${query}`;
     },
-    explorerUrl:
-      template === undefined
-        ? undefined
-        : (address: Hex): string =>
-            template.replace("{address}", () => encodeURIComponent(address)),
+    explorerUrl: entry?.apiUrl === apiBase ? entry.explorerUrl : undefined,
     apiKey: () => apiKey,
     overridden: target !== undefined,
     tableHost: entry === undefined ? undefined : new URL(entry.apiUrl).host,
