@@ -1,5 +1,8 @@
 packages:
   - packages/*
+  # Example applications of the published packages. Private, never published; CI type-checks and
+  # tests them.
+  - examples
 
 linkWorkspacePackages: true
 

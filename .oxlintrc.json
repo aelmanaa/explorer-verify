@@ -164,6 +164,20 @@
       }
     },
     {
+      // The examples are application code: a Next.js route reads its secret from process.env.
+      "files": ["examples/server-nextjs/**"],
+      "rules": {
+        "node/no-process-env": "off"
+      }
+    },
+    {
+      "files": ["examples/test/**"],
+      "rules": {
+        "jsdoc-js/require-jsdoc": "off",
+        "node/no-process-env": "off"
+      }
+    },
+    {
       "files": ["test/**"],
       "rules": {
         "jsdoc-js/require-jsdoc": "off",

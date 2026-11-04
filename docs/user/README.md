@@ -13,6 +13,7 @@ still to come.
 | [Verify a contract shipped in an npm package](guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin |
 | [Verify a contract from a Foundry project](guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input           |
 | [Verify a contract from a Hardhat project](guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files      |
+| [Run the server handler](guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS    |
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |
@@ -31,7 +32,7 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | Folder         | Kind              | Planned first page                                                         |
 | -------------- | ----------------- | -------------------------------------------------------------------------- |
 | `tutorials/`   | Learning by doing | Deploy a contract from a dapp, then verify it                              |
-| `guides/`      | Task how-tos      | Verify from a browser; run the server handler; verify from CI with the CLI |
+| `guides/`      | Task how-tos      | Verify from a browser; verify from CI with the CLI                         |
 | `reference/`   | Exact facts       | API reference generated from TSDoc; errors; supported chains and explorers |
 | `explanation/` | Background        | In place: match types; Etherscan plans and attribution                     |
 

@@ -1,0 +1,23 @@
+{
+  "name": "explorer-verify-examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Examples of createVerifyHandler in a Next.js route and a Cloudflare Worker, type-checked and tested in CI. Never published.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "test": "pnpm run test:unit",
+    "test:unit": "node ../scripts/node-test.ts unit \"test/**/*.test.ts\"",
+    "test:randomize": "node ../scripts/node-test.ts unit --test-randomize \"test/**/*.test.ts\"",
+    "coverage": "c8 --check-coverage node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "explorer-verify": "workspace:*"
+  },
+  "devDependencies": {
+    "c8": "catalog:"
+  }
+}

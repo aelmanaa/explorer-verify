@@ -1,0 +1,14 @@
+// Wrangler configuration of the verify handler Worker.
+// The Etherscan key is a secret, never a var: `npx wrangler secret put ETHERSCAN_API_KEY`.
+// For `wrangler dev`, put it in a .dev.vars file next to this one, and keep that file out of git.
+{
+  "name": "explorer-verify-handler",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-04",
+  // request.signal fires when the client disconnects, so the handler stops its upstream request.
+  // The default from compatibility date 2026-11-17 on.
+  "compatibility_flags": ["enable_request_signal"],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://your-dapp.example",
+  },
+}

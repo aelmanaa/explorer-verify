@@ -67,8 +67,9 @@ POST https://api.etherscan.io/v2/api?REDACTED: attempt 1 of 2 {
 200 {"status":"1","message":"OK","result":"Pass - Verified"}
 ```
 
-Mount it on one route of your application, such as `POST /api/verify`. Examples for frameworks come
-in a later release ([#93](https://github.com/aelmanaa/explorer-verify/issues/93)).
+Mount it on one route of your application, such as `POST /api/verify`.
+[Run the server handler](../guides/run-the-server-handler.md) does this in a Next.js route and a
+Cloudflare Worker.
 
 | Option         | Required | What it does                                                                                                                                                                                 |
 | -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -1,0 +1,14 @@
+{
+  "all": true,
+  "src": ["server-nextjs", "server-cloudflare"],
+  "include": ["server-nextjs/**/*.ts", "server-cloudflare/**/*.ts"],
+  "exclude": ["test/**"],
+  "reporter": ["text", "lcov"],
+  "reports-dir": "coverage",
+  "check-coverage": true,
+  "per-file": true,
+  "lines": 95,
+  "branches": 95,
+  "functions": 95,
+  "statements": 95
+}
