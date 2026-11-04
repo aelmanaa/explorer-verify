@@ -1,10 +1,22 @@
 // Temporary git repositories for the release script tests. Each repository has its own config,
 // so the tests never read the caller's git or gpg settings.
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
+
+// A git hook exports GIT_DIR (and, for some hooks, GIT_INDEX_FILE and GIT_WORK_TREE) to what it
+// runs. A test started from a hook, such as the pre-push run of the test suite, would then point
+// every git command, its own and those of the scripts it starts, at the repository being pushed
+// instead of its temporary one: `git init` there sets core.bare, and commits, tags and
+// update-ref land on its branches. So the test process drops every GIT_* variable before any
+// test runs, and each child process inherits the cleaned environment.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("GIT_")) {
+    Reflect.deleteProperty(process.env, key);
+  }
+}
 
 /** The environment for git in a test: no global or system config, a fixed author and date. */
 export function gitEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
@@ -51,6 +63,11 @@ export function manifest(name: string, version: string, isPrivate = false): stri
 export function makeRepo(prefix: string, files: Readonly<Record<string, string>>): string {
   const root = mkdtempSync(path.join(tmpdir(), prefix));
   git(root, ["init", "--quiet", "--initial-branch=main"]);
+  // Stop before the first commit unless git works in the new folder and nowhere else.
+  const top = git(root, ["rev-parse", "--show-toplevel"]);
+  if (realpathSync(top) !== realpathSync(root)) {
+    throw new Error(`git resolved ${root} to the repository at ${top}; refusing to commit there`);
+  }
   commit(root, files, "initial");
   return root;
 }
