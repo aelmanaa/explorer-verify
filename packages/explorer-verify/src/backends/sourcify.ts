@@ -425,10 +425,9 @@ function parseObject(text: string): Map<string, unknown> | undefined {
   }
 }
 
-/** The error body's `customCode`, when it is a string. */
-function codeOf(fields: Map<string, unknown> | undefined): string | undefined {
-  const code = fields?.get("customCode");
-  return typeof code === "string" ? code : undefined;
+/** The error body's `customCode`. Every caller compares it with a string, so any other value fails. */
+function codeOf(fields: Map<string, unknown> | undefined): unknown {
+  return fields?.get("customCode");
 }
 
 /** `exact_match` and `match` as a {@link Match}; anything else is `undefined`. */
