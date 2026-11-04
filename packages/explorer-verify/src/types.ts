@@ -257,7 +257,12 @@ export type VerifyEvent =
       /** The number of the attempt that follows the wait: 2 for the first retry. */
       readonly attempt: number;
       /** Why the previous attempt failed. */
-      readonly reason: "rate-limited" | "network" | "server-error" | "duplicate-submission";
+      readonly reason:
+        | "rate-limited"
+        | "network"
+        | "server-error"
+        | "duplicate-submission"
+        | "not-indexed";
       /** The wait before that attempt, in milliseconds. */
       readonly delayMs: number;
     }

@@ -160,3 +160,7 @@ Local runs, curl 8.7.1, 2026-11-02:
   partial match after an upgrade to exact (live, 2026-11-02), and the client needs only the match
   fields, so the lookup is read without it. Every Sourcify answer the client maps is in
   [2026-11-02-sourcify-v2.md](2026-11-02-sourcify-v2.md).
+- 2026-11-04: every Etherscan v2 `result` text the client maps, with the ones recorded live on
+  2026-11-04 (the per-second rate limit with HTTP 200, `Contract source code already verified`,
+  `Unable to locate guid`, `Invalid GUID length` and the v1 endpoint answer), the POST form and the
+  Similar Match field, is in [2026-11-04-etherscan-client.md](2026-11-04-etherscan-client.md).

@@ -177,7 +177,7 @@ describe("Logger and VerifyEvent types (R-DX-5, R-DX-6)", () => {
     const states: Equals<Poll["state"], "pending" | "queued" | "completed"> = true;
     const reasons: Equals<
       Retry["reason"],
-      "rate-limited" | "network" | "server-error" | "duplicate-submission"
+      "rate-limited" | "network" | "server-error" | "duplicate-submission" | "not-indexed"
     > = true;
     const failedHasNoMatch: "match" extends keyof Failed ? false : true = true;
     const onEventMayBeAsync: Equals<

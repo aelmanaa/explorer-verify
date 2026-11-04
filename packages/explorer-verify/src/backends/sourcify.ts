@@ -7,8 +7,6 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
-import { JOB_ID } from "../flow/handle.ts";
-import { request } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
@@ -22,6 +20,17 @@ import type {
   SubmitOutcome,
   Target,
 } from "./backend.ts";
+import {
+  attemptSubmit,
+  checkHandle,
+  REASON_LENGTH,
+  send,
+  submitOnce,
+  UNCONFIRMED_STATUSES,
+} from "./common.ts";
+import type { Answer } from "./common.ts";
+
+export { REASON_LENGTH };
 
 const NAME: BackendName = "sourcify";
 
@@ -64,11 +73,7 @@ export const TRANSIENT_CODES: readonly string[] = [
   "contract_not_deployed",
 ];
 
-// Submit answers that may come after Sourcify received the submit: it is not sent again blindly.
-const UNCONFIRMED_STATUSES: readonly number[] = [500, 502, 504];
 const VERIFICATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** The longest `failed` reason, or inconclusive reason, kept from the explorer's text. */
-export const REASON_LENGTH = 300;
 // The longest explorer error code quoted in an error message.
 const CODE_LENGTH = 100;
 
@@ -83,17 +88,6 @@ interface SubmitBody {
   contractIdentifier: string;
   creationTransactionHash?: string;
 }
-
-/** An answer with its body read, and the body's own fields when it is a JSON object. */
-interface Answer {
-  readonly status: number;
-  readonly text: string;
-  readonly fields: Map<string, unknown> | undefined;
-}
-
-type SubmitAttempt =
-  | { readonly kind: "answer"; readonly answer: Answer }
-  | { readonly kind: "unconfirmed"; readonly error: ExplorerVerifyError };
 
 /**
  * The Sourcify API v2 client.
@@ -180,40 +174,26 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
     headers: { "content-type": "application/json" },
     retry: "submit",
   };
-  const first = await attemptSubmit(ctx, req);
-  if (first.kind === "answer") {
-    return readSubmit(input, ctx, first.answer);
-  }
-  ctx.http.observer?.log.warn(
-    `Sourcify submit: ${first.error.message} Looking the contract up before submitting again.`,
-    { backend: "sourcify", code: first.error.code },
+  // A 500, 502 or 504, or a 202 that is not JSON, may come after Sourcify received the submit.
+  const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
+    UNCONFIRMED_STATUSES.includes(answer.status) ||
+    (answer.status === 202 && answer.fields === undefined)
+      ? unexpected(ctx, answer, unrecognised("the submit", answer))
+      : undefined;
+  return await submitOnce(
+    ctx,
+    NAME,
+    "Sourcify",
+    target,
+    async () => await attemptSubmit(ctx, req, unconfirmed),
+    (answer) => readSubmit(input, ctx, answer),
+    lookup,
   );
-  let match: Match | undefined;
-  try {
-    match = await lookup(target, ctx);
-  } catch (error: unknown) {
-    if (error instanceof ExplorerVerifyError) {
-      throw new ExplorerVerifyError(
-        error.details,
-        `${error.message} The submit before this lookup got no clear answer and may already have been accepted.`,
-        { hint: error.hint, cause: error, secrets: ctx.http.secrets },
-      );
-    }
-    throw error;
-  }
-  if (match !== undefined) {
-    return { state: "already-verified", match };
-  }
-  const second = await attemptSubmit(ctx, req);
-  if (second.kind === "answer") {
-    return readSubmit(input, ctx, second.answer);
-  }
-  throw second.error;
 }
 
 /** Asks once for the state of a job. The handle is checked first: it may come from storage. */
 async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
-  checkHandle(handle, ctx);
+  checkHandle(handle, NAME, "Sourcify", ctx);
   const answer = await send(ctx, {
     url: ctx.route.requestUrl(`/v2/verify/${encodeURIComponent(handle.jobId)}`),
     method: "GET",
@@ -305,76 +285,6 @@ function submitBody(input: ResolvedInput): SubmitBody {
   return body;
 }
 
-/**
- * Sends a submit once. An answer that may hide an accepted submit is `unconfirmed`: no response,
- * a 500, 502 or 504, a 2xx whose body failed or stalled, or a 202 that is not JSON. A redirect, an
- * oversized body, or a 503 still refused after the retries is thrown.
- */
-async function attemptSubmit(ctx: Context, req: HttpRequest): Promise<SubmitAttempt> {
-  let answer: Answer;
-  try {
-    answer = await send(ctx, req);
-  } catch (error: unknown) {
-    if (error instanceof ExplorerVerifyError && unclear(error)) {
-      return { kind: "unconfirmed", error };
-    }
-    throw error;
-  }
-  if (
-    UNCONFIRMED_STATUSES.includes(answer.status) ||
-    (answer.status === 202 && answer.fields === undefined)
-  ) {
-    return {
-      kind: "unconfirmed",
-      error: unexpected(ctx, answer, unrecognised("the submit", answer)),
-    };
-  }
-  return { kind: "answer", answer };
-}
-
-/** Whether a thrown submit error may hide a submit Sourcify accepted. */
-function unclear(error: ExplorerVerifyError): boolean {
-  const { details } = error;
-  return (
-    details.code === "network" ||
-    // A 2xx whose body failed or stalled after the headers arrived: the HTTP layer keeps the read
-    // error as the cause. A redirect or an oversized body has no cause and is thrown.
-    (details.code === "unexpected-response" &&
-      details.status >= 200 &&
-      details.status < 300 &&
-      error.cause !== undefined)
-  );
-}
-
-/**
- * Throws `invalid-input` unless the handle names this backend and holds a job id of the shape
- * `parseHandle` accepts, so a handle built by hand never puts an odd value in a request path.
- */
-function checkHandle(handle: Handle, ctx: Context): void {
-  const issues = [];
-  if (handle.backend !== NAME) {
-    issues.push({ field: "backend", message: "must be sourcify for the Sourcify client" });
-  }
-  const jobId: unknown = handle.jobId;
-  if (typeof jobId !== "string" || !JOB_ID.test(jobId)) {
-    issues.push({
-      field: "jobId",
-      message:
-        "must be 1 to 128 characters from A-Z, a-z, 0-9, '_' and '-', starting with a letter or digit",
-    });
-  }
-  if (issues.length > 0) {
-    throw new ExplorerVerifyError(
-      { code: "invalid-input", issues },
-      `The handle is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
-      {
-        hint: "Pass the handle exactly as verify() or parseHandle() returned it.",
-        secrets: ctx.http.secrets,
-      },
-    );
-  }
-}
-
 /** Maps a submit answer to its outcome. */
 function readSubmit(input: ResolvedInput, ctx: Context, answer: Answer): SubmitOutcome {
   const { status, fields } = answer;
@@ -406,23 +316,6 @@ function readSubmit(input: ResolvedInput, ctx: Context, answer: Answer): SubmitO
     );
   }
   throw unexpected(ctx, answer, unrecognised("the submit", answer));
-}
-
-/** Sends one request through the HTTP layer and reads the body. */
-async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
-  const response = await request(ctx.http, req);
-  const text = await response.text();
-  return { status: response.status, text, fields: parseObject(text) };
-}
-
-/** The own fields of a JSON object body, or `undefined` for anything else. */
-function parseObject(text: string): Map<string, unknown> | undefined {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return readFields(parsed);
-  } catch {
-    return undefined;
-  }
 }
 
 /** The error body's `customCode`. Every caller compares it with a string, so any other value fails. */

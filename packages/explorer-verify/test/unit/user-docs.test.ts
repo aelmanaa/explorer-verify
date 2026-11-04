@@ -61,6 +61,8 @@ const NOT_CONFIRMED = [
   "2026-11-02-lookup-not-verified",
 ];
 const ALREADY_VERIFIED = ["2026-11-02-lookup-exact-match"];
+// Etherscan's getsourcecode answer for the Sepolia Greeter, recorded live on 2026-11-04.
+const ETHERSCAN_VERIFIED = ["etherscan/2026-11-04-getsourcecode-sepolia-greeter"];
 
 // A block with no entry here runs once in a `core` project with no answers, and must exit 0 and
 // print its output block, or nothing.
@@ -123,8 +125,20 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/api-keys.md",
     example: 0,
-    what: "an Etherscan key in apiKeys; the chain routes to Sourcify",
+    what: "an Etherscan key in route.apiKey: Etherscan finds the Greeter verified",
+    fixtures: ETHERSCAN_VERIFIED,
+  },
+  {
+    page: "reference/api-keys.md",
+    example: 1,
+    what: "an Etherscan key in apiKeys alone; the chain routes to Sourcify",
     fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "reference/etherscan.md",
+    example: 0,
+    what: "route to Etherscan with route.apiKey: Etherscan finds the Greeter verified",
+    fixtures: ETHERSCAN_VERIFIED,
   },
   {
     page: "reference/check-status.md",

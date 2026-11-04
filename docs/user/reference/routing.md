@@ -34,7 +34,8 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 ## The routing table
 
 The table is `src/routing/table.json` in the package. In this release it lists 94 chains, each with
-Sourcify only, the one backend with a client. A chain has a row when
+Sourcify only. The Etherscan v2 client has no rows yet; reach it with `route.apiUrl`, as
+[Etherscan](etherscan.md) shows. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
 [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
 started from. Both lists were read on 2026-11-03.
@@ -110,7 +111,8 @@ const result = await verify(input, { allowSourcifyFallback: true });
 
 - `backend` without `apiUrl` picks a backend from the chain's row. A backend this version has no
   client for throws `invalid-input` naming `route.backend`, and the hint lists the backends it has.
-  In this release that is `sourcify`.
+  In this release those are `sourcify` and `etherscan-v2`. A backend with a client that the row
+  does not list throws `unsupported-chain`.
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
   in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
   name, password or fragment. A query string is sent with every request and shown as `?REDACTED`

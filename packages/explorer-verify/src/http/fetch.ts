@@ -166,6 +166,13 @@ export interface HttpRequest {
   readonly headers?: Readonly<Record<string, string>>;
   /** What may be retried. */
   readonly retry: RetryMode;
+  /**
+   * Whether a body that came with a status other than 429 is a rate-limit answer, as Etherscan's
+   * `Max calls per sec rate limit reached` with HTTP 200. Such an answer is retried as a 429 is:
+   * the same backoff, attempt cap, budget, abort and `verify.retry` event, and `rate-limited` once
+   * the retries stop.
+   */
+  readonly rateLimited?: (body: string) => boolean;
 }
 
 /**
@@ -189,6 +196,7 @@ interface Call {
   readonly body: HttpRequest["body"];
   readonly headers: Record<string, string> | undefined;
   readonly retry: RetryMode;
+  readonly rateLimited: ((body: string) => boolean) | undefined;
 }
 
 /** The result of one attempt. */
@@ -233,6 +241,7 @@ interface Progress {
  *   above 30 s, or a wait that would pass the budget's deadline, ends the retries at once.
  * - Returns a 429 whose JSON body has `customCode` `duplicate_verification_request` without a
  *   retry: a job for this contract is already running, and the backend maps it to `in-progress`.
+ * - Retries a response whose body `req.rateLimited` reads as a rate-limit answer, as a 429.
  * - Never follows a redirect, and sends every attempt to the same URL, so a request never reaches
  *   a host the caller did not configure (R-SEC-2).
  * - Reads at most `maxResponseBytes` of a body. Once the headers arrived, a body that is too large,
@@ -257,7 +266,8 @@ interface Progress {
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
  * @throws ExplorerVerifyError `invalid-input` when a field of `ctx` or `req` cannot be read or a
  *   required one is missing, or when `requestTimeoutMs` or `maxResponseBytes` is not a positive
- *   number; `network` when no attempt got a response; `rate-limited` when the last one got a 429;
+ *   number; `network` when no attempt got a response; `rate-limited` when the last one got a 429,
+ *   or a body that `req.rateLimited` reads as a rate-limit answer, whatever its status;
  *   `unexpected-response` when it got a 5xx, a redirect or a body that cannot be read; and
  *   `timeout` when the budget ran out.
  * @example
@@ -424,6 +434,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
     body: optional(req, "body", "request"),
     headers: headers === undefined ? undefined : copyHeaders(headers),
     retry: required(req, "retry", "request"),
+    rateLimited: optional(req, "rateLimited", "request"),
   };
 }
 
@@ -639,7 +650,9 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
     return { kind: "fatal", status, excerpt: "", message: tooLarge(limit) };
   }
 
-  if (status === 429 && !isDuplicate(body)) {
+  // Read into a local first, so the check is called as a plain function (see readCall).
+  const { rateLimited } = call;
+  if ((status === 429 && !isDuplicate(body)) || rateLimited?.(body) === true) {
     return {
       kind: "retry",
       reason: "rate-limited",
@@ -842,7 +855,7 @@ function giveUp(
       }
       error = new ExplorerVerifyError(
         details,
-        `${target} answered 429 (rate limited) after ${tries}.`,
+        `${target} answered ${String(failure.status)} (rate limited) after ${tries}.`,
         options,
       );
       break;

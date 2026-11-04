@@ -22,6 +22,7 @@ still to come.
 | [Errors](reference/errors/index.md)                                                            | Every error code, with its cause and fix                                 |
 | [JSON output and exit codes](reference/json-output.md)                                         | The JSON envelope, its schema and the exit code of every outcome         |
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
+| [Etherscan](reference/etherscan.md)                                                            | What is sent to Etherscan, and how each answer becomes a result          |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes    |
 | [Match types](explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |

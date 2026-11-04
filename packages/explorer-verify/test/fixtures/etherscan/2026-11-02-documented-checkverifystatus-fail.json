@@ -1,0 +1,30 @@
+{
+  "source": "Not a recorded response. The body has the shape of the recorded Etherscan v2 answers of 2026-11-03 (status \"0\", message \"NOTOK\"). The result starts with Fail - Unable to verify, the failure text the prior art classifies (docs/contributor/research/2026-11-02-explorer-apis.md, Etherscan API v2); the sentence after it follows the runtime bytecode mismatch described in issue #61.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=421614",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Fail - Unable to verify. Compiled contract runtime bytecode does NOT match the on-chain runtime bytecode."
+    }
+  }
+}

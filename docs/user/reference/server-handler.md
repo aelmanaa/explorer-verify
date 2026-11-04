@@ -13,9 +13,8 @@ its Etherscan requests to it; the handler checks each one, adds the key and forw
 Etherscan. It imports no Node built-in and uses only web-platform globals, so it runs in Node, edge
 runtimes and serverless platforms.
 
-The Etherscan v2 client of `verify()` comes in a later release
-([#61](https://github.com/aelmanaa/explorer-verify/issues/61)). Until then, the handler accepts the
-requests that client will send, and this page describes them.
+The handler accepts the requests that the Etherscan v2 client of `verify()` and `checkStatus()`
+sends ([Etherscan](etherscan.md)), and this page describes them.
 
 ## Etherscan's terms
 
@@ -92,10 +91,15 @@ handler's answer, such as a 504, and not its own timeout.
 ## Point the client at it
 
 The browser keeps no key. It passes a `fetch` that sends each Etherscan request to your handler,
-with the same query, method and body, and leaves every other request alone. No other code changes
-between direct and proxied use.
+with the same query, method and body, and leaves every other request alone. Pass it with a route
+to Etherscan v2: the routing table lists no Etherscan rows yet, so name the backend and the API URL.
+No other code changes between direct and proxied use.
 
-```ts
+<!-- no-run: it sends the requests to your own server's /api/verify route, which an offline run does not have. -->
+
+```ts no-run
+import { verify } from "explorer-verify";
+
 const viaHandler: typeof fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
   if (url.origin !== "https://api.etherscan.io") {
@@ -103,11 +107,15 @@ const viaHandler: typeof fetch = async (input, init) => {
   }
   return await fetch(`/api/verify${url.search}`, init);
 };
+
+const result = await verify(input, {
+  fetch: viaHandler,
+  route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
+});
 ```
 
-From the Etherscan v2 client on, pass it as `verify(input, { fetch: viaHandler })`. With `fetch`
-set, `verify()` sends the request without a key and leaves the key to the server; see
-[API keys](api-keys.md#a-missing-key).
+With `fetch` set, `verify()` sends the request without a key and leaves the key to the server; see
+[API keys](api-keys.md#a-missing-key). `checkStatus()` takes the same two options.
 
 ## Requests it accepts
 

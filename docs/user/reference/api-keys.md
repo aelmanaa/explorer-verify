@@ -6,23 +6,54 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers and agents who pass an explorer API key to `verify()` or `checkStatus()`.
 
-In this release the routing table sends every chain it lists to Sourcify, which needs no key. The Etherscan v2, Routescan and
-standalone clients come next. The key options below are already checked, and a bad value throws
-`invalid-input` today. Where a section below says "from the clients on", the rule takes effect with
-those clients ([#61](https://github.com/aelmanaa/explorer-verify/issues/61),
-[#62](https://github.com/aelmanaa/explorer-verify/issues/62),
-[#63](https://github.com/aelmanaa/explorer-verify/issues/63)).
-
-## `apiKeys`
-
-`VerifyOptions.apiKeys` holds one key per backend name. From the clients on, each key goes where
-this table says:
+In this release the routing table sends every chain it lists to Sourcify, which needs no key. The
+Etherscan v2 client is in this release, but the table has no Etherscan rows yet, so a key in
+`apiKeys` alone never reaches Etherscan: it goes only to the table's host for a route the table
+chose. To use Etherscan now, pass the key as `route.apiKey` with the backend and the API URL:
 
 ```ts
 import { verify } from "explorer-verify";
 
 // On a server. Never ship an Etherscan key to a browser.
+const result = await verify(input, {
+  route: {
+    backend: "etherscan-v2",
+    apiUrl: "https://api.etherscan.io/v2/api",
+    apiKey: etherscanKey,
+  },
+});
+console.log(`${result.status} ${result.backend}`);
+```
+
+```text
+already-verified etherscan-v2
+```
+
+From a browser, keep the key on your server and pass `route: { backend: "etherscan-v2", apiUrl }`
+with a `fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
+
+The Routescan and standalone clients come next. The key options below are already checked, and a
+bad value throws `invalid-input` today. Where a section below says "from the clients on", the rule
+takes effect with those clients and, for `apiKeys`, once the routing table lists their backend
+([#62](https://github.com/aelmanaa/explorer-verify/issues/62),
+[#63](https://github.com/aelmanaa/explorer-verify/issues/63)).
+
+## `apiKeys`
+
+`VerifyOptions.apiKeys` holds one key per backend name. Each key goes where this table says, once
+the routing table lists that backend for the chain. In this release it lists none of them, so
+this call sends no key yet:
+
+```ts
+import { verify } from "explorer-verify";
+
+// Sends the key to Etherscan only once the routing table lists etherscan-v2 for the chain.
 const result = await verify(input, { apiKeys: { "etherscan-v2": etherscanKey } });
+console.log(result.backend);
+```
+
+```text
+sourcify
 ```
 
 | Backend                | Host the key goes to                  | Where in the request                           | Needed                       |

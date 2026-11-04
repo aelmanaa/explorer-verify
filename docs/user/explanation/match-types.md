@@ -109,8 +109,12 @@ match and sends no source.
 | The explorer rejects the source                            | `failed`, with the explorer's reason        |
 | An answer explorer-verify cannot classify                  | A typed error; never `verified` or `failed` |
 
-In this release, Sourcify is the only backend with a client. `exact_match` becomes `exact` and
-`match` becomes `partial` ([Sourcify](../reference/sourcify.md#how-answers-are-read)). A partial
+In this release, Sourcify and Etherscan v2 have a client. On Sourcify, `exact_match` becomes
+`exact` and `match` becomes `partial` ([Sourcify](../reference/sourcify.md#how-answers-are-read)).
+On Etherscan, `Pass - Verified` becomes `exact`; a lookup with a non-empty `SimilarMatch` field
+becomes `partial`, because Etherscan matched the contract from another contract's verified source,
+not from a source submitted for this address, even where the explorer page shows `Exact Match` next
+to it ([Etherscan](../reference/etherscan.md#how-answers-are-read)). A partial
 match found by the lookup is returned as `already-verified`, without a submit
 ([verify()](../reference/verify.md)). On Sourcify, a submit of exact sources for a contract with
 only a partial match upgrades it to an exact match
@@ -119,9 +123,6 @@ upgrade, submit the exact sources another way. An option for this is planned.
 
 The clients that come next plan these mappings, which may change before they ship:
 
-- Etherscan: `Pass - Verified` becomes `exact`. A lookup with a non-empty `SimilarMatch` field
-  becomes `partial`; that row is an open point in
-  [#61](https://github.com/aelmanaa/explorer-verify/issues/61).
 - Blockscout: `is_fully_verified` becomes `exact` and `is_partially_verified` becomes `partial`. A
   build without a metadata hash gives `verified` with `partial`, never `failed`
   ([#66](https://github.com/aelmanaa/explorer-verify/issues/66)).

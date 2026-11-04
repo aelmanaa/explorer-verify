@@ -1,0 +1,43 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T06:55:55.423Z: getsourcecode sent to the v1 URL https://api.etherscan.io/api, without chainid, the key in the form body. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "245",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 06:55:57 GMT",
+      "server": "nginx",
+      "svid": "2",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "You are using a deprecated V1 endpoint, switch to Etherscan API V2 using https://docs.etherscan.io/v2-migration"
+    }
+  },
+  "recordedAt": "2026-11-04T06:55:55.423Z"
+}

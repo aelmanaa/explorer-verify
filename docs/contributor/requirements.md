@@ -135,7 +135,8 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
   `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
   URL on success when the library knows a public page for the contract. A route that points at a
-  self-hosted or local server has none.
+  self-hosted or local server has none. An Etherscan Similar Match, which Etherscan made from
+  another contract's verified source rather than one submitted for this address, is `partial` ([research](research/2026-11-04-etherscan-client.md#the-lookup-and-similar-match)).
 - **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
   ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
@@ -203,8 +204,8 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
   `verify.routed`, `verify.poll`, `verify.retry` and `verify.result` (decision 0013). A call that
   throws emits no `verify.result`. `verify.poll` `state` is one of `pending`, `queued` or
-  `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error` or
-  `duplicate-submission`. An exception thrown
+  `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error`,
+  `duplicate-submission` or `not-indexed`. An exception thrown
   by `onEvent` is caught, logged once at `warn` through the logger, and does not change the
   outcome. A promise returned by `onEvent` gets a `.catch` attached and is not awaited. Events pass
   the same redaction step. Within a schema version, releases only add event types and fields.
