@@ -23,6 +23,8 @@ still to come.
 | [Sourcify](reference/sourcify.md)                                                              | What is sent to Sourcify, and how each answer becomes a result           |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction             |
 | [CLI](reference/cli.md)                                                                        | stdout and stderr, `--json`, log levels, colour and exit codes           |
+| [Match types](explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit       |
+| [Etherscan plans and attribution](explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client        |
 
 Pages land with the features they describe, in four kinds (the Diátaxis layout used by [hardhat-kms](https://github.com/aelmanaa/hardhat-kms)):
 
@@ -31,7 +33,7 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | `tutorials/`   | Learning by doing | Deploy a contract from a dapp, then verify it                              |
 | `guides/`      | Task how-tos      | Verify from a browser; run the server handler; verify from CI with the CLI |
 | `reference/`   | Exact facts       | API reference generated from TSDoc; errors; supported chains and explorers |
-| `explanation/` | Background        | Match types (exact, partial, similar); Etherscan plans and attribution     |
+| `explanation/` | Background        | In place: match types; Etherscan plans and attribution                     |
 
 Each user page states the version it describes in a `Version:` line and links
 [llms.txt](../../llms.txt) near the top. Once published, the npm package will ship these pages

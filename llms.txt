@@ -41,6 +41,8 @@ Submitting a verification is outward and permanent. Read the agent page before y
 - [JSON output and exit codes](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/json-output.md): the versioned JSON envelope, its JSON Schema and the exit code of every outcome
 - [CLI](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/cli.md): the `explorer-verify` command: stdout and stderr, `--json`, exit codes, log levels and colour
 - [Sourcify](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/sourcify.md): what is sent to Sourcify, how each answer becomes a result or an error, and its side effects
+- [Match types](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/match-types.md): what `exact` and `partial` mean per explorer, the metadata hash, builds that can only reach `partial`, automatic matching and why `verify()` looks up first
+- [Etherscan plans and attribution](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/etherscan-plans-and-attribution.md): which Etherscan plan a use needs, the "Powered by Etherscan.io APIs" rule, keys off the client and the server handler's position
 - [Logging and events](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/logging-and-events.md): the logger, the typed stage events, the event JSON Schema, and what happens when a callback throws
 
 ## Contributor docs

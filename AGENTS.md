@@ -52,7 +52,11 @@ and from a Hardhat project in
 [docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md) says what the Sourcify client
 sends and how it reads each answer. The logger and the stage events are in
-[docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md). The agent
+[docs/user/reference/logging-and-events.md](docs/user/reference/logging-and-events.md).
+[docs/user/explanation/match-types.md](docs/user/explanation/match-types.md) explains exact and
+partial matches, and
+[docs/user/explanation/etherscan-plans-and-attribution.md](docs/user/explanation/etherscan-plans-and-attribution.md)
+the Etherscan plan and attribution rules. The agent
 skill that ships in the package is
 [skills/explorer-verify/SKILL.md](skills/explorer-verify/SKILL.md); the build copies it into the
 package, and `packages/explorer-verify/test/unit/skill.test.ts` runs its examples against the

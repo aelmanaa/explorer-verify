@@ -56,7 +56,7 @@ dry run will skip the lookup and say so.
   [API keys in errors](../reference/errors/index.md#api-keys-in-errors). Results are redacted the
   same way.
 - In a browser, do not ship an Etherscan key to the client; Etherscan's API terms forbid it. Use
-  the server handler, planned for a later release, which keeps the key on your server.
+  the [server handler](../reference/server-handler.md), which keeps the key on your server.
 
 ## Etherscan plan rule
 
@@ -68,7 +68,8 @@ Etherscan's Free, Lite and Standard plans cover personal and research use only, 
 verifying their own testnet deployments. Commercial use includes anything offered to third parties,
 free or paid, anything that earns revenue, and anything run by or for a company or other
 organisation. This is a reading of the terms at <https://etherscan.io/apiterms> (1 October 2026),
-not legal advice.
+not legal advice. [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md)
+explains it.
 
 This rule comes from Etherscan's API terms. Sourcify needs no key. This page does not cover the
 terms of Blockscout, Routescan or Sourcify; check them before you rely on those APIs.
