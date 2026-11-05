@@ -15,7 +15,9 @@ The error's own hint says which options fix the case. [Routing](../routing.md) e
 chain resolves.
 
 Fix: check the chain ID. If it is right, set `allowSourcifyFallback: true` to verify on Sourcify,
-or pick a backend that serves the chain with the `route` option.
+or pick a backend that serves the chain with the `route` option. In the CLI, pass
+`--allow-sourcify-fallback` for a chain without a row; the CLI's hint names that flag
+([CLI](../cli.md#chains-the-routing-table-does-not-list)).
 
 Default hint: Check the chain ID, or pick a backend that serves this chain with the route option.
 

@@ -29,6 +29,7 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "verbose",
   "color",
   "dry-run",
+  "allow-sourcify-fallback",
   "api-key-file",
   "api-key-stdin",
   "rpc-url",

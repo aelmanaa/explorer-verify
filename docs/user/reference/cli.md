@@ -89,6 +89,33 @@ Etherscan entry, Etherscan is reached only with
 host, so with `--api-url` it is not used, and `verify` exits 3 with `missing-api-key` before any
 request.
 
+## Chains the routing table does not list
+
+A chain with no row in the [routing table](routing.md) exits 2 with `unsupported-chain`, and the
+hint names `--allow-sourcify-fallback`. The flag sets
+[`allowSourcifyFallback: true`](routing.md#allowsourcifyfallback): such a chain then goes to the
+public Sourcify API, and the result links the Sourcify contract page.
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 \
+  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --allow-sourcify-fallback --dry-run --json
+```
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/999999/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+```
+
+- `verify` and `status` take it. Give `status` the flag when the submit had it: a Sourcify handle
+  of a chain without a row needs it too.
+- It has no effect on a chain the table lists.
+- It works with `--dry-run`, with `--input-json` and with `--backend sourcify`.
+- With `--api-url`, or a `route.apiUrl` in the request, it exits 2: the URL already names the
+  server, so the routing table is not read.
+- With a `--backend` other than `sourcify`, or a repeated `--backend`, it exits 2: the fallback
+  reaches only Sourcify.
+- No environment variable sets it.
+
 ## Status
 
 ```sh
@@ -109,8 +136,9 @@ from stdin. The package `explorer-verify` ships its JSON Schema as
   `route: { "backend", "apiUrl" }`.
 - For `status`: `{ "handle": "ev1:…" }`, with an optional `route`.
 
-Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
-`--api-key-stdin`, `--rpc-url`, `--rpc-url-file`, `--rpc-url-stdin` and `--timeout` may accompany
+Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`,
+`--allow-sourcify-fallback`, `--api-key-file`, `--api-key-stdin`, `--rpc-url`, `--rpc-url-file`,
+`--rpc-url-stdin` and `--timeout` may accompany
 it, and no argument. Any other option exits 2: put it in the request. The route of the request
 counts as `--backend` and `--api-url`, so `--api-key-file` can send its key there. Malformed JSON
 exits 2. Properties the schema does not list exit 2 with one issue that counts them and never names
@@ -184,6 +212,7 @@ Examples:
 
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json`: Check a Foundry build and look the contract up, without submitting: one envelope.
 - `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json`: Verify from a Foundry build-info and artifact; the address may come first, without verify.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --allow-sourcify-fallback --dry-run --json`: Check a contract on a chain that the routing table does not list, on the public Sourcify API.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it.
 
 | Option                          | What it does                                                                                                                                                                                   |
@@ -203,6 +232,7 @@ Examples:
 | `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                      |
 | `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                            |
 | `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                    |
+| `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.          |
 | `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                    |
 | `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                        |
 
@@ -218,14 +248,15 @@ Examples:
 
 - `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json`: Poll the job of a handle until it ends or the time budget runs out.
 
-| Option                  | What it does                                                                                                                            |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`      | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                   |
-| `--api-url <url>`       | Use this explorer API URL instead of the routing table's.                                                                               |
-| `--api-key-file <path>` | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                  |
-| `--api-key-stdin`       | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                          |
-| `--timeout <seconds>`   | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.     |
-| `--input-json <file>`   | Read the whole status request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package. |
+| Option                      | What it does                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`          | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                                 |
+| `--api-url <url>`           | Use this explorer API URL instead of the routing table's.                                                                                                                             |
+| `--api-key-file <path>`     | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                |
+| `--api-key-stdin`           | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                        |
+| `--timeout <seconds>`       | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                   |
+| `--allow-sourcify-fallback` | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify. |
+| `--input-json <file>`       | Read the whole status request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                               |
 
 ## Global options
 

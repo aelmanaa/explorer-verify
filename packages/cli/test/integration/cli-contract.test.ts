@@ -64,6 +64,7 @@ const FOUNDRY = [
 ];
 const VERIFY = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY];
 const ETHERSCAN = ["--backend", "etherscan-v2"];
+const FALLBACK = "--allow-sourcify-fallback";
 const CREATION_TX = `0x${"ab".repeat(32)}`;
 const SOURCIFY_HANDLE = `ev1:sourcify:11155111:${ADDRESS}:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718`;
 const ETHERSCAN_HANDLE = `ev1:etherscan-v2:11155111:${ADDRESS}:cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn`;
@@ -227,6 +228,12 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         scenario: "new",
         result: { lookup: "skipped" },
         noRequests: true,
+      },
+      {
+        // A chain the routing table does not list goes to Sourcify with the fallback flag.
+        kind: "dry-run",
+        args: ["verify", ADDRESS, "--chain", "999999", ...FOUNDRY, FALLBACK, "--dry-run"],
+        result: { backend: "sourcify", lookup: "exact" },
       },
       { kind: "failed", args: VERIFY, scenario: "rejected", twice: true },
       {

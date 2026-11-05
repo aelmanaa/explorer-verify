@@ -870,3 +870,161 @@ describe("verify with an RPC URL (R-IN-3, R-AX-9)", () => {
     );
   });
 });
+
+describe("--allow-sourcify-fallback (R-RT-2, R-AX-5, R-AX-8, R-AX-16)", () => {
+  // No routing-table row lists this chain.
+  const UNLISTED = ["verify", ADDRESS, "--chain", "999999", ...FOUNDRY];
+  const UNLISTED_HANDLE = `ev1:sourcify:999999:${ADDRESS}:${JOB}`;
+  const FALLBACK = "--allow-sourcify-fallback";
+  const HINT =
+    "Pass --allow-sourcify-fallback to verify on the public Sourcify API, or pass --api-url with --backend.";
+  const SOURCIFY_URL = ["--api-url", "https://sourcify.dev/server"];
+
+  /** The `unsupported-chain` error of a chain without a row, sent before any request. */
+  function noRow(result: Run): void {
+    assert.equal(result.code, 2, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["code"], "unsupported-chain");
+    assert.equal(error["hint"], HINT);
+    assert.deepEqual(result.seen, []);
+  }
+
+  it("dry runs a chain without a row on Sourcify, and shows the Sourcify contract page", async (t) => {
+    const result = await run(t, [...UNLISTED, FALLBACK, "--dry-run", "--json"]);
+    assert.equal(result.code, 0, result.stdout);
+    assert.deepEqual(part(result, "result"), {
+      status: "dry-run",
+      backend: "sourcify",
+      apiHost: "sourcify.dev",
+      lookup: "exact",
+      explorerUrl: `https://repo.sourcify.dev/999999/${ADDRESS}`,
+    });
+    assert.equal(submits(result), 0);
+  });
+
+  it("without it, exits 2 with unsupported-chain and a hint that names it", async (t) => {
+    noRow(await run(t, [...UNLISTED, "--dry-run", "--json"]));
+    noRow(await run(t, [...UNLISTED, "--json"]));
+    noRow(await run(t, [...UNLISTED, "--backend", "sourcify", "--json"]));
+    noRow(await run(t, ["status", UNLISTED_HANDLE, "--json"]));
+    const text = await run(t, [...UNLISTED.slice(1), "--dry-run"]);
+    assert.equal(text.code, 2);
+    assert.match(text.stderr, /hint: Pass --allow-sourcify-fallback/);
+  });
+
+  it("verifies on Sourcify, alone or with --backend sourcify, and changes nothing on a listed chain", async (t) => {
+    const alone = await run(t, [...UNLISTED, FALLBACK, "--json"]);
+    assert.equal(alone.code, 0, alone.stdout);
+    assert.deepEqual(part(alone, "result"), {
+      status: "already-verified",
+      backend: "sourcify",
+      match: "exact",
+      explorerUrl: `https://repo.sourcify.dev/999999/${ADDRESS}`,
+    });
+    const named = await run(t, [...UNLISTED, "--backend", "sourcify", FALLBACK, "--json"]);
+    assert.equal(named.code, 0, named.stdout);
+    assert.equal(part(named, "result")["status"], "already-verified");
+    const listed = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, "--json"];
+    const without = await run(t, listed);
+    const withFlag = await run(t, [...listed, FALLBACK]);
+    assert.equal(withFlag.code, 0, withFlag.stdout);
+    assert.equal(withFlag.stdout, without.stdout);
+  });
+
+  it("status polls the Sourcify job of a chain without a row", async (t) => {
+    const result = await run(t, ["status", UNLISTED_HANDLE, FALLBACK, "--json"], "new");
+    assert.ok(result.seen.some((request) => request.path.endsWith(`/v2/verify/${JOB}`)));
+    assert.ok(result.seen.every((request) => request.host === "sourcify.dev"));
+    // The recorded job answers are about chain 11155111, so the polls do not confirm this job.
+    assert.equal(result.code, 4, result.stdout);
+    assert.equal(part(result, "error")["handle"], UNLISTED_HANDLE);
+  });
+
+  it("refuses --api-url and a --backend other than sourcify with exit 2, before any request", async (t) => {
+    const url = await run(t, [
+      ...UNLISTED,
+      FALLBACK,
+      "--backend",
+      "sourcify",
+      ...SOURCIFY_URL,
+      "--json",
+    ]);
+    assert.match(
+      usage(url),
+      /--allow-sourcify-fallback cannot be combined with --api-url: the URL names the server/,
+    );
+    assert.deepEqual(url.seen, []);
+    const other = usage(
+      await run(t, [...UNLISTED, FALLBACK, "--backend", "blockscout", "--dry-run", "--json"]),
+    );
+    assert.match(
+      other,
+      /--allow-sourcify-fallback cannot be combined with a --backend other than sourcify/,
+    );
+    const repeated = usage(
+      await run(t, [
+        ...UNLISTED,
+        FALLBACK,
+        "--backend",
+        "sourcify",
+        "--backend",
+        "blockscout",
+        "--json",
+      ]),
+    );
+    assert.match(repeated, /--backend other than sourcify/);
+    const both = usage(
+      await run(t, [...UNLISTED, FALLBACK, "--backend", "etherscan-v2", ...SOURCIFY_URL, "--json"]),
+    );
+    assert.match(
+      both,
+      /--api-url: .*; --allow-sourcify-fallback cannot be combined with a --backend/,
+    );
+    const status = usage(
+      await run(t, ["status", UNLISTED_HANDLE, FALLBACK, ...SOURCIFY_URL, "--json"]),
+    );
+    assert.match(status, /--allow-sourcify-fallback cannot be combined with --api-url/);
+    assert.match(
+      usage(
+        await run(t, ["status", UNLISTED_HANDLE, FALLBACK, "--backend", "blockscout", "--json"]),
+      ),
+      /--backend other than sourcify/,
+    );
+  });
+
+  it("leaves a backend name that is no backend to the route check", async (t) => {
+    const message = usage(await run(t, [...UNLISTED, FALLBACK, "--backend", "nowhere", "--json"]));
+    assert.match(message, /--backend must be one of/);
+    assert.doesNotMatch(message, /--allow-sourcify-fallback/);
+  });
+
+  it("may accompany --input-json, and names the route fields that it cannot be combined with", async (t) => {
+    const unlisted = { ...REQUEST, chainId: 999999 };
+    const plain = file("fallback.json", JSON.stringify(unlisted));
+    const ok = await run(t, ["verify", "--input-json", plain, FALLBACK, "--dry-run", "--json"]);
+    assert.equal(ok.code, 0, ok.stdout);
+    assert.equal(part(ok, "result")["backend"], "sourcify");
+    noRow(await run(t, ["verify", "--input-json", plain, "--dry-run", "--json"]));
+    const routed = file(
+      "fallback-route.json",
+      JSON.stringify({
+        ...unlisted,
+        route: { backend: "blockscout", apiUrl: "https://example.org/api" },
+      }),
+    );
+    const message = usage(await run(t, ["verify", "--input-json", routed, FALLBACK, "--json"]));
+    assert.match(message, /cannot be combined with route\.apiUrl/);
+    assert.match(message, /cannot be combined with a route\.backend other than sourcify/);
+    const statusRequest = file(
+      "fallback-status.json",
+      JSON.stringify({
+        handle: UNLISTED_HANDLE,
+        route: { apiUrl: "https://example.org/api" },
+      }),
+    );
+    assert.match(
+      usage(await run(t, ["status", "--input-json", statusRequest, FALLBACK, "--json"])),
+      /cannot be combined with route\.apiUrl/,
+    );
+  });
+});

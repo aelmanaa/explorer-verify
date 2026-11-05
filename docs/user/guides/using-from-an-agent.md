@@ -112,7 +112,8 @@ backend of the chain's row that works with the keys set: Etherscan v2 when the r
 Etherscan key is set, Sourcify otherwise. Routescan and
 [Blockscout](../reference/blockscout.md) are reached only with `route.backend` and `route.apiUrl`,
 or `--backend routescan --api-url <url>` and `--backend blockscout --api-url <url>`. A chain with no row gives
-`unsupported-chain`, exit code 2, unless a library call passes `allowSourcifyFallback: true`.
+`unsupported-chain`, exit code 2, unless a library call passes `allowSourcifyFallback: true` or
+the CLI gets `--allow-sourcify-fallback`.
 [Routing](../reference/routing.md) explains the table.
 
 ## API keys

@@ -138,6 +138,8 @@ import { verify } from "explorer-verify";
 const result = await verify(input, { allowSourcifyFallback: true });
 ```
 
+The CLI sets it with `--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routing-table-does-not-list)).
+
 ### `route`
 
 `VerifyOptions.route` is `{ backend?, apiUrl?, apiKey? }`:
