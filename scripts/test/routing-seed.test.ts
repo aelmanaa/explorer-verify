@@ -125,8 +125,8 @@ describe("routing seed: parsing the recorded lists (R-RT-1)", () => {
     const table = parseTable(JSON.parse(readFileSync(new URL(TABLE_FILE, root), "utf8")));
     const seed = parseSeed(JSON.parse(readFileSync(new URL(SEED_FILE, root), "utf8")));
     assert.equal(table.rows.length, 94);
-    assert.equal(table.rows.filter((row) => row.backends.includes("etherscan-v2")).length, 57);
-    assert.equal(seed.etherscan.length, 57);
+    assert.equal(table.rows.filter((row) => row.backends.includes("etherscan-v2")).length, 55);
+    assert.equal(seed.etherscan.length, 55);
     assert.equal(seed.priorArt.length, 67);
   });
 

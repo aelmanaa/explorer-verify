@@ -34,13 +34,13 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 ## The routing table
 
 The table is `src/routing/table.json` in the package. In this release it lists 94 chains. Every row
-has Sourcify, and the 57 chains of the Etherscan chainlist also have Etherscan v2. The Routescan,
+has Sourcify, and the 55 chains of the Etherscan chainlist also have Etherscan v2. The Routescan,
 Blockscout and Etherscan-compatible clients have no rows yet; reach them with `route.backend` and
 `route.apiUrl`, as [Routescan](routescan.md), [Blockscout](blockscout.md) and
 [Etherscan-compatible](etherscan-compatible.md) show. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
 [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
-started from. Both lists were read on 2026-11-04.
+started from. The Etherscan chainlist was read on 2026-11-05 and Sourcify's list on 2026-11-04.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
 C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532) and Arbitrum Sepolia (421614). To see
@@ -94,14 +94,13 @@ row fails CI.
 Each Etherscan entry names the explorer host the chainlist gives for the chain, so an Etherscan
 result has an `explorerUrl`, such as `https://sepolia.etherscan.io/address/<address>#code`.
 
-Etherscan's free tier covers 46 of the 57 chains. On those, Etherscan v2 comes first: a call with
+Etherscan's free tier covers 45 of the 55 chains. On those, Etherscan v2 comes first: a call with
 `apiKeys["etherscan-v2"]` goes to `api.etherscan.io` with the key, and a call without it goes to
 Sourcify and sends no key.
 
-The other 11 chains need a paid Etherscan plan: 10 (OP Mainnet), 56 (BNB Smart Chain Mainnet), 97
+The other 10 chains need a paid Etherscan plan: 10 (OP Mainnet), 56 (BNB Smart Chain Mainnet), 97
 (BNB Smart Chain Testnet), 100 (Gnosis), 4663 (Robinhood Chain), 5042 (Arc Mainnet), 8453 (Base
-Mainnet), 43113 (Avalanche Fuji), 43114 (Avalanche C-Chain), 84532 (Base Sepolia) and 11155420 (OP
-Sepolia). On those, Sourcify comes first, so a free-plan key does not turn a call that Sourcify
+Mainnet), 43114 (Avalanche C-Chain), 84532 (Base Sepolia) and 11155420 (OP Sepolia). On those, Sourcify comes first, so a free-plan key does not turn a call that Sourcify
 serves into an Etherscan refusal. With a paid plan, set `route: { backend: "etherscan-v2" }` and
 pass the key in `apiKeys`; from the CLI, pass `--backend etherscan-v2`. The plan rule of
 [API keys](api-keys.md#etherscan-plan-rule) is separate from this list and applies to every chain:

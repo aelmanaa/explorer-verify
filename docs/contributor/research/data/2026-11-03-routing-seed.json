@@ -1,5 +1,5 @@
 {
-  "$comment": "Research data behind the routing table of 2026-11-03 (issue #60, decision 0024). It does not ship. etherscan is a frozen copy of the Etherscan chainlist; routescan is the mainnet list of Routescan's supported-chains page plus chain 43113 from the Routescan research note of 2026-11-03; confirmed is true only where a live request confirmed the network; priorArt is the prior art's 67 rows re-checked; rows are the shipped table's rows with their names and the list each comes from; sources lists what the table was checked against. scripts/compare-routing-table.ts reads it.",
+  "$comment": "Research data behind the routing table of 2026-11-03 (issue #60, decision 0024). It does not ship. etherscan is a frozen copy of the Etherscan chainlist, updated on 2026-11-05 when chains 11124 and 43113 left it (#165); routescan is the mainnet list of Routescan's supported-chains page plus chain 43113 from the Routescan research note of 2026-11-03; confirmed is true only where a live request confirmed the network; priorArt is the prior art's 67 rows re-checked; rows are the shipped table's rows with their names and the list each comes from; sources lists what the table was checked against. scripts/compare-routing-table.ts reads it.",
   "checked": "2026-11-03",
   "sources": {
     "etherscanChainlist": "https://api.etherscan.io/v2/chainlist",
@@ -280,7 +280,7 @@
     {
       "chainId": 11124,
       "name": "Abstract Sepolia Testnet",
-      "from": ["etherscan-chainlist", "prior-art"]
+      "from": ["prior-art"]
     },
     {
       "chainId": 14601,
@@ -320,7 +320,7 @@
     {
       "chainId": 43113,
       "name": "Avalanche Fuji Testnet",
-      "from": ["etherscan-chainlist", "prior-art"]
+      "from": ["prior-art"]
     },
     {
       "chainId": 43114,
@@ -690,12 +690,6 @@
       "paidPlan": false
     },
     {
-      "chainId": 11124,
-      "name": "Abstract Sepolia Testnet",
-      "explorer": "sepolia.abscan.org",
-      "paidPlan": false
-    },
-    {
       "chainId": 14601,
       "name": "Sonic Testnet",
       "explorer": "testnet.sonicscan.org",
@@ -712,12 +706,6 @@
       "name": "Celo Mainnet",
       "explorer": "celoscan.io",
       "paidPlan": false
-    },
-    {
-      "chainId": 43113,
-      "name": "Avalanche Fuji Testnet",
-      "explorer": "testnet.snowscan.xyz",
-      "paidPlan": true
     },
     {
       "chainId": 43114,

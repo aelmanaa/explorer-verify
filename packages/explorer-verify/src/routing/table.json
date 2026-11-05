@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "checked": "2026-11-04",
+  "checked": "2026-11-05",
   "chains": [
     {
       "chainId": 1,
@@ -266,13 +266,7 @@
       ]
     },
     { "chainId": 10200, "backends": [{ "backend": "sourcify" }] },
-    {
-      "chainId": 11124,
-      "backends": [
-        { "backend": "etherscan-v2", "explorer": "sepolia.abscan.org" },
-        { "backend": "sourcify" }
-      ]
-    },
+    { "chainId": 11124, "backends": [{ "backend": "sourcify" }] },
     {
       "chainId": 14601,
       "backends": [
@@ -298,13 +292,7 @@
       ]
     },
     { "chainId": 42431, "backends": [{ "backend": "sourcify" }] },
-    {
-      "chainId": 43113,
-      "backends": [
-        { "backend": "sourcify" },
-        { "backend": "etherscan-v2", "explorer": "testnet.snowscan.xyz" }
-      ]
-    },
+    { "chainId": 43113, "backends": [{ "backend": "sourcify" }] },
     {
       "chainId": 43114,
       "backends": [
@@ -433,7 +421,10 @@
       "chainId": 11155420,
       "backends": [
         { "backend": "sourcify" },
-        { "backend": "etherscan-v2", "explorer": "sepolia-optimism.etherscan.io" }
+        {
+          "backend": "etherscan-v2",
+          "explorer": "sepolia-optimism.etherscan.io"
+        }
       ]
     },
     { "chainId": 12227332, "backends": [{ "backend": "sourcify" }] },

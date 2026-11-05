@@ -1,7 +1,8 @@
-// Tests for the rows of the shipped routing table (#60, #122, R-RT-1, decisions 0024 and 0027).
-// They read the research data of 2026-11-03, which holds a frozen copy of the Etherscan chainlist
-// and the prior art's rows re-checked against Sourcify's chain list, so a dropped row or entry
-// fails CI. The chainlist read on 2026-11-04 equals the frozen copy.
+// Tests for the rows of the shipped routing table (#60, #122, #165, R-RT-1, decisions 0024 and
+// 0027). They read the research data of 2026-11-03, which holds a frozen copy of the Etherscan
+// chainlist and the prior art's rows re-checked against Sourcify's chain list, so a dropped row or
+// entry fails CI. The copy was updated on 2026-11-05, when chains 11124 and 43113 left the
+// chainlist.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -86,14 +87,14 @@ const seed: Seed = {
 const tableIds = ROUTING_TABLE.chains.map((row) => row.chainId);
 
 describe("routing table rows (R-RT-1)", () => {
-  it("is dated 2026-11-04, when the rows were checked again against both lists", () => {
-    // The research data is of 2026-11-03; the research note of 2026-11-04 records the second check.
+  it("is dated 2026-11-05, when the rows were checked again against the chainlist", () => {
+    // The research data is of 2026-11-03; the research note of 2026-11-04 records the later checks.
     assert.equal(seed.checked, "2026-11-03");
-    assert.equal(ROUTING_TABLE.checked, "2026-11-04");
+    assert.equal(ROUTING_TABLE.checked, "2026-11-05");
   });
 
   it("has a row for every chain id of the frozen Etherscan chainlist (R-RT-1)", () => {
-    assert.equal(seed.etherscan.length, 57);
+    assert.equal(seed.etherscan.length, 55);
     const missing = seed.etherscan.filter((chain) => !tableIds.includes(chain.chainId));
     assert.deepEqual(missing, []);
   });
@@ -102,7 +103,7 @@ describe("routing table rows (R-RT-1)", () => {
     const paid = seed.etherscan.filter((chain) => chain.paidPlan).map((chain) => chain.chainId);
     assert.deepEqual(
       paid.toSorted((a, b) => a - b),
-      [10, 56, 97, 100, 4663, 5042, 8453, 43113, 43114, 84532, 11155420],
+      [10, 56, 97, 100, 4663, 5042, 8453, 43114, 84532, 11155420],
     );
     for (const chainId of paid) {
       assert.equal(resolveRoute(chainId).backend, "sourcify", String(chainId));
@@ -159,6 +160,21 @@ describe("routing table rows (R-RT-1)", () => {
         route.explorerUrl?.(ADDRESS),
         `https://${chain.explorer}/address/${ADDRESS}#code`,
       );
+    }
+  });
+
+  it("keeps 11124 and 43113, which left the chainlist on 2026-11-05, on Sourcify only, with or without a key (R-RT-1, #165)", () => {
+    for (const chainId of [11124, 43113]) {
+      assert.ok(!seed.etherscan.some((chain) => chain.chainId === chainId), String(chainId));
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chainId);
+      assert.deepEqual(row?.backends, [{ backend: "sourcify" }], String(chainId));
+      assert.equal(resolveRoute(chainId).backend, "sourcify", String(chainId));
+      const route = resolveRoute(chainId, undefined, WITH_KEY);
+      assert.equal(route.backend, "sourcify", String(chainId));
+      assert.equal(route.tableHost, "sourcify.dev");
+      assert.throws(() => resolveRoute(chainId, { backend: "etherscan-v2" }, WITH_KEY), {
+        code: "unsupported-chain",
+      });
     }
   });
 
