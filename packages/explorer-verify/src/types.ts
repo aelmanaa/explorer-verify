@@ -241,6 +241,7 @@ export type LinkProxyResult =
  *   request was sent.
  * - `explorerUrl` is the public page of the contract, present only for a match the library knows a
  *   page for.
+ * - `routedBy` says how the backend was chosen; see {@link RoutedBy}.
  *
  * @example
  * ```ts
@@ -265,7 +266,28 @@ export interface DryRunResult {
   lookup: "exact" | "partial" | "none" | "skipped";
   /** The public page of the contract, for a match the library knows a page for. */
   explorerUrl?: string;
+  /** How the backend was chosen. `dryRun()` always sets it. */
+  routedBy?: RoutedBy;
 }
+
+/**
+ * How a call's backend was chosen, as `verify.routed` and `DryRunResult` report it:
+ *
+ * - `caller`: `route.backend` named it.
+ * - `table`: the routing table picked it: the first backend the chain's row lists that needs no
+ *   key or has one.
+ * - `fallback`: the chain has no row, and `allowSourcifyFallback` sent the call to Sourcify.
+ * - `api-url`: `route.apiUrl` named the server.
+ *
+ * @example
+ * ```ts
+ * import type { RoutedBy } from "explorer-verify";
+ *
+ * const chosen: RoutedBy = "table";
+ * ```
+ * @experimental
+ */
+export type RoutedBy = "caller" | "table" | "fallback" | "api-url";
 
 /**
  * One log field value: flat and JSON-safe, so it maps to a JSON Lines record or an OpenTelemetry
@@ -395,6 +417,14 @@ export type VerifyEvent =
       readonly backend: BackendName;
       /** The API host, such as `sourcify.dev`. Never a scheme, a path or a query. */
       readonly apiHost: string;
+      /** How the backend was chosen. */
+      readonly routedBy?: RoutedBy;
+      /**
+       * The backends the routing table lists before `backend` that the call passed over, because
+       * each needs an API key and none is set: names joined with `,`, in table order. Present
+       * only when `routedBy` is `table` and one was passed over.
+       */
+      readonly skipped?: string;
     }
   | {
       /** The event type. */

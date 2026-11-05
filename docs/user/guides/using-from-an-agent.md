@@ -48,15 +48,15 @@ Etherscan, Blockscout and Routescan. See [Sourcify](../reference/sourcify.md#beh
 
 These calls and commands never submit. Run them without asking.
 
-| Step               | Call or command                                                                                                                    | Effect                                                                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build              | `buildVerifyInput()`, `buildVerifyInputFromFoundry()`, `findFoundryBuild()`, `buildVerifyInputFromHardhat()`, `findHardhatBuild()` | Build the compiler input and contract name from build files. Read local files, send nothing                                                         |
-| Validate           | `validateInput()`, `linkLibraries()`                                                                                               | Check the input and list every problem; add library addresses to `settings.libraries`. Send nothing                                                 |
-| Resolve            | `buildVerifyInputFromBytecode()`                                                                                                   | Reads the bytecode from your RPC endpoint, and the metadata and sources from Sourcify or an IPFS gateway. Read-only requests                        |
-| Dry run and lookup | `dryRun()`, `explorer-verify verify --dry-run`                                                                                     | Validates, resolves the explorer and looks the contract up once, which tells whether `verify()` would submit. Never submits                         |
-| Status             | `checkStatus()`, `explorer-verify status`                                                                                          | Polls the job of a handle, for a submission the explorer already has. Never submits                                                                 |
-| Handles and output | `parseHandle()`, `formatHandle()`, `toEnvelope()`, `exitCodeOf()`, `toBackendName()`, `routingTableDate()`                         | Read or write a handle, turn an outcome into the JSON envelope and the exit code, check a backend name, give the routing table's date. Send nothing |
-| Help and version   | `explorer-verify help`, `explorer-verify --version --json`                                                                         | Print the help or the versions and the routing table's date. Contact no explorer                                                                    |
+| Step               | Call or command                                                                                                                    | Effect                                                                                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build              | `buildVerifyInput()`, `buildVerifyInputFromFoundry()`, `findFoundryBuild()`, `buildVerifyInputFromHardhat()`, `findHardhatBuild()` | Build the compiler input and contract name from build files. Read local files, send nothing                                                                                                       |
+| Validate           | `validateInput()`, `linkLibraries()`                                                                                               | Check the input and list every problem; add library addresses to `settings.libraries`. Send nothing                                                                                               |
+| Resolve            | `buildVerifyInputFromBytecode()`                                                                                                   | Reads the bytecode from your RPC endpoint, and the metadata and sources from Sourcify or an IPFS gateway. Read-only requests                                                                      |
+| Dry run and lookup | `dryRun()`, `explorer-verify verify --dry-run`                                                                                     | Validates, resolves the explorer and looks the contract up once, which tells whether `verify()` would submit. Never submits                                                                       |
+| Status             | `checkStatus()`, `explorer-verify status`                                                                                          | Polls the job of a handle, for a submission the explorer already has. Never submits                                                                                                               |
+| Handles and output | `parseHandle()`, `formatHandle()`, `toEnvelope()`, `exitCodeOf()`, `toBackendName()`, `routingTableDate()`, `routesFor()`          | Read or write a handle, turn an outcome into the JSON envelope and the exit code, check a backend name, give the routing table's date, list a chain's backends and the table's pick. Send nothing |
+| Help and version   | `explorer-verify help`, `explorer-verify --version --json`                                                                         | Print the help or the versions and the routing table's date. Contact no explorer                                                                                                                  |
 
 `buildVerifyInputFromFoundry()` and `findFoundryBuild()` come from `@explorer-verify/foundry`,
 `buildVerifyInputFromHardhat()` and `findHardhatBuild()` from `@explorer-verify/hardhat`,
@@ -96,7 +96,8 @@ verify() would submit to sourcify: ask the person first
 ```
 
 With the command, in a project whose `verify-input.json` holds the request as
-[`--input-json`](../reference/cli.md#the-request-as-json) reads it:
+[`--input-json`](../reference/cli.md#the-request-as-json) reads it, with
+`"route": { "backend": "sourcify" }`:
 
 ```sh
 # exit code 0
@@ -104,7 +105,7 @@ explorer-verify verify --input-json verify-input.json --dry-run --json
 ```
 
 ```text
-{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}
 ```
 
 The `backend` field names the explorer the real run would use. The routing table picks the first
@@ -119,10 +120,13 @@ the CLI gets `--allow-sourcify-fallback`.
 [Routing](../reference/routing.md) explains the table.
 
 When the person names an explorer, pass its backend: `--backend etherscan-v2` for Etherscan, or
-`route: { backend: "etherscan-v2" }` in a library call. Without it, the routing table picks the
-explorer, and `verify` submits there. On Sepolia with no Etherscan key set, that is Sourcify, so a
-request to verify on Etherscan would publish the source on Sourcify instead. With `--backend` and
-no key, the command exits 3 with `missing-api-key` and submits nothing.
+`route: { backend: "etherscan-v2" }` in a library call. With `--backend` and no key, the command
+exits 3 with `missing-api-key` and submits nothing. `verify` without `--dry-run` needs a target:
+without `--backend`, it exits 2 with `invalid-input` before any request, and the hint names the
+backends the chain lists and what `--backend auto` would pick. Pass `--backend auto` only when the
+person accepts the routing table's pick: on Sepolia with no Etherscan key set, that is Sourcify.
+In a library call, `verify()` still submits to the routing table's pick when `route.backend` is
+absent, so set it there too.
 
 ## API keys
 

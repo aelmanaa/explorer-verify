@@ -113,6 +113,10 @@
         "explorerUrl": {
           "description": "The public page of the contract, for a match. Absent when the library knows none.",
           "type": "string"
+        },
+        "routedBy": {
+          "description": "How the backend was chosen. caller: the caller named it (route.backend, --backend). table: the routing table picked the first backend the chain lists that needs no key or has one. fallback: the chain has no row and the Sourcify fallback was allowed. api-url: the caller named the server (route.apiUrl, --api-url).",
+          "enum": ["caller", "table", "fallback", "api-url"]
         }
       },
       "required": ["status", "backend", "apiHost", "lookup"]
@@ -177,7 +181,11 @@
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },
         "message": { "description": "What went wrong.", "type": "string" },
-        "hint": { "description": "What to do next.", "type": "string", "minLength": 1 },
+        "hint": {
+          "description": "What to do next.",
+          "type": "string",
+          "minLength": 1
+        },
         "docsUrl": {
           "description": "The code's own page in the error reference.",
           "type": "string",

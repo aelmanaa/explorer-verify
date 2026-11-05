@@ -231,14 +231,14 @@ async function runCommand(
     values,
     signal,
     logger: stderr.logger,
-    onEvent: (event) => {
+    onEvent: (event, level) => {
       if (event.type === "verify.submitted") {
         state.submitted = event.handle;
         state.submissions.set(event.backend, event.handle);
       } else if (event.type === "verify.result") {
         state.ended.add(event.backend);
       }
-      stderr.onEvent(event);
+      stderr.onEvent(event, level);
     },
     env: withoutKeyVariables(io.env),
     routeOptions: () => routeOptions,

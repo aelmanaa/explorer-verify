@@ -342,7 +342,7 @@ describe("verify(): lookup first (R-FLOW-1)", () => {
     assert.equal(r.sent[0]?.method, "GET");
     assert.deepEqual(r.events, [
       { type: "verify.validated", chainId: SEPOLIA, address: GREETER },
-      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
+      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev", routedBy: "table" },
       { type: "verify.lookup", backend: "sourcify", match: "exact" },
       { type: "verify.result", backend: "sourcify", status: "already-verified", match: "exact" },
     ]);
@@ -412,7 +412,7 @@ describe("verify(): submit and poll (R-FLOW-2, R-FLOW-3)", () => {
     // The stage events of decision 0010, in order (R-DX-6).
     assert.deepEqual(r.events, [
       { type: "verify.validated", chainId: SEPOLIA, address: GREETER },
-      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
+      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev", routedBy: "table" },
       { type: "verify.lookup", backend: "sourcify", match: "none" },
       { type: "verify.submitted", backend: "sourcify", handle: SUBMITTED_HANDLE },
       { type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" },
@@ -513,6 +513,7 @@ describe("verify(): submit and poll (R-FLOW-2, R-FLOW-3)", () => {
       type: "verify.routed",
       backend: "sourcify",
       apiHost: "127.0.0.1:5555",
+      routedBy: "api-url",
     });
   });
 });

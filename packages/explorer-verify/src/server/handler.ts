@@ -345,6 +345,9 @@ const ETHERSCAN_ROUTE: Route = Object.freeze({
   apiKey: (): undefined => undefined,
   overridden: false,
   tableHost: ETHERSCAN_HOST,
+  // The handler's own route: no event carries these.
+  routedBy: "api-url",
+  skipped: [],
 });
 
 /**

@@ -62,7 +62,10 @@ const FOUNDRY = [
   "--input",
   "out/Greeter.sol/Greeter.json",
 ];
-const VERIFY = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY];
+/** A verify run without a target: a dry run, or a run that names its backends itself. */
+const BASE = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY];
+/** A submitting verify run on Sourcify (#212). */
+const VERIFY = [...BASE, "--backend", "sourcify"];
 const ETHERSCAN = ["--backend", "etherscan-v2"];
 const FALLBACK = "--allow-sourcify-fallback";
 const CREATION_TX = `0x${"ab".repeat(32)}`;
@@ -220,7 +223,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
       { kind: "verified", args: VERIFY, scenario: "new" },
       {
         kind: "dry-run",
-        args: [...VERIFY, "--dry-run"],
+        args: [...BASE, "--dry-run"],
         scenario: "new",
         result: { lookup: "none" },
         twice: true,
@@ -228,7 +231,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
       {
         // R-AX-8: no key for a backend that needs one, so the lookup is skipped.
         kind: "dry-run",
-        args: [...VERIFY, "--dry-run", ...ETHERSCAN],
+        args: [...BASE, "--dry-run", ...ETHERSCAN],
         scenario: "new",
         result: { lookup: "skipped" },
         noRequests: true,
@@ -246,7 +249,15 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         noRequests: true,
         twice: true,
       },
-      { kind: "missing-api-key", args: [...VERIFY, ...ETHERSCAN], noRequests: true },
+      {
+        // #212: a bare verify, with no --backend, exits 2 with zero requests, so zero submits.
+        // The agent evaluation's no-key task relies on it.
+        kind: "invalid-input",
+        args: BASE,
+        noRequests: true,
+        twice: true,
+      },
+      { kind: "missing-api-key", args: [...BASE, ...ETHERSCAN], noRequests: true },
       {
         kind: "not-confirmed",
         args: [...VERIFY, "--timeout", "2"],
@@ -272,12 +283,12 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
       },
     ],
     secretRuns: [
-      variableRun("ETHERSCAN_API_KEY", [...VERIFY, "--dry-run"]),
-      { ...variableRun("ROUTESCAN_API_KEY", [...VERIFY, "--dry-run"]), used: NO_ROUTESCAN },
-      { ...variableRun("BLOCKSCOUT_API_KEY", [...VERIFY, "--dry-run"]), used: NO_HOSTED_API },
+      variableRun("ETHERSCAN_API_KEY", [...BASE, "--dry-run"]),
+      { ...variableRun("ROUTESCAN_API_KEY", [...BASE, "--dry-run"]), used: NO_ROUTESCAN },
+      { ...variableRun("BLOCKSCOUT_API_KEY", [...BASE, "--dry-run"]), used: NO_HOSTED_API },
       {
         source: "--api-key-file",
-        args: [...VERIFY, "--dry-run", ...ETHERSCAN, "--api-key-file", KEY_FILE],
+        args: [...BASE, "--dry-run", ...ETHERSCAN, "--api-key-file", KEY_FILE],
         secrets: [KEY],
         used: "key",
       },
@@ -285,7 +296,15 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         // The Etherscan route derives the constructor arguments through the RPC URL, whose
         // endpoint answers an error that repeats the whole URL.
         source: "--rpc-url-file",
-        args: [...VERIFY, "--creation-tx", CREATION_TX, "--rpc-url-file", RPC_FILE],
+        args: [
+          ...BASE,
+          "--backend",
+          "auto",
+          "--creation-tx",
+          CREATION_TX,
+          "--rpc-url-file",
+          RPC_FILE,
+        ],
         env: { ETHERSCAN_API_KEY: KEY },
         scenario: "new",
         secrets: [RPC_PATH_SECRET, RPC_QUERY_SECRET, KEY],
@@ -763,7 +782,7 @@ describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)"
     "one outcome per backend; Etherscan with no key exits 3 and is sent nothing",
     TIMEOUT,
     async () => {
-      const result = await run([...VERIFY, ...BOTH, "--json"]);
+      const result = await run([...BASE, ...BOTH, "--json"]);
       assert.equal(result.code, 3, result.stderr);
       const outcomes = outcomesOf(result, "verify, two backends");
       assert.deepEqual(
@@ -778,7 +797,7 @@ describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)"
   );
 
   it("every backend verified, with the key from its variable: exit 0", TIMEOUT, async () => {
-    const result = await run([...VERIFY, ...BOTH, "--json"], { env: { ETHERSCAN_API_KEY: KEY } });
+    const result = await run([...BASE, ...BOTH, "--json"], { env: { ETHERSCAN_API_KEY: KEY } });
     assert.equal(result.code, 0, result.stderr);
     const outcomes = outcomesOf(result, "verify, two backends, key");
     assert.ok(outcomes.every((outcome) => outcome["ok"] === true));
@@ -791,7 +810,7 @@ describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)"
     async () => {
       const result = await run(
         [
-          ...VERIFY,
+          ...BASE,
           "--backend",
           "sourcify",
           "--backend",

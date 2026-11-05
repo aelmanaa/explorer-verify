@@ -272,6 +272,9 @@ The result is a `DryRunResult`:
   `already-verified` without a submit; `none` when it holds none, so `verify()` would submit;
   `skipped` when the backend needs an API key and none is set, so no request was sent.
 - `explorerUrl`: the public page of the contract, for a match, when the library knows one.
+- `routedBy`: how the backend was chosen. `caller` when `route.backend` named it, `table` when the
+  routing table picked it, `fallback` for the Sourcify fallback of a chain without a row, and
+  `api-url` when `route.apiUrl` named the server.
 
 A dry run needs no API key. Where `verify()` would throw `missing-api-key`, a dry run sends nothing
 and returns `lookup: "skipped"`. With an injected `fetch`, it looks the contract up, because the

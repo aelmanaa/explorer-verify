@@ -30,7 +30,13 @@ Without `route.apiUrl`:
 With `route.apiUrl`, the call goes to that URL, for any chain, with or without a row. The backend
 is `route.backend`, or `sourcify` when you leave it out. See [`route`](#route) below.
 
-The result's `backend` and the `verify.routed` event name the backend the call used.
+The result's `backend` and the `verify.routed` event name the backend the call used. The event's
+`routedBy` says which rule chose it: `caller` (`route.backend`), `table` (step 1), `fallback`
+(step 3) or `api-url`, and its `skipped` lists the backends step 1 passed over for lack of a key.
+
+The library follows these rules for any call. The CLI's `verify` submits only to a backend the
+caller names: `--backend <name>`, or `--backend auto` for step 1's pick. Without one it exits 2
+before any request ([CLI: where verify submits](cli.md#where-verify-submits)).
 
 ## The routing table
 
@@ -349,3 +355,38 @@ lists its size.
 
 Each is thrown before any request, except the explorer's own answer. See
 [unsupported-chain](errors/unsupported-chain.md).
+
+## `routesFor()`
+
+`routesFor(chainId, { apiKeys, allowSourcifyFallback })` tells where a call would go without
+`route`, and which backends `route.backend` can name. It reads the routing table and sends no
+request; only whether `apiKeys` has a key for a backend counts, and no key is checked or sent. It
+is `@experimental`.
+
+```ts
+import { routesFor } from "explorer-verify";
+
+const { listed, pick } = await routesFor(11155111);
+console.log(listed.join(", "));
+if (pick instanceof Error) {
+  console.log(pick.message);
+} else {
+  console.log(`${pick.backend} (${pick.routedBy}), skipped: ${pick.skipped.join(", ") || "none"}`);
+}
+```
+
+On Sepolia with no key, it prints:
+
+```text
+etherscan-v2, sourcify, blockscout, routescan
+sourcify (table), skipped: etherscan-v2
+```
+
+- `listed`: the backends of the chain's row, in order of preference. Empty for a chain without a
+  row.
+- `pick`: the backend, `routedBy` (`table`, or `fallback` for a chain without a row with
+  `allowSourcifyFallback: true`), the backends `skipped` for lack of a key, and `keyMissing`, true
+  when every backend of the row needs a key and none is set, so `verify()` would throw
+  `missing-api-key`. For a chain without a row and no fallback, `pick` is the `unsupported-chain`
+  error that `verify()` would throw.
+- A chain id that is not a positive safe integer throws `invalid-input`.

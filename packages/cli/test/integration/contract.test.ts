@@ -24,6 +24,8 @@ const VERIFY = [
   "out/build-info/greeter.json",
   "--input",
   "out/Greeter.sol/Greeter.json",
+  "--backend",
+  "sourcify",
 ];
 /** A status run that ends `verified` at once against the default scenario. */
 const STATUS = ["status", HANDLE];

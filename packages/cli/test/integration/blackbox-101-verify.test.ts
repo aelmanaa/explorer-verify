@@ -675,7 +675,7 @@ describe("#101 --dry-run (R-AX-8)", CONCURRENT, () => {
       envelope(res, "doc example");
       assert.equal(
         res.stdout,
-        '{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped"}}\n',
+        '{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped","routedBy":"api-url"}}\n',
       );
     },
   );

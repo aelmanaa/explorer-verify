@@ -318,7 +318,8 @@ CLI:
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
-  `status`, `result` is a `VerifyResult`, for `verify --dry-run` a `DryRunResult` (R-AX-8), and for
+  `status`, `result` is a `VerifyResult`, for `verify --dry-run` a `DryRunResult` with `routedBy`
+  (R-AX-8), and for
   `verify` with `--backend` repeated a `VerifyEachResult`, one outcome per backend (R-RT-4);
   every other command documents its result type in the JSON Schema. The error `code` tells an unknown explorer state
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, a
@@ -374,7 +375,15 @@ CLI:
 - **R-AX-8** `--dry-run` validates the input, resolves the route, builds the request and checks
   whether the contract is already verified, then stops before the submit. It needs no API key: when
   the route's backend requires a key and none is set, it skips the already-verified lookup and says
-  so in the output.
+  so in the output. It says where `verify` would submit and why: `DryRunResult.routedBy` is
+  `caller`, `table`, `fallback` or `api-url`. A submitting `verify` needs an explicit target:
+  `--backend <name>` or `--backend auto`, the routing table's pick (`route.backend` in the request
+  of R-AX-16, `"auto"` included). Without one it exits 2 with `invalid-input` on `--backend`
+  before any request, with or without a terminal, `CI` or `--json`; the hint lists the backends of
+  the chain's row, says what `auto` would pick and why, and suggests `--dry-run`, and never holds a
+  key. `--allow-sourcify-fallback` is not a target. `--api-url` needs `--backend` naming a backend,
+  not `auto`, in a dry run too. `auto` with another `--backend` exits 2. `--dry-run` and `status`
+  need no target (decision 0043).
 - **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
   a flag value. `--api-key-stdin` reads the key from stdin and trims one trailing newline. It
   cannot be combined with `--input-json -` (exit code 2). When stdin is a terminal,
@@ -387,7 +396,8 @@ CLI:
   which makes it `route.apiKey`. Without `--api-url`, a standalone explorer's key goes to the
   host the routing table lists for the chain, and only when that entry has `needsKey`
   (decision 0039). Otherwise the CLI exits 2, because the routing table picks a backend
-  partly by the keys it has. Tests assert that a dummy key never appears on stdout, on stderr
+  partly by the keys it has; `--backend auto` with `--api-key-file` or `--api-key-stdin` exits 2
+  for the same reason. Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1). The JSON-RPC URL of `verify` (`VerifyOptions.rpcUrl`, R-IN-3)
   can hold a provider key, so it comes from `--rpc-url-file` or `--rpc-url-stdin`, and from
   `--rpc-url` only when no path segment, query name or value, user name, password or fragment
@@ -424,7 +434,9 @@ CLI:
   | `--verbose` | `debug` | Adds `verify.validated`, `verify.routed`, `verify.lookup`, `verify.poll` and debug logs |
 
   Event lines take these levels: `verify.submitted` and `verify.result` are `info`,
-  `verify.retry` is `warn`, and every other event is `debug`. Levels `error` and `off` suppress
+  `verify.retry` is `warn`, and every other event is `debug`, except `verify.routed` of a `verify`
+  run whose backend the routing table chose (`--backend auto`, or `--dry-run` without
+  `--backend`), which is `info` and says how the backend was chosen and which were skipped. Levels `error` and `off` suppress
   everything below `error`, the `verify.submitted` line included; `off` also suppresses errors on
   stderr, while the stdout envelope is unchanged. `EXPLORER_VERIFY_LOG=debug|info|warn|error|off`
   sets the level when no flag does; `warn` shows errors, warnings and `verify.retry`, without the
@@ -440,6 +452,7 @@ CLI:
   validated against a JSON Schema that ships with the package. Only these flags may accompany it:
   `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`, `--api-key-file`,
   `--api-key-stdin` and `--timeout`. Any other request flag with it exits 2 (`invalid-input`).
+  A submitting request needs `route.backend` (R-AX-8), and `route.apiUrl` needs `route.backend`.
   Malformed JSON is `invalid-input`, exit code 2. Unknown properties are one `invalid-input`
   issue with their count, never their names or values, as `parseHandle` does (decision 0009). The
   schema has no key field, so a key never travels in the input. The package ships JSON Schemas for the input, the envelope (R-AX-5) and the

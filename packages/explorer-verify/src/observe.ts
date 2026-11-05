@@ -142,7 +142,14 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
         address: `0x${redact(event.address.slice(2), secrets)}`,
       };
     case "verify.routed":
-      return { type: event.type, backend: event.backend, apiHost: redact(event.apiHost, secrets) };
+      // `routedBy` and `skipped` hold only fixed words and backend names.
+      return {
+        type: event.type,
+        backend: event.backend,
+        apiHost: redact(event.apiHost, secrets),
+        ...(event.routedBy === undefined ? {} : { routedBy: event.routedBy }),
+        ...(event.skipped === undefined ? {} : { skipped: event.skipped }),
+      };
     case "verify.lookup":
       return { type: event.type, backend: event.backend, match: event.match };
     case "verify.submitted":

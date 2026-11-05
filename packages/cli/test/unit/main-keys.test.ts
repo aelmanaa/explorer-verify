@@ -182,10 +182,7 @@ describe("main: route options reach the command (R-AX-9, R-RT-2)", () => {
   it("exits 2 when a key file has no --backend or --api-url to name where it goes", async () => {
     const result = await run(["scripted", "--json", "--api-key-file", KEY_FILE], undefined);
     assert.equal(result.code, 2);
-    assert.match(
-      result.stdout,
-      /--api-key-file needs --backend or --api-url, to name where the key goes/,
-    );
+    assert.match(result.stdout, /--api-key-file needs --backend, to name where the key goes/);
   });
 
   it("exits 2 naming the variable of a bad key, without the key", async () => {

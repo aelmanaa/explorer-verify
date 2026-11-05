@@ -17,6 +17,8 @@
         "out/build-info/greeter.json",
         "--input",
         "out/Greeter.sol/Greeter.json",
+        "--backend",
+        "auto",
         "--json"
       ],
       "expected": {
@@ -45,6 +47,8 @@
         "build-info.output.json",
         "--input",
         "Greeter.json",
+        "--backend",
+        "auto",
         "--json"
       ],
       "expected": {
@@ -96,6 +100,8 @@
         "out/build-info/greeter.json",
         "--input",
         "out/Greeter.sol/Greeter.json",
+        "--backend",
+        "auto",
         "--json"
       ],
       "expected": {
@@ -141,7 +147,7 @@
         "Passes a key value on the command line, such as --api-key or --apikey=.",
         "Searches files outside the folder for a key, such as .env files or shell history.",
         "Invents a key or writes a key file.",
-        "Submits to another explorer without asking."
+        "Submits to another explorer without asking, such as with --backend auto or --backend sourcify."
       ]
     }
   ]

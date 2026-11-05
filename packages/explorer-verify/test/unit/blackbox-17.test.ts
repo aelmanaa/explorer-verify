@@ -427,6 +427,8 @@ describe("verify(): already verified", () => {
         type: "verify.routed",
         backend: "sourcify",
         apiHost: "sourcify.dev",
+        routedBy: "table",
+        skipped: "etherscan-v2",
       });
       assert.deepEqual(rec.events[2], {
         type: "verify.lookup",
@@ -1335,6 +1337,7 @@ describe("verify(): keys in the route URL", () => {
         type: "verify.routed",
         backend: "sourcify",
         apiHost: "sourcify.example.org",
+        routedBy: "api-url",
       });
       for (const line of rec.lines.filter(
         (l) => l.level === "debug" && l.fields?.method !== undefined,

@@ -230,7 +230,12 @@ function withLookup(lookup: Backend["lookup"]): Backend {
   return { ...sourcify, lookup };
 }
 
-const ROUTED: VerifyEvent = { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" };
+const ROUTED: VerifyEvent = {
+  type: "verify.routed",
+  backend: "sourcify",
+  apiHost: "sourcify.dev",
+  routedBy: "table",
+};
 
 // --- resume ---------------------------------------------------------------------------------------
 
@@ -559,6 +564,7 @@ describe("checkStatus(): the handle never chooses a host (R-SEC-2)", () => {
       type: "verify.routed",
       backend: "sourcify",
       apiHost: "127.0.0.1:5555",
+      routedBy: "api-url",
     });
   });
 

@@ -19,7 +19,7 @@ import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { checkRouteKey, HOSTED_BLOCKSCOUT_HOST, needsKey } from "../http/api-keys.ts";
 import type { ApiKeys } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
-import type { Hex, RouteOverride } from "../types.ts";
+import type { Hex, RoutedBy, RouteOverride } from "../types.ts";
 
 /**
  * One backend of a chain in the routing table: the backend's name and the little that varies per
@@ -227,6 +227,17 @@ export interface Route {
    * the backends that always need one. Absent otherwise.
    */
   readonly needsKey?: boolean;
+  /**
+   * How the backend was chosen: `caller` for `route.backend`, `table` for the routing table's
+   * pick, `fallback` for the Sourcify fallback, `api-url` for `route.apiUrl`. `verify.routed`
+   * carries it.
+   */
+  readonly routedBy: RoutedBy;
+  /**
+   * The backends the routing table lists before `backend` that a `table` route passed over,
+   * because each needs an API key and none is set, in table order. Empty for any other route.
+   */
+  readonly skipped: readonly BackendName[];
 }
 
 /**
@@ -704,11 +715,14 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
   let tableHost: string | undefined;
   let apiBase: string;
   let search = "";
+  let routedBy: RoutedBy;
+  let skipped: readonly BackendName[] = [];
   if (target === undefined && named === "blockscout-hosted") {
     // Blockscout's hosted API serves each chain it indexes at one host, with the chain in the
     // path, so it needs no row. The page is the row's instance page: a contract verified through
     // the hosted API shows there (live, 2026-11-05). Decision 0041.
     backend = named;
+    routedBy = "caller";
     tableHost = HOSTED_BLOCKSCOUT_HOST;
     apiBase = `https://${tableHost}/${String(chainId)}/api`;
     entry = {
@@ -743,10 +757,20 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
     }
     ({ backend, apiUrl: apiBase } = found);
     entry = found;
+    if (named !== undefined) {
+      routedBy = "caller";
+    } else if (row === undefined) {
+      routedBy = "fallback";
+    } else {
+      routedBy = "table";
+      // Each entry before the pick needs a key the call lacks. None when no entry was usable.
+      skipped = pool.slice(0, pool.indexOf(found)).map((each) => each.backend);
+    }
     tableHost = new URL(found.apiUrl).host;
   } else {
     ({ apiBase, search } = target);
     backend = named ?? "sourcify";
+    routedBy = "api-url";
     entry = [...listed, ...fallback].find((each) => each.backend === backend);
     // No key from apiKeys goes to this route: the host only names, in a hint, where one would go.
     tableHost = fixedHost(backend);
@@ -786,7 +810,92 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
     overridden: target !== undefined,
     tableHost,
     needsKey: entry?.apiUrl === apiBase && entry.needsKey === true,
+    routedBy,
+    skipped,
   });
+}
+
+/**
+ * The routing table's pick for a chain, as `verify()` would make it without `route`.
+ *
+ * @experimental
+ */
+export interface RoutePick {
+  /** The backend `verify()` would use. */
+  readonly backend: BackendName;
+  /** `table` for the row's pick, `fallback` for the Sourcify fallback of a chain without a row. */
+  readonly routedBy: RoutedBy;
+  /** The backends listed before `backend` that were passed over: each needs a key and has none. */
+  readonly skipped: readonly BackendName[];
+  /**
+   * `true` when `backend` needs an API key and none is set: every backend of the row needs one, so
+   * `verify()` would throw `missing-api-key`.
+   */
+  readonly keyMissing: boolean;
+}
+
+/**
+ * What {@link routesFor} finds for a chain.
+ *
+ * @experimental
+ */
+export interface ChainRoutes {
+  /** The backends the chain's row lists, in the row's order of preference. Empty without a row. */
+  readonly listed: readonly BackendName[];
+  /**
+   * The routing table's pick, or the `unsupported-chain` error `verify()` would throw: the chain
+   * has no row and `allowSourcifyFallback` is not set.
+   */
+  readonly pick: RoutePick | ExplorerVerifyError;
+}
+
+/**
+ * Tells where a call for `chainId` would go without `route`, and which backends `route.backend`
+ * can name, from the routing table shipped with this version (R-RT-1 to R-RT-3). It sends no
+ * request and reads no key: only whether `apiKeys` has a key for a backend counts. Use it to show
+ * a person the choice before a submit.
+ *
+ * @param chainId - The EVM chain id, a positive safe integer.
+ * @param options - The keys the call would have, and whether a chain without a row falls back to
+ *   Sourcify.
+ * @returns The row's backends and the pick.
+ * @throws ExplorerVerifyError `invalid-input` for a chain id that is not a positive safe integer.
+ * @example
+ * ```ts
+ * import { routesFor } from "explorer-verify";
+ *
+ * const { listed, pick } = await routesFor(11155111);
+ * listed; // ["etherscan-v2", "sourcify", "blockscout", "routescan"]
+ * if (!(pick instanceof Error)) {
+ *   pick.backend; // "sourcify": etherscan-v2 is skipped without a key
+ * }
+ * ```
+ * @experimental
+ */
+export async function routesFor(
+  chainId: number,
+  options: {
+    readonly apiKeys?: Partial<Record<BackendName, string | undefined>>;
+    readonly allowSourcifyFallback?: boolean;
+  } = {},
+): Promise<ChainRoutes> {
+  const checked = checkRoute(chainId);
+  const table = await loadRoutingTable();
+  const row = table.chains.find((each) => each.chainId === chainId);
+  const listed = (row?.backends ?? []).flatMap((each) => tableTarget(chainId, each)?.backend ?? []);
+  const apiKeys: ApiKeys = Object.fromEntries(
+    Object.entries(options.apiKeys ?? {}).filter(([, key]) => typeof key === "string"),
+  );
+  const allowSourcifyFallback = options.allowSourcifyFallback === true;
+  if (row === undefined && !allowSourcifyFallback) {
+    return { listed, pick: unsupported(chainId, "sourcify", "row") };
+  }
+  // With a row, or with the fallback, a route without `route.backend` always resolves.
+  const route = routeFrom(chainId, checked, { table, apiKeys, allowSourcifyFallback });
+  const { backend, routedBy, skipped } = route;
+  const keyMissing =
+    (needsKey(backend) || route.needsKey === true) && readOwn(apiKeys, backend) === undefined;
+  return { listed, pick: { backend, routedBy, skipped, keyMissing } };
 }
 
 /**

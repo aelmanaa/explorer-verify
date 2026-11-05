@@ -47,5 +47,6 @@
       }
     }
   },
-  "contractName": "src/Greeter.sol:Greeter"
+  "contractName": "src/Greeter.sol:Greeter",
+  "route": { "backend": "sourcify" }
 }

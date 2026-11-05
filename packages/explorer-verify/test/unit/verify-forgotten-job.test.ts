@@ -503,7 +503,12 @@ describe("verify(): events for a forgotten job (R-DX-6, R-FLOW-5)", () => {
     const found = await run(t, startVerify, [...forgotten(1), fixture("lookup-exact-match")]);
     assert.deepEqual(found.events, [
       { type: "verify.validated", chainId: SEPOLIA, address: GREETER },
-      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
+      {
+        type: "verify.routed",
+        backend: "sourcify",
+        apiHost: "sourcify.dev",
+        routedBy: "table",
+      },
       { type: "verify.lookup", backend: "sourcify", match: "none" },
       { type: "verify.submitted", backend: "sourcify", handle: LINE },
       { type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" },

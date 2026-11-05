@@ -21,6 +21,8 @@ function standaloneRoute(): Route {
     apiKey: () => STANDALONE_KEY,
     overridden: true,
     tableHost: undefined,
+    routedBy: "api-url",
+    skipped: [],
   };
 }
 
@@ -86,6 +88,8 @@ describe("keyFor: a route key stays on the route's origin (#158, R-SEC-2)", () =
       apiKey: () => undefined,
       overridden: false,
       tableHost: undefined,
+      routedBy: "api-url",
+      skipped: [],
     };
     const ctx = { route, apiKeys: () => ({ "etherscan-v2": "etherscan-dummy-key-158b" }) };
     assert.equal(keyFor(ctx, "etherscan-v2", `${apiBase}?chainid=1`), undefined);
@@ -131,6 +135,8 @@ describe("requireKey: secrets (#158, R-SEC-1)", () => {
       apiKey: () => undefined,
       overridden: false,
       tableHost: "api.etherscan.io",
+      routedBy: "api-url",
+      skipped: [],
     };
     // A secret equal to the backend name shows that the secrets reach the error.
     const error = thrown(() => {

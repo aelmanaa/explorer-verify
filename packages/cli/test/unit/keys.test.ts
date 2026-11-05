@@ -200,7 +200,7 @@ describe("readRouteOptions: --api-key-file (R-AX-9)", () => {
   // The routing table picks a backend partly by the keys it has, so an unnamed key could reach
   // a backend it was not meant for, such as a Routescan key sent to Etherscan (R-SEC-2).
   const unnamed: readonly [string, Record<string, OptionValue>, string][] = [
-    ["no --backend", {}, "needs --backend or --api-url, to name where the key goes"],
+    ["no --backend", {}, "needs --backend, to name where the key goes"],
     [
       "--backend sourcify",
       { backend: "sourcify" },
@@ -455,7 +455,10 @@ describe("readRouteOptions: --backend and --api-url (R-RT-2)", () => {
   it("refuses an unknown backend without repeating it", async () => {
     const read = await readWith({ backend: FLAG_KEY });
     assert.equal(read.issues[0]?.field, "--backend");
-    assert.match(read.issues[0]?.message ?? "", /^must be one of etherscan-v2, /);
+    assert.match(
+      read.issues[0]?.message ?? "",
+      /^must be one of etherscan-v2, .*, or auto for verify$/,
+    );
     assert.ok(!JSON.stringify(read).includes(FLAG_KEY));
   });
 

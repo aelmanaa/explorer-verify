@@ -274,7 +274,7 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
       kind: "problem",
       message:
         apiUrl === undefined
-          ? "needs --backend or --api-url, to name where the key goes"
+          ? "needs --backend, to name where the key goes"
           : "needs --backend etherscan-v2, routescan, blockscout-hosted or etherscan-compatible with --api-url",
     };
   }
@@ -442,7 +442,10 @@ export async function readRouteOptions(sources: RouteSources): Promise<ReadRoute
   if (typeof backendValue === "string") {
     const backend = toBackendName(backendValue);
     if (backend === undefined) {
-      issues.push({ field: "--backend", message: `must be one of ${BACKEND_NAMES.join(", ")}` });
+      issues.push({
+        field: "--backend",
+        message: `must be one of ${BACKEND_NAMES.join(", ")}, or auto for verify`,
+      });
     } else {
       route.backend = backend;
     }
