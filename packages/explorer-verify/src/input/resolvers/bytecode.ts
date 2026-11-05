@@ -10,7 +10,7 @@
  */
 import { ExplorerVerifyError } from "../../errors.ts";
 import type { InputIssue, MetadataAttempt } from "../../errors.ts";
-import { MAX_TIMER_MS, request } from "../../http/fetch.ts";
+import { MAX_TIMER_MS, platformFetch, request } from "../../http/fetch.ts";
 import type { Budget, HttpContext, HttpRequest } from "../../http/fetch.ts";
 import {
   endpointSecrets,
@@ -165,9 +165,6 @@ interface Found {
   readonly metadata: unknown;
   readonly sources: Map<string, string>;
 }
-
-/** `globalThis.fetch`, read when each request starts and called as a plain function. */
-const defaultFetch: typeof fetch = async (input, init) => await globalThis.fetch(input, init);
 
 function invalid(issues: InputIssue[], secrets: readonly string[]): ExplorerVerifyError {
   return new ExplorerVerifyError(
@@ -327,7 +324,7 @@ function readSettings(target: BytecodeTarget, options: ResolveInputOptions | und
     sourcify: read.sourcify !== false,
     sources,
     // Called as a plain function, never as a method of the options.
-    fetch: fetchOption === undefined ? defaultFetch : (input, init) => fetchOption(input, init),
+    fetch: fetchOption === undefined ? platformFetch : (input, init) => fetchOption(input, init),
     signal: read.signal,
     timeoutMs:
       timeoutMs === undefined ? DEFAULT_RESOLVE_TIMEOUT_MS : Math.min(timeoutMs, MAX_TIMER_MS),

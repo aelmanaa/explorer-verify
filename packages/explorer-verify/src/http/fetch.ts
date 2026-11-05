@@ -56,6 +56,14 @@ const HTTP_DATE_START = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i;
 const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
 
 /**
+ * `globalThis.fetch`, read when each request starts and called as a plain function. It is the
+ * default of {@link HttpContext.fetch}. A caller that fills its own default passes this function,
+ * so a request through it gets the same-origin check of the default (decision 0035).
+ */
+export const platformFetch: typeof fetch = async (input, init) =>
+  await globalThis.fetch(input, init);
+
+/**
  * What a request is allowed to retry.
  *
  * - `safe`: a read, or a write the explorer treats as idempotent. Retries network errors,
@@ -117,7 +125,10 @@ export interface HttpContext {
   readonly label?: RequestLabel;
   /**
    * The caller's `fetch`, the only way out to the network (R-SRV-5). Defaults to
-   * `globalThis.fetch`, read when each request starts.
+   * {@link platformFetch}, which reads `globalThis.fetch` when each request starts. With the
+   * default, a response whose URL has another origin than the request is refused as a redirect.
+   * Any other `fetch` may send the request to another URL on purpose, such as a server handler,
+   * so its response URL is not checked; its redirects are still refused (decision 0035).
    */
   readonly fetch?: typeof fetch;
   /** The caller's signal. On abort, every request and wait stops and rejects with its reason. */
@@ -204,6 +215,8 @@ interface Call {
   readonly backend: BackendName;
   readonly label: RequestLabel | undefined;
   readonly send: typeof fetch;
+  /** True when `send` is the platform's fetch, whose response must come from the request's origin. */
+  readonly sameOrigin: boolean;
   readonly signal: AbortSignal | undefined;
   readonly log: Observer["log"];
   readonly emit: Observer["emit"];
@@ -427,8 +440,8 @@ function timerMs(ms: number): number {
 /**
  * The fields of `ctx` and `req`, each read once as an own property, with the defaults filled in.
  * `fetch` is read once and then called as a plain function: a browser's fetch called as a method
- * of another object throws "Illegal invocation". Without it, `globalThis.fetch` is read now, when
- * the request starts. The headers are copied, so a getter on them runs here and only once.
+ * of another object throws "Illegal invocation". Without it, {@link platformFetch} reads
+ * `globalThis.fetch` when the request is sent. The headers are copied, so a getter on them runs here and only once.
  * `signal` is read first: once it has aborted, its reason wins over any problem in another field.
  *
  * @throws The caller's `signal.reason`, unchanged, when the signal has aborted.
@@ -441,10 +454,12 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
   const observer = optional(ctx, "observer", "context") ?? SILENT_OBSERVER;
   const budget = optional(ctx, "budget", "context");
   const headers = optional(req, "headers", "request");
+  const injected = optional(ctx, "fetch", "context");
   return {
     backend: required(ctx, "backend", "context"),
     label: optional(ctx, "label", "context"),
-    send: optional(ctx, "fetch", "context") ?? globalThis.fetch,
+    send: injected ?? platformFetch,
+    sameOrigin: injected === undefined || injected === platformFetch,
     signal,
     log: required(observer, "log", "context.observer"),
     emit: required(observer, "emit", "context.observer"),
@@ -661,7 +676,7 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
   const { status } = response;
   progress.status = status;
 
-  if (isRedirect(response, url)) {
+  if (isRedirect(response) || (call.sameOrigin && !sameOrigin(response, url))) {
     discard(response);
     return { kind: "fatal", status, excerpt: "", message: REDIRECT_MESSAGE };
   }
@@ -731,26 +746,33 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
 }
 
 /**
- * Whether the response is a redirect or came from somewhere else: an opaque redirect, a 3xx, a
- * response that says it was redirected, or one whose URL has another origin. The last two catch an
- * injected `fetch` that ignores `redirect: "manual"`. The `Location` header is never read.
+ * Whether the response is a redirect: an opaque redirect, a 3xx, or a response that says it was
+ * redirected. The last one catches a `fetch` that ignores `redirect: "manual"` and follows the
+ * redirect: a platform `fetch` marks such a response `redirected`, whatever URL it was sent to.
+ * The `Location` header is never read.
  */
-function isRedirect(response: Response, url: string): boolean {
+function isRedirect(response: Response): boolean {
   const { status } = response;
-  if (
-    response.type === "opaqueredirect" ||
-    response.redirected ||
-    (status >= 300 && status < 400)
-  ) {
-    return true;
-  }
+  return (
+    response.type === "opaqueredirect" || response.redirected || (status >= 300 && status < 400)
+  );
+}
+
+/**
+ * Whether the response came from the request's origin, or does not say where it came from (an
+ * empty `url`). Checked only for the platform's fetch, which sends the request to `url` and
+ * nowhere else, so another origin there can only mean a redirect that was followed. An injected
+ * `fetch` may send the request to another URL on purpose, such as a server handler on the page's
+ * own origin, so its response URL is not checked (decision 0035).
+ */
+function sameOrigin(response: Response, url: string): boolean {
   if (response.url === "") {
-    return false;
+    return true;
   }
   try {
-    return new URL(response.url).origin !== new URL(url).origin;
+    return new URL(response.url).origin === new URL(url).origin;
   } catch {
-    return true;
+    return false;
   }
 }
 

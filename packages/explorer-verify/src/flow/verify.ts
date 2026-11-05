@@ -10,7 +10,7 @@ import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
 import type { ApiKeysReader } from "../http/api-keys.ts";
-import { MAX_TIMER_MS, REQUEST_TIMEOUT_MS, sleep } from "../http/fetch.ts";
+import { MAX_TIMER_MS, platformFetch, REQUEST_TIMEOUT_MS, sleep } from "../http/fetch.ts";
 import type { Budget, HttpContext } from "../http/fetch.ts";
 import { endpointSecrets } from "../http/rpc.ts";
 import type { Endpoint } from "../http/rpc.ts";
@@ -953,9 +953,6 @@ function visiblePart(backend: BackendName, chainId: number, address: string): st
   return `ev1:${backend}:${String(chainId)}:${address}`;
 }
 
-/** `globalThis.fetch`, read when each request starts and called as a plain function. */
-const defaultFetch: typeof fetch = async (request, init) => await globalThis.fetch(request, init);
-
 /** The HTTP context every request of the call shares. */
 function httpContext(
   route: Route,
@@ -971,7 +968,7 @@ function httpContext(
     observer,
     budget,
     // Always set, so a `fetch` added to `Object.prototype` can never stand in for the default.
-    fetch: settings.fetch ?? defaultFetch,
+    fetch: settings.fetch ?? platformFetch,
     ...(settings.signal === undefined ? {} : { signal: settings.signal }),
     ...(random === undefined ? {} : { random }),
   };

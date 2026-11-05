@@ -29,7 +29,7 @@ import type {
   VerifyEvent,
   VerifyOptions,
 } from "../../src/types.ts";
-import { loadFixture, replay } from "../helpers/fake-fetch.ts";
+import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
@@ -1179,5 +1179,96 @@ describe("linkProxy() with linkers passed in", () => {
       },
     );
     errorOf(r, "unsupported-chain");
+  });
+});
+
+/** A recorded answer whose `url` says it came from `url`, as a real fetch's answer does. */
+function answeredFrom(url: string, name: string): Response {
+  const answer = responseOf(loadFixture("etherscan", name));
+  Object.defineProperty(answer, "url", { value: url });
+  return answer;
+}
+
+/**
+ * Runs linkProxy() on mock timers with an injected fetch that returns `answers` as they are, not
+ * cloned, so their `url` and `redirected` reach the HTTP layer. Returns the result or the error and
+ * the `action` of each request.
+ */
+async function throughHandler(
+  t: TestContext,
+  answers: Response[],
+): Promise<{ outcome: unknown; actions: string[] }> {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const sent: string[] = [];
+  const viaHandler: typeof fetch = async (_input, init) => {
+    const body = init?.body;
+    const form = new URLSearchParams(
+      typeof body === "string" || body instanceof URLSearchParams ? body : "",
+    );
+    sent.push(form.get("action") ?? "");
+    const next = answers.shift();
+    if (next === undefined) {
+      throw new Error("unexpected request");
+    }
+    return await Promise.resolve(next);
+  };
+  const call = runLinkProxy(
+    { chainId: SEPOLIA, address: PROXY },
+    {
+      timeoutMs: 20_000,
+      pollIntervalMs: 3_000,
+      route: { backend: "etherscan-v2" },
+      fetch: viaHandler,
+    },
+    DEFAULT_LINK_DEPENDENCIES,
+  );
+  await driveMockClock(call, () => {
+    t.mock.timers.runAll();
+  });
+  const outcome: unknown = await call.catch((error: unknown) => error);
+  return { outcome, actions: sent };
+}
+
+// Decision 0035: linkProxy() gets the platform's fetch as its default, so an answer from another
+// origin than the request is refused there; an injected fetch may send the request to a server
+// handler on purpose, so the URL of its answer is not checked.
+describe("linkProxy(): the origin of an answer (R-SEC-2, decision 0035)", () => {
+  const HANDLER = "https://dapp.example/api/verify";
+
+  it("refuses an answer from another origin through the default fetch, without a retry", async (t) => {
+    const sent: string[] = [];
+    t.mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => {
+      sent.push(input instanceof Request ? input.url : String(input));
+      return await Promise.resolve(answeredFrom(HANDLER, "2026-11-04-verifyproxycontract-linked"));
+    });
+    await assert.rejects(
+      linkProxy({ chainId: SEPOLIA, address: PROXY }, ETHERSCAN_OPTIONS),
+      (error: unknown) => {
+        assert.ok(error instanceof ExplorerVerifyError);
+        assert.equal(error.code, "unexpected-response");
+        assert.match(error.message, /redirect, which is not followed/);
+        return true;
+      },
+    );
+    assert.deepEqual(sent, [`https://api.etherscan.io/v2/api?chainid=${String(SEPOLIA)}`]);
+  });
+
+  it("links through an injected fetch whose answers come from a server handler", async (t) => {
+    const { outcome, actions: sent } = await throughHandler(t, [
+      answeredFrom(HANDLER, "2026-11-04-verifyproxycontract-linked"),
+      answeredFrom(HANDLER, "2026-11-04-checkproxyverification-linked"),
+    ]);
+    assert.ok(!(outcome instanceof Error), String(outcome));
+    assert.equal(Reflect.get(Object(outcome), "status"), "linked");
+    assert.deepEqual(sent, ["verifyproxycontract", "checkproxyverification"]);
+  });
+
+  it("still refuses an answer marked redirected through an injected fetch", async (t) => {
+    const answer = answeredFrom(HANDLER, "2026-11-04-verifyproxycontract-linked");
+    Object.defineProperty(answer, "redirected", { value: true });
+    const { outcome, actions: sent } = await throughHandler(t, [answer]);
+    assert.ok(outcome instanceof ExplorerVerifyError);
+    assert.equal(outcome.code, "unexpected-response");
+    assert.deepEqual(sent, ["verifyproxycontract"]);
   });
 });

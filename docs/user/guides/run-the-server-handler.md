@@ -380,6 +380,11 @@ handler, with the same query, method and body, and sends every other request unc
 code changes between direct and proxied use. With `fetch` set, `verify()` sends an Etherscan
 request without a key and leaves the key to the server.
 
+The handler's answer comes from the handler's URL, not from `api.etherscan.io`. `verify()` reads it
+as Etherscan's answer, because the `fetch` you pass chose that URL. A redirect from the handler, or
+an answer your `fetch` got by following one, still ends the call with `unexpected-response`, so
+keep the `redirect: "manual"` that `verify()` sets.
+
 For the Next.js route, the handler URL is the path `/api/verify`:
 
 ```ts
@@ -499,8 +504,10 @@ CI type-checks both examples, the Worker a second time without Node types, and r
 Node.js. The tests call the route's `POST` and the Worker's `fetch` with the request the browser
 sends through `handlerFetch`, against recorded Etherscan answers. They check that the answer has
 the shape the client reads, that the key goes to Etherscan only in the form body, and that no
-response and no log line holds the key, even when Etherscan echoes it. The examples are not
-deployed, and the tests do not run in the Workers runtime.
+response and no log line holds the key, even when Etherscan echoes it. One test serves the
+Next.js route over HTTP on 127.0.0.1 and calls `verify()` through `handlerFetch` with the real
+`fetch`, as a browser does. The examples are not deployed, and the tests do not run in the Workers
+runtime.
 
 ## Sources
 

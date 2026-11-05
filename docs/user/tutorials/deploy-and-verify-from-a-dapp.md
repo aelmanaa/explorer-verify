@@ -568,8 +568,10 @@ export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResul
 }
 ```
 
-`verify()` sends no key when it has none: the handler adds yours. A result reached through the
-handler has no `explorerUrl`. The guide's `handlerFetch` also handles a `Request` passed as the
+`verify()` sends no key when it has none: the handler adds yours. The answer comes from
+`/api/verify` on the dapp's origin, and `verify()` reads it because `viaHandler` chose that URL; a
+redirect from your server still ends the call with `unexpected-response`. A result reached through
+the handler has no `explorerUrl`. The guide's `handlerFetch` also handles a `Request` passed as the
 first argument. [Etherscan](../reference/etherscan.md) describes what the client sends and how it
 reads each answer, and [Server handler](../reference/server-handler.md) lists the handler's
 options and refusals.

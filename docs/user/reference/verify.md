@@ -167,7 +167,14 @@ cannot be read, throws `invalid-input` before any request.
 
 The library sends every request with `redirect: "manual"` and never follows a redirect, because a
 redirect could carry a key to another host. A `fetch` you pass must keep that behaviour: it must not
-follow redirects itself.
+follow redirects itself. These answers end the call with `unexpected-response`, without a retry:
+
+- a 3xx status, or an opaque redirect, which a browser returns for `redirect: "manual"`;
+- an answer marked `redirected`, which a platform `fetch` sets when it followed a redirect;
+- with the default `fetch` only, an answer whose `url` has another origin than the request.
+
+A `fetch` you pass may send a request to another URL on purpose, such as a server handler on the
+page's own origin, so the URL of its answer is not checked. The first two checks still apply to it.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`. The lookups after polling,
 in steps 6 and 7 above, get that much more time, so a server that never answers cannot hold the call
