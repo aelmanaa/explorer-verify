@@ -220,10 +220,11 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     assert.equal(TABLE.checked, "2026-11-05");
   });
 
-  it("lists 314 chains in ascending order, one row per chain (#166, #168)", () => {
-    // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036), and 26
-    // chains only Routescan's API served in the probe of 2026-11-05 (decision 0037).
-    assert.equal(TABLE.rows.length, 314);
+  it("lists 325 chains in ascending order, one row per chain (#166, #168, #169)", () => {
+    // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036), 26 chains
+    // only Routescan's API served in the probe of 2026-11-05 (decision 0037), and 11 chains only
+    // a Blockscout instance served in the probe of 2026-11-05 (decision 0038).
+    assert.equal(TABLE.rows.length, 325);
     const ids = TABLE.rows.map((row) => row.chainId);
     assert.deepEqual(
       ids,
@@ -231,12 +232,17 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     );
   });
 
-  it("gives every row Sourcify or Routescan, and lists only the backends with a client (#122, #168)", () => {
+  it("gives every row Sourcify, Blockscout or Routescan, and lists only the backends with a client (#122, #168, #169)", () => {
     for (const row of TABLE.rows) {
       const names = row.backends.map((entry) => entry.backend);
-      assert.ok(names.includes("sourcify") || names.join() === "routescan", `chain ${row.chainId}`);
       assert.ok(
-        names.every((name) => ["sourcify", "etherscan-v2", "routescan"].includes(name)),
+        names.includes("sourcify") || names.includes("blockscout") || names.join() === "routescan",
+        `chain ${row.chainId}`,
+      );
+      assert.ok(
+        names.every((name) =>
+          ["sourcify", "etherscan-v2", "blockscout", "routescan"].includes(name),
+        ),
         `chain ${row.chainId}`,
       );
     }

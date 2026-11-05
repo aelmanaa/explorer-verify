@@ -1,0 +1,1945 @@
+{
+  "$comment": "Research data behind the Blockscout entries of the routing table (issue #169, decision 0038). It does not ship. Each candidate instance comes from Blockscout's chain registry (an explorer hosted by Blockscout, or a self-hosted one the issue named) or from Hardhat 3.21.2's built-in chain descriptors. Each was probed on 2026-11-05 with the fetch of Node.js 24.21.0, keyless, without following redirects; a redirect was followed by hand once and the target probed. instance is the host that answered both probes directly, or null; scripts/routing-seed.ts gives a chain a blockscout entry for each non-null instance. See ../2026-11-05-blockscout-instances.md.",
+  "checked": "2026-11-05",
+  "sources": {
+    "blockscoutChains": "https://chains.blockscout.com/api/chains",
+    "hardhatChainDescriptors": "npm package hardhat@3.21.2, src/internal/builtin-plugins/network-manager/chain-descriptors.ts"
+  },
+  "probe": {
+    "backendVersion": "GET https://<host>/api/v2/config/backend-version",
+    "getsourcecode": "GET https://<host>/api?module=contract&action=getsourcecode&address=0xcA11bde05977b3631167028862bE2a173976CA11",
+    "answers": "An instance answers when the first gives HTTP 200 with backend_version and the second HTTP 200 with a status field."
+  },
+  "instances": [
+    {
+      "chainId": 1,
+      "name": "Ethereum",
+      "source": "registry",
+      "listed": "eth.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "eth.blockscout.com",
+          "backendVersion": "200 v11.3.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "eth.blockscout.com"
+    },
+    {
+      "chainId": 10,
+      "name": "OP Mainnet",
+      "source": "registry",
+      "listed": "explorer.optimism.io",
+      "inHardhat": true,
+      "hardhatListed": "optimism.blockscout.com",
+      "hardhatProbes": [
+        {
+          "host": "optimism.blockscout.com",
+          "backendVersion": "301 to https://explorer.optimism.io/api/v2/config/backend-version HTML",
+          "getsourcecode": "301 to https://explorer.optimism.io/api?module=contract&action=getsourcecode&address=0xcA11bde05977b3631167028862bE2a173976CA11 HTML"
+        },
+        {
+          "host": "explorer.optimism.io",
+          "backendVersion": "200 v11.3.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "probes": [
+        {
+          "host": "explorer.optimism.io",
+          "backendVersion": "200 v11.3.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.optimism.io"
+    },
+    {
+      "chainId": 30,
+      "name": "Rootstock",
+      "source": "registry",
+      "listed": "rootstock.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "rootstock.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "rootstock.blockscout.com"
+    },
+    {
+      "chainId": 31,
+      "name": "Rootstock Testnet",
+      "source": "registry",
+      "listed": "rootstock-testnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "rootstock-testnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "rootstock-testnet.blockscout.com"
+    },
+    {
+      "chainId": 61,
+      "name": "Ethereum Classic",
+      "source": "registry",
+      "listed": "etc.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "etc.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "etc.blockscout.com"
+    },
+    {
+      "chainId": 63,
+      "name": "Ethereum Classic Mordor",
+      "source": "registry",
+      "listed": "etc-mordor.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "etc-mordor.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "etc-mordor.blockscout.com"
+    },
+    {
+      "chainId": 81,
+      "name": "Astar Shibuya",
+      "source": "registry",
+      "listed": "shibuya.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "shibuya.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "shibuya.blockscout.com"
+    },
+    {
+      "chainId": 100,
+      "name": "Gnosis",
+      "source": "registry",
+      "listed": "gnosisscan.io",
+      "inHardhat": true,
+      "hardhatListed": "gnosis.blockscout.com",
+      "hardhatProbes": [
+        {
+          "host": "gnosis.blockscout.com",
+          "backendVersion": "301 to https://gnosisscan.io/api/v2/config/backend-version HTML",
+          "getsourcecode": "301 to https://gnosisscan.io/api?module=contract&action=getsourcecode&address=0xcA11bde05977b3631167028862bE2a173976CA11 HTML"
+        },
+        {
+          "host": "gnosisscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "probes": [
+        {
+          "host": "gnosisscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "gnosisscan.io"
+    },
+    {
+      "chainId": 122,
+      "name": "Fuse",
+      "source": "registry",
+      "listed": "explorer.fuse.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.fuse.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.fuse.io"
+    },
+    {
+      "chainId": 123,
+      "name": "Fuse Sparknet",
+      "source": "registry",
+      "listed": "explorer.fusespark.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.fusespark.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.fusespark.io"
+    },
+    {
+      "chainId": 130,
+      "name": "Unichain",
+      "source": "registry",
+      "listed": "unichain.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "unichain.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "unichain.blockscout.com"
+    },
+    {
+      "chainId": 137,
+      "name": "Polygon PoS",
+      "source": "registry",
+      "listed": "polygon.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "polygon.blockscout.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 177,
+      "name": "HashKey",
+      "source": "registry",
+      "listed": "hsk.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "hsk.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "hsk.blockscout.com"
+    },
+    {
+      "chainId": 239,
+      "name": "TAC Mainnet",
+      "source": "registry",
+      "listed": "explorer.tac.build",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.tac.build",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.tac.build"
+    },
+    {
+      "chainId": 291,
+      "name": "Orderly",
+      "source": "registry",
+      "listed": "explorer.orderly.network",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.orderly.network",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.orderly.network"
+    },
+    {
+      "chainId": 300,
+      "name": "ZKsync Era Sepolia Testnet",
+      "source": "registry",
+      "listed": "zksync-sepolia.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "zksync-sepolia.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "zksync-sepolia.blockscout.com"
+    },
+    {
+      "chainId": 314,
+      "name": "Filecoin Virtual Machine",
+      "source": "registry",
+      "listed": "filecoin.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "filecoin.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "filecoin.blockscout.com"
+    },
+    {
+      "chainId": 324,
+      "name": "ZKsync Era",
+      "source": "registry",
+      "listed": "zksync.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "zksync.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "zksync.blockscout.com"
+    },
+    {
+      "chainId": 360,
+      "name": "Shape",
+      "source": "registry",
+      "listed": "shapescan.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "shapescan.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "shapescan.xyz"
+    },
+    {
+      "chainId": 480,
+      "name": "World Chain",
+      "source": "registry",
+      "listed": "worldchain-mainnet.explorer.alchemy.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "worldchain-mainnet.explorer.alchemy.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "worldchain-mainnet.explorer.alchemy.com"
+    },
+    {
+      "chainId": 484,
+      "name": "Camp Network",
+      "source": "registry",
+      "listed": "camp.cloud.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "camp.cloud.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "camp.cloud.blockscout.com"
+    },
+    {
+      "chainId": 488,
+      "name": "BXN",
+      "source": "registry",
+      "listed": "blackfortscan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "blackfortscan.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "blackfortscan.com"
+    },
+    {
+      "chainId": 545,
+      "name": "Flow Testnet",
+      "source": "registry",
+      "listed": "testnet.evm.flow.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.evm.flow.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.evm.flow.com"
+    },
+    {
+      "chainId": 592,
+      "name": "Astar",
+      "source": "registry",
+      "listed": "astar.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "astar.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "astar.blockscout.com"
+    },
+    {
+      "chainId": 714,
+      "name": "Eden",
+      "source": "registry",
+      "listed": "eden.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "eden.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "eden.blockscout.com"
+    },
+    {
+      "chainId": 747,
+      "name": "Flow Mainnet",
+      "source": "registry",
+      "listed": "evm.flow.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "evm.flow.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "evm.flow.com"
+    },
+    {
+      "chainId": 869,
+      "name": "World Mobile",
+      "source": "registry",
+      "listed": "explorer.worldmobile.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.worldmobile.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.worldmobile.io"
+    },
+    {
+      "chainId": 901,
+      "name": "Derive Testnet",
+      "source": "registry",
+      "listed": "testnet-explorer.derive.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet-explorer.derive.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet-explorer.derive.xyz"
+    },
+    {
+      "chainId": 957,
+      "name": "Derive Mainnet",
+      "source": "registry",
+      "listed": "explorer.derive.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.derive.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.derive.xyz"
+    },
+    {
+      "chainId": 1076,
+      "name": "IOTA EVM Testnet",
+      "source": "registry",
+      "listed": "explorer.evm.testnet.iota.cafe",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.evm.testnet.iota.cafe",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.evm.testnet.iota.cafe"
+    },
+    {
+      "chainId": 1088,
+      "name": "Metis",
+      "source": "registry-self-hosted",
+      "listed": "andromeda-explorer.metis.io",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "andromeda-explorer.metis.io",
+          "backendVersion": "200 v6.5.0-beta",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "andromeda-explorer.metis.io"
+    },
+    {
+      "chainId": 1101,
+      "name": "Polygon zkEVM",
+      "source": "hardhat",
+      "listed": "zkevm.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "zkevm.blockscout.com",
+          "backendVersion": "404 \"default backend - 404\"",
+          "getsourcecode": "404 \"default backend - 404\""
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 1135,
+      "name": "Lisk ",
+      "source": "registry",
+      "listed": "blockscout.lisk.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "blockscout.lisk.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "blockscout.lisk.com"
+    },
+    {
+      "chainId": 1301,
+      "name": "Unichain Sepolia Testnet",
+      "source": "registry",
+      "listed": "unichain-sepolia.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "unichain-sepolia.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "unichain-sepolia.blockscout.com"
+    },
+    {
+      "chainId": 1315,
+      "name": "DATA Network Aeneid",
+      "source": "registry",
+      "listed": "aeneid.datanetscan.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "aeneid.datanetscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "aeneid.datanetscan.io"
+    },
+    {
+      "chainId": 1514,
+      "name": "DATA Network",
+      "source": "registry",
+      "listed": "www.datanetscan.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "www.datanetscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "www.datanetscan.io"
+    },
+    {
+      "chainId": 1729,
+      "name": "Reya",
+      "source": "registry",
+      "listed": "explorer.reya.network",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.reya.network",
+          "backendVersion": "200 v12.0.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.reya.network"
+    },
+    {
+      "chainId": 1750,
+      "name": "Metal L2",
+      "source": "registry-self-hosted",
+      "listed": "explorer.metall2.com",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.metall2.com",
+          "backendVersion": "200 v9.0.2",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.metall2.com"
+    },
+    {
+      "chainId": 1829,
+      "name": "Playnance Playblock",
+      "source": "registry",
+      "listed": "explorer.playblock.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.playblock.io",
+          "backendVersion": "200 v12.0.4.+commit.2fdda3db",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.playblock.io"
+    },
+    {
+      "chainId": 1868,
+      "name": "Soneium",
+      "source": "registry",
+      "listed": "soneium.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "soneium.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "soneium.blockscout.com"
+    },
+    {
+      "chainId": 1890,
+      "name": "LightLink Phoenix Mainnet",
+      "source": "registry",
+      "listed": "phoenix.lightlink.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "phoenix.lightlink.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "phoenix.lightlink.io"
+    },
+    {
+      "chainId": 1891,
+      "name": "LightLink Pegasus Testnet",
+      "source": "registry",
+      "listed": "pegasus.lightlink.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "pegasus.lightlink.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "pegasus.lightlink.io"
+    },
+    {
+      "chainId": 1946,
+      "name": "Soneium Minato Testnet",
+      "source": "registry",
+      "listed": "soneium-minato.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "soneium-minato.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "soneium-minato.blockscout.com"
+    },
+    {
+      "chainId": 2020,
+      "name": "Ronin Mainnet",
+      "source": "registry",
+      "listed": "explorer.roninchain.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.roninchain.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.roninchain.com"
+    },
+    {
+      "chainId": 2288,
+      "name": "Moca Chain",
+      "source": "registry",
+      "listed": "scan.mocachain.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "scan.mocachain.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "scan.mocachain.org"
+    },
+    {
+      "chainId": 2366,
+      "name": "KiteAI Mainnet",
+      "source": "registry",
+      "listed": "kitescan.ai",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "kitescan.ai",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "400 status 0 Params 'module' and 'action' are required parameters"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 2368,
+      "name": "KiteAI Testnet",
+      "source": "registry",
+      "listed": "testnet.kitescan.ai",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.kitescan.ai",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.kitescan.ai"
+    },
+    {
+      "chainId": 2391,
+      "name": "TAC SPB",
+      "source": "registry",
+      "listed": "spb.explorer.tac.build",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "spb.explorer.tac.build",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "spb.explorer.tac.build"
+    },
+    {
+      "chainId": 4326,
+      "name": "MegaETH",
+      "source": "registry",
+      "listed": "megaeth.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "megaeth.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "megaeth.blockscout.com"
+    },
+    {
+      "chainId": 4460,
+      "name": "Orderly Testnet",
+      "source": "registry",
+      "listed": "testnet-explorer.orderly.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet-explorer.orderly.org",
+          "backendVersion": "500 JSON without backend_version",
+          "getsourcecode": "500 JSON without status"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 4663,
+      "name": "Robinhood Chain",
+      "source": "registry",
+      "listed": "robinhoodchain.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "robinhoodchain.blockscout.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 4801,
+      "name": "World Chain Testnet",
+      "source": "registry",
+      "listed": "worldchain-sepolia.explorer.alchemy.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "worldchain-sepolia.explorer.alchemy.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "worldchain-sepolia.explorer.alchemy.com"
+    },
+    {
+      "chainId": 4888,
+      "name": "BXN Testnet",
+      "source": "registry",
+      "listed": "testnet.blackfortscan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.blackfortscan.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.blackfortscan.com"
+    },
+    {
+      "chainId": 5042,
+      "name": "Arc Mainnet",
+      "source": "registry",
+      "listed": "explorer.arc.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.arc.io",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 6497,
+      "name": "Awaji",
+      "source": "registry",
+      "listed": "awaji.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "awaji.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "awaji.blockscout.com"
+    },
+    {
+      "chainId": 6498,
+      "name": "Mizuhiki",
+      "source": "registry",
+      "listed": "mizuhiki.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "mizuhiki.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "mizuhiki.blockscout.com"
+    },
+    {
+      "chainId": 7000,
+      "name": "ZetaChain",
+      "source": "registry",
+      "listed": "zetascan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "zetascan.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "zetascan.com"
+    },
+    {
+      "chainId": 7001,
+      "name": "ZetaChain Testnet",
+      "source": "registry",
+      "listed": "testnet.zetascan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.zetascan.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.zetascan.com"
+    },
+    {
+      "chainId": 8021,
+      "name": "Numine",
+      "source": "registry",
+      "listed": "numine.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "numine.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "numine.blockscout.com"
+    },
+    {
+      "chainId": 8453,
+      "name": "Base",
+      "source": "registry",
+      "listed": "base.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "base.blockscout.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 8822,
+      "name": "IOTA EVM",
+      "source": "registry",
+      "listed": "explorer.evm.iota.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.evm.iota.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.evm.iota.org"
+    },
+    {
+      "chainId": 10200,
+      "name": "Gnosis Chiado Testnet",
+      "source": "registry",
+      "listed": "gnosis-chiado.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "gnosis-chiado.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "gnosis-chiado.blockscout.com"
+    },
+    {
+      "chainId": 10901,
+      "name": "Zama Gateway Testnet",
+      "source": "registry",
+      "listed": "explorer.testnet.zama.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.testnet.zama.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.testnet.zama.org"
+    },
+    {
+      "chainId": 11011,
+      "name": "Shape Testnet",
+      "source": "registry",
+      "listed": "sepolia.shapescan.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "sepolia.shapescan.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "sepolia.shapescan.xyz"
+    },
+    {
+      "chainId": 13371,
+      "name": "Immutable zkEVM",
+      "source": "registry",
+      "listed": "explorer.immutable.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.immutable.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 13473,
+      "name": "Immutable zkEVM Testnet",
+      "source": "registry",
+      "listed": "explorer.testnet.immutable.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.testnet.immutable.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 32769,
+      "name": "Zilliqa 2 Mainnet",
+      "source": "registry",
+      "listed": "zilliqa.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "zilliqa.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "zilliqa.blockscout.com"
+    },
+    {
+      "chainId": 33101,
+      "name": "Zilliqa 2 Testnet",
+      "source": "registry",
+      "listed": "testnet.zilliqa.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.zilliqa.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.zilliqa.blockscout.com"
+    },
+    {
+      "chainId": 33111,
+      "name": "APE Curtis",
+      "source": "registry",
+      "listed": "apechain-curtis.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "apechain-curtis.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "apechain-curtis.blockscout.com"
+    },
+    {
+      "chainId": 33139,
+      "name": "ApeChain",
+      "source": "registry",
+      "listed": "apechain.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "apechain.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "apechain.blockscout.com"
+    },
+    {
+      "chainId": 34443,
+      "name": "Mode",
+      "source": "registry",
+      "listed": "explorer.mode.network",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.mode.network",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.mode.network"
+    },
+    {
+      "chainId": 42161,
+      "name": "Arbitrum One Nitro",
+      "source": "registry",
+      "listed": "arbitrum.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "arbitrum.blockscout.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 42170,
+      "name": "Arbitrum Nova",
+      "source": "registry",
+      "listed": "arbitrum-nova.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "arbitrum-nova.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "arbitrum-nova.blockscout.com"
+    },
+    {
+      "chainId": 42220,
+      "name": "Celo",
+      "source": "registry",
+      "listed": "celo.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "celo.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "celo.blockscout.com"
+    },
+    {
+      "chainId": 42793,
+      "name": "Etherlink",
+      "source": "registry",
+      "listed": "explorer.etherlink.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.etherlink.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.etherlink.com"
+    },
+    {
+      "chainId": 43111,
+      "name": "Hemi",
+      "source": "registry-self-hosted",
+      "listed": "explorer.hemi.xyz",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.hemi.xyz",
+          "backendVersion": "200 v6.9.0-hemi.25",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.hemi.xyz"
+    },
+    {
+      "chainId": 46630,
+      "name": "Robinhood Chain Testnet",
+      "source": "registry-self-hosted",
+      "listed": "explorer.testnet.chain.robinhood.com",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.testnet.chain.robinhood.com",
+          "backendVersion": "200 v10.2.6",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.testnet.chain.robinhood.com"
+    },
+    {
+      "chainId": 47763,
+      "name": "Neo Smart Economy",
+      "source": "registry-self-hosted",
+      "listed": "xexplorer.neo.org",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "xexplorer.neo.org",
+          "backendVersion": "200 v0.1.0",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "xexplorer.neo.org"
+    },
+    {
+      "chainId": 52014,
+      "name": "Electroneum",
+      "source": "registry",
+      "listed": "electroneum.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "electroneum.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "electroneum.blockscout.com"
+    },
+    {
+      "chainId": 57073,
+      "name": "Ink",
+      "source": "registry",
+      "listed": "explorer.inkonchain.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.inkonchain.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.inkonchain.com"
+    },
+    {
+      "chainId": 59141,
+      "name": "Linea Sepolia",
+      "source": "hardhat",
+      "listed": "explorer.sepolia.linea.build",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.sepolia.linea.build",
+          "backendVersion": "302 to https://sepolia.lineascan.build HTML",
+          "getsourcecode": "302 to https://sepolia.lineascan.build HTML"
+        },
+        {
+          "host": "sepolia.lineascan.build",
+          "backendVersion": "302 to ../404 HTML",
+          "getsourcecode": "200 status 0 NOTOK"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 59144,
+      "name": "Linea",
+      "source": "hardhat",
+      "listed": "explorer.linea.build",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.linea.build",
+          "backendVersion": "302 to https://lineascan.build HTML",
+          "getsourcecode": "302 to https://lineascan.build HTML"
+        },
+        {
+          "host": "lineascan.build",
+          "backendVersion": "302 to ../404 HTML",
+          "getsourcecode": "200 status 0 NOTOK"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 69420,
+      "name": "Alchemy Sepolia",
+      "source": "registry",
+      "listed": "alchemy-sepolia.explorer.alchemy.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "alchemy-sepolia.explorer.alchemy.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "alchemy-sepolia.explorer.alchemy.com"
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia",
+      "source": "registry",
+      "listed": "base-sepolia.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "base-sepolia.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "base-sepolia.blockscout.com"
+    },
+    {
+      "chainId": 97476,
+      "name": "Doma Testnet",
+      "source": "registry",
+      "listed": "explorer-testnet.doma.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer-testnet.doma.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer-testnet.doma.xyz"
+    },
+    {
+      "chainId": 97477,
+      "name": "Doma Mainnet",
+      "source": "registry",
+      "listed": "explorer.doma.xyz",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.doma.xyz",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.doma.xyz"
+    },
+    {
+      "chainId": 97741,
+      "name": "Pepe Unchained",
+      "source": "registry",
+      "listed": "pepuscan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "pepuscan.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "pepuscan.com"
+    },
+    {
+      "chainId": 98866,
+      "name": "Plume Mainnet",
+      "source": "registry",
+      "listed": "explorer.plume.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.plume.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.plume.org"
+    },
+    {
+      "chainId": 98867,
+      "name": "Plume Testnet",
+      "source": "registry",
+      "listed": "testnet-explorer.plume.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet-explorer.plume.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet-explorer.plume.org"
+    },
+    {
+      "chainId": 101010,
+      "name": "Stability Global Trust Network",
+      "source": "registry",
+      "listed": "explorer.stabilityprotocol.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.stabilityprotocol.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.stabilityprotocol.com"
+    },
+    {
+      "chainId": 102030,
+      "name": "Creditcoin",
+      "source": "registry",
+      "listed": "creditcoin.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "creditcoin.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "creditcoin.blockscout.com"
+    },
+    {
+      "chainId": 102031,
+      "name": "Creditcoin Testnet",
+      "source": "registry",
+      "listed": "creditcoin-testnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "creditcoin-testnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "creditcoin-testnet.blockscout.com"
+    },
+    {
+      "chainId": 102032,
+      "name": "Creditcoin Devnet",
+      "source": "registry",
+      "listed": "creditcoin-devnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "creditcoin-devnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "creditcoin-devnet.blockscout.com"
+    },
+    {
+      "chainId": 127823,
+      "name": "Etherlink Shadownet",
+      "source": "registry",
+      "listed": "shadownet.explorer.etherlink.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "shadownet.explorer.etherlink.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "shadownet.explorer.etherlink.com"
+    },
+    {
+      "chainId": 181228,
+      "name": "HPP Sepolia",
+      "source": "registry",
+      "listed": "sepolia-explorer.hpp.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "sepolia-explorer.hpp.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "sepolia-explorer.hpp.io"
+    },
+    {
+      "chainId": 190415,
+      "name": "HPP Mainnet",
+      "source": "registry",
+      "listed": "explorer.hpp.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.hpp.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.hpp.io"
+    },
+    {
+      "chainId": 202601,
+      "name": "Ronin Saigon Testnet",
+      "source": "registry",
+      "listed": "saigon-explorer.roninchain.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "saigon-explorer.roninchain.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "saigon-explorer.roninchain.com"
+    },
+    {
+      "chainId": 222888,
+      "name": "Moca Chain Testnet",
+      "source": "registry",
+      "listed": "testnet-scan.mocachain.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet-scan.mocachain.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet-scan.mocachain.org"
+    },
+    {
+      "chainId": 261131,
+      "name": "Zama Gateway Mainnet",
+      "source": "registry",
+      "listed": "explorer.mainnet.zama.org",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.mainnet.zama.org",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.mainnet.zama.org"
+    },
+    {
+      "chainId": 314159,
+      "name": "Filecoin Calibration Testnet",
+      "source": "registry",
+      "listed": "filecoin-testnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "filecoin-testnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "filecoin-testnet.blockscout.com"
+    },
+    {
+      "chainId": 323432,
+      "name": "World Mobile Testnet",
+      "source": "registry",
+      "listed": "testnet-explorer.worldmobile.net",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet-explorer.worldmobile.net",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet-explorer.worldmobile.net"
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia",
+      "source": "registry",
+      "listed": "arbitrum-sepolia.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "arbitrum-sepolia.blockscout.com",
+          "backendVersion": "403 challenge page",
+          "getsourcecode": "403 challenge page"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 529375,
+      "name": "LayerK",
+      "source": "registry",
+      "listed": "explorer.layerk.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.layerk.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.layerk.com"
+    },
+    {
+      "chainId": 534352,
+      "name": "Scroll",
+      "source": "registry",
+      "listed": "scrollscan.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "scrollscan.com",
+          "backendVersion": "200 v12.0.4.+commit.c107e910",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "scrollscan.com"
+    },
+    {
+      "chainId": 560048,
+      "name": "Hoodi",
+      "source": "registry",
+      "listed": "eth-hoodi.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "eth-hoodi.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "eth-hoodi.blockscout.com"
+    },
+    {
+      "chainId": 612044,
+      "name": "Cross Testnet",
+      "source": "registry",
+      "listed": "testnet.crossscan.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.crossscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.crossscan.io"
+    },
+    {
+      "chainId": 612055,
+      "name": "Cross Mainnet",
+      "source": "registry",
+      "listed": "www.crossscan.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "www.crossscan.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "www.crossscan.io"
+    },
+    {
+      "chainId": 685685,
+      "name": "Gensyn Testnet",
+      "source": "registry",
+      "listed": "gensyn-testnet.explorer.alchemy.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "gensyn-testnet.explorer.alchemy.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "gensyn-testnet.explorer.alchemy.com"
+    },
+    {
+      "chainId": 685689,
+      "name": "Gensyn",
+      "source": "registry",
+      "listed": "gensyn-mainnet.explorer.alchemy.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "gensyn-mainnet.explorer.alchemy.com",
+          "backendVersion": "200 v11.2.6",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "gensyn-mainnet.explorer.alchemy.com"
+    },
+    {
+      "chainId": 743111,
+      "name": "Hemi Sepolia",
+      "source": "registry-self-hosted",
+      "listed": "testnet.explorer.hemi.xyz",
+      "hostedBy": "self",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "testnet.explorer.hemi.xyz",
+          "backendVersion": "200 v6.9.0-hemi.25",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet.explorer.hemi.xyz"
+    },
+    {
+      "chainId": 763373,
+      "name": "Ink Sepolia",
+      "source": "registry",
+      "listed": "explorer-sepolia.inkonchain.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer-sepolia.inkonchain.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer-sepolia.inkonchain.com"
+    },
+    {
+      "chainId": 5042002,
+      "name": "Arc Testnet",
+      "source": "registry",
+      "listed": "explorer.testnet.arc.io",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.testnet.arc.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.testnet.arc.io"
+    },
+    {
+      "chainId": 5201420,
+      "name": "Electroneum Testnet",
+      "source": "registry",
+      "listed": "electroneum-testnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "electroneum-testnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "electroneum-testnet.blockscout.com"
+    },
+    {
+      "chainId": 11142220,
+      "name": "Celo Sepolia",
+      "source": "registry",
+      "listed": "celo-sepolia.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "celo-sepolia.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "celo-sepolia.blockscout.com"
+    },
+    {
+      "chainId": 11155111,
+      "name": "Ethereum Sepolia",
+      "source": "registry",
+      "listed": "eth-sepolia.blockscout.com",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "eth-sepolia.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "eth-sepolia.blockscout.com"
+    },
+    {
+      "chainId": 11155420,
+      "name": "OP Sepolia",
+      "source": "registry",
+      "listed": "testnet-explorer.optimism.io",
+      "inHardhat": true,
+      "hardhatListed": "optimism-sepolia.blockscout.com",
+      "hardhatProbes": [
+        {
+          "host": "optimism-sepolia.blockscout.com",
+          "backendVersion": "301 to https://testnet-explorer.optimism.io/api/v2/config/backend-version HTML",
+          "getsourcecode": "301 to https://testnet-explorer.optimism.io/api?module=contract&action=getsourcecode&address=0xcA11bde05977b3631167028862bE2a173976CA11 HTML"
+        },
+        {
+          "host": "testnet-explorer.optimism.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "probes": [
+        {
+          "host": "testnet-explorer.optimism.io",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "testnet-explorer.optimism.io"
+    },
+    {
+      "chainId": 20180427,
+      "name": "Stability Testnet",
+      "source": "registry",
+      "listed": "explorer.testnet.stabilityprotocol.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "explorer.testnet.stabilityprotocol.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.testnet.stabilityprotocol.com"
+    },
+    {
+      "chainId": 89346162,
+      "name": "Reya Cronos",
+      "source": "registry",
+      "listed": "reya-cronos.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "reya-cronos.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "reya-cronos.blockscout.com"
+    },
+    {
+      "chainId": 245022926,
+      "name": "Neon Devnet",
+      "source": "registry",
+      "listed": "neon-devnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "neon-devnet.blockscout.com",
+          "backendVersion": "200 v11.3.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "neon-devnet.blockscout.com"
+    },
+    {
+      "chainId": 245022934,
+      "name": "Neon",
+      "source": "registry",
+      "listed": "neon.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "neon.blockscout.com",
+          "backendVersion": "200 v11.3.3",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "neon.blockscout.com"
+    },
+    {
+      "chainId": 1313161554,
+      "name": "Aurora Mainnet",
+      "source": "hardhat",
+      "listed": "explorer.mainnet.aurora.dev",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.mainnet.aurora.dev",
+          "backendVersion": "200 v9.3.2",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.mainnet.aurora.dev"
+    },
+    {
+      "chainId": 1313161555,
+      "name": "Aurora Testnet",
+      "source": "hardhat",
+      "listed": "explorer.testnet.aurora.dev",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.testnet.aurora.dev",
+          "backendVersion": "200 v9.3.2",
+          "getsourcecode": "404 HTML"
+        }
+      ],
+      "instance": null
+    },
+    {
+      "chainId": 1666600000,
+      "name": "Harmony",
+      "source": "hardhat",
+      "listed": "explorer.harmony.one",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.harmony.one",
+          "backendVersion": "200 v6.1.0",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.harmony.one"
+    },
+    {
+      "chainId": 1666700000,
+      "name": "Harmony Testnet",
+      "source": "hardhat",
+      "listed": "explorer.testnet.harmony.one",
+      "inHardhat": true,
+      "probes": [
+        {
+          "host": "explorer.testnet.harmony.one",
+          "backendVersion": "200 v6.1.0",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "explorer.testnet.harmony.one"
+    },
+    {
+      "chainId": 3735928814,
+      "name": "Eden Testnet",
+      "source": "registry",
+      "listed": "eden-testnet.blockscout.com",
+      "inHardhat": false,
+      "probes": [
+        {
+          "host": "eden-testnet.blockscout.com",
+          "backendVersion": "200 v12.0.4",
+          "getsourcecode": "200 status 1 OK"
+        }
+      ],
+      "instance": "eden-testnet.blockscout.com"
+    }
+  ]
+}

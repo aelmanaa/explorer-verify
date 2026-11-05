@@ -22,7 +22,9 @@ import type {
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
-const ORIGIN = "https://base-sepolia.blockscout.com";
+// A host the routing table does not list, so a route.apiUrl call has no table page (#169 gave Base
+// Sepolia's own instance a row entry).
+const ORIGIN = "https://blockscout.example.org";
 const API = `${ORIGIN}/api`;
 const CHAIN_ID = 84532;
 const ADDRESS: Hex = "0x0d7ba9133629d6732a3ef5a3f5f09c68dac4be65";
@@ -350,7 +352,7 @@ function assertEventsValid(run: Run): void {
       assert.equal(event.backend, "blockscout", `${event.type} backend`);
     }
     if (event.type === "verify.routed") {
-      assert.equal(event.apiHost, "base-sepolia.blockscout.com");
+      assert.equal(event.apiHost, "blockscout.example.org");
     }
   }
 }
@@ -982,11 +984,11 @@ describe("blackbox #92: rate limits (never failed)", () => {
 
 describe("blackbox #92: route and keys (R-SEC-2)", () => {
   for (const apiUrl of [
-    "https://base-sepolia.blockscout.com",
-    "https://base-sepolia.blockscout.com/",
-    "https://base-sepolia.blockscout.com/api/v2",
-    "https://base-sepolia.blockscout.com/apis",
-    "https://base-sepolia.blockscout.com/v1/rpc",
+    "https://blockscout.example.org",
+    "https://blockscout.example.org/",
+    "https://blockscout.example.org/api/v2",
+    "https://blockscout.example.org/apis",
+    "https://blockscout.example.org/v1/rpc",
   ]) {
     it(`apiUrl ${apiUrl} throws invalid-input naming route.apiUrl before any request`, async () => {
       const run = setup({}, { route: { backend: "blockscout", apiUrl } });

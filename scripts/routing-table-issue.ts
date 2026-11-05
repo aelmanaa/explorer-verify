@@ -57,6 +57,7 @@ const LISTS: readonly ChangedList[] = [
   "Etherscan chainlist",
   "Sourcify chain list",
   "Routescan chain list",
+  "Blockscout chain registry",
 ];
 
 function field(value: unknown, key: string): unknown {

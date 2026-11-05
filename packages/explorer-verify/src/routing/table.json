@@ -13,6 +13,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "eth.blockscout.com"
+        },
+        {
           "backend": "routescan",
           "network": "mainnet"
         }
@@ -23,6 +27,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.optimism.io"
         },
         {
           "backend": "etherscan-v2",
@@ -59,6 +67,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "rootstock.blockscout.com"
         }
       ]
     },
@@ -67,6 +79,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "rootstock-testnet.blockscout.com"
         }
       ]
     },
@@ -127,6 +143,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "etc.blockscout.com"
         }
       ]
     },
@@ -135,6 +155,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "etc-mordor.blockscout.com"
         }
       ]
     },
@@ -151,6 +175,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "shibuya.blockscout.com"
         }
       ]
     },
@@ -205,6 +233,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "gnosisscan.io"
+        },
+        {
           "backend": "etherscan-v2",
           "explorer": "gnosisscan.io"
         }
@@ -239,6 +271,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.fuse.io"
         }
       ]
     },
@@ -247,6 +283,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.fusespark.io"
         }
       ]
     },
@@ -259,6 +299,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "unichain.blockscout.com"
         }
       ]
     },
@@ -337,6 +381,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "hsk.blockscout.com"
         }
       ]
     },
@@ -389,6 +437,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.tac.build"
         }
       ]
     },
@@ -437,6 +489,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.orderly.network"
         }
       ]
     },
@@ -461,6 +517,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "zksync-sepolia.blockscout.com"
         }
       ]
     },
@@ -469,6 +529,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "filecoin.blockscout.com"
         }
       ]
     },
@@ -477,6 +541,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "zksync.blockscout.com"
         }
       ]
     },
@@ -493,6 +561,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "shapescan.xyz"
         }
       ]
     },
@@ -529,6 +601,19 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "worldchain-mainnet.explorer.alchemy.com"
+        }
+      ]
+    },
+    {
+      "chainId": 484,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "camp.cloud.blockscout.com"
         }
       ]
     },
@@ -537,6 +622,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "blackfortscan.com"
         }
       ]
     },
@@ -545,6 +634,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.evm.flow.com"
         }
       ]
     },
@@ -553,6 +646,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "astar.blockscout.com"
         }
       ]
     },
@@ -569,6 +666,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "eden.blockscout.com"
         }
       ]
     },
@@ -577,6 +678,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "evm.flow.com"
         }
       ]
     },
@@ -585,6 +690,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.worldmobile.io"
         }
       ]
     },
@@ -593,6 +702,15 @@
       "backends": [
         {
           "backend": "sourcify"
+        }
+      ]
+    },
+    {
+      "chainId": 901,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "testnet-explorer.derive.xyz"
         }
       ]
     },
@@ -617,6 +735,15 @@
       "backends": [
         {
           "backend": "sourcify"
+        }
+      ]
+    },
+    {
+      "chainId": 957,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.derive.xyz"
         }
       ]
     },
@@ -698,10 +825,23 @@
       ]
     },
     {
+      "chainId": 1076,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.evm.testnet.iota.cafe"
+        }
+      ]
+    },
+    {
       "chainId": 1088,
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "andromeda-explorer.metis.io"
         },
         {
           "backend": "routescan",
@@ -754,6 +894,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "blockscout.lisk.com"
         }
       ]
     },
@@ -791,6 +935,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "unichain-sepolia.blockscout.com"
         }
       ]
     },
@@ -799,6 +947,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "aeneid.datanetscan.io"
         }
       ]
     },
@@ -847,6 +999,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "www.datanetscan.io"
         }
       ]
     },
@@ -887,6 +1043,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.reya.network"
         }
       ]
     },
@@ -903,6 +1063,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.metall2.com"
         }
       ]
     },
@@ -919,6 +1083,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.playblock.io"
         }
       ]
     },
@@ -927,6 +1095,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "soneium.blockscout.com"
         }
       ]
     },
@@ -943,6 +1115,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "phoenix.lightlink.io"
         }
       ]
     },
@@ -951,6 +1127,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "pegasus.lightlink.io"
         }
       ]
     },
@@ -975,6 +1155,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "soneium-minato.blockscout.com"
         }
       ]
     },
@@ -999,6 +1183,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.roninchain.com"
         }
       ]
     },
@@ -1035,6 +1223,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "scan.mocachain.org"
         }
       ]
     },
@@ -1059,6 +1251,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.kitescan.ai"
         }
       ]
     },
@@ -1067,6 +1263,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "spb.explorer.tac.build"
         }
       ]
     },
@@ -1242,6 +1442,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "megaeth.blockscout.com"
         }
       ]
     },
@@ -1311,6 +1515,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "worldchain-sepolia.explorer.alchemy.com"
         }
       ]
     },
@@ -1319,6 +1527,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.blackfortscan.com"
         }
       ]
     },
@@ -1445,6 +1657,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "awaji.blockscout.com"
         }
       ]
     },
@@ -1453,6 +1669,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "mizuhiki.blockscout.com"
         }
       ]
     },
@@ -1479,6 +1699,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "zetascan.com"
         }
       ]
     },
@@ -1487,6 +1711,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.zetascan.com"
         }
       ]
     },
@@ -1509,6 +1737,10 @@
     {
       "chainId": 8021,
       "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "numine.blockscout.com"
+        },
         {
           "backend": "routescan",
           "network": "mainnet"
@@ -1549,6 +1781,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.evm.iota.org"
         }
       ]
     },
@@ -1601,6 +1837,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "gnosis-chiado.blockscout.com"
         }
       ]
     },
@@ -1610,6 +1850,15 @@
         {
           "backend": "routescan",
           "network": "mainnet"
+        }
+      ]
+    },
+    {
+      "chainId": 10901,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.testnet.zama.org"
         }
       ]
     },
@@ -1626,6 +1875,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "sepolia.shapescan.xyz"
         }
       ]
     },
@@ -1793,6 +2046,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "zilliqa.blockscout.com"
         }
       ]
     },
@@ -1801,6 +2058,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.zilliqa.blockscout.com"
         }
       ]
     },
@@ -1809,6 +2070,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "apechain-curtis.blockscout.com"
         }
       ]
     },
@@ -1817,6 +2082,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "apechain.blockscout.com"
         }
       ]
     },
@@ -1825,6 +2094,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.mode.network"
         }
       ]
     },
@@ -1869,6 +2142,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "arbitrum-nova.blockscout.com"
         }
       ]
     },
@@ -1881,6 +2158,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "celo.blockscout.com"
         }
       ]
     },
@@ -1913,6 +2194,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.etherlink.com"
         }
       ]
     },
@@ -1921,6 +2206,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.hemi.xyz"
         },
         {
           "backend": "routescan",
@@ -1982,6 +2271,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.testnet.chain.robinhood.com"
         }
       ]
     },
@@ -1990,6 +2283,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "xexplorer.neo.org"
         }
       ]
     },
@@ -2014,6 +2311,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "electroneum.blockscout.com"
         }
       ]
     },
@@ -2055,6 +2356,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.inkonchain.com"
         }
       ]
     },
@@ -2128,6 +2433,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "alchemy-sepolia.explorer.alchemy.com"
         }
       ]
     },
@@ -2203,6 +2512,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "base-sepolia.blockscout.com"
+        },
+        {
           "backend": "etherscan-v2",
           "explorer": "sepolia.basescan.org"
         }
@@ -2231,6 +2544,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer-testnet.doma.xyz"
         }
       ]
     },
@@ -2239,6 +2556,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.doma.xyz"
         }
       ]
     },
@@ -2247,6 +2568,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "pepuscan.com"
         }
       ]
     },
@@ -2255,6 +2580,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.plume.org"
         }
       ]
     },
@@ -2263,6 +2592,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet-explorer.plume.org"
         }
       ]
     },
@@ -2287,6 +2620,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.stabilityprotocol.com"
         }
       ]
     },
@@ -2295,6 +2632,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "creditcoin.blockscout.com"
         }
       ]
     },
@@ -2303,6 +2644,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "creditcoin-testnet.blockscout.com"
         }
       ]
     },
@@ -2311,6 +2656,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "creditcoin-devnet.blockscout.com"
         }
       ]
     },
@@ -2327,6 +2676,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "shadownet.explorer.etherlink.com"
         }
       ]
     },
@@ -2359,6 +2712,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "sepolia-explorer.hpp.io"
         }
       ]
     },
@@ -2367,6 +2724,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.hpp.io"
         }
       ]
     },
@@ -2375,6 +2736,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "saigon-explorer.roninchain.com"
         }
       ]
     },
@@ -2391,6 +2756,19 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet-scan.mocachain.org"
+        }
+      ]
+    },
+    {
+      "chainId": 261131,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.mainnet.zama.org"
         }
       ]
     },
@@ -2399,6 +2777,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "filecoin-testnet.blockscout.com"
         }
       ]
     },
@@ -2415,6 +2797,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet-explorer.worldmobile.net"
         }
       ]
     },
@@ -2465,6 +2851,15 @@
       ]
     },
     {
+      "chainId": 529375,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.layerk.com"
+        }
+      ]
+    },
+    {
       "chainId": 534351,
       "backends": [
         {
@@ -2477,6 +2872,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "scrollscan.com"
         }
       ]
     },
@@ -2491,6 +2890,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "eth-hoodi.blockscout.com"
+        },
+        {
           "backend": "routescan",
           "network": "testnet"
         }
@@ -2501,6 +2904,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet.crossscan.io"
         }
       ]
     },
@@ -2509,6 +2916,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "www.crossscan.io"
         }
       ]
     },
@@ -2525,6 +2936,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "gensyn-testnet.explorer.alchemy.com"
         }
       ]
     },
@@ -2533,6 +2948,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "gensyn-mainnet.explorer.alchemy.com"
         }
       ]
     },
@@ -2563,6 +2982,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "testnet.explorer.hemi.xyz"
+        },
+        {
           "backend": "routescan",
           "network": "testnet"
         }
@@ -2585,6 +3008,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer-sepolia.inkonchain.com"
         }
       ]
     },
@@ -2625,6 +3052,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.testnet.arc.io"
         }
       ]
     },
@@ -2633,6 +3064,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "electroneum-testnet.blockscout.com"
         }
       ]
     },
@@ -2685,6 +3120,10 @@
         },
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "celo-sepolia.blockscout.com"
         }
       ]
     },
@@ -2699,6 +3138,10 @@
           "backend": "sourcify"
         },
         {
+          "backend": "blockscout",
+          "instance": "eth-sepolia.blockscout.com"
+        },
+        {
           "backend": "routescan",
           "network": "testnet"
         }
@@ -2709,6 +3152,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "testnet-explorer.optimism.io"
         },
         {
           "backend": "etherscan-v2",
@@ -2737,6 +3184,19 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.testnet.stabilityprotocol.com"
+        }
+      ]
+    },
+    {
+      "chainId": 89346162,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "reya-cronos.blockscout.com"
         }
       ]
     },
@@ -2753,10 +3213,23 @@
       ]
     },
     {
+      "chainId": 245022926,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "neon-devnet.blockscout.com"
+        }
+      ]
+    },
+    {
       "chainId": 245022934,
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "neon.blockscout.com"
         }
       ]
     },
@@ -2781,6 +3254,10 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.mainnet.aurora.dev"
         }
       ]
     },
@@ -2789,6 +3266,19 @@
       "backends": [
         {
           "backend": "sourcify"
+        },
+        {
+          "backend": "blockscout",
+          "instance": "explorer.harmony.one"
+        }
+      ]
+    },
+    {
+      "chainId": 1666700000,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "explorer.testnet.harmony.one"
         }
       ]
     },
@@ -2805,6 +3295,15 @@
       "backends": [
         {
           "backend": "sourcify"
+        }
+      ]
+    },
+    {
+      "chainId": 3735928814,
+      "backends": [
+        {
+          "backend": "blockscout",
+          "instance": "eden-testnet.blockscout.com"
         }
       ]
     }

@@ -661,11 +661,13 @@ describe("linkProxy() on a Blockscout instance (R-FLOW-8)", () => {
       ],
       BLOCKSCOUT_OPTIONS,
     );
+    // The table lists this instance for Sepolia since #169, so the result has its page.
     assert.deepEqual(resultOf(r), {
       status: "linked",
       backend: "blockscout",
       implementation: BOX,
       implementationVerified: true,
+      explorerUrl: `https://eth-sepolia.blockscout.com/address/${PROXY}?tab=contract`,
     });
     assert.deepEqual(
       r.calls.map((call) => [call.method, call.url, new URLSearchParams(call.body).get("action")]),
@@ -769,6 +771,7 @@ describe("linkProxy() on a Blockscout instance (R-FLOW-8)", () => {
       backend: "blockscout",
       implementation: BOX,
       implementationVerified: false,
+      explorerUrl: `https://eth-sepolia.blockscout.com/address/${PROXY}?tab=contract`,
     });
     assert.deepEqual(actions(r), [
       "verifyproxycontract",

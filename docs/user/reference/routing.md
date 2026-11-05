@@ -17,7 +17,7 @@ Without `route.apiUrl`:
 
 1. The routing table has a row for the chain: the call goes to the row's first backend that works
    with the keys you passed. A backend that needs a key is skipped when `apiKeys` has none for it.
-   Only `etherscan-v2` needs a key; Routescan and Sourcify do not. When no backend in the row works
+   Only `etherscan-v2` needs a key; Routescan, Blockscout and Sourcify do not. When no backend in the row works
    without a key, the call takes the first one, and fails with `missing-api-key` before it sends a
    request.
 2. `route.backend` picks another backend that the row lists. A backend the row does not list
@@ -33,21 +33,25 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 314 chains. 288
-rows have Sourcify, the 55 chains of the Etherscan chainlist also have Etherscan v2, and 38 rows
-have Routescan, 26 of them alone. The Blockscout and Etherscan-compatible clients have no rows
-yet; reach them with `route.backend` and `route.apiUrl`, as [Blockscout](blockscout.md) and
-[Etherscan-compatible](etherscan-compatible.md) show. A chain has a row when
+The table is `src/routing/table.json` in the package. In this release it lists 325 chains. 288
+rows have Sourcify, the 55 chains of the Etherscan chainlist also have Etherscan v2, 111 rows have
+a Blockscout instance, 11 of them alone, and 38 rows have Routescan, 25 of them alone. The
+Etherscan-compatible client has no rows yet; reach it with `route.backend` and `route.apiUrl`, as
+[Etherscan-compatible](etherscan-compatible.md) shows. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported, when it is in
-the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), or when Routescan's API serves
-it. The row has Sourcify when Sourcify supports the chain, so every chain that Sourcify serves
-resolves without `allowSourcifyFallback`. A chainlist chain also has Etherscan v2, and one that
-Sourcify does not support has Etherscan v2 alone; in this release there is none. Both lists were
-read on 2026-11-05.
+the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), when its Blockscout instance
+answered the API, or when Routescan's API serves it. The row has Sourcify when Sourcify supports
+the chain, so every chain that Sourcify serves resolves without `allowSourcifyFallback`. A
+chainlist chain also has Etherscan v2, and one that Sourcify does not support has Etherscan v2
+alone; in this release there is none. Both lists were read on 2026-11-05.
+
+A row lists its backends in this order: Etherscan v2 on a free-tier chain, Sourcify, Blockscout,
+Etherscan v2 on a paid-plan chain, then Routescan. A row holds only the backends that serve the
+chain.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
 C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532), Arbitrum Sepolia (421614), ZKsync Era
-(324), Scroll (534352), Zora (7777777) and Henesys (68414). To see
+(324), Scroll (534352), Rootstock (30), Zora (7777777) and Henesys (68414). To see
 whether a chain has a row, search `table.json` for its chain id. Verify on a chain without a row
 with `allowSourcifyFallback: true`.
 
@@ -125,10 +129,11 @@ the API URL is derived from it:
 }
 ```
 
-Routescan comes last in each row, after Sourcify and Etherscan v2:
+Routescan comes last in each row, after Sourcify, Blockscout and Etherscan v2:
 
-- On the 26 chains whose row lists only Routescan, such as Henesys (68414), Beam (4337) and Chiliz
-  (88888), a call with no option goes to Routescan.
+- On the 25 chains whose row lists only Routescan, such as Henesys (68414), Beam (4337) and Chiliz
+  (88888), a call with no option goes to Routescan. Numine (8021) lists Blockscout, then
+  Routescan, so a call goes to Blockscout.
 - On the other 12, such as Ethereum (1), Sepolia (11155111), Avalanche Fuji (43113) and C-Chain
   (43114), Metis (1088) and Hemi (43111), a call goes to Sourcify, or to Etherscan v2 with an
   Etherscan key where the row lists it first. A Routescan key in `apiKeys` does not change that.
@@ -137,6 +142,49 @@ Routescan comes last in each row, after Sourcify and Etherscan v2:
 On a chain with a Routescan entry, `route.backend` `routescan` needs no `route.apiUrl`, and a key
 in `apiKeys.routescan` goes to `api.routescan.io` ([Routescan](routescan.md#api-key)). A result
 from Routescan has no `explorerUrl`.
+
+### Blockscout rows
+
+A chain has a Blockscout entry when its instance answered the API on 2026-11-05, without a key
+and without a redirect. The instances come from
+[Blockscout's chain registry](https://chains.blockscout.com/api/chains), the list Hardhat's
+verify plugin reads, and from Hardhat's built-in chain list. The entry holds the host that
+answered: some registry hosts redirect, and the library never follows a redirect, so OP Mainnet
+(10) lists `explorer.optimism.io` and Gnosis (100) lists `gnosisscan.io`.
+
+In a row, Blockscout comes after Sourcify, after Etherscan v2 on a free-tier chain, and before
+Etherscan v2 on a paid-plan chain and before Routescan. So a call without `route.backend` still goes to Sourcify, or
+to Etherscan v2 with a key on a free-tier chain. To verify on Blockscout, name it:
+
+```ts
+import { verify } from "explorer-verify";
+
+const result = await verify(input, { route: { backend: "blockscout" } });
+if (result.status !== "failed") {
+  console.log(result.explorerUrl);
+}
+```
+
+```text
+https://eth-sepolia.blockscout.com/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc?tab=contract
+```
+
+From the CLI, pass `--backend blockscout`. On the 11 chains where Blockscout is the only backend,
+such as Derive Mainnet (957) and Harmony Testnet (1666700000), a call goes to Blockscout by
+default.
+
+These listed instances have no entry, from what they answered on 2026-11-05:
+
+- Polygon PoS (137), Robinhood Chain (4663), Arc Mainnet (5042), Base (8453), Immutable zkEVM
+  (13371) and its testnet (13473), Arbitrum One (42161) and Arbitrum Sepolia (421614) sent a
+  bot-check page (HTTP 403) to Node.js `fetch`.
+- KiteAI Mainnet (2366) answered the API request with HTTP 400, Orderly Testnet (4460) with HTTP
+  500 and Aurora Testnet (1313161555) with HTTP 404.
+- The hosts Hardhat lists for Polygon zkEVM (1101) answered HTTP 404, and those for Linea (59144)
+  and Linea Sepolia (59141) redirect to `lineascan.build` and `sepolia.lineascan.build`.
+
+Reach a Blockscout instance without an entry with `route.apiUrl`, as [Blockscout](blockscout.md)
+shows.
 
 ## Request URLs
 

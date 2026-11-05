@@ -367,14 +367,14 @@ describe("verify with --backend repeated runs verifyEach() (R-RT-4, R-AX-5, R-AX
   it("prints the handle of a backend that ends pending, and exits 4", async (t) => {
     const result = await run(
       t,
-      [...VERIFY, "--backend", "sourcify", "--backend", "blockscout", "--timeout", "5"],
+      [...VERIFY, "--backend", "sourcify", "--backend", "etherscan-compatible", "--timeout", "5"],
       "pending",
     );
-    // Sepolia's row lists no Blockscout: not-confirmed (4), resumable work, wins over
+    // No row lists etherscan-compatible: not-confirmed (4), resumable work, wins over
     // unsupported-chain (2). The exit code names one outcome; read every line.
     assert.equal(result.code, 4, result.stdout);
     assert.match(result.stdout, /^not-confirmed on sourcify: .*\nHandle: ev1:sourcify:/);
-    assert.match(result.stdout, /\nunsupported-chain on blockscout: /);
+    assert.match(result.stdout, /\nunsupported-chain on etherscan-compatible: /);
   });
 
   const refused: [string, string[], RegExp][] = [
