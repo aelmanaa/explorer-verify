@@ -141,10 +141,11 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 
 - **R-RT-1** A routing table maps a chain id to its backend(s), API URL and explorer URL. It is data
   (JSON), versioned with the package, and holds only what varies per chain; the API URL and the
-  explorer URL are derived from it (decision 0024). It has a row for each chain, in the Etherscan
-  chainlist or in the prior art's 67 rows, that a backend with a client in the release serves, and
-  lists only such backends. It carries the date its rows were checked. On 2026-11-05 that is 94
-  chains, each with Sourcify, and the 55 chains of the Etherscan chainlist also with Etherscan v2. A
+  explorer URL are derived from it (decision 0024). It has a row for each chain that Sourcify's
+  chain list marks as supported or that the Etherscan chainlist lists (decision 0036): Sourcify
+  when Sourcify supports the chain, Etherscan v2 when the chainlist lists it. It lists only backends
+  with a client in the release. It carries the date its rows were checked. On 2026-11-05 that is 288 chains, each
+  with Sourcify, and the 55 chains of the Etherscan chainlist also with Etherscan v2. A
   row lists its backends in order of preference; on a chain that needs a paid Etherscan plan,
   Sourcify comes before Etherscan v2 (decision 0027). A call goes to the first backend in the row
   that works with the caller's keys: a backend that needs a key is skipped when the caller passed

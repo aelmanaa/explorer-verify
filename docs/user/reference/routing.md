@@ -33,17 +33,21 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 94 chains. Every row
-has Sourcify, and the 55 chains of the Etherscan chainlist also have Etherscan v2. The Routescan,
-Blockscout and Etherscan-compatible clients have no rows yet; reach them with `route.backend` and
-`route.apiUrl`, as [Routescan](routescan.md), [Blockscout](blockscout.md) and
+The table is `src/routing/table.json` in the package. In this release it lists 288 chains. Every
+row has Sourcify, and the 55 chains of the Etherscan chainlist also have Etherscan v2. The
+Routescan, Blockscout and Etherscan-compatible clients have no rows yet; reach them with
+`route.backend` and `route.apiUrl`, as [Routescan](routescan.md), [Blockscout](blockscout.md) and
 [Etherscan-compatible](etherscan-compatible.md) show. A chain has a row when
-[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported and it is in the
-[Etherscan chainlist](https://api.etherscan.io/v2/chainlist) or in the verifier table this library
-started from. The Etherscan chainlist was read on 2026-11-05 and Sourcify's list on 2026-11-04.
+[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported or when it is in
+the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist). The row has Sourcify when
+Sourcify supports the chain, so every chain that Sourcify serves resolves without
+`allowSourcifyFallback`. A chainlist chain also has Etherscan v2, and one that Sourcify does not
+support has Etherscan v2 alone; in this release there is none. Both lists were read on
+2026-11-05.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
-C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532) and Arbitrum Sepolia (421614). To see
+C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532), Arbitrum Sepolia (421614), ZKsync Era
+(324), Scroll (534352) and Zora (7777777). To see
 whether a chain has a row, search `table.json` for its chain id. A later release adds Routescan
 entries. Verify on a chain without a row with `allowSourcifyFallback: true`.
 

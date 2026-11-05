@@ -5,10 +5,12 @@
 // scripts/compare-routing-table.ts is the command; the tests call these functions with recorded
 // responses and a fake fetch.
 //
-// The rules that built the table: a chain gets a row with Sourcify when Sourcify lists it as
-// supported and it is in the Etherscan chainlist or in the prior art's rows. A chain in the
-// chainlist also gets an `etherscan-v2` entry with the chainlist's explorer host: first when the
-// free tier covers the chain, after Sourcify when it needs a paid plan (decision 0027).
+// The rules that built the table: a chain gets a row when Sourcify lists it as supported or it is
+// in the Etherscan chainlist (decision 0036). The row has Sourcify when Sourcify supports the
+// chain. A chain in the chainlist also gets an `etherscan-v2` entry with the chainlist's explorer
+// host: first when the free tier covers the chain, after Sourcify when it needs a paid plan
+// (decision 0027), and alone when Sourcify does not support it. `tableOf` gives the table these rules build, and
+// `scripts/compare-routing-table.ts --rows` prints it.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -37,8 +39,6 @@ export interface ChainlistEntry {
 export interface Seed {
   /** The frozen copy of the chainlist on the table's date. */
   readonly etherscan: readonly ChainlistEntry[];
-  /** The chain ids of the prior art's rows. */
-  readonly priorArt: readonly number[];
 }
 
 /** The parts of the routing table the comparison reads. */
@@ -52,13 +52,17 @@ export interface TableRows {
   }[];
 }
 
-/** The four inputs of a comparison. */
-export interface Lists {
-  readonly table: TableRows;
-  readonly seed: Seed;
+/** The two public lists, as read live. */
+export interface LiveLists {
   readonly chainlist: readonly ChainlistEntry[];
   /** The chain ids Sourcify lists with `supported: true`. */
   readonly sourcify: ReadonlySet<number>;
+}
+
+/** The four inputs of a comparison. */
+export interface Lists extends LiveLists {
+  readonly table: TableRows;
+  readonly seed: Seed;
 }
 
 /** `value[key]` when `value` is a non-array object, else `undefined`. */
@@ -138,7 +142,7 @@ export function parseSourcifyChains(value: unknown): Set<number> {
  * Reads the research data.
  *
  * @param value - The parsed research data file.
- * @returns The frozen chainlist and the prior art's chain ids.
+ * @returns The frozen chainlist.
  */
 export function parseSeed(value: unknown): Seed {
   const what = "research data";
@@ -149,7 +153,6 @@ export function parseSeed(value: unknown): Seed {
       explorer: textAt(item, "explorer", what),
       paidPlan: field(item, "paidPlan") === true,
     })),
-    priorArt: listAt(value, "priorArt", what).map((item) => chainIdAt(item, "chainId", what)),
   };
 }
 
@@ -179,18 +182,62 @@ export function parseTable(value: unknown): TableRows {
 }
 
 /**
- * The chain ids that get a Sourcify row: Sourcify supports them, and they are in the chainlist or
- * the prior art's rows.
+ * The chain ids that get a row: every chain Sourcify supports and every chain of the Etherscan
+ * chainlist (decision 0036).
  *
- * @param lists - The chainlist, the prior art and Sourcify's supported chains.
+ * @param lists - The chainlist and Sourcify's supported chains.
  * @returns The chain ids, ascending.
  */
-export function expectedRows(lists: Omit<Lists, "table">): number[] {
-  const candidates = new Set([
-    ...lists.chainlist.map((chain) => chain.chainId),
-    ...lists.seed.priorArt,
-  ]);
-  return [...candidates].filter((id) => lists.sourcify.has(id)).toSorted((a, b) => a - b);
+export function expectedRows(lists: LiveLists): number[] {
+  const ids = new Set([...lists.sourcify, ...lists.chainlist.map((chain) => chain.chainId)]);
+  return [...ids].toSorted((a, b) => a - b);
+}
+
+/** One entry of a `table.json` row, as {@link tableOf} writes it. */
+export type TableEntryJson =
+  | { readonly backend: "sourcify" }
+  | { readonly backend: "etherscan-v2"; readonly explorer: string };
+
+/** The `table.json` the rules give, schema 2 (decision 0024). */
+export interface TableJson {
+  readonly schemaVersion: 2;
+  readonly checked: string;
+  readonly chains: readonly {
+    readonly chainId: number;
+    readonly backends: readonly TableEntryJson[];
+  }[];
+}
+
+/**
+ * The routing table the rules give for the live lists: a row for each chain Sourcify supports or
+ * the chainlist lists. The row has Sourcify when Sourcify supports the chain, and for a chainlist
+ * chain an `etherscan-v2` entry, first on the free tier and after Sourcify on a paid plan
+ * (decisions 0027 and 0036).
+ *
+ * @param lists - The live chainlist and Sourcify's supported chains.
+ * @param checked - The table's date, `YYYY-MM-DD`.
+ * @returns The table, rows in ascending chain id order.
+ */
+export function tableOf(lists: LiveLists, checked: string): TableJson {
+  const live = new Map(lists.chainlist.map((chain) => [chain.chainId, chain]));
+  return {
+    schemaVersion: 2,
+    checked,
+    chains: expectedRows(lists).map((chainId) => {
+      const chain = live.get(chainId);
+      const sourcify: TableEntryJson[] = lists.sourcify.has(chainId)
+        ? [{ backend: "sourcify" }]
+        : [];
+      if (chain === undefined) {
+        return { chainId, backends: sourcify };
+      }
+      const etherscan: TableEntryJson = { backend: "etherscan-v2", explorer: chain.explorer };
+      return {
+        chainId,
+        backends: chain.paidPlan ? [...sourcify, etherscan] : [etherscan, ...sourcify],
+      };
+    }),
+  };
 }
 
 /** The public list a difference comes from. */
@@ -218,8 +265,9 @@ export function compare(lists: Lists): string[] {
 
 /**
  * Every difference between the table, its research data and the live lists, with the chain and
- * the list each one comes from. A missing row or Sourcify entry, and a Sourcify entry for a chain
- * Sourcify dropped, come from Sourcify's list; every other difference comes from the chainlist.
+ * the list each one comes from. A missing row or Sourcify entry of a chain Sourcify supports, and a
+ * Sourcify entry for a chain Sourcify dropped, come from Sourcify's list; every other difference,
+ * a missing row of a chainlist chain Sourcify does not support included, comes from the chainlist.
  *
  * @param lists - The four inputs.
  * @returns One difference per line {@link compare} returns, in the same order.
@@ -229,31 +277,27 @@ export function differences(lists: Lists): Difference[] {
   const add = (chainId: number, list: ChangedList, text: string): void => {
     found.push({ chainId, list, text });
   };
-  const expected = expectedRows(lists);
   const listed = new Map(lists.table.rows.map((row) => [row.chainId, row.backends]));
   const inChainlist = new Set(lists.chainlist.map((chain) => chain.chainId));
-  for (const id of expected) {
+  for (const id of expectedRows(lists)) {
     const backends = listed.get(id);
     if (backends === undefined) {
-      const from = inChainlist.has(id) ? "the Etherscan chainlist" : "the prior art";
-      add(
-        id,
-        SOURCIFY,
-        `table: chain ${String(id)} has no row; Sourcify supports it and it is in ${from}`,
-      );
-    } else if (!backends.includes("sourcify")) {
+      if (lists.sourcify.has(id)) {
+        add(id, SOURCIFY, `table: chain ${String(id)} has no row; Sourcify supports it`);
+      } else {
+        add(
+          id,
+          CHAINLIST,
+          `table: chain ${String(id)} has no row; it is in the Etherscan chainlist`,
+        );
+      }
+    } else if (lists.sourcify.has(id) && !backends.includes("sourcify")) {
       add(id, SOURCIFY, `table: chain ${String(id)} has no sourcify entry; Sourcify supports it`);
     }
   }
   for (const [id, backends] of listed) {
     if (backends.includes("sourcify") && !lists.sourcify.has(id)) {
       add(id, SOURCIFY, `table: chain ${String(id)} lists sourcify, which no longer supports it`);
-    } else if (!expected.includes(id) && backends.every((name) => name === "sourcify")) {
-      add(
-        id,
-        CHAINLIST,
-        `table: chain ${String(id)} is in neither the chainlist nor the prior art`,
-      );
     }
   }
   found.push(...etherscanEntries(lists));
@@ -322,7 +366,7 @@ function etherscanEntries(lists: Lists): Difference[] {
       );
     }
     const sourcify = row.backends.indexOf("sourcify");
-    if (chain.paidPlan && sourcify === -1) {
+    if (chain.paidPlan && sourcify === -1 && lists.sourcify.has(row.chainId)) {
       add("lists etherscan-v2 with no sourcify entry first; it needs a paid plan");
     } else if (chain.paidPlan && sourcify > at) {
       add("lists etherscan-v2 before sourcify; it needs a paid plan");
@@ -352,6 +396,20 @@ async function fetchJson(fetch: typeof globalThis.fetch, url: string): Promise<u
 }
 
 /**
+ * Fetches both public lists.
+ *
+ * @param fetch - The fetch to use; the tests pass a fake.
+ * @returns The chainlist and Sourcify's supported chains.
+ */
+export async function fetchLists(fetch: typeof globalThis.fetch): Promise<LiveLists> {
+  const [chainlist, sourcify] = await Promise.all([
+    fetchJson(fetch, SOURCES.etherscanChainlist),
+    fetchJson(fetch, SOURCES.sourcifyChains),
+  ]);
+  return { chainlist: parseChainlist(chainlist), sourcify: parseSourcifyChains(sourcify) };
+}
+
+/**
  * Fetches both public lists and compares them with the table and research data under `root`.
  *
  * @param root - The repository root.
@@ -360,19 +418,11 @@ async function fetchJson(fetch: typeof globalThis.fetch, url: string): Promise<u
  */
 export async function run(root: string, fetch: typeof globalThis.fetch): Promise<RunResult> {
   const read = (file: string): unknown => JSON.parse(readFileSync(path.join(root, file), "utf8"));
-  const [chainlist, sourcify] = await Promise.all([
-    fetchJson(fetch, SOURCES.etherscanChainlist),
-    fetchJson(fetch, SOURCES.sourcifyChains),
-  ]);
+  const live = await fetchLists(fetch);
   const table = parseTable(read(TABLE_FILE));
   return {
     checked: table.checked,
-    differences: differences({
-      table,
-      seed: parseSeed(read(SEED_FILE)),
-      chainlist: parseChainlist(chainlist),
-      sourcify: parseSourcifyChains(sourcify),
-    }),
+    differences: differences({ ...live, table, seed: parseSeed(read(SEED_FILE)) }),
     notes: [
       `table checked ${table.checked}; ${String(table.rows.length)} rows`,
       "routescan: not compared; its supported-chains page has no machine-readable list (see the research note)",
