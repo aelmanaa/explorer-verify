@@ -83,7 +83,7 @@ describe("public types", () => {
 });
 
 describe("public entry point", () => {
-  it("exports exactly the decided runtime values (decisions 0009 and 0044, R-AX-5, R-AX-7, R-RT-4)", () => {
+  it("exports exactly the decided runtime values (decisions 0009, 0043 and 0044, R-AX-5, R-AX-7, R-RT-4)", () => {
     assert.deepEqual(Object.keys(api).toSorted(), [
       "BACKEND_NAMES",
       "ERROR_CODES",
@@ -98,6 +98,7 @@ describe("public entry point", () => {
       "linkLibraries",
       "linkProxy",
       "parseHandle",
+      "routesFor",
       "routingTableDate",
       "toBackendName",
       "toEnvelope",

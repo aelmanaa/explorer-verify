@@ -23,7 +23,8 @@ export { linkProxy } from "./flow/link-proxy.ts";
 export { verify } from "./flow/verify.ts";
 export { verifyEach } from "./flow/verify-each.ts";
 export { buildVerifyInput } from "./input/build.ts";
-export { routingTableDate } from "./routing/resolve.ts";
+export { routesFor, routingTableDate } from "./routing/resolve.ts";
+export type { ChainRoutes, RoutePick } from "./routing/resolve.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";
 export { linkLibraries } from "./input/libraries.ts";
 export { validateInput } from "./input/validate.ts";
@@ -38,6 +39,7 @@ export type {
   LogFields,
   Logger,
   LogValue,
+  RoutedBy,
   RouteOverride,
   SolidityStandardJsonInput,
   VerifyEachOptions,

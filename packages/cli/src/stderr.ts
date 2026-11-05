@@ -6,7 +6,14 @@
  * one JSON object with `schemaVersion`, `level`, `message` and `type`, then the event's or the
  * logger's fields. A field with a reserved name goes under a nested `fields` object.
  */
-import type { ErrorJson, LogFields, Logger, LogValue, VerifyEvent } from "explorer-verify";
+import type {
+  ErrorJson,
+  LogFields,
+  Logger,
+  LogValue,
+  RoutedBy,
+  VerifyEvent,
+} from "explorer-verify";
 
 import { shows } from "./log-level.ts";
 import type { LineLevel, LogFormat, LogLevel } from "./log-level.ts";
@@ -59,6 +66,24 @@ const FRAME_MS = 100;
 /** Moves to the start of the line and clears it. */
 const CLEAR_LINE = "\r\u001B[2K";
 
+/** The text of `verify.routed`: the backend, its host and how it was chosen. */
+function routedMessage(event: Extract<VerifyEvent, { readonly type: "verify.routed" }>): string {
+  const head = `Routed to ${event.backend} at ${event.apiHost}`;
+  const names = event.skipped?.split(",") ?? [];
+  const skipped = names.length === 0 ? undefined : names.join(", ");
+  const them = names.length === 1 ? "it" : "them";
+  const why: Record<RoutedBy, string> = {
+    table:
+      skipped === undefined
+        ? "the first backend the routing table lists for the chain"
+        : `the routing table's pick: ${skipped} skipped, because no API key is set for ${them}`,
+    fallback: "the Sourcify fallback for a chain the routing table does not list",
+    caller: "the backend the caller named",
+    "api-url": "the API URL the caller gave",
+  };
+  return event.routedBy === undefined ? `${head}.` : `${head}, ${why[event.routedBy]}.`;
+}
+
 /** The person-readable text of an event. */
 export function eventMessage(event: VerifyEvent): string {
   // Every type is listed, so a new event type fails the exhaustiveness lint until it is added.
@@ -68,7 +93,7 @@ export function eventMessage(event: VerifyEvent): string {
       message = `Input is valid: chain ${String(event.chainId)}, contract ${event.address}.`;
       break;
     case "verify.routed":
-      message = `Routed to ${event.backend} at ${event.apiHost}.`;
+      message = routedMessage(event);
       break;
     case "verify.lookup":
       message = `Lookup on ${event.backend}: ${event.match}.`;
@@ -147,8 +172,8 @@ export interface StderrOptions {
 export interface Stderr {
   /** The logger passed to the library. */
   readonly logger: Logger;
-  /** The event callback passed to the library. */
-  readonly onEvent: (event: VerifyEvent) => void;
+  /** The event callback passed to the library. `level` replaces the event's own level. */
+  readonly onEvent: (event: VerifyEvent, level?: LineLevel) => void;
   /** Writes one log line, when its level is shown. */
   log: (level: LineLevel, message: string, fields?: LogFields) => void;
   /** Writes the error of the run at level `error`. */
@@ -214,8 +239,8 @@ export function createStderr(options: StderrOptions): Stderr {
     );
   };
 
-  const onEvent = (event: VerifyEvent): void => {
-    const lineLevel = EVENT_LEVELS[event.type];
+  const onEvent = (event: VerifyEvent, given?: LineLevel): void => {
+    const lineLevel = given ?? EVENT_LEVELS[event.type];
     if (!shows(lineLevel, level)) {
       return;
     }

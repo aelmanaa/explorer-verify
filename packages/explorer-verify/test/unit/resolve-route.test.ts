@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { Hex, RouteOverride } from "../../src/index.ts";
-import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
+import { SOURCIFY_API_URL, routesFor } from "../../src/routing/resolve.ts";
 import type { Route } from "../../src/routing/resolve.ts";
 import { resolveRoute } from "../helpers/route.ts";
 
@@ -144,6 +144,8 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
       "overridden",
       "redactedApiUrl",
       "requestUrl",
+      "routedBy",
+      "skipped",
       "tableHost",
     ]);
     assert.ok(!("apiUrl" in route));
@@ -578,5 +580,53 @@ describe("resolveRoute: chain id", () => {
       { field: "chainId", message: "must be a positive integer" },
       { field: "route.apiUrl", message: SCHEME_MESSAGE },
     ]);
+  });
+});
+
+describe("routesFor(): the row and the pick, without a request (R-RT-1, R-RT-3)", () => {
+  it("lists the row in order and skips etherscan-v2 without its key", async () => {
+    const { listed, pick } = await routesFor(11155111);
+    assert.deepEqual(listed, ["etherscan-v2", "sourcify", "blockscout", "routescan"]);
+    assert.deepEqual(pick, {
+      backend: "sourcify",
+      routedBy: "table",
+      skipped: ["etherscan-v2"],
+      keyMissing: false,
+    });
+  });
+
+  it("picks etherscan-v2 with its key, and ignores a key set to undefined", async () => {
+    const keyed = await routesFor(11155111, { apiKeys: { "etherscan-v2": DUMMY_KEY } });
+    assert.deepEqual(keyed.pick, {
+      backend: "etherscan-v2",
+      routedBy: "table",
+      skipped: [],
+      keyMissing: false,
+    });
+    const unset = await routesFor(11155111, { apiKeys: { "etherscan-v2": undefined } });
+    assert.ok(!(unset.pick instanceof ExplorerVerifyError));
+    assert.equal(unset.pick.backend, "sourcify");
+  });
+
+  it("gives unsupported-chain for a chain without a row, and the fallback with it", async () => {
+    const none = await routesFor(999_999);
+    assert.deepEqual(none.listed, []);
+    assert.ok(none.pick instanceof ExplorerVerifyError);
+    assert.equal(none.pick.code, "unsupported-chain");
+    const fallback = await routesFor(999_999, { allowSourcifyFallback: true });
+    assert.deepEqual(fallback.pick, {
+      backend: "sourcify",
+      routedBy: "fallback",
+      skipped: [],
+      keyMissing: false,
+    });
+  });
+
+  it("throws invalid-input for a chain id that is not a positive safe integer", async () => {
+    await assert.rejects(routesFor(0), (error: unknown) => {
+      assert.ok(error instanceof ExplorerVerifyError);
+      assert.equal(error.code, "invalid-input");
+      return true;
+    });
   });
 });

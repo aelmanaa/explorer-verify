@@ -8,15 +8,25 @@ import type {
   BackendOutcome,
   DryRunResult,
   Envelope,
+  RoutedBy,
   ErrorJson,
   VerifyResult,
 } from "explorer-verify";
 
 import { painter } from "./terminal.ts";
 
+/** Why a dry run's backend was chosen, after its host. A backend the caller named needs no word. */
+const ROUTED_BY_TEXT: Readonly<Record<RoutedBy, string>> = {
+  table: ", the routing table's pick",
+  fallback: ", the Sourcify fallback",
+  "api-url": ", at the API URL given",
+  caller: "",
+};
+
 /** The summary line of a dry run. */
 function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): string {
-  const head = `${paint("green", "dry run")} on ${result.backend} at ${result.apiHost}: `;
+  const why = result.routedBy === undefined ? "" : ROUTED_BY_TEXT[result.routedBy];
+  const head = `${paint("green", "dry run")} on ${result.backend} at ${result.apiHost}${why}: `;
   if (result.lookup === "skipped") {
     return `${head}lookup skipped, because ${result.backend} needs an API key and none is set. Nothing was submitted.\n`;
   }

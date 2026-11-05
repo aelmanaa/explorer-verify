@@ -13,7 +13,7 @@ import {
   verify,
   verifyEach,
 } from "explorer-verify";
-import type { InputIssue, VerifyInput, VerifyOptions } from "explorer-verify";
+import type { InputIssue, VerifyEvent, VerifyInput, VerifyOptions } from "explorer-verify";
 
 import type { OptionSpec, OptionSpecs, OptionValue } from "./arguments.ts";
 import { listOption, stringOption, usageError } from "./command.ts";
@@ -27,6 +27,8 @@ import type {
 import { readJsonFile, readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
 import { RPC_URL_OPTIONS, readRpcUrl } from "./rpc-url.ts";
+import { AUTO, refusal } from "./target.ts";
+import type { Target } from "./target.ts";
 
 /** The longest `--timeout` in seconds: the longest timer Node runs, 2^31 - 1 ms. */
 const MAX_TIMEOUT_SECONDS = 2_147_483;
@@ -57,6 +59,15 @@ export const FALLBACK_OPTION: OptionSpec = {
 };
 
 /**
+ * Whether `--backend <name>` names a backend the Sourcify fallback never reaches. `auto` goes with
+ * the fallback: on a chain without a row, the routing table's pick is then Sourcify. A name that
+ * is no backend is left to the route check, which names it.
+ */
+function fallbackNeverReaches(name: string): boolean {
+  return name !== AUTO && (toBackendName(name) ?? "sourcify") !== "sourcify";
+}
+
+/**
  * Throws the usage error of `--allow-sourcify-fallback` in a combination where it can change
  * nothing: with `--api-url`, which skips the routing table, or with a `--backend` other than
  * `sourcify`, which the fallback never reaches. A repeated `--backend` always names one such
@@ -83,7 +94,7 @@ export function checkFallback(
   }
   const backend = values.get("backend");
   const names = typeof backend === "string" ? [backend] : listOption(values, "backend");
-  if (names.some((name) => (toBackendName(name) ?? "sourcify") !== "sourcify")) {
+  if (names.some(fallbackNeverReaches)) {
     issues.push({
       field,
       message: `cannot be combined with a ${fieldNames.get("--backend") ?? "--backend"} other than sourcify: the fallback only reaches Sourcify`,
@@ -196,6 +207,12 @@ export const VERIFY_REQUEST: JsonRequestSpec = {
   nested: { compiler: ["kind", "version", "input"] },
 };
 
+/** The request field of each route option, for an issue about one the request left out. */
+const REQUEST_FIELD_NAMES: ReadonlyMap<string, string> = new Map([
+  ["--backend", "route.backend"],
+  ["--api-url", "route.apiUrl"],
+]);
+
 /** A chain id: a positive whole number with no leading zero. */
 const CHAIN_ID = /^[1-9]\d{0,15}$/;
 
@@ -295,11 +312,16 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   });
 }
 
-/** What a run sends besides the input: whether it is a dry run, the budget and the RPC URL. */
+/**
+ * What a run sends besides the input: whether it is a dry run, the budget, the RPC URL, the target
+ * the caller named, and the field that names it, `--backend` or `route.backend`.
+ */
 interface SendSettings {
   readonly dry: boolean;
   readonly timeoutMs: number | undefined;
   readonly rpcUrl: string | undefined;
+  readonly target: Target;
+  readonly field: string;
 }
 
 /**
@@ -311,18 +333,79 @@ async function send(
   input: VerifyInput,
   settings: SendSettings,
 ): Promise<CommandResult> {
-  const { dry, timeoutMs, rpcUrl } = settings;
+  const { dry, timeoutMs, rpcUrl, target } = settings;
+  // When the routing table chooses the backend, the routed line says which one and why, at info.
+  const tableChooses = target === AUTO || target === undefined;
   const options: VerifyOptions = {
     ...callOptions(context, timeoutMs),
     ...(rpcUrl === undefined ? {} : { rpcUrl }),
+    ...(tableChooses
+      ? {
+          onEvent: (event: VerifyEvent) => {
+            context.onEvent(event, event.type === "verify.routed" ? "info" : undefined);
+          },
+        }
+      : {}),
   };
   const { backends } = context.routeOptions();
   if (backends !== undefined) {
     return await verifyEach(input, { ...options, backends });
   }
+  if (target === undefined && !dry) {
+    // A submit publishes source and cannot be undone, so the caller names where it goes.
+    throw await refusal(input, options, settings.field);
+  }
   return dry
     ? await withCliHint(dryRun(input, options))
     : await withCliHint(verify(input, options));
+}
+
+/**
+ * The target of a run (R-AX-8, R-AX-9): `auto`, `named` for `--backend` naming backends, or
+ * `undefined` when none is given. `auto` is removed from the values, so the routing table picks
+ * the backend. `auto` stands alone: with another `--backend`, with `--api-url` or with a key flag it
+ * is an issue, because none of them can say which backend they are for. `--api-url` needs
+ * `--backend` naming the backend that serves that API (#225). `fieldNames` gives the request field
+ * of each option that `--input-json` filled.
+ */
+function targetOf(
+  values: ReadonlyMap<string, OptionValue>,
+  fieldNames: ReadonlyMap<string, string>,
+): { readonly values: ReadonlyMap<string, OptionValue>; readonly target: Target } {
+  const name = (option: string): string => fieldNames.get(option) ?? option;
+  const backend = values.get("backend");
+  const names = typeof backend === "string" ? [backend] : listOption(values, "backend");
+  const issues: InputIssue[] = [];
+  const auto = names.includes(AUTO);
+  if (values.has("api-url") && (names.length === 0 || auto)) {
+    issues.push({
+      field: name("--api-url"),
+      message: `needs ${name("--backend")} naming the backend that serves this API${auto ? ", not auto: the URL replaces the routing table" : ""}`,
+    });
+  }
+  if (auto && names.length > 1) {
+    issues.push({
+      field: name("--backend"),
+      message: "cannot combine auto with another backend: auto lets the routing table pick one",
+    });
+  }
+  for (const option of ["--api-key-file", "--api-key-stdin"]) {
+    if (auto && values.has(option.slice(2))) {
+      issues.push({
+        field: option,
+        message: `cannot be used with ${name("--backend")} auto: name the backend the key is for`,
+      });
+    }
+  }
+  if (issues.length > 0) {
+    throw usageError(issues);
+  }
+  if (!auto) {
+    return { values, target: names.length > 0 ? "named" : undefined };
+  }
+  const without = new Map(values);
+  without.delete("backend");
+  return { values: without, target: AUTO };
 }
 
 /**
@@ -347,21 +430,25 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  const settings: SendSettings = { dry, timeoutMs, rpcUrl: rpc.rpcUrl };
+  const sent = { dry, timeoutMs, rpcUrl: rpc.rpcUrl };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
     checkFallback(values, new Map());
+    const chosen = targetOf(values, new Map());
     const input = await inputFromFlags(context);
-    return { values, run: async (run) => await send(run, input, settings) };
+    const settings: SendSettings = { ...sent, target: chosen.target, field: "--backend" };
+    return { values: chosen.values, run: async (run) => await send(run, input, settings) };
   }
   const request = await readJsonRequest(
     { path, values, positionals: context.positionals, stdin: context.stdin },
     VERIFY_REQUEST,
   );
   checkFallback(request.values, request.fieldNames);
+  const chosen = targetOf(request.values, new Map([...REQUEST_FIELD_NAMES, ...request.fieldNames]));
   const input = validateInput(Object.fromEntries(request.fields));
+  const settings: SendSettings = { ...sent, target: chosen.target, field: "route.backend" };
   return {
-    values: request.values,
+    values: chosen.values,
     fieldNames: request.fieldNames,
     run: async (run) => await send(run, input, settings),
   };
@@ -377,7 +464,7 @@ const OPTIONS: OptionSpecs = {
     type: "string",
     value: "<name>",
     multiple: true,
-    description: `Use this backend instead of the routing table's: ${BACKEND_NAMES.join(", ")}. Give it more than once to verify on each backend in one run.`,
+    description: `Where to submit: ${BACKEND_NAMES.join(", ")}, or auto for the routing table's pick. Needed unless --dry-run. Give it more than once to verify on each backend in one run.`,
   },
   chain: {
     type: "string",
@@ -442,9 +529,14 @@ export const VERIFY: Command = {
         "Check a Foundry build and look the contract up, without submitting: one envelope.",
     },
     {
-      args: `${ADDRESS} --chain 11155111 ${FOUNDRY_FILES}`,
+      args: `${ADDRESS} --chain 11155111 ${FOUNDRY_FILES} --backend sourcify`,
       description:
-        "Verify from a Foundry build-info and artifact; the address may come first, without verify.",
+        "Verify on Sourcify from a Foundry build-info and artifact; the address may come first, without verify.",
+    },
+    {
+      args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY_FILES} --backend auto`,
+      description:
+        "Verify where the routing table points: the first backend the chain lists that needs no key or has one.",
     },
     {
       args: `verify ${ADDRESS} --chain 999999 ${FOUNDRY_FILES} --allow-sourcify-fallback --dry-run --json`,
@@ -453,7 +545,8 @@ export const VERIFY: Command = {
     },
     {
       args: "verify --input-json verify-input.json --json",
-      description: "Verify the request in a JSON file, as validateInput() returns it.",
+      description:
+        "Verify the request in a JSON file, as validateInput() returns it, with route.backend naming where to submit.",
     },
   ],
   options: OPTIONS,

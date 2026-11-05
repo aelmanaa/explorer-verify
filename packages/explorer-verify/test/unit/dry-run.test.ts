@@ -76,6 +76,7 @@ describe("dryRun (R-AX-8)", () => {
       backend: "sourcify",
       apiHost: "sourcify.dev",
       lookup: "none",
+      routedBy: "table",
     });
     assert.deepEqual(
       fake.calls.map(({ method, url }) => `${method} ${url}`),
@@ -83,7 +84,13 @@ describe("dryRun (R-AX-8)", () => {
     );
     assert.deepEqual(events, [
       { type: "verify.validated", chainId: SEPOLIA, address: GREETER },
-      { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
+      {
+        type: "verify.routed",
+        backend: "sourcify",
+        apiHost: "sourcify.dev",
+        routedBy: "table",
+        skipped: "etherscan-v2",
+      },
       { type: "verify.lookup", backend: "sourcify", match: "none" },
     ]);
   });
@@ -104,6 +111,7 @@ describe("dryRun (R-AX-8)", () => {
       apiHost: "sourcify.dev",
       lookup: "exact",
       explorerUrl: GREETER_PAGE,
+      routedBy: "table",
     });
     assert.ok(
       lines.includes(
@@ -123,6 +131,7 @@ describe("dryRun (R-AX-8)", () => {
       backend: "sourcify",
       apiHost: "127.0.0.1:5555",
       lookup: "exact",
+      routedBy: "api-url",
     });
   });
 
@@ -154,6 +163,7 @@ describe("dryRun (R-AX-8)", () => {
       backend: "etherscan-v2",
       apiHost: "api.etherscan.io",
       lookup: "skipped",
+      routedBy: "api-url",
     });
     assert.equal(keyed.lookups(), 0);
     assert.equal(spy.mock.callCount(), 0);

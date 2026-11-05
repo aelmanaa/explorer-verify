@@ -34,7 +34,7 @@ import type { FlowDependencies } from "./verify.ts";
  *
  * @param input - What `verify()` would verify. It is checked with `validateInput` first.
  * @param options - The same options as `verify()`. `pollIntervalMs` is not used.
- * @returns The backend, its API host and the lookup's answer.
+ * @returns The backend, its API host, how it was chosen and the lookup's answer.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
  * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
  *   chunk the page cannot fetch (decision 0031).
@@ -87,14 +87,17 @@ export async function runDryRun(
     observer.emit({ type: "verify.validated", chainId: target.chainId, address: target.address });
     announceRoute(call, `Dry run for ${target.address} on chain ${String(target.chainId)}`);
     const apiHost = new URL(ctx.route.apiBase).host;
-    const fields = { backend: backend.name };
+    const { routedBy } = route;
+    const fields = { backend: backend.name, routedBy };
+    const base = { status: "dry-run", backend: backend.name, apiHost } as const;
+    const chosen = { routedBy };
     if (keyMissing({ route, apiKeys: settings.apiKeys }, settings.fetch !== undefined)) {
       observer.emit({ type: "verify.lookup", backend: backend.name, match: "skipped" });
       observer.log.info(
         `${backend.name} needs an API key and none is set, so the dry run skipped the lookup. Nothing was submitted.`,
         fields,
       );
-      return { status: "dry-run", backend: backend.name, apiHost, lookup: "skipped" };
+      return { ...base, lookup: "skipped", ...chosen };
     }
     const found = await backend.lookup(target, ctx);
     observer.emit({ type: "verify.lookup", backend: backend.name, match: found ?? "none" });
@@ -105,11 +108,11 @@ export async function runDryRun(
       fields,
     );
     if (found === undefined) {
-      return { status: "dry-run", backend: backend.name, apiHost, lookup: "none" };
+      return { ...base, lookup: "none", ...chosen };
     }
     const explorerUrl = backend.explorerUrl(target, ctx);
     return explorerUrl === undefined
-      ? { status: "dry-run", backend: backend.name, apiHost, lookup: found }
-      : { status: "dry-run", backend: backend.name, apiHost, lookup: found, explorerUrl };
+      ? { ...base, lookup: found, ...chosen }
+      : { ...base, lookup: found, explorerUrl, ...chosen };
   });
 }

@@ -28,9 +28,20 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^[^/?#\\s]+$"
+        },
+        "routedBy": {
+          "description": "How the backend was chosen. caller: the caller named it (route.backend, --backend). table: the routing table picked the first backend the chain lists that needs no key or has one. fallback: the chain has no row and the Sourcify fallback was allowed. api-url: the caller named the server (route.apiUrl, --api-url).",
+          "enum": ["caller", "table", "fallback", "api-url"]
+        },
+        "skipped": {
+          "description": "Present when routedBy is table and the table passed over backends listed before this one, because each needs an API key and none is set: their names joined with commas, in table order.",
+          "type": "string",
+          "pattern": "^(etherscan-v2|etherscan-compatible|blockscout|sourcify|routescan)(,(etherscan-v2|etherscan-compatible|blockscout|sourcify|routescan))*$"
         }
       },
-      "required": ["type", "backend", "apiHost"]
+      "required": ["type", "backend", "apiHost"],
+      "if": { "properties": { "skipped": { "type": "string" } }, "required": ["skipped"] },
+      "then": { "properties": { "routedBy": { "const": "table" } }, "required": ["routedBy"] }
     },
     {
       "description": "The already-verified check finished or was skipped.",
@@ -62,7 +73,11 @@
       "properties": {
         "type": { "const": "verify.poll" },
         "backend": { "$ref": "#/$defs/backend" },
-        "attempt": { "description": "The poll number, from 1.", "type": "integer", "minimum": 1 },
+        "attempt": {
+          "description": "The poll number, from 1.",
+          "type": "integer",
+          "minimum": 1
+        },
         "state": { "enum": ["pending", "queued", "completed"] }
       },
       "required": ["type", "backend", "attempt", "state"]

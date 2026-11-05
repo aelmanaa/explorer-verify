@@ -202,6 +202,7 @@ function statusOf(value: unknown): Status | undefined {
 }
 
 const LOOKUPS = ["exact", "partial", "none", "skipped"] as const;
+const ROUTED_BY = ["caller", "table", "fallback", "api-url"] as const;
 
 /**
  * The `explorerUrl` field: `undefined` when absent, `null` when present but not a string, which
@@ -233,23 +234,33 @@ function copyDryRun(
     LOOKUPS.find((name) => name === lookupValue) ??
     problems.add("outcome.lookup", "must be exact, partial, none or skipped");
   const explorerUrl = explorerUrlOf(fields, problems);
+  const routedByValue = fields.get("routedBy");
+  const routedBy =
+    routedByValue === undefined
+      ? undefined
+      : (ROUTED_BY.find((name) => name === routedByValue) ??
+        problems.add(
+          "outcome.routedBy",
+          "must be caller, table, fallback or api-url when present",
+        ) ??
+        null);
   if (
     backend === undefined ||
     apiHost === undefined ||
     lookup === undefined ||
-    explorerUrl === null
+    explorerUrl === null ||
+    routedBy === null
   ) {
     throw invalid(problems.issues);
   }
-  const result: DryRunResult = {
+  return {
     status: "dry-run",
     backend,
     apiHost: redact(apiHost, secrets),
     lookup,
+    ...(explorerUrl === undefined ? {} : { explorerUrl: redact(explorerUrl, secrets) }),
+    ...(routedBy === undefined ? {} : { routedBy }),
   };
-  return explorerUrl === undefined
-    ? result
-    : { ...result, explorerUrl: redact(explorerUrl, secrets) };
 }
 
 /** `value` when it is a string, else `undefined`. */

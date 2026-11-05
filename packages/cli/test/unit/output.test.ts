@@ -51,3 +51,35 @@ describe("stdoutText", () => {
     assert.equal(stdoutText(toEnvelope(error), false, false), "");
   });
 });
+
+describe("stdoutText of a dry run (R-AX-8)", () => {
+  const base = {
+    status: "dry-run",
+    backend: "sourcify",
+    apiHost: "sourcify.dev",
+    lookup: "none",
+  } as const;
+  const tail = ": no match, so verify would submit. Nothing was submitted.\n";
+
+  it("says how the backend was chosen, and says nothing for a backend the caller named", () => {
+    const cases = [
+      ["table", ", the routing table's pick"],
+      ["fallback", ", the Sourcify fallback"],
+      ["api-url", ", at the API URL given"],
+      ["caller", ""],
+    ] as const;
+    for (const [routedBy, why] of cases) {
+      assert.equal(
+        stdoutText(toEnvelope({ ...base, routedBy }), false, false),
+        `dry run on sourcify at sourcify.dev${why}${tail}`,
+      );
+    }
+  });
+
+  it("leaves the reason out for a result without routedBy, as an older one has", () => {
+    assert.equal(
+      stdoutText(toEnvelope(base), false, false),
+      `dry run on sourcify at sourcify.dev${tail}`,
+    );
+  });
+});

@@ -37,7 +37,8 @@ For Hardhat, run `npx hardhat build` (Hardhat 3) or `npx hardhat compile` (Hardh
 
 Then write the request file. This script, `scripts/write-verify-input.ts`, builds the input with
 [`buildVerifyInputFromFoundry`](verify-from-a-foundry-project.md), adds the chain and the address from
-the environment, checks the whole request with `validateInput()`, and writes `verify-input.json`.
+the environment, checks the whole request with `validateInput()`, and writes `verify-input.json`
+with `route.backend`, the explorer to submit to.
 For Hardhat, use [`buildVerifyInputFromHardhat`](verify-from-a-hardhat-project.md) the same way. Run it
 with `node scripts/write-verify-input.ts`:
 
@@ -54,7 +55,11 @@ if (CHAIN_ID === undefined || CONTRACT_ADDRESS === undefined) {
 const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 // Throws invalid-input, naming each bad field, before the CLI runs.
 const request = validateInput({ ...built, chainId: Number(CHAIN_ID), address: CONTRACT_ADDRESS });
-await writeFile("verify-input.json", JSON.stringify(request));
+// verify submits only where the request says: a backend, or "auto" for the routing table's pick.
+await writeFile(
+  "verify-input.json",
+  JSON.stringify({ ...request, route: { backend: "sourcify" } }),
+);
 console.log(`verify-input.json: ${request.contractName} on chain ${String(request.chainId)}`);
 ```
 
@@ -81,11 +86,13 @@ explorer-verify verify --input-json verify-input.json --dry-run --json
 ```
 
 ```text
-{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}
 ```
 
-`backend` names the explorer the real run will use. The routing table picks it partly by the keys
-set, so run the dry run with the same environment as the real run. `lookup` tells what the real
+`backend` names the explorer the real run will use, and `routedBy` says how it was chosen. With
+`route.backend` set to `"auto"`, the routing table picks it partly by the keys set, so run the dry
+run with the same environment as the real run. Without `route.backend`, the real run exits 2 and
+submits nothing. `lookup` tells what the real
 run will do:
 
 - `exact` or `partial`: the explorer already holds the contract. The run submits nothing.

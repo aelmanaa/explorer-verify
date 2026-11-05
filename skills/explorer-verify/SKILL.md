@@ -372,18 +372,21 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
 It prints:
 
 ```text
-{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}
 ```
 
-The routing table picks the first backend of the chain's row that works with the keys set, so with
-ETHERSCAN_API_KEY set the same command line may go to Etherscan instead. Read `backend` in the
-result.
+Without `--backend`, the dry run shows the routing table's pick, the first backend of the chain's
+row that works with the keys set, so with ETHERSCAN_API_KEY set the same command line may go to
+Etherscan instead. Read `backend` and `routedBy` in the result.
 
-When the person names an explorer, pass its backend, such as `--backend etherscan-v2` for
-Etherscan, or `route.backend` in the library. Without it, `verify` submits to the explorer the
-table picks. On Sepolia with no Etherscan key set, that is Sourcify, so a request to verify on
-Etherscan would publish the source on Sourcify instead. With `--backend etherscan-v2` and no key,
-the command exits 3 with `missing-api-key` and submits nothing. For a chain whose row has no Etherscan entry, Etherscan is reached only with
+`verify` without `--dry-run` needs a target: `--backend <name>`, or `--backend auto` for the
+routing table's pick. Without one it exits 2 with `invalid-input` and submits nothing; the hint
+names the backends the chain lists and what `auto` would pick. When the person names an explorer,
+pass its backend, such as `--backend etherscan-v2` for Etherscan, or `route.backend` in the
+library, where `verify()` still submits to the table's pick without it. Pass `--backend auto` only
+when the person accepts that pick: on Sepolia with no Etherscan key set, it is Sourcify. With
+`--backend etherscan-v2` and no key, the command exits 3 with `missing-api-key` and submits
+nothing. `--api-url` needs `--backend` naming the backend that serves it. For a chain whose row has no Etherscan entry, Etherscan is reached only with
 `--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. With no key, the dry run skips
 the lookup:
 
@@ -395,7 +398,7 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
 It prints:
 
 ```text
-{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped"}}
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped","routedBy":"api-url"}}
 ```
 
 Keys on the command line:
@@ -407,7 +410,8 @@ Keys on the command line:
   is not sent: give the key with `--api-key-file` or `--api-key-stdin`. The person sets the key;
   never ask them to paste it into the chat, and never write it into a command line.
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
-  optional `route` of `backend` and `apiUrl`. It holds no key. Only the output, log, `--dry-run`,
+  optional `route` of `backend` and `apiUrl`; a real run needs `route.backend`, a name or
+  `"auto"`. It holds no key. Only the output, log, `--dry-run`,
   `--timeout` and key flags may go with it.
 - A run that ends pending exits 4 with the handle in the error. Resume with
   `explorer-verify status <handle>`, never with a new `verify`.

@@ -15,6 +15,7 @@ import type {
 
 import type { CommandSpec, OptionValue } from "./arguments.ts";
 import type { InputStream, RouteOptions } from "./keys.ts";
+import type { LineLevel } from "./log-level.ts";
 import type { Environment } from "./terminal.ts";
 
 /** What a command's `run` receives. */
@@ -27,8 +28,11 @@ export interface CommandContext {
   readonly signal: AbortSignal;
   /** The stderr logger. Pass it to the library. */
   readonly logger: Logger;
-  /** The stderr event writer. Pass it to the library. */
-  readonly onEvent: (event: VerifyEvent) => void;
+  /**
+   * The stderr event writer. Pass it to the library. `level` replaces the event's own level, such
+   * as `info` for the `verify.routed` line of a backend the routing table chose.
+   */
+  readonly onEvent: (event: VerifyEvent, level?: LineLevel) => void;
   /** The environment variables, without the key variables: the keys come from `routeOptions`. */
   readonly env: Environment;
   /**

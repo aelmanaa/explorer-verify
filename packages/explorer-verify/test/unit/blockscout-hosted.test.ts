@@ -376,7 +376,12 @@ describe("verify() on blockscout-hosted, replayed from 2026-11-05 (R-BE-3, R-FLO
       assertKeyedToHostedOnly(r, key);
       assert.deepEqual(
         r.events.find((event) => event.type === "verify.routed"),
-        { type: "verify.routed", backend: "blockscout-hosted", apiHost: HOSTED_BLOCKSCOUT_HOST },
+        {
+          type: "verify.routed",
+          backend: "blockscout-hosted",
+          apiHost: HOSTED_BLOCKSCOUT_HOST,
+          routedBy: "caller",
+        },
       );
       const submitted = r.events.find((event) => event.type === "verify.submitted");
       assert.ok(JSON.stringify(submitted).includes(`ev1:blockscout-hosted:${String(SEPOLIA)}:`));

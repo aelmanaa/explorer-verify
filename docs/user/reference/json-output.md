@@ -111,13 +111,15 @@ The rules:
     "status": "dry-run",
     "backend": "etherscan-v2",
     "apiHost": "api.etherscan.io",
-    "lookup": "skipped"
+    "lookup": "skipped",
+    "routedBy": "api-url"
   }
 }
 ```
 
 `lookup` is `exact`, `partial`, `none` or `skipped`. `skipped` means the backend needs an API key
-and none was set, so the dry run sent no request. A reader that knows only the other forms tells
+and none was set, so the dry run sent no request. `routedBy` says how the backend was chosen:
+`caller`, `table`, `fallback` or `api-url`. A reader that knows only the other forms tells
 this one apart by `result.status`. `apiHost` is a host name, with the port when it is not the
 scheme's default, such as `127.0.0.1:5555`.
 

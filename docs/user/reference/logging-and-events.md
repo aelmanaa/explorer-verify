@@ -78,13 +78,17 @@ the verification goes on.
 | `type`             | Emitted when                                       | Fields besides `type`                                           |
 | ------------------ | -------------------------------------------------- | --------------------------------------------------------------- |
 | `verify.validated` | The input passed validation                        | `chainId`, `address`                                            |
-| `verify.routed`    | The route is resolved                              | `backend`, `apiHost` (the host only, never a path or query)     |
+| `verify.routed`    | The route is resolved                              | `backend`, `apiHost` (the host only), `routedBy`, `skipped`     |
 | `verify.lookup`    | The already-verified check finished or was skipped | `backend`, `match`: `exact`, `partial`, `none` or `skipped`     |
 | `verify.submitted` | The explorer accepted the submission               | `backend`, `handle` in its one-line form                        |
 | `verify.poll`      | One poll returned a state that is not final        | `backend`, `attempt`, `state`: `pending`, `queued`, `completed` |
 | `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                       |
 | `verify.result`    | The call is about to return a result               | `backend`, `status`, and `match` unless `status` is `failed`    |
 
+- `verify.routed` `routedBy` is `caller`, `table`, `fallback` or `api-url`, as for a
+  [dry run](verify.md#dry-run). `skipped` is present when the routing table passed over backends
+  listed before `backend` because each needs an API key and none is set: their names, joined
+  with `,`, such as `etherscan-v2`.
 - `verify.retry` `reason` is `rate-limited`, `network`, `server-error`, `duplicate-submission`,
   `not-indexed` or `empty-submit`. `not-indexed` means Etherscan found no contract code at the
   address yet, and the submit is sent again ([Etherscan](etherscan.md#how-answers-are-read)).

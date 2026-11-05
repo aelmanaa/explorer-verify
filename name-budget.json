@@ -651,6 +651,28 @@
         "files": 1,
         "ceilingBytes": 1738
       }
+    },
+    {
+      "entry": "explorer-verify",
+      "name": "routesFor",
+      "esbuildSplit": {
+        "minBytes": 22593,
+        "gzipBytes": 9239,
+        "files": 20,
+        "ceilingBytes": 11087
+      },
+      "esbuildOneFile": {
+        "minBytes": 46813,
+        "gzipBytes": 11317,
+        "files": 1,
+        "ceilingBytes": 13581
+      },
+      "rollup": {
+        "minBytes": 17009,
+        "gzipBytes": 6440,
+        "files": 2,
+        "ceilingBytes": 7728
+      }
     }
   ]
 }

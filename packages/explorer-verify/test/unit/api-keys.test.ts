@@ -64,6 +64,8 @@ function routeOf(backend: BackendName, apiBase: string, apiKey?: string): Route 
     apiKey: () => apiKey,
     overridden: tableHost === undefined || !apiBase.startsWith(`https://${tableHost}/`),
     tableHost,
+    routedBy: "api-url",
+    skipped: [],
   };
 }
 

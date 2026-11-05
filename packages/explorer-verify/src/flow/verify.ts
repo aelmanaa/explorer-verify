@@ -663,8 +663,8 @@ export function openContext(
 }
 
 /**
- * Emits `verify.routed` and logs `message` at `debug` with the backend, the chain id and the API
- * URL, its query redacted.
+ * Emits `verify.routed`, with how the backend was chosen and the backends the table passed over,
+ * and logs `message` at `debug` with the backend, the chain id and the API URL, its query redacted.
  *
  * @param call - The call from {@link openCall}.
  * @param message - The log line.
@@ -675,10 +675,13 @@ export function openContext(
  */
 export function announceRoute(call: Call, message: string): void {
   const { backend, observer, target, ctx } = call;
+  const { routedBy, skipped } = ctx.route;
   observer.emit({
     type: "verify.routed",
     backend: backend.name,
     apiHost: new URL(ctx.route.apiBase).host,
+    routedBy,
+    ...(skipped.length === 0 ? {} : { skipped: skipped.join(",") }),
   });
   observer.log.debug(message, {
     backend: backend.name,

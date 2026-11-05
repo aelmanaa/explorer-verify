@@ -21,6 +21,8 @@ const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const HANDLE = `ev1:sourcify:11155111:${ADDRESS}:${JOB}`;
 const PAGE = `https://repo.sourcify.dev/11155111/${ADDRESS}`;
 const ETHERSCAN = ["--backend", "etherscan-v2", "--api-url", "https://api.etherscan.io/v2/api"];
+const SOURCIFY = ["--backend", "sourcify"];
+const AUTO = ["--backend", "auto"];
 const BUILDS = new URL("../../../explorer-verify/test/fixtures/build-formats/", import.meta.url);
 const FOUNDRY = [
   "--input",
@@ -131,7 +133,7 @@ describe("verify from build files (R-DX-1)", () => {
   it("verifies from a Foundry build-info and artifact: submit, poll, verified", async (t) => {
     const result = await run(
       t,
-      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, "--json"],
+      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, ...AUTO, "--json"],
       "new",
     );
     assert.equal(result.code, 0, result.stderr);
@@ -156,6 +158,7 @@ describe("verify from build files (R-DX-1)", () => {
         build("hardhat-3.21.2/build-info.json"),
         "--input",
         build("hardhat-3.21.2/Greeter.json"),
+        ...SOURCIFY,
         "--json",
       ],
       "new",
@@ -181,6 +184,7 @@ describe("verify from build files (R-DX-1)", () => {
         "0.8.24+commit.e11b9ed9",
         "--library",
         "src/Tally.sol:Tally=0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c",
+        ...SOURCIFY,
         "--json",
       ],
       "new",
@@ -190,7 +194,7 @@ describe("verify from build files (R-DX-1)", () => {
   });
 
   it("takes the address first, without the word verify, and returns already-verified", async (t) => {
-    const result = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY]);
+    const result = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY, ...SOURCIFY]);
     assert.equal(result.code, 0, result.stderr);
     assert.equal(result.stdout, `already-verified: exact match on sourcify\n${PAGE}\n`);
     assert.equal(submits(result), 0);
@@ -428,7 +432,17 @@ describe("timeout and resume (R-FLOW-5, R-AX-7, R-AX-14)", () => {
   it("exits 4 with the handle when the budget runs out, then status exits 0", async (t) => {
     const pending = await run(
       t,
-      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, "--timeout", "5", "--json"],
+      [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        ...FOUNDRY,
+        ...SOURCIFY,
+        "--timeout",
+        "5",
+        "--json",
+      ],
       "pending",
     );
     assert.equal(pending.code, 4, pending.stdout);
@@ -470,6 +484,7 @@ describe("--dry-run (R-AX-8)", () => {
       backend: "sourcify",
       apiHost: "sourcify.dev",
       lookup: "none",
+      routedBy: "table",
     });
     assert.equal(result.seen.length, 1);
     assert.equal(submits(result), 0);
@@ -479,12 +494,12 @@ describe("--dry-run (R-AX-8)", () => {
     const none = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run"], "new");
     assert.equal(
       none.stdout,
-      "dry run on sourcify at sourcify.dev: no match, so verify would submit. Nothing was submitted.\n",
+      "dry run on sourcify at sourcify.dev, the routing table's pick: no match, so verify would submit. Nothing was submitted.\n",
     );
     const found = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run"]);
     assert.equal(
       found.stdout,
-      `dry run on sourcify at sourcify.dev: exact match already, so verify would not submit.\n${PAGE}\n`,
+      `dry run on sourcify at sourcify.dev, the routing table's pick: exact match already, so verify would not submit.\n${PAGE}\n`,
     );
     const skipped = await run(t, [
       ADDRESS,
@@ -496,7 +511,7 @@ describe("--dry-run (R-AX-8)", () => {
     ]);
     assert.equal(
       skipped.stdout,
-      "dry run on etherscan-v2 at api.etherscan.io: lookup skipped, because etherscan-v2 needs an API key and none is set. Nothing was submitted.\n",
+      "dry run on etherscan-v2 at api.etherscan.io, at the API URL given: lookup skipped, because etherscan-v2 needs an API key and none is set. Nothing was submitted.\n",
     );
   });
 
@@ -517,6 +532,7 @@ describe("--dry-run (R-AX-8)", () => {
       backend: "etherscan-v2",
       apiHost: "api.etherscan.io",
       lookup: "skipped",
+      routedBy: "api-url",
     });
     assert.deepEqual(result.seen, []);
     assert.match(result.stderr, /skipped the lookup/);
@@ -576,7 +592,15 @@ describe("a missing key (R-AX-7)", () => {
 
 describe("--input-json (R-AX-16)", () => {
   it("gives the same stdout as the same request as flags, from a file and from stdin", async (t) => {
-    const flags = await run(t, ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, "--json"]);
+    const flags = await run(t, [
+      "verify",
+      ADDRESS,
+      "--chain",
+      "11155111",
+      ...FOUNDRY,
+      ...SOURCIFY,
+      "--json",
+    ]);
     const fromFile = await run(t, ["verify", "--input-json", REQUEST_FILE, "--json"]);
     const fromStdin = await run(t, ["verify", "--input-json", "-", "--json"], "verified", {
       stdin: [REQUEST_TEXT],
@@ -928,13 +952,14 @@ describe("--allow-sourcify-fallback (R-RT-2, R-AX-5, R-AX-8, R-AX-16)", () => {
       apiHost: "sourcify.dev",
       lookup: "exact",
       explorerUrl: `https://repo.sourcify.dev/999999/${ADDRESS}`,
+      routedBy: "fallback",
     });
     assert.equal(submits(result), 0);
   });
 
   it("without it, exits 2 with unsupported-chain and a hint that names it", async (t) => {
     noRow(await run(t, [...UNLISTED, "--dry-run", "--json"]));
-    noRow(await run(t, [...UNLISTED, "--json"]));
+    noRow(await run(t, [...UNLISTED, ...AUTO, "--json"]));
     noRow(await run(t, [...UNLISTED, "--backend", "sourcify", "--json"]));
     noRow(await run(t, ["status", UNLISTED_HANDLE, "--json"]));
     const text = await run(t, [...UNLISTED.slice(1), "--dry-run"]);
@@ -943,7 +968,7 @@ describe("--allow-sourcify-fallback (R-RT-2, R-AX-5, R-AX-8, R-AX-16)", () => {
   });
 
   it("verifies on Sourcify, alone or with --backend sourcify, and changes nothing on a listed chain", async (t) => {
-    const alone = await run(t, [...UNLISTED, FALLBACK, "--json"]);
+    const alone = await run(t, [...UNLISTED, FALLBACK, ...AUTO, "--json"]);
     assert.equal(alone.code, 0, alone.stdout);
     assert.deepEqual(part(alone, "result"), {
       status: "already-verified",
@@ -954,7 +979,7 @@ describe("--allow-sourcify-fallback (R-RT-2, R-AX-5, R-AX-8, R-AX-16)", () => {
     const named = await run(t, [...UNLISTED, "--backend", "sourcify", FALLBACK, "--json"]);
     assert.equal(named.code, 0, named.stdout);
     assert.equal(part(named, "result")["status"], "already-verified");
-    const listed = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, "--json"];
+    const listed = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, ...AUTO, "--json"];
     const without = await run(t, listed);
     const withFlag = await run(t, [...listed, FALLBACK]);
     assert.equal(withFlag.code, 0, withFlag.stdout);
