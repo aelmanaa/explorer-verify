@@ -1,0 +1,48 @@
+{
+  "source": "Live response from sourcify.dev to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T21:46:44.610Z: the job of a verification of LiveMatrixEthSep7 on Sepolia (11155111). Sourcify verified the contract, and its forwarding to Etherscan failed with Etherscan's daily submission limit. Response headers other than content-type were not kept. Recorded by scripts/live-matrix.ts on the live matrix run of 2026-11-04 (docs/contributor/research/2026-11-04-live-matrix.md).",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/dcb7dba9-1b18-4c00-8fbf-9f700f5732fb",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "dcb7dba9-1b18-4c00-8fbf-9f700f5732fb",
+      "jobStartTime": "2026-11-04T21:46:40Z",
+      "jobFinishTime": "2026-11-04T21:46:40Z",
+      "compilationTime": "158",
+      "externalVerifications": {
+        "etherscan": {
+          "error": "Daily limit of 500 source code submissions reached"
+        },
+        "routescan": {
+          "verificationId": "e2cdaa87-e50d-59a1-a630-c9e24f0d07cc",
+          "statusUrl": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api?module=contract&action=checkverifystatus&chainid=11155111&guid=e2cdaa87-e50d-59a1-a630-c9e24f0d07cc",
+          "explorerUrl": "https://routescan.io/address/0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8?chainid=11155111",
+          "contractApiUrl": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api?module=contract&action=getabi&chainid=11155111&address=0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8"
+        },
+        "blockscout": {
+          "verificationId": "0993438fbde0a8eb12028dc7b5d24d495277e1f86aeba7c1",
+          "statusUrl": "https://eth-sepolia.blockscout.com/api?module=contract&action=checkverifystatus&chainid=11155111&guid=0993438fbde0a8eb12028dc7b5d24d495277e1f86aeba7c1",
+          "explorerUrl": "https://eth-sepolia.blockscout.com//address/0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8",
+          "contractApiUrl": "https://eth-sepolia.blockscout.com/api?module=contract&action=getabi&chainid=11155111&address=0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8"
+        }
+      },
+      "contract": {
+        "match": "exact_match",
+        "creationMatch": "exact_match",
+        "runtimeMatch": "exact_match",
+        "chainId": "11155111",
+        "address": "0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8",
+        "verifiedAt": "2026-11-04T21:46:40Z",
+        "matchId": "58414569"
+      }
+    }
+  },
+  "recordedAt": "2026-11-04T21:46:44.610Z"
+}

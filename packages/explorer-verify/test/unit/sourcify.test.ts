@@ -701,6 +701,17 @@ describe("sourcify backend", () => {
       assert.deepEqual(await sourcify.poll(job, ctx), { state: "verified", match: "partial" });
     });
 
+    it("returns verified exact when Sourcify's forwarding to Etherscan failed (live matrix 2026-11-04)", async () => {
+      const { ctx } = setup([
+        loadFixture("sourcify", "2026-11-04-job-exact-match-etherscan-forward-limit"),
+      ]);
+      const job = handle(
+        "dcb7dba9-1b18-4c00-8fbf-9f700f5732fb",
+        "0x0993438fBDE0A8Eb12028DC7B5d24d495277e1f8",
+      );
+      assert.deepEqual(await sourcify.poll(job, ctx), { state: "verified", match: "exact" });
+    });
+
     it("returns already-verified without a match for an already_verified job (R-FLOW-3)", async () => {
       const { ctx } = setup([fixture("job-already-verified")]);
       assert.deepEqual(await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx), {

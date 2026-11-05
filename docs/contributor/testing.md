@@ -39,7 +39,7 @@ run time, so c8 would report them at 0%.
 | Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                                    | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place                                         |
 | Integration      | `packages/cli/test/integration/` (CLI); `packages/explorer-verify/test/unit/server-handler*.test.ts` (handler) | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI contract harness in place (#7); handler done |
 | Mutation         | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json`, `.github/workflows/mutation.yml`       | The unit tests fail when the result mapping, the HTTP retry rules or the key redaction is changed (R-FLOW-4, R-FLOW-6, R-SEC-1)                       | In place                                         |
-| Live             | planned (M2), maintainer only                                                                                  | Real verification on public testnets per backend, with dated results                                                                                  | Planned                                          |
+| Live             | `scripts/live-matrix.ts`, maintainer only; [2026-11-04 run](research/2026-11-04-live-matrix.md)                | Real verification on public testnets per backend, with dated results (R-QA-2)                                                                         | In place                                         |
 | Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                                         |
 | Docs examples    | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                              | In place                                         |
 | Link check       | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in `docs/user/`, `llms.txt` and the built site; external links once a week                                                 | In place                                         |
@@ -498,6 +498,118 @@ or cannot reach them:
 | `src/redact.ts`            | `redactPatterns`: the `needs` check always true                                         | `needs` only skips a pattern that cannot match                                                              |
 | `src/redact.ts`            | `loggable`: `value !== null` always true                                                | `JSON.stringify(null)` is `"null"`, the text the last branch gives                                          |
 | `src/redact.ts`            | `redact` and `redactingLogger`: the default `secrets` `[]` replaced by a list with text | Only a test that logs or redacts Stryker's own placeholder text could tell; such a test checks nothing real |
+
+## Live matrix
+
+`scripts/live-matrix.ts` runs `verify()`, `checkStatus()` and `dryRun()` of the built package
+against real explorers on public testnets (R-QA-2). The maintainer runs it by hand; CI does not.
+Each run is recorded in a dated research note. The latest is
+[2026-11-04-live-matrix.md](research/2026-11-04-live-matrix.md).
+
+### Cases
+
+Each case runs on a contract deployed for the run, so no explorer holds its source yet. Each
+source file has a comment naming the run and a constant with a value of its own, so no explorer can
+match it from another contract's metadata or bytecode.
+
+| Case | Name               | What it checks                                                                                                    |
+| ---- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| 1    | `verify`           | `verify()` gives `verified`, `exact`, with the expected `explorerUrl` (R-FLOW-2, R-FLOW-3)                        |
+| 2    | `already-verified` | A second `verify()` gives `already-verified` without a submit (R-FLOW-1)                                          |
+| 3    | `resume`           | Abort after `verify.submitted`, then `checkStatus` with the handle string in a new process: `verified` (R-FLOW-5) |
+| 4    | `wrong-source`     | One byte of the source changed: `failed` with the explorer's reason, not a throw (R-FLOW-4)                       |
+| 5    | `no-code`          | `dryRun()` on an address with no code: lookup `none`                                                              |
+| 6    | `derived-args`     | Etherscan: no `constructorArgs`, so `verify()` derives them from `getcontractcreation` (R-IN-3)                   |
+| 7    | `cross-explorer`   | Etherscan after a Sourcify verification of the same contract: `already-verified`                                  |
+| 8    | `missing-key`      | Without the Etherscan key: `missing-api-key` before any request, and no key in the error (R-SEC-1)                |
+
+Case 4 runs before case 3 on the same contract: the explorer rejects the wrong source, then
+verifies the right one. The script prints one JSON line per case and exits 1 when any case gives an
+unexpected result, 2 when the plan or the command line is wrong.
+
+On 2026-11-04, case 4 failed on both Routescan chains: the client did not map Routescan's
+bytecode-mismatch answer and threw `unknown-state`. Issue #164 fixed that on 2026-11-05, so the next
+run should give `failed` there.
+
+### The plan
+
+The script reads a plan: a JSON file that lists the targets, one backend on one chain each.
+
+```json
+{
+  "tools": { "forge": "1.8.1", "solc": "0.8.24+commit.e11b9ed9" },
+  "targets": [
+    {
+      "id": "etherscan-v2/sepolia",
+      "backend": "etherscan-v2",
+      "chain": "Sepolia",
+      "chainId": 11155111,
+      "keyEnv": "ETHERSCAN_API_KEY",
+      "explorerUrl": "https://sepolia.etherscan.io/address/{address}#code",
+      "noCode": "0x000000000000000000000000000000000066e604",
+      "wrongEdit": { "from": "MARK = 660405", "to": "MARK = 660406" },
+      "contracts": {
+        "fresh": "contracts/EthSep1.json",
+        "resume": "contracts/EthSep3.json",
+        "derive": "contracts/EthSep6.json",
+        "cross": "contracts/EthSep7.json"
+      },
+      "cross": { "backend": "sourcify", "waitMs": 300000, "pollMs": 20000 },
+      "cases": [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+  ]
+}
+```
+
+- `apiUrl` sets `route.apiUrl`. Routescan needs it, because the routing table lists no Routescan
+  rows. `fake` starts the local fake explorer in `scripts/live-matrix-fake.ts` and points the
+  route at it: the `etherscan-compatible` row uses it, with a dummy key.
+- `chainId` must be a public testnet: Sepolia, Holesky, Hoodi, Arbitrum Sepolia, Optimism Sepolia,
+  Base Sepolia, Polygon Amoy or Avalanche Fuji. Any other chain fails the plan unless you pass
+  `--allow-mainnet`. Each contract file must name the same chain as its target.
+- `keyEnv` names the environment variable that holds the target's key. The plan never holds a key.
+  The script checks that every named variable is set before any target starts.
+- `fakeEcho`, for tests only, names a variable whose value the fake explorer copies into its
+  answers, as an explorer that echoes a key would. It counts as a secret.
+- `explorerUrl` is the page case 1 expects, with `{address}` for the lower-case address. Leave it
+  out when the route has no page, as for a route with `apiUrl`.
+- `contracts` maps each role to a contract file: `fresh` for cases 1, 2, 5 and 8, `resume` for
+  cases 3 and 4, `derive` for case 6, `cross` for case 7. Paths are relative to the plan.
+- `timeoutMs` and `pollIntervalMs` default to 300000 and 5000.
+
+A contract file holds `chainId`, `address`, `contractName`, `compilerVersion`, `creationTxHash`,
+`creationBytecode` (forge's `bytecode.object`), `constructorArgs` (the creation transaction's input
+after the creation bytecode) and `input`, the Standard JSON input that
+`forge verify-contract --show-standard-json-input` prints.
+
+### Run it
+
+1. Write one Solidity file per contract in a Foundry project, each with its own comment and
+   constant, and deploy them with a `forge script` that reads the deployer key with
+   `vm.envUint`. Pass `--skip-simulation`, so the node estimates the gas, not forge.
+2. Write a contract file for each deployment from the broadcast file and the forge artifact.
+3. Build the package, load the keys into the environment of the run only, and run the script:
+
+   ```bash
+   pnpm run build
+   node scripts/live-matrix.ts plan.json --note results.md --record answers.jsonl
+   ```
+
+4. Copy the note's table into a new dated note under `research/`, with the deployments and anything
+   the unit fixtures lack. Turn new answers from `answers.jsonl` into fixtures under
+   `packages/explorer-verify/test/fixtures/<backend>/`.
+
+Before it writes a line, the note or the answers file, the script redacts the text with every
+secret the plan names, then searches it for each of them and throws instead of writing when one is
+left. Before you commit, search the new files for each key and for the redaction patterns anyway.
+
+### Budget
+
+A run deploys 16 contracts: 8 on Sepolia, 6 on Arbitrum Sepolia and 2 on Avalanche Fuji. Fund the
+deployer with no more than 0.01 testnet ETH on each of Sepolia and Arbitrum Sepolia and 0.01 AVAX on
+Fuji for a run, and stop the run before its spend passes that. The 2026-11-04 run spent
+0.00044436133330836 ETH on Sepolia, 0.00002366045753521 ETH on Arbitrum Sepolia and
+0.00000000006289184 AVAX on Fuji.
 
 ## Deterministic tests
 
