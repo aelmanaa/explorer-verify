@@ -205,7 +205,7 @@ export interface RouteChoice {
    */
   readonly clients?: readonly BackendName[];
   /** The table to read. Defaults to {@link ROUTING_TABLE}; the tests pass their own. */
-  readonly table?: RoutingTable;
+  readonly table?: RoutingTable | undefined;
 }
 
 /**

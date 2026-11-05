@@ -12,18 +12,18 @@
     },
     {
       "file": "src/flow/verify.ts",
-      "measured": 91.83,
-      "floor": 88
+      "measured": 100.0,
+      "floor": 97
     },
     {
       "file": "src/flow/status.ts",
-      "measured": 96.0,
-      "maxUndetected": 2
+      "measured": 100.0,
+      "maxUndetected": 1
     },
     {
       "file": "src/http/fetch.ts",
-      "measured": 95.48,
-      "floor": 89
+      "measured": 99.67,
+      "floor": 97
     },
     {
       "file": "src/http/api-keys.ts",

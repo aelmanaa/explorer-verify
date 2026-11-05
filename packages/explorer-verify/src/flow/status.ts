@@ -143,6 +143,7 @@ function checkBackend(handle: Handle, route: Route): void {
     `The handle names ${handle.backend}, but chain ${String(handle.chainId)} routes to ${route.backend}.`,
     {
       hint: "Pass the route option and the keys the submission used, or the handle that verify() returned for this route.",
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message names only backends and the chain id, never the text Stryker puts here.
       secrets: [],
     },
   );
