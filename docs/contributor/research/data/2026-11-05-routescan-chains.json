@@ -1,0 +1,234 @@
+{
+  "$comment": "Research data behind the Routescan entries of the routing table (issue #168, decision 0037). It does not ship. On 2026-11-05 between 11:37 and 11:38 UTC, each chain of Routescan's two explorer lists was sent one keyless GET checkverifystatus with a made-up job id on its listed network. served holds the chains that answered Verification not found; refused holds the chains that answered chain not supported, on both networks. scripts/routing-seed.ts reads it, and node scripts/compare-routing-table.ts --probe-routescan prints a new copy. See the research note 2026-11-05-routescan-rows.md.",
+  "checked": "2026-11-05",
+  "request": "GET https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api?module=contract&action=checkverifystatus&guid=abc",
+  "served": [
+    {
+      "chainId": 1,
+      "name": "Ethereum",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 151,
+      "name": "Redbelly",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 153,
+      "name": "Redbelly",
+      "network": "testnet"
+    },
+    {
+      "chainId": 288,
+      "name": "Boba Ethereum",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 1015,
+      "name": "PHASE",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 1088,
+      "name": "Metis",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 1234,
+      "name": "StepNetwork",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 2786,
+      "name": "Apertum",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 3011,
+      "name": "PLAYA3ULL Games",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 3012,
+      "name": "PLAYA3ULL Games",
+      "network": "testnet"
+    },
+    {
+      "chainId": 4337,
+      "name": "Beam",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 5000,
+      "name": "Mantle",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 5566,
+      "name": "StraitsX",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 6119,
+      "name": "UPTN",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 6900,
+      "name": "Nibiru",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 6911,
+      "name": "Nibiru Testnet-2",
+      "network": "testnet"
+    },
+    {
+      "chainId": 8021,
+      "name": "Numine",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 8227,
+      "name": "Space",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 10507,
+      "name": "Numbers",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 13322,
+      "name": "Fifa Blockchain",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 13337,
+      "name": "Beam",
+      "network": "testnet"
+    },
+    {
+      "chainId": 28882,
+      "name": "Boba Sepolia",
+      "network": "testnet"
+    },
+    {
+      "chainId": 43111,
+      "name": "Hemi",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 43113,
+      "name": "C-Chain Fuji",
+      "network": "testnet"
+    },
+    {
+      "chainId": 43114,
+      "name": "C-Chain",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 43419,
+      "name": "GUNZ",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 53935,
+      "name": "DFK",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 68414,
+      "name": "Henesys",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 81457,
+      "name": "Blast",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 84358,
+      "name": "Titan",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 88882,
+      "name": "Chiliz Spicy",
+      "network": "testnet"
+    },
+    {
+      "chainId": 88888,
+      "name": "Chiliz",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 432201,
+      "name": "Dexalot",
+      "network": "testnet"
+    },
+    {
+      "chainId": 432204,
+      "name": "Dexalot",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 560048,
+      "name": "Hoodi",
+      "network": "testnet"
+    },
+    {
+      "chainId": 743111,
+      "name": "Hemi",
+      "network": "testnet"
+    },
+    {
+      "chainId": 11155111,
+      "name": "Sepolia",
+      "network": "testnet"
+    },
+    {
+      "chainId": 168587773,
+      "name": "Blast Sepolia",
+      "network": "testnet"
+    }
+  ],
+  "refused": [
+    {
+      "chainId": 10,
+      "name": "OP Mainnet",
+      "network": "mainnet"
+    },
+    {
+      "chainId": 17000,
+      "name": "Holesky",
+      "network": "testnet"
+    },
+    {
+      "chainId": 167008,
+      "name": "Taiko Katla",
+      "network": "testnet"
+    },
+    {
+      "chainId": 167009,
+      "name": "Taiko Hekla",
+      "network": "testnet"
+    },
+    {
+      "chainId": 421614,
+      "name": "Arbitrum Sepolia",
+      "network": "testnet"
+    },
+    {
+      "chainId": 5278000,
+      "name": "JSC Kaigan",
+      "network": "testnet"
+    },
+    {
+      "chainId": 11155420,
+      "name": "OP Sepolia",
+      "network": "testnet"
+    }
+  ]
+}

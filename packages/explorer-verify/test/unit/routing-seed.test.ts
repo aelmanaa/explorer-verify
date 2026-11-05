@@ -1,29 +1,38 @@
-// Tests for the rows of the shipped routing table (#60, #122, #165, #166, R-RT-1, decisions 0024,
-// 0027 and 0036). They read the research data of 2026-11-03, which holds a frozen copy of the
+// Tests for the rows of the shipped routing table (#60, #122, #165, #166, #168, R-RT-1, decisions
+// 0024, 0027, 0036 and 0037). They read the research data of 2026-11-03, which holds a frozen copy of the
 // Etherscan chainlist, the prior art's rows re-checked against Sourcify's chain list and the
 // table's rows, so a dropped row or entry fails CI. The copy was updated on 2026-11-05, when chains
-// 11124 and 43113 left the chainlist and #166 added a row for every chain Sourcify supports.
+// 11124 and 43113 left the chainlist and #166 added a row for every chain Sourcify supports. The
+// Routescan entries come from the probe data of 2026-11-05 (#168).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { DEFAULT_DEPENDENCIES } from "../../src/flow/verify.ts";
+import { keyFor } from "../../src/http/api-keys.ts";
 import {
   ETHERSCAN_API_URL,
   ROUTING_TABLE,
   SOURCIFY_API_URL,
   resolveRoute,
+  tableTarget,
 } from "../../src/routing/resolve.ts";
+import type { TableEntry } from "../../src/routing/resolve.ts";
 import type { Hex } from "../../src/types.ts";
 
 const SEED_FILE = new URL(
   "../../../../docs/contributor/research/data/2026-11-03-routing-seed.json",
   import.meta.url,
 );
+const ROUTESCAN_FILE = new URL(
+  "../../../../docs/contributor/research/data/2026-11-05-routescan-chains.json",
+  import.meta.url,
+);
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 // A made-up key. Never a real one (R-SEC-1).
 const ETHERSCAN_KEY = "etherscan-dummy-key-122a";
 const WITH_KEY = { apiKeys: { "etherscan-v2": ETHERSCAN_KEY } };
+const ROUTESCAN_KEY = "routescan-dummy-key-168a";
 
 /** The fields of the research data these tests read. */
 interface Seed {
@@ -94,6 +103,17 @@ const seed: Seed = {
 };
 const tableIds = ROUTING_TABLE.chains.map((row) => row.chainId);
 
+/** The chains Routescan's API served in the probe of 2026-11-05, with their network. */
+const routescan = listOf(JSON.parse(readFileSync(ROUTESCAN_FILE, "utf8")), "served", (chain) => ({
+  chainId: numberOf(chain, "chainId"),
+  network: textOf(chain, "network"),
+}));
+
+/** A row's entries other than Routescan's, which decision 0037 puts last. */
+function withoutRoutescan(backends: readonly TableEntry[] | undefined): TableEntry[] | undefined {
+  return backends?.filter((entry) => entry.backend !== "routescan");
+}
+
 describe("routing table rows (R-RT-1)", () => {
   it("is dated 2026-11-05, when the rows were checked again against the chainlist", () => {
     // The research data is of 2026-11-03; the research note of 2026-11-04 records the later checks.
@@ -132,9 +152,9 @@ describe("routing table rows (R-RT-1)", () => {
 
   it("lists etherscan-v2 first on a free-tier chain and after Sourcify on a paid-plan chain (R-RT-1, R-SEC-3, decision 0027)", () => {
     for (const chain of seed.etherscan) {
-      const names = ROUTING_TABLE.chains
-        .find((each) => each.chainId === chain.chainId)
-        ?.backends.map((entry) => entry.backend);
+      const names = withoutRoutescan(
+        ROUTING_TABLE.chains.find((each) => each.chainId === chain.chainId)?.backends,
+      )?.map((entry) => entry.backend);
       assert.deepEqual(
         names,
         chain.paidPlan ? ["sourcify", "etherscan-v2"] : ["etherscan-v2", "sourcify"],
@@ -175,7 +195,7 @@ describe("routing table rows (R-RT-1)", () => {
     for (const chainId of [11124, 43113]) {
       assert.ok(!seed.etherscan.some((chain) => chain.chainId === chainId), String(chainId));
       const row = ROUTING_TABLE.chains.find((each) => each.chainId === chainId);
-      assert.deepEqual(row?.backends, [{ backend: "sourcify" }], String(chainId));
+      assert.deepEqual(withoutRoutescan(row?.backends), [{ backend: "sourcify" }], String(chainId));
       assert.equal(resolveRoute(chainId).backend, "sourcify", String(chainId));
       const route = resolveRoute(chainId, undefined, WITH_KEY);
       assert.equal(route.backend, "sourcify", String(chainId));
@@ -186,10 +206,14 @@ describe("routing table rows (R-RT-1)", () => {
     }
   });
 
-  it("gives the rows outside the chainlist Sourcify only (R-RT-1)", () => {
+  it("gives the rows outside the chainlist Sourcify, Routescan or both (R-RT-1, decision 0037)", () => {
     for (const row of ROUTING_TABLE.chains) {
       if (!seed.etherscan.some((chain) => chain.chainId === row.chainId)) {
-        assert.deepEqual(row.backends, [{ backend: "sourcify" }], String(row.chainId));
+        const others = withoutRoutescan(row.backends);
+        assert.ok(
+          others?.length === 0 || (others?.length === 1 && others[0]?.backend === "sourcify"),
+          String(row.chainId),
+        );
       }
     }
   });
@@ -204,14 +228,20 @@ describe("routing table rows (R-RT-1)", () => {
   });
 
   it("lists exactly the rows the research data names", () => {
+    const ids = new Set([
+      ...seed.rows.map((row) => row.chainId),
+      ...routescan.map((chain) => chain.chainId),
+    ]);
     assert.deepEqual(
       tableIds,
-      seed.rows.map((row) => row.chainId),
+      [...ids].toSorted((a, b) => a - b),
     );
-    assert.equal(tableIds.length, 288);
+    assert.equal(tableIds.length, 314);
     // 94 rows from the chainlist or the prior art, and 194 from Sourcify's chain list alone (#166).
     const fromSourcify = seed.rows.filter((row) => row.from.includes("sourcify-chains"));
     assert.equal(fromSourcify.length, 194);
+    // 26 rows from the Routescan probe alone (#168).
+    assert.equal(ids.size - seed.rows.length, 26);
   });
 
   it("gives every chain Sourcify supports a row: the 49 chains of #166 resolve to Sourcify without allowSourcifyFallback (R-RT-1, R-RT-3, decision 0036)", () => {
@@ -225,7 +255,8 @@ describe("routing table rows (R-RT-1)", () => {
     assert.equal(chains.length, 49);
     for (const chainId of chains) {
       const row = ROUTING_TABLE.chains.find((each) => each.chainId === chainId);
-      assert.deepEqual(row?.backends, [{ backend: "sourcify" }], String(chainId));
+      // 1088 and 43111 also list Routescan, after Sourcify (#168).
+      assert.deepEqual(withoutRoutescan(row?.backends), [{ backend: "sourcify" }], String(chainId));
       const route = resolveRoute(chainId, undefined, WITH_KEY);
       assert.equal(route.backend, "sourcify", String(chainId));
       assert.equal(route.overridden, false);
@@ -237,7 +268,7 @@ describe("routing table rows (R-RT-1)", () => {
     }
   });
 
-  it("lists Sourcify on every row, and only the backends with a client; Routescan, Blockscout and standalone explorers have no rows yet (R-RT-1)", () => {
+  it("lists Sourcify on every row but the Routescan-only ones, and only the backends with a client; Blockscout and standalone explorers have no rows yet (R-RT-1)", () => {
     const clients = Object.keys(DEFAULT_DEPENDENCIES.backends);
     assert.deepEqual(clients, [
       "sourcify",
@@ -248,14 +279,106 @@ describe("routing table rows (R-RT-1)", () => {
     ]);
     for (const row of ROUTING_TABLE.chains) {
       const names = row.backends.map((entry) => entry.backend);
-      assert.ok(names.includes("sourcify"), String(row.chainId));
-      assert.ok(!names.includes("routescan"), String(row.chainId));
+      assert.ok(names.includes("sourcify") || names.join() === "routescan", String(row.chainId));
       assert.ok(!names.includes("blockscout"), String(row.chainId));
       // No standalone host answered on 2026-11-03 or 2026-11-04 (#63).
       assert.ok(!names.includes("etherscan-compatible"), String(row.chainId));
       assert.ok(
         names.every((name) => clients.includes(name)),
         String(row.chainId),
+      );
+    }
+  });
+});
+
+describe("routing table: the Routescan entries (R-RT-1, R-RT-2, #168, decision 0037)", () => {
+  it("has a routescan entry, last, with the probe's network, on each of the 38 chains Routescan's API served", () => {
+    assert.equal(routescan.length, 38);
+    const listed = ROUTING_TABLE.chains.filter((row) =>
+      row.backends.some((entry) => entry.backend === "routescan"),
+    );
+    assert.deepEqual(
+      listed.map((row) => row.chainId),
+      routescan.map((chain) => chain.chainId),
+    );
+    for (const chain of routescan) {
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chain.chainId);
+      assert.deepEqual(
+        row?.backends.at(-1),
+        { backend: "routescan", network: chain.network },
+        String(chain.chainId),
+      );
+    }
+  });
+
+  it("derives each entry's Routescan API URL from the chain id and the network", () => {
+    for (const chain of routescan) {
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chain.chainId);
+      const entry = row?.backends.find((each) => each.backend === "routescan");
+      assert.ok(entry !== undefined, String(chain.chainId));
+      const target = tableTarget(chain.chainId, entry);
+      assert.equal(
+        target?.apiUrl,
+        `https://api.routescan.io/v2/network/${chain.network}/evm/${String(chain.chainId)}/etherscan/api`,
+      );
+      assert.equal(target.backend, "routescan");
+    }
+  });
+
+  it("route: { backend: routescan } works without apiUrl on each chain, and binds apiKeys.routescan to api.routescan.io (R-RT-2, R-SEC-2)", () => {
+    const apiKeys = { routescan: ROUTESCAN_KEY };
+    for (const chain of routescan) {
+      const route = resolveRoute(chain.chainId, { backend: "routescan" }, { apiKeys });
+      const base = `https://api.routescan.io/v2/network/${chain.network}/evm/${String(chain.chainId)}/etherscan/api`;
+      assert.equal(route.backend, "routescan", String(chain.chainId));
+      assert.equal(route.apiBase, base);
+      assert.equal(route.requestUrl(""), base);
+      assert.equal(route.overridden, false);
+      assert.equal(route.tableHost, "api.routescan.io");
+      assert.equal(route.explorerUrl, undefined);
+      assert.equal(
+        keyFor({ route, apiKeys: () => apiKeys }, "routescan", route.requestUrl("")),
+        ROUTESCAN_KEY,
+      );
+    }
+  });
+
+  it("sends a call with no option to Routescan on a Routescan-only row, such as 68414 (Henesys)", () => {
+    const only = ROUTING_TABLE.chains.filter(
+      (row) => row.backends.length === 1 && row.backends[0]?.backend === "routescan",
+    );
+    assert.equal(only.length, 26);
+    assert.ok(only.some((row) => row.chainId === 68414));
+    for (const row of only) {
+      for (const choice of [undefined, WITH_KEY]) {
+        const route = resolveRoute(row.chainId, undefined, choice);
+        assert.equal(route.backend, "routescan", String(row.chainId));
+        assert.equal(route.tableHost, "api.routescan.io");
+      }
+    }
+    assert.equal(
+      resolveRoute(68414).apiBase,
+      "https://api.routescan.io/v2/network/mainnet/evm/68414/etherscan/api",
+    );
+  });
+
+  it("keeps a keyless call on Sourcify, and a keyed one on Etherscan, where the row lists them before Routescan", () => {
+    for (const chain of routescan) {
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chain.chainId);
+      const first = row?.backends[0]?.backend;
+      if (first === "routescan") {
+        continue;
+      }
+      assert.equal(resolveRoute(chain.chainId).backend, "sourcify", String(chain.chainId));
+      assert.equal(
+        resolveRoute(chain.chainId, undefined, { apiKeys: { routescan: ROUTESCAN_KEY } }).backend,
+        "sourcify",
+        String(chain.chainId),
+      );
+      assert.equal(
+        resolveRoute(chain.chainId, undefined, WITH_KEY).backend,
+        first,
+        String(chain.chainId),
       );
     }
   });

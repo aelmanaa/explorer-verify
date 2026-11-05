@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "name": "C-Chain",
+      "chainId": "43114",
+      "evmChainId": "43114"
+    },
+    {
+      "name": "Ethereum",
+      "chainId": "1",
+      "evmChainId": "1"
+    },
+    {
+      "name": "OP Mainnet",
+      "chainId": "10",
+      "evmChainId": "10"
+    },
+    {
+      "name": "Henesys",
+      "chainId": "68414",
+      "evmChainId": "68414"
+    }
+  ],
+  "link": {}
+}

@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "name": "C-Chain Fuji",
+      "chainId": "43113",
+      "evmChainId": "43113"
+    },
+    {
+      "name": "Sepolia",
+      "chainId": "11155111",
+      "evmChainId": "11155111"
+    },
+    {
+      "name": "Arbitrum Sepolia",
+      "chainId": "421614",
+      "evmChainId": "421614"
+    }
+  ],
+  "link": {}
+}

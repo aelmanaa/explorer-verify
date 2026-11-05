@@ -53,7 +53,11 @@ export interface IssueApi {
   close(issue: number, comment: string): Promise<void>;
 }
 
-const LISTS: readonly ChangedList[] = ["Etherscan chainlist", "Sourcify chain list"];
+const LISTS: readonly ChangedList[] = [
+  "Etherscan chainlist",
+  "Sourcify chain list",
+  "Routescan chain list",
+];
 
 function field(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null && !Array.isArray(value)

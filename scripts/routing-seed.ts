@@ -10,9 +10,17 @@
 // chain. A chain in the chainlist also gets an `etherscan-v2` entry with the chainlist's explorer
 // host: first when the free tier covers the chain, after Sourcify when it needs a paid plan
 // (decision 0027), and alone when Sourcify does not support it. `tableOf` gives the table these rules build, and
-// `scripts/compare-routing-table.ts --rows` prints it.
+// `scripts/compare-routing-table.ts --rows` prints it with the Routescan entries of
+// scripts/routing-routescan.ts added (decision 0037).
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
+import {
+  ROUTESCAN_FILE,
+  fetchRoutescanList,
+  parseRoutescanProbe,
+  routescanDifferences,
+} from "./routing-routescan.ts";
 
 /** The public lists the table is checked against. Both answer without a key. */
 export const SOURCES = {
@@ -49,6 +57,8 @@ export interface TableRows {
     readonly backends: readonly string[];
     /** The `explorer` host of the row's `etherscan-v2` entry, when it has one. */
     readonly explorer?: string;
+    /** The `network` of the row's `routescan` entry, when it has one. */
+    readonly network?: string;
   }[];
 }
 
@@ -172,10 +182,15 @@ export function parseTable(value: unknown): TableRows {
         entries.find((entry) => field(entry, "backend") === "etherscan-v2"),
         "explorer",
       );
+      const network = field(
+        entries.find((entry) => field(entry, "backend") === "routescan"),
+        "network",
+      );
       return {
         chainId: chainIdAt(row, "chainId", what),
         backends: entries.map((entry) => textAt(entry, "backend", what)),
         ...(typeof explorer === "string" ? { explorer } : {}),
+        ...(typeof network === "string" ? { network } : {}),
       };
     }),
   };
@@ -241,7 +256,7 @@ export function tableOf(lists: LiveLists, checked: string): TableJson {
 }
 
 /** The public list a difference comes from. */
-export type ChangedList = "Etherscan chainlist" | "Sourcify chain list";
+export type ChangedList = "Etherscan chainlist" | "Sourcify chain list" | "Routescan chain list";
 
 /** One difference: the chain, the public list whose answer disagrees, and the line printed. */
 export interface Difference {
@@ -418,14 +433,21 @@ export async function fetchLists(fetch: typeof globalThis.fetch): Promise<LiveLi
  */
 export async function run(root: string, fetch: typeof globalThis.fetch): Promise<RunResult> {
   const read = (file: string): unknown => JSON.parse(readFileSync(path.join(root, file), "utf8"));
-  const live = await fetchLists(fetch);
+  const [live, routescan] = await Promise.all([fetchLists(fetch), fetchRoutescanList(fetch)]);
   const table = parseTable(read(TABLE_FILE));
+  const probe = parseRoutescanProbe(read(ROUTESCAN_FILE));
   return {
     checked: table.checked,
-    differences: differences({ ...live, table, seed: parseSeed(read(SEED_FILE)) }),
+    differences: [
+      ...differences({ ...live, table, seed: parseSeed(read(SEED_FILE)) }),
+      ...routescanDifferences(table.rows, probe, routescan).map((difference): Difference => ({
+        ...difference,
+        list: "Routescan chain list",
+      })),
+    ],
     notes: [
       `table checked ${table.checked}; ${String(table.rows.length)} rows`,
-      "routescan: not compared; its supported-chains page has no machine-readable list (see the research note)",
+      `routescan: entries compared with the API probe of ${probe.checked}, and that probe with Routescan's explorer lists`,
     ],
   };
 }

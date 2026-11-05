@@ -29,8 +29,9 @@ From a browser, keep the key on your server and pass `route: { backend: "ethersc
 `fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
 
 The [Routescan](routescan.md) and [Etherscan-compatible](etherscan-compatible.md) clients send
-`route.apiKey`. A key in `apiKeys` takes effect once the routing table lists its backend for the
-chain; the table lists no Routescan rows yet.
+`route.apiKey`. A key in `apiKeys` takes effect where the routing table lists its backend for the
+chain: the table lists Routescan for 38 chains ([Routing](routing.md#routescan-entries)), and no
+chain for Etherscan-compatible explorers.
 
 ## `apiKeys`
 

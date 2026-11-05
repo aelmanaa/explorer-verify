@@ -66,6 +66,20 @@ describe("routing-table issue: the report (R-RT-1, #171)", () => {
     assert.deepEqual(parseReport(JSON.parse(JSON.stringify(REPORT))), REPORT);
   });
 
+  it("reads a difference in Routescan's list (#168)", () => {
+    const routescan: Report = {
+      ...CLEAN,
+      differences: [
+        {
+          chainId: 68414,
+          list: "Routescan chain list",
+          text: "routescan: chain 68414 (Henesys) left the mainnet list; probe its API",
+        },
+      ],
+    };
+    assert.deepEqual(parseReport(JSON.parse(JSON.stringify(routescan))), routescan);
+  });
+
   it("refuses a report of another shape", () => {
     const cases: [unknown, RegExp][] = [
       [null, /checked is not a string/],

@@ -109,9 +109,11 @@ explorer-verify verify --input-json verify-input.json --dry-run --json
 
 The `backend` field names the explorer the real run would use. The routing table picks the first
 backend of the chain's row that works with the keys set: Etherscan v2 when the row has it and an
-Etherscan key is set, Sourcify otherwise. Routescan and
-[Blockscout](../reference/blockscout.md) are reached only with `route.backend` and `route.apiUrl`,
-or `--backend routescan --api-url <url>` and `--backend blockscout --api-url <url>`. A chain with no row gives
+Etherscan key is set, Sourcify otherwise, and Routescan on a row that lists only Routescan.
+Routescan comes last in a row; reach it with `route: { backend: "routescan" }` or
+`--backend routescan` on a chain whose row lists it, and with `route.apiUrl` or `--api-url <url>`
+elsewhere. [Blockscout](../reference/blockscout.md) is reached only with `route.backend` and
+`route.apiUrl`, or `--backend blockscout --api-url <url>`. A chain with no row gives
 `unsupported-chain`, exit code 2, unless a library call passes `allowSourcifyFallback: true` or
 the CLI gets `--allow-sourcify-fallback`.
 [Routing](../reference/routing.md) explains the table.

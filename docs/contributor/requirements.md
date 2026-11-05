@@ -145,7 +145,9 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   chain list marks as supported or that the Etherscan chainlist lists (decision 0036): Sourcify
   when Sourcify supports the chain, Etherscan v2 when the chainlist lists it. It lists only backends
   with a client in the release. It carries the date its rows were checked. On 2026-11-05 that is 288 chains, each
-  with Sourcify, and the 55 chains of the Etherscan chainlist also with Etherscan v2. A
+  with Sourcify, and the 55 chains of the Etherscan chainlist also with Etherscan v2. A chain whose
+  Routescan API answered a recorded keyless probe also gets a Routescan entry, last in its row, or
+  a row with Routescan alone (decision 0037): 38 entries and 26 more rows, 314 rows in all. A
   row lists its backends in order of preference; on a chain that needs a paid Etherscan plan,
   Sourcify comes before Etherscan v2 (decision 0027). A call goes to the first backend in the row
   that works with the caller's keys: a backend that needs a key is skipped when the caller passed

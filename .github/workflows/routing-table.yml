@@ -1,7 +1,7 @@
 name: Routing table
 
-# Compares the routing table with the Etherscan chainlist and Sourcify's chain list once a week.
-# Both lists answer without a key. When they differ from the table, the workflow opens one issue
+# Compares the routing table with the Etherscan chainlist, Sourcify's chain list and Routescan's
+# two explorer lists once a week. All of them answer without a key. When they differ from the table, the workflow opens one issue
 # that names each chain and the list it changed in, or updates the open one; when no difference
 # remains, it closes that issue. A pull request changes the table; this workflow never does.
 #

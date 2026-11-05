@@ -631,13 +631,16 @@ describe("verifyEach(): backends and routes", () => {
     assert.equal(second.error.code, "timeout");
   });
 
-  it('"all" leaves out a backend that needs a key when none is set: keyless on Sepolia gives Sourcify only', async (t) => {
-    const fake = byHost({ "sourcify.dev": [SOURCIFY_LOOKUP_EXACT] });
+  it('"all" leaves out a backend that needs a key when none is set: keyless on Sepolia gives Sourcify and Routescan (#168)', async (t) => {
+    const fake = byHost({
+      "sourcify.dev": [SOURCIFY_LOOKUP_EXACT],
+      "api.routescan.io": [ROUTESCAN_VERIFIED],
+    });
     t.mock.method(globalThis, "fetch", fake.fetch);
     const outcome = await verifyEach(input(), { backends: "all" });
     assert.deepEqual(
       outcome.outcomes.map((each) => each.backend),
-      ["sourcify"],
+      ["sourcify", "routescan"],
     );
     assert.equal(fake.sent.get("api.etherscan.io"), undefined);
   });

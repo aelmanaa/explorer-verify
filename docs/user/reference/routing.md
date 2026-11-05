@@ -33,23 +33,23 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 288 chains. Every
-row has Sourcify, and the 55 chains of the Etherscan chainlist also have Etherscan v2. The
-Routescan, Blockscout and Etherscan-compatible clients have no rows yet; reach them with
-`route.backend` and `route.apiUrl`, as [Routescan](routescan.md), [Blockscout](blockscout.md) and
+The table is `src/routing/table.json` in the package. In this release it lists 314 chains. 288
+rows have Sourcify, the 55 chains of the Etherscan chainlist also have Etherscan v2, and 38 rows
+have Routescan, 26 of them alone. The Blockscout and Etherscan-compatible clients have no rows
+yet; reach them with `route.backend` and `route.apiUrl`, as [Blockscout](blockscout.md) and
 [Etherscan-compatible](etherscan-compatible.md) show. A chain has a row when
-[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported or when it is in
-the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist). The row has Sourcify when
-Sourcify supports the chain, so every chain that Sourcify serves resolves without
-`allowSourcifyFallback`. A chainlist chain also has Etherscan v2, and one that Sourcify does not
-support has Etherscan v2 alone; in this release there is none. Both lists were read on
-2026-11-05.
+[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported, when it is in
+the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), or when Routescan's API serves
+it. The row has Sourcify when Sourcify supports the chain, so every chain that Sourcify serves
+resolves without `allowSourcifyFallback`. A chainlist chain also has Etherscan v2, and one that
+Sourcify does not support has Etherscan v2 alone; in this release there is none. Both lists were
+read on 2026-11-05.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
 C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532), Arbitrum Sepolia (421614), ZKsync Era
-(324), Scroll (534352) and Zora (7777777). To see
-whether a chain has a row, search `table.json` for its chain id. A later release adds Routescan
-entries. Verify on a chain without a row with `allowSourcifyFallback: true`.
+(324), Scroll (534352), Zora (7777777) and Henesys (68414). To see
+whether a chain has a row, search `table.json` for its chain id. Verify on a chain without a row
+with `allowSourcifyFallback: true`.
 
 The rows are the list under the table's top-level `chains` key. Each row holds the chain id and its
 backends, in order of preference. An entry holds the backend name and only what varies per chain:
@@ -110,6 +110,33 @@ pass the key in `apiKeys`; from the CLI, pass `--backend etherscan-v2`. The plan
 [API keys](api-keys.md#etherscan-plan-rule) is separate from this list and applies to every chain:
 a public dapp, or any use by a business, protocol, foundation or DAO, needs an Advanced plan or
 higher.
+
+### Routescan entries
+
+A chain has a Routescan entry when Routescan's API answered for it on 2026-11-05. Routescan's
+explorer lists name more chains than its API serves, so each chain they named was sent one keyless
+request; 38 answered. The entry holds the network the request used, `mainnet` or `testnet`, and
+the API URL is derived from it:
+
+```json
+{
+  "chainId": 68414,
+  "backends": [{ "backend": "routescan", "network": "mainnet" }]
+}
+```
+
+Routescan comes last in each row, after Sourcify and Etherscan v2:
+
+- On the 26 chains whose row lists only Routescan, such as Henesys (68414), Beam (4337) and Chiliz
+  (88888), a call with no option goes to Routescan.
+- On the other 12, such as Ethereum (1), Sepolia (11155111), Avalanche Fuji (43113) and C-Chain
+  (43114), Metis (1088) and Hemi (43111), a call goes to Sourcify, or to Etherscan v2 with an
+  Etherscan key where the row lists it first. A Routescan key in `apiKeys` does not change that.
+  Pass `route: { backend: "routescan" }`, or `--backend routescan` from the CLI, to use Routescan.
+
+On a chain with a Routescan entry, `route.backend` `routescan` needs no `route.apiUrl`, and a key
+in `apiKeys.routescan` goes to `api.routescan.io` ([Routescan](routescan.md#api-key)). A result
+from Routescan has no `explorerUrl`.
 
 ## Request URLs
 
