@@ -220,8 +220,9 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     assert.equal(TABLE.checked, "2026-11-05");
   });
 
-  it("lists 94 chains in ascending order, one row per chain", () => {
-    assert.equal(TABLE.rows.length, 94);
+  it("lists 288 chains in ascending order, one row per chain (#166)", () => {
+    // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036).
+    assert.equal(TABLE.rows.length, 288);
     const ids = TABLE.rows.map((row) => row.chainId);
     assert.deepEqual(
       ids,
@@ -270,7 +271,7 @@ describe("blackbox #60: each named chain resolves to Sourcify (routing.md, R-RT-
 });
 
 describe("blackbox #60: every listed chain resolves to Sourcify", () => {
-  it("routes all 94 rows to https://sourcify.dev/server", async () => {
+  it("routes all 288 rows to https://sourcify.dev/server", async () => {
     for (const row of TABLE.rows) {
       assertSourcifyRoute(row.chainId, await run(row.chainId));
     }

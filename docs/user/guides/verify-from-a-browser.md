@@ -224,6 +224,10 @@ A page that verifies on Sourcify ships `verify` with the routing table plus the 
 code. The count is a model: each part is gzipped as one file, without the cost a real split adds
 per file. The server handler runs on your server, so its size does not reach the page.
 
+On 2026-11-05 the routing table grew from 94 to 288 chains, one for every chain Sourcify supports
+([#166](https://github.com/aelmanaa/explorer-verify/issues/166)). At main 60f089c with that
+change, `verify` with the routing table measured 16,577 bytes, 1,084 more than without it.
+
 ### Measured with Vite and esbuild
 
 [Decision 0031](../../contributor/decisions/0031-clients-load-on-demand-and-chunks-measured-apart.md)

@@ -1,8 +1,8 @@
-// Tests for the rows of the shipped routing table (#60, #122, #165, R-RT-1, decisions 0024 and
-// 0027). They read the research data of 2026-11-03, which holds a frozen copy of the Etherscan
-// chainlist and the prior art's rows re-checked against Sourcify's chain list, so a dropped row or
-// entry fails CI. The copy was updated on 2026-11-05, when chains 11124 and 43113 left the
-// chainlist.
+// Tests for the rows of the shipped routing table (#60, #122, #165, #166, R-RT-1, decisions 0024,
+// 0027 and 0036). They read the research data of 2026-11-03, which holds a frozen copy of the
+// Etherscan chainlist, the prior art's rows re-checked against Sourcify's chain list and the
+// table's rows, so a dropped row or entry fails CI. The copy was updated on 2026-11-05, when chains
+// 11124 and 43113 left the chainlist and #166 added a row for every chain Sourcify supports.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -28,7 +28,11 @@ const WITH_KEY = { apiKeys: { "etherscan-v2": ETHERSCAN_KEY } };
 /** The fields of the research data these tests read. */
 interface Seed {
   readonly checked: string;
-  readonly rows: readonly { readonly chainId: number; readonly name: string }[];
+  readonly rows: readonly {
+    readonly chainId: number;
+    readonly name: string;
+    readonly from: readonly string[];
+  }[];
   readonly etherscan: readonly {
     readonly chainId: number;
     readonly explorer: string;
@@ -73,6 +77,10 @@ const seed: Seed = {
   rows: listOf(raw, "rows", (row) => ({
     chainId: numberOf(row, "chainId"),
     name: textOf(row, "name"),
+    from: listOf(row, "from", (list) => {
+      assert.equal(typeof list, "string", "from");
+      return String(list);
+    }),
   })),
   etherscan: listOf(raw, "etherscan", (chain) => ({
     chainId: numberOf(chain, "chainId"),
@@ -200,7 +208,33 @@ describe("routing table rows (R-RT-1)", () => {
       tableIds,
       seed.rows.map((row) => row.chainId),
     );
-    assert.equal(tableIds.length, 94);
+    assert.equal(tableIds.length, 288);
+    // 94 rows from the chainlist or the prior art, and 194 from Sourcify's chain list alone (#166).
+    const fromSourcify = seed.rows.filter((row) => row.from.includes("sourcify-chains"));
+    assert.equal(fromSourcify.length, 194);
+  });
+
+  it("gives every chain Sourcify supports a row: the 49 chains of #166 resolve to Sourcify without allowSourcifyFallback (R-RT-1, R-RT-3, decision 0036)", () => {
+    // The chains #166 names: Foundry and Hardhat verify on them through Sourcify by default.
+    const chains = [
+      25, 30, 109, 177, 196, 204, 223, 232, 239, 295, 324, 388, 592, 964, 1088, 1111, 1116, 1135,
+      1672, 1750, 1868, 1952, 2020, 2818, 3343, 4200, 4217, 8217, 16661, 33139, 34443, 36888, 36900,
+      42793, 43111, 47763, 48900, 57073, 60808, 61901, 98866, 102030, 102031, 127001, 534352,
+      5734951, 7777777, 728126428, 3448148188,
+    ];
+    assert.equal(chains.length, 49);
+    for (const chainId of chains) {
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chainId);
+      assert.deepEqual(row?.backends, [{ backend: "sourcify" }], String(chainId));
+      const route = resolveRoute(chainId, undefined, WITH_KEY);
+      assert.equal(route.backend, "sourcify", String(chainId));
+      assert.equal(route.overridden, false);
+      assert.equal(route.tableHost, "sourcify.dev");
+      assert.equal(
+        route.explorerUrl?.(ADDRESS),
+        `https://repo.sourcify.dev/${String(chainId)}/${ADDRESS}`,
+      );
+    }
   });
 
   it("lists Sourcify on every row, and only the backends with a client; Routescan, Blockscout and standalone explorers have no rows yet (R-RT-1)", () => {
@@ -251,12 +285,13 @@ describe("routing table: named chains resolve as the research note says (R-RT-1)
     });
   }
 
-  it("chain 324 has no routescan or etherscan-v2 entry (R-RT-1)", () => {
+  it("chain 324 has a Sourcify row and no routescan or etherscan-v2 entry (R-RT-1, #166)", () => {
     const row = ROUTING_TABLE.chains.find((each) => each.chainId === 324);
     const backends = row?.backends.map((entry) => entry.backend) ?? [];
     assert.ok(!backends.includes("routescan"));
     assert.ok(!backends.includes("etherscan-v2"));
-    // Chain 324 is in neither the Etherscan chainlist nor the prior art, so it has no row.
-    assert.equal(row, undefined);
+    // Chain 324 is in neither the Etherscan chainlist nor the prior art. Since #166 it has a
+    // Sourcify row, because Sourcify supports it (decision 0036).
+    assert.deepEqual(row?.backends, [{ backend: "sourcify" }]);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "$comment": "Research data behind the routing table of 2026-11-03 (issue #60, decision 0024). It does not ship. etherscan is a frozen copy of the Etherscan chainlist, updated on 2026-11-05 when chains 11124 and 43113 left it (#165); routescan is the mainnet list of Routescan's supported-chains page plus chain 43113 from the Routescan research note of 2026-11-03; confirmed is true only where a live request confirmed the network; priorArt is the prior art's 67 rows re-checked; rows are the shipped table's rows with their names and the list each comes from; sources lists what the table was checked against. scripts/compare-routing-table.ts reads it.",
+  "$comment": "Research data behind the routing table of 2026-11-03 (issue #60, decision 0024). It does not ship. etherscan is a frozen copy of the Etherscan chainlist, updated on 2026-11-05 when chains 11124 and 43113 left it (#165); routescan is the mainnet list of Routescan's supported-chains page plus chain 43113 from the Routescan research note of 2026-11-03; confirmed is true only where a live request confirmed the network; priorArt is the prior art's 67 rows re-checked; rows are the shipped table's rows with their names and the list each comes from, sourcify-chains for the 194 rows added on 2026-11-05 with Sourcify's chain names (#166, decision 0036); sources lists what the table was checked against. scripts/compare-routing-table.ts reads it.",
   "checked": "2026-11-03",
   "sources": {
     "etherscanChainlist": "https://api.etherscan.io/v2/chainlist",
@@ -18,9 +18,34 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 14,
+      "name": "Flare Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 19,
+      "name": "Songbird Canary Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 25,
+      "name": "Cronos Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 30,
+      "name": "Rootstock",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 31,
       "name": "Rootstock Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 40,
+      "name": "Telos Mainnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 50,
@@ -38,9 +63,49 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 57,
+      "name": "Syscoin Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 61,
+      "name": "Ethereum Classic",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 63,
+      "name": "Ethereum Classic Mordor",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 66,
+      "name": "OKXChain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 81,
       "name": "Astar Shibuya",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 83,
+      "name": "Meter Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 88,
+      "name": "Viction",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 89,
+      "name": "Viction Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 96,
+      "name": "Bitkub Chain",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 97,
@@ -51,6 +116,31 @@
       "chainId": 100,
       "name": "Gnosis",
       "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 106,
+      "name": "Velas Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 109,
+      "name": "Shibarium",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 114,
+      "name": "Flare Testnet Coston2",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 122,
+      "name": "Fuse",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 123,
+      "name": "Fuse Sparknet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 130,
@@ -78,9 +168,44 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 169,
+      "name": "Manta Pacific Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 177,
+      "name": "HashKey",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 196,
+      "name": "X Layer Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 199,
       "name": "BitTorrent Chain Mainnet",
       "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 204,
+      "name": "opBNB Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 223,
+      "name": "B2 Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 232,
+      "name": "Lens",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 239,
+      "name": "TAC Mainnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 240,
@@ -88,9 +213,29 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 250,
+      "name": "Fantom Opera",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 252,
       "name": "Fraxtal Mainnet",
       "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 288,
+      "name": "Boba Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 291,
+      "name": "Orderly",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 295,
+      "name": "Hedera Mainnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 296,
@@ -103,9 +248,39 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 314,
+      "name": "Filecoin Virtual Machine",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 324,
+      "name": "ZKsync Era",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 338,
       "name": "Cronos Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 360,
+      "name": "Shape",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 369,
+      "name": "PulseChain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 388,
+      "name": "Cronos zkEVM Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 401,
+      "name": "Ozone Chain Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 480,
@@ -113,9 +288,64 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 488,
+      "name": "BXN",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 545,
+      "name": "Flow Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 592,
+      "name": "Astar",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 698,
+      "name": "Matchain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 714,
+      "name": "Eden",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 747,
+      "name": "Flow Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 869,
+      "name": "World Mobile",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 888,
+      "name": "Wanchain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 904,
+      "name": "Ault Blockchain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 919,
       "name": "Mode Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 945,
+      "name": "Subtensor EVM Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 964,
+      "name": "Subtensor EVM",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 988,
@@ -143,6 +373,26 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 1030,
+      "name": "Conflux eSpace",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1088,
+      "name": "Metis Andromeda Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1101,
+      "name": "Polygon zkEVM",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1111,
+      "name": "WEMIX3.0 Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 1112,
       "name": "WEMIX3.0 Testnet",
       "from": ["prior-art"]
@@ -153,9 +403,34 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 1116,
+      "name": "Core Blockchain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1135,
+      "name": "Lisk ",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1285,
+      "name": "Moonriver",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1287,
+      "name": "Moonbase Alpha",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 1301,
       "name": "Unichain Sepolia Testnet",
       "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 1315,
+      "name": "DATA Network Aeneid",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 1328,
@@ -168,9 +443,94 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 1439,
+      "name": "Injective Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1480,
+      "name": "Vana",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1514,
+      "name": "DATA Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1597,
+      "name": "Reactive Network Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1625,
+      "name": "Gravity Alpha Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1643,
+      "name": "XGR Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1672,
+      "name": "Pharos Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1729,
+      "name": "Reya",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 1740,
       "name": "Metal L2 Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 1750,
+      "name": "Metal L2",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1776,
+      "name": "Injective",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1829,
+      "name": "Playnance Playblock",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1868,
+      "name": "Soneium",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1874,
+      "name": "Whitechain Sepolia Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1890,
+      "name": "LightLink Phoenix Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1891,
+      "name": "LightLink Pegasus Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1923,
+      "name": "Swellchain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1924,
+      "name": "Swellchain Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 1946,
@@ -178,14 +538,69 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 1952,
+      "name": "X Layer Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2017,
+      "name": "Telcoin Network Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2020,
+      "name": "Ronin Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 2201,
       "name": "Stable Testnet",
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 2221,
+      "name": "Kava Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2222,
+      "name": "Kava",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2288,
+      "name": "Moca Chain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2345,
+      "name": "GOAT Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2366,
+      "name": "KiteAI Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2368,
+      "name": "KiteAI Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 2391,
       "name": "TAC SPB",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 2442,
+      "name": "Polygon zkEVM Cardona Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2443,
+      "name": "Haus Chain Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 2523,
@@ -198,14 +613,64 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 2818,
+      "name": "Morph",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 2910,
       "name": "Morph Hoodi",
       "from": ["prior-art"]
     },
     {
+      "chainId": 3111,
+      "name": "Alpha Chain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 3338,
+      "name": "peaq",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 3343,
+      "name": "Edge",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 3637,
+      "name": "Botanix Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 4000,
+      "name": "Ozone Chain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 4114,
+      "name": "Citrea Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 4153,
+      "name": "RISE",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 4200,
+      "name": "Merlin Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 4202,
       "name": "Lisk Sepolia Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 4217,
+      "name": "Tempo Mainnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 4326,
@@ -218,14 +683,34 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 4460,
+      "name": "Orderly Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 4663,
       "name": "Robinhood Chain",
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 4689,
+      "name": "IoTeX Network Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 4690,
+      "name": "IoTeX Network Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 4801,
       "name": "World Sepolia Testnet",
       "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 4888,
+      "name": "BXN Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 5000,
@@ -243,9 +728,34 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 5115,
+      "name": "Citrea Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 5330,
+      "name": "Superseed",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 5611,
       "name": "opBNB Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 5700,
+      "name": "Syscoin Testnet Tanenbaum",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 6122,
+      "name": "Tea Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 6292,
+      "name": "MAYA CHAIN",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 6343,
@@ -253,9 +763,54 @@
       "from": ["etherscan-chainlist", "prior-art"]
     },
     {
+      "chainId": 6497,
+      "name": "Awaji",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 6498,
+      "name": "Mizuhiki",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 7000,
+      "name": "ZetaChain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 7001,
+      "name": "ZetaChain: Athens Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 7560,
+      "name": "Cyber Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 7741,
+      "name": "RWA Chain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 8217,
+      "name": "Kaia Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 8453,
       "name": "Base Mainnet",
       "from": ["etherscan-chainlist"]
+    },
+    {
+      "chainId": 8822,
+      "name": "IOTA EVM",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 9280,
+      "name": "Rabbit Chain Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 9745,
@@ -278,9 +833,39 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 10904,
+      "name": "Ault Blockchain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 11011,
+      "name": "Shape Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 11124,
       "name": "Abstract Sepolia Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 11235,
+      "name": "Haqq Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 13371,
+      "name": "Immutable zkEVM",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 13473,
+      "name": "Immutable zkEVM Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 13505,
+      "name": "Gravity Alpha Testnet Sepolia",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 14601,
@@ -288,14 +873,89 @@
       "from": ["etherscan-chainlist", "prior-art"]
     },
     {
+      "chainId": 14800,
+      "name": "Vana Moksha Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 16602,
       "name": "0G Galileo Testnet",
       "from": ["prior-art"]
     },
     {
+      "chainId": 16661,
+      "name": "0G Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 17000,
+      "name": "Holesky",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 23294,
+      "name": "Oasis Sapphire Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 23295,
+      "name": "Oasis Sapphire Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 25925,
+      "name": "Bitkub Chain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 31611,
+      "name": "Mezo Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 31612,
+      "name": "Mezo",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 32026,
+      "name": "Numen Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 32769,
+      "name": "Zilliqa 2 Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 33101,
+      "name": "Zilliqa 2 Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 33111,
       "name": "Curtis",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 33139,
+      "name": "ApeChain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 34443,
+      "name": "Mode",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 36888,
+      "name": "AB Core Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 36900,
+      "name": "ADI Chain",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 37111,
@@ -308,14 +968,39 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 42170,
+      "name": "Arbitrum Nova",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 42220,
       "name": "Celo Mainnet",
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 42261,
+      "name": "Oasis Emerald Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 42262,
+      "name": "Oasis Emerald Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 42431,
       "name": "Tempo Testnet Moderato",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 42793,
+      "name": "Etherlink",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 43111,
+      "name": "Hemi",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 43113,
@@ -338,9 +1023,44 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 47763,
+      "name": "Neo X Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 48898,
+      "name": "Zircuit Garfield Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 48900,
+      "name": "Zircuit Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 52014,
+      "name": "Electroneum",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 53302,
       "name": "Superseed Sepolia Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 54211,
+      "name": "Haqq Chain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 57057,
+      "name": "zkTanenbaum Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 57073,
+      "name": "Ink",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 59141,
@@ -358,6 +1078,31 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 60808,
+      "name": "BOB",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 61803,
+      "name": "Etica Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 61901,
+      "name": "Mova Mainnet V2",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 69420,
+      "name": "Alchemy Sepolia",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 77410,
+      "name": "RWA Chain Sepolia",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 80002,
       "name": "Polygon Amoy Testnet",
       "from": ["etherscan-chainlist", "prior-art"]
@@ -373,14 +1118,79 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 81457,
+      "name": "Blast",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 84532,
       "name": "Base Sepolia Testnet",
       "from": ["etherscan-chainlist", "prior-art"]
     },
     {
+      "chainId": 97476,
+      "name": "Doma Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 97477,
+      "name": "Doma Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 97741,
+      "name": "Pepe Unchained",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 98866,
+      "name": "Plume Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 98867,
       "name": "Plume Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 99801,
+      "name": "Elysium Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 100009,
+      "name": "VeChain Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 101010,
+      "name": "Stability Global Trust Network",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 102030,
+      "name": "Creditcoin",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 102031,
+      "name": "Creditcoin Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 102032,
+      "name": "Creditcoin Devnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 127001,
+      "name": "Gravity",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 127823,
+      "name": "Etherlink Shadownet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 167000,
@@ -393,9 +1203,44 @@
       "from": ["etherscan-chainlist"]
     },
     {
+      "chainId": 181228,
+      "name": "HPP Sepolia Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 190415,
+      "name": "HPP Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 202601,
       "name": "Ronin Saigon Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 205205,
+      "name": "Auroria Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 222888,
+      "name": "Moca Chain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 314159,
+      "name": "Filecoin Calibration Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 320261,
+      "name": "Numen Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 323432,
+      "name": "World Mobile Testnet",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 421614,
@@ -403,14 +1248,54 @@
       "from": ["etherscan-chainlist", "prior-art"]
     },
     {
+      "chainId": 482120,
+      "name": "Bitcoin Swap",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 511111,
+      "name": "Alpha Chain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 534351,
       "name": "Scroll Sepolia Testnet",
       "from": ["prior-art"]
     },
     {
+      "chainId": 534352,
+      "name": "Scroll",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 560048,
       "name": "Ethereum Hoodi Testnet",
       "from": ["etherscan-chainlist", "prior-art"]
+    },
+    {
+      "chainId": 612044,
+      "name": "Cross Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 612055,
+      "name": "Cross Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 660279,
+      "name": "Xai Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 685685,
+      "name": "Gensyn Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 685689,
+      "name": "Gensyn",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 688689,
@@ -443,14 +1328,54 @@
       "from": ["prior-art"]
     },
     {
+      "chainId": 1440000,
+      "name": "XRPL EVM Sidechain",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1449000,
+      "name": "XRPL EVM Sidechain Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 3441006,
+      "name": "Manta Pacific Sepolia Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 5042002,
       "name": "Arc Testnet",
       "from": ["prior-art"]
     },
     {
+      "chainId": 5201420,
+      "name": "Electroneum Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 5318007,
+      "name": "Reactive Network Lasna",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 5734951,
+      "name": "Jovay Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 6281971,
       "name": "DogeOS Chikyu Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 7080969,
+      "name": "Humanity Protocol testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 7777777,
+      "name": "Zora",
+      "from": ["sourcify-chains"]
     },
     {
       "chainId": 11142220,
@@ -468,14 +1393,59 @@
       "from": ["etherscan-chainlist", "prior-art"]
     },
     {
+      "chainId": 11155931,
+      "name": "RISE Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 12227332,
       "name": "Neo X Testnet T4",
       "from": ["prior-art"]
     },
     {
+      "chainId": 20180427,
+      "name": "Stability Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 168587773,
+      "name": "Blast Sepolia Testnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 245022934,
+      "name": "Neon",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 728126428,
+      "name": "Tron Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
       "chainId": 999999999,
       "name": "Zora Sepolia Testnet",
       "from": ["prior-art"]
+    },
+    {
+      "chainId": 1313161554,
+      "name": "Aurora Mainnet",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 1666600000,
+      "name": "Harmony Mainnet Shard 0",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 2494104990,
+      "name": "Tron Shasta",
+      "from": ["sourcify-chains"]
+    },
+    {
+      "chainId": 3448148188,
+      "name": "Tron Nile",
+      "from": ["sourcify-chains"]
     }
   ],
   "etherscan": [

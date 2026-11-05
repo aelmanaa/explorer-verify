@@ -199,7 +199,8 @@ It fetches the chainlist and Sourcify's chain list, reads `table.json` and the d
 prints:
 
 - a chain that should have a Sourcify row and has none, with the list it comes from;
-- a row whose chain Sourcify no longer supports, or that is in neither list;
+- a row whose chain Sourcify no longer supports (until 2026-11-05 also a row in neither list; see
+  [the check of 2026-11-05](#the-check-of-2026-11-05));
 - a chain added to or removed from the chainlist, a changed paid-plan comment, or a moved explorer
   host, compared with the frozen copy.
 
@@ -210,6 +211,47 @@ fake fetch.
 The data file was built by this rule from the downloads of 2026-11-03. Each prior-art row's
 `reason` follows from its prior-art backend, its presence in the chainlist and its Sourcify
 support.
+
+## The check of 2026-11-05
+
+Added for [#166](https://github.com/aelmanaa/explorer-verify/issues/166). The rule above changes
+([decision 0036](../decisions/0036-a-sourcify-row-for-every-sourcify-chain.md)): a chain gets a
+row when Sourcify lists it with `supported: true` or it is in the Etherscan chainlist. The row has
+Sourcify when Sourcify supports the chain. Being in the prior art is no longer a condition. The
+`etherscan-v2` entries keep the rule of
+[decision 0027](../decisions/0027-etherscan-rows-and-paid-plan-chains.md); a chainlist chain that
+Sourcify does not support would get `etherscan-v2` alone. On 2026-11-05 there is none.
+
+| Source                                                       | Read                                     | What it gave                                                                                                    |
+| ------------------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [Sourcify chains](https://sourcify.dev/server/chains)        | 2026-11-05 10:37 UTC, curl 8.7.1, no key | 457 chains, 288 with `supported: true`, the same counts as on 2026-11-03 and 2026-11-04                         |
+| [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) | 2026-11-05 10:37 UTC, curl 8.7.1, no key | 55 chains, the same chain ids, explorer hosts and comments as the frozen copy updated earlier that day for #165 |
+
+The 288 supported chains hold the 94 rows the table had. The other 194 get a row with `sourcify`
+only. Among them are the 49 chains #166 names from a survey of 145 EVM chains, such as 25 (Cronos),
+324 (ZKsync Era), 534352 (Scroll), 8217 (Kaia), 7777777 (Zora), 728126428 (Tron) and 3448148188
+(Tron Nile). Chain 324 now has a row; the "Named chains" section above records the rule of
+2026-11-03.
+
+The rows come from `node scripts/compare-routing-table.ts --rows`, which applies the rule to the
+two live lists and prints the table, formatted afterwards with oxfmt. The 94 rows it printed match
+the table before the change entry for entry. The data file's `rows` gain the 194 chains with
+Sourcify's names and `from` set to `sourcify-chains`.
+
+After the change, at 10:43 UTC and again at 10:48 UTC, `node scripts/compare-routing-table.ts --json` printed
+`"differences": []` and the note `table checked 2026-11-05; 288 rows`.
+
+Size, with `pnpm run size` (esbuild 0.28.2, Node.js 24.21.0 zlib), minified and gzipped. "Before"
+is main at commit 60f089c, "After" is that commit with this change.
+
+| Entry                | Before (60f089c) | After  |
+| -------------------- | ---------------- | ------ |
+| `verify` (code only) | 14,426           | 14,426 |
+| `verify with table`  | 15,493           | 16,577 |
+| `routing table`      | 929              | 1,662  |
+
+The 194 rows cost 733 bytes on their own, about 3.8 bytes a row, and 1,084 bytes inside the
+`verify` bundle. Decision 0036 records the alternatives that were estimated for a smaller table.
 
 ## Open questions
 
@@ -223,7 +265,9 @@ support.
 ## Sources
 
 - Etherscan chainlist: https://api.etherscan.io/v2/chainlist (read 2026-11-03)
-- Sourcify chains: https://sourcify.dev/server/chains (read 2026-11-03)
+- Sourcify chains: https://sourcify.dev/server/chains (read 2026-11-03 and 2026-11-05)
+- Chains Sourcify serves that had no row, and how Foundry v1.9.0 and Hardhat 3 pick Sourcify:
+  https://github.com/aelmanaa/explorer-verify/issues/166
 - Routescan supported chains: https://docs.routescan.io/getting-started/supported-chains (read
   2026-11-03)
 - Survey of the standalone hosts and the chainlist: https://github.com/aelmanaa/explorer-verify/issues/60
