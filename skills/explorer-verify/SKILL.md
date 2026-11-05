@@ -374,7 +374,13 @@ It prints:
 
 The routing table picks the first backend of the chain's row that works with the keys set, so with
 ETHERSCAN_API_KEY set the same command line may go to Etherscan instead. Read `backend` in the
-result. For a chain whose row has no Etherscan entry, Etherscan is reached only with
+result.
+
+When the person names an explorer, pass its backend, such as `--backend etherscan-v2` for
+Etherscan, or `route.backend` in the library. Without it, `verify` submits to the explorer the
+table picks. On Sepolia with no Etherscan key set, that is Sourcify, so a request to verify on
+Etherscan would publish the source on Sourcify instead. With `--backend etherscan-v2` and no key,
+the command exits 3 with `missing-api-key` and submits nothing. For a chain whose row has no Etherscan entry, Etherscan is reached only with
 `--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. With no key, the dry run skips
 the lookup:
 

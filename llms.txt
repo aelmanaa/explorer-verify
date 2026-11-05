@@ -1,6 +1,6 @@
 # explorer-verify
 
-> explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. It is in design: nothing is published to npm yet. `verify()` works with Sourcify, Etherscan v2, Routescan, Blockscout and standalone Etherscan-compatible explorers. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
+> explorer-verify verifies the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. Nothing is published to npm yet. `verify()` works with Sourcify, Etherscan v2, Routescan, Blockscout and standalone Etherscan-compatible explorers. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
 
 Submitting a verification is outward and permanent. Read the agent page before you call the library or the CLI on someone's behalf.
 

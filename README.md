@@ -3,10 +3,11 @@
 Verify the source of deployed smart contracts on Etherscan, Blockscout, Sourcify and Routescan with
 one API, from a browser, a backend or a CLI.
 
-> Status: in design; nothing is published to npm yet. The plan is in
-> [docs/contributor/roadmap.md](docs/contributor/roadmap.md).
+> Status: before 0.1.0; nothing is published to npm yet. `verify()`, `checkStatus()`, the server
+> handler, the `explorer-verify` command and the Foundry and Hardhat build helpers work on `main`.
+> The plan is in [docs/contributor/roadmap.md](docs/contributor/roadmap.md).
 
-## What it will do
+## What it does
 
 - Take a contract's address, chain id, compiler version and Standard JSON input, and verify it on
   the chain's explorer.

@@ -4,7 +4,7 @@ Finds a contract's build files in a Foundry project and builds the
 [explorer-verify](https://github.com/aelmanaa/explorer-verify#readme) input from them. Node 22.18
 or later.
 
-Status: in design; nothing is published to npm yet.
+Status: before 0.1.0; nothing is published to npm yet.
 
 Install it next to `explorer-verify`, which it takes as a peer dependency.
 
