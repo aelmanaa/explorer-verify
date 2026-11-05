@@ -89,6 +89,8 @@ const INDEX_RETRY_SECONDS = 5;
 // address. The submit fields are the ones the Etherscan docs and the recorded requests in
 // test/fixtures/etherscan name; both spellings of the constructor argument field are sent by the
 // prior art. A proxy link request may be sent again: it starts a new check and undoes nothing.
+// Stryker disable next-line ArrayDeclaration: untestable sentinel. The mutant takes a field named as Stryker's placeholder text, which no client sends.
+const NO_FIELDS: readonly string[] = [];
 const ACTIONS: Readonly<
   Record<
     Action,
@@ -106,15 +108,20 @@ const ACTIONS: Readonly<
     retry: "submit",
     address: "contractaddress",
   },
-  checkverifystatus: { required: ["guid"], optional: [], retry: "safe", address: undefined },
-  getsourcecode: { required: ["address"], optional: [], retry: "safe", address: "address" },
+  checkverifystatus: { required: ["guid"], optional: NO_FIELDS, retry: "safe", address: undefined },
+  getsourcecode: { required: ["address"], optional: NO_FIELDS, retry: "safe", address: "address" },
   verifyproxycontract: {
     required: ["address"],
     optional: ["expectedimplementation"],
     retry: "safe",
     address: "address",
   },
-  checkproxyverification: { required: ["guid"], optional: [], retry: "safe", address: undefined },
+  checkproxyverification: {
+    required: ["guid"],
+    optional: NO_FIELDS,
+    retry: "safe",
+    address: undefined,
+  },
 };
 
 type Action =
@@ -435,11 +442,9 @@ async function handle(settings: Settings, incoming: Request): Promise<Response> 
   if (settings.rateLimit !== undefined && !(await settings.rateLimit(incoming))) {
     throw new Refusal(429, "rate-limited", "Too many requests. Try again later.");
   }
-  const type = (incoming.headers.get("content-type") ?? "")
-    .split(";", 1)
-    .join("")
-    .trim()
-    .toLowerCase();
+  // The media type: the text before the first `;`. A split with a limit of 1 gives one item, and
+  // a missing header reads as "undefined", which is no media type.
+  const type = String(incoming.headers.get("content-type")?.split(";", 1)).trim().toLowerCase();
   if (type !== FORM_TYPE) {
     throw new Refusal(415, "unsupported-media-type", `The body must be ${FORM_TYPE}.`);
   }
@@ -559,9 +564,9 @@ function reduceLookup(answer: ReadonlyMap<string, unknown>): Record<string, unkn
         }
       }
       // The proxy's implementation, only as an address: no other text is relayed.
-      const implementation = first.get("Implementation");
-      if (typeof implementation === "string" && addressDigits(implementation) !== undefined) {
-        entry["Implementation"] = implementation;
+      const digits = addressDigits(first.get("Implementation"));
+      if (digits !== undefined) {
+        entry["Implementation"] = `0x${digits}`;
       }
     }
     reduced["result"] = first === undefined ? [] : [entry];
@@ -600,6 +605,7 @@ async function upstream(
     response = await request(http, req);
   } catch (error: unknown) {
     if (error instanceof ExplorerVerifyError) {
+      // Stryker disable next-line OptionalChaining: equivalent. The handler always sets the observer.
       http.observer?.log.warn(`explorer-verify/server: upstream failed: ${error.message}`, {
         code: error.code,
       });
@@ -679,7 +685,8 @@ async function creationCheck(
   });
   const answer = await upstream(http, keyed, chainId, body, "safe");
   // The HTTP layer returns only 2xx, 4xx and 5xx answers; a redirect is already refused.
-  if (answer.status >= 300) {
+  // Etherscan answers a 4xx or 5xx with no creation record to trust.
+  if (answer.status >= 400) {
     throw upstreamError();
   }
   const { json } = answer;
@@ -734,13 +741,10 @@ function createdBy(
   deployers: ReadonlySet<string>,
 ): boolean {
   return result.some((entry: unknown) => {
-    const fields = readFields(entry);
-    const contract = fields?.get("contractAddress");
-    if (
-      fields === undefined ||
-      typeof contract !== "string" ||
-      contract.toLowerCase() !== address
-    ) {
+    // An entry that is not an object has no fields, so it names no contract.
+    const fields = readFields(entry) ?? new Map<string, unknown>();
+    const contract = fields.get("contractAddress");
+    if (typeof contract !== "string" || contract.toLowerCase() !== address) {
       return false;
     }
     return ["contractCreator", "contractFactory"].some((name) => {
@@ -876,11 +880,9 @@ function parse(settings: Settings, query: URLSearchParams, form: URLSearchParams
     );
   }
 
-  const chainText = fields.get("chainid");
-  const chainId =
-    chainText !== undefined && CHAIN_ID.test(chainText)
-      ? readChainId(Number(chainText))
-      : undefined;
+  // A missing chainid reads as "undefined", which is no chain id.
+  const chainText = String(fields.get("chainid"));
+  const chainId = CHAIN_ID.test(chainText) ? readChainId(Number(chainText)) : undefined;
   if (chainId === undefined) {
     throw new Refusal(400, "bad-request", "chainid must be a positive integer.");
   }
@@ -916,12 +918,8 @@ function parse(settings: Settings, query: URLSearchParams, form: URLSearchParams
       body.set(name, value);
     }
   }
-  return {
-    action,
-    chainId,
-    address: address === undefined ? undefined : fields.get(address)?.toLowerCase(),
-    body,
-  };
+  const contract = address === undefined ? undefined : fields.get(address)?.toLowerCase();
+  return { action, chainId, address: contract, body };
 }
 
 /** The checks of field values, by field name. */
@@ -960,9 +958,7 @@ function readSettings(options: VerifyHandlerOptions): Settings {
   if (typeof checked === "string") {
     issues.push({ field: "apiKey", message: checked });
   }
-  const chains = readList(read.chains, "chains", CHAINS_MESSAGE, issues, (item) =>
-    typeof item === "number" ? readChainId(item) : undefined,
-  );
+  const chains = readList(read.chains, "chains", CHAINS_MESSAGE, issues, readChainId);
   if (chains?.size === 0) {
     issues.push({ field: "chains", message: "must hold at least one chain id" });
   }
@@ -1021,7 +1017,11 @@ function readOptions(options: VerifyHandlerOptions): {
   readonly [K in keyof VerifyHandlerOptions]-?: VerifyHandlerOptions[K] | undefined;
 } {
   const value: unknown = options;
-  const notPlain = invalidOptions([{ field: "options", message: "must be a plain object" }], []);
+  const notPlain = invalidOptions(
+    [{ field: "options", message: "must be a plain object" }],
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. No value is known here, and the message names only the field, never Stryker's placeholder text.
+    [],
+  );
   if (typeof value !== "object" || value === null) {
     throw notPlain;
   }

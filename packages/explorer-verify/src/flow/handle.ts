@@ -74,7 +74,7 @@ function lineFields(line: string): Map<string, unknown> | undefined {
   return new Map<string, unknown>([
     ["version", version === LINE_VERSION ? 1 : version],
     ["backend", backend],
-    ["chainId", chainId !== undefined && DECIMAL.test(chainId) ? Number(chainId) : chainId],
+    ["chainId", DECIMAL.test(String(chainId)) ? Number(chainId) : chainId],
     ["address", address],
     ["jobId", jobId],
   ]);
@@ -88,8 +88,7 @@ function checkFields(fields: ReadonlyMap<string, unknown>, versionMessage: strin
   if (version === undefined) {
     issues.push({ field: "version", message: versionMessage });
   }
-  const rawBackend = fields.get("backend");
-  const backend = typeof rawBackend === "string" ? toBackendName(rawBackend) : undefined;
+  const backend = toBackendName(fields.get("backend"));
   if (backend === undefined) {
     issues.push({ field: "backend", message: "must name a known backend" });
   }
@@ -144,6 +143,7 @@ function invalid(issues: InputIssue[]): ExplorerVerifyError {
   const fields = issues.map((issue) => issue.field).join(", ");
   return newError({ code: "invalid-input", issues }, `The handle is invalid: ${fields}.`, {
     hint: "Pass the handle exactly as verify() or a not-confirmed error returned it.",
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. The message names only fields, never Stryker's placeholder text.
     secrets: [],
   });
 }
