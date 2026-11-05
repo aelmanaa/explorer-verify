@@ -1,0 +1,31 @@
+{
+  "chainId": 11155111,
+  "address": "0x55863fd47cee89a0519985bb4ab3139de69853eb",
+  "compiler": {
+    "kind": "solc",
+    "version": "0.8.24+commit.e11b9ed9",
+    "input": {
+      "sources": {
+        "src/LiveMatrixSrcSep1.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.24;\n\n// explorer-verify live matrix 2026-11-04 run 1: SrcSep1\ncontract LiveMatrixSrcSep1 {\n    uint256 public constant MARK = 660402;\n    address public immutable owner;\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) {\n        owner = owner_;\n        greeting = greeting_;\n    }\n}\n"
+        }
+      },
+      "language": "Solidity",
+      "settings": {
+        "viaIR": false,
+        "metadata": {
+          "appendCBOR": true,
+          "bytecodeHash": "ipfs",
+          "useLiteralContent": false
+        },
+        "libraries": {},
+        "optimizer": {
+          "runs": 200,
+          "enabled": true
+        },
+        "evmVersion": "cancun"
+      }
+    }
+  },
+  "contractName": "src/LiveMatrixSrcSep1.sol:LiveMatrixSrcSep1"
+}
