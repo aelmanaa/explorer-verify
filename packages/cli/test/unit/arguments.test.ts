@@ -183,15 +183,14 @@ describe("the command table", () => {
     }
   });
 
-  it("keeps the simulate placeholder hidden behind verify and status", () => {
-    // The contract tests still drive every exit path and signal through simulate on the built
-    // bin; it stays hidden until they run against a fake explorer.
+  it("holds verify and status, and no hidden command", () => {
+    // The bin tests drive every exit path through verify and status against the fake explorer,
+    // so the CLI ships no test-only command (#137).
     assert.deepEqual(
       COMMANDS.map(({ name, hidden }) => [name, hidden === true]),
       [
         ["verify", false],
         ["status", false],
-        ["simulate", true],
       ],
     );
   });
@@ -261,7 +260,7 @@ describe("readArguments: suggestions (R-AX-10)", () => {
       options: { "dry-run": { type: "boolean", description: "Send nothing." } },
     },
     { name: "status", options: {} },
-    { name: "simulate", hidden: true, options: { outcome: { type: "string", description: "O." } } },
+    { name: "scripted", hidden: true, options: { outcome: { type: "string", description: "O." } } },
   ];
 
   it("suggests the closest command: verfy gives verify", () => {
@@ -298,7 +297,7 @@ describe("readArguments: suggestions (R-AX-10)", () => {
 
   it("suggests nothing when nothing is close, and never a hidden command or its options", () => {
     assert.equal(readArguments(["deploy"], table).suggestion, undefined);
-    assert.equal(readArguments(["simulat"], table).suggestion, undefined);
+    assert.equal(readArguments(["scripte"], table).suggestion, undefined);
     assert.equal(readArguments(["verify", "--outcom", "x"], table).suggestion, undefined);
     assert.equal(readArguments(["verify", `--${DUMMY_KEY}`], table).suggestion, undefined);
     assert.equal(readArguments(["verify", "-x"], table).suggestion, undefined);
@@ -327,7 +326,7 @@ describe("readArguments: suggestions (R-AX-10)", () => {
   });
 
   it("compares a hidden command's options once that command is named", () => {
-    assert.equal(readArguments(["simulate", "--outcom", "x"], table).suggestion, "--outcome");
+    assert.equal(readArguments(["scripted", "--outcom", "x"], table).suggestion, "--outcome");
   });
 });
 
@@ -336,7 +335,7 @@ describe("readArguments: refused key options come before suggestions (R-AX-9, R-
   for (const name of REFUSED_KEY_OPTIONS) {
     for (const form of [[`--${name}`, key], [`--${name}=${key}`]]) {
       it(`refuses ${form.length === 1 ? `--${name}=<key>` : `--${name} <key>`} without a suggestion`, () => {
-        const args = readArguments(["simulate", ...form], COMMANDS);
+        const args = readArguments(["verify", ...form], COMMANDS);
         assert.deepEqual(args.issues, [{ field: `--${name}`, message: REFUSED_KEY_MESSAGE }]);
         assert.equal(args.suggestion, undefined);
         assert.deepEqual(args.positionals, []);
@@ -347,7 +346,7 @@ describe("readArguments: refused key options come before suggestions (R-AX-9, R-
 
   it("suggests a CLI name for another typo, never the refused value", () => {
     const args = readArguments(
-      ["simulate", "--etherscan-api-key", key, "--api-key-fil", "k.txt"],
+      ["verify", "--etherscan-api-key", key, "--api-key-fil", "k.txt"],
       COMMANDS,
     );
     assert.equal(args.suggestion, "--api-key-file");

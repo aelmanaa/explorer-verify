@@ -13,6 +13,7 @@ import { helpResult, helpText } from "../../src/help.ts";
 import { main } from "../../src/main.ts";
 import { fakeIo } from "../helpers/fake-io.ts";
 import { envelopeProblems, helpProblems, oneEnvelope, versionProblems } from "../helpers/schema.ts";
+import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const NEVER: Command["run"] = async () => await Promise.reject(new Error("must not run"));
 
@@ -35,7 +36,7 @@ function version(file: string): string {
   return String(Reflect.get(Object(parsed), "version"));
 }
 
-async function run(argv: readonly string[], commands: readonly Command[] = COMMANDS) {
+async function run(argv: readonly string[], commands: readonly Command[] = WITH_SCRIPTED) {
   const fake = fakeIo(argv);
   const code = await main(fake.io, commands);
   return { code, stdout: fake.stdout(), stderr: fake.stderr() };
@@ -58,13 +59,13 @@ describe("main: help (R-AX-11)", () => {
   });
 
   it("prints a command's help for help <command> and <command> --help", async () => {
-    const simulate = COMMANDS.find((command) => command.name === "simulate");
-    assert.ok(simulate);
-    const expected = helpText(helpResult(COMMANDS, simulate));
+    const scripted = WITH_SCRIPTED.find((command) => command.name === "scripted");
+    assert.ok(scripted);
+    const expected = helpText(helpResult(WITH_SCRIPTED, scripted));
     for (const argv of [
-      ["help", "simulate"],
-      ["simulate", "--help"],
-      ["simulate", "-h", "x"],
+      ["help", "scripted"],
+      ["scripted", "--help"],
+      ["scripted", "-h", "x"],
     ]) {
       const result = await run(argv);
       assert.equal(result.code, 0, argv.join(" "));
@@ -90,16 +91,16 @@ describe("main: help (R-AX-11)", () => {
   });
 
   it("does not check a command's own option values: the command checks them when it runs", async () => {
-    const result = await run(["simulate", "--outcome", "bogus", "--help"]);
+    const result = await run(["scripted", "--outcome", "bogus", "--help"]);
     assert.equal(result.code, 0);
-    assert.ok(result.stdout.startsWith("explorer-verify simulate: "));
-    const ran = await run(["simulate", "--outcome", "bogus", "--json"]);
+    assert.ok(result.stdout.startsWith("explorer-verify scripted: "));
+    const ran = await run(["scripted", "--outcome", "bogus", "--json"]);
     assert.equal(ran.code, 2);
     assert.match(ran.stdout, /--outcome must be one of/);
   });
 
   it("checks the values of the global options", async () => {
-    const result = await run(["simulate", "--color", "pink", "--help", "--json"]);
+    const result = await run(["scripted", "--color", "pink", "--help", "--json"]);
     assert.equal(result.code, 2);
     assert.match(result.stdout, /--color must be one of auto, always, never/);
   });

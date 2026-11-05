@@ -15,6 +15,8 @@ import { readFileSync } from "node:fs";
  * - `unclassified`: not verified; a submit is accepted, and its job ends with an error code the
  *   library does not know.
  * - `offline`: not verified; the submit and the job status requests get no response.
+ * - `flaky`: like `pending`, except that the first job status request gets no response, so the
+ *   run retries it once with a `verify.retry` warning.
  */
 export type Scenario =
   | "verified"
@@ -23,7 +25,8 @@ export type Scenario =
   | "rejected"
   | "inconclusive"
   | "unclassified"
-  | "offline";
+  | "offline"
+  | "flaky";
 
 /** The scenarios, for checking a name read from the environment. */
 export const SCENARIOS: readonly Scenario[] = [
@@ -34,6 +37,7 @@ export const SCENARIOS: readonly Scenario[] = [
   "inconclusive",
   "unclassified",
   "offline",
+  "flaky",
 ];
 
 /** The recorded job answer of each scenario whose job ends with an error. */
@@ -149,7 +153,7 @@ function sourcify(scenario: Scenario, method: string, path: string): Response | 
       return jobError(error);
     }
     return recorded(
-      scenario === "pending"
+      scenario === "pending" || scenario === "flaky"
         ? "sourcify/2026-11-02-job-pending"
         : "sourcify/2026-11-02-job-exact-match",
     );
@@ -180,6 +184,7 @@ export function fakeExplorer(
   scenario: Scenario,
   onRequest: (seen: Seen) => void = () => undefined,
 ): typeof fetch {
+  let jobRequests = 0;
   return async (input, init) => {
     const { url, form, keyHeader } = await read(input, init);
     const method = init?.method ?? "GET";
@@ -189,7 +194,10 @@ export function fakeExplorer(
       action === "verifysourcecode" || (method === "POST" && /\/v2\/verify\/\d+\//.test(path));
     const keyed = form.has("apikey") || keyHeader;
     onRequest({ method, host: url.host, path, action, submit, keyed });
-    if (scenario === "offline" && (submit || path.endsWith(`/v2/verify/${JOB}`))) {
+    const jobRequest = path.endsWith(`/v2/verify/${JOB}`);
+    jobRequests += jobRequest ? 1 : 0;
+    const dropped = scenario === "flaky" && jobRequest && jobRequests === 1;
+    if (dropped || (scenario === "offline" && (submit || jobRequest))) {
       // What a platform fetch throws when the connection fails.
       throw new TypeError("fetch failed");
     }

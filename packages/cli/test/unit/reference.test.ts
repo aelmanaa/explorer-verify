@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import type { Command } from "../../src/command.ts";
 import { COMMANDS } from "../../src/commands.ts";
 import { END_MARKER, referenceBlock, replaceBlock, START_MARKER } from "../../src/reference.ts";
+import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const PAGE = readFileSync(
   new URL("../../../../docs/user/reference/cli.md", import.meta.url),
@@ -19,12 +20,12 @@ describe("CLI reference (R-AX-2)", () => {
   });
 
   it("differs when a flag's description changes and the page is not regenerated", () => {
-    const [simulate] = COMMANDS;
-    assert.ok(simulate);
+    const [first] = COMMANDS;
+    assert.ok(first);
     const changed: Command = {
-      ...simulate,
+      ...first,
       options: {
-        ...simulate.options,
+        ...first.options,
         polls: { type: "string", value: "<n>", description: "A new description." },
       },
     };
@@ -38,8 +39,8 @@ describe("CLI reference (R-AX-2)", () => {
     assert.ok(block.startsWith(`${START_MARKER}\n`));
     assert.ok(block.endsWith(`${END_MARKER}\n`));
     for (const text of [
-      "## Hidden commands\n",
-      "### `simulate`",
+      "### `verify`",
+      "### `status`",
       "| `-h`, `--help` ",
       "| `--log-format <format>` ",
       "| `EXPLORER_VERIFY_LOG` ",
@@ -48,6 +49,13 @@ describe("CLI reference (R-AX-2)", () => {
     ]) {
       assert.ok(block.includes(text), text);
     }
+    assert.doesNotMatch(block, /Hidden commands/);
+  });
+
+  it("lists a hidden command in its own section", () => {
+    const block = referenceBlock(WITH_SCRIPTED);
+    assert.ok(block.includes("## Hidden commands\n"));
+    assert.ok(block.includes("### `scripted`"));
   });
 
   it("writes a table of public commands, and escapes a pipe in a cell", () => {

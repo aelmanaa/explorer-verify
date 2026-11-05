@@ -167,7 +167,7 @@ async function runExample(command: string, description: string): Promise<void> {
   }
 }
 
-/** Hidden commands that cli.md documents under `### \`name\``. */
+/** The commands that cli.md documents under `### \`name\``. */
 function documentedCommands(): string[] {
   return [...generatedSection().matchAll(/^### `([a-z-]+)`$/gm)].map((m) => m[1] ?? "");
 }
@@ -177,7 +177,7 @@ describe(
   { concurrency: true },
   () => {
     // The unit tests cover every form in-process; the bin runs one of each kind.
-    const forms: string[][] = [["-h"], ["help", "simulate"], ["simulate", "--help"]];
+    const forms: string[][] = [["-h"], ["help", "status"], ["status", "--help"]];
     for (const args of forms) {
       it(`${args.join(" ")}: stdout only, exit 0, examples first`, TIMEOUT, async () => {
         const result = await runBin(args);
@@ -202,7 +202,7 @@ describe(
     for (const args of forms) {
       it(`${args.join(" ")} --json: one valid help envelope`, TIMEOUT, async () => {
         const result = await helpJson(args);
-        const topic = args.includes("simulate") ? "simulate" : null;
+        const topic = args.includes("status") ? "status" : null;
         assert.equal(result["topic"], topic);
         if (topic === null) {
           assert.deepEqual(
@@ -213,14 +213,14 @@ describe(
         } else {
           assert.deepEqual(
             list(result["commands"]).map((c) => record(c)["name"]),
-            ["simulate"],
+            ["status"],
           );
         }
       });
     }
 
     it("the text help and the JSON help hold the same content", TIMEOUT, async () => {
-      for (const args of [[], ["simulate"]]) {
+      for (const args of [[], ["status"]]) {
         const json = await helpJson(["help", ...args]);
         const plain = (await runBin(["help", ...args])).stdout;
         const examplesEnd = plain.indexOf("Usage:");
@@ -316,9 +316,9 @@ describe(
     // cli.md: help does not check a command's own option values; the command checks them.
     it("a bad value of a command's own option does not beat help", TIMEOUT, async () => {
       for (const args of [
-        ["simulate", "--outcome", "bogus", "--help"],
-        ["simulate", "--help", "--polls", "-1"],
-        ["help", "simulate", "--outcome", "bogus"],
+        ["status", "--timeout", "soon", "--help"],
+        ["status", "--help", "--timeout", "-1"],
+        ["help", "status", "--timeout", "soon"],
       ]) {
         const result = await runBin([...args, "--json"]);
         assert.equal(result.code, 0, args.join(" "));
@@ -339,8 +339,8 @@ describe("blackbox #103: did-you-mean suggestions", { concurrency: true }, () =>
     [["--colour=never", "--version"], "--color"],
     [["--verzzon"], "--version"],
     [["--logformat"], "--log-format"],
-    [["simulate", "--outcom", "x"], "--outcome"],
-    [["simulat", "--colour"], "--color"],
+    [["status", "--timeot", "5"], "--timeout"],
+    [["statsu", "--colour"], "status"],
     [["hlp"], "help"],
   ];
   for (const [args, expected] of close) {
@@ -356,30 +356,27 @@ describe("blackbox #103: did-you-mean suggestions", { concurrency: true }, () =>
     ["far-off command", ["xyzzyq"]],
     ["more than a third differs", ["--colxx"]],
     ["two-character option", ["--js"]],
-    ["hidden command in help", ["help", "simulat"]],
-    ["a hidden command's option outside it", ["--outcom"]],
   ];
   for (const [name, args] of none) {
     it(`no suggestion for ${name}: ${args.join(" ")}`, TIMEOUT, async () => {
       const result = await runBin([...args, "--json"]);
       assert.equal(result.code, 2);
       assert.equal(suggestion(result.stdout), undefined);
-      assert.ok(!result.stdout.includes("simulate"), "hidden command never named");
       assert.ok(!result.stderr.includes("Did you mean"));
     });
   }
 
   it("the suggestion is always one of the CLI's own names", TIMEOUT, async () => {
     const top = await helpJson(["help"]);
-    const sim = await helpJson(["help", "simulate"]);
+    const status = await helpJson(["help", "status"]);
     const names = new Set<string>();
     for (const option of [
       ...list(top["globalOptions"]),
-      ...list(record(list(sim["commands"])[0])["options"]),
+      ...list(record(list(status["commands"])[0])["options"]),
     ]) {
       names.add(text(record(option)["name"]));
     }
-    for (const args of [["--colr"], ["simulate", "--mesage"], ["---color"], ["--Help"]]) {
+    for (const args of [["--colr"], ["status", "--timeot"], ["---color"], ["--Help"]]) {
       const result = await runBin([...args, "--json"]);
       const name = suggestion(result.stdout);
       assert.ok(name !== undefined && names.has(name), `${args.join(" ")} -> ${String(name)}`);
@@ -393,7 +390,7 @@ describe("blackbox #103: a mistyped option never echoes its value", { concurrenc
     [`--colr=${SECRET}`],
     ["--colour", SECRET],
     [`--api-key=${SECRET}`],
-    ["simulate", `--outcom=${SECRET}`],
+    ["status", `--timeot=${SECRET}`],
     ["help", SECRET],
     [`--${SECRET}`],
   ];
@@ -423,7 +420,7 @@ describe("blackbox #103: very long argv elements", { concurrency: true }, () => 
       long,
       `--${long}`,
       "help",
-      `simulat${long}`,
+      `statu${long}`,
       "--json",
     ]);
     const elapsed = Date.now() - started;

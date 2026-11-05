@@ -16,6 +16,7 @@ import { main } from "../../src/main.ts";
 import { fakeIo, jsonLines } from "../helpers/fake-io.ts";
 import type { FakeIoOptions } from "../helpers/fake-io.ts";
 import { envelopeProblems, oneEnvelope } from "../helpers/schema.ts";
+import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 // Lower-case dummy keys: no generic redaction pattern matches them, so only the CLI's knowledge of
 // the keys it read can remove them.
@@ -35,7 +36,7 @@ async function run(
   options: FakeIoOptions = {},
 ) {
   const fake = fakeIo(argv, options);
-  const code = await main(fake.io, commands);
+  const code = await main(fake.io, commands ?? WITH_SCRIPTED);
   return {
     code,
     stdout: fake.stdout(),
@@ -81,8 +82,8 @@ describe("main: no flag takes a key (R-AX-9)", () => {
     ["--routescan-api-key", KEY],
   ];
   for (const form of forms) {
-    for (const command of [["simulate"], []]) {
-      it(`refuses ${form.join(" ").replace(KEY, "<key>")} ${command.length === 0 ? "with no command" : "on simulate"}, exit 2, and never echoes the key`, async () => {
+    for (const command of [["scripted"], []]) {
+      it(`refuses ${form.join(" ").replace(KEY, "<key>")} ${command.length === 0 ? "with no command" : "on scripted"}, exit 2, and never echoes the key`, async () => {
         const result = await run([...command, "--json", ...form], undefined);
         assert.equal(result.code, 2);
         const envelope = oneEnvelope(result.stdout);
@@ -106,7 +107,7 @@ describe("main: no flag takes a key (R-AX-9)", () => {
   }
 
   it("reads the option after a refused one that has no value", async () => {
-    const result = await run(["simulate", "--api-key", "--json"], undefined);
+    const result = await run(["scripted", "--api-key", "--json"], undefined);
     assert.equal(result.code, 2);
     assert.deepEqual(envelopeProblems(oneEnvelope(result.stdout)), []);
   });
@@ -179,7 +180,7 @@ describe("main: route options reach the command (R-AX-9, R-RT-2)", () => {
   });
 
   it("exits 2 when a key file has no --backend or --api-url to name where it goes", async () => {
-    const result = await run(["simulate", "--json", "--api-key-file", KEY_FILE], undefined);
+    const result = await run(["scripted", "--json", "--api-key-file", KEY_FILE], undefined);
     assert.equal(result.code, 2);
     assert.match(
       result.stdout,
@@ -189,7 +190,7 @@ describe("main: route options reach the command (R-AX-9, R-RT-2)", () => {
 
   it("exits 2 naming the variable of a bad key, without the key", async () => {
     const bad = "bad-key/with-a-slash";
-    const result = await run(["simulate", "--json"], undefined, {
+    const result = await run(["scripted", "--json"], undefined, {
       env: { ROUTESCAN_API_KEY: bad },
     });
     assert.equal(result.code, 2);
@@ -205,7 +206,7 @@ const NEVER: RunCommand = async () => {
 describe("main: --api-key-stdin (R-AX-9)", () => {
   it("exits 2 at once when stdin is a terminal, without running the command", async () => {
     const result = await run(
-      ["simulate", "--json", "--backend", "etherscan-v2", "--api-key-stdin"],
+      ["scripted", "--json", "--backend", "etherscan-v2", "--api-key-stdin"],
       undefined,
       {
         stdinIsTerminal: true,
@@ -231,10 +232,10 @@ describe("main: --api-key-stdin (R-AX-9)", () => {
   });
 
   it("opens stdin only for --api-key-stdin", async () => {
-    const without = await run(["simulate"], undefined, { stdin: [KEY] });
+    const without = await run(["scripted"], undefined, { stdin: [KEY] });
     assert.equal(without.stdinOpened, 0);
     const withFlag = await run(
-      ["simulate", "--api-key-stdin", "--backend", "routescan"],
+      ["scripted", "--api-key-stdin", "--backend", "routescan"],
       undefined,
       {
         stdin: [KEY],
@@ -368,7 +369,7 @@ describe("main: a key never reaches stdout or stderr (R-AX-9, R-SEC-1)", () => {
 
   it("keeps a bad key out of the output too", async () => {
     const bad = "bad-key/kk7dummy-zz4qa";
-    const result = await run(["simulate", "--json", "--verbose"], undefined, {
+    const result = await run(["scripted", "--json", "--verbose"], undefined, {
       env: { ETHERSCAN_API_KEY: bad },
     });
     assert.equal(result.code, 2);

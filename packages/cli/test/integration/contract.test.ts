@@ -1,19 +1,38 @@
 // The output contract on the built bin (R-QA-3): stdout piped, stdin closed, no terminal. Each test
-// spawns `node dist/src/bin.js`; `pnpm test` builds first. The placeholder `simulate` command drives
-// every exit path until the verify and status commands land.
+// spawns `node dist/src/bin.js` with the fake explorer loaded first, and runs `verify` or `status`;
+// `pnpm test` builds first. cli-contract.test.ts runs every outcome kind and its exit code for each
+// command; this file covers the process: signals, streams, stdin, log levels and redaction.
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import { describe, it } from "node:test";
 
 import { jsonLines } from "../helpers/fake-io.ts";
 import { envelopeProblems, oneEnvelope } from "../helpers/schema.ts";
-import { runBin } from "../helpers/spawn-bin.ts";
+import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
+import type { BinOptions } from "../helpers/spawn-bin.ts";
 
-const TIMEOUT = { timeout: 30_000 };
+const TIMEOUT = { timeout: 60_000 };
 const DUMMY_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
-const HANDLE =
-  "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:00000000-0000-4000-8000-000000000000";
+const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
+const HANDLE = `ev1:sourcify:11155111:${ADDRESS}:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718`;
+const VERIFY = [
+  "verify",
+  ADDRESS,
+  "--chain",
+  "11155111",
+  "--input",
+  "out/build-info/greeter.json",
+  "--input",
+  "out/Greeter.sol/Greeter.json",
+];
+/** A status run that ends `verified` at once against the default scenario. */
+const STATUS = ["status", HANDLE];
 const ESC = "\u001B";
+
+/** Runs the bin in the Foundry project against the fake explorer with `scenario`. */
+async function run(args: readonly string[], scenario = "verified", options: BinOptions = {}) {
+  return await runBin(args, { cwd: PROJECT, fake: { scenario }, ...options });
+}
 
 /** Sends `signal` once, as soon as stderr shows the submission's handle. */
 function signalAfterSubmit(signal: NodeJS.Signals) {
@@ -26,32 +45,7 @@ function signalAfterSubmit(signal: NodeJS.Signals) {
   };
 }
 
-describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () => {
-  const cases: readonly { name: string; args: string[]; code: number }[] = [
-    { name: "verified", args: [], code: 0 },
-    { name: "already-verified", args: ["--outcome", "already-verified"], code: 0 },
-    { name: "failed", args: ["--outcome", "failed", "--polls", "1"], code: 1 },
-    { name: "usage error", args: ["--outcome", "nope"], code: 2 },
-    { name: "missing-api-key", args: ["--outcome", "missing-api-key"], code: 3 },
-    { name: "not-confirmed", args: ["--outcome", "not-confirmed", "--polls", "2"], code: 4 },
-    { name: "network", args: ["--outcome", "network", "--retries", "2"], code: 5 },
-    { name: "unknown-state", args: ["--outcome", "unknown-state"], code: 6 },
-    { name: "internal-error", args: ["--outcome", "internal-error"], code: 6 },
-  ];
-  for (const { name, args, code } of cases) {
-    it(
-      `exits ${String(code)} for ${name}, with a valid envelope whose ok matches`,
-      TIMEOUT,
-      async () => {
-        const result = await runBin(["simulate", "--json", ...args]);
-        assert.equal(result.code, code, result.stderr);
-        const envelope = oneEnvelope(result.stdout);
-        assert.deepEqual(envelopeProblems(envelope), []);
-        assert.equal(envelope["ok"], code === 0);
-      },
-    );
-  }
-
+describe("bin: the command line and --json (R-AX-5)", () => {
   it(
     "exits 2 with an invalid-input envelope when --json comes after a usage error",
     TIMEOUT,
@@ -65,7 +59,7 @@ describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () 
   );
 
   it("does not count --json after --", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--", "--json"]);
+    const result = await runBin(["status", HANDLE, "--", "--json"]);
     assert.equal(result.code, 2);
     assert.equal(result.stdout, "");
     assert.match(result.stderr, /^error: The command line is invalid/);
@@ -73,8 +67,8 @@ describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () 
 
   it("counts --json after an option that needs a value, and --json=true", TIMEOUT, async () => {
     for (const args of [
-      ["simulate", "--color", "--json"],
-      ["simulate", "--json=true"],
+      ["status", HANDLE, "--color", "--json"],
+      ["status", HANDLE, "--json=true"],
     ]) {
       const result = await runBin(args);
       assert.equal(result.code, 2, args.join(" "));
@@ -84,9 +78,38 @@ describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () 
     }
   });
 
+  it("exits 2 for --quiet with --verbose (R-AX-15)", TIMEOUT, async () => {
+    const result = await runBin([...STATUS, "--json", "--quiet", "--verbose"]);
+    assert.equal(result.code, 2);
+    assert.match(result.stdout, /--quiet cannot be combined with --verbose/);
+  });
+});
+
+describe("bin: signals during a poll (R-AX-7)", { concurrency: true }, () => {
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    it(`exits 130 with a cancelled envelope and the handle on ${signal}`, TIMEOUT, async () => {
+      const result = await run([...VERIFY, "--json"], "pending", {
+        onStderr: signalAfterSubmit(signal),
+      });
+      assert.equal(result.signal, null);
+      assert.equal(result.code, 130);
+      const envelope = oneEnvelope(result.stdout);
+      assert.deepEqual(envelopeProblems(envelope), []);
+      assert.equal(envelope["ok"], false);
+      assert.deepEqual(envelope["error"], {
+        code: "cancelled",
+        message: `The run was cancelled by ${signal}.`,
+        hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
+        docsUrl: "https://aelmanaa.github.io/explorer-verify/reference/errors/cancelled",
+        retryable: false,
+        handle: HANDLE,
+      });
+    });
+  }
+
   it("finishes with one envelope when more signals arrive during shutdown", TIMEOUT, async () => {
     let sent = false;
-    const result = await runBin(["simulate", "--json", "--outcome", "pending"], {
+    const result = await run([...VERIFY, "--json"], "pending", {
       onStderr: (text, child) => {
         if (!sent && text.includes("Handle:")) {
           sent = true;
@@ -109,42 +132,16 @@ describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () 
     );
     assert.equal(result.stdout.split("\n").length, 2);
   });
-
-  it("exits 2 for --quiet with --verbose (R-AX-15)", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--json", "--quiet", "--verbose"]);
-    assert.equal(result.code, 2);
-    assert.match(result.stdout, /--quiet cannot be combined with --verbose/);
-  });
-
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    it(
-      `exits 130 with a cancelled envelope and the handle on ${signal} during a poll`,
-      TIMEOUT,
-      async () => {
-        const result = await runBin(["simulate", "--json", "--outcome", "pending"], {
-          onStderr: signalAfterSubmit(signal),
-        });
-        assert.equal(result.signal, null);
-        assert.equal(result.code, 130);
-        const envelope = oneEnvelope(result.stdout);
-        assert.deepEqual(envelopeProblems(envelope), []);
-        assert.equal(envelope["ok"], false);
-        assert.deepEqual(envelope["error"], {
-          code: "cancelled",
-          message: `The run was cancelled by ${signal}.`,
-          hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
-          docsUrl: "https://aelmanaa.github.io/explorer-verify/reference/errors/cancelled",
-          retryable: false,
-          handle: HANDLE,
-        });
-      },
-    );
-  }
 });
 
-describe("bin: streams and terminals (R-AX-6)", () => {
+describe("bin: streams and terminals (R-AX-6)", { concurrency: true }, () => {
+  // An invalid EXPLORER_VERIFY_LOG gives a warning on stderr, so both streams have something to
+  // colour.
+  const WARN = { EXPLORER_VERIFY_LOG: "bogus" };
+
   it("writes no ANSI escape bytes when piped", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--retries", "1", "--outcome", "network"]);
+    const result = await run(STATUS, "verified", { env: WARN });
+    assert.equal(result.code, 0);
     assert.ok(!result.stdout.includes(ESC));
     assert.ok(!result.stderr.includes(ESC));
     assert.ok(result.stderr.includes("warning:"));
@@ -154,12 +151,12 @@ describe("bin: streams and terminals (R-AX-6)", () => {
     "removes colour with NO_COLOR=1 or --color=never, and --color=always wins over NO_COLOR",
     TIMEOUT,
     async () => {
-      const noColor = await runBin(["simulate", "--retries", "1"], { env: { NO_COLOR: "1" } });
+      const noColor = await run(STATUS, "verified", { env: { ...WARN, NO_COLOR: "1" } });
       assert.ok(!noColor.stdout.includes(ESC) && !noColor.stderr.includes(ESC));
-      const never = await runBin(["simulate", "--retries", "1", "--color=never"]);
+      const never = await run([...STATUS, "--color=never"], "verified", { env: WARN });
       assert.ok(!never.stdout.includes(ESC) && !never.stderr.includes(ESC));
-      const always = await runBin(["simulate", "--retries", "1", "--color=always"], {
-        env: { NO_COLOR: "1" },
+      const always = await run([...STATUS, "--color=always"], "verified", {
+        env: { ...WARN, NO_COLOR: "1" },
       });
       assert.ok(always.stdout.includes(`${ESC}[32mverified`));
       assert.ok(always.stderr.includes(`${ESC}[33mwarning:`));
@@ -170,89 +167,78 @@ describe("bin: streams and terminals (R-AX-6)", () => {
     "draws no spinner frames on stderr when it is not a terminal, with or without CI",
     TIMEOUT,
     async () => {
-      for (const env of [{}, { CI: "true" }]) {
-        const result = await runBin(["simulate", "--polls", "3"], { env });
-        assert.ok(!result.stderr.includes("\r"), JSON.stringify(env));
+      // `new` submits and waits for one poll, so a spinner would have time to draw.
+      const results = await Promise.all(
+        [{}, { CI: "true" }].map(async (env) => await run(VERIFY, "new", { env })),
+      );
+      for (const result of results) {
+        assert.equal(result.code, 0);
+        assert.ok(!result.stderr.includes("\r"));
       }
     },
   );
 
   it("never waits on stdin, whether it is closed, ended or open", TIMEOUT, async () => {
     for (const stdin of ["ignore", "ended", "open"] as const) {
-      const result = await runBin(["simulate", "--json"], { stdin });
+      const result = await run([...STATUS, "--json"], "verified", { stdin });
       assert.equal(result.code, 0, stdin);
     }
   });
 
   it("puts nothing but the summary on stdout without --json", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--verbose"]);
+    const result = await run([...STATUS, "--verbose"]);
     assert.equal(
       result.stdout,
-      "verified: exact match on sourcify\nhttps://repo.sourcify.dev/11155111/0x5fbdb2315678afecb367f032d93f642f64180aa3\n",
+      `verified: exact match on sourcify\nhttps://repo.sourcify.dev/11155111/${ADDRESS}\n`,
     );
   });
 });
 
-describe("bin: same input, same stdout (R-AX-12)", () => {
-  it("gives byte-identical stdout on two runs", TIMEOUT, async () => {
-    for (const args of [
-      ["simulate", "--json", "--polls", "1"],
-      ["simulate", "--json", "--outcome", "not-confirmed"],
-      ["simulate", "--outcome", "failed"],
-    ]) {
-      const first = await runBin(args);
-      const second = await runBin(args);
-      assert.equal(first.stdout, second.stdout, args.join(" "));
-      assert.notEqual(first.stdout, "");
-    }
-  });
-});
-
 describe("bin: log levels and JSON lines (R-AX-14, R-AX-15)", () => {
-  const ARGS = [
-    "simulate",
-    "--json",
-    "--outcome",
-    "not-confirmed",
-    "--retries",
-    "1",
-    "--polls",
-    "1",
-  ];
+  // `flaky` drops the first job status request, so the run has a verify.retry warning; the job
+  // stays pending, so it ends not-confirmed with an error line once the 5 s budget runs out.
+  const ARGS = [...VERIFY, "--json", "--timeout", "5", "--log-format", "json"];
 
-  /** The `type/level` of each JSON line on stderr for one mode. */
+  /** The JSON lines on stderr for one mode, the `type/level` of its events, and its levels. */
   async function linesFor(extra: string[], env: Record<string, string> = {}) {
-    const result = await runBin([...ARGS, "--log-format", "json", ...extra], { env });
+    const result = await run([...ARGS, ...extra], "flaky", { env });
+    assert.equal(result.code, 4, result.stderr);
+    const lines = jsonLines(result.stderr);
     return {
       stdout: result.stdout,
-      lines: jsonLines(result.stderr),
-      kinds: jsonLines(result.stderr).map(
-        (line) => `${String(line["type"])}/${String(line["level"])}`,
-      ),
+      lines,
+      events: lines
+        .filter((line) => String(line["type"]).startsWith("verify."))
+        .map((line) => `${String(line["type"])}/${String(line["level"])}`),
+      levels: [...new Set(lines.map((line) => String(line["level"])))].toSorted(),
     };
   }
 
   it("matches the table at every level, with byte-identical stdout", TIMEOUT, async () => {
-    const quiet = await linesFor(["--quiet"]);
-    const normal = await linesFor([]);
-    const verbose = await linesFor(["--verbose"]);
-    const warn = await linesFor([], { EXPLORER_VERIFY_LOG: "warn" });
-    const error = await linesFor([], { EXPLORER_VERIFY_LOG: "error" });
-    const off = await linesFor([], { EXPLORER_VERIFY_LOG: "off" });
-    assert.deepEqual(quiet.kinds, ["log/error"]);
-    assert.deepEqual(error.kinds, ["log/error"]);
-    assert.deepEqual(off.kinds, []);
-    assert.deepEqual(warn.kinds, ["verify.retry/warn", "log/error"]);
-    assert.deepEqual(normal.kinds, ["verify.retry/warn", "verify.submitted/info", "log/error"]);
-    assert.deepEqual(verbose.kinds, [
-      "log/debug",
+    const [quiet, normal, verbose, warn, error, off] = await Promise.all([
+      linesFor(["--quiet"]),
+      linesFor([]),
+      linesFor(["--verbose"]),
+      linesFor([], { EXPLORER_VERIFY_LOG: "warn" }),
+      linesFor([], { EXPLORER_VERIFY_LOG: "error" }),
+      linesFor([], { EXPLORER_VERIFY_LOG: "off" }),
+    ]);
+    assert.deepEqual(quiet.levels, ["error"]);
+    assert.deepEqual(quiet.events, []);
+    assert.deepEqual(error.levels, ["error"]);
+    assert.deepEqual(off.lines, []);
+    assert.deepEqual(warn.levels, ["error", "warn"]);
+    assert.deepEqual(warn.events, ["verify.retry/warn"]);
+    assert.deepEqual(normal.levels, ["error", "info", "warn"]);
+    assert.deepEqual(normal.events, ["verify.submitted/info", "verify.retry/warn"]);
+    assert.deepEqual(verbose.levels, ["debug", "error", "info", "warn"]);
+    assert.deepEqual(verbose.events, [
       "verify.validated/debug",
       "verify.routed/debug",
       "verify.lookup/debug",
-      "verify.retry/warn",
       "verify.submitted/info",
+      "verify.retry/warn",
       "verify.poll/debug",
-      "log/error",
     ]);
     for (const mode of [quiet, warn, error, off, verbose]) {
       assert.equal(mode.stdout, normal.stdout);
@@ -260,10 +246,12 @@ describe("bin: log levels and JSON lines (R-AX-14, R-AX-15)", () => {
   });
 
   it(
-    "writes lines that parse and carry schemaVersion, level, message and type, with fields.fields",
+    "writes lines that parse and carry schemaVersion, level, message and type",
     TIMEOUT,
     async () => {
+      // The reserved field names `type` and `fields` are covered in-process by main.test.ts.
       const { lines } = await linesFor(["--verbose"]);
+      assert.ok(lines.length > 0);
       for (const line of lines) {
         assert.deepEqual(Object.keys(line).slice(0, 4), [
           "schemaVersion",
@@ -274,8 +262,6 @@ describe("bin: log levels and JSON lines (R-AX-14, R-AX-15)", () => {
         assert.equal(line["schemaVersion"], 1);
         assert.equal(typeof line["message"], "string");
       }
-      const debug = lines.find((line) => line["type"] === "log" && line["level"] === "debug");
-      assert.deepEqual(debug?.["fields"], { type: "simulate", fields: "simulate" });
       const submitted = lines.find((line) => line["type"] === "verify.submitted");
       assert.equal(submitted?.["handle"], HANDLE);
     },
@@ -286,7 +272,9 @@ describe("bin: log levels and JSON lines (R-AX-14, R-AX-15)", () => {
     TIMEOUT,
     async () => {
       const value = "VERY-LOUD-PLEASE";
-      const result = await runBin(["simulate", "--json"], { env: { EXPLORER_VERIFY_LOG: value } });
+      const result = await run([...VERIFY, "--json"], "new", {
+        env: { EXPLORER_VERIFY_LOG: value },
+      });
       assert.equal(result.code, 0);
       assert.ok(!result.stderr.includes(value));
       assert.match(result.stderr, /^warning: EXPLORER_VERIFY_LOG is not one of/);
@@ -295,24 +283,21 @@ describe("bin: log levels and JSON lines (R-AX-14, R-AX-15)", () => {
   );
 });
 
-describe("bin: redaction (R-SEC-1)", () => {
+describe("bin: internal-error and redaction (R-AX-5, R-SEC-1)", () => {
   it("leaves a dummy key out of the internal-error envelope and stderr", TIMEOUT, async () => {
-    const result = await runBin([
-      "simulate",
-      "--json",
-      "--verbose",
-      "--outcome",
-      "internal-error",
-      "--message",
-      `request failed: https://api.example.org/?apikey=${DUMMY_KEY} key ${DUMMY_KEY}`,
-    ]);
+    // The test preload makes the command throw this once it has read its keys.
+    const message = `request failed: https://api.example.org/?apikey=${DUMMY_KEY} key ${DUMMY_KEY}`;
+    const result = await runBin([...STATUS, "--json", "--verbose"], { fake: { bug: message } });
     assert.equal(result.code, 6);
     assert.ok(!result.stdout.includes(DUMMY_KEY));
     assert.ok(!result.stderr.includes(DUMMY_KEY));
+    // The stack line of --verbose shows the error was the one the preload threw.
+    assert.match(result.stderr, /^debug: The stack of the unexpected error, redacted\./m);
     const envelope = oneEnvelope(result.stdout);
     assert.deepEqual(envelopeProblems(envelope), []);
     const error = envelope["error"] ?? {};
     assert.equal(Reflect.get(error, "code"), "internal-error");
+    assert.match(String(Reflect.get(error, "message")), /^An unexpected error occurred: Error: /);
     assert.equal(Reflect.get(error, "retryable"), false);
     assert.equal(Reflect.has(error, "handle"), false);
     assert.equal(

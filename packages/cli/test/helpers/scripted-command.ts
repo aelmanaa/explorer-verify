@@ -1,17 +1,18 @@
 /**
- * The `simulate` command: a hidden placeholder that runs a verification without a network, so the
- * contract tests can reach every exit path and signal on the built bin. It stays until those tests
- * run `verify` and `status` against a fake explorer; a later release removes it.
+ * The `scripted` command, for the in-process tests of the main loop only. It is not in the CLI's
+ * command table, so neither the bin nor the package has it: the tests pass {@link WITH_SCRIPTED} to
+ * `main()`. The bin tests drive `verify` and `status` against the fake explorer instead.
  *
- * It emits the stage events a real run emits, one debug log line whose fields are named `type`
+ * It runs a verification without a network. It emits the stage events a real run emits, one debug log line whose fields are named `type`
  * and `fields` (reserved names, R-AX-14), optional retries and polls, then ends with the outcome
  * that `--outcome` names.
  */
 import { ExplorerVerifyError, formatHandle } from "explorer-verify";
 import type { Handle, InputIssue, VerifyResult } from "explorer-verify";
 
-import { stringOption, usageError } from "./command.ts";
-import type { Command, CommandContext, RunCommand } from "./command.ts";
+import { stringOption, usageError } from "../../src/command.ts";
+import type { Command, CommandContext, RunCommand } from "../../src/command.ts";
+import { COMMANDS } from "../../src/commands.ts";
 
 /** The outcomes `--outcome` can name: one per exit code, plus `pending`. */
 const OUTCOMES = [
@@ -97,19 +98,19 @@ function errorBeforeSubmit(
   attempts: number,
 ): Error | undefined {
   if (outcome === "internal-error") {
-    return new Error(message ?? "Simulated failure.");
+    return new Error(message ?? "Scripted failure.");
   }
   if (outcome === "missing-api-key") {
     return new ExplorerVerifyError(
       { code: "missing-api-key", backend: "etherscan-v2" },
-      "The simulated route needs an API key and none is set.",
+      "The scripted route needs an API key and none is set.",
       { secrets: [] },
     );
   }
   if (outcome === "network") {
     return new ExplorerVerifyError(
       { code: "network", backend: BACKEND, attempts },
-      "The simulated explorer could not be reached.",
+      "The scripted explorer could not be reached.",
       { secrets: [] },
     );
   }
@@ -121,17 +122,17 @@ function errorAfterSubmit(outcome: Outcome): ExplorerVerifyError {
   return outcome === "not-confirmed"
     ? new ExplorerVerifyError(
         { code: "not-confirmed", handle: HANDLE },
-        "The simulated verification is still pending at the time budget.",
+        "The scripted verification is still pending at the time budget.",
         { secrets: [] },
       )
     : new ExplorerVerifyError(
         { code: "unknown-state", handle: HANDLE, excerpt: "" },
-        "The simulated explorer answered a status the library cannot classify.",
+        "The scripted explorer answered a status the library cannot classify.",
         { secrets: [] },
       );
 }
 
-/** Runs the simulation that the options describe. */
+/** Runs the script that the options describe. */
 async function run(context: CommandContext): Promise<VerifyResult> {
   const { values, logger, onEvent, signal } = context;
   const issues: InputIssue[] = [];
@@ -141,12 +142,12 @@ async function run(context: CommandContext): Promise<VerifyResult> {
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  logger.debug("Simulated run started.", {
+  logger.debug("Scripted run started.", {
     outcome,
     polls,
     retries,
-    type: "simulate",
-    fields: "simulate",
+    type: "scripted",
+    fields: "scripted",
   });
   onEvent({ type: "verify.validated", chainId: HANDLE.chainId, address: HANDLE.address });
   onEvent({ type: "verify.routed", backend: BACKEND, apiHost: "sourcify.dev" });
@@ -175,29 +176,28 @@ async function run(context: CommandContext): Promise<VerifyResult> {
   }
   if (outcome === "failed") {
     onEvent({ type: "verify.result", backend: BACKEND, status: outcome });
-    return { status: outcome, backend: BACKEND, reason: "The simulated explorer rejected it." };
+    return { status: outcome, backend: BACKEND, reason: "The scripted explorer rejected it." };
   }
   throw errorAfterSubmit(outcome);
 }
 
-/** The `simulate` row of the command table. */
-export const SIMULATE: Command & { readonly run: RunCommand } = {
-  name: "simulate",
-  // A placeholder for tests: no usage message or help text names it.
+/** The `scripted` row of a test command table. */
+const SCRIPTED: Command & { readonly run: RunCommand } = {
+  name: "scripted",
+  // Hidden, so the tests also cover a command that no usage message or help text names.
   hidden: true,
-  // Reads the keys and the route options like the real commands, so their contract can be tested
-  // on the built bin. It sends nothing, so it uses neither.
+  // Reads the keys and the route options like the real commands. It sends nothing, so it uses
+  // neither.
   routed: true,
-  summary:
-    "Run a simulated verification with no network, to test the output contract. A later release removes it.",
+  summary: "Run a scripted verification with no network, to test the output contract.",
   usage: "",
   examples: [
     {
-      args: "simulate --json --outcome not-confirmed",
+      args: "scripted --json --outcome not-confirmed",
       description: "Print a not-confirmed envelope with a handle, and exit 4.",
     },
     {
-      args: "simulate --verbose --polls 3",
+      args: "scripted --verbose --polls 3",
       description: "Show every stage event and three polls on stderr, then print verified.",
     },
   ],
@@ -226,3 +226,6 @@ export const SIMULATE: Command & { readonly run: RunCommand } = {
   maxPositionals: 0,
   run,
 };
+
+/** The CLI's command table with {@link SCRIPTED} after its commands. */
+export const WITH_SCRIPTED: readonly Command[] = [...COMMANDS, SCRIPTED];
