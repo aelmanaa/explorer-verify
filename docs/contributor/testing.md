@@ -137,6 +137,11 @@ built bin, and runs its `scripts/verify.sh` with `bash` and `jq` for exit codes 
 with a stand-in command whose hint holds `%`, CR and LF, which the script must escape. It skips the
 script when either tool is missing.
 
+`test/unit/error-pages.test.ts` also reads the error table of the guide for wrapping tools. It must
+list every code of `ERROR_CODES` once, in catalogue order, with the catalogue's retry flag and exit
+code, and the kind that the guide's `KIND` map gives the code. A new code fails the test until the
+guide maps it.
+
 ## Link check
 
 The `site` job of pull request CI runs [lychee](https://github.com/lycheeverse/lychee) with

@@ -21,6 +21,7 @@ still to come.
 | [Verify from Node.js](guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue  |
 | [Verify from an edge function](guides/verify-from-an-edge-function.md)                         | Submit in one request, resume in later ones, keys from Worker secrets    |
 | [Verify from CI with the CLI](guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets |
+| [Wrap explorer-verify behind your tool's API](guides/wrap-explorer-verify-in-your-tool.md)     | Call it inside your tool's API, map every error code, replay tests       |
 | [verify()](reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                     |
 | [checkStatus()](reference/check-status.md)                                                     | Resume a submitted verification from its handle                          |
 | [API keys](reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans  |
