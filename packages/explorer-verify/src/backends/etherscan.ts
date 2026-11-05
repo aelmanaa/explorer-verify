@@ -103,6 +103,11 @@ export interface Dialect {
    * Etherscan, whose answer was checked live on 2026-11-03 and 2026-11-04.
    */
   readonly creation?: boolean;
+  /**
+   * Status texts, besides `Fail - Unable to verify`, that reject the submitted source. Each is a
+   * prefix of `result`. A match gives `failed` with the text as the reason, without a lookup.
+   */
+  readonly rejections?: readonly string[];
 }
 
 /**
@@ -134,6 +139,7 @@ export interface Dialect {
  */
 export function etherscanStyle(dialect: Dialect): Backend {
   const { name, label, read } = dialect;
+  const rejections = dialect.rejections ?? [];
 
   /**
    * Asks whether the contract is verified, with `getsourcecode`. A first result with a non-empty
@@ -265,7 +271,8 @@ export function etherscanStyle(dialect: Dialect): Backend {
   /**
    * Asks once for the state of a job with `checkverifystatus`. The handle is checked first: it
    * may come from storage. `Fail - Unable to verify` is checked with one lookup, because it was
-   * once answered for a contract that the lookup showed verified moments later. An unknown job
+   * once answered for a contract that the lookup showed verified moments later. A text in the
+   * dialect's `rejections` gives `failed` at once. An unknown job
    * throws `job-not-found`, and the flow then looks the contract up once (R-FLOW-2).
    */
   async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
@@ -298,6 +305,9 @@ export function etherscanStyle(dialect: Dialect): Backend {
         : match === "exact"
           ? { state: "verified", match }
           : { state: "already-verified", match };
+    }
+    if (startsWithAny(result, rejections)) {
+      return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };
     }
     if (startsWithAny(result, NO_JOB)) {
       throw new ExplorerVerifyError(

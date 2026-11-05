@@ -82,6 +82,7 @@ const PASS = (): Response => answer("2026-11-03-checkverifystatus-pass-verified-
 const NOT_FOUND = (): Response =>
   answer("2026-11-03-checkverifystatus-verification-not-found-unique-url");
 const MISSING_GUID = (): Response => answer("2026-11-04-checkverifystatus-missing-guid-unique-url");
+const MISMATCH = (): Response => answer("2026-11-04-checkverifystatus-bytecode-mismatch");
 const VERIFIED = (): Response => answer("2026-11-04-getsourcecode-verified-unique-url");
 const NOT_VERIFIED = (): Response => answer("2026-11-04-getsourcecode-not-verified-unique-url");
 const NO_CHAIN_LOOKUP = (): Response => answer("2026-11-04-getsourcecode-chain-not-supported");
@@ -423,6 +424,43 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
     assert.match(error.message, /^Routescan gave an answer to the job status request/u);
   });
 
+  it("the bytecode-mismatch answer gives failed with its text as the reason, without a lookup (R-FLOW-4, #164, recorded 2026-11-04)", async () => {
+    const s = setup([MISMATCH()]);
+    assert.deepEqual(await routescan.poll(handle(), s.ctx), {
+      state: "failed",
+      reason:
+        "Error: Compilation successful, but bytecode does not match with deployed bytecode for address 0xA7B0158753812cDF1905d70802AF3BDDDe934A57, please check your parameters",
+    });
+    assert.equal(s.calls.length, 1);
+  });
+
+  it("the bytecode-mismatch match does not depend on the address (R-FLOW-4, #164)", async () => {
+    const result =
+      "Error: Compilation successful, but bytecode does not match with deployed bytecode for address 0x0000000000000000000000000000000000000001, please check your parameters";
+    const response = new Response(JSON.stringify({ status: "0", message: "NOTOK", result }), {
+      status: 200,
+    });
+    assert.deepEqual(await routescan.poll(handle(), setup([response]).ctx), {
+      state: "failed",
+      reason: result,
+    });
+  });
+
+  it("an unknown status text still throws unknown-state, never failed (R-FLOW-4, #164)", async () => {
+    for (const result of [
+      "Error: Compilation failed",
+      "Compilation successful, but bytecode does not match with deployed bytecode",
+      "Error: Compilation successful",
+      "Something else",
+    ]) {
+      const response = new Response(JSON.stringify({ status: "0", message: "NOTOK", result }), {
+        status: 200,
+      });
+      const error = await errorOf(routescan.poll(handle(), setup([response]).ctx));
+      assert.equal(error.code, "unknown-state", result);
+    }
+  });
+
   it("Invalid querystring request, the answer to a lookup sent as a form POST, throws unexpected-response, never not verified (recorded 2026-11-04)", async () => {
     const error = await errorOf(routescan.lookup(TARGET, setup([POST_LOOKUP()]).ctx));
     assert.equal(error.code, "unexpected-response");
@@ -510,6 +548,17 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
     const r = await runFlow(t, [NOT_VERIFIED(), SUBMITTED(), NOT_FOUND(), NOT_VERIFIED()]);
     assert.ok(r.outcome instanceof ExplorerVerifyError);
     assert.deepEqual(r.outcome.details, { code: "job-not-found", handle: handle() });
+  });
+
+  it("a bytecode mismatch makes verify() return failed with the reason (R-FLOW-4, #164, recorded 2026-11-04)", async (t) => {
+    const r = await runFlow(t, [NOT_VERIFIED(), SUBMITTED(), PENDING(), MISMATCH()]);
+    assert.ok(typeof r.outcome === "object" && r.outcome !== null);
+    assert.equal(Reflect.get(r.outcome, "status"), "failed");
+    assert.match(
+      String(Reflect.get(r.outcome, "reason")),
+      /^Error: Compilation successful, but bytecode does not match/u,
+    );
+    assert.equal(r.calls.length, 4);
   });
 
   it("a pending status at the budget is resolved by the final lookup (R-FLOW-2)", async (t) => {

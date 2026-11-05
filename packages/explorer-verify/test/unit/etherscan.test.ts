@@ -711,6 +711,13 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
     }
   });
 
+  it("Routescan's bytecode-mismatch text stays unknown-state for Etherscan, which has not been recorded giving it (R-FLOW-4, #164)", async () => {
+    const result =
+      "Error: Compilation successful, but bytecode does not match with deployed bytecode for address 0xA7B0158753812cDF1905d70802AF3BDDDe934A57, please check your parameters";
+    const error = await errorOf(etherscan.poll(handle(), setup([text(result)]).ctx));
+    assert.equal(error.code, "unknown-state");
+  });
+
   it("throws unexpected-response for a result that is not text, a 500 or a body that is not JSON", async () => {
     for (const response of [
       new Response(JSON.stringify({ status: "1", result: ["x"] }), { status: 200 }),

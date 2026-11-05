@@ -1,0 +1,20 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-04T21:46:27.572Z, without a key: the status of a submit for LiveMatrixRsFuji3 on Avalanche Fuji (43113) whose source had one digit of a constant changed. Response headers other than content-type were not kept. Recorded by scripts/live-matrix.ts on the live matrix run of 2026-11-04 (docs/contributor/research/2026-11-04-live-matrix.md).",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=checkverifystatus&guid=5108fb74-2506-5c5e-a91c-98118cef7bb0&nocache=xwddtk6ng2",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Error: Compilation successful, but bytecode does not match with deployed bytecode for address 0xA7B0158753812cDF1905d70802AF3BDDDe934A57, please check your parameters"
+    }
+  },
+  "recordedAt": "2026-11-04T21:46:27.572Z"
+}

@@ -18,7 +18,11 @@
  * Routescan-specific answers, all with HTTP 200: `chain not supported` in `message` throws
  * `unsupported-chain`; `Verification not found` throws `job-not-found`, after which the flow looks
  * the contract up once, because Routescan has forgotten a job 51 minutes after its submit while
- * the contract stayed verified; `Missing guid` throws `unexpected-response`.
+ * the contract stayed verified; `Missing guid` throws `unexpected-response`; a status of
+ * `Error: Compilation successful, but bytecode does not match with deployed bytecode for address
+ * <address>, please check your parameters` gives `failed` with that text as the reason (live on
+ * Avalanche Fuji and Sepolia, 2026-11-04). Etherscan has not been recorded giving this text, so
+ * only this client maps it.
  */
 import type { BackendName } from "../backend-names.ts";
 import { withKey } from "../http/api-keys.ts";
@@ -67,4 +71,6 @@ export const routescan: Backend = etherscanStyle({
   name: "routescan",
   label: "Routescan",
   read: unique,
+  // The part before the address, which differs per contract.
+  rejections: ["Error: Compilation successful, but bytecode does not match with deployed bytecode"],
 });
