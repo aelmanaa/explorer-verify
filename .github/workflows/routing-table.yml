@@ -5,6 +5,9 @@ name: Routing table
 # that names each chain and the list it changed in, or updates the open one; when no difference
 # remains, it closes that issue. A pull request changes the table; this workflow never does.
 #
+# A second job watches for signs that Blockscout's per-instance API is going away
+# (scripts/blockscout-deprecation.ts, #198).
+#
 # It runs on a schedule and on a manual dispatch only, never on a pull request, and only in this
 # repository, never on a fork. It needs no secret: it uses the workflow's own GITHUB_TOKEN.
 
@@ -47,3 +50,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/routing-table-issue.ts routing-report.json
+
+  # The Blockscout deprecation watch (#198): one keyless GET to each routing-table instance on a
+  # host Blockscout runs, 500 ms apart, and one GET to each watched docs page. It opens one issue
+  # while it sees a deprecation signal, updates it, and closes it when none remains. A watched docs
+  # section that changed stays a signal until a pull request records the new text.
+  blockscout-deprecation:
+    name: Blockscout deprecation watch
+    if: github.repository == 'aelmanaa/explorer-verify'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      # The script imports Node built-ins only, so no install. The count of instances that did not
+      # answer goes to the run summary and to an artifact each week.
+      - name: Run the watch and sync the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/blockscout-deprecation.ts --report --out blockscout-deprecation.json --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload the result
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: blockscout-deprecation-${{ github.run_id }}
+          path: blockscout-deprecation.json
+          if-no-files-found: warn
+          retention-days: 90

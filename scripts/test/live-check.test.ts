@@ -15,12 +15,12 @@ import { promisify } from "node:util";
 
 import { parse } from "yaml";
 
+import { codeCell } from "../github-issue.ts";
 import {
   DEFAULT_TARGETS,
   ISSUE_AUTHOR,
   ISSUE_LABEL,
   ISSUE_TITLE,
-  codeCell,
   ORIGIN,
   fileIssue,
   issueBody,

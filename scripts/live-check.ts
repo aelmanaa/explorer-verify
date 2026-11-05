@@ -48,6 +48,7 @@ import type {
   VerifyOptions,
 } from "../packages/explorer-verify/dist/src/index.js";
 import { redact } from "../packages/explorer-verify/dist/src/redact.js";
+import { codeCell } from "./github-issue.ts";
 import { errorMessage, isMainModule } from "./release-packages.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -560,23 +561,6 @@ export async function runChecks(
     ok: values.length > 0 && values.every((one) => one.ok),
     backends: result,
   };
-}
-
-/**
- * A table cell that shows `value` as code: one line, `|` escaped, in a code span whose backtick
- * fence is longer than any backtick run in the text. Inside a code span, GitHub renders no
- * mention, reference, HTML or comment, so an explorer's answer cannot notify anyone or hide text.
- * @param value Any text, such as an explorer's answer.
- * @returns The cell, or an empty string for empty text.
- */
-export function codeCell(value: string): string {
-  const line = value.replaceAll(/\r\n|\r|\n/g, " ").replaceAll("|", "\\|");
-  if (line.trim() === "") {
-    return "";
-  }
-  const longest = Math.max(0, ...[...line.matchAll(/`+/g)].map((run) => run[0].length));
-  const fence = "`".repeat(longest + 1);
-  return `${fence} ${line} ${fence}`;
 }
 
 /**
