@@ -155,7 +155,10 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   otherwise fails with an error naming the chain. The option is `allowSourcifyFallback`, false by
   default; the error is `unsupported-chain`, and its hint names the option and the route override.
 - **R-RT-4** Optional fan-out: verify on several backends in one call (for example Etherscan and
-  Sourcify), with one result per backend.
+  Sourcify), with one result per backend. `verifyEach()` is a separate export: its backends run in
+  parallel with one time budget and the caller's signal, each backend gets only its own key, and
+  one backend's error, a client module that fails to load included, is that backend's outcome,
+  never a thrown error that discards the others (decision 0034).
 
 ### Flow (R-FLOW)
 
@@ -275,15 +278,18 @@ Docs:
 CLI:
 
 - **R-AX-5** `--json` on every command. stdout holds exactly one versioned envelope for every exit
-  code, errors included, in one of four forms:
+  code, errors included, in one of five forms:
   - `{ "schemaVersion": 1, "ok": true, "result": ... }` for `verified` or `already-verified`
   - `{ "schemaVersion": 1, "ok": true, "result": ... }` for a dry run, whose `result.status` is
     `dry-run` (R-AX-8)
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
+  - `{ "schemaVersion": 1, "ok": ..., "result": { "outcomes": [...] } }` for several backends (R-RT-4),
+    whose `ok` is true only when every outcome's `ok` is true
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
-  `status`, `result` is a `VerifyResult`, and for `verify --dry-run` a `DryRunResult` (R-AX-8);
+  `status`, `result` is a `VerifyResult`, for `verify --dry-run` a `DryRunResult` (R-AX-8), and for
+  `verify` with `--backend` repeated a `VerifyEachResult`, one outcome per backend (R-RT-4);
   every other command documents its result type in the JSON Schema. The error `code` tells an unknown explorer state
   (R-FLOW-4, exit code 6) apart from a network failure (exit code 5). Within a schema version, a
   release may add fields, error codes and backends, and changes nothing else. A reader treats an
@@ -329,7 +335,11 @@ CLI:
   | 130  | Cancelled                                                                                                                                                                                                                        |
 
   Every code in the error catalogue maps to one of these exit codes. `explorer-verify status <handle>`
-  resumes a pending verification and uses the same codes (R-FLOW-5).
+  resumes a pending verification and uses the same codes (R-FLOW-5). A run on several backends
+  (R-RT-4) exits 0 only when every backend's outcome is 0; otherwise it exits with the first of 6,
+  4, 3, 2, 5, 1 and 130 that any outcome has, so resumable work comes before a fix (decision
+  0034). That code names only the first outcome that has it: the caller reads `result.outcomes`
+  for every backend.
 
 - **R-AX-8** `--dry-run` validates the input, resolves the route, builds the request and checks
   whether the contract is already verified, then stops before the submit. It needs no API key: when

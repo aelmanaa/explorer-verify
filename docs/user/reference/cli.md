@@ -37,10 +37,23 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
   run that ends while the job is still pending exits 4 with `not-confirmed` and the handle. Resume
   it with `status`.
 - `--backend` and `--api-url` pick the route, as in [API keys and route options](#api-keys-and-route-options).
-  `--backend` can be given only once: this version runs on one backend at a time.
 - `--rpc-url`, `--rpc-url-file` or `--rpc-url-stdin` gives a JSON-RPC endpoint, so `verify` can
   derive missing constructor arguments from the `--creation-tx` transaction. See
   [RPC URL](#rpc-url).
+- `--backend` given more than once runs [`verifyEach()`](verify.md#several-backends-in-one-call):
+  the run verifies on each backend at once, with one time budget, and prints one envelope whose
+  `result.outcomes` holds one outcome per backend, in command-line order. Each backend uses its
+  routing-table URL and takes its key only from its environment variable, so `--api-url`,
+  `--api-key-file`, `--api-key-stdin` and `--dry-run` exit 2 with a repeated `--backend`. So the
+  run reaches only backends the routing table lists for the chain; a standalone explorer or a
+  self-hosted server needs `verifyEach()` in code, where each entry takes its own `apiUrl`. A
+  backend the row does not list ends `unsupported-chain`. The exit code is 0 only when every
+  backend verified; otherwise it is the first of 6, 4, 3, 2, 5, 1 and 130 that any backend has
+  (see [Exit codes](json-output.md#exit-codes)). That code names only the first backend with it:
+  read `result.outcomes` for every backend. Without `--json`, stdout has, for each backend, its
+  status line, such as `verified: exact match on sourcify`, then the explorer page when the
+  library knows one; for an error, `<code> on <backend>: <message>`, then `Handle: <handle>` when
+  the job is still pending. `status` takes one `--backend`.
 - The `verify.submitted` line on stderr carries the handle, at the default level. Keep it.
 
 A usage or input error exits 2 before any request. An issue names the option, such as `--chain` or
@@ -174,25 +187,25 @@ Examples:
 - `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json`: Verify from a Foundry build-info and artifact; the address may come first, without verify.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it.
 
-| Option                          | What it does                                                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                     |
-| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                 |
-| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                    |
-| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                            |
-| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                               |
-| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                          |
-| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                               |
-| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                            |
-| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                    |
-| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                    |
-| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                              |
-| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                       |
-| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then. |
-| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                       |
-| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                               |
-| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                               |
-| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                   |
+| Option                          | What it does                                                                                                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan. Give it more than once to verify on each backend in one run. Repeatable. |
+| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                                      |
+| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                         |
+| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                 |
+| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                                                    |
+| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                                               |
+| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                                                    |
+| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                 |
+| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                         |
+| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                         |
+| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                                                   |
+| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                            |
+| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                      |
+| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                            |
+| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                    |
+| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                    |
+| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                        |
 
 ### `status`
 
@@ -415,7 +428,9 @@ printf '%s\n' "$SEPOLIA_RPC_URL" | explorer-verify verify 0x8275d36f64f047d2d8a1
   shape. Validate them with `@explorer-verify/cli/help.schema.json` and
   `@explorer-verify/cli/version.schema.json`, not with the core envelope schema.
 - Without `--json`, stdout holds a short summary of a result, such as
-  `verified: exact match on sourcify` and the explorer page. An error prints nothing on stdout.
+  `verified: exact match on sourcify` and the explorer page. An error prints nothing on stdout. A
+  run on several backends prints these lines for each backend, and an error line for a backend
+  that ended in an error.
 - The same input gives the same stdout, byte for byte, at every log level. stdout holds no
   timestamp.
 - When stdout is closed, for example by a reader that stopped early, the run still ends with its
@@ -472,6 +487,12 @@ SIGINT (Ctrl-C) and SIGTERM abort the run at once and exit 130. The output is a
 [`cancelled`](errors/cancelled.md) error, with the handle in `error.handle` when the explorer
 accepted the submission before the cancel. Resume from that handle with the `status` command
 instead of submitting again.
+
+A run with `--backend` repeated may have several jobs running. Its `cancelled` error then carries
+`error.handles`: one `{ backend, handle }` for each backend that accepted a submission and had not
+ended, in `--backend` order. `error.handle` is set only when exactly one backend submitted. The
+error block on stderr shows one `handle: <backend> <handle>` line for each, and a JSON log line
+holds them in its `handles` field, joined with `, `. Resume each handle with `status`.
 
 Only the first signal counts. Once the outcome is fixed, further signals are ignored, so the
 envelope is always written in full. A signal that arrives in the first moments of a run, before

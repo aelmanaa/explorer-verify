@@ -310,23 +310,88 @@ describe("verify: usage errors name options, never values (R-AX-5, R-AX-9)", () 
     assert.doesNotMatch(message, /secretname|broken-input/);
   });
 
-  it("refuses --backend given twice: one backend per run", async (t) => {
+  it("refuses --backend given twice for status: one handle, one backend", async (t) => {
     const message = usage(
-      await run(t, [
-        "verify",
-        ADDRESS,
-        "--chain",
-        "1",
-        ...FOUNDRY,
-        "--backend",
-        "sourcify",
-        "--backend",
-        "etherscan-v2",
-        "--json",
-      ]),
+      await run(t, ["status", HANDLE, "--backend", "sourcify", "--backend", "sourcify", "--json"]),
     );
     assert.match(message, /--backend can be given only once/);
   });
+});
+
+describe("verify with --backend repeated runs verifyEach() (R-RT-4, R-AX-5, R-AX-7)", () => {
+  const BOTH = ["--backend", "sourcify", "--backend", "etherscan-v2"];
+  const VERIFY = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY];
+
+  it("prints one envelope with an outcome per backend, exits 0, and sends each key only to its backend", async (t) => {
+    const result = await run(t, [...VERIFY, ...BOTH, "--json"], "verified", {
+      env: { ETHERSCAN_API_KEY: KEY },
+    });
+    assert.equal(result.code, 0, result.stdout);
+    const { outcomes } = part(result, "result");
+    assert.ok(Array.isArray(outcomes));
+    const list: readonly unknown[] = outcomes;
+    assert.deepEqual(
+      list.map((each) => [record(each)["backend"], record(each)["ok"]]),
+      [
+        ["sourcify", true],
+        ["etherscan-v2", true],
+      ],
+    );
+    assert.equal(envelope(result)["ok"], true);
+    assert.deepEqual(
+      result.seen.map((seen) => `${seen.host} keyed=${String(seen.keyed)}`).toSorted(),
+      ["api.etherscan.io keyed=true", "sourcify.dev keyed=false"],
+    );
+    assert.ok(!result.stdout.includes(KEY) && !result.stderr.includes(KEY));
+  });
+
+  it("exits 3 when one backend has no key, and still verifies on the other", async (t) => {
+    const result = await run(t, [...VERIFY, ...BOTH, "--json"], "verified");
+    assert.equal(result.code, 3, result.stdout);
+    assert.equal(envelope(result)["ok"], false);
+    const { outcomes } = part(result, "result");
+    assert.ok(Array.isArray(outcomes));
+    const list: readonly unknown[] = outcomes;
+    assert.equal(record(list[0])["ok"], true);
+    assert.equal(record(record(list[1])["error"])["code"], "missing-api-key");
+    assert.ok(result.seen.every((seen) => seen.host === "sourcify.dev"));
+  });
+
+  it("prints a line per backend without --json", async (t) => {
+    const result = await run(t, [...VERIFY, ...BOTH], "verified");
+    assert.equal(result.code, 3);
+    assert.match(result.stdout, /^already-verified: exact match on sourcify\n/);
+    assert.match(result.stdout, /\nmissing-api-key on etherscan-v2: /);
+  });
+
+  it("prints the handle of a backend that ends pending, and exits 4", async (t) => {
+    const result = await run(
+      t,
+      [...VERIFY, "--backend", "sourcify", "--backend", "blockscout", "--timeout", "5"],
+      "pending",
+    );
+    // Sepolia's row lists no Blockscout: not-confirmed (4), resumable work, wins over
+    // unsupported-chain (2). The exit code names one outcome; read every line.
+    assert.equal(result.code, 4, result.stdout);
+    assert.match(result.stdout, /^not-confirmed on sourcify: .*\nHandle: ev1:sourcify:/);
+    assert.match(result.stdout, /\nunsupported-chain on blockscout: /);
+  });
+
+  const refused: [string, string[], RegExp][] = [
+    ["--api-url", ["--api-url", "https://example.org/api"], /--api-url cannot be combined/],
+    ["--api-key-file", ["--api-key-file", KEY_FILE], /--api-key-file cannot be combined/],
+    ["--dry-run", ["--dry-run"], /--dry-run cannot be combined/],
+    ["the same backend twice", ["--backend", "sourcify"], /--backend\[3\] names a backend/],
+    ["an unknown backend", ["--backend", "nope"], /--backend\[3\] must be one of/],
+  ];
+  for (const [name, extra, expected] of refused) {
+    it(`refuses ${name} with a repeated --backend, exit 2, sending nothing`, async (t) => {
+      const result = await run(t, [...VERIFY, ...BOTH, ...extra, "--json"]);
+      assert.match(usage(result), expected);
+      assert.equal(result.seen.length, 0);
+      assert.ok(!result.stdout.includes(KEY));
+    });
+  }
 });
 
 describe("timeout and resume (R-FLOW-5, R-AX-7, R-AX-14)", () => {
@@ -694,6 +759,45 @@ describe("verify with an RPC URL (R-IN-3, R-AX-9)", () => {
     assert.equal(part(result, "result")["status"], "dry-run");
     assert.ok(result.seen.every((request) => request.host !== "rpc.example.org"));
     assertNoSecret(result);
+  });
+
+  it("with --backend repeated, Etherscan's derivation calls the URL of --rpc-url-file, and no output shows it (R-RT-4, R-SEC-1)", async (t) => {
+    const result = await run(
+      t,
+      [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        ...FOUNDRY,
+        "--creation-tx",
+        `0x${"ab".repeat(32)}`,
+        "--backend",
+        "sourcify",
+        "--backend",
+        "etherscan-v2",
+        "--rpc-url-file",
+        RPC_FILE,
+        "--json",
+        "--verbose",
+        "--log-format",
+        "json",
+      ],
+      "new",
+      { env: { ETHERSCAN_API_KEY: KEY } },
+    );
+    // The fake RPC endpoint and the fake Etherscan submit refuse, so Etherscan's outcome is an
+    // error; what matters is that the request reached the RPC host and nothing printed the URL.
+    assert.ok(result.seen.some((request) => request.host === "rpc.example.org"));
+    const { outcomes } = part(result, "result");
+    assert.ok(Array.isArray(outcomes));
+    const list: readonly unknown[] = outcomes;
+    assert.deepEqual(
+      list.map((each) => record(each)["backend"]),
+      ["sourcify", "etherscan-v2"],
+    );
+    assertNoSecret(result);
+    assert.ok(!`${result.stdout}${result.stderr}`.includes(KEY));
   });
 
   it("the library checks the URL: plain http to another host exits 2 naming rpcUrl", async (t) => {

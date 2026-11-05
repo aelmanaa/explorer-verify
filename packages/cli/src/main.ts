@@ -69,6 +69,12 @@ interface RunState {
   received: SignalName | undefined;
   /** The handle of the last `verify.submitted` event. */
   submitted: string | undefined;
+  /** The handle of each backend's `verify.submitted` event, by backend, in event order. */
+  readonly submissions: Map<string, string>;
+  /** The backends whose `verify.result` event arrived: their jobs ended. */
+  readonly ended: Set<string>;
+  /** The backends of a repeated `--backend`, in command-line order; empty otherwise. */
+  order: readonly string[];
   /** Set once the outcome is fixed; later signals are ignored. */
   fixed: boolean;
   /**
@@ -121,16 +127,56 @@ function internalError(error: unknown, secrets: readonly string[]): ExplorerVeri
   );
 }
 
-/** The `cancelled` error of a signal, with the handle of the submission when there was one. */
-function cancelledError(signal: SignalName, submitted: string | undefined): ExplorerVerifyError {
-  let handle: Handle | undefined;
+/** A one-line handle read back, or `undefined` when it does not parse. */
+function handleOf(line: string | undefined): Handle | undefined {
   try {
-    handle = submitted === undefined ? undefined : parseHandle(submitted);
+    return line === undefined ? undefined : parseHandle(line);
   } catch {
-    handle = undefined;
+    return undefined;
   }
+}
+
+/**
+ * The handles of the jobs a cancel leaves running: each backend that sent `verify.submitted` and
+ * no `verify.result`, in `order` (the backends of a repeated `--backend`), then any other backend
+ * in the order it submitted.
+ *
+ * @param submissions - The handle of each backend that submitted, in event order.
+ * @param ended - The backends whose result arrived.
+ * @param order - The backends of a repeated `--backend`, in command-line order.
+ * @returns The handles.
+ */
+export function pendingHandles(
+  submissions: ReadonlyMap<string, string>,
+  ended: ReadonlySet<string>,
+  order: readonly string[],
+): Handle[] {
+  const rank = (backend: string): number => {
+    const index = order.indexOf(backend);
+    return index === -1 ? order.length : index;
+  };
+  return [...submissions]
+    .filter(([backend]) => !ended.has(backend))
+    .map(([backend, line], index) => ({ backend, line, index }))
+    .toSorted((a, b) => rank(a.backend) - rank(b.backend) || a.index - b.index)
+    .flatMap(({ line }) => handleOf(line) ?? []);
+}
+
+/**
+ * The `cancelled` error of a signal. It carries `handle` when exactly one backend submitted. A
+ * run on several backends also carries `handles`: every backend whose job was still running, so
+ * no job is lost.
+ */
+function cancelledError(signal: SignalName, state: RunState): ExplorerVerifyError {
+  const handle = state.submissions.size > 1 ? undefined : handleOf(state.submitted);
+  const several = state.submissions.size > 1 || state.order.length > 1;
+  const handles = several ? pendingHandles(state.submissions, state.ended, state.order) : [];
   return new ExplorerVerifyError(
-    handle === undefined ? { code: "cancelled" } : { code: "cancelled", handle },
+    {
+      code: "cancelled",
+      ...(handle === undefined ? {} : { handle }),
+      ...(handles.length === 0 ? {} : { handles }),
+    },
     `The run was cancelled by ${signal}.`,
     { secrets: [] },
   );
@@ -187,6 +233,9 @@ async function runCommand(
     onEvent: (event) => {
       if (event.type === "verify.submitted") {
         state.submitted = event.handle;
+        state.submissions.set(event.backend, event.handle);
+      } else if (event.type === "verify.result") {
+        state.ended.add(event.backend);
       }
       stderr.onEvent(event);
     },
@@ -226,6 +275,7 @@ async function runCommand(
             );
           }
           routeOptions = read.options;
+          state.order = read.options.backends ?? [];
         }
         return await run(context());
       })
@@ -337,7 +387,7 @@ async function runCli(
   }
   let outcome: Outcome;
   if (state.received !== undefined) {
-    outcome = cancelledError(state.received, state.submitted);
+    outcome = cancelledError(state.received, state);
   } else if (command === undefined || issues.length > 0) {
     outcome = usageError(issues, args.suggestion);
   } else {
@@ -346,8 +396,7 @@ async function runCli(
   // A signal that arrived before the outcome was fixed wins. From here on, signals are ignored,
   // so the envelope is always written.
   state.fixed = true;
-  const final =
-    state.received === undefined ? outcome : cancelledError(state.received, state.submitted);
+  const final = state.received === undefined ? outcome : cancelledError(state.received, state);
   return finish(final, io, stderr, { json: args.json, color: policy.colorStdout });
 }
 
@@ -371,6 +420,9 @@ export async function main(given: Io, commands: readonly Command[] = COMMANDS): 
     controller: new AbortController(),
     received: undefined,
     submitted: undefined,
+    submissions: new Map(),
+    ended: new Set(),
+    order: [],
     fixed: false,
     // The key variables are secrets before the command line is read, so no path prints them.
     secrets: keyVariableValues(given.env),

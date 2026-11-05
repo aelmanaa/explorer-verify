@@ -758,3 +758,73 @@ describe("CLI contract: each command on the built bin", { concurrency: true }, (
     });
   }
 });
+
+/** The outcomes of a run on several backends, after the envelope and stream checks. */
+function outcomesOf(result: Run, label: string): Record<string, unknown>[] {
+  const envelope = envelopeOf(result, label);
+  assertPlain(result, label);
+  const list: unknown = fieldsOf(envelope["result"])["outcomes"];
+  assert.ok(Array.isArray(list), `${label}: no result.outcomes`);
+  const items: readonly unknown[] = list;
+  return items.map((item) => fieldsOf(item));
+}
+
+describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)", () => {
+  const BOTH = ["--backend", "sourcify", "--backend", "etherscan-v2"];
+
+  it(
+    "one outcome per backend; Etherscan with no key exits 3 and is sent nothing",
+    TIMEOUT,
+    async () => {
+      const result = await run([...VERIFY, ...BOTH, "--json"]);
+      assert.equal(result.code, 3, result.stderr);
+      const outcomes = outcomesOf(result, "verify, two backends");
+      assert.deepEqual(
+        outcomes.map((outcome) => [outcome["backend"], outcome["ok"]]),
+        [
+          ["sourcify", true],
+          ["etherscan-v2", false],
+        ],
+      );
+      assert.equal(fieldsOf(outcomes[1]?.["error"])["code"], "missing-api-key");
+    },
+  );
+
+  it("every backend verified, with the key from its variable: exit 0", TIMEOUT, async () => {
+    const result = await run([...VERIFY, ...BOTH, "--json"], { env: { ETHERSCAN_API_KEY: KEY } });
+    assert.equal(result.code, 0, result.stderr);
+    const outcomes = outcomesOf(result, "verify, two backends, key");
+    assert.ok(outcomes.every((outcome) => outcome["ok"] === true));
+    assert.ok(!`${result.stdout}${result.stderr}`.includes(KEY), "the key was printed");
+  });
+
+  it(
+    "a pending backend (4) wins over an unlisted one (2): resumable work first",
+    TIMEOUT,
+    async () => {
+      const result = await run(
+        [...VERIFY, "--backend", "sourcify", "--backend", "blockscout", "--timeout", "2", "--json"],
+        { scenario: "pending" },
+      );
+      assert.equal(result.code, 4, result.stderr);
+      const outcomes = outcomesOf(result, "verify, pending and unlisted");
+      assert.equal(fieldsOf(outcomes[0]?.["error"])["code"], "not-confirmed");
+      assert.equal(fieldsOf(outcomes[1]?.["error"])["code"], "unsupported-chain");
+    },
+  );
+
+  it("status keeps one --backend: a second exits 2 and sends nothing", TIMEOUT, async () => {
+    const result = await run([
+      "status",
+      SOURCIFY_HANDLE,
+      "--backend",
+      "sourcify",
+      "--backend",
+      "sourcify",
+      "--json",
+    ]);
+    assert.equal(result.code, 2, result.stderr);
+    envelopeOf(result, "status, two backends");
+    assert.deepEqual(result.requests, []);
+  });
+});

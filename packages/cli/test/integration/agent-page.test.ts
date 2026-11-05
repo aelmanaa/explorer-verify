@@ -124,7 +124,7 @@ describe("the agent page's lists (R-AX-3)", () => {
   });
 
   it("lists the calls that submit as outward, and the read-only ones as safe", () => {
-    assert.deepEqual(outward.functions.toSorted(), ["createVerifyHandler", "verify"]);
+    assert.deepEqual(outward.functions.toSorted(), ["createVerifyHandler", "verify", "verifyEach"]);
     for (const name of ["dryRun", "checkStatus", "resolveInputFromBytecode"]) {
       assert.ok(safe.functions.includes(name), `${name}() is safe`);
     }

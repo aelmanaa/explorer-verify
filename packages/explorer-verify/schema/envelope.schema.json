@@ -37,6 +37,17 @@
       "not": { "properties": { "error": {} }, "required": ["error"] }
     },
     {
+      "description": "Several backends: toEnvelope() of the result of verifyEach(), which the CLI prints for verify with --backend repeated. ok is true and the exit code 0 only when every outcome is ok. Otherwise the exit code is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has, each outcome's code being that of its result or error. A non-zero code names only the first outcome with that code: read result.outcomes for every backend.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "ok": { "type": "boolean" },
+        "result": { "$ref": "#/$defs/each" }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": { "properties": { "error": {} }, "required": ["error"] }
+    },
+    {
       "description": "An error from the catalogue. The exit code depends on error.code.",
       "type": "object",
       "properties": {
@@ -106,6 +117,56 @@
       },
       "required": ["status", "backend", "apiHost", "lookup"]
     },
+    "each": {
+      "description": "A VerifyEachResult: one outcome per backend, in the order the call listed them.",
+      "type": "object",
+      "properties": {
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/outcome" }
+        }
+      },
+      "required": ["outcomes"]
+    },
+    "outcome": {
+      "description": "What one backend of a verifyEach() call ended with. Keys appear in the order backend, ok, then result or error.",
+      "oneOf": [
+        {
+          "description": "verified or already-verified.",
+          "type": "object",
+          "properties": {
+            "backend": { "$ref": "#/$defs/backend" },
+            "ok": { "const": true },
+            "result": { "$ref": "#/$defs/success" }
+          },
+          "required": ["backend", "ok", "result"],
+          "not": { "properties": { "error": {} }, "required": ["error"] }
+        },
+        {
+          "description": "failed: the explorer rejected the submission.",
+          "type": "object",
+          "properties": {
+            "backend": { "$ref": "#/$defs/backend" },
+            "ok": { "const": false },
+            "result": { "$ref": "#/$defs/failure" }
+          },
+          "required": ["backend", "ok", "result"],
+          "not": { "properties": { "error": {} }, "required": ["error"] }
+        },
+        {
+          "description": "The call on this backend threw. A not-confirmed error carries the handle that resumes this backend alone.",
+          "type": "object",
+          "properties": {
+            "backend": { "$ref": "#/$defs/backend" },
+            "ok": { "const": false },
+            "error": { "$ref": "#/$defs/error" }
+          },
+          "required": ["backend", "ok", "error"],
+          "not": { "properties": { "result": {} }, "required": ["result"] }
+        }
+      ]
+    },
     "error": {
       "description": "ExplorerVerifyError.toJSON(): the error without its cause, stack or details.",
       "type": "object",
@@ -130,6 +191,19 @@
           "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>, when the error carries one.",
           "type": "string",
           "pattern": "^ev1:"
+        },
+        "handles": {
+          "description": "cancelled only, for a run on several backends: each backend that accepted a submission and had not ended before the cancel, with its handle. Resume each one with checkStatus or explorer-verify status.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "backend": { "$ref": "#/$defs/backend" },
+              "handle": { "type": "string", "pattern": "^ev1:" }
+            },
+            "required": ["backend", "handle"]
+          }
         }
       },
       "required": ["code", "message", "hint", "docsUrl", "retryable"]

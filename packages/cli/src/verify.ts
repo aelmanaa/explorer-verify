@@ -3,7 +3,14 @@
  * request of `--input-json`, builds and checks the input, then calls `verify()`, or `dryRun()`
  * with `--dry-run`. The address may come first, without the word `verify`.
  */
-import { buildVerifyInput, dryRun, validateInput, verify } from "explorer-verify";
+import {
+  BACKEND_NAMES,
+  buildVerifyInput,
+  dryRun,
+  validateInput,
+  verify,
+  verifyEach,
+} from "explorer-verify";
 import type { InputIssue, VerifyInput, VerifyOptions } from "explorer-verify";
 
 import type { OptionSpec, OptionSpecs, OptionValue } from "./arguments.ts";
@@ -76,11 +83,13 @@ export function timeoutOf(
  */
 export function callOptions(context: CommandContext, timeoutMs: number | undefined): VerifyOptions {
   const { signal, logger, onEvent } = context;
+  const { apiKeys, route } = context.routeOptions();
   return {
     signal,
     logger,
     onEvent,
-    ...context.routeOptions(),
+    ...(apiKeys === undefined ? {} : { apiKeys }),
+    ...(route === undefined ? {} : { route }),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
   };
 }
@@ -210,7 +219,10 @@ interface SendSettings {
   readonly rpcUrl: string | undefined;
 }
 
-/** Calls `verify()`, or `dryRun()` for a dry run, with the input and the context's options. */
+/**
+ * Calls `verify()`, `dryRun()` for a dry run, or `verifyEach()` when `--backend` is repeated, with
+ * the input and the context's options.
+ */
 async function send(
   context: CommandContext,
   input: VerifyInput,
@@ -221,6 +233,10 @@ async function send(
     ...callOptions(context, timeoutMs),
     ...(rpcUrl === undefined ? {} : { rpcUrl }),
   };
+  const { backends } = context.routeOptions();
+  if (backends !== undefined) {
+    return await verifyEach(input, { ...options, backends });
+  }
   return dry ? await dryRun(input, options) : await verify(input, options);
 }
 
@@ -236,14 +252,17 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   if (rpc.issues !== undefined) {
     throw usageError([...issues, ...rpc.issues]);
   }
+  const dry = values.get("dry-run") === true;
+  if (dry && listOption(values, "backend").length > 1) {
+    issues.push({
+      field: "--dry-run",
+      message: "cannot be combined with a repeated --backend: dry run one backend at a time",
+    });
+  }
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  const settings: SendSettings = {
-    dry: values.get("dry-run") === true,
-    timeoutMs,
-    rpcUrl: rpc.rpcUrl,
-  };
+  const settings: SendSettings = { dry, timeoutMs, rpcUrl: rpc.rpcUrl };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
     const input = await inputFromFlags(context);
@@ -266,6 +285,13 @@ const FOUNDRY_FILES = "--input out/build-info/greeter.json --input out/Greeter.s
 
 /** The options of `verify`, in help order. */
 const OPTIONS: OptionSpecs = {
+  // The route option, repeatable here only: a repeated --backend runs verifyEach() (R-RT-4).
+  backend: {
+    type: "string",
+    value: "<name>",
+    multiple: true,
+    description: `Use this backend instead of the routing table's: ${BACKEND_NAMES.join(", ")}. Give it more than once to verify on each backend in one run.`,
+  },
   chain: {
     type: "string",
     value: "<id>",

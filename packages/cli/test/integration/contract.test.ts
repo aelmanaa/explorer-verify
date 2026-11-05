@@ -132,7 +132,7 @@ describe("bin: one envelope on stdout for every exit code (R-AX-5, R-AX-7)", () 
         assert.deepEqual(envelope["error"], {
           code: "cancelled",
           message: `The run was cancelled by ${signal}.`,
-          hint: "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
+          hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
           docsUrl: "https://aelmanaa.github.io/explorer-verify/reference/errors/cancelled",
           retryable: false,
           handle: HANDLE,

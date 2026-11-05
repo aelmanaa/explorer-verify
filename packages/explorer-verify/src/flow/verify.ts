@@ -393,13 +393,41 @@ async function verifyWith(
 ): Promise<VerifyResult> {
   const checked = validateInput(input);
   const route = routeOf(checked.chainId, settings, dependencies);
+  return await verifyOnRoute(checked, route, settings, dependencies, startBudget(settings), true);
+}
+
+/**
+ * Steps 2 to 7 of {@link verify} on a resolved route, for input that `validateInput` returned.
+ * `verifyEach()` runs it once per backend, with one shared budget.
+ *
+ * @param checked - The input, as `validateInput` returned it.
+ * @param route - The resolved route.
+ * @param settings - The options from {@link settingsOf}.
+ * @param dependencies - The backend clients and the jitter source.
+ * @param budget - The call's budget, from {@link startBudget}.
+ * @param validated - Whether to emit `verify.validated`: `verifyEach()` emits it once itself.
+ * @returns The result.
+ * @example
+ * ```ts
+ * const result = await verifyOnRoute(checked, route, settings, DEFAULT_DEPENDENCIES, budget, true);
+ * ```
+ */
+export async function verifyOnRoute(
+  checked: VerifyInput,
+  route: Route,
+  settings: Settings,
+  dependencies: FlowDependencies,
+  budget: Budget,
+  validated: boolean,
+): Promise<VerifyResult> {
   const target: Target = { chainId: checked.chainId, address: checked.address };
-  const budget = startBudget(settings);
   const loaded = await withClient(route, dependencies, settings, budget);
   const call = openCall(settings, route, target, loaded, true, budget);
   const { backend } = call;
   const { emit, log } = call.observer;
-  emit({ type: "verify.validated", chainId: checked.chainId, address: checked.address });
+  if (validated) {
+    emit({ type: "verify.validated", chainId: checked.chainId, address: checked.address });
+  }
   announceRoute(call, `Verifying ${checked.address} on chain ${String(checked.chainId)}`);
 
   const found = await backend.lookup(call.target, call.ctx);

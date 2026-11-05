@@ -83,7 +83,7 @@ describe("public types", () => {
 });
 
 describe("public entry point", () => {
-  it("exports exactly the decided runtime values (decision 0009, R-AX-5, R-AX-7)", () => {
+  it("exports exactly the decided runtime values (decision 0009, R-AX-5, R-AX-7, R-RT-4)", () => {
     assert.deepEqual(Object.keys(api).toSorted(), [
       "BACKEND_NAMES",
       "ERROR_CODES",
@@ -101,6 +101,7 @@ describe("public entry point", () => {
       "toEnvelope",
       "validateInput",
       "verify",
+      "verifyEach",
     ]);
   });
 

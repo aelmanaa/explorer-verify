@@ -353,7 +353,7 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "reference/verify.md",
-    example: 4,
+    example: 5,
     what: "keep the handle from verify.submitted",
     fixtures: [
       "2026-11-02-lookup-not-verified",
@@ -397,7 +397,7 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: NODE,
-    example: 1,
+    example: 2,
     what: "the queue job resumes the handle with checkStatus()",
     fixtures: ["2026-11-02-job-exact-match"],
   },

@@ -16,12 +16,15 @@ export { formatHandle, parseHandle } from "./flow/handle.ts";
 export { dryRun } from "./flow/dry-run.ts";
 export { checkStatus } from "./flow/status.ts";
 export { verify } from "./flow/verify.ts";
+export { verifyEach } from "./flow/verify-each.ts";
 export { buildVerifyInput } from "./input/build.ts";
 export { routingTableDate } from "./routing/resolve.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";
 export { linkLibraries } from "./input/libraries.ts";
 export { validateInput } from "./input/validate.ts";
 export type {
+  BackendEntry,
+  BackendOutcome,
   DryRunResult,
   Handle,
   Hex,
@@ -30,6 +33,8 @@ export type {
   LogValue,
   RouteOverride,
   SolidityStandardJsonInput,
+  VerifyEachOptions,
+  VerifyEachResult,
   VerifyEvent,
   VerifyInput,
   VerifyOptions,

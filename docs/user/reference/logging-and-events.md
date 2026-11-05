@@ -143,6 +143,24 @@ one warning per call.
 a promise, the library attaches a `.catch` and does not wait for it. A slow
 callback does not slow the verification, and a rejection is handled like a thrown exception.
 
+### Several backends
+
+`verifyEach()` ([verify()](verify.md#several-backends-in-one-call)) takes the same `logger` and
+`onEvent` and runs each backend as `verify()` does:
+
+- `verify.validated` arrives once for the whole call. It means the input and the options passed,
+  and every entry of `backends` resolved to a route or to an `unsupported-chain` outcome, with no
+  duplicate and no key in the address. No backend has sent a request yet.
+- Every later event carries its `backend`. The backends run at once, so their events interleave
+  in the order things happen; within one backend they keep stage order. Group them by `backend`.
+  Two entries on the same backend, on two hosts, share that name; `apiHost` in `verify.routed`
+  tells them apart.
+- A backend with an `unsupported-chain` outcome emits nothing after `verify.validated`. A backend
+  that throws emits no `verify.result`; its outcome holds the error.
+- A callback that throws gives one warning for `verify.validated` and one per backend, as each
+  backend has its own guard.
+- Log lines from all the backends go to the same `logger`, each with a `backend` field.
+
 ### Schema
 
 The package ships a JSON Schema (draft 2020-12) for the events as

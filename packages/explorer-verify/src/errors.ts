@@ -240,6 +240,11 @@ export type ErrorDetails =
       code: "cancelled";
       /** Present when the explorer accepted the submission before the cancel. */
       handle?: Handle;
+      /**
+       * A run on several backends: the handle of each backend that accepted a submission and had
+       * not ended before the cancel, in the order of the run's backends.
+       */
+      handles?: readonly Handle[];
     }
   | {
       /**
@@ -464,6 +469,16 @@ export interface ErrorJson {
   retryable: boolean;
   /** The handle in its one-line form, when the error carries one. */
   handle?: string;
+  /**
+   * `cancelled` only: each backend of a run on several backends that accepted a submission and had
+   * not ended when the run was cancelled, with its handle in the one-line form. Resume each one.
+   */
+  handles?: {
+    /** The backend that accepted the submission. */
+    backend: BackendName;
+    /** Its handle in the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. */
+    handle: string;
+  }[];
 }
 
 /**
@@ -572,7 +587,7 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     retryable: false,
   },
   cancelled: {
-    hint: "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
+    hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
     retryable: false,
   },
   "incomplete-input": {
@@ -652,6 +667,9 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       copy = { code: "cancelled" };
       if (details.handle !== undefined) {
         copy.handle = redactHandle(details.handle, secrets);
+      }
+      if (details.handles !== undefined) {
+        copy.handles = details.handles.map((handle) => redactHandle(handle, secrets));
       }
       break;
     case "unknown-state":
@@ -1060,6 +1078,12 @@ export class ExplorerVerifyError extends Error {
     const handle = "handle" in this.details ? this.details.handle : undefined;
     if (handle !== undefined) {
       json.handle = formatHandle(handle);
+    }
+    if (this.details.code === "cancelled" && this.details.handles !== undefined) {
+      json.handles = this.details.handles.map((each) => ({
+        backend: each.backend,
+        handle: formatHandle(each),
+      }));
     }
     return json;
   }

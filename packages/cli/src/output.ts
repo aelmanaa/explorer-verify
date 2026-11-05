@@ -4,7 +4,13 @@
  * Both come from the same envelope, so they hold the same redacted values and the same text for
  * the same outcome.
  */
-import type { DryRunResult, Envelope } from "explorer-verify";
+import type {
+  BackendOutcome,
+  DryRunResult,
+  Envelope,
+  ErrorJson,
+  VerifyResult,
+} from "explorer-verify";
 
 import { painter } from "./terminal.ts";
 
@@ -38,6 +44,17 @@ export function stdoutText(envelope: Envelope, json: boolean, color: boolean): s
   }
   const paint = painter(color);
   const { result } = envelope;
+  if ("outcomes" in result) {
+    return result.outcomes.map((outcome) => outcomeText(outcome, paint)).join("");
+  }
+  return resultText(result, paint);
+}
+
+/** The summary of a result of one backend. */
+function resultText(
+  result: VerifyResult | DryRunResult,
+  paint: ReturnType<typeof painter>,
+): string {
   if (result.status === "dry-run") {
     return dryRunText(result, paint);
   }
@@ -46,6 +63,22 @@ export function stdoutText(envelope: Envelope, json: boolean, color: boolean): s
   }
   const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
+}
+
+/**
+ * The summary of one backend of a run on several backends: its result as for one backend, or its
+ * error's code and message, and the handle when the error carries one.
+ */
+function outcomeText(
+  outcome: BackendOutcome<ErrorJson>,
+  paint: ReturnType<typeof painter>,
+): string {
+  if (!("error" in outcome)) {
+    return resultText(outcome.result, paint);
+  }
+  const { error } = outcome;
+  const line = `${paint("red", error.code)} on ${outcome.backend}: ${error.message}\n`;
+  return error.handle === undefined ? line : `${line}Handle: ${error.handle}\n`;
 }
 
 /**

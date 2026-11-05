@@ -4,7 +4,14 @@
  * or throws into stdout, stderr and the exit code. A command only does its work.
  */
 import { ExplorerVerifyError } from "explorer-verify";
-import type { DryRunResult, InputIssue, Logger, VerifyEvent, VerifyResult } from "explorer-verify";
+import type {
+  DryRunResult,
+  InputIssue,
+  Logger,
+  VerifyEachResult,
+  VerifyEvent,
+  VerifyResult,
+} from "explorer-verify";
 
 import type { CommandSpec, OptionValue } from "./arguments.ts";
 import type { InputStream, RouteOptions } from "./keys.ts";
@@ -40,8 +47,8 @@ export interface Example {
   readonly description: string;
 }
 
-/** What a command returns: a result of `verify()` or `checkStatus()`, or of `dryRun()`. */
-export type CommandResult = VerifyResult | DryRunResult;
+/** What a command returns: a result of `verify()`, `checkStatus()`, `dryRun()` or `verifyEach()`. */
+export type CommandResult = VerifyResult | DryRunResult | VerifyEachResult;
 
 /** Does a command's work. */
 export type RunCommand = (context: CommandContext) => Promise<CommandResult>;

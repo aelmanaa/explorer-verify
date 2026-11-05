@@ -121,6 +121,36 @@ early, such as on shutdown, pass an `AbortSignal` in `signal`; the call rejects 
 reason. Save the handle from the `verify.submitted` event when a crash between submit and result
 must not lose the job ([Abort and resume](../reference/verify.md#abort-and-resume)).
 
+## Verify on several explorers at once
+
+To publish the source on Etherscan and on Sourcify, call `verifyEach()` once instead of `verify()`
+twice. Both backends run at once with one time budget, and the call returns one outcome per
+backend. Each key goes only to its own backend. A pending backend keeps its handle, so queue it as
+above.
+
+<!-- no-run: it sends requests to Etherscan, which the recorded answers of the docs test do not cover -->
+
+```ts no-run
+import { verifyEach } from "explorer-verify";
+
+const { outcomes } = await verifyEach(input, {
+  backends: ["etherscan-v2", "sourcify"],
+  apiKeys: { "etherscan-v2": process.env["ETHERSCAN_API_KEY"] },
+  timeoutMs: 600_000,
+});
+for (const outcome of outcomes) {
+  if ("error" in outcome) {
+    // A pending backend: resume it later with checkStatus(handle).
+    console.log(`${outcome.backend}: ${outcome.error.code} ${outcome.error.toJSON().handle ?? ""}`);
+  } else {
+    console.log(`${outcome.backend}: ${outcome.result.status}`);
+  }
+}
+```
+
+One backend's error never hides another's result: read `ok` on each outcome. See
+[Several backends in one call](../reference/verify.md#several-backends-in-one-call).
+
 ## Resume from a job queue
 
 The queue job polls the handle with `checkStatus()`, which never submits. Pass the same `apiKeys`
