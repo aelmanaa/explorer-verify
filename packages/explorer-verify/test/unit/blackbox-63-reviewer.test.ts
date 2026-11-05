@@ -197,7 +197,8 @@ describe("blackbox #63: key binding through verify() and checkStatus()", () => {
     const [sent] = fake.sent;
     assert.ok(sent !== undefined);
     assertKeyOnlyInBody(sent, undefined);
-    assert.equal(sent.url, API);
+    // A keyless lookup is a GET to the API with its fields in the query (decision 0039).
+    assert.equal(sent.url.split("?")[0], API);
   });
 
   it("apiKeys['etherscan-compatible'] throws invalid-input before any request, without the key", async () => {
@@ -214,7 +215,8 @@ describe("blackbox #63: key binding through verify() and checkStatus()", () => {
     assertNoKeyIn(errorText(error));
   });
 
-  it("route.apiKey without route.apiUrl throws invalid-input, without the key", async () => {
+  it("route.apiKey without route.apiUrl, on a chain whose row lists no standalone host, throws unsupported-chain without the key", async () => {
+    // Decision 0039: without apiUrl the key is bound to the row's standalone host; 296 has none.
     const fake = fakeFetch();
     const error = await rejection(
       verify(input(), {
@@ -222,7 +224,7 @@ describe("blackbox #63: key binding through verify() and checkStatus()", () => {
         route: { backend: "etherscan-compatible", apiKey: ROUTE_KEY },
       }),
     );
-    assert.equal(error.code, "invalid-input");
+    assert.equal(error.code, "unsupported-chain");
     assert.equal(fake.sent.length, 0);
     assertNoKeyIn(errorText(error));
   });

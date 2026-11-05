@@ -13,7 +13,7 @@ import type { Budget } from "../http/fetch.ts";
 import { validateInput } from "../input/validate.ts";
 import { readOwn } from "../internal/read-fields.ts";
 import { createObserver } from "../observe.ts";
-import { ROUTING_TABLE, checkApiUrl, unsupported } from "../routing/resolve.ts";
+import { ROUTING_TABLE, checkApiUrl, tableTarget, unsupported } from "../routing/resolve.ts";
 import type { Route } from "../routing/resolve.ts";
 import type {
   BackendEntry,
@@ -340,10 +340,15 @@ function everyListed(chainId: number, settings: Settings, dependencies: FlowDepe
     throw unsupported(chainId, "sourcify", "row");
   }
   const names: BackendName[] = [];
+  // Backends whose table entry says its API refuses a request without a key (decision 0039).
+  const keyed: BackendName[] = [];
   for (const entry of row.backends) {
     const name = toBackendName(entry.backend);
     if (name !== undefined && dependencies.backends[name] !== undefined && !names.includes(name)) {
       names.push(name);
+      if (tableTarget(chainId, entry)?.needsKey === true) {
+        keyed.push(name);
+      }
     }
   }
   if (names.length === 0) {
@@ -357,7 +362,9 @@ function everyListed(chainId: number, settings: Settings, dependencies: FlowDepe
   // one, whether or not `fetch` is injected. When every listed backend needs a key and none is
   // set, they all stay, and each ends in `missing-api-key` unless `fetch` is injected.
   const keys = settings.apiKeys();
-  const usable = names.filter((name) => !needsKey(name) || readOwn(keys, name) !== undefined);
+  const usable = names.filter(
+    (name) => !(needsKey(name) || keyed.includes(name)) || readOwn(keys, name) !== undefined,
+  );
   return (usable.length > 0 ? usable : names).map((backend) => ({ backend }));
 }
 

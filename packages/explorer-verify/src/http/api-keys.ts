@@ -103,13 +103,15 @@ export function checkKey(value: unknown): { key: string } | string {
 
 /**
  * Checks `route.apiKey` for a route of `backend`. Only `etherscan-v2`, `etherscan-compatible` and
- * `routescan` take one, and only next to `route.apiUrl`: the key is bound to that host, so a key
- * without it could reach the routing table's host for the chain. The issue message never repeats
+ * `routescan` take one, and only when the key has a host to be bound to: `route.apiUrl`, or for
+ * `route.backend` `etherscan-compatible`, the standalone host the chain's row lists (decision
+ * 0039). Otherwise a key could reach a host it was not meant for. The issue message never repeats
  * the value.
  *
  * @param backend - The route's backend.
  * @param value - The caller's `route.apiKey`.
- * @param hasApiUrl - Whether the override sets `apiUrl`.
+ * @param hasApiUrl - Whether the key has a host: the override sets `apiUrl`, or names
+ *   `etherscan-compatible`.
  * @returns `{}` when `value` is `undefined`, `{ key }` for a valid key, or `{ issue }`.
  * @example
  * ```ts
@@ -390,8 +392,9 @@ export function withKey(ctx: KeyContext, backend: BackendName, req: HttpRequest)
 }
 
 /**
- * Whether the route's backend needs a key, none is bound to the route's host, and the caller did
- * not inject `fetch`. {@link requireKey} throws in that case; a dry run skips its lookup instead.
+ * Whether the route needs a key (its backend always does, or its table entry says so), none is
+ * bound to the route's host, and the caller did not inject `fetch`. {@link requireKey} throws in
+ * that case; a dry run skips its lookup instead.
  *
  * @param ctx - The route and the caller's keys.
  * @param injectedFetch - Whether the caller passed `VerifyOptions.fetch`.
@@ -407,16 +410,17 @@ export function keyMissing(ctx: KeyContext, injectedFetch: boolean): boolean {
   const { route } = ctx;
   return (
     !injectedFetch &&
-    needsKey(route.backend) &&
+    (needsKey(route.backend) || route.needsKey === true) &&
     keyFor(ctx, route.backend, route.apiBase) === undefined
   );
 }
 
 /**
- * Throws `missing-api-key` before any request when the route's backend needs a key, none is bound
- * to the route's host, and the caller did not inject `fetch`. With an injected `fetch`, the request
- * may reach a server that adds the key (R-SRV-5), so it goes out without one and the explorer's
- * answer decides, through {@link keyErrorOf}.
+ * Throws `missing-api-key` before any request when the route needs a key (its backend always
+ * does, or its table entry says so), none is bound to the route's host, and the caller did not
+ * inject `fetch`. With an injected `fetch`, the request may reach a server that adds the key
+ * (R-SRV-5), so it goes out without one and the explorer's answer decides, through
+ * {@link keyErrorOf}.
  *
  * @param ctx - The route and the caller's keys.
  * @param injectedFetch - Whether the caller passed `VerifyOptions.fetch`.
@@ -438,9 +442,13 @@ export function requireKey(
     return;
   }
   const host = new URL(route.apiBase).host;
-  const where = route.overridden
-    ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
-    : `set apiKeys.${route.backend}`;
+  // `apiKeys` never holds a standalone explorer's key (decision 0016), so only route.apiKey helps.
+  const where =
+    route.backend === "etherscan-compatible"
+      ? "set route.apiKey"
+      : route.overridden
+        ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
+        : `set apiKeys.${route.backend}`;
   throw new ExplorerVerifyError(
     { code: "missing-api-key", backend: route.backend },
     `${route.backend} needs an API key and none is set for ${host}: ${where}.`,

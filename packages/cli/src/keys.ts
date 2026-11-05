@@ -246,8 +246,9 @@ type Destination =
 /**
  * Where a key from a flag goes. The routing table picks a backend partly by the keys it has, so
  * the CLI cannot tell which backend an unnamed key is for. The caller names it: `--api-url` binds
- * the key to that host, and `--backend` names a backend that takes a key from `apiKeys`. A key is
- * never given to a backend it was not meant for, such as a Routescan key to Etherscan (R-SEC-2).
+ * the key to that host, and `--backend` names a backend that takes a key from `apiKeys`.
+ * `--backend etherscan-compatible` alone binds it to the standalone host of the chain's row. A key
+ * is never given to a backend it was not meant for, such as a Routescan key to Etherscan (R-SEC-2).
  */
 function destinationOf(route: RouteOverride, backendGiven: boolean): Destination {
   const { backend, apiUrl } = route;
@@ -269,16 +270,11 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
       message: `cannot be used with --backend ${backend}: it takes no API key`,
     };
   }
-  if (apiUrl !== undefined) {
-    return { kind: "route" };
-  }
-  if (FLAG_KEY_BACKENDS.includes(backend)) {
-    return { kind: "backend", backend };
-  }
-  return {
-    kind: "problem",
-    message: `needs --api-url with --backend ${backend}: a standalone explorer's key goes only to its own host`,
-  };
+  // Without --api-url, a standalone explorer's key goes to the host the routing table lists for
+  // the chain; a chain whose row lists none fails with unsupported-chain (decision 0039).
+  return apiUrl === undefined && FLAG_KEY_BACKENDS.includes(backend)
+    ? { kind: "backend", backend }
+    : { kind: "route" };
 }
 
 /** The options that read stdin, in the order a conflict between two of them is reported. */

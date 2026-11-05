@@ -15,6 +15,11 @@ import {
   withBlockscout,
 } from "../routing-blockscout.ts";
 import type { BlockscoutProbe, RegistryExplorer } from "../routing-blockscout.ts";
+import {
+  STANDALONE_FILE,
+  parseStandaloneProbe,
+  withEtherscanCompatible,
+} from "../routing-etherscan-compatible.ts";
 import { ROUTESCAN_FILE, parseRoutescanProbe, withRoutescan } from "../routing-routescan.ts";
 import { SEED_FILE, TABLE_FILE, parseSeed, parseTable } from "../routing-seed.ts";
 
@@ -254,7 +259,7 @@ describe("routing blockscout: the entries (R-RT-1, #169, decision 0038)", () => 
     assert.deepEqual(withBlockscout(rows, new Map([[1, "b.example"]]), new Set()), rows);
   });
 
-  it("builds the shipped table: without its Blockscout and Routescan entries, adding both back gives it", () => {
+  it("builds the shipped table: without its Blockscout, standalone and Routescan entries, adding them back gives it", () => {
     const shipped = read(TABLE_FILE);
     const chains = listOf(field(shipped, "chains"));
     const base = chains
@@ -264,7 +269,7 @@ describe("routing blockscout: the entries (R-RT-1, #169, decision 0038)", () => 
           const explorer = field(entry, "explorer");
           return field(entry, "backend") === "sourcify"
             ? [{ backend: "sourcify" }]
-            : typeof explorer === "string"
+            : field(entry, "backend") === "etherscan-v2" && typeof explorer === "string"
               ? [{ backend: "etherscan-v2", explorer }]
               : [];
         }),
@@ -276,7 +281,14 @@ describe("routing blockscout: the entries (R-RT-1, #169, decision 0038)", () => 
         .map((chain) => chain.chainId),
     );
     const rebuilt = withRoutescan(
-      withBlockscout(base, blockscoutInstances(parseBlockscoutProbe(read(BLOCKSCOUT_FILE))), paid),
+      withEtherscanCompatible(
+        withBlockscout(
+          base,
+          blockscoutInstances(parseBlockscoutProbe(read(BLOCKSCOUT_FILE))),
+          paid,
+        ),
+        parseStandaloneProbe(read(STANDALONE_FILE)),
+      ),
       parseRoutescanProbe(read(ROUTESCAN_FILE)),
     );
     assert.deepEqual(rebuilt, chains);

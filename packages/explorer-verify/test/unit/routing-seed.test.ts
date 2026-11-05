@@ -4,7 +4,8 @@
 // table's rows, so a dropped row or entry fails CI. The copy was updated on 2026-11-05, when chains
 // 11124 and 43113 left the chainlist and #166 added a row for every chain Sourcify supports. The
 // Routescan entries come from the probe data of 2026-11-05 (#168), and the Blockscout entries from
-// the instance probe of 2026-11-05 (#169).
+// the instance probe of 2026-11-05 (#169), and the standalone entry from the API probe of 2026-11-05
+// (#170).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -27,6 +28,10 @@ const SEED_FILE = new URL(
 );
 const ROUTESCAN_FILE = new URL(
   "../../../../docs/contributor/research/data/2026-11-05-routescan-chains.json",
+  import.meta.url,
+);
+const STANDALONE_FILE = new URL(
+  "../../../../docs/contributor/research/data/2026-11-05-etherscan-compatible-hosts.json",
   import.meta.url,
 );
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
@@ -131,10 +136,21 @@ for (const item of listOf(
   }
 }
 
-/** A row's entries other than Routescan's and Blockscout's, which #168 and #169 added. */
+/** The chains whose standalone API answered the probe of 2026-11-05 (#170). */
+const standalone = listOf(JSON.parse(readFileSync(STANDALONE_FILE, "utf8")), "hosts", (host) =>
+  numberOf(host, "chainId"),
+);
+
+/**
+ * A row's entries other than Routescan's, Blockscout's and the standalone ones, which #168, #169
+ * and #170 added from probes.
+ */
 function withoutRoutescan(backends: readonly TableEntry[] | undefined): TableEntry[] | undefined {
   return backends?.filter(
-    (entry) => entry.backend !== "routescan" && entry.backend !== "blockscout",
+    (entry) =>
+      entry.backend !== "routescan" &&
+      entry.backend !== "blockscout" &&
+      entry.backend !== "etherscan-compatible",
   );
 }
 
@@ -256,12 +272,15 @@ describe("routing table rows (R-RT-1)", () => {
       ...seed.rows.map((row) => row.chainId),
       ...routescan.map((chain) => chain.chainId),
       ...blockscout.keys(),
+      ...standalone,
     ]);
     assert.deepEqual(
       tableIds,
       [...ids].toSorted((a, b) => a - b),
     );
-    assert.equal(tableIds.length, 325);
+    assert.equal(tableIds.length, 326);
+    // 1 row from the standalone probe alone (#170): Bitlayer.
+    assert.deepEqual(standalone, [200901]);
     // 94 rows from the chainlist or the prior art, and 194 from Sourcify's chain list alone (#166).
     const fromSourcify = seed.rows.filter((row) => row.from.includes("sourcify-chains"));
     assert.equal(fromSourcify.length, 194);
@@ -271,7 +290,7 @@ describe("routing table rows (R-RT-1)", () => {
       ...routescan.map((c) => c.chainId),
     ]);
     assert.equal(withRoutescan.size - seed.rows.length, 26);
-    assert.equal(ids.size - withRoutescan.size, 11);
+    assert.equal(ids.size - withRoutescan.size, 12);
   });
 
   it("gives every chain Sourcify supports a row: the 49 chains of #166 resolve to Sourcify without allowSourcifyFallback (R-RT-1, R-RT-3, decision 0036)", () => {
@@ -298,7 +317,7 @@ describe("routing table rows (R-RT-1)", () => {
     }
   });
 
-  it("lists Sourcify on every row but the Blockscout- and Routescan-only ones, and only the backends with a client; standalone explorers have no rows yet (R-RT-1)", () => {
+  it("lists Sourcify on every row but the Blockscout-, Routescan- and standalone-only ones, and only the backends with a client; Bitlayer is the one standalone row (R-RT-1, #170)", () => {
     const clients = Object.keys(DEFAULT_DEPENDENCIES.backends);
     assert.deepEqual(clients, [
       "sourcify",
@@ -311,11 +330,18 @@ describe("routing table rows (R-RT-1)", () => {
       const names = row.backends.map((entry) => entry.backend);
       assert.ok(
         names.includes("sourcify") ||
-          names.filter((name) => name !== "blockscout" && name !== "routescan").length === 0,
+          names.filter(
+            (name) =>
+              name !== "blockscout" && name !== "routescan" && name !== "etherscan-compatible",
+          ).length === 0,
         String(row.chainId),
       );
-      // No standalone host answered on 2026-11-03 or 2026-11-04 (#63).
-      assert.ok(!names.includes("etherscan-compatible"), String(row.chainId));
+      // Only Bitlayer's standalone API answered the keyless probe of 2026-11-05 (#170).
+      assert.equal(
+        names.includes("etherscan-compatible"),
+        standalone.includes(row.chainId),
+        String(row.chainId),
+      );
       assert.ok(
         names.every((name) => clients.includes(name)),
         String(row.chainId),

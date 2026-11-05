@@ -139,6 +139,7 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
       "apiKey",
       "backend",
       "explorerUrl",
+      "needsKey",
       "overridden",
       "redactedApiUrl",
       "requestUrl",

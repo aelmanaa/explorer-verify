@@ -1,5 +1,5 @@
 // The standalone Etherscan-compatible explorer client (R-BE-2). No standalone host answered live
-// on 2026-11-03 or 2026-11-04, so the explorer's answers are Etherscan's, recorded live in
+// on 2026-11-03 or 2026-11-04, so most of the explorer's answers are Etherscan's, recorded live in
 // test/fixtures/etherscan/ (the same API), and the deprecated-V1 answer is recorded from a retired
 // Etherscan host in test/fixtures/etherscan-compatible/. Every request goes to a local fake
 // explorer: a fake fetch on a loopback URL, or a node:http server on 127.0.0.1.
@@ -119,6 +119,12 @@ function form(call: Call | undefined): URLSearchParams {
   return new URLSearchParams(call.body ?? "");
 }
 
+/** The fields of a request: the query of a GET, the form body of a POST. */
+function sentFields(call: Call | undefined): URLSearchParams {
+  assert.ok(call !== undefined, "no such request");
+  return call.method === "GET" ? new URL(call.url).searchParams : form(call);
+}
+
 /** Runs the mocked timers until `promise` settles; `setImmediate` is not mocked. */
 async function drive<T>(t: TestContext, promise: Promise<T>): Promise<T> {
   const state = { done: false };
@@ -148,26 +154,42 @@ function assertNoKey(seen: string): void {
 }
 
 describe("etherscan-compatible requests (R-BE-2, R-SEC-1, R-SEC-2)", () => {
-  it("etherscan-compatible sends no chainid parameter (R-BE-2)", async () => {
+  it("etherscan-compatible sends no chainid parameter, and keyless lookups and polls as GET (R-BE-2)", async () => {
     const s = setup([NOT_VERIFIED(), SUBMITTED(), PENDING()]);
     assert.equal(await etherscanCompatible.lookup(TARGET, s.ctx), undefined);
     assert.equal((await etherscanCompatible.submit(input(), s.ctx)).state, "submitted");
     assert.deepEqual(await etherscanCompatible.poll(handle(), s.ctx), { state: "pending" });
     assert.equal(s.calls.length, 3);
+    // Bitlayer refuses getsourcecode sent as a POST (live, 2026-11-05), so a keyless lookup and
+    // poll are GETs with the fields in the query. The submit stays a form POST.
+    assert.deepEqual(
+      s.calls.map((sent) => sent.method),
+      ["GET", "POST", "GET"],
+    );
     for (const sent of s.calls) {
-      assert.equal(sent.url, API);
-      assert.equal(sent.method, "POST");
-      assert.equal(sent.headers.get("content-type"), "application/x-www-form-urlencoded");
+      assert.equal(`${new URL(sent.url).origin}${new URL(sent.url).pathname}`, API);
       assert.equal(new URL(sent.url).searchParams.has("chainid"), false);
-      assert.equal(form(sent).has("chainid"), false);
-      assert.equal(form(sent).get("module"), "contract");
+      assert.equal(sentFields(sent).has("chainid"), false);
+      assert.equal(sentFields(sent).get("module"), "contract");
+      assert.equal(sentFields(sent).has("apikey"), false);
     }
-    assert.equal(form(s.calls[0]).get("action"), "getsourcecode");
-    assert.equal(form(s.calls[0]).get("address"), TARGET.address);
-    assert.equal(form(s.calls[1]).get("action"), "verifysourcecode");
-    assert.equal(form(s.calls[1]).get("contractaddress"), TARGET.address);
-    assert.equal(form(s.calls[2]).get("action"), "checkverifystatus");
-    assert.equal(form(s.calls[2]).get("guid"), GUID);
+    assert.equal(s.calls[0]?.body, undefined);
+    assert.equal(s.calls[1]?.url, API);
+    assert.equal(s.calls[1]?.headers.get("content-type"), "application/x-www-form-urlencoded");
+    assert.equal(sentFields(s.calls[0]).get("action"), "getsourcecode");
+    assert.equal(sentFields(s.calls[0]).get("address"), TARGET.address);
+    assert.equal(sentFields(s.calls[1]).get("action"), "verifysourcecode");
+    assert.equal(sentFields(s.calls[1]).get("contractaddress"), TARGET.address);
+    assert.equal(sentFields(s.calls[2]).get("action"), "checkverifystatus");
+    assert.equal(sentFields(s.calls[2]).get("guid"), GUID);
+  });
+
+  it("reads a lookup answered with an empty result list as not verified (R-BE-2)", async () => {
+    // Bitlayer's answer for an address with no verified source (live, 2026-11-05).
+    const empty = new Response(JSON.stringify({ status: "1", message: "OK", result: [] }), {
+      status: 200,
+    });
+    assert.equal(await etherscanCompatible.lookup(TARGET, setup([empty]).ctx), undefined);
   });
 
   it("a caller's query string is kept, and none is added (R-BE-2)", async () => {
@@ -181,7 +203,10 @@ describe("etherscan-compatible requests (R-BE-2, R-SEC-1, R-SEC-2)", () => {
       http: { backend: "etherscan-compatible", fetch: fake.fetch, secrets: [] },
     };
     await etherscanCompatible.lookup(TARGET, ctx);
-    assert.equal(fake.calls[0]?.url, "https://explorer.example.org/api?network=testnet");
+    assert.equal(
+      fake.calls[0]?.url,
+      `https://explorer.example.org/api?network=testnet&module=contract&action=getsourcecode&address=${TARGET.address}`,
+    );
   });
 
   it("etherscan-compatible sends the override's key only to the override's host (R-SEC-2)", async () => {
@@ -192,7 +217,8 @@ describe("etherscan-compatible requests (R-BE-2, R-SEC-1, R-SEC-2)", () => {
     assert.equal(s.calls.length, 3);
     for (const sent of s.calls) {
       assert.equal(new URL(sent.url).origin, new URL(API).origin);
-      // In the form body only (R-SEC-1): never the URL or a header.
+      // In the form body of a POST only (R-SEC-1): never the URL or a header.
+      assert.equal(sent.method, "POST");
       assert.equal(form(sent).get("apikey"), ROUTE_KEY);
       assert.ok(!sent.url.includes(ROUTE_KEY));
       assert.ok(![...sent.headers.values()].some((value) => value.includes(ROUTE_KEY)));
@@ -256,7 +282,7 @@ describe("etherscan-compatible answers (R-BE-2, R-FLOW-4)", () => {
     );
     assert.equal(error.code, "unexpected-response");
     assert.equal(fake.calls.length, 1);
-    assert.equal(form(fake.calls[0]).get("action"), "getsourcecode");
+    assert.equal(sentFields(fake.calls[0]).get("action"), "getsourcecode");
   });
 
   it("reads key and chain answers as the Etherscan client does", async () => {
@@ -346,7 +372,7 @@ describe("verify() and checkStatus() through a route override (R-FLOW-3, R-RT-2)
     assertNoKey(`${error.message} ${error.hint} ${JSON.stringify(error)} ${inspect(error)}`);
   });
 
-  it("route.backend etherscan-compatible without route.apiUrl throws unsupported-chain: the table lists no standalone explorer", async () => {
+  it("route.backend etherscan-compatible without route.apiUrl throws unsupported-chain on a chain whose row lists no standalone explorer", async () => {
     const fake = replay();
     const error = await errorOf(
       verify(input(), { fetch: fake.fetch, route: { backend: "etherscan-compatible" } }),

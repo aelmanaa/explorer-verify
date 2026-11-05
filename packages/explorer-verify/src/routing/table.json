@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "checked": "2026-11-05",
   "chains": [
     {
@@ -2728,6 +2728,16 @@
         {
           "backend": "blockscout",
           "instance": "explorer.hpp.io"
+        }
+      ]
+    },
+    {
+      "chainId": 200901,
+      "backends": [
+        {
+          "backend": "etherscan-compatible",
+          "api": "api.btrscan.com/scan/api",
+          "explorer": "www.btrscan.com"
         }
       ]
     },

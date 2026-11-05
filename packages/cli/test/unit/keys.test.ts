@@ -172,11 +172,6 @@ describe("readRouteOptions: --api-key-file (R-AX-9)", () => {
   const unnamed: readonly [string, Record<string, OptionValue>, string][] = [
     ["no --backend", {}, "needs --backend or --api-url, to name where the key goes"],
     [
-      "--backend etherscan-compatible",
-      { backend: "etherscan-compatible" },
-      "needs --api-url with --backend etherscan-compatible: a standalone explorer's key goes only to its own host",
-    ],
-    [
       "--backend sourcify",
       { backend: "sourcify" },
       "cannot be used with --backend sourcify: it takes no API key",
@@ -253,6 +248,15 @@ describe("readRouteOptions: --api-key-file (R-AX-9)", () => {
         apiUrl: "https://explorer.example.org/api",
         apiKey: FLAG_KEY,
       },
+    });
+  });
+
+  it("puts the key in route.apiKey with --backend etherscan-compatible alone, for the row's host (decision 0039)", async () => {
+    const path = keyFile("standalone.txt", FLAG_KEY);
+    const read = await readWith({ "api-key-file": path, backend: "etherscan-compatible" });
+    assert.deepEqual(read.issues, []);
+    assert.deepEqual(read.options, {
+      route: { backend: "etherscan-compatible", apiKey: FLAG_KEY },
     });
   });
 

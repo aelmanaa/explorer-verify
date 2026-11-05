@@ -983,9 +983,11 @@ describe("verify(): invalid input, options and route", () => {
       { route: { apiUrl: "https://example.com/server#x" } },
     ],
     [
-      "route.apiKey for etherscan-compatible without route.apiUrl",
+      // Without apiUrl, an etherscan-compatible key binds to the row's standalone host instead
+      // (decision 0039); an Etherscan v2 key belongs in apiKeys.
+      "route.apiKey for etherscan-v2 without route.apiUrl",
       makeInput(),
-      { route: { backend: "etherscan-compatible", apiKey: "dummy-standalone-key-17x" } },
+      { route: { backend: "etherscan-v2", apiKey: "dummy-standalone-key-17x" } },
     ],
   ];
   for (const [name, value, options] of cases) {

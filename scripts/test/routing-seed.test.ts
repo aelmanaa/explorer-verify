@@ -14,6 +14,12 @@ import {
   parseBlockscoutProbe,
   withBlockscout,
 } from "../routing-blockscout.ts";
+import {
+  ALLOY_CHAINS,
+  STANDALONE_FILE,
+  parseStandaloneProbe,
+  withEtherscanCompatible,
+} from "../routing-etherscan-compatible.ts";
 import { ROUTESCAN_FILE, ROUTESCAN_LISTS, withRoutescan } from "../routing-routescan.ts";
 import {
   SEED_FILE,
@@ -159,8 +165,18 @@ describe("routing seed: parsing the recorded lists (R-RT-1)", () => {
     const root = new URL("../../", import.meta.url);
     const table = parseTable(JSON.parse(readFileSync(new URL(TABLE_FILE, root), "utf8")));
     const seed = parseSeed(JSON.parse(readFileSync(new URL(SEED_FILE, root), "utf8")));
-    assert.equal(table.rows.length, 325);
+    assert.equal(table.rows.length, 326);
     assert.equal(table.rows.filter((row) => row.backends.includes("etherscan-v2")).length, 55);
+    assert.deepEqual(
+      table.rows.filter((row) => row.backends.includes("etherscan-compatible")),
+      [
+        {
+          chainId: 200_901,
+          backends: ["etherscan-compatible"],
+          standalone: { api: "api.btrscan.com/scan/api", explorer: "www.btrscan.com" },
+        },
+      ],
+    );
     assert.equal(table.rows.filter((row) => row.backends.includes("routescan")).length, 38);
     assert.equal(table.rows.filter((row) => row.backends.includes("blockscout")).length, 111);
     assert.equal(seed.etherscan.length, 55);
@@ -394,6 +410,26 @@ const BLOCKSCOUT_PROBE = {
     },
   ],
 };
+/** A standalone probe of one API, and alloy-chains' answer that lists it (#170). */
+const STANDALONE_PROBE = {
+  checked: "2026-11-05",
+  hosts: [
+    {
+      chainId: 200901,
+      name: "Bitlayer",
+      api: "api.btrscan.com/scan/api",
+      explorer: "www.btrscan.com",
+      needsKey: false,
+    },
+  ],
+  leftOut: [],
+};
+const ALLOY = {
+  chains: {
+    "1": { etherscanApiUrl: "https://api.etherscan.io/v2/api?chainid=1" },
+    "200901": { etherscanApiUrl: "https://api.btrscan.com/scan/api" },
+  },
+};
 const REGISTRY = {
   "1": { name: "Ethereum", explorers: [{ url: "https://etherscan.io/", hostedBy: "self" }] },
   "31": {
@@ -418,18 +454,21 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
       [
         TABLE_FILE,
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           checked: "2026-11-04",
           chains: withRoutescan(
-            withBlockscout(
-              [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
-                chainId: row.chainId,
-                backends: row.backends.map((backend) =>
-                  backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
-                ),
-              })),
-              blockscoutInstances(parseBlockscoutProbe(BLOCKSCOUT_PROBE)),
-              new Set([8453, 43113]),
+            withEtherscanCompatible(
+              withBlockscout(
+                [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
+                  chainId: row.chainId,
+                  backends: row.backends.map((backend) =>
+                    backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
+                  ),
+                })),
+                blockscoutInstances(parseBlockscoutProbe(BLOCKSCOUT_PROBE)),
+                new Set([8453, 43113]),
+              ),
+              parseStandaloneProbe(STANDALONE_PROBE),
             ),
             PROBE,
           ),
@@ -437,6 +476,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
       ],
       [ROUTESCAN_FILE, PROBE],
       [BLOCKSCOUT_FILE, BLOCKSCOUT_PROBE],
+      [STANDALONE_FILE, STANDALONE_PROBE],
       [
         SEED_FILE,
         {
@@ -453,7 +493,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("fetches the five lists, compares and notes what it compared (#168, #169)", async () => {
+  it("fetches the six lists, compares and notes what it compared (#168, #169, #170)", async () => {
     const asked: string[] = [];
     const result = await run(
       root,
@@ -462,6 +502,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
           [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
+          [ALLOY_CHAINS]: Response.json(ALLOY),
           ...routescanAnswers(),
         },
         asked,
@@ -472,14 +513,41 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
       ROUTESCAN_LISTS.mainnet,
       ROUTESCAN_LISTS.testnet,
       BLOCKSCOUT_REGISTRY,
+      ALLOY_CHAINS,
       SOURCES.sourcifyChains,
     ]);
     assert.deepEqual(result.differences, []);
     assert.equal(result.checked, "2026-11-04");
     assert.deepEqual(result.notes, [
-      "table checked 2026-11-04; 8 rows",
+      "table checked 2026-11-04; 9 rows",
       "routescan: entries compared with the API probe of 2026-11-05, and that probe with Routescan's explorer lists",
       "blockscout: entries compared with the instance probe of 2026-11-05, and that probe with Blockscout's chain registry",
+      "etherscan-compatible: entries compared with the API probe of 2026-11-05, and that probe with alloy-chains' list",
+    ]);
+  });
+
+  it("reports a standalone difference with alloy-chains' list (#170, decision 0039)", async () => {
+    const result = await run(
+      root,
+      fakeFetch(
+        {
+          [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
+          [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
+          [ALLOY_CHAINS]: Response.json({
+            chains: { "200901": { etherscanApiUrl: "https://api.btrscan.com/api" } },
+          }),
+          ...routescanAnswers(),
+        },
+        [],
+      ),
+    );
+    assert.deepEqual(result.differences, [
+      {
+        chainId: 200901,
+        list: "alloy-chains list",
+        text: "alloy-chains: chain 200901 (Bitlayer) moved from api.btrscan.com/scan/api to api.btrscan.com/api; probe it",
+      },
     ]);
   });
 
@@ -491,6 +559,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
           [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
+          [ALLOY_CHAINS]: Response.json(ALLOY),
           ...routescanAnswers({ items: [] }),
         },
         [],
@@ -514,6 +583,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
           [BLOCKSCOUT_REGISTRY]: Response.json({}),
+          [ALLOY_CHAINS]: Response.json(ALLOY),
           ...routescanAnswers(),
         },
         [],
@@ -537,6 +607,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
             [SOURCES.etherscanChainlist]: new Response("blocked", { status: 403 }),
             [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
             [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
+            [ALLOY_CHAINS]: Response.json(ALLOY),
             ...routescanAnswers(),
           },
           [],
@@ -554,7 +625,7 @@ describe("routing seed: the table the rules give (R-RT-1, #166, decision 0036)",
       "2026-11-05",
     );
     assert.deepEqual(table, {
-      schemaVersion: 2,
+      schemaVersion: 3,
       checked: "2026-11-05",
       chains: [
         {

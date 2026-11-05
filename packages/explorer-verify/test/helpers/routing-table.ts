@@ -15,6 +15,19 @@ const ROW_KEYS = ["chainId", "backends"];
 const HOST_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 const HOST = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})+$`);
 const ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+// A standalone API: a host, then an optional path of lowercase segments, no trailing slash.
+const API = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})+(?:/[a-z0-9._~-]+)*$`);
+
+/** Whether `URL` writes `https://<api>` back unchanged: no port, no dot segments, no escapes. */
+/** Whether a host is an IP literal: IPv4 (a last label of digits) or bracketed IPv6. */
+function isIpLiteral(host: string): boolean {
+  return host.startsWith("[") || /(?:^|\.)\d+$/.test(host);
+}
+
+function isApiPath(api: string): boolean {
+  const url = urlOf(`https://${api}`);
+  return url !== undefined && `${url.host}${url.pathname === "/" ? "" : url.pathname}` === api;
+}
 
 /** The fields each backend's entry may hold: [required, optional]. */
 const ENTRY_KEYS: Readonly<Partial<Record<BackendName, [string[], string[]]>>> = {
@@ -22,17 +35,28 @@ const ENTRY_KEYS: Readonly<Partial<Record<BackendName, [string[], string[]]>>> =
   routescan: [["backend", "network"], []],
   sourcify: [["backend"], []],
   blockscout: [["backend", "instance"], []],
+  "etherscan-compatible": [
+    ["backend", "api"],
+    ["explorer", "needsKey"],
+  ],
 };
 
 /**
  * The API host and path each backend's derived `apiUrl` must have. A backend without a rule cannot
  * appear in the table: its issue adds the rule, and the resolver's template, with its first row.
- * A Blockscout instance's host is the entry's `instance`, which `entryProblems` checks first.
+ * A Blockscout instance's host is the entry's `instance`, and a standalone explorer's host and
+ * path are its `api`; `entryProblems` checks both first.
  */
 const API_RULES: Readonly<
   Partial<Record<BackendName, (chainId: number, instance: string) => [string, RegExp]>>
 > = {
   blockscout: (_chainId, instance) => [instance, /^\/api$/],
+  "etherscan-compatible": (_chainId, api) => {
+    const at = api.indexOf("/");
+    // `URL` writes an empty path as `/`.
+    const path = at === -1 ? "/" : api.slice(at);
+    return [at === -1 ? api : api.slice(0, at), new RegExp(`^${path.replaceAll(".", "\\.")}$`)];
+  },
   "etherscan-v2": () => [ETHERSCAN.host, new RegExp(`^${ETHERSCAN.pathname}$`)],
   routescan: (chainId) => [
     "api.routescan.io",
@@ -88,7 +112,8 @@ function urlOf(value: string): URL | undefined {
 /**
  * The problems of a derived `apiUrl` for `backend` on `chainId`. The resolver builds it from fixed
  * templates, so these checks guard the templates and the per-row fields that go into them.
- * `instance` is a Blockscout entry's host; for Blockscout, the empty default matches no host.
+ * `instance` is a Blockscout entry's host, or a standalone entry's `api`; for those backends, the
+ * empty default matches no host.
  */
 export function apiUrlProblems(
   value: string,
@@ -176,6 +201,22 @@ function entryProblems(
   }
   const explorer = entry.get("explorer");
   const instance = entry.get("instance");
+  const api = entry.get("api");
+  const needsKey = entry.get("needsKey");
+  if (entry.has("needsKey") && needsKey !== true) {
+    problems.push(`${at}: needsKey must be true, or left out`);
+  }
+  if (
+    entry.has("api") &&
+    (typeof api !== "string" ||
+      !API.test(api) ||
+      !isApiPath(api) ||
+      isIpLiteral(api.split("/")[0] ?? ""))
+  ) {
+    problems.push(
+      `${at}: api must be a lowercase host name and path, with no scheme, port or query`,
+    );
+  }
   const hosts: [string, unknown][] = [
     ["explorer", explorer],
     ["instance", instance],
@@ -183,7 +224,10 @@ function entryProblems(
   for (const [name, host] of hosts) {
     if (
       entry.has(name) &&
-      (typeof host !== "string" || !HOST.test(host) || urlOf(`https://${host}`)?.host !== host)
+      (typeof host !== "string" ||
+        !HOST.test(host) ||
+        isIpLiteral(host) ||
+        urlOf(`https://${host}`)?.host !== host)
     ) {
       problems.push(`${at}: ${name} must be a lowercase host name, with no scheme, port or path`);
     }
@@ -196,6 +240,8 @@ function entryProblems(
     ...(typeof network === "string" ? { network } : {}),
     ...(typeof explorer === "string" ? { explorer } : {}),
     ...(typeof instance === "string" ? { instance } : {}),
+    ...(typeof api === "string" ? { api } : {}),
+    ...(needsKey === true ? { needsKey } : {}),
   });
   if (target === undefined) {
     return [`${at}: the resolver derives no URL for this entry`];
@@ -206,7 +252,7 @@ function entryProblems(
       backend,
       chainId,
       at,
-      typeof instance === "string" ? instance : "",
+      typeof instance === "string" ? instance : typeof api === "string" ? api : "",
     ),
     ...(target.explorerUrl === undefined
       ? []
@@ -229,8 +275,8 @@ export function tableProblems(value: unknown): string[] {
     return ["the table must be an object"];
   }
   const problems = keyProblems(table, TABLE_KEYS, [], "table");
-  if (table.get("schemaVersion") !== 2) {
-    problems.push("table: schemaVersion must be 2");
+  if (table.get("schemaVersion") !== 3) {
+    problems.push("table: schemaVersion must be 3");
   }
   if (dateOf(table.get("checked")) === undefined) {
     problems.push("table: checked must be a YYYY-MM-DD date");

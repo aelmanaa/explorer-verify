@@ -107,7 +107,7 @@ describe("bundleForBrowser without the routing table (R-RUN-3)", () => {
     );
     assert.doesNotMatch(code, /424242/);
     assert.match(code, /chains:\[\]/);
-    assert.deepEqual(JSON.parse(EMPTY_TABLE), { schemaVersion: 2, checked: "", chains: [] });
+    assert.deepEqual(JSON.parse(EMPTY_TABLE), { schemaVersion: 3, checked: "", chains: [] });
   });
 });
 

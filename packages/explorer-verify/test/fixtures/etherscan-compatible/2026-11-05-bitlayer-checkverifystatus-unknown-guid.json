@@ -1,0 +1,33 @@
+{
+  "source": "Live response from api.btrscan.com (Bitlayer, chain 200901) to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-05T13:34:28.781Z: checkverifystatus without a key, as a GET, for a job id that does not exist. The nel, report-to, cf-ray, alt-svc and set-cookie headers are removed.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.btrscan.com/scan/api?module=contract&action=checkverifystatus&guid=abc"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type, Content-Length, Token",
+      "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cf-cache-status": "DYNAMIC",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json",
+      "date": "Thu, 05 Nov 2026 13:34:29 GMT",
+      "expect-ct": "max-age=86400, enforce",
+      "referrer-policy": "same-origin",
+      "server": "cloudflare",
+      "transfer-encoding": "chunked",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-request-id": "cc755bb2c560444a43c62d8c1d063ebd",
+      "x-xss-protection": "1; mode=block"
+    },
+    "body": {
+      "status": "-1",
+      "message": "The contract has not been verified"
+    }
+  },
+  "recordedAt": "2026-11-05T13:34:28.781Z"
+}
