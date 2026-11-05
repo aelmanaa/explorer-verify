@@ -7,6 +7,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
+import {
+  BLOCKSCOUT_FILE,
+  BLOCKSCOUT_REGISTRY,
+  blockscoutInstances,
+  parseBlockscoutProbe,
+  withBlockscout,
+} from "../routing-blockscout.ts";
 import { ROUTESCAN_FILE, ROUTESCAN_LISTS, withRoutescan } from "../routing-routescan.ts";
 import {
   SEED_FILE,
@@ -152,9 +159,10 @@ describe("routing seed: parsing the recorded lists (R-RT-1)", () => {
     const root = new URL("../../", import.meta.url);
     const table = parseTable(JSON.parse(readFileSync(new URL(TABLE_FILE, root), "utf8")));
     const seed = parseSeed(JSON.parse(readFileSync(new URL(SEED_FILE, root), "utf8")));
-    assert.equal(table.rows.length, 314);
+    assert.equal(table.rows.length, 325);
     assert.equal(table.rows.filter((row) => row.backends.includes("etherscan-v2")).length, 55);
     assert.equal(table.rows.filter((row) => row.backends.includes("routescan")).length, 38);
+    assert.equal(table.rows.filter((row) => row.backends.includes("blockscout")).length, 111);
     assert.equal(seed.etherscan.length, 55);
   });
 
@@ -373,6 +381,27 @@ function fakeFetch(answers: Record<string, Response>, asked: string[]): typeof g
   };
 }
 
+/** A Blockscout probe of one instance, and the registry answer that lists it (#169). */
+const BLOCKSCOUT_PROBE = {
+  checked: "2026-11-05",
+  instances: [
+    {
+      chainId: 31,
+      name: "Rootstock Testnet",
+      source: "registry",
+      listed: "rootstock-testnet.blockscout.com",
+      instance: "rootstock-testnet.blockscout.com",
+    },
+  ],
+};
+const REGISTRY = {
+  "1": { name: "Ethereum", explorers: [{ url: "https://etherscan.io/", hostedBy: "self" }] },
+  "31": {
+    name: "Rootstock Testnet",
+    explorers: [{ url: "https://rootstock-testnet.blockscout.com/", hostedBy: "blockscout" }],
+  },
+};
+
 /** The answers of Routescan's two explorer lists, with another mainnet answer when given. */
 function routescanAnswers(mainnet: unknown = ROUTESCAN_MAINNET): Record<string, Response> {
   return {
@@ -392,17 +421,22 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           schemaVersion: 2,
           checked: "2026-11-04",
           chains: withRoutescan(
-            [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
-              chainId: row.chainId,
-              backends: row.backends.map((backend) =>
-                backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
-              ),
-            })),
+            withBlockscout(
+              [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
+                chainId: row.chainId,
+                backends: row.backends.map((backend) =>
+                  backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
+                ),
+              })),
+              blockscoutInstances(parseBlockscoutProbe(BLOCKSCOUT_PROBE)),
+              new Set([8453, 43113]),
+            ),
             PROBE,
           ),
         },
       ],
       [ROUTESCAN_FILE, PROBE],
+      [BLOCKSCOUT_FILE, BLOCKSCOUT_PROBE],
       [
         SEED_FILE,
         {
@@ -419,7 +453,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("fetches the four lists, compares and notes what it compared (#168)", async () => {
+  it("fetches the five lists, compares and notes what it compared (#168, #169)", async () => {
     const asked: string[] = [];
     const result = await run(
       root,
@@ -427,6 +461,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
         {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
           ...routescanAnswers(),
         },
         asked,
@@ -436,6 +471,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
       SOURCES.etherscanChainlist,
       ROUTESCAN_LISTS.mainnet,
       ROUTESCAN_LISTS.testnet,
+      BLOCKSCOUT_REGISTRY,
       SOURCES.sourcifyChains,
     ]);
     assert.deepEqual(result.differences, []);
@@ -443,6 +479,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     assert.deepEqual(result.notes, [
       "table checked 2026-11-04; 8 rows",
       "routescan: entries compared with the API probe of 2026-11-05, and that probe with Routescan's explorer lists",
+      "blockscout: entries compared with the instance probe of 2026-11-05, and that probe with Blockscout's chain registry",
     ]);
   });
 
@@ -453,6 +490,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
         {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
           ...routescanAnswers({ items: [] }),
         },
         [],
@@ -468,6 +506,28 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     );
   });
 
+  it("reports a Blockscout difference with the registry (#169, decision 0038)", async () => {
+    const result = await run(
+      root,
+      fakeFetch(
+        {
+          [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
+          [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          [BLOCKSCOUT_REGISTRY]: Response.json({}),
+          ...routescanAnswers(),
+        },
+        [],
+      ),
+    );
+    assert.deepEqual(result.differences, [
+      {
+        chainId: 31,
+        list: "Blockscout chain registry",
+        text: "blockscout: chain 31 (Rootstock Testnet) left the registry; probe it",
+      },
+    ]);
+  });
+
   it("fails on an answer other than HTTP 200", async () => {
     await assert.rejects(
       run(
@@ -476,6 +536,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           {
             [SOURCES.etherscanChainlist]: new Response("blocked", { status: 403 }),
             [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+            [BLOCKSCOUT_REGISTRY]: Response.json(REGISTRY),
             ...routescanAnswers(),
           },
           [],

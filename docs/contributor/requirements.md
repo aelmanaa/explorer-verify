@@ -146,10 +146,13 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   when Sourcify supports the chain, Etherscan v2 when the chainlist lists it. It lists only backends
   with a client in the release. It carries the date its rows were checked. On 2026-11-05 that is 288 chains, each
   with Sourcify, and the 55 chains of the Etherscan chainlist also with Etherscan v2. A chain whose
+  Blockscout instance answered a recorded keyless probe also gets a Blockscout entry, or a row with
+  Blockscout alone (decision 0038): 111 entries and 11 more rows. A chain whose
   Routescan API answered a recorded keyless probe also gets a Routescan entry, last in its row, or
-  a row with Routescan alone (decision 0037): 38 entries and 26 more rows, 314 rows in all. A
+  a row with Routescan alone (decision 0037): 38 entries and 26 more rows, 325 rows in all. A
   row lists its backends in order of preference; on a chain that needs a paid Etherscan plan,
-  Sourcify comes before Etherscan v2 (decision 0027). A call goes to the first backend in the row
+  Sourcify comes before Etherscan v2 (decision 0027). Blockscout comes after Sourcify and a
+  free-tier Etherscan v2, and before a paid-plan Etherscan v2 (decision 0038). A call goes to the first backend in the row
   that works with the caller's keys: a backend that needs a key is skipped when the caller passed
   none for it. When no backend in the row works, the call takes the first and fails with
   `missing-api-key` before any request.

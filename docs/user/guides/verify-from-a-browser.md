@@ -71,9 +71,11 @@ in headless Chromium.
 Sourcify and Blockscout need no key, and Routescan takes one only optionally, so the page calls
 them directly. With no key, a call goes to the first backend of the chain's row that needs none,
 such as Sourcify ([Routing](../reference/routing.md#how-a-chain-resolves)). Blockscout is reached
-only when you pass `route.backend` and `route.apiUrl`. Routescan comes last in the rows that list
-it, so pass `route: { backend: "routescan" }` to use it there, and add `route.apiUrl` on other
-chains ([Routing](../reference/routing.md#routescan-entries)). The module below loads the
+when you pass `route.backend` on the chains whose row lists an instance
+([Blockscout rows](../reference/routing.md#blockscout-rows)), and with `route.apiUrl` elsewhere.
+Routescan comes last in the rows that list it, so pass `route: { backend: "routescan" }` to use it
+there, and add `route.apiUrl` on other chains
+([Routing](../reference/routing.md#routescan-entries)). The module below loads the
 library with a dynamic `import()` on first use, so a page that never verifies does not download it.
 It saves the handle as soon as the explorer accepts the submission, and `resumeOnLoad` picks the
 job up again after a reload. The last line runs the module once on its own; leave it out of the
@@ -226,7 +228,10 @@ per file. The server handler runs on your server, so its size does not reach the
 
 On 2026-11-05 the routing table grew from 94 to 288 chains, one for every chain Sourcify supports
 ([#166](https://github.com/aelmanaa/explorer-verify/issues/166)). At main 60f089c with that
-change, `verify` with the routing table measured 16,577 bytes, 1,084 more than without it.
+change, `verify` with the routing table measured 16,577 bytes, 1,084 more than without it. The
+Blockscout entries of [#169](https://github.com/aelmanaa/explorer-verify/issues/169) added 1,059
+bytes to the rows and 1,341 bytes to `verify` with the table, which measured 18,208 bytes at main
+c2142eb with that change.
 
 ### Measured with Vite and esbuild
 

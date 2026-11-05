@@ -13,9 +13,12 @@ sends no API key, and a Blockscout instance answers browsers directly. [verify()
 [checkStatus()](check-status.md) use this client. The hosted multichain API at
 `api.blockscout.com`, which needs a key, is not supported yet.
 
-The routing table lists no Blockscout rows yet, so a call reaches an instance only through
-`route.backend` `blockscout` with `route.apiUrl` set to the instance's `/api`
-([Routing](routing.md#route)):
+The routing table lists a Blockscout instance for 111 chains
+([Blockscout rows](routing.md#blockscout-rows)). On those, `route: { backend: "blockscout" }`
+reaches the instance with no `apiUrl`, and the result has the contract page
+`https://<instance>/address/<address>?tab=contract`. Sourcify comes first in a row that has it, so
+name the backend to verify on Blockscout. On another chain, or another instance, set `route.apiUrl`
+to the instance's `/api` ([Routing](routing.md#route)):
 
 ```ts
 import { verify } from "explorer-verify";
@@ -34,8 +37,8 @@ A `route.apiUrl` that does not end in `/api` throws [`invalid-input`](errors/inv
 naming `route.apiUrl`. Trailing slashes are removed first, so `https://eth-sepolia.blockscout.com/api/`
 is accepted. A path before `/api` is kept: with `https://example.org/explorer/api`, the lookup goes
 to `https://example.org/explorer/api/v2/smart-contracts/<address>`. A key in `route.apiKey` or `apiKeys.blockscout` also throws `invalid-input`
-([API keys](api-keys.md)). A result has no `explorerUrl` when the instance comes from
-`route.apiUrl`. A routing-table row would give `https://<instance>/address/<address>?tab=contract`.
+([API keys](api-keys.md)). A result has no `explorerUrl` when `route.apiUrl` names an instance
+other than the one the chain's row lists.
 
 ## Requests
 

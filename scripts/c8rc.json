@@ -23,6 +23,7 @@
     "scripts/record-released-codes.ts",
     "scripts/released-codes.ts",
     "scripts/release-packages.ts",
+    "scripts/routing-blockscout.ts",
     "scripts/routing-seed.ts",
     "scripts/routing-table-issue.ts",
     "scripts/size-budget.ts",

@@ -10,11 +10,18 @@
 // chain. A chain in the chainlist also gets an `etherscan-v2` entry with the chainlist's explorer
 // host: first when the free tier covers the chain, after Sourcify when it needs a paid plan
 // (decision 0027), and alone when Sourcify does not support it. `tableOf` gives the table these rules build, and
-// `scripts/compare-routing-table.ts --rows` prints it with the Routescan entries of
-// scripts/routing-routescan.ts added (decision 0037).
+// `scripts/compare-routing-table.ts --rows` prints it with the Blockscout entries of
+// scripts/routing-blockscout.ts (decision 0038) and then the Routescan entries of
+// scripts/routing-routescan.ts (decision 0037) added.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import {
+  BLOCKSCOUT_FILE,
+  blockscoutDifferences,
+  fetchBlockscoutRegistry,
+  parseBlockscoutProbe,
+} from "./routing-blockscout.ts";
 import {
   ROUTESCAN_FILE,
   fetchRoutescanList,
@@ -59,6 +66,8 @@ export interface TableRows {
     readonly explorer?: string;
     /** The `network` of the row's `routescan` entry, when it has one. */
     readonly network?: string;
+    /** The `instance` of the row's `blockscout` entry, when it has one. */
+    readonly instance?: string;
   }[];
 }
 
@@ -186,11 +195,16 @@ export function parseTable(value: unknown): TableRows {
         entries.find((entry) => field(entry, "backend") === "routescan"),
         "network",
       );
+      const instance = field(
+        entries.find((entry) => field(entry, "backend") === "blockscout"),
+        "instance",
+      );
       return {
         chainId: chainIdAt(row, "chainId", what),
         backends: entries.map((entry) => textAt(entry, "backend", what)),
         ...(typeof explorer === "string" ? { explorer } : {}),
         ...(typeof network === "string" ? { network } : {}),
+        ...(typeof instance === "string" ? { instance } : {}),
       };
     }),
   };
@@ -256,7 +270,11 @@ export function tableOf(lists: LiveLists, checked: string): TableJson {
 }
 
 /** The public list a difference comes from. */
-export type ChangedList = "Etherscan chainlist" | "Sourcify chain list" | "Routescan chain list";
+export type ChangedList =
+  | "Etherscan chainlist"
+  | "Sourcify chain list"
+  | "Routescan chain list"
+  | "Blockscout chain registry";
 
 /** One difference: the chain, the public list whose answer disagrees, and the line printed. */
 export interface Difference {
@@ -433,9 +451,14 @@ export async function fetchLists(fetch: typeof globalThis.fetch): Promise<LiveLi
  */
 export async function run(root: string, fetch: typeof globalThis.fetch): Promise<RunResult> {
   const read = (file: string): unknown => JSON.parse(readFileSync(path.join(root, file), "utf8"));
-  const [live, routescan] = await Promise.all([fetchLists(fetch), fetchRoutescanList(fetch)]);
+  const [live, routescan, registry] = await Promise.all([
+    fetchLists(fetch),
+    fetchRoutescanList(fetch),
+    fetchBlockscoutRegistry(fetch),
+  ]);
   const table = parseTable(read(TABLE_FILE));
   const probe = parseRoutescanProbe(read(ROUTESCAN_FILE));
+  const blockscout = parseBlockscoutProbe(read(BLOCKSCOUT_FILE));
   return {
     checked: table.checked,
     differences: [
@@ -444,10 +467,15 @@ export async function run(root: string, fetch: typeof globalThis.fetch): Promise
         ...difference,
         list: "Routescan chain list",
       })),
+      ...blockscoutDifferences(table.rows, blockscout, registry).map((difference): Difference => ({
+        ...difference,
+        list: "Blockscout chain registry",
+      })),
     ],
     notes: [
       `table checked ${table.checked}; ${String(table.rows.length)} rows`,
       `routescan: entries compared with the API probe of ${probe.checked}, and that probe with Routescan's explorer lists`,
+      `blockscout: entries compared with the instance probe of ${blockscout.checked}, and that probe with Blockscout's chain registry`,
     ],
   };
 }

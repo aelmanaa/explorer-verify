@@ -127,6 +127,7 @@ const UNLISTED_LOOKUP = (): Response =>
     address: GREETER,
   });
 const ROUTESCAN_VERIFIED = recordedBody("routescan", "2026-11-03-getsourcecode-verified");
+const BLOCKSCOUT_GREETER = recorded("blockscout", "2026-11-04-lookup-sepolia-greeter");
 
 interface Sent {
   readonly url: string;
@@ -631,16 +632,17 @@ describe("verifyEach(): backends and routes", () => {
     assert.equal(second.error.code, "timeout");
   });
 
-  it('"all" leaves out a backend that needs a key when none is set: keyless on Sepolia gives Sourcify and Routescan (#168)', async (t) => {
+  it('"all" leaves out a backend that needs a key when none is set: keyless on Sepolia gives Sourcify, Blockscout and Routescan (#168, #169)', async (t) => {
     const fake = byHost({
       "sourcify.dev": [SOURCIFY_LOOKUP_EXACT],
+      "eth-sepolia.blockscout.com": [BLOCKSCOUT_GREETER],
       "api.routescan.io": [ROUTESCAN_VERIFIED],
     });
     t.mock.method(globalThis, "fetch", fake.fetch);
     const outcome = await verifyEach(input(), { backends: "all" });
     assert.deepEqual(
       outcome.outcomes.map((each) => each.backend),
-      ["sourcify", "routescan"],
+      ["sourcify", "blockscout", "routescan"],
     );
     assert.equal(fake.sent.get("api.etherscan.io"), undefined);
   });

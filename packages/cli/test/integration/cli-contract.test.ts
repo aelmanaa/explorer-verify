@@ -784,7 +784,16 @@ describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)"
     TIMEOUT,
     async () => {
       const result = await run(
-        [...VERIFY, "--backend", "sourcify", "--backend", "blockscout", "--timeout", "2", "--json"],
+        [
+          ...VERIFY,
+          "--backend",
+          "sourcify",
+          "--backend",
+          "etherscan-compatible",
+          "--timeout",
+          "2",
+          "--json",
+        ],
         { scenario: "pending" },
       );
       assert.equal(result.code, 4, result.stderr);

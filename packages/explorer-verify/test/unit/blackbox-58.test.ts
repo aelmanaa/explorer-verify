@@ -820,7 +820,10 @@ describe("missing-api-key check (api-keys.md `## A missing key`)", () => {
   }
 
   it('route.backend "blockscout", which has a client since #92, on a chain whose row lists only Sourcify throws unsupported-chain, sends nothing', async () => {
-    const error = await errorOf(verify(makeInput(), { route: { backend: "blockscout" } }));
+    // Chain 31 has a Blockscout entry since #169; Avalanche Fuji (43113) lists only Sourcify.
+    const error = await errorOf(
+      verify({ ...makeInput(), chainId: 43113 }, { route: { backend: "blockscout" } }),
+    );
     assert.equal(error.code, "unsupported-chain");
     assert.equal(globalCalls.length, 0);
   });

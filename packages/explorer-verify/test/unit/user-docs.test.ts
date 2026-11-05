@@ -258,6 +258,12 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/routing.md",
     example: 0,
+    what: "route.backend blockscout on a chain whose row lists an instance (#169)",
+    fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
+  },
+  {
+    page: "reference/routing.md",
+    example: 1,
     what: "allowSourcifyFallback on a listed chain",
     fixtures: ALREADY_VERIFIED,
   },

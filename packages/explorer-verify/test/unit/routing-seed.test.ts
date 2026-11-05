@@ -1,9 +1,10 @@
-// Tests for the rows of the shipped routing table (#60, #122, #165, #166, #168, R-RT-1, decisions
-// 0024, 0027, 0036 and 0037). They read the research data of 2026-11-03, which holds a frozen copy of the
+// Tests for the rows of the shipped routing table (#60, #122, #165, #166, #168, #169, R-RT-1,
+// decisions 0024, 0027, 0036, 0037 and 0038). They read the research data of 2026-11-03, which holds a frozen copy of the
 // Etherscan chainlist, the prior art's rows re-checked against Sourcify's chain list and the
 // table's rows, so a dropped row or entry fails CI. The copy was updated on 2026-11-05, when chains
 // 11124 and 43113 left the chainlist and #166 added a row for every chain Sourcify supports. The
-// Routescan entries come from the probe data of 2026-11-05 (#168).
+// Routescan entries come from the probe data of 2026-11-05 (#168), and the Blockscout entries from
+// the instance probe of 2026-11-05 (#169).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -109,9 +110,32 @@ const routescan = listOf(JSON.parse(readFileSync(ROUTESCAN_FILE, "utf8")), "serv
   network: textOf(chain, "network"),
 }));
 
-/** A row's entries other than Routescan's, which decision 0037 puts last. */
+/** The host each Blockscout instance answered from in the probe of 2026-11-05 (#169). */
+const blockscout = new Map<number, string>();
+for (const item of listOf(
+  JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../../docs/contributor/research/data/2026-11-05-blockscout-instances.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ),
+  "instances",
+  (each) => each,
+)) {
+  const instance = field(item, "instance");
+  if (typeof instance === "string") {
+    blockscout.set(numberOf(item, "chainId"), instance);
+  }
+}
+
+/** A row's entries other than Routescan's and Blockscout's, which #168 and #169 added. */
 function withoutRoutescan(backends: readonly TableEntry[] | undefined): TableEntry[] | undefined {
-  return backends?.filter((entry) => entry.backend !== "routescan");
+  return backends?.filter(
+    (entry) => entry.backend !== "routescan" && entry.backend !== "blockscout",
+  );
 }
 
 describe("routing table rows (R-RT-1)", () => {
@@ -206,7 +230,7 @@ describe("routing table rows (R-RT-1)", () => {
     }
   });
 
-  it("gives the rows outside the chainlist Sourcify, Routescan or both (R-RT-1, decision 0037)", () => {
+  it("gives the rows outside the chainlist Sourcify, Blockscout, Routescan or a mix (R-RT-1, decisions 0037 and 0038)", () => {
     for (const row of ROUTING_TABLE.chains) {
       if (!seed.etherscan.some((chain) => chain.chainId === row.chainId)) {
         const others = withoutRoutescan(row.backends);
@@ -231,17 +255,23 @@ describe("routing table rows (R-RT-1)", () => {
     const ids = new Set([
       ...seed.rows.map((row) => row.chainId),
       ...routescan.map((chain) => chain.chainId),
+      ...blockscout.keys(),
     ]);
     assert.deepEqual(
       tableIds,
       [...ids].toSorted((a, b) => a - b),
     );
-    assert.equal(tableIds.length, 314);
+    assert.equal(tableIds.length, 325);
     // 94 rows from the chainlist or the prior art, and 194 from Sourcify's chain list alone (#166).
     const fromSourcify = seed.rows.filter((row) => row.from.includes("sourcify-chains"));
     assert.equal(fromSourcify.length, 194);
-    // 26 rows from the Routescan probe alone (#168).
-    assert.equal(ids.size - seed.rows.length, 26);
+    // 26 rows from the Routescan probe alone (#168), and 11 from the Blockscout probe alone (#169).
+    const withRoutescan = new Set([
+      ...seed.rows.map((row) => row.chainId),
+      ...routescan.map((c) => c.chainId),
+    ]);
+    assert.equal(withRoutescan.size - seed.rows.length, 26);
+    assert.equal(ids.size - withRoutescan.size, 11);
   });
 
   it("gives every chain Sourcify supports a row: the 49 chains of #166 resolve to Sourcify without allowSourcifyFallback (R-RT-1, R-RT-3, decision 0036)", () => {
@@ -268,7 +298,7 @@ describe("routing table rows (R-RT-1)", () => {
     }
   });
 
-  it("lists Sourcify on every row but the Routescan-only ones, and only the backends with a client; Blockscout and standalone explorers have no rows yet (R-RT-1)", () => {
+  it("lists Sourcify on every row but the Blockscout- and Routescan-only ones, and only the backends with a client; standalone explorers have no rows yet (R-RT-1)", () => {
     const clients = Object.keys(DEFAULT_DEPENDENCIES.backends);
     assert.deepEqual(clients, [
       "sourcify",
@@ -279,8 +309,11 @@ describe("routing table rows (R-RT-1)", () => {
     ]);
     for (const row of ROUTING_TABLE.chains) {
       const names = row.backends.map((entry) => entry.backend);
-      assert.ok(names.includes("sourcify") || names.join() === "routescan", String(row.chainId));
-      assert.ok(!names.includes("blockscout"), String(row.chainId));
+      assert.ok(
+        names.includes("sourcify") ||
+          names.filter((name) => name !== "blockscout" && name !== "routescan").length === 0,
+        String(row.chainId),
+      );
       // No standalone host answered on 2026-11-03 or 2026-11-04 (#63).
       assert.ok(!names.includes("etherscan-compatible"), String(row.chainId));
       assert.ok(
@@ -347,7 +380,8 @@ describe("routing table: the Routescan entries (R-RT-1, R-RT-2, #168, decision 0
     const only = ROUTING_TABLE.chains.filter(
       (row) => row.backends.length === 1 && row.backends[0]?.backend === "routescan",
     );
-    assert.equal(only.length, 26);
+    // 26 Routescan-only chains in the probe; 8021 (Numine) also lists Blockscout since #169.
+    assert.equal(only.length, 25);
     assert.ok(only.some((row) => row.chainId === 68414));
     for (const row of only) {
       for (const choice of [undefined, WITH_KEY]) {
@@ -366,7 +400,8 @@ describe("routing table: the Routescan entries (R-RT-1, R-RT-2, #168, decision 0
     for (const chain of routescan) {
       const row = ROUTING_TABLE.chains.find((each) => each.chainId === chain.chainId);
       const first = row?.backends[0]?.backend;
-      if (first === "routescan") {
+      // A row without Sourcify goes to its first backend: Routescan, or Blockscout on 8021 (#169).
+      if (first === "routescan" || first === "blockscout") {
         continue;
       }
       assert.equal(resolveRoute(chain.chainId).backend, "sourcify", String(chain.chainId));
@@ -414,7 +449,128 @@ describe("routing table: named chains resolve as the research note says (R-RT-1)
     assert.ok(!backends.includes("routescan"));
     assert.ok(!backends.includes("etherscan-v2"));
     // Chain 324 is in neither the Etherscan chainlist nor the prior art. Since #166 it has a
-    // Sourcify row, because Sourcify supports it (decision 0036).
-    assert.deepEqual(row?.backends, [{ backend: "sourcify" }]);
+    // Sourcify row, because Sourcify supports it (decision 0036); since #169 its Blockscout
+    // instance follows (decision 0038).
+    assert.deepEqual(row?.backends, [
+      { backend: "sourcify" },
+      { backend: "blockscout", instance: "zksync.blockscout.com" },
+    ]);
+  });
+});
+
+describe("routing table: the Blockscout entries (R-RT-1, R-RT-2, R-BE-3, #169, decision 0038)", () => {
+  const answered = blockscout;
+
+  it("has an entry for each of the 111 instances that answered, and for no other", () => {
+    assert.equal(answered.size, 111);
+    const listed = new Map(
+      ROUTING_TABLE.chains.flatMap((row) =>
+        row.backends
+          .filter((entry) => entry.backend === "blockscout")
+          .map((entry): [number, string | undefined] => [row.chainId, entry.instance]),
+      ),
+    );
+    assert.deepEqual(listed, answered);
+  });
+
+  it("routes route: { backend: 'blockscout' } to each instance's API and contract page, with no apiUrl (R-RT-2)", () => {
+    for (const [chainId, instance] of answered) {
+      const route = resolveRoute(chainId, { backend: "blockscout" });
+      assert.equal(route.backend, "blockscout", String(chainId));
+      assert.equal(route.apiBase, `https://${instance}/api`);
+      assert.equal(
+        route.requestUrl(`/v2/smart-contracts/${ADDRESS}`),
+        `https://${instance}/api/v2/smart-contracts/${ADDRESS}`,
+      );
+      assert.equal(
+        route.explorerUrl?.(ADDRESS),
+        `https://${instance}/address/${ADDRESS}?tab=contract`,
+      );
+      assert.equal(route.tableHost, instance);
+      assert.equal(route.overridden, false);
+    }
+  });
+
+  it("keeps Sourcify first where the row has it, and routes a Blockscout-only row to Blockscout (R-RT-1)", () => {
+    for (const [chainId, instance] of answered) {
+      const row = ROUTING_TABLE.chains.find((each) => each.chainId === chainId);
+      const names = row?.backends.map((entry) => entry.backend) ?? [];
+      const route = resolveRoute(chainId);
+      if (names.includes("sourcify")) {
+        assert.equal(route.backend, "sourcify", String(chainId));
+      } else {
+        assert.equal(route.backend, "blockscout", String(chainId));
+        assert.equal(route.tableHost, instance);
+      }
+      // An Etherscan key never moves a call from Blockscout to a paid-plan Etherscan entry.
+      const keyed = resolveRoute(chainId, undefined, WITH_KEY).backend;
+      const paid = seed.etherscan.some((chain) => chain.chainId === chainId && chain.paidPlan);
+      assert.ok(!(paid && keyed === "etherscan-v2"), String(chainId));
+    }
+  });
+
+  it("covers every instance #169 lists, at the host the issue names", () => {
+    const issue: [number, string][] = [
+      [1, "eth.blockscout.com"],
+      [10, "explorer.optimism.io"],
+      [30, "rootstock.blockscout.com"],
+      [31, "rootstock-testnet.blockscout.com"],
+      [81, "shibuya.blockscout.com"],
+      [100, "gnosisscan.io"],
+      [130, "unichain.blockscout.com"],
+      [177, "hsk.blockscout.com"],
+      [239, "explorer.tac.build"],
+      [300, "zksync-sepolia.blockscout.com"],
+      [324, "zksync.blockscout.com"],
+      [480, "worldchain-mainnet.explorer.alchemy.com"],
+      [592, "astar.blockscout.com"],
+      [1088, "andromeda-explorer.metis.io"],
+      [1135, "blockscout.lisk.com"],
+      [1301, "unichain-sepolia.blockscout.com"],
+      [1750, "explorer.metall2.com"],
+      [1868, "soneium.blockscout.com"],
+      [1946, "soneium-minato.blockscout.com"],
+      [2020, "explorer.roninchain.com"],
+      [2391, "spb.explorer.tac.build"],
+      [4326, "megaeth.blockscout.com"],
+      [4801, "worldchain-sepolia.explorer.alchemy.com"],
+      [10200, "gnosis-chiado.blockscout.com"],
+      [33111, "apechain-curtis.blockscout.com"],
+      [33139, "apechain.blockscout.com"],
+      [34443, "explorer.mode.network"],
+      [42220, "celo.blockscout.com"],
+      [42793, "explorer.etherlink.com"],
+      [43111, "explorer.hemi.xyz"],
+      [46630, "explorer.testnet.chain.robinhood.com"],
+      [47763, "xexplorer.neo.org"],
+      [57073, "explorer.inkonchain.com"],
+      [84532, "base-sepolia.blockscout.com"],
+      [98866, "explorer.plume.org"],
+      [98867, "testnet-explorer.plume.org"],
+      [102030, "creditcoin.blockscout.com"],
+      [102031, "creditcoin-testnet.blockscout.com"],
+      [202601, "saigon-explorer.roninchain.com"],
+      [534352, "scrollscan.com"],
+      [560048, "eth-hoodi.blockscout.com"],
+      [743111, "testnet.explorer.hemi.xyz"],
+      [763373, "explorer-sepolia.inkonchain.com"],
+      [5042002, "explorer.testnet.arc.io"],
+      [11142220, "celo-sepolia.blockscout.com"],
+      [11155111, "eth-sepolia.blockscout.com"],
+      [11155420, "testnet-explorer.optimism.io"],
+    ];
+    assert.equal(issue.length, 47);
+    for (const [chainId, instance] of issue) {
+      assert.equal(answered.get(chainId), instance, String(chainId));
+    }
+  });
+
+  it("has no entry for the instances that sent a challenge page to Node.js fetch on 2026-11-05", () => {
+    for (const chainId of [137, 4663, 5042, 8453, 42161, 421614]) {
+      assert.equal(answered.has(chainId), false, String(chainId));
+      assert.throws(() => resolveRoute(chainId, { backend: "blockscout" }), {
+        code: "unsupported-chain",
+      });
+    }
   });
 });
