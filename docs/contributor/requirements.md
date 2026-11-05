@@ -460,7 +460,9 @@ Measurement:
   `import()` only when a call is routed to it, and the routing table only when a call's route needs
   it: a call whose `route.apiUrl` cannot be a URL the table lists does not load it (decisions 0031
   and 0040). The entries are measured without the clients and the table, and each client chunk and
-  the `table` chunk has its own ceiling under `chunks`.
+  the `table` chunk has its own ceiling under `chunks`. Every exported name of every package has
+  a row in `name-budget.json`, with a ceiling for esbuild with splitting, esbuild as one file and
+  Rollup; an exported name with no row fails CI (decision 0042).
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or

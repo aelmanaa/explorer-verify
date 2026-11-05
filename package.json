@@ -31,7 +31,7 @@
     "test:mutation": "pnpm --filter explorer-verify run test:mutation",
     "test:mutation:incremental": "pnpm --filter explorer-verify run test:mutation:incremental",
     "pkg:check": "pnpm run build && pnpm -r run pkg:check && knip",
-    "size": "pnpm run build && node scripts/check-size.ts size-budget.json",
+    "size": "pnpm run build && node scripts/check-size.ts size-budget.json && node scripts/check-names.ts name-budget.json",
     "test:browser": "pnpm run build && node scripts/browser-smoke.ts",
     "test:browser:harness": "node scripts/test-browser/browser-smoke.test.ts",
     "site:api": "node site/api-reference.ts",
@@ -59,6 +59,7 @@
     "oxlint-tsgolint": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",
+    "rollup": "catalog:",
     "typescript": "catalog:",
     "vitepress": "catalog:",
     "yaml": "catalog:"

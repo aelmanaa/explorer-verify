@@ -222,6 +222,9 @@ catalogs:
     publint:
       specifier: 0.3.25
       version: 0.3.25
+    rollup:
+      specifier: 4.67.4
+      version: 4.67.4
     typedoc:
       specifier: 0.28.20
       version: 0.28.20
@@ -294,6 +297,9 @@ importers:
       publint:
         specifier: 'catalog:'
         version: 0.3.25
+      rollup:
+        specifier: 'catalog:'
+        version: 4.67.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

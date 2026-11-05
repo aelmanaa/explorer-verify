@@ -99,8 +99,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run pkg:check
       # Fails when a public entry, bundled for the browser, minified and gzipped, is above its
-      # ceiling in size-budget.json (R-RUN-3, decision 0014).
-      - name: Bundle size within size-budget.json
+      # ceiling in size-budget.json (R-RUN-3, decision 0014), or when an exported name, built with
+      # esbuild and Rollup, is above its ceiling in name-budget.json or has no row (decision 0042).
+      - name: Bundle size within size-budget.json and name-budget.json
         run: pnpm run size
 
   # Builds the docs site from docs/user and the generated API reference with VitePress and checks

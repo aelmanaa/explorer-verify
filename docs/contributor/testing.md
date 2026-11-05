@@ -37,6 +37,7 @@ run time, so c8 would report them at 0%.
 | Unit             | `packages/*/test/unit/`, `scripts/test/`, `examples/test/`                                                     | Each module, with explorer responses recorded as fixtures and an injected `fetch`                                                                     | In place                                         |
 | Browser smoke    | `scripts/browser-smoke.ts`, `packages/explorer-verify/test/browser/`, `scripts/test-browser/`                  | The core bundles and runs in a headless browser under real CORS (R-RUN-1), and gives the keccak-256 digests in `test/fixtures/keccak256-vectors.json` | In place                                         |
 | Bundle size      | `scripts/check-size.ts`, `size-budget.json`                                                                    | Each public entry, bundled for the browser, stays at or below its ceiling (R-RUN-3)                                                                   | In place                                         |
+| Per-name size    | `scripts/check-names.ts`, `name-budget.json`                                                                   | Each exported name, built with esbuild and Rollup, stays at or below its ceiling and has a row (R-RUN-3)                                              | In place; light-name rule pending #219           |
 | Integration      | `packages/cli/test/integration/` (CLI); `packages/explorer-verify/test/unit/server-handler*.test.ts` (handler) | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI contract harness in place (#7); handler done |
 | Mutation         | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json`, `.github/workflows/mutation.yml`       | The unit tests fail when the result mapping, the HTTP retry rules or the key redaction is changed (R-FLOW-4, R-FLOW-6, R-SEC-1)                       | In place                                         |
 | Live             | `scripts/live-matrix.ts`, maintainer only; [2026-11-04 run](research/2026-11-04-live-matrix.md)                | Real verification on public testnets per backend, with dated results (R-QA-2)                                                                         | In place                                         |
@@ -415,6 +416,40 @@ rm packages/explorer-verify/size-entry.js
 ```
 
 A pull request that raises a ceiling records the new `measuredBytes` and says why.
+
+### Per-name size
+
+`pnpm run size` then runs `scripts/check-names.ts` against `name-budget.json`
+([decision 0042](decisions/0042-every-exported-name-measured-in-real-bundlers.md)). It imports
+each code entry of every package's `exports` from the built package and lists its value exports,
+so a new export is measured without editing a list. It builds each name three ways: esbuild with
+splitting, esbuild as one file, and Rollup with each chunk minified by esbuild, as Vite builds. For
+each build it records the initial load (the entry file and the files it imports statically,
+minified, and each gzipped on its own) and the number of files emitted:
+
+```text
+ok   verify from explorer-verify, esbuild split: 53900 min / 20047 gzip, 20 files (ceiling 24057 gzip)
+NONE isHandle from explorer-verify/handle: no row in name-budget.json. Add one with ...
+PEND light rule for explorer-verify/handle: not in exports yet (#219); it applies once the subpath exists
+info verify from explorer-verify, gzip: size-budget.json model 14862; esbuild split 20047, ...
+```
+
+It exits 1 when a build is above its `ceilingBytes`, when an exported name has no row, and when a
+row names an export that is gone. Names from the light subpaths of `light` must emit one file
+under esbuild splitting, and `formatHandle`, `ERROR_CODES` and `BACKEND_NAMES` must stay under
+1,024 bytes minified. Until #219 adds those subpaths, the rule prints `PEND` lines and does not
+fail; on main today `formatHandle` from the main entry emits 20 files under esbuild splitting. The
+`info` lines put the `size-budget.json` model beside the three builds and never fail.
+
+A pull request that adds an export adds its row, the measured size plus 20%:
+
+```bash
+pnpm run build
+node scripts/check-names.ts name-budget.json --add-missing
+```
+
+`--add-missing` never changes a row that exists. A ceiling rises only by hand, in a pull request
+that says why.
 
 ## Mutation testing
 
