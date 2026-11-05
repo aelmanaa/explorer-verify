@@ -104,6 +104,21 @@ function never(): Promise<never> {
   return new Promise<never>(() => undefined);
 }
 
+/**
+ * Runs `work` with an interval that keeps the process alive. A load's deadline runs on
+ * `AbortSignal.timeout`, which Node 22 does not count as keeping the event loop alive, and a hung
+ * loader holds no handle: without the interval, the test runner sees an empty event loop and
+ * cancels the test before the deadline fires.
+ */
+async function keptAlive<T>(work: () => Promise<T>): Promise<T> {
+  const alive = setInterval(() => undefined, 1_000);
+  try {
+    return await work();
+  } finally {
+    clearInterval(alive);
+  }
+}
+
 async function outcomeOf(promise: Promise<unknown>): Promise<unknown> {
   return await promise.then(
     (value: unknown) => ({ resolved: value }),
@@ -290,47 +305,51 @@ describe("a table that fails to load maps as a client load failure (decision 004
   });
 
   it("a load that never ends throws timeout naming route.backend, or sourcify (R-FLOW-6)", async () => {
-    const { dependencies } = recording(never());
-    const unnamed = await outcomeOf(
-      runVerify(INPUT, { fetch: noFetch, timeoutMs: 5 }, dependencies),
-    );
-    assert.ok(unnamed instanceof ExplorerVerifyError);
-    assert.deepEqual(unnamed.details, { code: "timeout", backend: "sourcify", timeoutMs: 5 });
-    assert.equal(
-      unnamed.message,
-      "Loading the routing table did not finish within the 5 ms budget.",
-    );
-    const named = await outcomeOf(
-      runVerify(
-        INPUT,
-        { fetch: noFetch, timeoutMs: 5, route: { backend: "blockscout" } },
-        dependencies,
-      ),
-    );
-    assert.ok(named instanceof ExplorerVerifyError);
-    assert.deepEqual(named.details, { code: "timeout", backend: "blockscout", timeoutMs: 5 });
+    await keptAlive(async () => {
+      const { dependencies } = recording(never());
+      const unnamed = await outcomeOf(
+        runVerify(INPUT, { fetch: noFetch, timeoutMs: 5 }, dependencies),
+      );
+      assert.ok(unnamed instanceof ExplorerVerifyError);
+      assert.deepEqual(unnamed.details, { code: "timeout", backend: "sourcify", timeoutMs: 5 });
+      assert.equal(
+        unnamed.message,
+        "Loading the routing table did not finish within the 5 ms budget.",
+      );
+      const named = await outcomeOf(
+        runVerify(
+          INPUT,
+          { fetch: noFetch, timeoutMs: 5, route: { backend: "blockscout" } },
+          dependencies,
+        ),
+      );
+      assert.ok(named instanceof ExplorerVerifyError);
+      assert.deepEqual(named.details, { code: "timeout", backend: "blockscout", timeoutMs: 5 });
+    });
   });
 
   it("an abort during the load rejects with signal.reason (R-FLOW-6)", async () => {
-    const { dependencies } = recording(never());
-    const controller = new AbortController();
-    const reason = new Error("stop");
-    const call = runCheckStatus(
-      HANDLE,
-      { fetch: noFetch, signal: controller.signal },
-      dependencies,
-    );
-    controller.abort(reason);
-    await assert.rejects(call, reason);
-    // verifyEach() with a list: an abort is never one entry's outcome.
-    const second = new AbortController();
-    const listed = runVerifyEach(
-      INPUT,
-      { fetch: noFetch, signal: second.signal, backends: ["sourcify"] },
-      dependencies,
-    );
-    second.abort(reason);
-    await assert.rejects(listed, reason);
+    await keptAlive(async () => {
+      const { dependencies } = recording(never());
+      const controller = new AbortController();
+      const reason = new Error("stop");
+      const call = runCheckStatus(
+        HANDLE,
+        { fetch: noFetch, signal: controller.signal },
+        dependencies,
+      );
+      controller.abort(reason);
+      await assert.rejects(call, reason);
+      // verifyEach() with a list: an abort is never one entry's outcome.
+      const second = new AbortController();
+      const listed = runVerifyEach(
+        INPUT,
+        { fetch: noFetch, signal: second.signal, backends: ["sourcify"] },
+        dependencies,
+      );
+      second.abort(reason);
+      await assert.rejects(listed, reason);
+    });
   });
 
   it("verifyEach() passes on an error that is not an ExplorerVerifyError, which only a bug causes", async () => {
@@ -411,10 +430,13 @@ describe("a table that fails to load maps as a client load failure (decision 004
 
   it("verifyEach(): a timeout names each entry's backend, another error stays as it is", async () => {
     const { dependencies } = recording(never());
-    const { outcomes } = await runVerifyEach(
-      INPUT,
-      { fetch: noFetch, timeoutMs: 5, backends: ["sourcify", "blockscout"] },
-      dependencies,
+    const { outcomes } = await keptAlive(
+      async () =>
+        await runVerifyEach(
+          INPUT,
+          { fetch: noFetch, timeoutMs: 5, backends: ["sourcify", "blockscout"] },
+          dependencies,
+        ),
     );
     assert.deepEqual(
       outcomes.map((outcome) => ("error" in outcome ? outcome.error.details : undefined)),
