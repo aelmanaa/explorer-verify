@@ -12,13 +12,15 @@ import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import {
   bounded,
+  checkRouteOf,
   openCall,
-  routeOf,
+  routeWith,
   runVerify,
   settingsOf,
   settle,
 } from "../../src/flow/verify.ts";
 import type { Call, FlowDependencies } from "../../src/flow/verify.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Handle, LogFields, Logger, VerifyInput, VerifyOptions } from "../../src/types.ts";
 
 const SEPOLIA = 11155111;
@@ -61,7 +63,14 @@ function gradeUnknown(lookup: Backend["lookup"]): Backend {
 function callWith(backend: Backend, options: VerifyOptions = {}): Call {
   const settings = settingsOf({ fetch: noFetch, ...options });
   const dependencies: FlowDependencies = { backends: { sourcify: backend }, random: () => 0 };
-  return openCall(settings, routeOf(SEPOLIA, settings, dependencies), TARGET, dependencies);
+  const route = routeWith(
+    SEPOLIA,
+    checkRouteOf(SEPOLIA, settings, dependencies),
+    settings,
+    dependencies,
+    ROUTING_TABLE,
+  );
+  return openCall(settings, route, TARGET, dependencies);
 }
 
 async function outcomeOf(promise: Promise<unknown>): Promise<unknown> {

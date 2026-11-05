@@ -26,10 +26,10 @@ import type { ApiKeys, KeyContext } from "../../src/http/api-keys.ts";
 import { request } from "../../src/http/fetch.ts";
 import type { HttpRequest } from "../../src/http/fetch.ts";
 import type { Route } from "../../src/routing/resolve.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { RouteOverride, VerifyOptions } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Call, Fixture } from "../helpers/fake-fetch.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 // Made-up keys. Never real ones (R-SEC-1).
 const ETHERSCAN_KEY = "etherscan-dummy-key-58a1";

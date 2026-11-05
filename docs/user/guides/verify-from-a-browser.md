@@ -201,6 +201,13 @@ What reaches the page depends on your bundler:
 The `import("explorer-verify")` in the example above still matters: it keeps the entry itself out
 of the first page load. The client chunks keep the clients the page never calls out of every load.
 
+The routing table's rows are a chunk of their own as well. A call loads them only when its route
+needs them. A page that always passes `route.apiUrl` never downloads them, unless the route is
+`etherscan-v2` at `https://api.etherscan.io/v2/api`, `blockscout` at an `https` URL whose path is
+`/api`, or `etherscan-compatible` at an `https` URL: those load the table to read what the row says
+about that URL, such as its explorer page
+([table chunk](../reference/routing.md#table-chunk)).
+
 ### Measured in the repository
 
 `pnpm run size` bundles each entry point from the built package with esbuild 0.28.2 for the
@@ -232,6 +239,12 @@ change, `verify` with the routing table measured 16,577 bytes, 1,084 more than w
 Blockscout entries of [#169](https://github.com/aelmanaa/explorer-verify/issues/169) added 1,059
 bytes to the rows and 1,341 bytes to `verify` with the table, which measured 18,208 bytes at main
 c2142eb with that change.
+
+On 2026-11-05 the rows moved to a chunk of their own
+([#192](https://github.com/aelmanaa/explorer-verify/issues/192)). At main 0ee4ea4 with that change,
+`verify` measured 14,861 bytes and the `table` chunk 3,042. A page that verifies on Sourcify with
+`route.apiUrl` ships 17,728 bytes, and one that lets the table choose the route ships 20,770, against
+21,292 before for both.
 
 ### Measured with Vite and esbuild
 

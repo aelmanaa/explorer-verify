@@ -221,11 +221,15 @@ workflow's token opened. A pull request applies the change to the table; the wor
    server return 404.
 4. Each run must give the digests in `test/fixtures/keccak256-vectors.json`, then `verified` with
    `exact` from `verify()` and both `checkStatus()` calls. A fresh load in each runtime then
-   resumes the first handle with `checkStatus()` alone, as after a page reload. In Chromium the
-   test waits until the page has set its result. A module with a top-level `await` can start the
-   scenario after the load event, and the checks must not run before it ends.
+   resumes the first handle with `checkStatus()` alone, as after a page reload. Another fresh
+   load runs `verify()` without a route: the routing table sends it to Sourcify, and a `fetch`
+   option sends Sourcify's requests to the replay server. It must give `already-verified` with the
+   row's explorer page. In Chromium the test waits until the page has set its result. A module
+   with a top-level `await` can start the scenario after the load event, and the checks must not
+   run before it ends.
 5. Every run routes to Sourcify, so each Chromium run must load the Sourcify client's chunk and
-   no chunk of another client (decision 0031).
+   no chunk of another client (decision 0031). The runs with `route.apiUrl` must not load the
+   routing table's chunk, and the run without a route must load it (decision 0040).
 
 The test fails on any of these (R-SEC-2):
 

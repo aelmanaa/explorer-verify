@@ -157,7 +157,7 @@ describe("the shipped clients load on first use (decision 0031)", () => {
         apiUrl: "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api",
       },
     });
-    const route = routeOf(SEPOLIA, settings, dependencies);
+    const route = await routeOf(SEPOLIA, settings, dependencies, startBudget(settings));
     const withRoutescan = await load(route, dependencies);
     assert.equal(withRoutescan.backends.routescan, routescan);
     assert.deepEqual(loaded, ["routescan"]);
@@ -189,13 +189,13 @@ describe("the shipped clients load on first use (decision 0031)", () => {
 describe("withClient() and openCall()", () => {
   it("leaves dependencies with the client already loaded unchanged", async () => {
     const dependencies: FlowDependencies = { backends: { sourcify }, table: TABLE };
-    const route = routeOf(SEPOLIA, settingsOf({}), dependencies);
+    const route = await routeOf(SEPOLIA, settingsOf({}), dependencies, startBudget(settingsOf({})));
     assert.equal(await load(route, dependencies), dependencies);
   });
 
   it("leaves dependencies without the route's client unchanged, for openCall's error", async () => {
     const dependencies: FlowDependencies = { backends: { sourcify }, table: TABLE };
-    const route = routeOf(SEPOLIA, settingsOf({}), dependencies);
+    const route = await routeOf(SEPOLIA, settingsOf({}), dependencies, startBudget(settingsOf({})));
     const without: FlowDependencies = { backends: {}, table: TABLE };
     assert.equal(await load(route, without), without);
     assert.throws(() => openCall(settingsOf({}), route, TARGET, without), {
@@ -206,7 +206,7 @@ describe("withClient() and openCall()", () => {
 
   it("keeps the other entries and the options of the dependencies", async () => {
     const { dependencies } = recordingLoaders();
-    const route = routeOf(SEPOLIA, settingsOf({}), dependencies);
+    const route = await routeOf(SEPOLIA, settingsOf({}), dependencies, startBudget(settingsOf({})));
     const loaded = await load(route, dependencies);
     assert.equal(loaded.backends.sourcify, exactSourcify);
     assert.equal(loaded.backends.routescan, dependencies.backends.routescan);
@@ -214,9 +214,9 @@ describe("withClient() and openCall()", () => {
     assert.equal(loaded.random, dependencies.random);
   });
 
-  it("openCall() refuses a client that is not loaded yet", () => {
+  it("openCall() refuses a client that is not loaded yet", async () => {
     const { dependencies } = recordingLoaders();
-    const route = routeOf(SEPOLIA, settingsOf({}), dependencies);
+    const route = await routeOf(SEPOLIA, settingsOf({}), dependencies, startBudget(settingsOf({})));
     assert.throws(() => openCall(settingsOf({}), route, TARGET, dependencies), {
       name: "TypeError",
       message:
@@ -397,17 +397,17 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
 
   it("a signal already aborted stops before the loader runs", async () => {
     const { dependencies, loaded } = recordingLoaders();
-    const route = routeOf(SEPOLIA, settingsOf({}), dependencies);
+    const route = await routeOf(SEPOLIA, settingsOf({}), dependencies, startBudget(settingsOf({})));
     const reason = new Error("aborted before");
     const settings = settingsOf({ signal: AbortSignal.abort(reason) });
     await assert.rejects(withClient(route, dependencies, settings, startBudget(settings)), reason);
     assert.deepEqual(loaded, []);
   });
 
-  it("openCall() takes the budget it is given", () => {
+  it("openCall() takes the budget it is given", async () => {
     const dependencies: FlowDependencies = { backends: { sourcify }, table: TABLE };
     const settings = settingsOf({ fetch: noFetch });
-    const route = routeOf(SEPOLIA, settings, dependencies);
+    const route = await routeOf(SEPOLIA, settings, dependencies, startBudget(settings));
     const budget = { deadline: 123, timeoutMs: 456 };
     assert.equal(openCall(settings, route, TARGET, dependencies, true, budget).budget, budget);
   });

@@ -30,9 +30,9 @@ import type {
 } from "../../src/index.ts";
 import { withDerivedArgs } from "../../src/input/constructor-args.ts";
 import { createObserver } from "../../src/observe.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import { driveMockClock, turnUntil } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const KEY = "zz9dummyetherscankeyqq7xv";
 const RPC_SECRET = "rpcsecretpath0123456789";

@@ -22,7 +22,6 @@ import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { validateInput } from "../../src/input/validate.ts";
 import { createObserver } from "../../src/observe.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type {
   Handle,
@@ -35,6 +34,7 @@ import type {
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
 const BASE_SEPOLIA = 84532;

@@ -15,12 +15,14 @@ import { runVerifyEach } from "../../src/flow/verify-each.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import { keyFor, keyMissing, requireKey } from "../../src/http/api-keys.ts";
 import { linkProxy, verify } from "../../src/index.ts";
-import { ROUTING_TABLE, resolveRoute, tableTarget } from "../../src/routing/resolve.ts";
+import { tableTarget } from "../../src/routing/resolve.ts";
 import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Hex, VerifyInput } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Call } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const BITLAYER = 200_901;
 const BITLAYER_API = "https://api.btrscan.com/scan/api";

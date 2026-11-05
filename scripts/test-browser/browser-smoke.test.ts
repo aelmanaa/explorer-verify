@@ -56,7 +56,12 @@ const cases: [string, string[], RegExp][] = [
   [
     "a page that loads a second client's chunk (decision 0031)",
     ["--entry", path.join(broken, "other-client.ts")],
-    /a sourcify route loaded the etherscan client chunk etherscan-\w+\.js/,
+    /a sourcify route with route\.apiUrl loaded the etherscan chunk etherscan-\w+\.js/,
+  ],
+  [
+    "a page with route.apiUrl that loads the routing table's chunk (decision 0040)",
+    ["--entry", path.join(broken, "table-chunk.ts")],
+    /a sourcify route with route\.apiUrl loaded the table chunk table-\w+\.js/,
   ],
   [
     "answers without access-control-allow-origin",

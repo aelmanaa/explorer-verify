@@ -40,11 +40,12 @@ export interface VersionResult {
 }
 
 /**
- * The versions and the routing table's date.
+ * The versions and the routing table's date. The core loads its routing table on demand
+ * (decision 0040), so the date comes from a promise.
  *
  * @returns The result of `--version --json`.
  */
-export function versionResult(): VersionResult {
+export async function versionResult(): Promise<VersionResult> {
   return {
     // Read here, not at load, so only --version depends on the file. The same specifier works
     // from src and dist.
@@ -52,7 +53,7 @@ export function versionResult(): VersionResult {
       readFileSync(new URL(import.meta.resolve(`${CLI_NAME}/package.json`)), "utf8"),
     ),
     core: corePackage.version,
-    routingTableDate: routingTableDate(),
+    routingTableDate: await routingTableDate(),
   };
 }
 

@@ -78,9 +78,9 @@ export async function runDryRun(
   settings.signal?.throwIfAborted();
   return await abortWins(settings.signal, async () => {
     const checked = validateInput(input);
-    const route = routeOf(checked.chainId, settings, dependencies);
-    const target: Target = { chainId: checked.chainId, address: checked.address };
     const budget = startBudget(settings);
+    const route = await routeOf(checked.chainId, settings, dependencies, budget);
+    const target: Target = { chainId: checked.chainId, address: checked.address };
     const loaded = await withClient(route, dependencies, settings, budget);
     const call = openCall(settings, route, target, loaded, false, budget);
     const { backend, ctx, observer } = call;

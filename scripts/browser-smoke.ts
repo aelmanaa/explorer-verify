@@ -1,17 +1,20 @@
 // Browser smoke test (R-RUN-1, R-FLOW-5, R-SEC-2).
 //
 // 1. Bundles packages/explorer-verify/test/browser/entry.ts for the browser with esbuild, with code
-//    splitting on, so each backend client is a chunk of its own (decision 0031). Any Node built-in
-//    fails the build.
+//    splitting on, so each backend client and the routing table is a chunk of its own (decisions
+//    0031 and 0040). Any Node built-in fails the build.
 // 2. Starts a replay server on 127.0.0.1 that answers Sourcify's API from recorded fixtures, in
 //    order. The page passes it to the library as `route.apiUrl`. The server sends only the CORS
 //    headers Sourcify sends, so Chromium applies its real CORS checks, preflight included.
 // 3. Runs the bundle in Node, then serves it from another port to headless Chromium, so its
 //    requests to the replay server are cross-origin, as in a dapp. Every run routes to Sourcify, so
-//    Chromium must load the Sourcify client's chunk and no other client's chunk.
+//    Chromium must load the Sourcify client's chunk and no other client's chunk. The full run and
+//    the resume pass the replay server as `route.apiUrl` and must not load the routing table's
+//    chunk; a third load verifies without a route and must load it (decision 0040).
 // 4. Each run must give the keccak-256 vector digests, then `verified` with `exact` from
 //    `verify()` and from `checkStatus()` on two handles. A fresh load then resumes the first
-//    handle with `checkStatus()` alone. Each full run also runs `createVerifyHandler` from
+//    handle with `checkStatus()` alone, and another runs `verify()` without a route, which the
+//    routing table sends to Sourcify: `already-verified` with the row's explorer page. Each full run also runs `createVerifyHandler` from
 //    `explorer-verify/server` against an in-page fake Etherscan: it must forward a status poll
 //    with the key in the body and `redirect: "manual"`, and refuse `getabi` (R-SRV-1).
 //
@@ -48,6 +51,8 @@ const RUN_TIMEOUT_MS = 60_000;
 const UNEXPECTED_BODY = '{"customCode":"smoke_unexpected_request"}';
 // The backend every run routes to: its client's chunk is the only client chunk a run may load.
 const ROUTED_CLIENT = "sourcify";
+// The routing table's chunk: only the run without a route may load it, and it must (decision 0040).
+const TABLE_CHUNK = "table";
 
 // verify(): lookup, submit, one pending poll, the exact match. Then checkStatus() on its handle,
 // and checkStatus() on another job's handle in the same realm, which must poll that job.
@@ -61,12 +66,40 @@ const RUN_EXCHANGES = [
 ];
 // checkStatus() alone in a fresh realm, on the first handle.
 const RESUME_EXCHANGES = ["2026-11-02-job-exact-match"];
+// verify() without a route in a fresh realm: the lookup finds the Greeter verified.
+const TABLE_EXCHANGES = ["2026-11-02-lookup-exact-match"];
 // The handle of the recorded submit, for the Greeter of test/browser/scenario.ts.
 const HANDLE =
   "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 // What verify() and checkStatus() return for an exact match. A route to a server other than the
 // public Sourcify API gives no explorerUrl.
 const VERIFIED = { ok: true, result: { status: "verified", backend: "sourcify", match: "exact" } };
+// What verify() without a route returns: the routing table's route, so the row's explorer page.
+const FROM_TABLE = {
+  ok: true,
+  result: {
+    status: "already-verified",
+    backend: "sourcify",
+    match: "exact",
+    explorerUrl: "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+  },
+};
+
+/** What a load sets in the page's config besides `apiUrl`, and the chunks it must load. */
+interface Load {
+  readonly resume?: string;
+  readonly fromTable?: boolean;
+}
+
+/** The dynamically loaded modules a load must load, and no others, with a label for messages. */
+function chunksOf(mode: Load): { readonly label: string; readonly modules: readonly string[] } {
+  return mode.fromTable === true
+    ? {
+        label: `a ${ROUTED_CLIENT} route from the routing table`,
+        modules: [TABLE_CHUNK, ROUTED_CLIENT],
+      }
+    : { label: `a ${ROUTED_CLIENT} route with route.apiUrl`, modules: [ROUTED_CLIENT] };
+}
 
 // Request headers the CORS-safelisted set allows, plus content-type, which the library sends as
 // application/json (checked below) and the preflight allows.
@@ -409,12 +442,12 @@ process.once("exit", () => {
 async function runInNode(
   bundle: Chunks,
   names: readonly string[],
-  resume?: string,
+  mode: Load = {},
 ): Promise<unknown> {
   const replay = await startReplay(names);
   nodeOrigins.add(replay.origin);
   try {
-    Reflect.set(globalThis, CONFIG_GLOBAL, { apiUrl: replay.origin, resume });
+    Reflect.set(globalThis, CONFIG_GLOBAL, { apiUrl: replay.origin, ...mode });
     // A new folder per load, so each load is a new instance of every module, chunks included,
     // with no state from the last.
     const folder = mkdtempSync(path.join(tmpdir(), "explorer-verify-smoke-"));
@@ -437,32 +470,42 @@ async function runInNode(
 // --- Chromium -------------------------------------------------------------------------------------
 
 /**
- * What a Chromium run loaded beyond the entry's files that it should not have: a chunk of a client
- * other than {@link ROUTED_CLIENT}'s, or no chunk of its own for that client (decision 0031).
+ * What a Chromium run loaded beyond the entry's files that it should not have, or did not load: a
+ * chunk of a module the load must not load, such as another client's or, for a run with
+ * `route.apiUrl`, the routing table's; or no chunk of its own for a module it must load
+ * (decisions 0031 and 0040).
  *
  * @param bundle - The split bundle.
  * @param scripts - The files the page requested, in order.
+ * @param mode - The load: which modules it must load.
  * @returns One message per problem.
  */
-function chunkProblems(bundle: Chunks, scripts: readonly string[]): string[] {
-  const routed = bundle.dynamic.get(ROUTED_CLIENT) ?? [];
-  const [own] = routed;
-  if (own === undefined) {
-    return [`the bundle has no chunk of its own for the ${ROUTED_CLIENT} client`];
-  }
-  const allowed = new Set([...bundle.entryFiles, ...routed]);
+function chunkProblems(bundle: Chunks, scripts: readonly string[], mode: Load): string[] {
+  const { label, modules } = chunksOf(mode);
   const problems: string[] = [];
-  if (!scripts.includes(own)) {
-    problems.push(`the page did not load the ${ROUTED_CLIENT} client chunk ${own}`);
+  const allowed = new Set(bundle.entryFiles);
+  for (const name of modules) {
+    const files = bundle.dynamic.get(name) ?? [];
+    const [own] = files;
+    if (own === undefined) {
+      problems.push(`the bundle has no chunk of its own for ${name}`);
+      continue;
+    }
+    for (const file of files) {
+      allowed.add(file);
+    }
+    if (!scripts.includes(own)) {
+      problems.push(`the page did not load the ${name} chunk ${own}`);
+    }
   }
   for (const [name, files] of bundle.dynamic) {
-    if (name !== ROUTED_CLIENT && files[0] !== undefined && scripts.includes(files[0])) {
-      problems.push(`a ${ROUTED_CLIENT} route loaded the ${name} client chunk ${files[0]}`);
+    if (!modules.includes(name) && files[0] !== undefined && scripts.includes(files[0])) {
+      problems.push(`${label} loaded the ${name} chunk ${files[0]}`);
     }
   }
   for (const script of scripts) {
     if (!allowed.has(script) && !problems.some((problem) => problem.endsWith(` ${script}`))) {
-      problems.push(`a ${ROUTED_CLIENT} route loaded ${script}`);
+      problems.push(`${label} loaded ${script}`);
     }
   }
   return problems;
@@ -494,7 +537,7 @@ async function runInChromium(
   browser: Browser,
   bundle: Chunks,
   names: readonly string[],
-  resume?: string,
+  mode: Load = {},
 ): Promise<unknown> {
   const page =
     '<!doctype html><meta charset="utf-8"><title>explorer-verify smoke</title>' +
@@ -552,7 +595,7 @@ async function runInChromium(
       ([name, config]) => {
         Reflect.set(globalThis, name, config);
       },
-      [CONFIG_GLOBAL, { apiUrl: replay.origin, resume }] as const,
+      [CONFIG_GLOBAL, { apiUrl: replay.origin, ...mode }] as const,
     );
     const tab = await context.newPage();
     tab.on("pageerror", (error) => {
@@ -581,7 +624,7 @@ async function runInChromium(
     } catch (error) {
       throw new Error(`${String(error)}; ${report()}`, { cause: error });
     }
-    assert.deepEqual(chunkProblems(bundle, scripts), [], "Chromium: client chunks loaded");
+    assert.deepEqual(chunkProblems(bundle, scripts, mode), [], "Chromium: chunks loaded");
     return result;
   } finally {
     await context.close();
@@ -596,7 +639,16 @@ const bundle = await bundleChunks({ entry });
 const want = expected();
 guardNode();
 assert.deepEqual(await runInNode(bundle, RUN_EXCHANGES), want, "the Node run");
-assert.deepEqual(await runInNode(bundle, RESUME_EXCHANGES, HANDLE), VERIFIED, "the Node resume");
+assert.deepEqual(
+  await runInNode(bundle, RESUME_EXCHANGES, { resume: HANDLE }),
+  VERIFIED,
+  "the Node resume",
+);
+assert.deepEqual(
+  await runInNode(bundle, TABLE_EXCHANGES, { fromTable: true }),
+  FROM_TABLE,
+  "the Node run without a route",
+);
 const browser = await chromium.launch({
   ...(executablePath === undefined ? {} : { executablePath }),
   // No host but 127.0.0.1 resolves, so nothing reaches the network even if a check misses it.
@@ -605,9 +657,14 @@ const browser = await chromium.launch({
 try {
   assert.deepEqual(await runInChromium(browser, bundle, RUN_EXCHANGES), want, "the Chromium run");
   assert.deepEqual(
-    await runInChromium(browser, bundle, RESUME_EXCHANGES, HANDLE),
+    await runInChromium(browser, bundle, RESUME_EXCHANGES, { resume: HANDLE }),
     VERIFIED,
     "the Chromium resume",
+  );
+  assert.deepEqual(
+    await runInChromium(browser, bundle, TABLE_EXCHANGES, { fromTable: true }),
+    FROM_TABLE,
+    "the Chromium run without a route",
   );
 } finally {
   await browser.close();
@@ -623,6 +680,7 @@ process.once("beforeExit", () => {
 });
 process.stdout.write(
   "browser smoke: Node and Chromium ran the same bundle and agree: the keccak-256 vectors match; " +
-    `Chromium loaded the ${ROUTED_CLIENT} client chunk and no other; ` +
-    "verify() and checkStatus() returned verified with exact, also after a fresh load\n",
+    `Chromium loaded the ${ROUTED_CLIENT} client chunk and no other, and the ${TABLE_CHUNK} chunk ` +
+    "only without a route; verify() and checkStatus() returned verified with exact, also after a " +
+    "fresh load, and verify() without a route already-verified with the row's page\n",
 );

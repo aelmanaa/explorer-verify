@@ -456,12 +456,11 @@ Measurement:
 - **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
 - **R-RUN-3** Bundle budget for `import { verify } from "explorer-verify"` in a browser build:
   minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI.
-  `size-budget.json` sets a ceiling for each public entry. The routing table loads as data; its size
-  is reported separately: the code entries are measured with an empty table, and the table's rows
-  have their own entry and ceiling. One more entry measures the whole `verify` bundle, table
-  included, under the `verify` ceiling (decision 0023). Each backend client loads with a dynamic
-  `import()` only when a call is routed to it. The entries are measured without the clients, and
-  each client chunk has its own ceiling under `chunks` (decision 0031).
+  `size-budget.json` sets a ceiling for each public entry. Each backend client loads with a dynamic
+  `import()` only when a call is routed to it, and the routing table only when a call's route needs
+  it: a call whose `route.apiUrl` cannot be a URL the table lists does not load it (decisions 0031
+  and 0040). The entries are measured without the clients and the table, and each client chunk and
+  the `table` chunk has its own ceiling under `chunks`.
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or

@@ -1,7 +1,7 @@
-// Bundle size check (R-RUN-3, decisions 0008 and 0031). Bundles each entry of size-budget.json for
-// the browser from the built package, gzips it and fails when one is above its ceiling. An entry
-// with `withoutTable` is measured with an empty routing table: the table's rows have their own
-// entry.
+// Bundle size check (R-RUN-3, decisions 0008, 0031 and 0040). Bundles each entry of
+// size-budget.json for the browser from the built package, gzips it and fails when one is above its
+// ceiling. An entry with `withoutTable` is measured with an empty routing table. The table's rows
+// are the `table` chunk, which the entries load with a dynamic `import()` (decision 0040).
 //
 // Each module an entry loads with a dynamic `import()`, such as a backend client, is left out of
 // the entry and measured on its own, as a `chunks` line of size-budget.json: what loading it adds

@@ -137,7 +137,7 @@ describe("main: version (R-AX-11)", () => {
       result: {
         cli: version("../../package.json"),
         core: version("../../../explorer-verify/package.json"),
-        routingTableDate: routingTableDate(),
+        routingTableDate: await routingTableDate(),
       },
     });
   });

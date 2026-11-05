@@ -366,16 +366,23 @@ data. `scripts/compare-routing-table.ts` compares the table with the live public
 the differences; it never writes the table. `.github/workflows/routing-table.yml` runs it once a
 week and keeps one issue open while differences remain (see [testing.md](testing.md#routing-table-check)).
 
-`pnpm run size` measures the code entries with an empty table and the table's rows as their own
-entry, `routing table`. One more entry, `verify with table`, measures the `verify` entry with the
-rows ([decision 0023](decisions/0023-routing-table-size-measured-apart.md)). Its ceiling, like the
-others, is the measured size plus 20% ([decision 0024](decisions/0024-compact-routing-table.md)).
+The rows sit in `routing/table.ts`, which nothing imports statically. `loadRoutingTable()` loads
+it with a dynamic `import()`, so a bundler that splits code puts the rows in a chunk of their own.
+`checkRoute()` checks the route override without the table, `readsTable()` says whether the route
+needs it, and `routeFrom()` builds the route. A route without `route.apiUrl` needs the table; one
+with it needs the table only for the row's explorer page, for `etherscan-v2` at Etherscan's v2 API
+and `blockscout` at an `https` URL whose path is `/api`. Any other route with `route.apiUrl` loads
+no table. `routingTableDate()` loads the table too, so it returns a promise. `pnpm run size`
+measures the rows as the `table` chunk, with its own ceiling, the measured size plus 20%
+([decision 0040](decisions/0040-routing-table-loads-on-demand.md)).
 
 ## Loading the clients
 
 `DEFAULT_DEPENDENCIES` in `flow/verify.ts` holds a loader per backend: a function that imports the
-client with a dynamic `import()` and a literal path. `verify()`, `checkStatus()` and `dryRun()`
-resolve the route first and start the time budget. Then `withClient()` loads that route's client
+client with a dynamic `import()` and a literal path, and the routing table's loader. `verify()`,
+`checkStatus()` and `dryRun()` check the route override and start the time budget. `routeOf()`
+loads the table when the route needs it, through `bounded()` as a client, and resolves the route
+(decision 0040). Then `withClient()` loads that route's client
 and no other, inside `abortWins`, and `openCall()` builds the call with the same budget. The load
 ends with `signal.reason` when the signal aborts, or `timeout` when the budget runs out; the
 deadline runs on `AbortSignal.timeout`, which fake timers do not drive. A loaded client is kept by

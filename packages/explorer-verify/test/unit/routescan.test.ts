@@ -18,7 +18,6 @@ import { request as send } from "../../src/http/fetch.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { validateInput } from "../../src/input/validate.ts";
 import { createObserver } from "../../src/observe.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type {
   Handle,
@@ -30,6 +29,7 @@ import type {
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const FUJI = 43113;
 const API = "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api";

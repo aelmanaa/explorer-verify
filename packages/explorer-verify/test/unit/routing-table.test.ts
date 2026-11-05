@@ -14,15 +14,15 @@ import { keyFor, requireKey } from "../../src/http/api-keys.ts";
 import type { ApiKeys } from "../../src/http/api-keys.ts";
 import {
   ETHERSCAN_API_URL,
-  ROUTING_TABLE,
   SOURCIFY_API_URL,
-  resolveRoute,
   routingTableDate,
   tableTarget,
 } from "../../src/routing/resolve.ts";
 import type { RouteChoice, RoutingTable, TableEntry, TableRow } from "../../src/routing/resolve.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Hex, RouteOverride, VerifyInput, VerifyOptions } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
+import { resolveRoute } from "../helpers/route.ts";
 import { apiUrlProblems, explorerUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 
 // Made-up keys. Never real ones (R-SEC-1).
@@ -196,7 +196,12 @@ describe("resolveRoute: route.backend and route.apiUrl (R-RT-2)", () => {
       assert.equal(route.apiBase, "https://explorer.example.org/api");
       assert.equal(route.explorerUrl, undefined);
       assert.equal(route.overridden, true);
-      assert.equal(route.tableHost, undefined);
+      // The backend's one API host, read from no row, for the hint (decision 0040).
+      const host = new Map([
+        ["etherscan-v2", "api.etherscan.io"],
+        ["routescan", "api.routescan.io"],
+      ]).get(backend);
+      assert.equal(route.tableHost, host);
     }
   });
 
@@ -419,7 +424,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
     assert.ok(!JSON.stringify([error.message, error.toJSON()]).includes(ROUTE_KEY));
   });
 
-  it("names the routing table's host in the missing-key message when the table lists none", () => {
+  it("names the backend's API host in the missing-key message when the table lists none (decision 0040)", () => {
     const route = resolve(999_999, {
       backend: "etherscan-v2",
       apiUrl: "https://proxy.example.org/api",
@@ -429,7 +434,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
     });
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 is sent only to the routing table's host; set route.apiKey for proxy.example.org.",
+      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 is sent only to api.etherscan.io; set route.apiKey for proxy.example.org.",
     );
   });
 });
@@ -594,9 +599,12 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
     );
   });
 
-  it("gives the table's date to routingTableDate(), which the CLI's --version --json prints (R-AX-11)", () => {
-    assert.equal(routingTableDate(), ROUTING_TABLE.checked);
-    assert.match(routingTableDate(), /^\d{4}-\d{2}-\d{2}$/);
+  it("gives the table's date to routingTableDate(), which the CLI's --version --json prints (R-AX-11)", async () => {
+    // It loads the table with a dynamic import(), so it returns a promise (decision 0040).
+    const date = routingTableDate();
+    assert.ok(date instanceof Promise);
+    assert.equal(await date, ROUTING_TABLE.checked);
+    assert.match(await date, /^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

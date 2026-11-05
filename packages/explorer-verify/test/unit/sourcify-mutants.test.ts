@@ -9,10 +9,10 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { LogFields, Logger } from "../../src/index.ts";
 import { validateInput } from "../../src/input/validate.ts";
 import { createObserver } from "../../src/observe.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { Handle } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Fixture, Step } from "../helpers/fake-fetch.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const SEPOLIA = 11155111;
 // The Greeter deployed on Sepolia on 2026-11-02, whose responses the fixtures recorded.
