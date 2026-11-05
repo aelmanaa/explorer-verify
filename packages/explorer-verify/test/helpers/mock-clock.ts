@@ -11,8 +11,15 @@
  *
  * {@link driveMockClock} avoids both: on each turn it runs only the timers that are pending, which
  * moves the clock only when the call waits on a timer, and it allows {@link MAX_TURNS} turns.
+ *
+ * A call without a full route also loads the routing table with a dynamic `import()`, inside the
+ * time budget (decision 0040). This module imports the table, so in every test that drives the
+ * mock clock with it, that `import()` takes the table from the module cache and takes no real
+ * turn. A test of the table load itself passes its own loader in the flow dependencies.
  */
 import { setImmediate } from "node:timers/promises";
+
+await import("../../src/routing/table.ts");
 
 /** The most real turns {@link driveMockClock} gives a call, far more than any load takes. */
 const MAX_TURNS = 100_000;
