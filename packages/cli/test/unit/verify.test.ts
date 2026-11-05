@@ -229,6 +229,36 @@ describe("verify from build files (R-DX-1)", () => {
     assert.equal(part(result, "error")["code"], "incomplete-input");
     assert.equal(result.seen.length, 0);
   });
+
+  it("gives unsupported-compiler, exit 2, for a zksolc build-info (R-IN-7)", async (t) => {
+    // A foundry-zksync build-info: the solc fixture with a ZkSolcVersionedInput as its input.
+    const buildInfo = record(
+      JSON.parse(readFileSync(build("foundry-1.8.1/build-info.json"), "utf8")),
+    );
+    const input = record(buildInfo["input"]);
+    const zksolc = file(
+      "zksolc-build-info.json",
+      JSON.stringify({
+        ...buildInfo,
+        input: {
+          language: input["language"],
+          sources: input["sources"],
+          settings: input["settings"],
+          solc_version: "0.8.24",
+          cli_settings: {},
+          zksolc_version: "1.5.15",
+        },
+      }),
+    );
+    const result = await run(t, ["verify", ADDRESS, "--chain", "300", "--input", zksolc, "--json"]);
+    assert.equal(result.code, 2, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["code"], "unsupported-compiler");
+    // The envelope has no details; the message names the field.
+    assert.match(String(error["message"]), /: input\.zksolc_version\.$/);
+    assert.match(String(error["hint"]), /zksolc \(EraVM\)/);
+    assert.equal(result.seen.length, 0);
+  });
 });
 
 describe("verify: usage errors name options, never values (R-AX-5, R-AX-9)", () => {

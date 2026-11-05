@@ -37,6 +37,11 @@ standalone explorers, Blockscout, Sourcify and Routescan.
 Out of scope for 1.0, with the design kept open for them (R-EXT): Vyper and other compilers,
 non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside the library.
 
+On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain solc verifies with
+`kind: "solc"`, as on any other chain. `buildVerifyInput` refuses zksolc build documents with
+`unsupported-compiler` and names the field that showed them (R-IN-7)
+([ZKsync and zksolc](research/2026-11-05-zksync-zksolc.md)).
+
 ## Functional requirements
 
 ### Inputs (R-IN)
@@ -520,7 +525,11 @@ Measurement:
 | Sourcify rate limits and terms for high-volume use                                                                            | Maintainer | M2        |
 | What HTTP status and body does Routescan return when rate-limited? Twenty concurrent keyless requests did not reach the limit | Maintainer | M2        |
 | How long does a Routescan GUID stay queryable, and how long can its CDN serve a cached poll answer?                           | Maintainer | M2        |
-| Does Etherscan v2 verify a solc-compiled EVM-bytecode contract on zkSync Era (324) without `zksolcVersion`? Test live         | Maintainer | M2        |
+
+The question whether Etherscan v2 verifies a solc contract on zkSync Era (324) without
+`zksolcVersion` closed as "not served (2026-11-05)": Etherscan v2's chain list has neither 324 nor
+300, and its API refuses `chainid=324`
+([ZKsync and zksolc](research/2026-11-05-zksync-zksolc.md#etherscan-v2)).
 
 The live probes of 2026-11-03 answered two earlier questions
 ([live probes](research/2026-11-03-m2-live-probes.md)):

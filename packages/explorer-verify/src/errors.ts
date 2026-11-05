@@ -277,7 +277,10 @@ export type ErrorDetails =
   | {
       /** The documents come from a compiler other than solc, or a language other than Solidity. */
       code: "unsupported-compiler";
-      /** The field that names the compiler: `compilerType` or `language`. */
+      /**
+       * The field that names the compiler: `compilerType`, `language`, or the zksolc field that
+       * marked an EraVM build, such as `input.zksolc_version`.
+       */
       field: string;
     }
   | {
