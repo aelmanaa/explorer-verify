@@ -14,8 +14,8 @@
  *   listener on the caller's signal that is removed when the attempt ends, does the same.
  */
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
-import type { ErrorDetails } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ErrorDetails, ExplorerVerifyError } from "../errors.ts";
 import { readOwn } from "../internal/read-fields.ts";
 import { SILENT_OBSERVER } from "../observe.ts";
 import type { Observer } from "../observe.ts";
@@ -388,7 +388,7 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
         result.cause === undefined
           ? { secrets: call.secrets }
           : { secrets: call.secrets, cause: result.cause };
-      throw new ExplorerVerifyError(
+      throw newError(
         {
           code: "unexpected-response",
           backend: call.backend,
@@ -540,7 +540,7 @@ function copyHeaders(headers: Readonly<Record<string, string>>): Record<string, 
 
 /** The `invalid-input` error for one field of the context or request. */
 function invalidField(field: string, message: string): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues: [{ field, message }] },
     `The HTTP request is invalid: ${field} ${message}.`,
     // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message names only a field of the context or the request, never its value.
@@ -567,7 +567,7 @@ function checkLimits(call: Call): void {
     });
   }
   if (issues.length > 0) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "invalid-input", issues },
       `The HTTP limits are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
       { secrets: call.secrets },
@@ -933,7 +933,7 @@ function giveUp(
   let error: ExplorerVerifyError;
   switch (failure.reason) {
     case "network":
-      error = new ExplorerVerifyError(
+      error = newError(
         { code: "network", backend: call.backend, attempts },
         `${target} got no response after ${tries}.`,
         { ...options, cause: failure.cause },
@@ -945,7 +945,7 @@ function giveUp(
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
-      error = new ExplorerVerifyError(
+      error = newError(
         details,
         `${target} answered ${String(failure.status)} (rate limited) after ${tries}.`,
         options,
@@ -963,7 +963,7 @@ function giveUp(
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
-      error = new ExplorerVerifyError(
+      error = newError(
         details,
         `${target} answered ${String(failure.status)} after ${tries}.`,
         options,
@@ -976,7 +976,7 @@ function giveUp(
 
 /** The `timeout` error for a budget that ran out. */
 function timeoutError(call: Call, target: string, timeoutMs: number): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "timeout", backend: call.backend, timeoutMs },
     `${target} did not finish within the ${String(timeoutMs)} ms budget.`,
     { secrets: call.secrets },

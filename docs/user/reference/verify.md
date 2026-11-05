@@ -35,7 +35,7 @@ try {
     console.log(`${result.status} (${result.match}) ${result.explorerUrl ?? ""}`);
   }
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
   } else {
     throw error;
@@ -293,7 +293,7 @@ options of `verify()` without `route`, plus `backends`.
 <!-- no-run: it sends requests to Etherscan, which the recorded answers of the docs test do not cover -->
 
 ```ts no-run
-import { verifyEach } from "explorer-verify";
+import { formatHandle, verifyEach } from "explorer-verify";
 
 const { outcomes } = await verifyEach(input, {
   backends: ["sourcify", "etherscan-v2"],
@@ -302,7 +302,10 @@ const { outcomes } = await verifyEach(input, {
 });
 for (const outcome of outcomes) {
   if ("error" in outcome) {
-    console.log(outcome.backend, outcome.error.code, outcome.error.toJSON().handle ?? "");
+    const { error } = outcome;
+    // Checking error.code narrows error.details to that code's data.
+    const handle = error.code === "not-confirmed" ? formatHandle(error.details.handle) : "";
+    console.log(outcome.backend, error.code, handle);
   } else {
     console.log(outcome.backend, outcome.result.status);
   }

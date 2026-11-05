@@ -1,7 +1,11 @@
 export { BACKEND_NAMES, toBackendName } from "./backend-names.ts";
 export type { BackendName } from "./backend-names.ts";
+export { ERROR_HINTS } from "./error-hints.ts";
 export { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
 export type {
+  AnyExplorerVerifyError,
+  DetailsByCode,
+  DetailsOf,
   ErrorCode,
   ErrorDetails,
   ErrorJson,

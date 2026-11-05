@@ -4,8 +4,8 @@
  * version, the settings, the target contract and the keccak-256 hash of every source. Format:
  * https://docs.soliditylang.org/en/v0.8.24/metadata.html.
  */
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { keccak256 } from "../internal/keccak.ts";
 import { readFields } from "../internal/read-fields.ts";
 
@@ -133,11 +133,9 @@ export function sourceFingerprint(metadata: SolidityMetadata): string {
 
 function invalid(field: string, message: string): ExplorerVerifyError {
   const issues: InputIssue[] = [{ field, message }];
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues },
-    `The input is invalid: ${field}.`,
-    { secrets: [] },
-  );
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${field}.`, {
+    secrets: [],
+  });
 }
 
 /**
@@ -273,12 +271,12 @@ export function checkSourceHashes(supplied: readonly SuppliedSource[]): void {
   for (const { path, content, expected } of supplied) {
     const actual = keccak256(encoder.encode(content));
     if (actual !== expected) {
-      throw new ExplorerVerifyError(
+      throw newError(
         {
           code: "source-mismatch",
           path,
-          expected: HASH.test(expected) ? expected : "",
-          actual,
+          expected: HASH.test(expected) ? `0x${expected.slice(2)}` : "0x",
+          actual: `0x${actual.slice(2)}`,
         },
         "A source file does not match the keccak-256 hash the metadata records for it.",
         { hint: MISMATCH_HINT, secrets: [] },

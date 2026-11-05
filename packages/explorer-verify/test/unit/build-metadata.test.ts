@@ -468,14 +468,14 @@ describe("buildVerifyInput: Solidity metadata failures (R-IN-7, R-DX-3)", () => 
     assert.equal(error.details.path, "src/Base.sol");
   });
 
-  it("reports an expected hash of another form as empty, never repeating it", () => {
+  it("reports an expected hash of another form as 0x, never repeating it", () => {
     const metadata = parsedMetadata(stringAt(libraryArtifact(), "metadata"));
     const sources = objectAt(metadata, "sources");
     sources["src/Tally.sol"] = { keccak256: `0x${DUMMY_KEY}` };
     metadata.sources = sources;
     const error = rejection([metadata], "source-mismatch", { sources: LIBRARY_SOURCES });
     assert.ok(error.details.code === "source-mismatch");
-    assert.equal(error.details.expected, "");
+    assert.equal(error.details.expected, "0x");
     assertNotShown(error, DUMMY_KEY);
   });
 

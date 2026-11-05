@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import { newError } from "../../src/error-hints.ts";
 import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode, ErrorDetails, ErrorJson, ExitCode } from "../../src/errors.ts";
 import type { BackendOutcome, Handle, VerifyEachResult } from "../../src/types.ts";
@@ -48,7 +49,7 @@ const FAILED: BackendOutcome<ErrorJson> = {
 function errorOutcome(code: ErrorCode): BackendOutcome<ErrorJson> {
   const details: ErrorDetails =
     code === "not-confirmed" ? { code, handle: PENDING_JOB } : SAMPLE_DETAILS[code];
-  const error = new ExplorerVerifyError(details, `The ${code} message`, { secrets: [] });
+  const error = newError(details, `The ${code} message`, { secrets: [] });
   return { backend: "sourcify", ok: false, error: error.toJSON() };
 }
 
@@ -102,11 +103,9 @@ describe("exitCodeOf() of a verifyEach() result (R-AX-7)", () => {
 
 describe("toEnvelope() of a verifyEach() result (R-AX-5)", () => {
   it("writes an ExplorerVerifyError outcome as its toJSON(), as verifyEach() returns it", () => {
-    const error = new ExplorerVerifyError(
-      { code: "not-confirmed", handle: PENDING_JOB },
-      `pending ${KEY}`,
-      { secrets: [] },
-    );
+    const error = newError({ code: "not-confirmed", handle: PENDING_JOB }, `pending ${KEY}`, {
+      secrets: [],
+    });
     const result: VerifyEachResult = {
       outcomes: [{ backend: "sourcify", ok: false, error }],
     };
@@ -249,7 +248,7 @@ describe("a verifyEach() result that bypassed the types throws invalid-input", (
 
 /** A cancelled error from another copy of the package, whose toJSON() gives `handles`. */
 function foreignCancelled(handles: unknown): unknown {
-  const own = new ExplorerVerifyError({ code: "cancelled" }, "x", { secrets: [] }).toJSON();
+  const own = newError({ code: "cancelled" }, "x", { secrets: [] }).toJSON();
   const json = { ...own, handles };
   return { name: "ExplorerVerifyError", toJSON: () => json };
 }
@@ -258,7 +257,7 @@ describe("the handles of a cancelled run on several backends (R-AX-5)", () => {
   const otherJob: Handle = { ...PENDING_JOB, backend: "etherscan-v2", jobId: "guid0123456789" };
 
   it("toJSON() and toEnvelope() list each backend with its one-line handle, and the schema accepts it", () => {
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "cancelled", handles: [PENDING_JOB, otherJob] },
       "The run was cancelled by SIGINT.",
       { secrets: [] },

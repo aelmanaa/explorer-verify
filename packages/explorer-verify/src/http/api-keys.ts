@@ -6,8 +6,8 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { toBackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { readFields, readOwn } from "../internal/read-fields.ts";
 import { MIN_SECRET_LENGTH } from "../redact.ts";
 import type { Route } from "../routing/resolve.ts";
@@ -467,7 +467,7 @@ export function requireKey(
       : route.overridden
         ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
         : `set apiKeys.${route.backend}`;
-  throw new ExplorerVerifyError(
+  throw newError(
     { code: "missing-api-key", backend: route.backend },
     `${route.backend} needs an API key and none is set for ${host}: ${where}.`,
     { secrets },
@@ -533,7 +533,7 @@ export function keyErrorOf(
   } else {
     return undefined;
   }
-  return new ExplorerVerifyError({ code, backend }, `${backend} answered ${what}.`, {
+  return newError({ code, backend }, `${backend} answered ${what}.`, {
     secrets,
     // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
     ...(hint === undefined ? {} : { hint }),

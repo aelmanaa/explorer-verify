@@ -4,7 +4,7 @@
  * in `verify()`.
  */
 import type { Target } from "../backends/backend.ts";
-import { ExplorerVerifyError } from "../errors.ts";
+import { newError } from "../error-hints.ts";
 import type { Route } from "../routing/resolve.ts";
 import type { Handle, VerifyOptions, VerifyResult } from "../types.ts";
 import { parseHandle } from "./handle.ts";
@@ -60,7 +60,7 @@ import type { FlowDependencies } from "./verify.ts";
  * try {
  *   await verify(input);
  * } catch (error) {
- *   if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+ *   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
  *     localStorage.setItem("pending-verification", formatHandle(error.details.handle));
  *   } else {
  *     throw error;
@@ -135,7 +135,7 @@ function checkBackend(handle: Handle, route: Route): void {
   if (handle.backend === route.backend) {
     return;
   }
-  throw new ExplorerVerifyError(
+  throw newError(
     {
       code: "invalid-input",
       issues: [{ field: "backend", message: `must be ${route.backend}, the route's backend` }],

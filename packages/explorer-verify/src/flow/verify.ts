@@ -6,6 +6,7 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
@@ -232,7 +233,7 @@ export async function bounded<T extends object>(
       };
       const onDeadline = (): void => {
         reject(
-          new ExplorerVerifyError(
+          newError(
             { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
             `Loading ${what} did not finish within the ${String(budget.timeoutMs)} ms budget.`,
             // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message holds only the code's name and the budget, never a key.
@@ -380,7 +381,7 @@ type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
  *     console.log(`${result.status} (${result.match}) ${result.explorerUrl ?? ""}`);
  *   }
  * } catch (error) {
- *   if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+ *   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
  *     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
  *   } else {
  *     throw error;
@@ -887,7 +888,7 @@ function invalidOptions(
   // Stryker disable next-line ArrayDeclaration: equivalent. Without the keys, the message and the issues name only fields, never the text Stryker puts here.
   secrets: readonly string[] = [],
 ): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
@@ -1233,7 +1234,7 @@ async function forgottenJob(
     if (mustRethrow(error, settings.signal)) {
       throw error;
     }
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "job-not-found", handle },
       `${backend.name} does not know job ${handle.jobId}, and the lookup of the contract failed.`,
       { secrets: ctx.http.secrets, cause: error },
@@ -1242,7 +1243,7 @@ async function forgottenJob(
   if (match !== undefined) {
     return finish(call, "verified", match);
   }
-  throw new ExplorerVerifyError(
+  throw newError(
     { code: "job-not-found", handle },
     `${backend.name} does not know job ${handle.jobId}, and a lookup found the contract not verified.`,
     {
@@ -1280,7 +1281,7 @@ async function gradeOf(call: Call, handle: Handle): Promise<Match> {
     cause === undefined
       ? "the lookup says it is not verified"
       : "the lookup to read its match failed";
-  throw new ExplorerVerifyError(
+  throw newError(
     { code: "unknown-state", handle, excerpt },
     `${backend.name} job ${handle.jobId} found the contract already verified, but ${what}; the match is not known.`,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },
@@ -1326,7 +1327,7 @@ function notConfirmed(
       ? `the ${String(settings.timeoutMs)} ms budget ran out`
       : `${String(MAX_POLL_FAILURES)} status polls in a row failed`;
   const message = `The verification of job ${handle.jobId} on ${backend.name} is not confirmed: ${reason} before the job ended, and a last lookup ${lookup}.`;
-  return new ExplorerVerifyError(
+  return newError(
     { code: "not-confirmed", handle },
     message,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },

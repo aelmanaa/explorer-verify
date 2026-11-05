@@ -1,6 +1,6 @@
 import { toBackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Handle, Hex } from "../types.ts";
 
@@ -142,12 +142,8 @@ function checkFields(fields: ReadonlyMap<string, unknown>, versionMessage: strin
 
 function invalid(issues: InputIssue[]): ExplorerVerifyError {
   const fields = issues.map((issue) => issue.field).join(", ");
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues },
-    `The handle is invalid: ${fields}.`,
-    {
-      hint: "Pass the handle exactly as verify() or a not-confirmed error returned it.",
-      secrets: [],
-    },
-  );
+  return newError({ code: "invalid-input", issues }, `The handle is invalid: ${fields}.`, {
+    hint: "Pass the handle exactly as verify() or a not-confirmed error returned it.",
+    secrets: [],
+  });
 }

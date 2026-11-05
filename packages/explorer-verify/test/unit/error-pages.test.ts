@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
-import type { ErrorCode } from "../../src/index.ts";
+import { newError } from "../../src/error-hints.ts";
+import { ERROR_CODES, ERROR_EXIT_CODES } from "../../src/index.ts";
+import type { ErrorCode, ExplorerVerifyError } from "../../src/index.ts";
 import { docsFileOf, docsUrlOf } from "../helpers/docs-url.ts";
 import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 
@@ -28,7 +29,7 @@ function page(code: string): string {
 }
 
 function error(code: ErrorCode): ExplorerVerifyError {
-  return new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
+  return newError(SAMPLE_DETAILS[code], "m", { secrets: [] });
 }
 
 /** The paragraph that starts with `label`, without the label, with its lines joined. */

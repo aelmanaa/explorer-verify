@@ -28,7 +28,7 @@ import { ExplorerVerifyError, checkStatus, formatHandle, verify } from "explorer
 try {
   await verify(input);
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
     localStorage.setItem("pending-verification", formatHandle(error.details.handle));
   } else {
     throw error;

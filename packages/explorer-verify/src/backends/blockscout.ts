@@ -15,7 +15,8 @@
  * docs/contributor/research/2026-11-04-blockscout-client.md.
  */
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { keyFor, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
@@ -164,7 +165,7 @@ function client(name: Name): Backend {
     }
     const req = form(ctx, name, fields, "submit");
     const target: Target = { chainId: input.chainId, address: input.address };
-    const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
+    const unconfirmed = (answer: Answer): AnyExplorerVerifyError | undefined =>
       UNCONFIRMED_STATUSES.includes(answer.status) ||
       (answer.status === 200 && answer.fields === undefined)
         ? unexpected(ctx, name, answer, "the submit")
@@ -238,7 +239,7 @@ function client(name: Name): Backend {
       );
     }
     if (result === NOT_A_CONTRACT) {
-      throw new ExplorerVerifyError(
+      throw newError(
         {
           code: "invalid-input",
           issues: [{ field: "address", message: "is not a contract, Blockscout answered" }],
@@ -280,13 +281,13 @@ function client(name: Name): Backend {
     } else if (result === FAIL) {
       return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };
     } else if (result === UNKNOWN_UID) {
-      throw new ExplorerVerifyError(
+      throw newError(
         { code: "job-not-found", handle },
         `Blockscout does not know the verification job ${handle.jobId}.`,
         { secrets: ctx.http.secrets },
       );
     }
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "unknown-state", handle, excerpt: answer.text },
       result === PASS
         ? `Blockscout reported job ${handle.jobId} verified, but a lookup found the contract not verified; the result is not known.`
@@ -424,14 +425,14 @@ export function refusal(
   ctx: Context,
   answer: Answer,
   chainId: number,
-): ExplorerVerifyError | undefined {
+): AnyExplorerVerifyError | undefined {
   const { status, fields } = answer;
   const raw = fields?.get("error");
   const text = typeof raw === "string" ? raw.toLowerCase() : "";
   const { secrets } = ctx.http;
   const backend = HOSTED;
   if (status === 404 && text === "network not supported") {
-    return new ExplorerVerifyError(
+    return newError(
       { code: "unsupported-chain", backend, chainId },
       `Blockscout's hosted API does not serve chain ${String(chainId)}.`,
       { secrets },
@@ -439,14 +440,14 @@ export function refusal(
   }
   const keyed = keyFor(ctx, backend, ctx.route.apiBase) !== undefined;
   if (status === 401 || (status === 402 && (keyed || text.includes(PLAN_NEEDED)))) {
-    return new ExplorerVerifyError(
+    return newError(
       { code: "api-key-rejected", backend },
       `${backend} refused the API key, or its plan or credits for this request.`,
       { hint: PLAN_HINT, secrets },
     );
   }
   return status === 402
-    ? new ExplorerVerifyError(
+    ? newError(
         { code: "missing-api-key", backend },
         `${backend} answered that the API key is missing.`,
         { secrets },
@@ -461,6 +462,6 @@ function unexpected(
   answer: Answer,
   what: string,
   whole = false,
-): ExplorerVerifyError {
+): ExplorerVerifyError<"unexpected-response"> {
   return unexpectedAnswer(ctx, name, LABEL, answer, what, whole);
 }

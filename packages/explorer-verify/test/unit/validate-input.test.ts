@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { ExplorerVerifyError, validateInput } from "../../src/index.ts";
+import { ERROR_HINTS, ExplorerVerifyError, validateInput } from "../../src/index.ts";
 import type { InputIssue, VerifyInput } from "../../src/index.ts";
 
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
@@ -595,7 +595,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
     const reference = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "x", {
       secrets: [],
     });
-    assert.equal(error.hint, reference.hint);
+    assert.equal(error.hint, ERROR_HINTS["invalid-input"]);
     assert.equal(error.docsUrl, reference.docsUrl);
     assert.equal(error.message, "The input is invalid: chainId.");
   });

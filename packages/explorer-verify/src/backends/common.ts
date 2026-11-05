@@ -5,7 +5,9 @@
  * know. Internal: the package entry point does not export it.
  */
 import type { BackendName } from "../backend-names.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
+import type { AnyExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { request, sleep } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
@@ -51,7 +53,7 @@ export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
 /** One submit sent: an answer to map, or an error that may hide a submit the explorer accepted. */
 export type SubmitAttempt =
   | { readonly kind: "answer"; readonly answer: Answer }
-  | { readonly kind: "unconfirmed"; readonly error: ExplorerVerifyError };
+  | { readonly kind: "unconfirmed"; readonly error: AnyExplorerVerifyError };
 
 /**
  * Sends a submit once. It is `unconfirmed` when no response came, when a 2xx body failed or
@@ -71,7 +73,7 @@ export type SubmitAttempt =
 export async function attemptSubmit(
   ctx: Context,
   req: HttpRequest,
-  unconfirmed: (answer: Answer) => ExplorerVerifyError | undefined,
+  unconfirmed: (answer: Answer) => AnyExplorerVerifyError | undefined,
 ): Promise<SubmitAttempt> {
   let answer: Answer;
   try {
@@ -163,7 +165,7 @@ export async function lookupAfterUnclear(
     return await lookup(target, ctx);
   } catch (error: unknown) {
     if (error instanceof ExplorerVerifyError) {
-      throw new ExplorerVerifyError(
+      throw newError(
         error.details,
         `${error.message} The submit before this lookup got no clear answer and may already have been accepted.`,
         { hint: error.hint, cause: error, secrets: ctx.http.secrets },
@@ -218,14 +220,14 @@ export async function waitToResubmit(
   const delayMs = Math.min(ctx.pollIntervalMs ?? RESUBMIT_WAIT_MS, until - now);
   const tries = `${String(attempt)} ${attempt === 1 ? "submit" : "submits"}`;
   if (budget !== undefined && now + delayMs >= budget.deadline) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "timeout", backend, timeoutMs: budget.timeoutMs },
       `${what} after ${tries}, within the ${String(budget.timeoutMs)} ms budget.`,
       { hint, secrets },
     );
   }
   if (attempt >= maxTries || delayMs <= 0) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
       `${what} after ${tries}.`,
       { hint, secrets },
@@ -302,8 +304,8 @@ export function unexpected(
   answer: Answer,
   what: string,
   whole = false,
-): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+): ExplorerVerifyError<"unexpected-response"> {
+  return newError(
     { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
     whole
       ? what
@@ -359,7 +361,7 @@ export function checkHandle(
     });
   }
   if (issues.length > 0) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "invalid-input", issues },
       `The handle is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
       {

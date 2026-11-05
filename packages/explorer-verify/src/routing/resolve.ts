@@ -14,8 +14,8 @@
  */
 import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { checkRouteKey, HOSTED_BLOCKSCOUT_HOST, needsKey } from "../http/api-keys.ts";
 import type { ApiKeys } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
@@ -809,7 +809,7 @@ export function unsupported(
   why: "row" | "listed" | "client",
 ): ExplorerVerifyError {
   const chain = `chain ${String(chainId)}`;
-  return new ExplorerVerifyError(
+  return newError(
     { code: "unsupported-chain", chainId, backend },
     why === "row"
       ? `The routing table has no row for ${chain}.`
@@ -834,7 +834,7 @@ function invalid(
   secrets: readonly string[],
 ): ExplorerVerifyError {
   const names = issues.map((issue) => issue.field).join(", ");
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `${summary}: ${names}.`,
     // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.

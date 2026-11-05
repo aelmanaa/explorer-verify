@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
+import { newError } from "../../src/error-hints.ts";
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
 import type {
   ErrorCode,
@@ -31,7 +32,7 @@ function handle(jobId = "550e8400-e29b-41d4-a716-446655440000"): Handle {
 }
 
 function notConfirmed(): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "not-confirmed", handle: handle() },
     "Sourcify was still verifying when the time budget ran out.",
     { secrets: [], cause: new Error(`GET https://api.example.org/?apikey=${DUMMY_KEY} timed out`) },
@@ -39,7 +40,7 @@ function notConfirmed(): ExplorerVerifyError {
 }
 
 function invalidInput(): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     {
       code: "invalid-input",
       issues: [{ field: "chainId", message: "must be a positive integer" }],
@@ -79,11 +80,11 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
   cancelled: { code: "cancelled", handle: handle(DUMMY_KEY) },
   "incomplete-input": {
     code: "incomplete-input",
-    field: `contract ${DUMMY_KEY}`,
+    field: "contract",
     candidates: [`src/A.sol:A`, `${LEAKY_URL}:B`],
   },
-  "insufficient-artifact": { code: "insufficient-artifact", field: `input ${DUMMY_KEY}` },
-  "unsupported-compiler": { code: "unsupported-compiler", field: `compilerType ${DUMMY_KEY}` },
+  "insufficient-artifact": { code: "insufficient-artifact", field: "input" },
+  "unsupported-compiler": { code: "unsupported-compiler", field: "compilerType" },
   "verification-inconclusive": {
     code: "verification-inconclusive",
     backend: "sourcify",
@@ -302,7 +303,7 @@ describe("ExplorerVerifyError", () => {
     it(`throws ${code} with its code, hint, docsUrl, retryable flag and details (R-DX-3, R-AX-10)`, () => {
       let thrown: unknown;
       try {
-        throw new ExplorerVerifyError(SAMPLE_DETAILS[code], `A ${code} error.`, { secrets: [] });
+        throw newError(SAMPLE_DETAILS[code], `A ${code} error.`, { secrets: [] });
       } catch (error) {
         thrown = error;
       }
@@ -318,7 +319,7 @@ describe("ExplorerVerifyError", () => {
   }
 
   it("takes a specific hint in place of the code's default (R-DX-3)", () => {
-    const error = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "message", {
+    const error = newError({ code: "invalid-input", issues: [] }, "message", {
       secrets: [],
       hint: "Use sourcify.",
     });
@@ -330,7 +331,7 @@ describe("ExplorerVerifyError", () => {
       code: "invalid-input",
       issues: [{ field: "chainId", message: "must be a positive integer" }],
     };
-    const error = new ExplorerVerifyError(details, "message", { secrets: [] });
+    const error = newError(details, "message", { secrets: [] });
     details.issues.push({ field: "address", message: "late" });
     assert.ok(error.details.code === "invalid-input");
     assert.equal(error.details.issues.length, 1);
@@ -338,7 +339,7 @@ describe("ExplorerVerifyError", () => {
 
   it("keeps cause as a copy with the same name, message and stack, and has none when not given", () => {
     const cause = new TypeError("socket closed");
-    const withCause = new ExplorerVerifyError({ code: "invalid-input", issues: [] }, "m", {
+    const withCause = newError({ code: "invalid-input", issues: [] }, "m", {
       secrets: [],
       cause,
     });
@@ -388,23 +389,21 @@ describe("ExplorerVerifyError", () => {
   it("keeps incomplete-input candidates only when they are an array (R-SEC-1)", () => {
     const details: ErrorDetails = { code: "incomplete-input", field: "contract", candidates: [] };
     Reflect.set(details, "candidates", `src/A.sol:A ${DUMMY_KEY}`);
-    const error = new ExplorerVerifyError(details, "m", { secrets: [DUMMY_KEY] });
+    const error = newError(details, "m", { secrets: [DUMMY_KEY] });
     assert.ok(error.details.code === "incomplete-input");
     assert.deepEqual(error.details.candidates, []);
   });
 
   it("cuts an excerpt to 300 characters (unexpected-response, unknown-state)", () => {
     const long = "x".repeat(1_000);
-    const unexpected = new ExplorerVerifyError(
+    const unexpected = newError(
       { code: "unexpected-response", backend: "sourcify", status: 500, excerpt: long },
       "m",
       { secrets: [] },
     );
-    const unknown = new ExplorerVerifyError(
-      { code: "unknown-state", handle: handle(), excerpt: long },
-      "m",
-      { secrets: [] },
-    );
+    const unknown = newError({ code: "unknown-state", handle: handle(), excerpt: long }, "m", {
+      secrets: [],
+    });
     for (const error of [unexpected, unknown]) {
       assert.ok(
         error.details.code === "unexpected-response" || error.details.code === "unknown-state",
@@ -450,7 +449,7 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
     assert.equal(ERROR_EXIT_CODES["in-progress"], 5);
     assert.equal(ERROR_EXIT_CODES["job-not-found"], 6);
     assert.equal(ERROR_EXIT_CODES["unexpected-response"], 5);
-    const unexpected = new ExplorerVerifyError(SAMPLE_DETAILS["unexpected-response"], "m", {
+    const unexpected = newError(SAMPLE_DETAILS["unexpected-response"], "m", {
       secrets: [],
     });
     assert.equal(unexpected.retryable, true);
@@ -516,7 +515,7 @@ describe("ExplorerVerifyError.toJSON", () => {
   for (const code of ERROR_CODES) {
     const carries = HANDLE_CODES.includes(code);
     it(`${code}: has the R-AX-5 fields${carries ? " and the handle string" : " and no handle"} (R-AX-5)`, () => {
-      const json = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] }).toJSON();
+      const json = newError(SAMPLE_DETAILS[code], "m", { secrets: [] }).toJSON();
       const keys = ["code", "message", "hint", "docsUrl", "retryable"];
       assert.deepEqual(Object.keys(json), carries ? [...keys, "handle"] : keys);
       if (carries) {
@@ -545,7 +544,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     it(`${code}: no dummy key in message, hint, details, toJSON, JSON.stringify, String, stack or full-depth inspect`, () => {
       const nested = new Error(`retry 2 failed: ${LEAKY_URL}`);
       const cause = new TypeError(`fetch failed: ${LEAKY_URL}`, { cause: nested });
-      const error = new ExplorerVerifyError(
+      const error = newError(
         LEAKY_DETAILS[code],
         `POST ${LEAKY_URL} failed with key ${DUMMY_KEY}`,
         { hint: `Check ${DUMMY_KEY}.`, cause, secrets: [DUMMY_KEY] },
@@ -560,7 +559,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
   }
 
   it("redacts an apikey query value in a fetch TypeError cause without being told the key", () => {
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "network", backend: "sourcify", attempts: 3 },
       "Sourcify could not be reached.",
       { secrets: [], cause: new TypeError(`fetch failed for ${LEAKY_URL}`) },
@@ -579,7 +578,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     for (let level = 5; level >= 1; level--) {
       chain = new Error(`level ${String(level)} ${DUMMY_KEY}`, { cause: chain });
     }
-    const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+    const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
       cause: chain,
       secrets: [DUMMY_KEY],
     });
@@ -602,7 +601,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
     const first = new Error(`first ${DUMMY_KEY}`);
     const second = new Error("second", { cause: first });
     first.cause = second;
-    const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+    const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
       cause: first,
       secrets: [DUMMY_KEY],
     });
@@ -610,7 +609,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
   });
 
   it("turns a string cause into a redacted string", () => {
-    const fromString = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+    const fromString = newError({ code: "in-progress", backend: "sourcify" }, "m", {
       secrets: [],
       cause: `GET ${LEAKY_URL}`,
     });
@@ -626,7 +625,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
       toString: (): string => DUMMY_KEY,
     };
     for (const cause of [leaky, () => DUMMY_KEY, Symbol(DUMMY_KEY), 1n, [DUMMY_KEY]]) {
-      const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+      const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
         secrets: [],
         cause,
       });
@@ -637,7 +636,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
 
   it("keeps an undefined, null, number or boolean cause as it is", () => {
     for (const cause of [undefined, null, 42, false]) {
-      const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+      const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
         secrets: [],
         cause,
       });
@@ -662,7 +661,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
       },
     );
     for (const cause of [hostileError, hostileProxy]) {
-      const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+      const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
         secrets: [],
         cause,
       });
@@ -674,7 +673,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
   it("keeps the copy's own stack when the cause has none", () => {
     const cause = new Error(`no stack ${DUMMY_KEY}`);
     Reflect.deleteProperty(cause, "stack");
-    const error = new ExplorerVerifyError({ code: "in-progress", backend: "sourcify" }, "m", {
+    const error = newError({ code: "in-progress", backend: "sourcify" }, "m", {
       cause,
       secrets: [DUMMY_KEY],
     });
@@ -685,7 +684,7 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
 
   it("redacts a key that straddles the 300-character excerpt cut", () => {
     const excerpt = `${"x".repeat(290)}${DUMMY_KEY}`;
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "unexpected-response", backend: "sourcify", status: 500, excerpt },
       "m",
       { secrets: [DUMMY_KEY] },
@@ -696,13 +695,9 @@ describe("ExplorerVerifyError key redaction (R-SEC-1, R-AX-9)", () => {
   });
 
   it("keeps the redacted message in the stack, which super builds from it", () => {
-    const error = new ExplorerVerifyError(
-      { code: "in-progress", backend: "sourcify" },
-      `key ${DUMMY_KEY}`,
-      {
-        secrets: [DUMMY_KEY],
-      },
-    );
+    const error = newError({ code: "in-progress", backend: "sourcify" }, `key ${DUMMY_KEY}`, {
+      secrets: [DUMMY_KEY],
+    });
     assert.ok((error.stack ?? "").startsWith("ExplorerVerifyError: key [redacted]"));
   });
 });
@@ -725,7 +720,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     const details: ErrorDetails = { code: "network", backend: "sourcify", attempts: 3 };
     Reflect.set(details, "url", LEAKY_URL);
     Reflect.set(details, "headers", { authorization: DUMMY_KEY });
-    const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+    const error = newError(details, "m", { secrets: [] });
     assert.deepEqual(Object.keys(error.details), ["code", "backend", "attempts"]);
     assertNoKey(error);
   });
@@ -740,7 +735,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       { code: "cancelled", handle: leaky },
     ];
     for (const details of all) {
-      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      const error = newError(details, "m", { secrets: [] });
       assert.ok("handle" in error.details);
       assert.deepEqual(Object.keys(error.details.handle), [
         "version",
@@ -762,13 +757,13 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
         Reflect.set(issue, "value", DUMMY_KEY);
         details.issues = [issue];
       }
-      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      const error = newError(details, "m", { secrets: [] });
       assert.ok(!Object.keys(error.details).includes("url"), code);
       assertNoKey(error);
     }
   });
 
-  it('reports a backend name outside BACKEND_NAMES as "unknown" and coerces numbers and strings by type', () => {
+  it("reports a backend name outside BACKEND_NAMES as etherscan-compatible, as a handle does, and coerces numbers and strings by type", () => {
     const details: ErrorDetails = {
       code: "unexpected-response",
       backend: "sourcify",
@@ -778,37 +773,37 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     Reflect.set(details, "backend", LEAKY_URL);
     Reflect.set(details, "status", "500");
     Reflect.set(details, "excerpt", { toString: () => DUMMY_KEY });
-    const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+    const error = newError(details, "m", { secrets: [] });
     assert.deepEqual(error.details, {
       code: "unexpected-response",
-      backend: "unknown",
+      backend: "etherscan-compatible",
       status: Number.NaN,
       excerpt: "",
     });
     assertNoKey(error);
     const notText: ErrorDetails = { code: "in-progress", backend: "sourcify" };
     Reflect.set(notText, "backend", 42);
-    const other = new ExplorerVerifyError(notText, "m", { secrets: [] });
-    assert.deepEqual(other.details, { code: "in-progress", backend: "unknown" });
+    const other = newError(notText, "m", { secrets: [] });
+    assert.deepEqual(other.details, { code: "in-progress", backend: "etherscan-compatible" });
   });
 
-  it('reports "unknown" for every details variant that names a backend, never another backend', () => {
+  it("keeps details.backend within BackendName for every details variant that names a backend", () => {
     for (const code of ERROR_CODES) {
       const details = { ...SAMPLE_DETAILS[code] };
       if (!("backend" in details)) {
         continue;
       }
       Reflect.set(details, "backend", "not-a-backend");
-      const error = new ExplorerVerifyError(details, "m", { secrets: [] });
+      const error = newError(details, "m", { secrets: [] });
       assert.ok("backend" in error.details, code);
-      assert.equal(error.details.backend, "unknown", code);
+      assert.equal(error.details.backend, "etherscan-compatible", code);
     }
   });
 
   it("keeps a valid Handle when its backend is outside BACKEND_NAMES, and never leaks it", () => {
     const leaky = handle();
     Reflect.set(leaky, "backend", LEAKY_URL);
-    const error = new ExplorerVerifyError({ code: "job-not-found", handle: leaky }, "m", {
+    const error = newError({ code: "job-not-found", handle: leaky }, "m", {
       secrets: [],
     });
     assert.ok(error.details.code === "job-not-found");
@@ -818,10 +813,10 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
 
   it("keeps every known field of every variant, rate-limited with and without retryAfterMs and attempts", () => {
     for (const code of ERROR_CODES) {
-      const error = new ExplorerVerifyError(SAMPLE_DETAILS[code], "m", { secrets: [] });
+      const error = newError(SAMPLE_DETAILS[code], "m", { secrets: [] });
       assert.deepEqual(error.details, SAMPLE_DETAILS[code], code);
     }
-    const bare = new ExplorerVerifyError({ code: "rate-limited", backend: "blockscout" }, "m", {
+    const bare = newError({ code: "rate-limited", backend: "blockscout" }, "m", {
       secrets: [],
     });
     assert.deepEqual(bare.details, { code: "rate-limited", backend: "blockscout" });
@@ -834,7 +829,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
   });
 
   it("redacts a bare 34-character key in the message and a string cause without secrets", () => {
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "network", backend: "sourcify", attempts: 1 },
       `Invalid API Key ${BARE_KEY} rejected`,
       { cause: `key was ${BARE_KEY}`, secrets: [] },
@@ -846,7 +841,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
 
   it("falls back to the code's hint when the hint is empty or blank", () => {
     for (const hint of ["", "   ", "\n\t"]) {
-      const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { hint, secrets: [] });
+      const error = newError(SAMPLE_DETAILS.network, "m", { hint, secrets: [] });
       assert.equal(error.hint, EXPECTED.network.hint, JSON.stringify(hint));
     }
   });
@@ -854,7 +849,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
   it("redacts the cause's name", () => {
     const cause = new Error("m");
     cause.name = `Error ${DUMMY_KEY}`;
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+    const error = newError(SAMPLE_DETAILS.network, "m", {
       cause,
       secrets: [DUMMY_KEY],
     });
@@ -864,7 +859,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
   });
 
   it("copies the cause as a plain Error with the original name, not the original class", () => {
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+    const error = newError(SAMPLE_DETAILS.network, "m", {
       cause: new TypeError("x"),
       secrets: [],
     });
@@ -880,7 +875,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       syscall: `connect ${LEAKY_URL}`,
       url: LEAKY_URL,
     });
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+    const error = newError(SAMPLE_DETAILS.network, "m", {
       cause,
       secrets: [DUMMY_KEY],
     });
@@ -901,7 +896,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       errno: [DUMMY_KEY],
       syscall: 7,
     });
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     for (const field of ["code", "errno", "syscall"]) {
       assert.equal(Object.hasOwn(error.cause, field), false, field);
@@ -921,7 +916,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       new Error("fifth"),
       new Error("sixth, not listed"),
     ];
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
+    const error = newError(SAMPLE_DETAILS.network, "m", {
       cause: new AggregateError(errors, "all failed"),
       secrets: [DUMMY_KEY],
     });
@@ -942,7 +937,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
         return reads === 1 ? "first read" : { toString: () => DUMMY_KEY };
       },
     });
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.equal(reads, 1);
     assert.ok(error.cause instanceof Error);
     assert.equal(error.cause.stack, "Error: m");
@@ -953,7 +948,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     const cause = new Error("m");
     Reflect.set(cause, "message", { toString: () => DUMMY_KEY });
     // V8 formats the stack header when the stack is first read, from the message set above.
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     const lines = (error.cause.stack ?? "").split("\n");
     assert.equal(lines[0], "Error");
@@ -971,7 +966,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
       `note ${DUMMY_KEY}`,
       `long@${"x".repeat(1_000)}:1:1`,
     ].join("\n");
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     assert.equal(
       error.cause.stack,
@@ -988,7 +983,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
     const cause = new Error("m");
     Reflect.set(cause, "message", { toString: () => DUMMY_KEY });
     Reflect.set(cause, "name", { toString: () => DUMMY_KEY });
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     assert.equal(error.cause.message, "");
     assert.equal(error.cause.name, "Error");
@@ -999,7 +994,7 @@ describe("ExplorerVerifyError hardening (R-SEC-1, R-AX-9)", () => {
 describe("ExplorerVerifyError excerpts", () => {
   it("cuts a long excerpt to 300 characters, in linear time", () => {
     const body = "0x" + "6080604052".repeat(100_000);
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "unexpected-response", backend: "sourcify", status: 500, excerpt: body },
       "m",
       { secrets: [DUMMY_KEY] },
@@ -1010,11 +1005,9 @@ describe("ExplorerVerifyError excerpts", () => {
       "excerpt",
       (size) => "6080604052".repeat(size / 10),
       (excerpt) =>
-        new ExplorerVerifyError(
-          { code: "unexpected-response", backend: "sourcify", status: 500, excerpt },
-          "m",
-          { secrets: [DUMMY_KEY] },
-        ),
+        newError({ code: "unexpected-response", backend: "sourcify", status: 500, excerpt }, "m", {
+          secrets: [DUMMY_KEY],
+        }),
     );
   });
 
@@ -1027,20 +1020,16 @@ describe("ExplorerVerifyError excerpts", () => {
     assertSameCost("cause stack", lines(63), lines(999), (stack) => {
       const cause = new Error("m");
       cause.stack = stack;
-      return new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+      return newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     });
   });
 
   it("copies a cause whose message is full of long @ lines as fast as short ones", () => {
-    assertSameCost(
-      "cause message",
-      lines(63),
-      lines(999),
-      (message) =>
-        new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", {
-          cause: new Error(message),
-          secrets: [],
-        }),
+    assertSameCost("cause message", lines(63), lines(999), (message) =>
+      newError(SAMPLE_DETAILS.network, "m", {
+        cause: new Error(message),
+        secrets: [],
+      }),
     );
   });
 
@@ -1049,11 +1038,9 @@ describe("ExplorerVerifyError excerpts", () => {
     const long = "LONGSECRET".repeat(10);
     for (let offset = 250; offset < 520; offset++) {
       const body = `${long} ${"x".repeat(offset)}${DUMMY_KEY}${"y".repeat(400)}`;
-      const error = new ExplorerVerifyError(
-        { code: "unknown-state", handle: handle(), excerpt: body },
-        "m",
-        { secrets: [DUMMY_KEY, long] },
-      );
+      const error = newError({ code: "unknown-state", handle: handle(), excerpt: body }, "m", {
+        secrets: [DUMMY_KEY, long],
+      });
       assert.ok(error.details.code === "unknown-state");
       assert.ok(!error.details.excerpt.includes(DUMMY_KEY.slice(0, 8)), `offset ${String(offset)}`);
       assert.ok(error.details.excerpt.length <= 300);
@@ -1061,7 +1048,7 @@ describe("ExplorerVerifyError excerpts", () => {
   });
 
   it("cuts a short excerpt only after redacting it", () => {
-    const error = new ExplorerVerifyError(
+    const error = newError(
       { code: "unknown-state", handle: handle(), excerpt: `ok ${DUMMY_KEY}` },
       "m",
       { secrets: [DUMMY_KEY] },
@@ -1073,7 +1060,7 @@ describe("ExplorerVerifyError excerpts", () => {
 
 describe("cancelled (R-AX-7)", () => {
   it("maps to exit code 130, is not retryable and has the resume hint", () => {
-    const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
+    const error = newError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
     assert.equal(ERROR_EXIT_CODES.cancelled, 130);
     assert.equal(error.retryable, false);
     assert.equal(
@@ -1084,7 +1071,7 @@ describe("cancelled (R-AX-7)", () => {
   });
 
   it("has no handle in details or toJSON when the cancel came before a submission was accepted (R-AX-5)", () => {
-    const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
+    const error = newError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
     assert.deepEqual(error.details, { code: "cancelled" });
     assert.deepEqual(Object.keys(error.toJSON()), [
       "code",
@@ -1096,11 +1083,9 @@ describe("cancelled (R-AX-7)", () => {
   });
 
   it("carries the handle, redacted, when a submission was accepted before the cancel (R-AX-5)", () => {
-    const error = new ExplorerVerifyError(
-      { code: "cancelled", handle: handle(DUMMY_KEY) },
-      "Cancelled.",
-      { secrets: [DUMMY_KEY] },
-    );
+    const error = newError({ code: "cancelled", handle: handle(DUMMY_KEY) }, "Cancelled.", {
+      secrets: [DUMMY_KEY],
+    });
     assert.equal(
       error.toJSON().handle,
       "ev1:sourcify:11155111:0x5FbDB2315678afecb367f032d93F642f64180aa3:[redacted]",
@@ -1132,7 +1117,7 @@ describe("ExplorerVerifyError bounds", () => {
     for (const address of [5, { toString: () => `0x${DUMMY_KEY}` }]) {
       const bad = handle();
       Reflect.set(bad, "address", address);
-      const error = new ExplorerVerifyError({ code: "job-not-found", handle: bad }, "m", {
+      const error = newError({ code: "job-not-found", handle: bad }, "m", {
         secrets: [],
       });
       assert.ok(error.details.code === "job-not-found");
@@ -1156,7 +1141,7 @@ describe("ExplorerVerifyError bounds", () => {
       v8,
       firefox,
     ].join("\n");
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     assert.deepEqual(error.cause.stack?.split("\n"), ["Error: boom", v8, firefox]);
   });
@@ -1165,7 +1150,7 @@ describe("ExplorerVerifyError bounds", () => {
     assert.equal(frame(1_000).length, 1_000);
     const cause = new Error("boom");
     cause.stack = ["Error: boom", frame(1_000), frame(1_001)].join("\n");
-    const error = new ExplorerVerifyError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
+    const error = newError(SAMPLE_DETAILS.network, "m", { cause, secrets: [] });
     assert.ok(error.cause instanceof Error);
     assert.deepEqual(error.cause.stack?.split("\n"), ["Error: boom", frame(1_000)]);
   });

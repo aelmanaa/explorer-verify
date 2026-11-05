@@ -336,7 +336,7 @@ describe("blackbox #21: documented failures", () => {
     assertMismatch(error, "contracts/Plain.sol", expected, mutation.keccak256);
   });
 
-  it("a metadata keccak256 of another form: source-mismatch with expected empty", () => {
+  it("a metadata keccak256 of another form: source-mismatch with expected 0x", () => {
     const meta = parse(NONE.metadata);
     const tampered = {
       ...meta,
@@ -345,7 +345,7 @@ describe("blackbox #21: documented failures", () => {
     const error = caught(() => buildVerifyInput([tampered], { sources: NONE.sources }));
     assert.equal(error.code, "source-mismatch");
     assert.ok(error.details.code === "source-mismatch");
-    assert.equal(error.details.expected, "");
+    assert.equal(error.details.expected, "0x");
     assert.match(error.details.actual, HASH);
     assert.equal(error.details.actual, keccakOf(meta, "contracts/Plain.sol"));
   });

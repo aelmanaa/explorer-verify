@@ -7,6 +7,7 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Context, LinkTarget, LinkVerdict, ProxyLinker } from "../backends/backend.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { sleep } from "../http/fetch.ts";
@@ -240,7 +241,7 @@ export async function runLinkProxy(
  * `etherscan-compatible` route from the routing table rather than `route.apiUrl`.
  */
 function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     {
       code: "invalid-input",
       issues: [{ field: "route.backend", message: `${backend} cannot link a proxy` }],
@@ -343,7 +344,7 @@ async function finish(call: LinkCall, verdict: LinkVerdict): Promise<LinkProxyRe
   if (verdict.state === "mismatch") {
     if (expected === undefined) {
       // Only a call with expectedImplementation can be refused for another implementation.
-      throw new ExplorerVerifyError(
+      throw newError(
         {
           code: "proxy-link-unknown-state",
           backend,
@@ -399,7 +400,7 @@ function notLinked(observer: Observer, backend: BackendName, reason: string): Li
 /** `proxy-link-pending`: the explorer had not finished, and calling again is safe. */
 function pending(call: LinkCall, why: string, cause: unknown): ExplorerVerifyError {
   const { backend, target, ctx } = call;
-  return new ExplorerVerifyError(
+  return newError(
     { code: "proxy-link-pending", backend },
     `The link of proxy ${target.address} on ${backend} is not confirmed: ${why} before the explorer finished.`,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },
@@ -449,7 +450,7 @@ function checkTarget(value: unknown): LinkTarget {
 }
 
 function invalidTarget(issues: InputIssue[]): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The proxy target is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {

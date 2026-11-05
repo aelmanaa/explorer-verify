@@ -372,7 +372,7 @@ async function verifyError(promise: Promise<unknown>): Promise<ExplorerVerifyErr
   return error;
 }
 
-function checkEnvelope(outcome: VerifyOutcome): Record<string, unknown> {
+function checkEnvelope(outcome: VerifyOutcome | ExplorerVerifyError): Record<string, unknown> {
   const envelope: unknown = JSON.parse(JSON.stringify(toEnvelope(outcome)));
   assert.deepEqual(validateEnvelope(envelope), []);
   assert.ok(typeof envelope === "object" && envelope !== null);

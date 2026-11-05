@@ -4,8 +4,9 @@
  * use these, so they cannot disagree. `schema/envelope.schema.json` describes the envelope.
  */
 import { toBackendName } from "./backend-names.ts";
+import { newError } from "./error-hints.ts";
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
-import type { ErrorJson, ExitCode, InputIssue } from "./errors.ts";
+import type { AnyExplorerVerifyError, ErrorJson, ExitCode, InputIssue } from "./errors.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { JOB_ID } from "./flow/handle.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
@@ -34,7 +35,7 @@ import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } fro
  * ```
  * @experimental
  */
-export type VerifyOutcome = VerifyResult | ExplorerVerifyError;
+export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
 
 /**
  * The versioned JSON document for an outcome (R-AX-5). `ok` is `true` exactly when the exit code
@@ -184,7 +185,7 @@ class Problems {
 
 /** An `invalid-input` error for a value outside the types. It never repeats a value. */
 function invalid(issues: InputIssue[], message = NOT_AN_OUTCOME, hint = NOT_AN_OUTCOME_HINT) {
-  return new ExplorerVerifyError({ code: "invalid-input", issues }, message, {
+  return newError({ code: "invalid-input", issues }, message, {
     secrets: [],
     hint,
   });
@@ -359,12 +360,14 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
 
 /**
  * A reader of the error object of `outcome`: its own `toJSON()` when it is an
- * `ExplorerVerifyError` of this copy of the package or of another copy, which `instanceof` misses
- * but which has the same name and a `toJSON()`. `foreign` marks the other copy, whose handle is
- * checked field by field. `undefined` for any other value.
+ * `ExplorerVerifyError` of this copy of the package or of another copy, recognised by its name and
+ * a `toJSON()`. `foreign` marks the other copy, whose handle is checked field by field. Only an
+ * error whose prototype chain holds this copy's class is this copy's: `instanceof` also accepts an
+ * error from another copy by its brand (decision 0044). `undefined` for any other value.
  */
 function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean } | undefined {
-  if (outcome instanceof ExplorerVerifyError) {
+  const branded = ExplorerVerifyError.is(outcome);
+  if (branded && Object.prototype.isPrototypeOf.call(ExplorerVerifyError.prototype, outcome)) {
     return { read: () => outcome.toJSON(), foreign: false };
   }
   if (typeof outcome !== "object" || outcome === null) {
@@ -373,9 +376,11 @@ function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean 
   try {
     const name: unknown = Reflect.get(outcome, "name");
     const toJSON: unknown = Reflect.get(outcome, "toJSON");
-    return name === ERROR_NAME && typeof toJSON === "function"
-      ? { read: (): unknown => Reflect.apply(toJSON, outcome, []), foreign: true }
-      : undefined;
+    if ((branded || name === ERROR_NAME) && typeof toJSON === "function") {
+      return { read: (): unknown => Reflect.apply(toJSON, outcome, []), foreign: true };
+    }
+    // A branded value claims to be an error: refuse it as one, so the message names its toJSON().
+    return branded ? { read: (): unknown => undefined, foreign: true } : undefined;
   } catch {
     return undefined;
   }
@@ -634,7 +639,13 @@ function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
  * @experimental
  */
 export function exitCodeOf(
-  outcome: VerifyOutcome | DryRunResult | VerifyEachResult | VerifyEachResult<ErrorJson>,
+  outcome:
+    | VerifyOutcome
+    | ExplorerVerifyError
+    | DryRunResult
+    | VerifyEachResult
+    | VerifyEachResult<ExplorerVerifyError>
+    | VerifyEachResult<ErrorJson>,
 ): ExitCode {
   const read = readOutcome(outcome, []);
   if ("each" in read) {
@@ -682,7 +693,13 @@ export function exitCodeOf(
  * @experimental
  */
 export function toEnvelope(
-  outcome: VerifyOutcome | DryRunResult | VerifyEachResult | VerifyEachResult<ErrorJson>,
+  outcome:
+    | VerifyOutcome
+    | ExplorerVerifyError
+    | DryRunResult
+    | VerifyEachResult
+    | VerifyEachResult<ExplorerVerifyError>
+    | VerifyEachResult<ErrorJson>,
   options?: EnvelopeOptions,
 ): Envelope {
   const read = readOutcome(outcome, secretsOf(options));

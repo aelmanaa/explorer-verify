@@ -13,6 +13,7 @@ import { describe, it } from "node:test";
 
 import {
   ERROR_EXIT_CODES,
+  ERROR_HINTS,
   ExplorerVerifyError,
   exitCodeOf,
   toEnvelope,
@@ -1618,12 +1619,13 @@ describe("#34 feeding verify()", () => {
     assert.equal(ERROR_EXIT_CODES["no-metadata-hash"], 2);
     assert.equal(ERROR_EXIT_CODES["metadata-unavailable"], 5);
     const a = new ExplorerVerifyError({ code: "no-metadata-hash", found: "no-code" }, "x", {
+      hint: ERROR_HINTS["no-metadata-hash"],
       secrets: [],
     });
     const b = new ExplorerVerifyError(
       { code: "metadata-unavailable", hash: "", attempts: [] },
       "x",
-      { secrets: [] },
+      { hint: ERROR_HINTS["metadata-unavailable"], secrets: [] },
     );
     assert.equal(a.retryable, false);
     assert.equal(b.retryable, true);

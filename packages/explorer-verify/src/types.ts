@@ -4,7 +4,7 @@
  * better shape, and record the change in the decision log.
  */
 import type { BackendName } from "./backend-names.ts";
-import type { ErrorJson, ExplorerVerifyError } from "./errors.ts";
+import type { AnyExplorerVerifyError, ErrorJson, ExplorerVerifyError } from "./errors.ts";
 
 /** A hex string with the `0x` prefix. */
 export type Hex = `0x${string}`;
@@ -697,7 +697,7 @@ export interface VerifyEachOptions extends Omit<VerifyOptions, "route"> {
  * ```
  * @experimental
  */
-export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = ExplorerVerifyError> =
+export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplorerVerifyError> =
   | {
       /** The backend of this outcome. */
       backend: BackendName;
@@ -736,7 +736,9 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = ExplorerV
  * ```
  * @experimental
  */
-export interface VerifyEachResult<E extends ExplorerVerifyError | ErrorJson = ExplorerVerifyError> {
+export interface VerifyEachResult<
+  E extends ExplorerVerifyError | ErrorJson = AnyExplorerVerifyError,
+> {
   /** One outcome per backend, in the order of `backends`. */
   outcomes: BackendOutcome<E>[];
 }

@@ -1,9 +1,10 @@
+import { newError } from "../error-hints.ts";
 /**
  * The format-detecting input builder (R-IN-7): turns compiler JSON of unknown origin into the
  * `compiler` part of `VerifyInput` and the fully qualified contract name.
  */
 import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import type { DetailsOf, InputIssue } from "../errors.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { Hex, VerifyInput } from "../types.ts";
 import {
@@ -398,7 +399,7 @@ function classify(document: unknown, position: number, findings: Findings): void
 
 function invalid(field: string, message: string, hint?: string): ExplorerVerifyError {
   const issues: InputIssue[] = [{ field, message }];
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The input is invalid: ${field}.`,
     hint === undefined ? { secrets: [] } : { hint, secrets: [] },
@@ -406,13 +407,13 @@ function invalid(field: string, message: string, hint?: string): ExplorerVerifyE
 }
 
 function incomplete(
-  field: string,
+  field: DetailsOf<"incomplete-input">["field"],
   message: string,
   hint: string,
   candidates: readonly string[] = [],
   limit = MAX_CANDIDATES,
 ): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     {
       code: "incomplete-input",
       field,
@@ -424,7 +425,7 @@ function incomplete(
 }
 
 function unsupportedCompiler(field: string, hint?: string): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "unsupported-compiler", field },
     `The documents come from a compiler other than solc: ${field}.`,
     hint === undefined ? { secrets: [] } : { hint, secrets: [] },
@@ -587,7 +588,7 @@ function pickInput(
     );
   }
   if (findings.plainArtifact && !findings.output) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "insufficient-artifact", field: "input" },
       "The documents hold no compiler input or settings: only ABI and bytecode.",
       { secrets: [] },

@@ -5,7 +5,7 @@
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { ExplorerVerifyError } from "explorer-verify";
+import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 
 /**
  * Options for {@link findHardhatBuild}. `@explorer-verify/foundry` takes the same fields, and also
@@ -96,11 +96,15 @@ const CONTRACT_HINT =
   "Pass options.contract as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one entry of details.candidates.";
 
 /** `invalid-input` with one issue. The message repeats the issue, which holds no secret. */
-function invalid(field: string, message: string, hint?: string): ExplorerVerifyError {
+function invalid(
+  field: string,
+  message: string,
+  hint: string = ERROR_HINTS["invalid-input"],
+): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues: [{ field, message }] },
     `The input is invalid: ${field} ${message}.`,
-    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
+    { hint, secrets: [] },
   );
 }
 
@@ -160,7 +164,7 @@ class Project {
     return new ExplorerVerifyError(
       { code: "invalid-input", issues: [{ field: this.show(file), message: "cannot be read" }] },
       `The input is invalid: ${this.show(file)} cannot be read.`,
-      { cause, secrets: [] },
+      { hint: ERROR_HINTS["invalid-input"], cause, secrets: [] },
     );
   }
 

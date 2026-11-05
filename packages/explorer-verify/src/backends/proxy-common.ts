@@ -6,7 +6,8 @@
  * Internal: the package entry point does not export it.
  */
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError } from "../errors.ts";
 import type { Hex } from "../types.ts";
 import type { Context } from "./backend.ts";
 import type { Answer } from "./common.ts";
@@ -96,7 +97,7 @@ export function unknownLink(
   label: string,
   answer: Answer,
 ): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "proxy-link-unknown-state", backend, excerpt: answer.text },
     `${label} reported a proxy link state that this client does not recognise; whether the proxy is linked is not known.`,
     { secrets: ctx.http.secrets },

@@ -88,7 +88,7 @@ export async function verifyAndQueue(
       ? `failed on ${result.backend}: ${result.reason}`
       : `${result.status} on ${result.backend}`;
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       await queue.add(formatHandle(error.details.handle));
       return "queued for a status check";
     }
@@ -131,7 +131,7 @@ above.
 <!-- no-run: it sends requests to Etherscan, which the recorded answers of the docs test do not cover -->
 
 ```ts no-run
-import { verifyEach } from "explorer-verify";
+import { formatHandle, verifyEach } from "explorer-verify";
 
 const { outcomes } = await verifyEach(input, {
   backends: ["etherscan-v2", "sourcify"],
@@ -140,8 +140,10 @@ const { outcomes } = await verifyEach(input, {
 });
 for (const outcome of outcomes) {
   if ("error" in outcome) {
-    // A pending backend: resume it later with checkStatus(handle).
-    console.log(`${outcome.backend}: ${outcome.error.code} ${outcome.error.toJSON().handle ?? ""}`);
+    const { error } = outcome;
+    // A pending backend: resume it later with checkStatus(error.details.handle).
+    const handle = error.code === "not-confirmed" ? formatHandle(error.details.handle) : "";
+    console.log(`${outcome.backend}: ${error.code} ${handle}`);
   } else {
     console.log(`${outcome.backend}: ${outcome.result.status}`);
   }
@@ -179,7 +181,7 @@ export async function statusJob(handle: string): Promise<"done" | "again"> {
     console.log(`${result.status} on ${result.backend}`);
     return "done";
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       return "again";
     }
     throw error;
