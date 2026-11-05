@@ -9,7 +9,7 @@ import { ExplorerVerifyError, formatHandle } from "explorer-verify";
 import type { VerifyResult } from "explorer-verify";
 
 import type { Command, RunCommand } from "../../src/command.ts";
-import { main } from "../../src/main.ts";
+import { main, pendingHandles } from "../../src/main.ts";
 import { POLL_MS } from "../../src/simulate.ts";
 import { fakeIo, jsonLines } from "../helpers/fake-io.ts";
 import type { FakeIoOptions } from "../helpers/fake-io.ts";
@@ -426,5 +426,91 @@ describe("main: signals (R-AX-7)", () => {
     assert.equal(await done, 130);
     assert.match(fake.stderr(), /Submitted to sourcify\. Handle: /);
     assert.equal(Reflect.get(oneEnvelope(fake.stdout())["error"] ?? {}, "handle"), HANDLE);
+  });
+});
+
+/** Runs `custom` with `body`, sends SIGINT, and returns the cancelled envelope's error. */
+async function cancel(body: RunCommand): Promise<Record<string, unknown>> {
+  const fake = fakeIo(["custom", "--json"]);
+  const done = main(fake.io, table(body));
+  await settle();
+  fake.signal("SIGINT");
+  assert.equal(await done, 130);
+  const envelope = oneEnvelope(fake.stdout());
+  assert.deepEqual(envelopeProblems(envelope), []);
+  const error = envelope["error"];
+  assert.ok(typeof error === "object" && error !== null);
+  return Object.fromEntries(Object.entries(error));
+}
+
+describe("a cancelled run on several backends keeps every running job (R-AX-5, R-RT-4)", () => {
+  const OTHER = formatHandle({
+    version: 1,
+    backend: "etherscan-v2",
+    chainId: 11155111,
+    address: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+    jobId: "guid0123456789",
+  });
+
+  /** A command that submits on both backends, ends `ended` with a result, then waits forever. */
+  function twoSubmits(ended: readonly ("sourcify" | "etherscan-v2")[]): RunCommand {
+    return async ({ onEvent }) => {
+      onEvent({ type: "verify.submitted", backend: "sourcify", handle: HANDLE });
+      onEvent({ type: "verify.submitted", backend: "etherscan-v2", handle: OTHER });
+      for (const backend of ended) {
+        onEvent({ type: "verify.result", backend, status: "verified", match: "exact" });
+      }
+      return await new Promise<VerifyResult>(() => undefined);
+    };
+  }
+
+  it("lists both pending jobs in handles, with no single handle", async () => {
+    const error = await cancel(twoSubmits([]));
+    assert.equal(error["handle"], undefined);
+    assert.deepEqual(error["handles"], [
+      { backend: "sourcify", handle: HANDLE },
+      { backend: "etherscan-v2", handle: OTHER },
+    ]);
+    assert.match(String(error["hint"]), /error\.handles/);
+  });
+
+  it("prints each running job's handle in the stderr error block and in the JSON error line", async () => {
+    for (const format of ["text", "json"]) {
+      const fake = fakeIo(["custom", "--log-format", format]);
+      const done = main(fake.io, table(twoSubmits([])));
+      await settle();
+      fake.signal("SIGINT");
+      assert.equal(await done, 130);
+      const stderr = fake.stderr();
+      if (format === "text") {
+        assert.match(
+          stderr,
+          new RegExp(`  handle: sourcify ${HANDLE}\\n  handle: etherscan-v2 ${OTHER}`),
+        );
+      } else {
+        const line = jsonLines(stderr).find((each) => each["level"] === "error");
+        assert.equal(line?.["handles"], `sourcify ${HANDLE}, etherscan-v2 ${OTHER}`);
+      }
+    }
+  });
+
+  it("leaves out a backend whose result arrived before the cancel", async () => {
+    const error = await cancel(twoSubmits(["sourcify"]));
+    assert.equal(error["handle"], undefined);
+    assert.deepEqual(error["handles"], [{ backend: "etherscan-v2", handle: OTHER }]);
+  });
+
+  it("orders the pending jobs by the backends of the command line", () => {
+    const submissions = new Map([
+      ["sourcify", HANDLE],
+      ["etherscan-v2", OTHER],
+      ["blockscout", "not a handle"],
+    ]);
+    assert.deepEqual(
+      pendingHandles(submissions, new Set(), ["etherscan-v2", "sourcify"]).map(
+        (handle) => handle.backend,
+      ),
+      ["etherscan-v2", "sourcify"],
+    );
   });
 });

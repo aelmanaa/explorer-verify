@@ -242,6 +242,12 @@ export function createStderr(options: StderrOptions): Stderr {
     if (json.handle !== undefined) {
       fields["handle"] = json.handle;
     }
+    // A cancelled run on several backends: each running job, as `<backend> <handle>`. Log fields
+    // are flat, so the JSON line joins them with ", ".
+    const handles = (json.handles ?? []).map(({ backend, handle }) => `${backend} ${handle}`);
+    if (handles.length > 0) {
+      fields["handles"] = handles.join(", ");
+    }
     if (format === "json") {
       writeLine(jsonLine("error", json.message, "log", fields));
       return;
@@ -253,6 +259,9 @@ export function createStderr(options: StderrOptions): Stderr {
     ];
     if (json.handle !== undefined) {
       lines.push(`  handle: ${json.handle}`);
+    }
+    for (const line of handles) {
+      lines.push(`  handle: ${line}`);
     }
     writeLine(lines.join("\n"));
   };

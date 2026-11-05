@@ -88,8 +88,13 @@ export interface InputStream {
   [Symbol.asyncIterator]: () => AsyncIterator<unknown>;
 }
 
-/** The part of `VerifyOptions` that the route options and the keys fill. */
-export type RouteOptions = Pick<VerifyOptions, "apiKeys" | "route">;
+/**
+ * The part of `VerifyOptions` that the route options and the keys fill, and the backends of a
+ * repeated `--backend`, for `verifyEach()`.
+ */
+export type RouteOptions = Pick<VerifyOptions, "apiKeys" | "route"> & {
+  readonly backends?: readonly BackendName[];
+};
 
 /** What {@link readRouteOptions} found. */
 export interface ReadRouteOptions {
@@ -418,7 +423,11 @@ export async function readRouteOptions(sources: RouteSources): Promise<ReadRoute
   }
 
   const route: RouteOverride = {};
-  const backendValue = values.get("backend");
+  const given = backendsGiven(values.get("backend"));
+  if (given.length > 1) {
+    return eachBackend(given, values, { apiKeys, secrets, issues });
+  }
+  const [backendValue] = given;
   if (typeof backendValue === "string") {
     const backend = toBackendName(backendValue);
     if (backend === undefined) {
@@ -450,6 +459,60 @@ export async function readRouteOptions(sources: RouteSources): Promise<ReadRoute
     ...(Object.keys(route).length > 0 ? { route } : {}),
   };
   return { options, secrets, issues };
+}
+
+/** The values of `--backend`: one from `status` or a request's `route`, a list from `verify`. */
+function backendsGiven(value: OptionValue | undefined): readonly string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  return typeof value === "object" ? value : [];
+}
+
+/**
+ * The route options of `--backend` given more than once: `verify` then runs `verifyEach()` on each
+ * backend (R-RT-4). Each backend uses its routing-table URL and gets its key only from its
+ * environment variable, so `--api-url`, `--api-key-file` and `--api-key-stdin` are issues: none of
+ * them can say which backend it is for.
+ */
+function eachBackend(
+  given: readonly string[],
+  values: ReadonlyMap<string, OptionValue>,
+  read: {
+    readonly apiKeys: Partial<Record<BackendName, string>>;
+    readonly secrets: readonly string[];
+    readonly issues: InputIssue[];
+  },
+): ReadRouteOptions {
+  const { apiKeys, secrets, issues } = read;
+  const backends: BackendName[] = [];
+  given.forEach((value, index) => {
+    const field = `--backend[${String(index + 1)}]`;
+    const backend = toBackendName(value);
+    if (backend === undefined) {
+      issues.push({ field, message: `must be one of ${BACKEND_NAMES.join(", ")}` });
+    } else if (backends.includes(backend)) {
+      issues.push({ field, message: "names a backend that an earlier --backend names" });
+    } else {
+      backends.push(backend);
+    }
+  });
+  for (const name of ["api-url", "api-key-file", "api-key-stdin"]) {
+    if (values.has(name)) {
+      issues.push({
+        field: `--${name}`,
+        message: `cannot be combined with a repeated --backend: each backend uses its routing-table URL and the key of its environment variable, ${KEY_VARIABLES.map((each) => each.name).join(" or ")}`,
+      });
+    }
+  }
+  if (issues.length > 0) {
+    return { options: undefined, secrets, issues };
+  }
+  return {
+    options: { ...(Object.keys(apiKeys).length > 0 ? { apiKeys } : {}), backends },
+    secrets,
+    issues,
+  };
 }
 
 /**

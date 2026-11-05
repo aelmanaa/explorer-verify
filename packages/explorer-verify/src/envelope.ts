@@ -10,7 +10,7 @@ import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { JOB_ID } from "./flow/handle.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
 import { REDACTED, redact } from "./redact.ts";
-import type { DryRunResult, VerifyResult } from "./types.ts";
+import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } from "./types.ts";
 
 /**
  * What a `verify()` or `checkStatus()` call ends with: the result it returned or the error it
@@ -83,6 +83,14 @@ export type Envelope =
   | {
       /** The version of this document's form. */
       schemaVersion: 1;
+      /** `true` when every backend holds the verified source: the exit code is 0. */
+      ok: boolean;
+      /** The outcome of each backend of a `verifyEach()` call. */
+      result: VerifyEachResult<ErrorJson>;
+    }
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
       /** `false`: the call threw. */
       ok: false;
       /** The error, as `ExplorerVerifyError.toJSON()` gives it, with API keys removed. */
@@ -151,9 +159,16 @@ function strictHandle(value: unknown): { prefix: string; jobId: string } | undef
   return valid ? handle : undefined;
 }
 
-const NOT_AN_OUTCOME = "The value is not a VerifyResult, a DryRunResult or an ExplorerVerifyError.";
+const NOT_AN_OUTCOME =
+  "The value is not a VerifyResult, a DryRunResult, a VerifyEachResult or an ExplorerVerifyError.";
 const NOT_AN_OUTCOME_HINT =
-  "Pass the result that verify() or checkStatus() returned, or the ExplorerVerifyError it threw.";
+  "Pass the result that verify(), checkStatus() or verifyEach() returned, or the ExplorerVerifyError it threw.";
+
+/**
+ * The exit code of a `verifyEach()` result that is not 0, in order of precedence (R-AX-7): the
+ * first code in this list that any outcome has. 0 only when every outcome has 0.
+ */
+const EACH_EXIT_ORDER: readonly ExitCode[] = [6, 4, 3, 2, 5, 1, 130];
 const BAD_OPTIONS = "The options are invalid.";
 const BAD_OPTIONS_HINT = "Pass options as { secrets: string[] }, or leave them out.";
 
@@ -415,13 +430,21 @@ function copyError(
       : ((foreign ? strictHandle(handleValue) : splitHandle(handleValue)) ??
         problems.add("outcome.handle", "must be a handle in its one-line form") ??
         null);
+  const handlesValue = fields.get("handles");
+  const handles =
+    handlesValue === undefined
+      ? undefined
+      : (handlesOf(handlesValue, foreign, secrets) ??
+        problems.add("outcome.handles", "must be a list of backends and one-line handles") ??
+        null);
   if (
     code === undefined ||
     message === undefined ||
     hint === undefined ||
     docsUrl === undefined ||
     retryable === undefined ||
-    handle === null
+    handle === null ||
+    handles === null
   ) {
     throw invalid(problems.issues);
   }
@@ -435,32 +458,164 @@ function copyError(
   if (handle !== undefined) {
     json.handle = redactSplitHandle(handle, secrets);
   }
+  if (handles !== undefined) {
+    json.handles = handles;
+  }
   return json;
+}
+
+/**
+ * The `handles` of a `cancelled` error, checked and redacted: a non-empty list of objects with a
+ * known `backend` and a one-line `handle` of that backend. `undefined` for anything else.
+ */
+function handlesOf(
+  value: unknown,
+  foreign: boolean,
+  secrets: readonly string[],
+): NonNullable<ErrorJson["handles"]> | undefined {
+  let items: readonly unknown[] | undefined;
+  try {
+    if (Array.isArray(value)) {
+      const list: readonly unknown[] = value;
+      items = [...list];
+    }
+  } catch {
+    items = undefined;
+  }
+  if (items === undefined || items.length === 0) {
+    return undefined;
+  }
+  const copies: NonNullable<ErrorJson["handles"]> = [];
+  for (const item of items) {
+    const fields = readFields(item);
+    const backendValue = stringOf(fields?.get("backend"));
+    const backend = backendValue === undefined ? undefined : toBackendName(backendValue);
+    const line = fields?.get("handle");
+    const split = foreign ? strictHandle(line) : splitHandle(line);
+    if (
+      backend === undefined ||
+      split === undefined ||
+      typeof line !== "string" ||
+      line.split(":")[1] !== backend
+    ) {
+      return undefined;
+    }
+    copies.push({ backend, handle: redactSplitHandle(split, secrets) });
+  }
+  return copies;
 }
 
 /** The outcome, checked and copied: the error object of an error, or the result. */
 function readOutcome(
   outcome: unknown,
   secrets: readonly string[],
-): { error: ErrorJson } | { result: AnyResult } {
+): { error: ErrorJson } | { result: AnyResult } | { each: VerifyEachResult<ErrorJson> } {
   const read = errorReader(outcome);
-  return read === undefined
+  if (read !== undefined) {
+    return { error: copyError(read, secrets) };
+  }
+  const outcomes = readFields(outcome)?.get("outcomes");
+  return outcomes === undefined
     ? { result: copyResult(outcome, secrets) }
-    : { error: copyError(read, secrets) };
+    : { each: { outcomes: copyOutcomes(outcomes, secrets) } };
+}
+
+/**
+ * The outcomes of a `verifyEach()` result, each checked and copied as {@link copyResult} and
+ * {@link copyError} copy one. Throws `invalid-input` for a value that bypassed the types: an empty
+ * list, an unknown backend, a result of another backend, or an `ok` that disagrees with the
+ * result.
+ */
+function copyOutcomes(value: unknown, secrets: readonly string[]): BackendOutcome<ErrorJson>[] {
+  let items: readonly unknown[] | undefined;
+  try {
+    if (Array.isArray(value)) {
+      const list: readonly unknown[] = value;
+      items = [...list];
+    }
+  } catch {
+    items = undefined;
+  }
+  if (items === undefined || items.length === 0) {
+    throw invalid([{ field: "outcome.outcomes", message: "must be a non-empty array" }]);
+  }
+  return items.map((item, index) =>
+    copyBackendOutcome(item, `outcome.outcomes[${String(index)}]`, secrets),
+  );
+}
+
+/** One outcome of a `verifyEach()` result, checked and copied. */
+function copyBackendOutcome(
+  item: unknown,
+  field: string,
+  secrets: readonly string[],
+): BackendOutcome<ErrorJson> {
+  const fields = readFields(item);
+  const backendValue = stringOf(fields?.get("backend"));
+  const backend = backendValue === undefined ? undefined : toBackendName(backendValue);
+  const ok = fields?.get("ok");
+  if (fields === undefined || backend === undefined || typeof ok !== "boolean") {
+    throw invalid([{ field, message: "must be an object with a known backend and a boolean ok" }]);
+  }
+  const errorValue = fields.get("error");
+  if (errorValue !== undefined) {
+    if (ok) {
+      throw invalid([{ field: `${field}.ok`, message: "must be false for an error" }]);
+    }
+    return {
+      backend,
+      ok,
+      error: copyError(
+        errorReader(errorValue) ?? { read: () => errorValue, foreign: true },
+        secrets,
+      ),
+    };
+  }
+  const result = copyResult(fields.get("result"), secrets);
+  if (result.status === "dry-run" || result.backend !== backend) {
+    throw invalid([
+      { field: `${field}.result`, message: "must be a VerifyResult of the outcome's backend" },
+    ]);
+  }
+  if (result.status === "failed") {
+    if (ok) {
+      throw invalid([{ field: `${field}.ok`, message: "must be false for a failed result" }]);
+    }
+    return { backend, ok, result };
+  }
+  if (!ok) {
+    throw invalid([{ field: `${field}.ok`, message: "must be true for a verified result" }]);
+  }
+  return { backend, ok, result };
+}
+
+/** The exit code of each outcome of a `verifyEach()` result, combined by {@link EACH_EXIT_ORDER}. */
+function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
+  const codes = each.outcomes.map((outcome) =>
+    "error" in outcome
+      ? ERROR_EXIT_CODES[outcome.error.code]
+      : RESULT_EXIT_CODES[outcome.result.status],
+  );
+  return EACH_EXIT_ORDER.find((code) => codes.includes(code)) ?? 0;
 }
 
 /**
  * The CLI exit code of an outcome (R-AX-7): 0 for `verified`, `already-verified` and a
- * `DryRunResult`, 1 for
- * `failed`, and {@link ERROR_EXIT_CODES} for an error. A server handler or a script uses it to
- * decide what to do next without parsing messages. It checks the outcome as {@link toEnvelope}
- * does, so the two never disagree.
+ * `DryRunResult`, 1 for `failed`, and {@link ERROR_EXIT_CODES} for an error. A server handler or
+ * a script uses it to decide what to do next without parsing messages. It checks the outcome as
+ * {@link toEnvelope} does, so the two never disagree.
+ *
+ * For a `verifyEach()` result, it is 0 only when every backend's outcome is 0. Otherwise it is the
+ * first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has: a state a person must check, then a job
+ * to resume, then a key or input to fix, then what a retry may settle, then a rejection. The code
+ * names only the first outcome that has it; read `outcomes` for every backend.
  *
  * An error from another copy of the package in the same program, which `instanceof` misses, is
  * accepted when its `name` is `"ExplorerVerifyError"` and its `toJSON()` returns a valid error
  * object.
  *
- * @param outcome - The result a call returned, a `DryRunResult`, or the error a call threw.
+ * @param outcome - The result a call returned, a `DryRunResult`, a `VerifyEachResult`, or the
+ *   error a call threw.
  * @returns The exit code.
  * @throws ExplorerVerifyError `invalid-input` when `outcome` is neither, which only code that
  *   bypassed the types can pass.
@@ -478,8 +633,13 @@ function readOutcome(
  * ```
  * @experimental
  */
-export function exitCodeOf(outcome: VerifyOutcome | DryRunResult): ExitCode {
+export function exitCodeOf(
+  outcome: VerifyOutcome | DryRunResult | VerifyEachResult | VerifyEachResult<ErrorJson>,
+): ExitCode {
   const read = readOutcome(outcome, []);
+  if ("each" in read) {
+    return eachExitCode(read.each);
+  }
   return "error" in read
     ? ERROR_EXIT_CODES[read.error.code]
     : RESULT_EXIT_CODES[read.result.status];
@@ -488,7 +648,8 @@ export function exitCodeOf(outcome: VerifyOutcome | DryRunResult): ExitCode {
 /**
  * The versioned JSON envelope of an outcome (R-AX-5), as the CLI prints it with `--json`:
  * `{ schemaVersion: 1, ok, result }` for a result and `{ schemaVersion: 1, ok: false, error }` for
- * an error. `ok` is `true` exactly when {@link exitCodeOf} is 0.
+ * an error. `ok` is `true` exactly when {@link exitCodeOf} is 0. A `verifyEach()` result is the
+ * `result`, its outcomes each copied as a result or an error is.
  *
  * The envelope is a new object. A result keeps only the fields its status declares, an error is
  * its `toJSON()`, keys are always in the same order (R-AX-12), and every string is redacted again,
@@ -499,7 +660,8 @@ export function exitCodeOf(outcome: VerifyOutcome | DryRunResult): ExitCode {
  * accepted when its `name` is `"ExplorerVerifyError"` and its `toJSON()` returns a valid error
  * object.
  *
- * @param outcome - The result a call returned, a `DryRunResult`, or the error a call threw.
+ * @param outcome - The result a call returned, a `DryRunResult`, a `VerifyEachResult`, or the
+ *   error a call threw.
  * @param options - Key values to redact, such as the call's API key.
  * @returns The envelope, ready for `JSON.stringify`.
  * @throws ExplorerVerifyError `invalid-input` when `outcome` is neither, or `options` is not
@@ -520,10 +682,13 @@ export function exitCodeOf(outcome: VerifyOutcome | DryRunResult): ExitCode {
  * @experimental
  */
 export function toEnvelope(
-  outcome: VerifyOutcome | DryRunResult,
+  outcome: VerifyOutcome | DryRunResult | VerifyEachResult | VerifyEachResult<ErrorJson>,
   options?: EnvelopeOptions,
 ): Envelope {
   const read = readOutcome(outcome, secretsOf(options));
+  if ("each" in read) {
+    return { schemaVersion: 1, ok: eachExitCode(read.each) === 0, result: read.each };
+  }
   if ("error" in read) {
     return { schemaVersion: 1, ok: false, error: read.error };
   }

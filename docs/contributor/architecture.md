@@ -47,6 +47,7 @@ Planned layout of `packages/explorer-verify/src/`:
 | `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)        |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists)     |
 | `flow/dry-run.ts`                          | `dryRun()`: the steps of `verify()` before the submit, on its helpers (R-AX-8, decision 0029) (exists)     |
+| `flow/verify-each.ts`                      | `verifyEach()`: the steps of `verify()` on several backends at once (R-RT-4, decision 0034) (exists)       |
 | `http/fetch.ts`                            | Injected `fetch`, retries with backoff, abort, timeout, key redaction in logs                              |
 | `http/api-keys.ts`                         | Which options hold keys, which request gets one and where, and the key errors (decision 0016)              |
 | `server/handler.ts`                        | `createVerifyHandler`, exported as `explorer-verify/server` (R-SRV) (exists)                               |
@@ -129,6 +130,9 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   looks the contract up, then stops before the submit (R-AX-8,
   [decision 0029](decisions/0029-dry-run-in-the-core.md)). It needs no key: where `verify()` would
   throw `missing-api-key`, it sends nothing and returns `lookup: "skipped"`.
+- `verifyEach(input: VerifyInput, options: VerifyEachOptions): Promise<VerifyEachResult>` runs the
+  steps of `verify()` on several backends in parallel, with one budget, and returns one outcome per
+  backend (R-RT-4, [decision 0034](decisions/0034-verify-each-for-several-backends.md)).
 - `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
   `pollIntervalMs`, `logger`, `onEvent`, `route` and `apiKeys`, keyed by backend name (decision
   0016). Every field is optional. M2 adds `rpcUrl`.

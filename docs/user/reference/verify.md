@@ -277,6 +277,78 @@ The CLI runs it for `explorer-verify verify --dry-run` and prints the result in 
 `ok: true` and exit code 0 ([CLI](cli.md#dry-run)). `toEnvelope()` and `exitCodeOf()` take a
 `DryRunResult` too: they give that envelope and exit code 0.
 
+## Several backends in one call
+
+`verifyEach(input, options)` verifies on several backends in one call and returns one outcome per
+backend. Use it to verify the same contract on Etherscan and Sourcify, for example. It takes the
+options of `verify()` without `route`, plus `backends`.
+
+<!-- no-run: it sends requests to Etherscan, which the recorded answers of the docs test do not cover -->
+
+```ts no-run
+import { verifyEach } from "explorer-verify";
+
+const { outcomes } = await verifyEach(input, {
+  backends: ["sourcify", "etherscan-v2"],
+  apiKeys: { "etherscan-v2": etherscanKey },
+  timeoutMs: 120_000,
+});
+for (const outcome of outcomes) {
+  if ("error" in outcome) {
+    console.log(outcome.backend, outcome.error.code, outcome.error.toJSON().handle ?? "");
+  } else {
+    console.log(outcome.backend, outcome.result.status);
+  }
+}
+```
+
+It prints one line per backend, such as `sourcify verified` and `etherscan-v2 already-verified`.
+
+- `backends` is an array of 1 to 16 entries, or `"all"`. An entry is a backend name, which the
+  routing table resolves for the chain, or a route override that names its backend, such as
+  `{ backend: "etherscan-compatible", apiUrl, apiKey }` for a standalone explorer. Other fields of
+  an entry are ignored, as they are in `route`. A top-level `route` throws `invalid-input`.
+- `"all"` stands for every backend the routing table lists for the chain that this version has a
+  client for, less a backend that needs a key when none is set in `apiKeys`, as the routing table
+  chooses for `verify()`. This holds with an injected `fetch` too. To reach a keyed backend
+  through a server that adds the key, name it in the array: there an injected `fetch` skips the
+  key check ([API keys](api-keys.md#a-missing-key)).
+- Two entries that resolve to the same backend and API URL throw `invalid-input`. The URL is
+  compared once normalised, so `"sourcify"` and
+  `{ backend: "sourcify", apiUrl: "https://sourcify.dev/server/" }` are the same entry. The same
+  backend on two hosts is allowed; the position in `backends` tells the entries apart.
+- The backends run at once, with one time budget, `timeoutMs`, shared by all of them, and the
+  caller's `signal`. Each runs the steps of `verify()` as described above.
+- Each backend gets only its own key: a key from `apiKeys` goes only to its backend's
+  routing-table host, and an entry's `apiKey` only to that entry's `apiUrl`
+  ([API keys](api-keys.md)). Every key is removed from every outcome, log line and event. A key
+  found in the address, or in the handle's fixed part of any backend, throws `invalid-input`
+  before any request.
+- `outcomes` is in the order of `backends`. An outcome is `{ backend, ok: true, result }` for
+  `verified` or `already-verified`, `{ backend, ok: false, result }` for `failed`, or
+  `{ backend, ok: false, error }` with the `ExplorerVerifyError`, its `details` and `instanceof`
+  intact. `toEnvelope()` writes the error as its `toJSON()`. One backend's error never hides
+  another's result.
+- A `not-confirmed` outcome keeps its handle in `error.details.handle`. Pass it to
+  `checkStatus()`, with that entry's route as `route`, to resume that backend alone.
+- A backend the chain's row does not list gives an `unsupported-chain` outcome, a keyed backend
+  without a key a `missing-api-key` outcome, and a client module that fails to load, such as a
+  chunk the page cannot fetch, a `network` outcome whose `cause` is the load's error. The other
+  backends still run.
+
+It throws, and sends nothing, for an input or options that fail validation, and for `"all"` on a
+chain the routing table does not list (`unsupported-chain`, unless `allowSourcifyFallback` is
+set). An abort rejects with `signal.reason`; the `verify.submitted` event of every submission made
+before it was emitted, so each pending job can still be resumed. It emits `verify.validated` once,
+then each backend's events, each with its `backend`
+([Logging and events](logging-and-events.md#several-backends)).
+
+`exitCodeOf()` and `toEnvelope()` take the result. The exit code is 0 only when every backend
+verified. Otherwise it is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has, so a job to
+resume comes before a key or an input to fix. The code names only the first outcome that has it:
+read `outcomes` for every backend ([JSON output](json-output.md#several-backends)). The CLI runs
+`verifyEach()` when `--backend` is given more than once ([CLI](cli.md#verify)).
+
 ## Abort and resume
 
 An aborted call rejects with `signal.reason`, unchanged, at the next wait or request. It carries no

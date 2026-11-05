@@ -4,6 +4,7 @@
  * better shape, and record the change in the decision log.
  */
 import type { BackendName } from "./backend-names.ts";
+import type { ErrorJson, ExplorerVerifyError } from "./errors.ts";
 
 /** A hex string with the `0x` prefix. */
 export type Hex = `0x${string}`;
@@ -519,6 +520,123 @@ export interface VerifyOptions {
    * ```
    */
   rpcUrl?: string;
+}
+
+/**
+ * One backend of a `verifyEach()` call: a backend name, which the routing table resolves for the
+ * chain, or a route override that names its backend, such as a standalone explorer with its own
+ * `apiUrl` and `apiKey` (R-RT-2, R-RT-4).
+ *
+ * @example
+ * ```ts
+ * import type { BackendEntry } from "explorer-verify";
+ *
+ * const entries: BackendEntry[] = [
+ *   "sourcify",
+ *   { backend: "blockscout", apiUrl: "https://eth-sepolia.blockscout.com/api" },
+ * ];
+ * ```
+ * @experimental
+ */
+export type BackendEntry =
+  | BackendName
+  | (RouteOverride & {
+      /** The backend of this entry. Required here: an entry always names its backend. */
+      backend: BackendName;
+    });
+
+/**
+ * Options for `verifyEach()`: those of `verify()` without `route`, plus `backends`. Each entry of
+ * `backends` carries its own route, so a top-level `route` throws `invalid-input`.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyEachOptions } from "explorer-verify";
+ *
+ * declare const etherscanKey: string; // read on a server, never shipped to a browser
+ * const options: VerifyEachOptions = {
+ *   backends: ["sourcify", "etherscan-v2"],
+ *   apiKeys: { "etherscan-v2": etherscanKey },
+ *   timeoutMs: 120_000,
+ * };
+ * ```
+ * @experimental
+ */
+export interface VerifyEachOptions extends Omit<VerifyOptions, "route"> {
+  /**
+   * The backends to verify on, at most 16, or `"all"` for every backend the routing table lists
+   * for the chain that this version has a client for. An entry is a backend name or a route
+   * override that names its backend. Two entries with the same backend and the same `apiUrl`, or
+   * the same backend both without one, throw `invalid-input`.
+   */
+  backends: readonly BackendEntry[] | "all";
+}
+
+/**
+ * What one backend of a `verifyEach()` call ended with. `ok` is `true` exactly for `verified` and
+ * `already-verified`. A `failed` result has `ok: false` and the result. An error has `ok: false`
+ * and the `ExplorerVerifyError` the call on that backend threw, with its `details`; for
+ * `not-confirmed`, `details.handle` resumes that backend alone with `checkStatus()`. In an
+ * envelope, `E` is `ErrorJson`: `toEnvelope()` writes each error as its `toJSON()`.
+ *
+ * The position of an outcome in `outcomes` identifies its entry of `backends`, since two entries
+ * may name the same backend on different hosts.
+ *
+ * @example
+ * ```ts
+ * import type { BackendOutcome } from "explorer-verify";
+ *
+ * function line(outcome: BackendOutcome): string {
+ *   if ("error" in outcome) {
+ *     return `${outcome.backend}: ${outcome.error.code}`;
+ *   }
+ *   return `${outcome.backend}: ${outcome.result.status}`;
+ * }
+ * ```
+ * @experimental
+ */
+export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = ExplorerVerifyError> =
+  | {
+      /** The backend of this outcome. */
+      backend: BackendName;
+      /** `true`: the backend holds the verified source. */
+      ok: true;
+      /** The verified or already-verified result. */
+      result: Extract<VerifyResult, Record<"status", "verified" | "already-verified">>;
+    }
+  | {
+      /** The backend of this outcome. */
+      backend: BackendName;
+      /** `false`: the explorer rejected the submission. */
+      ok: false;
+      /** The failed result. */
+      result: Extract<VerifyResult, Record<"status", "failed">>;
+    }
+  | {
+      /** The backend of this outcome. */
+      backend: BackendName;
+      /** `false`: the call on this backend threw. */
+      ok: false;
+      /** The error the call on this backend threw; `ErrorJson`, its `toJSON()`, in an envelope. */
+      error: E;
+    };
+
+/**
+ * What `verifyEach()` returns: one outcome per entry of `backends`, in the same order (R-RT-4).
+ *
+ * @example
+ * ```ts
+ * import type { VerifyEachResult } from "explorer-verify";
+ *
+ * function allVerified(result: VerifyEachResult): boolean {
+ *   return result.outcomes.every((outcome) => outcome.ok);
+ * }
+ * ```
+ * @experimental
+ */
+export interface VerifyEachResult<E extends ExplorerVerifyError | ErrorJson = ExplorerVerifyError> {
+  /** One outcome per backend, in the order of `backends`. */
+  outcomes: BackendOutcome<E>[];
 }
 
 /**

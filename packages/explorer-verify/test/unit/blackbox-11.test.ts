@@ -52,7 +52,7 @@ const handleKeys: Equals<keyof Handle, "version" | "backend" | "chainId" | "addr
   true;
 const errorJsonKeys: Equals<
   keyof ErrorJson,
-  "code" | "message" | "hint" | "docsUrl" | "retryable" | "handle"
+  "code" | "message" | "hint" | "docsUrl" | "retryable" | "handle" | "handles"
 > = true;
 const errorJsonHandleIsString: Equals<ErrorJson["handle"], string | undefined> = true;
 const toJsonReturns: Equals<ReturnType<ExplorerVerifyError["toJSON"]>, ErrorJson> = true;

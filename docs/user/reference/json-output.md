@@ -39,7 +39,8 @@ When Sourcify already has the contract, it prints one line and exits with 0:
 
 ## The envelope
 
-The envelope has one of three forms, and a fourth for a dry run:
+The envelope has one of three forms, a fourth for a dry run and a fifth for
+[several backends](#several-backends):
 
 ```json
 {
@@ -81,6 +82,10 @@ The rules:
 - `error` is the error's `toJSON()`: `code`, `message`, `hint`, `docsUrl`, `retryable` and, when the
   error carries one, `handle` in its one-line form. It never holds `cause`, the stack or `details`.
   `docsUrl` is the code's own page. [Errors](errors/index.md) lists every code.
+- A `cancelled` error of a CLI run on several backends also holds `handles`: one
+  `{ "backend", "handle" }` for each backend that accepted a submission and had not ended before
+  the cancel, in `--backend` order. `handle` is then set only when exactly one backend submitted.
+  Resume each handle.
 - Keys are always in the order shown, and the envelope holds no timestamp. The same outcome gives
   the same JSON, byte for byte.
 - Every string is redacted. Key-like URL and form parameters, bearer tokens and bare Etherscan-style
@@ -116,8 +121,49 @@ and none was set, so the dry run sent no request. A reader that knows only the o
 this one apart by `result.status`. `apiHost` is a host name, with the port when it is not the
 scheme's default, such as `127.0.0.1:5555`.
 
-`toEnvelope` and `exitCodeOf` throw `invalid-input` for a value that is neither a `VerifyResult` nor
-an `ExplorerVerifyError`, and `toEnvelope` throws it for options other than `{ secrets?: string[] }`.
+### Several backends
+
+`toEnvelope()` of a `VerifyEachResult` gives a fifth form, and `explorer-verify verify` with
+`--backend` repeated prints it. Its `result` holds one outcome per backend of
+[`verifyEach()`](verify.md#several-backends-in-one-call), in the order the call listed them. Each
+outcome has `backend`, `ok`, and either the backend's `result` or its `error`, copied and redacted
+as in the forms above:
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "result": {
+    "outcomes": [
+      {
+        "backend": "sourcify",
+        "ok": true,
+        "result": { "status": "verified", "backend": "sourcify", "match": "exact" }
+      },
+      {
+        "backend": "etherscan-v2",
+        "ok": false,
+        "error": {
+          "code": "not-confirmed",
+          "message": "...",
+          "hint": "...",
+          "docsUrl": "...",
+          "retryable": true,
+          "handle": "ev1:etherscan-v2:..."
+        }
+      }
+    ]
+  }
+}
+```
+
+`ok` is `true` only when every outcome's `ok` is `true`. A reader that knows only the other forms
+tells this one apart by `result.outcomes`. A `not-confirmed` outcome carries the handle that
+resumes that backend alone with `checkStatus()`. In the library, an error outcome holds the
+`ExplorerVerifyError` itself; the envelope holds its `toJSON()`.
+
+`toEnvelope` and `exitCodeOf` throw `invalid-input` for a value that is not a `VerifyResult`, a
+`DryRunResult`, a `VerifyEachResult` or an `ExplorerVerifyError`, and `toEnvelope` throws it for options other than `{ secrets?: string[] }`.
 Only code that bypasses the types can pass such values.
 
 When a program holds two copies of explorer-verify, `instanceof` misses an error from the other
@@ -176,6 +222,13 @@ covers results and errors.
 | `cancelled`                    | Error  | `false` | 130       |
 
 The CLI creates `cancelled` and `internal-error`; the library never throws them.
+
+A `verifyEach()` result has one exit code for all its outcomes. It is 0 only when every outcome
+is 0. Otherwise it is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has: a state a
+person must check comes first, then a job to resume, then a key or input to fix, then what a
+retry may settle, then a rejection. So Sourcify `verified` with Etherscan `missing-api-key` exits
+3, and Sourcify `not-confirmed` with Blockscout `unsupported-chain` exits 4. The code names only the
+first outcome that has it: read `result.outcomes` for every backend.
 [Errors](errors/index.md#exit-codes) explains what to do for each exit code, and the
 [CLI reference](cli.md) describes the CLI's streams. `explorer-verify --help --json` and `explorer-verify --version --json`
 print envelopes of their own, with `ok: true` and exit code 0. Their `result` is not a

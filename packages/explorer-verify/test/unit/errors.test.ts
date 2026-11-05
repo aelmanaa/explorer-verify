@@ -164,7 +164,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 6,
   },
   cancelled: {
-    hint: "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
+    hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
     retryable: false,
     exitCode: 130,
   },
@@ -1054,7 +1054,7 @@ describe("cancelled (R-AX-7)", () => {
     assert.equal(error.retryable, false);
     assert.equal(
       error.hint,
-      "The run was cancelled. If error.handle is set, resume with explorer-verify status and that handle instead of submitting again.",
+      "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
     );
     assert.equal(error.docsUrl, docsUrlOf("cancelled"));
   });
