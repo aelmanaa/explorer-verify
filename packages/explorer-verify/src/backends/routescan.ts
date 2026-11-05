@@ -8,12 +8,20 @@
  *   `https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api`. No request sends a
  *   `chainid` parameter.
  * - A key is optional: the free tier needs none. When one is set, `withKey` puts it in the
- *   `apikey` request header, never in the URL or the body (decision 0016, R-SEC-1).
+ *   `apikey` request header, never in the URL or the body (decision 0016, R-SEC-1). A real key
+ *   there is read: the answer carries the keyed tier's `x-ratelimit-*` headers (live,
+ *   2026-11-05, docs/contributor/research/2026-11-05-routescan-key.md).
  * - A lookup or a status request is a GET with its fields in the query, plus a random `nocache`
  *   parameter that the HTTP layer draws again for every attempt, retries included. Routescan
  *   answers `getsourcecode` sent as a form POST with `Invalid querystring request`, and its CDN
  *   serves a repeated GET URL from its cache: a cached `Pending in queue` was still served 51
  *   minutes after the job had finished (live, 2026-11-03 and 2026-11-04).
+ *
+ * Over its limit Routescan answers HTTP 429 with a JSON body, `code` `rate-limit`, keyless and
+ * keyed. The HTTP layer retries a 429 as for every backend. A keyed 429 holds the wait in
+ * `x-ratelimit-rpm-retry-after`, in seconds, and no `Retry-After`, so every request names that
+ * header as `retryAfterHeader`: a wait above 30 s ends the retries at once with `rate-limited` and
+ * `retryAfterMs`, in place of four more requests that the limit would refuse (live, 2026-11-05).
  *
  * Routescan-specific answers, all with HTTP 200: `chain not supported` in `message` throws
  * `unsupported-chain`; `Verification not found` throws `job-not-found`, after which the flow looks
@@ -30,6 +38,9 @@ import type { HttpRequest } from "../http/fetch.ts";
 import type { Backend, Context } from "./backend.ts";
 import { etherscanStyle, rateLimited } from "./etherscan.ts";
 
+/** The header of a keyed 429 that holds the wait in seconds (live, 2026-11-05). */
+const RETRY_AFTER_HEADER = "x-ratelimit-rpm-retry-after";
+
 /**
  * A GET to `route.requestUrl("")` with `module=contract` and `fields` in the query. Each attempt
  * adds `nocache` with new random characters, which keeps the CDN from answering with a cached
@@ -43,6 +54,7 @@ function unique(ctx: Context, backend: BackendName, fields: Record<string, strin
     method: "GET",
     retry: "safe",
     rateLimited,
+    retryAfterHeader: RETRY_AFTER_HEADER,
     freshQuery: () => `nocache=${Math.random().toString(36).slice(2)}`,
   });
 }
@@ -71,6 +83,7 @@ export const routescan: Backend = etherscanStyle({
   name: "routescan",
   label: "Routescan",
   read: unique,
+  retryAfterHeader: RETRY_AFTER_HEADER,
   // The part before the address, which differs per contract.
   rejections: ["Error: Compilation successful, but bytecode does not match with deployed bytecode"],
 });

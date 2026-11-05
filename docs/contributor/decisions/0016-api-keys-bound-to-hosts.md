@@ -8,7 +8,8 @@ Etherscan and Routescan read a key and what they answer;
 [2026-11-02-explorer-apis.md](../research/2026-11-02-explorer-apis.md) for the first key answers;
 [2026-11-03-routescan-zksync.md](../research/2026-11-03-routescan-zksync.md#key-policy-and-rate-limits)
 for Routescan's keyless tier; [2026-11-02-etherscan-terms.md](../research/2026-11-02-etherscan-terms.md)
-for the plan rule.
+for the plan rule; [2026-11-05-routescan-key.md](../research/2026-11-05-routescan-key.md) for
+Routescan's reading of a real key.
 
 ## Context
 
@@ -63,9 +64,11 @@ routes a chain, a key meant for one explorer would otherwise reach the table's h
   POST with a `URLSearchParams` body: that is a bug in a client, which the caller cannot fix, so it
   is not a catalogue error. The CLI reports it as `internal-error`.
 - Standalone explorers: the same form-body placement. Not confirmed live.
-- Routescan: the `apikey` request header, as its docs show. Not confirmed live: Routescan answered
-  a made-up key in the header without refusing it, so the probe could not show that it reads the
-  header. The Routescan client (#62) confirms it with a real key.
+- Routescan: the `apikey` request header, as its docs show. Confirmed live on 2026-11-05 with a
+  real key: the answer carried the keyed tier's `x-ratelimit-*` headers, which a keyless answer
+  lacks. Routescan also reads the key as a query parameter; the client does not use it, because a
+  URL is logged where a header is not. A made-up key gets the keyless answer, not a refusal
+  ([Routescan with a real key](../research/2026-11-05-routescan-key.md)).
 
 A proxy that adds keys is reached through an injected `fetch`, not through `route.apiUrl`.
 

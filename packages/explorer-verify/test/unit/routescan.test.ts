@@ -1,7 +1,7 @@
 // The Routescan client (R-BE-5). Every answer comes from a fixture in test/fixtures/routescan/,
-// recorded live without a key on Avalanche Fuji (43113) on 2026-11-03 or 2026-11-04. Routescan's
-// rate-limit answer has no recording: the probes did not reach it, so those tests use a 429 and
-// Etherscan's text, and say so.
+// recorded live on Avalanche Fuji (43113): without a key on 2026-11-03 and 2026-11-04, and with
+// and without a key on 2026-11-05, when Routescan's 429 rate-limit answers were recorded. Some
+// tests still use a bare 429 or Etherscan's rate-limit text to check the retry path, and say so.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -92,7 +92,7 @@ const NO_CHAIN_POLL = (): Response =>
   answer("2026-11-04-checkverifystatus-form-post-chain-not-supported");
 const POST_LOOKUP = (): Response =>
   answer("2026-11-04-getsourcecode-form-post-invalid-querystring");
-// Routescan's rate-limit answer is not recorded. Its docs say only "an error status".
+// A bare 429, for the retry path. Routescan's own 429s are the RATE_LIMIT_* answers below.
 const TOO_MANY = (): Response => new Response("", { status: 429 });
 const ETHERSCAN_RATE_LIMIT = (): Response =>
   new Response(
@@ -103,6 +103,45 @@ const ETHERSCAN_RATE_LIMIT = (): Response =>
     }),
     { status: 200 },
   );
+
+// Response headers that describe the body as it was sent; a replayed body is plain JSON.
+const BODY_HEADERS = ["content-encoding", "content-length", "transfer-encoding"];
+
+/**
+ * The recorded response of `test/fixtures/routescan/<name>.json` with its recorded headers, the
+ * body headers left out. `headers` replaces or, with `null`, removes recorded ones.
+ */
+function recorded(name: string, headers: Record<string, string | null> = {}): Response {
+  const url = new URL(`../fixtures/routescan/${name}.json`, import.meta.url);
+  const parsed: unknown = JSON.parse(readFileSync(url, "utf8"));
+  const response: unknown = Reflect.get(Object(parsed), "response");
+  const sent: unknown = Reflect.get(Object(response), "headers");
+  assert.ok(typeof sent === "object" && sent !== null);
+  const out = new Headers();
+  for (const [header, value] of Object.entries(sent)) {
+    if (!BODY_HEADERS.includes(header) && typeof value === "string") {
+      out.set(header, value);
+    }
+  }
+  for (const [header, value] of Object.entries(headers)) {
+    if (value === null) {
+      out.delete(header);
+    } else {
+      out.set(header, value);
+    }
+  }
+  const { status, body } = fixture(name).response;
+  return new Response(JSON.stringify(body), { status, headers: out });
+}
+
+// Routescan's 429s, recorded 2026-11-05. The keyed one holds its wait, 58 s, only in
+// x-ratelimit-rpm-retry-after; the keyless one has no wait header.
+const RATE_LIMIT_KEYED = (headers: Record<string, string | null> = {}): Response =>
+  recorded("2026-11-05-checkverifystatus-rate-limit-keyed", headers);
+const RATE_LIMIT_KEYLESS = (): Response =>
+  recorded("2026-11-05-checkverifystatus-rate-limit-keyless");
+// The lookup sent with a real key in the apikey header, recorded 2026-11-05.
+const KEYED_LOOKUP = (): Response => recorded("2026-11-05-getsourcecode-key-in-apikey-header");
 
 /** The input probe B submitted, read from its recorded request. */
 function input(): VerifyInput {
@@ -493,6 +532,131 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
       }
     });
   }
+});
+
+// --- rate limit ----------------------------------------------------------------------------------
+
+describe("routescan rate-limit answers (R-BE-5, R-FLOW-6, recorded 2026-11-05)", () => {
+  it("the recorded keyed lookup reads as exact, with the key sent in the apikey header only (R-SEC-1)", async () => {
+    const s = setup([KEYED_LOOKUP()], { keyed: true });
+    assert.equal(await routescan.lookup(TARGET, s.ctx), "exact");
+    const sent = call(s.calls, 0);
+    assert.equal(sent.headers.get("apikey"), KEY);
+    assert.equal(new URL(sent.url).searchParams.has("apikey"), false);
+  });
+
+  for (const [step, run] of [
+    ["a lookup", (ctx: Context): Promise<unknown> => routescan.lookup(TARGET, ctx)],
+    ["a submit", (ctx: Context): Promise<unknown> => routescan.submit(input(), ctx)],
+    ["a poll", (ctx: Context): Promise<unknown> => routescan.poll(handle(), ctx)],
+  ] as const) {
+    it(`the keyed 429 ends ${step} at once: rate-limited with retryAfterMs 58000 after 1 attempt`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      const s = setup([RATE_LIMIT_KEYED()], { keyed: true });
+      const error = await errorOf(drive(t, run(s.ctx)));
+      assert.equal(error.code, "rate-limited");
+      assert.equal(Reflect.get(error.details, "retryAfterMs"), 58_000);
+      assert.equal(Reflect.get(error.details, "attempts"), 1);
+      assert.equal(s.calls.length, 1);
+      assert.equal(s.events.filter((event) => event.type === "verify.retry").length, 0);
+    });
+  }
+
+  it("the keyless 429 has no wait header: it is retried with backoff until an answer comes", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const s = setup([RATE_LIMIT_KEYLESS(), RATE_LIMIT_KEYLESS(), PASS()]);
+    assert.deepEqual(await drive(t, routescan.poll(handle(), s.ctx)), {
+      state: "verified",
+      match: "exact",
+    });
+    const retries = s.events.filter((event) => event.type === "verify.retry");
+    assert.deepEqual(
+      retries.map((event) => [Reflect.get(event, "reason"), Reflect.get(event, "delayMs")]),
+      [
+        ["rate-limited", 500],
+        ["rate-limited", 1_000],
+      ],
+    );
+  });
+
+  it("five keyless 429s throw rate-limited without retryAfterMs", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const s = setup(Array.from({ length: 5 }, RATE_LIMIT_KEYLESS));
+    const error = await errorOf(drive(t, routescan.lookup(TARGET, s.ctx)));
+    assert.equal(error.code, "rate-limited");
+    assert.equal(Reflect.get(error.details, "attempts"), 5);
+    assert.equal(Object.hasOwn(error.details, "retryAfterMs"), false);
+    assert.equal(s.calls.length, 5);
+  });
+
+  it("a wait of 30 s or less in x-ratelimit-rpm-retry-after is waited before the retry", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const s = setup([RATE_LIMIT_KEYED({ "x-ratelimit-rpm-retry-after": "5" }), PASS()], {
+      keyed: true,
+    });
+    assert.equal((await drive(t, routescan.poll(handle(), s.ctx))).state, "verified");
+    const retry = s.events.find((event) => event.type === "verify.retry");
+    assert.equal(Reflect.get(Object(retry), "delayMs"), 5_000);
+  });
+
+  it("Retry-After, when present, wins over x-ratelimit-rpm-retry-after", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const s = setup([RATE_LIMIT_KEYED({ "retry-after": "3" }), PASS()], { keyed: true });
+    assert.equal((await drive(t, routescan.poll(handle(), s.ctx))).state, "verified");
+    const retry = s.events.find((event) => event.type === "verify.retry");
+    assert.equal(Reflect.get(Object(retry), "delayMs"), 3_000);
+  });
+
+  it("the HTTP layer reads the named header only on a rate-limit answer, and only when named", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const waitOf = async (status: number, retryAfterHeader?: string): Promise<unknown> => {
+      const headers = { "x-ratelimit-rpm-retry-after": "58" };
+      const fake = replay(new Response("{}", { status, headers }), new Response("{}"));
+      const events: VerifyEvent[] = [];
+      const ctx: HttpContext = {
+        backend: "routescan",
+        fetch: fake.fetch,
+        secrets: [],
+        random: () => 0,
+        observer: createObserver({
+          onEvent: (event) => {
+            events.push(event);
+          },
+          secrets: [],
+        }),
+      };
+      await drive(
+        t,
+        send(ctx, {
+          url: API,
+          method: "GET",
+          retry: "safe",
+          ...(retryAfterHeader === undefined ? {} : { retryAfterHeader }),
+        }),
+      );
+      assert.equal(fake.calls.length, 2);
+      return Reflect.get(Object(events[0]), "delayMs");
+    };
+    // Not named: the 429 is retried after the backoff, as Etherscan's requests are.
+    assert.equal(await waitOf(429), 500);
+    // Named, on a 503: a server error never reads it.
+    assert.equal(await waitOf(503, "x-ratelimit-rpm-retry-after"), 500);
+  });
+
+  it("the Etherscan client does not read Routescan's header: a 429 with it is retried", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const fake = replay(RATE_LIMIT_KEYED(), VERIFIED());
+    const route = resolveRoute(FUJI, {
+      backend: "etherscan-v2",
+      apiUrl: "https://proxy.example/api",
+    });
+    const ctx: Context = {
+      route,
+      http: { backend: "etherscan-v2", fetch: fake.fetch, secrets: [], random: () => 0 },
+    };
+    assert.equal(await drive(t, etherscan.lookup(TARGET, ctx)), "exact");
+    assert.equal(fake.calls.length, 2);
+  });
 });
 
 // --- whole runs ----------------------------------------------------------------------------------

@@ -1,0 +1,42 @@
+{
+  "source": "Live answers from api.routescan.io to a fetch() GET getsourcecode run in a page served from http://127.0.0.1:<port> in Chromium 148.0.7778.96 (Playwright, headless), recorded 2026-11-05T19:35:04.606Z: once with no key, once with a registered free-plan key, shown as [redacted] in the apikey header, and once with a made-up key in that header. The browser ran its own CORS preflight for the two keyed requests. readableHeaders is what the page could read: the x-ratelimit headers are not exposed to it.",
+  "recordedAt": "2026-11-05T19:35:04.606Z",
+  "browser": "Chromium 148.0.7778.96 (Playwright, headless)",
+  "pageOrigin": "http://127.0.0.1:<port>",
+  "keyless": {
+    "ok": true,
+    "status": 200,
+    "bodyStatus": "1",
+    "bodyMessage": "OK",
+    "readableHeaders": {
+      "x-ratelimit-rpm-limit": null,
+      "x-ratelimit-rpm-remaining": null,
+      "x-ratelimit-rpd-limit": null,
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "keyed": {
+    "ok": true,
+    "status": 200,
+    "bodyStatus": "1",
+    "bodyMessage": "OK",
+    "readableHeaders": {
+      "x-ratelimit-rpm-limit": null,
+      "x-ratelimit-rpm-remaining": null,
+      "x-ratelimit-rpd-limit": null,
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "madeUpKey": {
+    "ok": true,
+    "status": 200,
+    "bodyStatus": "1",
+    "bodyMessage": "OK",
+    "readableHeaders": {
+      "x-ratelimit-rpm-limit": null,
+      "x-ratelimit-rpm-remaining": null,
+      "x-ratelimit-rpd-limit": null,
+      "content-type": "application/json; charset=utf-8"
+    }
+  }
+}

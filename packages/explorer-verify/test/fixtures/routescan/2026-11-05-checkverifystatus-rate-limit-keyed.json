@@ -1,0 +1,39 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-05T19:33:54.317Z: a registered free-plan key, shown as [redacted], in the apikey request header. It was request 301 of 350 sent within 3.3 s; requests 1 to 300 were answered Verification not found.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=checkverifystatus&guid=probe133k300&nocache=6j61kfw0qqq",
+    "headers": {
+      "apikey": "[redacted]"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "BYPASS",
+      "cf-ray": "a55e4af73f055910-LIS",
+      "connection": "keep-alive",
+      "content-length": "314",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:33:54 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "vary": "accept-encoding",
+      "x-ratelimit-rpm-limit": "300",
+      "x-ratelimit-rpm-remaining": "0",
+      "x-ratelimit-rpm-reset": "58",
+      "x-ratelimit-rpm-retry-after": "58",
+      "x-request-id": "01a1ad34-16d7-721f-8c49-c49dcdc7f47d"
+    },
+    "body": {
+      "statusCode": 429,
+      "code": "rate-limit",
+      "error": "Too Many Requests",
+      "message": "You are reaching the maximum number of requests for this API. To avoid disruptions, please consider slowing down your requests. If you need a higher limit, consider requesting a personalized API key by visiting: https://rscan.link/api."
+    }
+  },
+  "recordedAt": "2026-11-05T19:33:54.317Z"
+}

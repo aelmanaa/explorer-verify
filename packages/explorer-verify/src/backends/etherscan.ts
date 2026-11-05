@@ -114,6 +114,12 @@ export interface Dialect {
    * answers with one record whose `SourceCode` is empty, so for it an empty list throws.
    */
   readonly emptyLookup?: boolean;
+  /**
+   * A response header that holds the wait after a rate-limit answer in whole seconds, read when
+   * `Retry-After` is absent. Passed to the HTTP layer with the submit; `read` sets it on its own
+   * requests.
+   */
+  readonly retryAfterHeader?: string;
 }
 
 /**
@@ -200,7 +206,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
       fields["constructorArguments"] = args;
       fields["constructorArguements"] = args;
     }
-    const req = form(ctx, name, fields, "submit");
+    const req = form(ctx, name, fields, "submit", dialect.retryAfterHeader);
     const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
       UNCONFIRMED_STATUSES.includes(answer.status) ||
       (answer.status === 200 && answer.fields === undefined)
@@ -504,6 +510,8 @@ export function post(
  * @param backend - The backend the request is for, passed to `withKey`.
  * @param fields - `action` and its fields, without `module`.
  * @param retry - The HTTP layer's retry mode.
+ * @param retryAfterHeader - The header that holds the wait after a rate-limit answer, when the API
+ *   sends it in place of `Retry-After`.
  * @returns The request.
  * @example
  * ```ts
@@ -515,6 +523,7 @@ function form(
   backend: BackendName,
   fields: Record<string, string>,
   retry: RetryMode,
+  retryAfterHeader?: string,
 ): HttpRequest {
   return withKey(ctx, backend, {
     url: ctx.route.requestUrl(""),
@@ -523,6 +532,7 @@ function form(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     retry,
     rateLimited,
+    ...(retryAfterHeader === undefined ? {} : { retryAfterHeader }),
   });
 }
 

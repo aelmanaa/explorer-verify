@@ -242,3 +242,9 @@ Local runs, curl 8.7.1, 2026-11-03, against `https://api.routescan.io`, no key:
 - `checkverifystatus` without a `guid` on `mainnet/evm/43114`.
 - An OPTIONS preflight for `verifysourcecode` on `mainnet/evm/43114`.
 - Every request carried `Origin: https://example.com`.
+
+## Corrections
+
+- 2026-11-05: Routescan's rate-limit answer is HTTP 429 with a JSON body whose `code` is
+  `rate-limit`, keyless and keyed; a keyed answer carries `x-ratelimit-*` headers. See
+  [Routescan with a real key](2026-11-05-routescan-key.md).

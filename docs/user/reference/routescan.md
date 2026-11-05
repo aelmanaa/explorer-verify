@@ -75,9 +75,16 @@ Without a key, requests go out with no `apikey` header, on the keyless tier. Rou
 requests per second and 10,000 calls per day for that tier
 ([rate limits](https://docs.routescan.io/plans-and-limits/rate-limits), read 2026-11-03).
 
-Keyed use from a browser is untested. The `apikey` header makes the browser send a CORS preflight
-first; Routescan answered one that named `apikey` on 2026-11-03, but no keyed request has been sent
-from a browser.
+Routescan reads a key in the `apikey` header: on 2026-11-05 a keyed answer carried the
+`x-ratelimit-*` headers of the registered free plan, 300 requests a minute and 100,000 a day, and a
+keyless answer carried none. A key Routescan does not know is not refused: the answer is the keyless
+one, so a wrong key goes unnoticed and the call runs on the keyless tier.
+
+Keyed use from a browser works. The `apikey` header makes the browser send a CORS preflight first;
+Routescan allows that header from any origin, and its answers, a 429 included, carry
+`access-control-allow-origin: *`. On 2026-11-05 a `fetch()` with a key from a Chromium page was
+answered. A key in a page is readable by everyone who loads the page, so keep a key you need to
+protect on a server, or use the keyless tier from the browser.
 
 ## Requests
 
@@ -105,7 +112,7 @@ additions:
 | Step   | Answer                                                                                | Outcome                                                                                                                         |
 | ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Any    | `message` `chain not supported`, `result` `null`                                      | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                              |
-| Any    | HTTP 429                                                                              | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop                                            |
+| Any    | HTTP 429, `code` `rate-limit`                                                         | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop. See [Rate limits](#rate-limits)           |
 | Lookup | `SourceCode` not empty                                                                | Verified, `exact`. Routescan's lookup has no `SimilarMatch` field, so it never gives `partial`                                  |
 | Status | `Verification not found`                                                              | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below |
 | Status | `Missing guid`                                                                        | [`unexpected-response`](errors/unexpected-response.md)                                                                          |
@@ -125,6 +132,33 @@ map this text, because Etherscan has not been recorded giving it.
 `chain not supported` also comes back for a chain Routescan serves when the URL names the wrong
 network, such as `mainnet` for Fuji.
 
+## Rate limits
+
+Over its limit Routescan answers HTTP 429 with this body, with or without a key (live,
+2026-11-05):
+
+```json
+{
+  "statusCode": 429,
+  "code": "rate-limit",
+  "error": "Too Many Requests",
+  "message": "You are reaching the maximum number of requests for this API. To avoid disruptions, please consider slowing down your requests. If you need a higher limit, consider requesting a personalized API key by visiting: https://rscan.link/api."
+}
+```
+
+| Tier  | Limit seen on 2026-11-05     | Wait header on the 429                    | What the library does                                                                                                                 |
+| ----- | ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| None  | About 120 requests a minute  | None                                      | Retries with backoff, at most 5 attempts, then throws `rate-limited`                                                                  |
+| Keyed | 300 requests a minute (free) | `x-ratelimit-rpm-retry-after`, in seconds | Reads the wait as `Retry-After`. A wait above 30 s throws `rate-limited` at once with `details.retryAfterMs`; a shorter one is waited |
+
+The keyed limit counts per minute: 300 requests sent within 2.6 s were all answered, and the next
+ones got the 429 with a wait of 58 seconds. The 429 has no `Retry-After` header. In a browser the
+page cannot read the `x-ratelimit-*` headers, because Routescan does not expose them to CORS, so
+there a keyed 429 is retried with backoff, as a keyless one is.
+
+The client also retries Etherscan's `Max calls per sec rate limit reached` text, as the Etherscan
+client does. Any other answer throws an error and is never read as a result.
+
 ## Behaviour to know
 
 - Routescan forgets a job. On 2026-11-03 a job answered `Pass - Verified`, then
@@ -133,9 +167,6 @@ network, such as `mainnet` for Fuji.
   gives `verified`; otherwise the call throws `job-not-found` with the handle.
 - When the time budget runs out while the status still says `Pending in queue`, one more lookup
   decides, as for every backend: a match gives `verified`.
-- Routescan's rate-limit answer has not been seen. A 429 is retried, and so is Etherscan's
-  `Max calls per sec rate limit reached` text. Any other answer throws an error and is never read
-  as a result.
 - The job id is a UUID, such as `f111a4c8-368c-51d2-8163-c7ab477a1d91`.
 - On 2026-11-04, a status request without a key confirmed the network of each of the 24 chains
   that Routescan's supported-chains page listed on 2026-11-03; see the

@@ -1,0 +1,30 @@
+{
+  "source": "Live response from api.routescan.io to a OPTIONS request sent with the fetch of Node.js 24.21.0, recorded 2026-11-05T19:32:53.202Z: no key: a CORS preflight for a POST that carries apikey and content-type headers, from the origin https://example.com.",
+  "request": {
+    "method": "OPTIONS",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
+    "headers": {
+      "origin": "https://example.com",
+      "access-control-request-method": "POST",
+      "access-control-request-headers": "apikey,content-type"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "access-control-allow-headers": "apikey,content-type",
+      "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e49793dee94ad-LIS",
+      "connection": "keep-alive",
+      "date": "Thu, 05 Nov 2026 19:32:53 GMT",
+      "server": "cloudflare",
+      "vary": "Access-Control-Request-Headers, accept-encoding"
+    },
+    "body": ""
+  },
+  "recordedAt": "2026-11-05T19:32:53.202Z"
+}
