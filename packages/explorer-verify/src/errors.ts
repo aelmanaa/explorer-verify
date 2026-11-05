@@ -796,7 +796,7 @@ function copyAttempt(attempt: unknown): MetadataAttempt {
 
 /** A known backend name, or `undefined`. */
 function knownBackend(value: unknown): BackendName | undefined {
-  return typeof value === "string" ? toBackendName(value) : undefined;
+  return toBackendName(value);
 }
 
 /** A known backend name, or `"unknown"`. */

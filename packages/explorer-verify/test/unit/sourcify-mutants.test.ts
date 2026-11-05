@@ -6,8 +6,11 @@ import { describe, it } from "node:test";
 import type { Context, ResolvedInput, Target } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
+import type { LogFields, Logger } from "../../src/index.ts";
 import { validateInput } from "../../src/input/validate.ts";
+import { createObserver } from "../../src/observe.ts";
 import { resolveRoute } from "../../src/routing/resolve.ts";
+import type { Handle } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Fixture, Step } from "../helpers/fake-fetch.ts";
 
@@ -16,6 +19,14 @@ const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const GREETER_JOB = "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const TARGET: Target = { chainId: SEPOLIA, address: GREETER };
+const OTHER_JOB = "11111111-2222-3333-4444-555555555555";
+const HANDLE: Handle = {
+  version: 1,
+  backend: "sourcify",
+  chainId: SEPOLIA,
+  address: GREETER,
+  jobId: GREETER_JOB,
+};
 const SUBMIT_URL = `POST https://sourcify.dev/server/v2/verify/${String(SEPOLIA)}/${GREETER}`;
 const LOOKUP_URL = `GET https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`;
 
@@ -45,19 +56,26 @@ function brokenBody(status: number): Response {
 interface SetupOptions {
   secrets?: string[];
   maxResponseBytes?: number;
+  logger?: Logger;
 }
 
+/** A logger method that drops the line. */
+function ignore(): void {}
+
 function contextOf(fetch: typeof globalThis.fetch, options: SetupOptions): Context {
+  const secrets = options.secrets ?? [];
+  const { logger } = options;
   return {
     route: resolveRoute(SEPOLIA, undefined, { allowSourcifyFallback: true }),
     http: {
       backend: "sourcify",
       fetch,
-      secrets: options.secrets ?? [],
+      secrets,
       random: () => 0,
       ...(options.maxResponseBytes === undefined
         ? {}
         : { maxResponseBytes: options.maxResponseBytes }),
+      ...(logger === undefined ? {} : { observer: createObserver({ logger, secrets }) }),
     },
   };
 }
@@ -254,5 +272,120 @@ describe("sourcify errors redact with the call's secrets (R-SEC-1)", () => {
     const error = await errorOf(sourcify.submit(input(), ctx));
     assert.equal(error.code, "unsupported-chain");
     assert.equal(error.message, "Sourcify does not support chain [redacted].");
+  });
+});
+
+// Added after the first full mutation run (#158): the messages, retry modes and job id check.
+async function pollMessage(body: unknown): Promise<string> {
+  const { ctx } = setup([json(200, body)]);
+  return (await errorOf(sourcify.poll(HANDLE, ctx))).message;
+}
+
+describe("sourcify: messages of the answers it does not recognise (#158, R-FLOW-4)", () => {
+  it("names the lookup, the submit and the job status request", async () => {
+    const lookup = setup([json(418, {})]);
+    assert.equal(
+      (await errorOf(sourcify.lookup(TARGET, lookup.ctx))).message,
+      "Sourcify gave an answer to the lookup that this client does not recognise (status 418).",
+    );
+    const submit = setup([json(418, {})]);
+    assert.equal(
+      (await errorOf(sourcify.submit(input(), submit.ctx))).message,
+      "Sourcify gave an answer to the submit that this client does not recognise (status 418).",
+    );
+    const poll = setup([json(418, {})]);
+    assert.equal(
+      (await errorOf(sourcify.poll(HANDLE, poll.ctx))).message,
+      "Sourcify gave an answer to the job status request that this client does not recognise (status 418).",
+    );
+  });
+
+  it("names the submit in the unconfirmed error, and logs a warning with its fields (R-DX-5)", async () => {
+    const warnings: (LogFields | undefined)[] = [];
+    const logger: Logger = {
+      debug: ignore,
+      info: ignore,
+      warn: (_message: string, fields?: LogFields): void => {
+        warnings.push(fields);
+      },
+      error: ignore,
+    };
+    const { ctx, sent } = setup([json(500, {}), fixture("lookup-not-verified"), json(500, {})], {
+      logger,
+    });
+    const error = await errorOf(sourcify.submit(input(), ctx));
+    assert.equal(
+      error.message,
+      "Sourcify gave an answer to the submit that this client does not recognise (status 500).",
+    );
+    assert.equal(sent().length, 3);
+    assert.deepEqual(warnings, [{ backend: "sourcify", code: "unexpected-response" }]);
+  });
+
+  it("names the job the explorer does not know", async () => {
+    const { ctx } = setup([json(404, { customCode: "job_not_found" })]);
+    assert.equal(
+      (await errorOf(sourcify.poll(HANDLE, ctx))).message,
+      `Sourcify does not know the verification job ${GREETER_JOB}.`,
+    );
+  });
+
+  it("names an answer about another job or another contract", async () => {
+    assert.equal(
+      await pollMessage({ isJobCompleted: false, verificationId: OTHER_JOB }),
+      `Sourcify answered the status request for job ${GREETER_JOB} about another job.`,
+    );
+    assert.equal(
+      await pollMessage({ isJobCompleted: false, contract: { chainId: "1", address: GREETER } }),
+      `Sourcify answered the status request for job ${GREETER_JOB} about another contract.`,
+    );
+  });
+
+  it("names each completed job whose result is not known", async () => {
+    assert.equal(
+      await pollMessage({ isJobCompleted: true }),
+      "Sourcify reported a completed job with neither a match nor an error; the result is not known.",
+    );
+    assert.equal(
+      await pollMessage({ isJobCompleted: true, error: { customCode: 5 } }),
+      "Sourcify reported a completed job with an error it cannot classify; the result is not known.",
+    );
+    assert.equal(
+      await pollMessage({ isJobCompleted: true, error: { customCode: "z".repeat(150) } }),
+      `Sourcify reported a completed job with the error code ${"z".repeat(100)}; the result is not known.`,
+    );
+  });
+
+  it("names the Sourcify client when the handle names another backend", async () => {
+    const { ctx, sent } = setup([]);
+    const error = await errorOf(sourcify.poll({ ...HANDLE, backend: "etherscan-v2" }, ctx));
+    assert.deepEqual(error.details, {
+      code: "invalid-input",
+      issues: [{ field: "backend", message: "must be sourcify for the Sourcify client" }],
+    });
+    assert.deepEqual(sent(), []);
+  });
+});
+
+describe("sourcify: retry modes and the job id check (#158, R-BE-4)", () => {
+  it("retries a 502 on the lookup and the poll, which are safe to send again", async () => {
+    const lookup = setup([json(502, {}), fixture("lookup-not-verified")]);
+    assert.equal(await sourcify.lookup(TARGET, lookup.ctx), undefined);
+    assert.equal(lookup.sent().length, 2);
+    const poll = setup([json(502, {}), json(200, { isJobCompleted: false })]);
+    assert.deepEqual(await sourcify.poll(HANDLE, poll.ctx), { state: "pending" });
+    assert.equal(poll.sent().length, 2);
+  });
+
+  it("refuses a verificationId with text before the UUID", async () => {
+    const body = { verificationId: `job-${GREETER_JOB}` };
+    const { ctx } = setup([json(202, body)]);
+    const error = await errorOf(sourcify.submit(input(), ctx));
+    assert.deepEqual(error.details, {
+      code: "unexpected-response",
+      backend: "sourcify",
+      status: 202,
+      excerpt: JSON.stringify(body),
+    });
   });
 });

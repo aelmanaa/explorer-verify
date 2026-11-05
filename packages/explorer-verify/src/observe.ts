@@ -73,6 +73,7 @@ const CALLBACK_FAILED = "The onEvent callback threw. The error is ignored and th
  */
 export function createObserver(options: ObserverOptions): Observer {
   const { logger, onEvent, secrets } = options;
+  // Stryker disable next-line ConditionalExpression: equivalent when always false. redactingLogger drops the line when reading a method of an undefined logger throws, as SILENT drops it.
   const log = logger === undefined ? SILENT : redactingLogger(logger, secrets);
   if (onEvent === undefined) {
     return { log, emit: nothing };
@@ -102,6 +103,7 @@ export function createObserver(options: ObserverOptions): Observer {
       failed(type, error);
       return;
     }
+    // Stryker disable next-line ConditionalExpression: equivalent when always true. A promise resolved with undefined never rejects.
     if (returned !== undefined) {
       // Not awaited: a slow callback must not hold the call. A value that is not a promise
       // resolves at once. `resolve` calls a thenable's `then` in a later job, never here, so a

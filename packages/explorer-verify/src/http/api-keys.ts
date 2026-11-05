@@ -509,6 +509,7 @@ export function keyErrorOf(
   }
   return new ExplorerVerifyError({ code, backend }, `${backend} answered ${what}.`, {
     secrets,
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
     ...(hint === undefined ? {} : { hint }),
   });
 }

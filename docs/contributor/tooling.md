@@ -50,6 +50,12 @@ reason. The list starts empty; keep it that way where a typed alternative exists
 `packages/*/src/internal/vendor/` is exempt, and oxlint ignores it too. Ported prior-art code is
 rewritten into the normal tree, not vendored.
 
+`node scripts/check-stryker-disables.ts` does the same for the comments that mark an equivalent
+mutant: each one in `packages/*/src` must be
+`// Stryker disable next-line <Mutator>[,<Mutator>]: <reason>`, and the table in
+[testing.md](testing.md#when-a-mutant-survives) must list it. The script prints every comment with
+its file and line.
+
 ## Blocked hosts
 
 `node scripts/check-hosts.ts` fails when a tracked file links to a host on its blocklist. It exists

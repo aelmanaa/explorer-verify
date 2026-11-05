@@ -35,6 +35,8 @@ import type { Answer } from "./common.ts";
 export { REASON_LENGTH };
 
 const NAME: BackendName = "sourcify";
+/** The client's name in messages and log lines. */
+const LABEL = "Sourcify";
 
 /**
  * Job error codes that mean Sourcify rejected the source for good: submitting the same input
@@ -150,7 +152,7 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
   } else if (status === 400 && codeOf(fields) === "unsupported_chain") {
     throw unsupportedChain(ctx, target.chainId);
   }
-  throw unexpected(ctx, answer, unrecognised("the lookup", answer));
+  throw unrecognised(ctx, answer, "the lookup");
 }
 
 /**
@@ -171,12 +173,12 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
   const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
     UNCONFIRMED_STATUSES.includes(answer.status) ||
     (answer.status === 202 && answer.fields === undefined)
-      ? unexpected(ctx, answer, unrecognised("the submit", answer))
+      ? unrecognised(ctx, answer, "the submit")
       : undefined;
   return await submitOnce(
     ctx,
     NAME,
-    "Sourcify",
+    LABEL,
     target,
     async () => await attemptSubmit(ctx, req, unconfirmed),
     (answer) => readSubmit(input, ctx, answer),
@@ -186,7 +188,7 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
 
 /** Asks once for the state of a job. The handle is checked first: it may come from storage. */
 async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
-  checkHandle(handle, NAME, "Sourcify", ctx);
+  checkHandle(handle, NAME, LABEL, ctx);
   const answer = await send(ctx, {
     url: ctx.route.requestUrl(`/v2/verify/${encodeURIComponent(handle.jobId)}`),
     method: "GET",
@@ -202,7 +204,7 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
   }
   const completed = fields?.get("isJobCompleted");
   if (status !== 200 || fields === undefined || typeof completed !== "boolean") {
-    throw unexpected(ctx, answer, unrecognised("the job status request", answer));
+    throw unrecognised(ctx, answer, "the job status request");
   }
   const contract = readFields(fields.get("contract"));
   if (fields.has("verificationId") && fields.get("verificationId") !== handle.jobId) {
@@ -272,6 +274,7 @@ function submitBody(input: ResolvedInput): SubmitBody {
     contractIdentifier: input.contractName,
   };
   // Sourcify reads constructor arguments from the creation code, so they are never sent.
+  // Stryker disable next-line ConditionalExpression: equivalent when always true. JSON.stringify drops a field whose value is undefined.
   if (input.creationTxHash !== undefined) {
     body.creationTransactionHash = input.creationTxHash;
   }
@@ -283,6 +286,7 @@ function readSubmit(input: ResolvedInput, ctx: Context, answer: Answer): SubmitO
   const { status, fields } = answer;
   const code = codeOf(fields);
   if (status === 202) {
+    // Stryker disable next-line OptionalChaining: equivalent. A 202 without a JSON body is unconfirmed, so readSubmit never gets one.
     const id = fields?.get("verificationId");
     if (typeof id === "string" && VERIFICATION_ID.test(id)) {
       return {
@@ -308,7 +312,7 @@ function readSubmit(input: ResolvedInput, ctx: Context, answer: Answer): SubmitO
       { secrets: ctx.http.secrets },
     );
   }
-  throw unexpected(ctx, answer, unrecognised("the submit", answer));
+  throw unrecognised(ctx, answer, "the submit");
 }
 
 /** The error body's `customCode`. Every caller compares it with a string, so any other value fails. */
@@ -347,12 +351,14 @@ function contractPath(kind: "contract" | "verify", target: Target): string {
   return `/v2/${kind}/${String(target.chainId)}/${encodeURIComponent(target.address)}`;
 }
 
-function unrecognised(what: string, answer: Answer): string {
-  return `Sourcify gave an answer to ${what} that this client does not recognise (status ${String(answer.status)}).`;
+/** `unexpected-response` for an answer to `what`, such as `the lookup`, that the client does not know. */
+function unrecognised(ctx: Context, answer: Answer, what: string): ExplorerVerifyError {
+  return unexpectedAnswer(ctx, NAME, LABEL, answer, what);
 }
 
+/** `unexpected-response` whose whole message is `message`. */
 function unexpected(ctx: Context, answer: Answer, message: string): ExplorerVerifyError {
-  return unexpectedAnswer(ctx, NAME, "Sourcify", answer, message, true);
+  return unexpectedAnswer(ctx, NAME, LABEL, answer, message, true);
 }
 
 function unsupportedChain(ctx: Context, chainId: number): ExplorerVerifyError {
