@@ -5,8 +5,10 @@
  */
 import {
   BACKEND_NAMES,
+  ExplorerVerifyError,
   buildVerifyInput,
   dryRun,
+  toBackendName,
   validateInput,
   verify,
   verifyEach,
@@ -47,6 +49,84 @@ export function inputJsonOption(command: string): OptionSpec {
   };
 }
 
+/** `--allow-sourcify-fallback`, shared by `verify` and `status`. */
+export const FALLBACK_OPTION: OptionSpec = {
+  type: "boolean",
+  description:
+    "Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.",
+};
+
+/**
+ * Throws the usage error of `--allow-sourcify-fallback` in a combination where it can change
+ * nothing: with `--api-url`, which skips the routing table, or with a `--backend` other than
+ * `sourcify`, which the fallback never reaches. A repeated `--backend` always names one such
+ * backend. A name that is no backend is left to the route check, which names it.
+ *
+ * @param values - The option values to run with, the request's route included.
+ * @param fieldNames - The request field behind each option that the request filled.
+ * @throws ExplorerVerifyError `invalid-input`, exit code 2.
+ */
+export function checkFallback(
+  values: ReadonlyMap<string, OptionValue>,
+  fieldNames: ReadonlyMap<string, string>,
+): void {
+  if (values.get("allow-sourcify-fallback") !== true) {
+    return;
+  }
+  const field = "--allow-sourcify-fallback";
+  const issues: InputIssue[] = [];
+  if (values.has("api-url")) {
+    issues.push({
+      field,
+      message: `cannot be combined with ${fieldNames.get("--api-url") ?? "--api-url"}: the URL names the server, so the routing table is not used`,
+    });
+  }
+  const backend = values.get("backend");
+  const names = typeof backend === "string" ? [backend] : listOption(values, "backend");
+  if (names.some((name) => (toBackendName(name) ?? "sourcify") !== "sourcify")) {
+    issues.push({
+      field,
+      message: `cannot be combined with a ${fieldNames.get("--backend") ?? "--backend"} other than sourcify: the fallback only reaches Sourcify`,
+    });
+  }
+  if (issues.length > 0) {
+    throw usageError(issues);
+  }
+}
+
+/** The library's hint for a chain without a row, which names the library's options. */
+const ROW_HINT = "Set allowSourcifyFallback: true, or set route.apiUrl and route.backend.";
+
+/** The same hint, with the CLI's options. */
+const CLI_ROW_HINT =
+  "Pass --allow-sourcify-fallback to verify on the public Sourcify API, or pass --api-url with --backend.";
+
+/**
+ * Awaits a library call. The `unsupported-chain` error of a chain without a row gets the hint
+ * that names the CLI's options instead of the library's.
+ *
+ * @param call - The library call.
+ * @returns What the call returns.
+ * @throws What the call throws, with that one hint replaced.
+ */
+export async function withCliHint<T>(call: Promise<T>): Promise<T> {
+  try {
+    return await call;
+  } catch (error) {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "unsupported-chain" &&
+      error.hint === ROW_HINT
+    ) {
+      throw new ExplorerVerifyError(error.details, error.message, {
+        hint: CLI_ROW_HINT,
+        secrets: [],
+      });
+    }
+    throw error;
+  }
+}
+
 /**
  * The time budget of `--timeout` in milliseconds, `undefined` when it is absent, or an issue.
  *
@@ -74,8 +154,8 @@ export function timeoutOf(
 }
 
 /**
- * The options of a library call: the context's signal, logger, event writer, route and keys, and
- * the time budget when one was given.
+ * The options of a library call: the context's signal, logger, event writer, route and keys, the
+ * Sourcify fallback of `--allow-sourcify-fallback`, and the time budget when one was given.
  *
  * @param context - The command's context.
  * @param timeoutMs - The time budget, if any.
@@ -90,6 +170,9 @@ export function callOptions(context: CommandContext, timeoutMs: number | undefin
     onEvent,
     ...(apiKeys === undefined ? {} : { apiKeys }),
     ...(route === undefined ? {} : { route }),
+    ...(context.values.get("allow-sourcify-fallback") === true
+      ? { allowSourcifyFallback: true }
+      : {}),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
   };
 }
@@ -237,7 +320,9 @@ async function send(
   if (backends !== undefined) {
     return await verifyEach(input, { ...options, backends });
   }
-  return dry ? await dryRun(input, options) : await verify(input, options);
+  return dry
+    ? await withCliHint(dryRun(input, options))
+    : await withCliHint(verify(input, options));
 }
 
 /**
@@ -265,6 +350,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   const settings: SendSettings = { dry, timeoutMs, rpcUrl: rpc.rpcUrl };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
+    checkFallback(values, new Map());
     const input = await inputFromFlags(context);
     return { values, run: async (run) => await send(run, input, settings) };
   }
@@ -272,6 +358,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
     { path, values, positionals: context.positionals, stdin: context.stdin },
     VERIFY_REQUEST,
   );
+  checkFallback(request.values, request.fieldNames);
   const input = validateInput(Object.fromEntries(request.fields));
   return {
     values: request.values,
@@ -332,6 +419,7 @@ const OPTIONS: OptionSpecs = {
   },
   timeout: TIMEOUT_OPTION,
   ...RPC_URL_OPTIONS,
+  "allow-sourcify-fallback": FALLBACK_OPTION,
   "dry-run": {
     type: "boolean",
     description:
@@ -357,6 +445,11 @@ export const VERIFY: Command = {
       args: `${ADDRESS} --chain 11155111 ${FOUNDRY_FILES}`,
       description:
         "Verify from a Foundry build-info and artifact; the address may come first, without verify.",
+    },
+    {
+      args: `verify ${ADDRESS} --chain 999999 ${FOUNDRY_FILES} --allow-sourcify-fallback --dry-run --json`,
+      description:
+        "Check a contract on a chain that the routing table does not list, on the public Sourcify API.",
     },
     {
       args: "verify --input-json verify-input.json --json",

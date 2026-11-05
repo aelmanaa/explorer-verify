@@ -10,7 +10,15 @@ import { stringOption, usageError } from "./command.ts";
 import type { Command, PrepareContext, Prepared } from "./command.ts";
 import { readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
-import { TIMEOUT_OPTION, callOptions, inputJsonOption, timeoutOf } from "./verify.ts";
+import {
+  FALLBACK_OPTION,
+  TIMEOUT_OPTION,
+  callOptions,
+  checkFallback,
+  inputJsonOption,
+  timeoutOf,
+  withCliHint,
+} from "./verify.ts";
 
 /** The status request of `--input-json`. A test checks it against `input.schema.json`. */
 export const STATUS_REQUEST: JsonRequestSpec = { command: "status", fields: ["handle"] };
@@ -42,11 +50,12 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
       throw usageError([{ field: "handle", message: "must be the handle in its one-line form" }]);
     }
   }
+  checkFallback(runValues, fieldNames);
   const line = String(handle);
   return {
     values: runValues,
     fieldNames,
-    run: async (run) => await checkStatus(line, callOptions(run, timeoutMs)),
+    run: async (run) => await withCliHint(checkStatus(line, callOptions(run, timeoutMs))),
   };
 }
 
@@ -68,6 +77,7 @@ export const STATUS: Command = {
   ],
   options: {
     timeout: TIMEOUT_OPTION,
+    "allow-sourcify-fallback": FALLBACK_OPTION,
     "input-json": inputJsonOption("status"),
   },
   maxPositionals: 1,

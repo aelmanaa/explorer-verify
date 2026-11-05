@@ -133,12 +133,15 @@ async function read(
 
 /** The Sourcify answer of `path`, or `undefined` when it is not a Sourcify path. */
 function sourcify(scenario: Scenario, method: string, path: string): Response | undefined {
-  if (/\/v2\/contract\/\d+\/0x[0-9a-fA-F]{40}$/.test(path)) {
-    return recorded(
+  const lookup = /\/v2\/contract\/(\d+)\/0x[0-9a-fA-F]{40}$/.exec(path);
+  if (lookup !== null) {
+    // The answer, moved to the chain asked for: the library checks that it is about that chain.
+    const { status, body } = recordedAnswer(
       scenario === "verified"
         ? "sourcify/2026-11-02-lookup-exact-match"
         : "sourcify/2026-11-02-lookup-not-verified",
     );
+    return respond(status, { ...Object.fromEntries(fields(body)), chainId: lookup[1] });
   }
   if (method === "POST" && /\/v2\/verify\/\d+\/0x[0-9a-fA-F]{40}$/.test(path)) {
     return recorded("sourcify/2026-11-02-submit-accepted");
