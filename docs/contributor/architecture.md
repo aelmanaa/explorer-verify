@@ -354,7 +354,8 @@ matches a redaction pattern. A backend without a host rule cannot appear in the 
 issue adds one. Other tests check that every backend in the table has a client in this release,
 and that the table has a row for every chain of the frozen Etherscan chainlist in the research
 data. `scripts/compare-routing-table.ts` compares the table with the live public lists and prints
-the differences; it never writes the table.
+the differences; it never writes the table. `.github/workflows/routing-table.yml` runs it once a
+week and keeps one issue open while differences remain (see [testing.md](testing.md#routing-table-check)).
 
 `pnpm run size` measures the code entries with an empty table and the table's rows as their own
 entry, `routing table`. One more entry, `verify with table`, measures the `verify` entry with the

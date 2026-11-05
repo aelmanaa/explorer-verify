@@ -43,6 +43,7 @@ run time, so c8 would report them at 0%.
 | Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                                         |
 | Docs examples    | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                              | In place                                         |
 | Link check       | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in `docs/user/`, `llms.txt` and the built site; external links once a week                                                 | In place                                         |
+| Routing table    | `scripts/compare-routing-table.ts`, `.github/workflows/routing-table.yml` weekly                               | The routing table against the live Etherscan chainlist and Sourcify chain list (R-RT-1)                                                               | In place                                         |
 | Agent evaluation | [`test/agent-eval/`](../../test/agent-eval/README.md), maintainer only                                         | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                     | Task set in place; first run pending (#7)        |
 
 ## Agent readiness (R-AX)
@@ -175,6 +176,26 @@ issue. A run that finds no links, or cannot run lychee, also reaches the issue. 
 lists the URLs both checks skip, each with its reason: Etherscan and npm answer 403 to automated
 clients, the docs site is not deployed before the first release, and GitHub builds its heading
 anchors in the browser.
+
+## Routing table check
+
+`.github/workflows/routing-table.yml` compares the routing table with the Etherscan chainlist and
+Sourcify's chain list once a week, and on a manual dispatch. Like the link check, it runs only in
+this repository and uses no secret beyond the workflow's own `GITHUB_TOKEN`; neither list needs a
+key. Routescan is not compared: its supported-chains page has no machine-readable list. The table
+has no Routescan or Blockscout rows yet.
+
+`node scripts/compare-routing-table.ts --json` prints the table's date, the notes and each
+difference with its chain and the list it changed in, then `scripts/routing-table-issue.ts` reads
+that JSON:
+
+- Differences and no open issue: it opens one issue titled "Routing table differs from the public
+  chain lists", with a table of chain, list and difference.
+- Differences and an open issue: it replaces the body when the differences changed.
+- No difference: it comments on the open issue and closes it, or does nothing.
+
+It finds the issue by a hidden marker at the start of the body, among the open issues the
+workflow's token opened. A pull request applies the change to the table; the workflow never does.
 
 ## Browser smoke test
 
