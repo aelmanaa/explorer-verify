@@ -18,7 +18,6 @@ import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-ar
 import { validateInput } from "../input/validate.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
-import { MIN_SECRET_LENGTH } from "../redact.ts";
 import { checkApiUrl, resolveRoute, unsupported } from "../routing/resolve.ts";
 import type { Route, RoutingTable } from "../routing/resolve.ts";
 import type {
@@ -208,35 +207,38 @@ export async function bounded<T extends object>(
   const deadline = AbortSignal.timeout(
     Math.min(Math.max(0, budget.deadline - Date.now()), MAX_TIMER_MS),
   );
-  let onAbort: (() => void) | undefined;
-  let onDeadline: (() => void) | undefined;
+  // What removes the listeners once the load settled, so a long-lived signal does not collect them.
+  const releases: (() => void)[] = [];
   try {
     const loaded = await new Promise<T>((resolve, reject) => {
-      onAbort = (): void => {
+      const onAbort = (): void => {
+        // Stryker disable next-line OptionalChaining: equivalent. The listener is only added to a signal that exists.
         const reason: unknown = signal?.reason;
         reject(reason);
       };
-      onDeadline = (): void => {
+      const onDeadline = (): void => {
         reject(
           new ExplorerVerifyError(
             { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
             `Loading ${what} did not finish within the ${String(budget.timeoutMs)} ms budget.`,
+            // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message holds only the code's name and the budget, never a key.
             { secrets: [] },
           ),
         );
       };
-      signal?.addEventListener("abort", onAbort, { once: true });
-      deadline.addEventListener("abort", onDeadline, { once: true });
+      signal?.addEventListener("abort", onAbort);
+      deadline.addEventListener("abort", onDeadline);
+      releases.push(() => {
+        signal?.removeEventListener("abort", onAbort);
+        deadline.removeEventListener("abort", onDeadline);
+      });
       load().then(resolve, reject);
     });
     memo.set(load, loaded);
     return loaded;
   } finally {
-    if (onAbort !== undefined) {
-      signal?.removeEventListener("abort", onAbort);
-    }
-    if (onDeadline !== undefined) {
-      deadline.removeEventListener("abort", onDeadline);
+    for (const release of releases) {
+      release();
     }
   }
 }
@@ -603,7 +605,6 @@ export function openContext(
     ...routeSecrets(route, target.chainId, target.address, route.backend),
     ...keySecrets,
     ...settings.rpcSecrets,
-    ...(routeKey === undefined ? [] : [routeKey]),
   ];
   const { apiKeys } = settings;
   // Before any request: a key found in the handle's fixed part would corrupt the address and the
@@ -613,6 +614,7 @@ export function openContext(
     key,
   ]);
   if (routeKey !== undefined) {
+    secrets.push(routeKey);
     named.push(["route.apiKey", routeKey]);
   }
   const clashes = collisions(named, visiblePart(route.backend, target.chainId, target.address));
@@ -742,6 +744,7 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       apiKeys: () => ({}),
       keySecrets: () => [],
       rpcUrl: undefined,
+      // Stryker disable next-line ArrayDeclaration: equivalent. Without options there is no rpcUrl, and no output holds the text Stryker puts here.
       rpcSecrets: [],
     };
   }
@@ -791,6 +794,7 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
     issues.push({ field: "rpcUrl", message: rpc });
   }
   const rpcUrl = typeof rpc === "string" ? undefined : rpc;
+  // Stryker disable next-line ArrayDeclaration: equivalent. Without an rpcUrl, no output holds the text Stryker puts here.
   const rpcSecrets = rpcUrl === undefined ? [] : endpointSecrets(rpcUrl);
   if (issues.length > 0) {
     throw invalidOptions(issues, [...keys.secrets, ...rpcSecrets]);
@@ -852,7 +856,8 @@ function duration(
   if (value === undefined) {
     return fallback;
   }
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+  // `!(value > 0)` also refuses NaN.
+  if (typeof value !== "number" || !(value > 0) || value === Number.POSITIVE_INFINITY) {
     issues.push({ field, message: "must be a positive finite number of milliseconds" });
     return fallback;
   }
@@ -861,6 +866,7 @@ function duration(
 
 function invalidOptions(
   issues: InputIssue[],
+  // Stryker disable next-line ArrayDeclaration: equivalent. Without the keys, the message and the issues name only fields, never the text Stryker puts here.
   secrets: readonly string[] = [],
 ): ExplorerVerifyError {
   return new ExplorerVerifyError(
@@ -897,7 +903,7 @@ export function routeOf(
     apiKeys: settings.apiKeys(),
     allowSourcifyFallback: settings.allowSourcifyFallback === true,
     clients: BACKEND_NAMES.filter((name) => dependencies.backends[name] !== undefined),
-    ...(dependencies.table === undefined ? {} : { table: dependencies.table }),
+    table: dependencies.table,
   });
 }
 
@@ -908,6 +914,7 @@ export function routeOf(
 function backendOf(route: Route, chainId: number, dependencies: FlowDependencies): Backend {
   const backend = dependencies.backends[route.backend];
   if (backend === undefined) {
+    // Stryker disable next-line StringLiteral: equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".
     throw unsupported(chainId, route.backend, "client");
   }
   if (typeof backend === "function") {
@@ -923,7 +930,6 @@ function backendOf(route: Route, chainId: number, dependencies: FlowDependencies
  * `route.apiUrl`'s query gets it removed from errors, logs, events and results, even where an
  * explorer repeats it in an answer (R-SEC-1). Left out:
  *
- * - values shorter than {@link MIN_SECRET_LENGTH}, which redaction ignores;
  * - values of digits only, which would hide numbers such as a chain id;
  * - values found in the handle's fixed part, `ev1:<backend>:<chainId>:<address>`, so the handle,
  *   the address and the chain id stay readable and the handle still resumes.
@@ -935,13 +941,12 @@ function routeSecrets(
   backend: BackendName,
 ): string[] {
   const visible = visiblePart(backend, chainId, address).toLowerCase();
+  // Stryker disable next-line ArrayDeclaration: equivalent. No output holds the text Stryker puts here, so an extra secret redacts nothing.
   const secrets: string[] = [];
+  // A value shorter than MIN_SECRET_LENGTH is kept too: redaction ignores it.
+  // Stryker disable next-line StringLiteral: equivalent. Any path gives the same query.
   for (const value of new URL(route.requestUrl("/")).searchParams.values()) {
-    if (
-      value.length >= MIN_SECRET_LENGTH &&
-      !/^\d+$/.test(value) &&
-      !visible.includes(value.toLowerCase())
-    ) {
+    if (!/^\d+$/.test(value) && !visible.includes(value.toLowerCase())) {
       secrets.push(value);
     }
   }
@@ -969,8 +974,8 @@ function httpContext(
     budget,
     // Always set, so a `fetch` added to `Object.prototype` can never stand in for the default.
     fetch: settings.fetch ?? platformFetch,
-    ...(settings.signal === undefined ? {} : { signal: settings.signal }),
-    ...(random === undefined ? {} : { random }),
+    signal: settings.signal,
+    random,
   };
 }
 
@@ -1026,6 +1031,7 @@ async function pollUntilDone(call: Call, handle: Handle, firstWaitMs: number): P
     }
     failures = 0;
     if (outcome.state !== "pending") {
+      // Stryker disable next-line StringLiteral: equivalent. settle() reads only whether the kind is "stopped".
       return { kind: "done", outcome };
     }
     observer.emit({ type: "verify.poll", backend: backend.name, attempt, state: "pending" });

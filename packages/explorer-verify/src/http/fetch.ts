@@ -132,7 +132,7 @@ export interface HttpContext {
    */
   readonly fetch?: typeof fetch;
   /** The caller's signal. On abort, every request and wait stops and rejects with its reason. */
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
   /**
    * The call's observer from `createObserver`, shared by every request of the call (R-DX-5,
    * R-DX-6). Its `log` gets debug and retry lines; its `emit` gets a `verify.retry` event before
@@ -157,7 +157,7 @@ export interface HttpContext {
   /** The call's time budget. Without it, only the per-request timeout applies. */
   readonly budget?: Budget;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. Tests fix it. */
-  readonly random?: () => number;
+  readonly random?: (() => number) | undefined;
   /**
    * The most requests one {@link request} call sends, the first one included: an integer from 1
    * to {@link MAX_ATTEMPTS}. Defaults to {@link MAX_ATTEMPTS}. The server handler sends at most
@@ -262,7 +262,7 @@ type Failure = Extract<Attempt, { kind: "retry" }>;
 
 /** What one attempt has seen so far, shared between the exchange and its timer. */
 interface Progress {
-  status: number | undefined;
+  status?: number;
 }
 
 /**
@@ -330,10 +330,11 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
       : { label, method: call.method, url };
 
   let attempt = 0;
-  let failure: Failure | undefined;
-  let delayMs: number | undefined;
-  do {
-    if (failure !== undefined && delayMs !== undefined) {
+  // Set once an attempt failed: its failure, and the wait before the next attempt.
+  let retry: { readonly failure: Failure; readonly delayMs: number } | undefined;
+  for (;;) {
+    if (retry !== undefined) {
+      const { failure, delayMs } = retry;
       const next = attempt + 1;
       log.warn(
         `${target}: ${describe(failure)}; retrying in ${String(delayMs)} ms (attempt ${String(next)} of ${String(maxAttempts)})`,
@@ -389,13 +390,15 @@ export async function request(ctx: HttpContext, req: HttpRequest): Promise<Respo
         options,
       );
     }
-    failure = result;
-    delayMs =
+    const delayMs =
       attempt < maxAttempts
         ? retryDelay(budget, call.retry, attempt, result, call.random)
         : undefined;
-  } while (delayMs !== undefined);
-  throw giveUp(call, target, attempt, failure);
+    if (delayMs === undefined) {
+      throw giveUp(call, target, attempt, result);
+    }
+    retry = { failure: result, delayMs };
+  }
 }
 
 /**
@@ -530,6 +533,7 @@ function invalidField(field: string, message: string): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues: [{ field, message }] },
     `The HTTP request is invalid: ${field} ${message}.`,
+    // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message names only a field of the context or the request, never its value.
     { secrets: [] },
   );
 }
@@ -569,14 +573,19 @@ function checkLimits(call: Call): void {
 async function attemptOnce(call: Call): Promise<Attempt> {
   const requestTimeoutMs = call.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   const budget = call.budget;
-  const budgetLeft = budget === undefined ? Infinity : budget.deadline - Date.now();
-  const limitMs = timerMs(Math.min(requestTimeoutMs, budgetLeft));
+  let budgetLeft = Infinity;
   // Set when the budget ends before the per-request timeout: the timer then means `timeout`.
-  const budgetTimeoutMs =
-    budget !== undefined && budgetLeft <= requestTimeoutMs ? budget.timeoutMs : undefined;
+  let budgetTimeoutMs: number | undefined;
+  if (budget !== undefined) {
+    budgetLeft = budget.deadline - Date.now();
+    if (budgetLeft <= requestTimeoutMs) {
+      budgetTimeoutMs = budget.timeoutMs;
+    }
+  }
+  const limitMs = timerMs(Math.min(requestTimeoutMs, budgetLeft));
   const controller = new AbortController();
   const caller = call.signal;
-  const progress: Progress = { status: undefined };
+  const progress: Progress = {};
 
   return await new Promise<Attempt>((resolve, reject) => {
     let settled = false;
@@ -598,18 +607,18 @@ async function attemptOnce(call: Call): Promise<Attempt> {
       }
     };
     // The listener goes on before the timer, so a signal whose `addEventListener` throws leaves
-    // no timer behind.
-    caller?.addEventListener("abort", onAbort, { once: true });
+    // no timer behind. settle() removes it.
+    caller?.addEventListener("abort", onAbort);
     timer = setTimeout(() => {
-      if (settle()) {
-        // Only a per-request timeout uses this message; a budget timeout becomes `timeout`.
-        const cause = new DOMException(
-          `The request took longer than ${String(timerMs(requestTimeoutMs))} ms.`,
-          "TimeoutError",
-        );
-        controller.abort(cause);
-        resolve(timedOut(budgetTimeoutMs, progress, cause));
-      }
+      // settle() clears this timer, so it never fires after the attempt settled.
+      settle();
+      // Only a per-request timeout uses this message; a budget timeout becomes `timeout`.
+      const cause = new DOMException(
+        `The request took longer than ${String(timerMs(requestTimeoutMs))} ms.`,
+        "TimeoutError",
+      );
+      controller.abort(cause);
+      resolve(timedOut(budgetTimeoutMs, progress, cause));
     }, limitMs);
 
     const run = async (): Promise<void> => {
@@ -617,7 +626,7 @@ async function attemptOnce(call: Call): Promise<Attempt> {
       try {
         result = await exchange(call, controller.signal, progress);
       } catch (error: unknown) {
-        result = { kind: "retry", reason: "network", cause: error };
+        result = networkFailure(error);
       }
       if (settle()) {
         resolve(result);
@@ -644,7 +653,17 @@ function timedOut(budgetTimeoutMs: number | undefined, progress: Progress, cause
       cause,
     };
   }
-  return { kind: "retry", reason: "network", cause };
+  return networkFailure(cause);
+}
+
+/** An attempt that got no response, retried as `network`. */
+function networkFailure(cause: unknown): Failure {
+  return {
+    // Stryker disable next-line StringLiteral: equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.
+    kind: "retry",
+    reason: "network",
+    cause,
+  };
 }
 
 /**
@@ -680,7 +699,8 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
     discard(response);
     return { kind: "fatal", status, excerpt: "", message: REDIRECT_MESSAGE };
   }
-  const declared = Number(response.headers.get("content-length") ?? "0");
+  // A missing header is null, which Number reads as 0.
+  const declared = Number(response.headers.get("content-length"));
   if (declared > limit) {
     discard(response);
     return { kind: "fatal", status, excerpt: "", message: tooLarge(limit) };
@@ -705,6 +725,7 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
   const { rateLimited } = call;
   if ((status === 429 && !isDuplicate(body)) || rateLimited?.(body) === true) {
     return {
+      // Stryker disable next-line StringLiteral: equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.
       kind: "retry",
       reason: "rate-limited",
       status,
@@ -714,6 +735,7 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
   }
   if (isRetriedServerError(status, call.retry)) {
     return {
+      // Stryker disable next-line StringLiteral: equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.
       kind: "retry",
       reason: "server-error",
       status,
@@ -838,19 +860,17 @@ function isDuplicate(body: string): boolean {
  * to {@link MAX_RETRY_AFTER_MS}. `undefined` when the header is absent or cannot be read.
  */
 function retryAfter(response: Response): number | undefined {
-  const value = response.headers.get("retry-after")?.trim();
-  if (value === undefined || value === "") {
-    return undefined;
-  }
-  let ms: number;
+  const header = response.headers.get("retry-after");
+  // Stryker disable next-line StringLiteral: equivalent. Neither form below matches the text that stands in for a missing header.
+  const value = header?.trim() ?? "";
+  // A value that is neither form, an empty one included, stays NaN and is ignored.
+  let ms = Number.NaN;
   if (/^\d+$/.test(value)) {
     ms = Number(value) * 1_000;
   } else if (HTTP_DATE_START.test(value)) {
     // An HTTP date starts with the day name in all three formats of RFC 9110, section 5.6.7. The
     // check keeps `Date.parse` from reading a value such as `1.5` or `-1` as a date.
     ms = Math.max(0, Date.parse(value) - Date.now());
-  } else {
-    return undefined;
   }
   return Number.isFinite(ms) ? Math.min(ms, MAX_RETRY_AFTER_MS) : undefined;
 }
@@ -908,6 +928,7 @@ function giveUp(
       break;
     case "rate-limited": {
       const details: ErrorDetails = { code: "rate-limited", backend: call.backend, attempts };
+      // Stryker disable next-line ConditionalExpression: equivalent when always true. The error copies its details and leaves out a retryAfterMs that is undefined.
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
@@ -925,6 +946,7 @@ function giveUp(
         status: failure.status,
         excerpt: failure.body,
       };
+      // Stryker disable next-line ConditionalExpression: equivalent when always true. The error copies its details and leaves out a retryAfterMs that is undefined.
       if (failure.retryAfterMs !== undefined) {
         details.retryAfterMs = failure.retryAfterMs;
       }
@@ -970,6 +992,7 @@ function loggableUrl(url: string): string {
 
 /** The signal's reason, typed as `unknown`. Only called once the signal has aborted. */
 function reasonOf(signal: AbortSignal | undefined): unknown {
+  // Stryker disable next-line OptionalChaining: equivalent. Only an abort listener calls it, and only a signal that exists has one.
   const reason: unknown = signal?.reason;
   return reason;
 }

@@ -112,6 +112,7 @@ function surfaces(error: ExplorerVerifyError): string {
 function assertInvalidField(error: ExplorerVerifyError, field: string, message: string): void {
   assert.equal(error.code, "invalid-input");
   assert.deepEqual(error.details, { code: "invalid-input", issues: [{ field, message }] });
+  assert.equal(error.message, `The HTTP request is invalid: ${field} ${message}.`);
   assert.equal(error.cause, undefined);
   const text = surfaces(error);
   assert.ok(!text.includes("getter says"), text);
@@ -574,6 +575,7 @@ describe("request: a getter or Proxy trap that throws is invalid-input (R-SEC-1,
     "maxResponseBytes",
     "budget",
     "random",
+    "maxAttempts",
   ];
   for (const name of contextFields) {
     it(`rejects a throwing context.${name} getter without its text`, async () => {
@@ -584,7 +586,7 @@ describe("request: a getter or Proxy trap that throws is invalid-input (R-SEC-1,
     });
   }
 
-  for (const name of ["url", "method", "body", "headers", "retry"]) {
+  for (const name of ["url", "method", "body", "headers", "retry", "rateLimited", "freshQuery"]) {
     it(`rejects a throwing request.${name} getter without its text`, async () => {
       const { fetch, calls } = answering(ok);
       const error = await explorerError(request(fullContext(fetch), throwing(post(), name)));

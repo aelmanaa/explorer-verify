@@ -322,9 +322,9 @@ the server handler and the input builders are not mutated yet.
 | -------------------------- | ------------------------------------------------------------------ | ----- | ----------- | ------------ |
 | `src/backends/sourcify.ts` | Sourcify answers mapped to results and errors (R-FLOW-4)           | 99.71 | 99.71       | 98           |
 | `src/backends/common.ts`   | Submit, resubmit and handle rules shared by the clients (R-FLOW-4) | 98.82 | 98.82       | 97           |
-| `src/flow/verify.ts`       | The flow engine: submit, poll, budget, recovery (R-FLOW-4)         | 91.83 | 89.64       | 88           |
-| `src/flow/status.ts`       | `checkStatus()` (R-FLOW-4)                                         | 96.00 | 96.00       | 2 undetected |
-| `src/http/fetch.ts`        | Retry, timeout and abort rules (R-FLOW-6)                          | 95.48 | 90.32       | 89           |
+| `src/flow/verify.ts`       | The flow engine: submit, poll, budget, recovery (R-FLOW-4)         | 100   | 98.78       | 97           |
+| `src/flow/status.ts`       | `checkStatus()` (R-FLOW-4)                                         | 100   | 100         | 1 undetected |
+| `src/http/fetch.ts`        | Retry, timeout and abort rules (R-FLOW-6)                          | 99.67 | 98.20       | 97           |
 | `src/http/api-keys.ts`     | Which key goes to which host (R-SEC-1)                             | 99.04 | 98.08       | 97           |
 | `src/routing/resolve.ts`   | Which backend and URL a chain gets, so where a key goes            | 99.24 | 98.22       | 97           |
 | `src/errors.ts`            | The error catalogue and its redaction (R-SEC-1)                    | 100   | 100         | 99           |
@@ -332,9 +332,10 @@ the server handler and the input builders are not mutated yet.
 | `src/redact.ts`            | Key redaction (R-SEC-1)                                            | 98.30 | 98.30       | 97           |
 
 "Score" is Stryker's score (StrykerJS 10.0.0, Node 24.21.0); "Killed only" counts timed-out
-mutants as not detected. The rows of `verify.ts`, `status.ts` and `fetch.ts` come from the full
-run of 2026-11-04 on commit `ff437c9` (concurrency 4). The other rows come from incremental runs of
-one file at a time on 2026-11-05 (concurrency 2), which started from the report of that full run.
+mutants as not detected. Every row comes from incremental runs of one file at a time on 2026-11-05
+(concurrency 2). The rows of `verify.ts`, `status.ts` and `fetch.ts` started from the report of a
+pull request run on `main`'s code that day; the other rows started from the full run of
+2026-11-04 on commit `ff437c9` (concurrency 4).
 Mutants that a `// Stryker disable` comment marks as equivalent are not counted (see
 [When a mutant survives](#when-a-mutant-survives)).
 
@@ -460,7 +461,25 @@ comments in source order. After adding or removing one, run
 | `packages/explorer-verify/src/backends/common.ts`   | Regex                             | equivalent. A solc version has a `v` only as its first character, so removing the first `v` removes the same one; validateInput drops it already. |
 | `packages/explorer-verify/src/backends/sourcify.ts` | ConditionalExpression             | equivalent when always true. JSON.stringify drops a field whose value is undefined.                                                               |
 | `packages/explorer-verify/src/backends/sourcify.ts` | OptionalChaining                  | equivalent. A 202 without a JSON body is unconfirmed, so readSubmit never gets one.                                                               |
+| `packages/explorer-verify/src/flow/status.ts`       | ArrayDeclaration                  | equivalent. The message names only backends and the chain id, never the text Stryker puts here.                                                   |
+| `packages/explorer-verify/src/flow/verify.ts`       | OptionalChaining                  | equivalent. The listener is only added to a signal that exists.                                                                                   |
+| `packages/explorer-verify/src/flow/verify.ts`       | ObjectLiteral, ArrayDeclaration   | equivalent. The message holds only the code's name and the budget, never a key.                                                                   |
+| `packages/explorer-verify/src/flow/verify.ts`       | ArrayDeclaration                  | equivalent. Without options there is no rpcUrl, and no output holds the text Stryker puts here.                                                   |
+| `packages/explorer-verify/src/flow/verify.ts`       | ArrayDeclaration                  | equivalent. Without an rpcUrl, no output holds the text Stryker puts here.                                                                        |
+| `packages/explorer-verify/src/flow/verify.ts`       | ArrayDeclaration                  | equivalent. Without the keys, the message and the issues name only fields, never the text Stryker puts here.                                      |
+| `packages/explorer-verify/src/flow/verify.ts`       | StringLiteral                     | equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".                                          |
+| `packages/explorer-verify/src/flow/verify.ts`       | ArrayDeclaration                  | equivalent. No output holds the text Stryker puts here, so an extra secret redacts nothing.                                                       |
+| `packages/explorer-verify/src/flow/verify.ts`       | StringLiteral                     | equivalent. Any path gives the same query.                                                                                                        |
+| `packages/explorer-verify/src/flow/verify.ts`       | StringLiteral                     | equivalent. settle() reads only whether the kind is "stopped".                                                                                    |
 | `packages/explorer-verify/src/http/api-keys.ts`     | ConditionalExpression             | equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.                                                |
+| `packages/explorer-verify/src/http/fetch.ts`        | ObjectLiteral, ArrayDeclaration   | equivalent. The message names only a field of the context or the request, never its value.                                                        |
+| `packages/explorer-verify/src/http/fetch.ts`        | StringLiteral                     | equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.              |
+| `packages/explorer-verify/src/http/fetch.ts`        | StringLiteral                     | equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.              |
+| `packages/explorer-verify/src/http/fetch.ts`        | StringLiteral                     | equivalent. request() retries every attempt that is not a response, a budget timeout or a fatal answer, so it never reads this kind.              |
+| `packages/explorer-verify/src/http/fetch.ts`        | StringLiteral                     | equivalent. Neither form below matches the text that stands in for a missing header.                                                              |
+| `packages/explorer-verify/src/http/fetch.ts`        | ConditionalExpression             | equivalent when always true. The error copies its details and leaves out a retryAfterMs that is undefined.                                        |
+| `packages/explorer-verify/src/http/fetch.ts`        | ConditionalExpression             | equivalent when always true. The error copies its details and leaves out a retryAfterMs that is undefined.                                        |
+| `packages/explorer-verify/src/http/fetch.ts`        | OptionalChaining                  | equivalent. Only an abort listener calls it, and only a signal that exists has one.                                                               |
 | `packages/explorer-verify/src/observe.ts`           | ConditionalExpression             | equivalent when always false. redactingLogger drops the line when reading a method of an undefined logger throws, as SILENT drops it.             |
 | `packages/explorer-verify/src/observe.ts`           | ConditionalExpression             | equivalent when always true. A promise resolved with undefined never rejects.                                                                     |
 | `packages/explorer-verify/src/redact.ts`            | StringLiteral                     | equivalent. JSON_NAME only feeds EXCERPT_MARGIN, whose largest term is the URL user info.                                                         |
@@ -490,6 +509,7 @@ or cannot reach them:
 | `src/backends/common.ts`   | `send`: the `catch` block emptied                                                       | `parsed` is already `undefined` when the parse throws                                                       |
 | `src/backends/common.ts`   | `attemptSubmit`: `error.details.code === "unexpected-response"` always true             | Only an `unexpected-response` error has a `status`; for any other code the status check fails               |
 | `src/backends/sourcify.ts` | `poll`: `fields === undefined` always false                                             | Without fields, `isJobCompleted` is `undefined`, so the `boolean` check throws the same error               |
+| `src/http/fetch.ts`        | `sameOrigin` and `isDuplicate`: the `catch` block emptied                               | The function ends after the block and returns `undefined`, which the caller reads as `false`                |
 | `src/http/api-keys.ts`     | `plainEntries` and `originOf`: the `catch` block emptied                                | The function ends after the block and returns `undefined` either way                                        |
 | `src/http/api-keys.ts`     | `plainEntries`: `value === null` always false                                           | `Object.getPrototypeOf(null)` throws, and the `catch` block returns `undefined`, as the check does          |
 | `src/routing/resolve.ts`   | `readOverride`: the `catch` block emptied                                               | The function ends after the block and returns `undefined` either way                                        |
