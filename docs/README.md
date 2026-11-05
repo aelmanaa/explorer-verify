@@ -22,6 +22,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Verify from Node.js](user/guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue     |
 | [Verify from an edge function](user/guides/verify-from-an-edge-function.md)                         | Submit in one request, resume in later ones, keys from Worker secrets       |
 | [Verify from CI with the CLI](user/guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets    |
+| [Wrap explorer-verify behind your tool's API](user/guides/wrap-explorer-verify-in-your-tool.md)     | Call it inside your tool's API, map every error code, replay tests          |
 | [verify()](user/reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                        |
 | [checkStatus()](user/reference/check-status.md)                                                     | Resume a submitted verification from its handle                             |
 | [API keys](user/reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans     |

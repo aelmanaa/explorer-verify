@@ -235,3 +235,52 @@ describe("error index page (R-AX-7, R-AX-10)", () => {
     assert.match(index, /`unexpected-response` and `unknown-state` differ in who answered/);
   });
 });
+
+describe("the error table of the guide for wrapping tools (R-AX-2, R-AX-7)", () => {
+  const guide = read(new URL("docs/user/guides/wrap-explorer-verify-in-your-tool.md", REPOSITORY));
+  // | [`code`](../reference/errors/code.md) | yes | 4 | `kind` | text |
+  const rows = [
+    ...guide.matchAll(
+      /^\| \[`([a-z-]+)`\]\(\.\.\/reference\/errors\/([a-z-]+)\.md\) +\| (yes|no) +\| (\d+) +\| `([a-z-]+)` +\|/gm,
+    ),
+  ].map((match) => ({
+    code: match[1] ?? "",
+    page: match[2] ?? "",
+    retryable: match[3] === "yes",
+    exit: Number(match[4]),
+    kind: match[5] ?? "",
+  }));
+
+  it("lists every code in ERROR_CODES once, in catalogue order, linking its page", () => {
+    assert.deepEqual(
+      rows.map((row) => row.code),
+      codes,
+    );
+    for (const row of rows) {
+      assert.equal(row.page, row.code, `${row.code} links another code's page`);
+    }
+  });
+
+  it("states each code's retry flag and exit code as the catalogue does", () => {
+    for (const code of ERROR_CODES) {
+      const row = rows.find((found) => found.code === code);
+      assert.ok(row, code);
+      assert.equal(row.retryable, error(code).retryable, `${code}: retryable`);
+      assert.equal(row.exit, ERROR_EXIT_CODES[code], `${code}: exit code`);
+    }
+  });
+
+  it("gives each code the kind that the example's KIND map gives it", () => {
+    const block = /^const KIND: [^\n]*\{\n([\s\S]*?)^\};/m.exec(guide)?.[1] ?? "";
+    const kinds = new Map(
+      [...block.matchAll(/^ {2}"?([a-z-]+)"?: "([a-z-]+)",$/gm)].map((match) => [
+        match[1] ?? "",
+        match[2] ?? "",
+      ]),
+    );
+    assert.deepEqual([...kinds.keys()], codes);
+    for (const row of rows) {
+      assert.equal(row.kind, kinds.get(row.code), `${row.code}: kind`);
+    }
+  });
+});

@@ -86,6 +86,7 @@ const BROWSER = "guides/verify-from-a-browser.md";
 const NODE = "guides/verify-from-node.md";
 const EDGE = "guides/verify-from-an-edge-function.md";
 const CI = "guides/verify-from-ci-with-the-cli.md";
+const WRAPPER = "guides/wrap-explorer-verify-in-your-tool.md";
 /** The key variables every run starts with: empty, which the examples read as unset. */
 const NO_KEYS: Readonly<Record<string, string>> = { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" };
 /** A dummy Etherscan key in the environment, for the examples that read it from there. */
@@ -408,6 +409,33 @@ const RUNS: readonly DocRun[] = [
       ...ETHERSCAN_VERIFIED,
       "etherscan/2026-11-03-checkverifystatus-form-post-key-in-body",
     ],
+  },
+  {
+    page: WRAPPER,
+    example: 0,
+    what: "verified; then a cancel after the submit keeps the handle, and the resume ends verified",
+    // The cancelled call sends no poll: the abort lands in the wait before the first one.
+    fixtures: [...VERIFIED, ...VERIFIED],
+  },
+  {
+    page: WRAPPER,
+    example: 0,
+    what: "both calls map an already-verified result and submit nothing",
+    fixtures: [...ALREADY_VERIFIED, ...ALREADY_VERIFIED],
+    stdout: "already-verified (exact) on sourcify\nalready-verified (exact) on sourcify\n",
+  },
+  {
+    page: WRAPPER,
+    example: 0,
+    what: "not-confirmed becomes a pending DeployKitError, resumed; then the cancel and its resume",
+    fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match", ...VERIFIED],
+    stdout: [
+      `pending, resume with ${RECORDED_HANDLE}`,
+      "success (exact) on sourcify",
+      `cancelled, resume with ${RECORDED_HANDLE}`,
+      "success (exact) on sourcify",
+      "",
+    ].join("\n"),
   },
   {
     page: CI,

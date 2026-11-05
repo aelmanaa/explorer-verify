@@ -72,7 +72,10 @@ runtime covers
 [the browser](docs/user/guides/verify-from-a-browser.md),
 [Node.js](docs/user/guides/verify-from-node.md),
 [an edge function](docs/user/guides/verify-from-an-edge-function.md) and
-[CI with the CLI](docs/user/guides/verify-from-ci-with-the-cli.md).
+[CI with the CLI](docs/user/guides/verify-from-ci-with-the-cli.md). A tool that already verifies
+contracts calls explorer-verify inside its own API as
+[docs/user/guides/wrap-explorer-verify-in-your-tool.md](docs/user/guides/wrap-explorer-verify-in-your-tool.md)
+shows.
 [docs/user/explanation/match-types.md](docs/user/explanation/match-types.md) explains exact and
 partial matches, and
 [docs/user/explanation/etherscan-plans-and-attribution.md](docs/user/explanation/etherscan-plans-and-attribution.md)
