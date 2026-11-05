@@ -39,9 +39,9 @@ export const ENVIRONMENT: readonly VariableHelp[] = [
   { name: "NO_COLOR", description: "Any value but empty turns colour off under --color auto." },
   { name: "TERM", description: "dumb turns colour and the spinner off under --color auto." },
   { name: "CI", description: "Any value but empty turns the spinner and the pager off." },
-  ...KEY_VARIABLES.map(({ name, backend }) => ({
+  ...KEY_VARIABLES.map(({ name, backend, host }) => ({
     name,
-    description: `The API key of ${backend}, sent only to its routing-table host. Empty counts as unset.`,
+    description: `The API key of ${backend}, sent only to ${host}. Empty counts as unset.`,
   })),
 ];
 

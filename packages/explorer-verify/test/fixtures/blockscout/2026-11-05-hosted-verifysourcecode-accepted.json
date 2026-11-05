@@ -1,0 +1,53 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:39:04.585Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.blockscout.com/11155111/api",
+    "headers": {
+      "authorization": "Bearer [redacted]",
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "contractaddress": "0x47740d3eb5c98ba53a3aba3a39df120a6f168403",
+        "sourceCode": "[758 characters: the Standard JSON input]",
+        "contractname": "src/Probe96.sol:Probe96",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e528b99f61297-MRS",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "101",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:39:04 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=olGfySbQbZx26XFeMxIexnIOc81RmBZXGbs8CLOraYfjqCFtN%2FhEsuMRHEVvMArVtgYZP2ZFbc0Dz9mHm0JVRjLUK%2Bk6Nmre7maG0O0TUQcAO3Y1ZbmAu8JpMsRUdHn4kIFhTQ%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99620",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "4",
+      "x-ratelimit-reset": "52",
+      "x-request-id": "263af9a4f62fe8e2a457c4e48d941aba"
+    },
+    "body": {
+      "message": "OK",
+      "result": "47740d3eb5c98ba53a3aba3a39df120a6f1684036aecdb58",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-05T19:39:04.585Z"
+}

@@ -99,7 +99,7 @@
       "type": "object",
       "properties": {
         "backend": {
-          "description": "A backend name. Known values in this release: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.",
+          "description": "A backend name. Known values in this release: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan.",
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },

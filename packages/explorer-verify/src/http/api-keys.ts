@@ -25,18 +25,29 @@ export type ApiKeysReader = () => ApiKeys;
 /** The longest key accepted, in characters. */
 export const MAX_KEY_LENGTH = 1024;
 
-// Backends that take a key from `apiKeys`. Each key goes only to its backend's routing-table host.
-const KEY_BACKENDS: readonly BackendName[] = ["etherscan-v2", "routescan"];
+/**
+ * The host of Blockscout's hosted multichain API, the backend `blockscout-hosted` (decision 0041).
+ *
+ * @example
+ * ```ts
+ * `https://${HOSTED_BLOCKSCOUT_HOST}/11155111/api`; // the hosted route for Sepolia
+ * ```
+ */
+export const HOSTED_BLOCKSCOUT_HOST = "api.blockscout.com";
+
+// Backends that take a key from `apiKeys`. Each key goes only to its backend's one API host.
+const KEY_BACKENDS: readonly BackendName[] = ["etherscan-v2", "routescan", "blockscout-hosted"];
 // Backends whose every request needs a key. Routescan has a keyless free tier; a standalone
 // explorer may or may not need one, so only its answer can tell.
-const KEY_REQUIRED: readonly BackendName[] = ["etherscan-v2"];
+const KEY_REQUIRED: readonly BackendName[] = ["etherscan-v2", "blockscout-hosted"];
 
 /**
- * Whether every request of `backend` needs a key. Only `etherscan-v2` does: Routescan has a keyless
- * tier, and only a standalone explorer's answer can tell whether it needs one.
+ * Whether every request of `backend` needs a key. Only `etherscan-v2` and `blockscout-hosted` do:
+ * Routescan has a keyless tier, and only a standalone explorer's answer can tell whether it needs
+ * one.
  *
  * @param backend - A backend name.
- * @returns `true` for `etherscan-v2`.
+ * @returns `true` for `etherscan-v2` and `blockscout-hosted`.
  * @example
  * ```ts
  * needsKey("etherscan-v2"); // true
@@ -52,6 +63,7 @@ const ROUTE_KEY_BACKENDS: readonly BackendName[] = [
   "etherscan-v2",
   "etherscan-compatible",
   "routescan",
+  "blockscout-hosted",
 ];
 // The RFC 3986 unreserved characters. A key with any other character could reach an explorer's
 // answer in an escaped form, such as an HTML entity or `\/` in JSON, that redaction does not
@@ -181,9 +193,9 @@ export interface ReadKeys {
  * each once, and only from a plain object (prototype `Object.prototype` or `null`). A
  * non-enumerable property and a Symbol key are ignored.
  *
- * - `etherscan-v2` and `routescan` take a key. `etherscan-compatible` is refused: each standalone
- *   explorer has its own host, so its key goes in `route.apiKey`. `sourcify` and `blockscout`
- *   take no key in this release.
+ * - `etherscan-v2`, `routescan` and `blockscout-hosted` take a key (decision 0041).
+ *   `etherscan-compatible` is refused: each standalone explorer has its own host, so its key goes
+ *   in `route.apiKey`. `sourcify` and `blockscout`, whose instances need none, take no key.
  * - A name that is not a backend is counted, never named: the name could be a key.
  * - An `undefined` value counts as absent.
  *
@@ -295,8 +307,9 @@ export interface KeyContext {
  * - `url` has the origin of the route's API base, so a request never carries a key off the route.
  * - The key is `route.apiKey`, which is bound to the route's host; or it is `apiKeys[backend]`,
  *   the route is not `overridden`, and `url` is `https://` on the route's `tableHost`, the host the
- *   routing table lists for the backend and chain, on the default port. A route whose `apiUrl` the
- *   caller set gets no key from `apiKeys`, whatever its host.
+ *   routing table lists for the backend and chain (`api.blockscout.com` for `blockscout-hosted`),
+ *   on the default port. A route whose `apiUrl` the caller set gets no key from `apiKeys`, whatever
+ *   its host.
  *
  * @param ctx - The route and the caller's keys.
  * @param backend - The backend the request is for.
@@ -346,6 +359,8 @@ function originOf(url: string): string | undefined {
  *   in a header (live, 2026-11-03).
  * - `routescan`: the `apikey` request header, as Routescan's docs show. Not confirmed live: a
  *   made-up key in the header was answered without a refusal (2026-11-03).
+ * - `blockscout-hosted`: the `authorization` request header, as `Bearer <key>`, for every request to the
+ *   hosted API: the REST lookup is a GET, so a form body cannot hold it (live, 2026-11-05).
  *
  * Without a key, `req` is returned unchanged. The caller adds the key to the call's secrets; the
  * flow engine does so for every key in `apiKeys` and `route.apiKey`.
@@ -375,6 +390,9 @@ export function withKey(ctx: KeyContext, backend: BackendName, req: HttpRequest)
   }
   if (backend === "routescan") {
     return { ...req, headers: { ...req.headers, apikey: key } };
+  }
+  if (backend === "blockscout-hosted") {
+    return { ...req, headers: { ...req.headers, authorization: `Bearer ${key}` } };
   }
   if (backend !== "etherscan-v2" && backend !== "etherscan-compatible") {
     // No placement is known for this backend, so the key is not sent.

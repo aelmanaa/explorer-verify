@@ -61,6 +61,9 @@ export const DEFAULT_LINK_DEPENDENCIES: LinkDependencies = {
       (await import("../backends/proxy-etherscan.ts")).compatibleProxyLinker,
     /** Loads the Blockscout proxy-link code. */
     blockscout: async () => (await import("../backends/proxy-blockscout.ts")).blockscoutProxyLinker,
+    /** The same code links on Blockscout's hosted API (decision 0041). */
+    "blockscout-hosted": async () =>
+      (await import("../backends/proxy-blockscout.ts")).blockscoutProxyLinker,
     /** Loads the Sourcify proxy-link code. */
     sourcify: async () => (await import("../backends/proxy-sourcify.ts")).sourcifyProxyLinker,
   },

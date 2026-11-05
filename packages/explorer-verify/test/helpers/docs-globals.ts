@@ -7,7 +7,7 @@
  *
  * - `input`: a valid `VerifyInput` for the Greeter at the address the Sourcify fixtures recorded,
  *   built from the core's Foundry build fixture with the build of this package;
- * - `apiKey`, `etherscanKey` and `explorerKey`: dummy keys;
+ * - `apiKey`, `etherscanKey`, `explorerKey` and `blockscoutKey`: dummy keys;
  * - `deployerAddress`: an address no one deploys from;
  * - `built`: the `buildVerifyInput` result for `src/Counter.sol:Counter`, which links the library
  *   `src/Tally.sol:Tally`, from the core's `solc-0.8.24-library` fixture;
@@ -80,6 +80,7 @@ const globals: Readonly<Record<string, unknown>> = {
   apiKey: "dummy-api-key-for-docs",
   etherscanKey: "dummy-etherscan-key-for-docs",
   explorerKey: "dummy-explorer-key-for-docs",
+  blockscoutKey: "proapi_dummy-blockscout-key-for-docs",
   deployerAddress: "0x1111111111111111111111111111111111111111",
   built: buildVerifyInput([JSON.parse(fixture("solc-0.8.24-library/input.json"))], {
     contract: "src/Counter.sol:Counter",

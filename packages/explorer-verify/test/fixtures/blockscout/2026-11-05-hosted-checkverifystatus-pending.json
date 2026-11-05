@@ -1,0 +1,49 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:38:50.652Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.blockscout.com/11155111/api",
+    "headers": {
+      "authorization": "Bearer [redacted]",
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "47740d3eb5c98ba53a3aba3a39df120a6f1684036aecdb4a"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e5233681ac6c9-CDG",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "73",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:38:50 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=kv%2BgABtNs3Rr3jWCmW8PYqiE23vDU81b8duObPyYj5cqza3SK3rmnHKZnegW%2FH9IK1ls6wHdcwtA0d%2FIX8eot24zhYdliqGUDysQ%2BgesGcewuhvSKldZeCU9OEAxfOeGNaE54w%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99700",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "3",
+      "x-ratelimit-reset": "204",
+      "x-request-id": "ce5db6ca4dfaa07691eda7d66a8cbaf5"
+    },
+    "body": {
+      "message": "OK",
+      "result": "Pending in queue",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-05T19:38:50.652Z"
+}

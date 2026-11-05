@@ -45,13 +45,19 @@ route whose `apiUrl` you set, gets no key from `apiKeys`.
 | `routescan`            | `api.routescan.io`                    | The `apikey` request header (see below)        | No: the free tier is keyless |
 | `etherscan-compatible` | Not accepted here; use `route.apiKey` | The `apikey` field of a form-encoded POST body | Depends on the explorer      |
 | `sourcify`             | Not accepted                          | None                                           | No                           |
-| `blockscout`           | Not accepted in this release          | None: no request carries a key                 | No                           |
+| `blockscout-hosted`    | `api.blockscout.com`                  | The `authorization` header, as `Bearer <key>`  | Yes, for every request       |
+| `blockscout`           | Not accepted: an instance takes none  | None: no request carries a key                 | No                           |
 
 The key never goes in a URL. Etherscan ignores a key in a request header and answers as if no key
 was sent, so the library puts it in the form body, with `chainid` in the query. Routescan reads a
 key in the `apikey` header, confirmed live with a real key on 2026-11-05; it does not refuse a key
 it does not know, but answers on the keyless tier ([Routescan](routescan.md#api-key)). The
 form-body placement for standalone explorers is not confirmed live.
+
+Blockscout's hosted API, the backend `blockscout-hosted`, read a key from the `authorization`
+header, from an `apikey` form field and from an `apikey` query parameter on 2026-11-05. The library
+uses the header: the lookup is a GET, which has no body, and a query would put the key in a URL
+([The hosted API](blockscout.md#the-hosted-api)).
 
 A key goes with a request only when all of these hold:
 
@@ -115,7 +121,7 @@ as `sourcify`, throws `invalid-input` naming `route.apiKey`. For `etherscan-comp
 
 ## A missing key
 
-When the route's backend needs a key (`etherscan-v2`), or its routing-table entry says its
+When the route's backend needs a key (`etherscan-v2` or `blockscout-hosted`), or its routing-table entry says its
 standalone explorer needs one, and no key is bound to its host, the call throws
 [`missing-api-key`](errors/missing-api-key.md) before any request. No standalone entry in this
 release needs a key. The routing table skips
@@ -135,7 +141,8 @@ through an injected `fetch`, not through `route.apiUrl`: a key from `apiKeys` ne
 | `Max daily rate limit reached`, or a daily submit limit | [`quota-exceeded`](errors/quota-exceeded.md)     |
 
 All three exit with code 3 and are not retryable. `details.backend` names the backend; no error
-holds the key.
+holds the key. Blockscout's hosted API answers with HTTP 401 and 402 instead; see
+[Key answers](blockscout.md#key-answers).
 
 ## Keys in logs, events, errors and results
 
@@ -148,15 +155,16 @@ error and result, as `[redacted]`, even when an explorer repeats them in an answ
 The `explorer-verify` command reads keys from these variables, from `--api-key-file <path>` or from
 `--api-key-stdin`, and never from a flag value:
 
-| Variable            | Fills                     |
-| ------------------- | ------------------------- |
-| `ETHERSCAN_API_KEY` | `apiKeys["etherscan-v2"]` |
-| `ROUTESCAN_API_KEY` | `apiKeys.routescan`       |
+| Variable             | Fills                          |
+| -------------------- | ------------------------------ |
+| `ETHERSCAN_API_KEY`  | `apiKeys["etherscan-v2"]`      |
+| `ROUTESCAN_API_KEY`  | `apiKeys.routescan`            |
+| `BLOCKSCOUT_API_KEY` | `apiKeys["blockscout-hosted"]` |
 
 A key from `--api-key-file` or `--api-key-stdin` goes where the command line names. With
 `--api-url` and `--backend` naming `etherscan-v2`, `routescan` or `etherscan-compatible`, it
-becomes `route.apiKey` for that host. With `--backend etherscan-v2` or `--backend routescan` alone,
-it fills that `apiKeys` entry. With `--backend etherscan-compatible` alone, it becomes
+becomes `route.apiKey` for that host. With `--backend etherscan-v2`, `--backend routescan` or
+`--backend blockscout-hosted` alone, it fills that `apiKeys` entry. With `--backend etherscan-compatible` alone, it becomes
 `route.apiKey` for the standalone host the routing table lists for the chain, which must have
 `needsKey`; otherwise the command exits 2. The rules above then decide which
 request carries it. See [the CLI reference](cli.md#api-keys-and-route-options).

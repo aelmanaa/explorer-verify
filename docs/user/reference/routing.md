@@ -272,6 +272,11 @@ The CLI sets it with `--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routin
   `backend` `etherscan-compatible` on a chain whose row lists a standalone explorer with
   `needsKey`: the key then goes to that explorer's host. See [API keys](api-keys.md).
 
+`route: { backend: "blockscout-hosted" }` is the one backend that no row lists: without `apiUrl`
+it goes to `https://api.blockscout.com/<chainId>/api` for any chain, with the key from
+`apiKeys["blockscout-hosted"]`. The table never picks it, and `verifyEach()` with
+`backends: "all"` leaves it out ([The hosted API](blockscout.md#the-hosted-api)).
+
 ## Keys and hosts
 
 A key from `apiKeys` goes only to the host the routing table lists for the route's backend and

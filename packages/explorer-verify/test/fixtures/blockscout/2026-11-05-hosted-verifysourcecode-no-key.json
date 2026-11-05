@@ -1,0 +1,47 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:36:33.586Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.blockscout.com/11155111/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "contractaddress": "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
+        "sourceCode": "{\"language\":\"Solidity\",\"sources\":{\"contracts/Greeter.sol\":{\"content\":\"contract Greeter {}\"}},\"settings\":{\"optimizer\":{\"enabled\":true,\"runs\":200}}}",
+        "contractname": "contracts/Greeter.sol:Greeter",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 402,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e4edab9357b63-MRS",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "87",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:36:33 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "payment-required": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIyMDAwIiwiYXNzZXQiOiIweGNlYkE5MzAwZjJiOTQ4NzEwZDI2NTNkRDdCMDdmMzNBOEIzMjExOEMiLCJleHRyYSI6eyJuYW1lIjoiVVNEQyIsInZlcnNpb24iOiIyIn0sIm1heFRpbWVvdXRTZWNvbmRzIjo2MCwibmV0d29yayI6ImVpcDE1NTo0MjIyMCIsInBheVRvIjoiMHgyNDJiYTZkNjhmZmViNGEwOThiNTkxYjMyZDM3MGY5NzNmZjg4MmI3Iiwic2NoZW1lIjoiZXhhY3QifSx7ImFtb3VudCI6IjIwMDAiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIn0sIm1heFRpbWVvdXRTZWNvbmRzIjo2MCwibmV0d29yayI6ImVpcDE1NTo4NDUzIiwicGF5VG8iOiIweGQ0NDFEOUY0YzU5Q0IyNjI1M0UyRjBBN2E2MmFjOWNFNzgyM2I0YjQiLCJzY2hlbWUiOiJleGFjdCJ9XSwiZXJyb3IiOiJQQVlNRU5ULVNJR05BVFVSRSBoZWFkZXIgaXMgcmVxdWlyZWQiLCJleHRlbnNpb25zIjp7fSwicmVzb3VyY2UiOnsiZGVzY3JpcHRpb24iOiJBY2Nlc3MgdG8gYXBpP2FjdGlvbj12ZXJpZnlzb3VyY2Vjb2RlJm1vZHVsZT1jb250cmFjdCIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiIsInVybCI6Imh0dHBzOi8vYXBpLmJsb2Nrc2NvdXQuY29tLzExMTU1MTExL2FwaSJ9LCJ4NDAyVmVyc2lvbiI6Mn0=",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=JMoZjTmGWLvyUaE5%2F%2FEObY2XhTYIJOVEkbNm97QyW8JsImL69TbFRzOHH8vgfcfI4HZDsUPv55wELlr1WdmN666T9rM4aFBtjWyzDbj%2BCKw9fSqDHTzPh3YJjvVTjkscdbBqCQ%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-request-id": "f990431dde61efa6eec93e74cc6078bb"
+    },
+    "body": {
+      "error": "Proceed with API key or make a X402 payment to continue"
+    }
+  },
+  "recordedAt": "2026-11-05T19:36:33.586Z"
+}

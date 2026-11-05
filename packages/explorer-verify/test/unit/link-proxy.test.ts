@@ -647,6 +647,14 @@ describe("linkProxy() on a standalone Etherscan-compatible explorer (R-FLOW-8)",
     assert.ok(typeof load === "function");
     assert.equal(await load(), compatibleProxyLinker);
   });
+
+  it("loads the Blockscout linker for both blockscout and blockscout-hosted (decision 0041)", async () => {
+    for (const backend of ["blockscout", "blockscout-hosted"] as const) {
+      const load = DEFAULT_LINK_DEPENDENCIES.linkers[backend];
+      assert.ok(typeof load === "function");
+      assert.equal(await load(), blockscoutProxyLinker);
+    }
+  });
 });
 
 describe("linkProxy() on a Blockscout instance (R-FLOW-8)", () => {

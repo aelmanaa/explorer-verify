@@ -1,0 +1,43 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:38:44.615Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.blockscout.com/11155111/api/v2/smart-contracts/0x47740d3eb5c98ba53a3aba3a39df120a6f168403",
+    "headers": {
+      "authorization": "Bearer [redacted]"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e520e8e330524-MRS",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "287",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:38:45 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=6ByrNOk%2BVf2YhaatJhi1XOr%2B32LAohtQ2APWGBwLHM0rwPp377NYSk52tRzJUYrZAmuOH1AvQiXk81Xrr6HvKjlDBuKYNWUku1tF0KLN5yq%2BsONGd9c9%2BeT0eS%2BbcwTQh%2Bhy2w%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99740",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "4",
+      "x-ratelimit-reset": "3",
+      "x-request-id": "3dd6fa84c9ab3aa52b922c92c8e33a37"
+    },
+    "body": {
+      "conflicting_implementations": null,
+      "creation_bytecode": "0x6080604052348015600e575f80fd5b50607980601a5f395ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c806347221ac714602a575b5f80fd5b6031606081565b60405190815260200160405180910390f3fea264697066735822122077251d46ea18fac8fa31b562e59b7286badc4925a82b8709a1a353c24d28516264736f6c63430008180033",
+      "creation_status": "success",
+      "deployed_bytecode": "0x6080604052348015600e575f80fd5b50600436106026575f3560e01c806347221ac714602a575b5f80fd5b6031606081565b60405190815260200160405180910390f3fea264697066735822122077251d46ea18fac8fa31b562e59b7286badc4925a82b8709a1a353c24d28516264736f6c63430008180033",
+      "implementations": [],
+      "proxy_type": null
+    }
+  },
+  "recordedAt": "2026-11-05T19:38:44.615Z"
+}

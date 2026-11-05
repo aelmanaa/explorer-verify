@@ -39,6 +39,7 @@ export const DOC_GLOBALS: Readonly<Record<string, string>> = {
   apiKey: "string",
   etherscanKey: "string",
   explorerKey: "string",
+  blockscoutKey: "string",
   deployerAddress: "string",
   built: "api.BuiltVerifyInput",
   request: "Request",

@@ -73,6 +73,9 @@ them directly. With no key, a call goes to the first backend of the chain's row 
 such as Sourcify ([Routing](../reference/routing.md#how-a-chain-resolves)). Blockscout is reached
 when you pass `route.backend` on the chains whose row lists an instance
 ([Blockscout rows](../reference/routing.md#blockscout-rows)), and with `route.apiUrl` elsewhere.
+Blockscout's hosted API, the backend `blockscout-hosted`, cannot be used from a browser: it sends
+no CORS headers, and the server handler does not forward Blockscout. Use `blockscout`, an instance,
+which needs no key.
 Routescan comes last in the rows that list it, so pass `route: { backend: "routescan" }` to use it
 there, and add `route.apiUrl` on other chains
 ([Routing](../reference/routing.md#routescan-entries)). The module below loads the

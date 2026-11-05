@@ -117,9 +117,10 @@ const VARIABLES = [
   "CI",
   "ETHERSCAN_API_KEY",
   "ROUTESCAN_API_KEY",
+  "BLOCKSCOUT_API_KEY",
 ];
 /** The key variables of R-AX-9. */
-const KEY_VARIABLES = ["ETHERSCAN_API_KEY", "ROUTESCAN_API_KEY"];
+const KEY_VARIABLES = ["ETHERSCAN_API_KEY", "ROUTESCAN_API_KEY", "BLOCKSCOUT_API_KEY"];
 
 /** The links the help ends with (R-AX-11). */
 const DOCS_URL = "https://aelmanaa.github.io/explorer-verify/reference/cli";
@@ -194,6 +195,9 @@ function variableRun(source: string, args: readonly string[]): SecretRun {
 const NO_ROUTESCAN = {
   unsent:
     "the routing table lists no Routescan route, so the CLI reads the key and sends it nowhere",
+};
+const NO_HOSTED_API = {
+  unsent: "the route is not blockscout-hosted, so the CLI reads the key and sends it nowhere",
 };
 
 /**
@@ -270,6 +274,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
     secretRuns: [
       variableRun("ETHERSCAN_API_KEY", [...VERIFY, "--dry-run"]),
       { ...variableRun("ROUTESCAN_API_KEY", [...VERIFY, "--dry-run"]), used: NO_ROUTESCAN },
+      { ...variableRun("BLOCKSCOUT_API_KEY", [...VERIFY, "--dry-run"]), used: NO_HOSTED_API },
       {
         source: "--api-key-file",
         args: [...VERIFY, "--dry-run", ...ETHERSCAN, "--api-key-file", KEY_FILE],
@@ -333,6 +338,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
     secretRuns: [
       variableRun("ETHERSCAN_API_KEY", ["status", ETHERSCAN_HANDLE]),
       { ...variableRun("ROUTESCAN_API_KEY", ["status", SOURCIFY_HANDLE]), used: NO_ROUTESCAN },
+      { ...variableRun("BLOCKSCOUT_API_KEY", ["status", SOURCIFY_HANDLE]), used: NO_HOSTED_API },
       {
         source: "--api-key-file",
         args: ["status", ETHERSCAN_HANDLE, ...ETHERSCAN, "--api-key-file", KEY_FILE],
