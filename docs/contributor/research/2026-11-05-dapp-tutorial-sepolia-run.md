@@ -60,7 +60,7 @@ response whose `url` has another origin than the request it sent as a redirect, 
 with that error before it reads the body. The handler's answer was a 200 with Etherscan's JSON.
 
 The tests did not see this: their fake `fetch` returns a `new Response(...)`, whose `url` is
-empty, and the check skips an empty `url`. `examples/test/dapp-verify.test.ts` holds a test
+empty, and the check skips an empty `url`. `examples/test/dapp-verify-http.test.ts` holds a test
 that runs the page path over loopback HTTP. It failed with this error until the fix below.
 
 ## Links
@@ -86,5 +86,5 @@ that runs the page path over loopback HTTP. It failed with this error until the 
   [issue #183](https://github.com/aelmanaa/explorer-verify/issues/183), merged on `main` as
   `c3da921` (decision 0035; evidence in
   [2026-11-05-fetch-redirect-signals.md](2026-11-05-fetch-redirect-signals.md)). With it, the
-  loopback test in `examples/test/dapp-verify.test.ts` passes and is no longer marked `todo`. The
-  fix is not yet in a published release. The Sepolia run above predates it and was not repeated.
+  loopback test, now in `examples/test/dapp-verify-http.test.ts`, passes and is no longer marked
+  `todo`. The fix is not yet in a published release. The Sepolia run above predates it and was not repeated.
