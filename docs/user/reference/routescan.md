@@ -98,17 +98,25 @@ Routescan answers with HTTP 200 and the Etherscan fields `status`, `message` and
 client reads them as the [Etherscan](etherscan.md#how-answers-are-read) client does, with these
 additions:
 
-| Step   | Answer                                           | Outcome                                                                                                                         |
-| ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Any    | `message` `chain not supported`, `result` `null` | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                              |
-| Any    | HTTP 429                                         | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop                                            |
-| Lookup | `SourceCode` not empty                           | Verified, `exact`. Routescan's lookup has no `SimilarMatch` field, so it never gives `partial`                                  |
-| Status | `Verification not found`                         | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below |
-| Status | `Missing guid`                                   | [`unexpected-response`](errors/unexpected-response.md)                                                                          |
+| Step   | Answer                                                                                | Outcome                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Any    | `message` `chain not supported`, `result` `null`                                      | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                              |
+| Any    | HTTP 429                                                                              | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop                                            |
+| Lookup | `SourceCode` not empty                                                                | Verified, `exact`. Routescan's lookup has no `SimilarMatch` field, so it never gives `partial`                                  |
+| Status | `Verification not found`                                                              | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below |
+| Status | `Missing guid`                                                                        | [`unexpected-response`](errors/unexpected-response.md)                                                                          |
+| Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, with the text as `reason`; no lookup                                                                                  |
 
 `Missing guid` means the status request was malformed. In `verify()` and `checkStatus()` it counts
 as a failed poll, as any `unexpected-response` does: polling goes on, and after 3 failed polls in a
 row one more lookup decides ([verify()](verify.md), steps 4 and 6).
+
+Routescan gives the bytecode answer, with `status` `0` and `message` `NOTOK`, when the source
+compiles but its bytecode differs from the deployed bytecode. The full text ends with
+`for address <address>, please check your parameters`. It was recorded on Avalanche Fuji and on
+Sepolia without a key on 2026-11-04. The client matches the text before the address. Any other
+status text still gives [`unknown-state`](errors/unknown-state.md). The Etherscan client does not
+map this text, because Etherscan has not been recorded giving it.
 
 `chain not supported` also comes back for a chain Routescan serves when the URL names the wrong
 network, such as `mainnet` for Fuji.
