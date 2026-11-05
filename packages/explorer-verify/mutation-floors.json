@@ -49,6 +49,56 @@
       "file": "src/redact.ts",
       "measured": 98.3,
       "floor": 97
+    },
+    {
+      "file": "src/flow/verify-each.ts",
+      "measured": 97.94,
+      "floor": 96
+    },
+    {
+      "file": "src/flow/link-proxy.ts",
+      "measured": 99.64,
+      "floor": 97
+    },
+    {
+      "file": "src/backends/proxy-common.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
+      "file": "src/backends/proxy-etherscan.ts",
+      "measured": 99.27,
+      "floor": 98
+    },
+    {
+      "file": "src/backends/proxy-blockscout.ts",
+      "measured": 99.47,
+      "floor": 98
+    },
+    {
+      "file": "src/backends/proxy-sourcify.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
+      "file": "src/backends/etherscan.ts",
+      "measured": 100.0,
+      "floor": 98
+    },
+    {
+      "file": "src/backends/etherscan-compatible.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/backends/routescan.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/backends/blockscout.ts",
+      "measured": 100.0,
+      "floor": 99
     }
   ]
 }

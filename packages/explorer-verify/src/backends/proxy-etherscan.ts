@@ -67,6 +67,7 @@ function etherscanLinker(name: BackendName, label: string): ProxyLinker {
     const answer = await send(ctx, post(ctx, name, fields));
     const result = knownAnswer(name, label, ctx, answer, target.chainId);
     if (answer.status === 200 && result !== undefined) {
+      // Stryker disable next-line OptionalChaining: equivalent. knownAnswer gives a result only for an answer with fields.
       if (answer.fields?.get("status") === "1" && GUID.test(result)) {
         return { state: "submitted", jobId: result };
       }
@@ -146,6 +147,7 @@ function etherscanLinker(name: BackendName, label: string): ProxyLinker {
       knownAnswer(name, label, ctx, answer, target.chainId);
       const result = answer.fields?.get("result");
       if (answer.status !== 200 || !Array.isArray(result)) {
+        // Stryker disable next-line StringLiteral: equivalent. The catch block below logs only the code of this error, never its message.
         throw unexpected(ctx, name, label, answer, "the lookup of the proxy");
       }
       return {

@@ -191,7 +191,7 @@ export async function runLinkProxy(
       apiKeys: settings.apiKeys(),
       allowSourcifyFallback: settings.allowSourcifyFallback === true,
       clients: BACKEND_NAMES,
-      ...(table === undefined ? {} : { table }),
+      table,
     });
     const load = dependencies.linkers[route.backend];
     // A standalone entry of the routing table is not linked: Bitlayer refuses the POSTs a link
@@ -293,6 +293,7 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdic
     try {
       verdict = await linker.check(jobId, target, ctx);
     } catch (error: unknown) {
+      // After an abort, a failed check is not logged as one: the call rejects with the reason.
       if (settings.signal?.aborted === true || !(error instanceof ExplorerVerifyError)) {
         throw error;
       }
@@ -425,15 +426,16 @@ function checkTarget(value: unknown): LinkTarget {
     issues.push({ field: "address", message: "must be 0x followed by 40 hex digits" });
   }
   const rawExpected = fields.get("expectedImplementation");
-  const expected = rawExpected === undefined ? undefined : addressDigits(rawExpected);
-  if (rawExpected !== undefined && expected === undefined) {
+  const expected = addressDigits(rawExpected);
+  const badExpected = rawExpected !== undefined && expected === undefined;
+  if (badExpected) {
     issues.push({
       field: "expectedImplementation",
       message: "must be 0x followed by 40 hex digits",
     });
   }
-  if (chainId === undefined || address === undefined || issues.length > 0) {
-    // issues is never empty here: each undefined above pushed one.
+  if (chainId === undefined || address === undefined || badExpected) {
+    // issues is never empty here: each check above pushed one.
     throw invalidTarget(issues);
   }
   return {
@@ -449,6 +451,7 @@ function invalidTarget(issues: InputIssue[]): ExplorerVerifyError {
     `The proxy target is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
       hint: "Pass chainId as a positive integer, address and expectedImplementation as 0x and 40 hex digits.",
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issues name only fields, never the text Stryker puts here.
       secrets: [],
     },
   );

@@ -19,7 +19,7 @@ const FOUND_ONE =
 const FOUND_NONE =
   /^The proxy's \((0x[0-9a-fA-F]{40})\) implementation contracts are found at \[\] and (.+)$/;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
-const ZERO = /^0x0{40}$/;
+const ZERO: Hex = `0x${"0".repeat(40)}`;
 
 /** What a "found at" answer says. */
 export type Found =
@@ -69,9 +69,11 @@ export function foundImplementation(text: string, proxy: string): Found | undefi
  * ```
  */
 export function implementationOf(value: unknown): Hex | undefined {
-  return typeof value === "string" && ADDRESS.test(value) && !ZERO.test(value)
-    ? `0x${value.slice(2).toLowerCase()}`
-    : undefined;
+  if (typeof value !== "string" || !ADDRESS.test(value)) {
+    return undefined;
+  }
+  const address: Hex = `0x${value.slice(2).toLowerCase()}`;
+  return address === ZERO ? undefined : address;
 }
 
 /**

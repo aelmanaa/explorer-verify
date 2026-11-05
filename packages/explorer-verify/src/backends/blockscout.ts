@@ -142,7 +142,8 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
  */
 async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {
   const fields = standardJsonFields(input);
-  const args = (input.constructorArgs ?? "").replace(/^0x/i, "");
+  // validateInput gives 0x and an even number of hex digits: the digits follow the 0x.
+  const args = input.constructorArgs?.slice(2) ?? "";
   if (args !== "") {
     // Blockscout 12 refuses arguments that are not 0x-prefixed hex.
     fields["constructorArguments"] = `0x${args}`;
@@ -188,6 +189,7 @@ function emptyAnswer({ status, fields }: Answer): boolean {
   const result = fields?.get("result");
   return (
     status === 200 &&
+    // Stryker disable next-line OptionalChaining: equivalent. A 200 without a JSON body is unconfirmed, so no empty-answer check gets one.
     fields?.get("status") === "1" &&
     (result === undefined || result === null || result === "")
   );

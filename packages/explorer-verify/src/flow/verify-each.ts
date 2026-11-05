@@ -164,7 +164,9 @@ export async function runVerifyEach(
           const result = await verifyOnRoute(checked, route, own, loaded, budget, false);
           return outcomeOf(entry.backend, result);
         } catch (error: unknown) {
-          if (settings.signal?.aborted === true || !(error instanceof ExplorerVerifyError)) {
+          // An abort needs no check here: abortWins rejects with the reason, and the call throws
+          // it again once every backend has settled.
+          if (!(error instanceof ExplorerVerifyError)) {
             throw error;
           }
           return { backend: entry.backend, ok: false, error };
@@ -194,8 +196,9 @@ function outcomeOf(backend: BackendName, result: VerifyResult): BackendOutcome {
 /**
  * The dependencies with the route's client loaded, as `withClient` gives them. A client module
  * that fails to load, such as a chunk the page cannot fetch, becomes a `network` error with the
- * load's error as its cause, so it is that backend's outcome and the other backends go on. An
- * abort and a `timeout` pass through unchanged.
+ * load's error as its cause, so it is that backend's outcome and the other backends go on. A
+ * `timeout` passes through unchanged. An abort needs no check: the call throws the abort reason
+ * once every backend has settled, whatever this outcome is.
  */
 async function loadClient(
   route: Route,
@@ -207,7 +210,7 @@ async function loadClient(
   try {
     return await withClient(route, dependencies, settings, budget);
   } catch (error: unknown) {
-    if (settings.signal?.aborted === true || error instanceof ExplorerVerifyError) {
+    if (error instanceof ExplorerVerifyError) {
       throw error;
     }
     throw new ExplorerVerifyError(
@@ -281,7 +284,8 @@ function checkRuns(
  * when it is absent or does not parse, for the duplicate check of an entry with no route.
  */
 function normalised(apiUrl: string | undefined): string {
-  const checked = apiUrl === undefined ? "" : checkApiUrl(apiUrl);
+  const checked = checkApiUrl(apiUrl);
+  // Stryker disable next-line StringLiteral: equivalent. Every entry without a usable apiUrl gets the same text, whatever it is.
   return typeof checked === "string" ? "" : checked.apiBase;
 }
 
@@ -312,6 +316,7 @@ async function runsOf(
   const reading = checked.find((each) => readsTable(each.checked));
   let table: RoutingTable | undefined;
   let failure: { readonly error: unknown } | undefined;
+  // Stryker disable next-line ConditionalExpression: equivalent when always true. Without an entry that reads the table, the failure of reading.checked is never used.
   if (reading !== undefined) {
     try {
       table = await tableFor(reading.checked, dependencies.table, settings, budget);
@@ -357,6 +362,7 @@ function tableFailure(
   const { details } = error;
   return details.code === "timeout"
     ? new ExplorerVerifyError({ ...details, backend: entry.backend }, error.message, {
+        // Stryker disable next-line ArrayDeclaration: equivalent. The message is the timeout's own, already redacted.
         secrets: [],
       })
     : error;
@@ -402,6 +408,7 @@ function entryError(error: unknown, override: Entry, index: number): unknown {
     `The backends option is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
       hint: renamed(error.hint, index),
+      // Stryker disable next-line StringLiteral,ArrayDeclaration: equivalent. The message and the issues name only fields, and the hint is fixed text.
       secrets: typeof override.apiKey === "string" ? [override.apiKey] : [],
     },
   );
@@ -432,6 +439,7 @@ function routeFor(
     // `unsupported-chain`, the only other error routeWith throws: this backend's outcome.
     return new ExplorerVerifyError(error.details, error.message, {
       hint: renamed(error.hint, index),
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the chain id and the backend name.
       secrets: [],
     });
   }
@@ -457,6 +465,7 @@ function everyListed(
   }
   const names: BackendName[] = [];
   // Backends whose table entry says its API refuses a request without a key (decision 0039).
+  // Stryker disable next-line ArrayDeclaration: equivalent. keyed is only searched for backend names.
   const keyed: BackendName[] = [];
   for (const entry of row.backends) {
     const name = toBackendName(entry.backend);
@@ -470,7 +479,8 @@ function everyListed(
   if (names.length === 0) {
     throw unsupported(
       chainId,
-      toBackendName(row.backends[0]?.backend ?? "") ?? "sourcify",
+      toBackendName(row.backends[0]?.backend) ?? "sourcify",
+      // Stryker disable next-line StringLiteral: equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".
       "client",
     );
   }
@@ -492,10 +502,11 @@ function entriesOf(options: VerifyEachOptions | undefined, settings: Settings): 
   const issues: InputIssue[] = [];
   let raw: unknown;
   try {
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. readOwn throws on undefined, and the catch block leaves raw undefined.
     raw = options === undefined ? undefined : readOwn(options, "backends");
   } catch {
-    // A getter or Proxy trap threw. Its error is dropped: it may repeat a caller value.
-    raw = undefined;
+    // A getter or Proxy trap threw. Its error is dropped: it may repeat a caller value. raw stays
+    // undefined.
   }
   if (settings.route !== undefined) {
     issues.push({
@@ -523,18 +534,20 @@ function listOf(raw: unknown, issues: InputIssue[]): Entry[] {
       items = [...list];
     }
   } catch {
-    items = undefined;
+    // Reading the array threw: items stays undefined.
   }
   if (items === undefined || items.length === 0 || items.length > MAX_BACKENDS) {
     issues.push({
       field: "backends",
       message: `must be "all" or an array of 1 to ${String(MAX_BACKENDS)} entries`,
     });
+    // Stryker disable next-line ArrayDeclaration: equivalent. An issue makes entriesOf throw, so the entries are never read.
     return [];
   }
   const entries: Entry[] = [];
   items.forEach((item, index) => {
     const entry = entryOf(item, `backends[${String(index)}]`, issues);
+    // Stryker disable next-line ConditionalExpression: equivalent when always true. An undefined entry comes with an issue, which makes entriesOf throw.
     if (entry !== undefined) {
       entries.push(entry);
     }
@@ -557,7 +570,7 @@ function entryOf(item: unknown, field: string, issues: InputIssue[]): Entry | un
     issues.push({ field, message: fields });
     return undefined;
   }
-  const backend = typeof fields.backend === "string" ? toBackendName(fields.backend) : undefined;
+  const backend = toBackendName(fields.backend);
   if (backend === undefined) {
     issues.push({ field: `${field}.backend`, message: "must name a known backend" });
     return undefined;

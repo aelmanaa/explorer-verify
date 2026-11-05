@@ -145,6 +145,7 @@ export interface Dialect {
  */
 export function etherscanStyle(dialect: Dialect): Backend {
   const { name, label, read } = dialect;
+  // Stryker disable next-line ArrayDeclaration: equivalent. No result starts with the text Stryker puts here.
   const rejections = dialect.rejections ?? [];
 
   /**
@@ -170,6 +171,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
         if (source === "") {
           return undefined;
         }
+        // Stryker disable next-line OptionalChaining: equivalent. first holds the SourceCode just read, so it exists.
         const similar = first?.get("SimilarMatch");
         if (similar === undefined || similar === "") {
           return "exact";
@@ -190,7 +192,8 @@ export function etherscanStyle(dialect: Dialect): Backend {
    */
   async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {
     const fields = standardJsonFields(input);
-    const args = (input.constructorArgs ?? "").replace(/^0x/i, "");
+    // validateInput gives 0x and an even number of hex digits: the digits follow the 0x.
+    const args = input.constructorArgs?.slice(2) ?? "";
     if (args !== "") {
       // Etherscan's docs name `constructorArguments`; the misspelled field is the one its own
       // examples and older tools send. Both carry the same bare hex.
@@ -249,6 +252,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
   ): Promise<SubmitOutcome> {
     const result = known(ctx, answer, input.chainId);
     if (answer.status === 200 && result !== undefined) {
+      // Stryker disable next-line OptionalChaining: equivalent. knownAnswer gives a result only for an answer with fields.
       if (answer.fields?.get("status") === "1" && JOB_ID.test(result)) {
         return {
           state: "submitted",
@@ -456,6 +460,7 @@ export function knownAnswer(
     throw new ExplorerVerifyError(
       { code: "unsupported-chain", backend: name, chainId },
       `${label} does not support chain ${String(chainId)}.`,
+      // Stryker disable next-line ObjectLiteral: equivalent. The message holds only the API's name and the chain id.
       { secrets: ctx.http.secrets },
     );
   }
@@ -533,16 +538,18 @@ function form(
  */
 export function rateLimited(body: string): boolean {
   // A lookup body can hold a whole source: only a body that holds the text is parsed.
+  // Stryker disable next-line ConditionalExpression,BlockStatement: equivalent when always false, for bodies that write the text unescaped, as Etherscan's do. The parse below gives false for such a body without the text; the check only saves the parse.
   if (!body.includes(RATE_LIMIT)) {
     return false;
   }
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(body);
-    const result = readFields(parsed)?.get("result");
-    return typeof result === "string" && result.startsWith(RATE_LIMIT);
+    parsed = JSON.parse(body);
   } catch {
-    return false;
+    // Not JSON: parsed stays undefined, so the body is not the rate-limit answer.
   }
+  const result = readFields(parsed)?.get("result");
+  return typeof result === "string" && result.startsWith(RATE_LIMIT);
 }
 
 function startsWithAny(text: string, prefixes: readonly string[]): boolean {

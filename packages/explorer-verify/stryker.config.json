@@ -12,7 +12,17 @@
     "src/observe.ts",
     "src/http/fetch.ts",
     "src/http/api-keys.ts",
-    "src/routing/resolve.ts"
+    "src/routing/resolve.ts",
+    "src/flow/verify-each.ts",
+    "src/flow/link-proxy.ts",
+    "src/backends/proxy-common.ts",
+    "src/backends/proxy-etherscan.ts",
+    "src/backends/proxy-blockscout.ts",
+    "src/backends/proxy-sourcify.ts",
+    "src/backends/etherscan.ts",
+    "src/backends/etherscan-compatible.ts",
+    "src/backends/routescan.ts",
+    "src/backends/blockscout.ts"
   ],
   "tap": {
     "testFiles": ["test/unit/!(skill|user-docs).test.ts"],
