@@ -5,8 +5,9 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { REDACTED } from "../../src/redact.ts";
-import { resolveRoute, tableTarget, unsupported } from "../../src/routing/resolve.ts";
+import { tableTarget, unsupported } from "../../src/routing/resolve.ts";
 import type { TableEntry } from "../../src/routing/resolve.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const SEPOLIA = 11155111;
 const STANDALONE_API = "https://explorer.example.org/api";

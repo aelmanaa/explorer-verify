@@ -22,7 +22,6 @@ import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import { DEFAULT_LINK_DEPENDENCIES, runLinkProxy } from "../../src/flow/link-proxy.ts";
 import type { LinkDependencies } from "../../src/flow/link-proxy.ts";
 import { linkProxy } from "../../src/index.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type {
   LinkProxyResult,
   LinkProxyTarget,
@@ -32,6 +31,7 @@ import type {
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const SEPOLIA = 11155111;
 const PROXY = "0xed5b8413e605598ef86cd7617f12701f74ca255c";

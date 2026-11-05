@@ -9,9 +9,10 @@ import { runCheckStatus } from "../../src/flow/status.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import { keyFor } from "../../src/http/api-keys.ts";
 import type { ApiKeys } from "../../src/http/api-keys.ts";
-import { SOURCIFY_API_URL, resolveRoute } from "../../src/routing/resolve.ts";
+import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
+import { resolveRoute } from "../helpers/route.ts";
 import { apiUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 
 const ETHERSCAN_KEY = "etherscan-dummy-key-59a1";

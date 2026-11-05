@@ -13,8 +13,8 @@ import type { Budget } from "../http/fetch.ts";
 import { validateInput } from "../input/validate.ts";
 import { readOwn } from "../internal/read-fields.ts";
 import { createObserver } from "../observe.ts";
-import { ROUTING_TABLE, checkApiUrl, tableTarget, unsupported } from "../routing/resolve.ts";
-import type { Route } from "../routing/resolve.ts";
+import { checkApiUrl, readsTable, tableTarget, unsupported } from "../routing/resolve.ts";
+import type { CheckedRoute, Route, RoutingTable } from "../routing/resolve.ts";
 import type {
   BackendEntry,
   BackendOutcome,
@@ -26,9 +26,12 @@ import type {
 import {
   DEFAULT_DEPENDENCIES,
   abortWins,
-  routeOf,
+  checkRouteOf,
+  loadTable,
+  routeWith,
   settingsOf,
   startBudget,
+  tableFor,
   verifyOnRoute,
   withClient,
 } from "./verify.ts";
@@ -70,7 +73,10 @@ const BACKENDS_HINT =
  *    error keeps its handle, so `checkStatus()` with that entry's route resumes that backend alone.
  *    A backend the chain's row does not list is an `unsupported-chain` outcome, and a client
  *    module that fails to load a `network` outcome with the load's error as its cause; the other
- *    backends still run.
+ *    backends still run. The routing table loads only when an entry needs it, mostly one without
+ *    `apiUrl`, or for `"all"` (decision 0040). When it fails to load, each entry that needs it
+ *    gets that outcome too, as a client's load failure; for `"all"`, the call throws the load's
+ *    error.
  *
  * It emits `verify.validated` once, then each backend's events as `verify()` emits them. Every
  * event after the first carries its `backend`, so the streams interleave.
@@ -131,12 +137,8 @@ export async function runVerifyEach(
   return await abortWins(settings.signal, async () => {
     const checked = validateInput(input);
     const { chainId } = checked;
-    const runs = (entries === "all" ? everyListed(chainId, settings, dependencies) : entries).map(
-      (entry, index): Run => ({
-        entry,
-        route: routeFor(chainId, settings, entry, index, dependencies),
-      }),
-    );
+    const budget = startBudget(settings);
+    const runs = await runsOf(chainId, entries, settings, dependencies, budget);
     // Every entry's key is a secret of every call, whether its route resolved or not, so no
     // output of one backend shows another's.
     const secrets = [
@@ -146,7 +148,6 @@ export async function runVerifyEach(
     const everySecret = [...secrets, ...settings.rpcSecrets];
     checkRuns(runs, settings, checked.address, chainId, everySecret);
     const shared: Settings = { ...settings, keySecrets: () => secrets };
-    const budget = startBudget(settings);
     createObserver({
       logger: settings.logger,
       onEvent: settings.onEvent,
@@ -285,8 +286,132 @@ function normalised(apiUrl: string | undefined): string {
 }
 
 /**
- * The route of one entry. `unsupported-chain` is returned, as that backend's outcome; an
- * `invalid-input` is thrown with its fields named after the entry, such as `backends[1].apiUrl`.
+ * The runs of the call: each entry with its route. Every entry is checked before the routing table
+ * loads, and the table loads only when an entry needs it (`readsTable`), or for `"all"`, which
+ * reads the chain's row (decision 0040). For `"all"`, a table that fails to load throws, as in `verify()`.
+ * For a list, it is the outcome of each entry that reads the table, as a client's load failure is.
+ */
+async function runsOf(
+  chainId: number,
+  entries: readonly Entry[] | "all",
+  settings: Settings,
+  dependencies: FlowDependencies,
+  budget: Budget,
+): Promise<Run[]> {
+  if (entries === "all") {
+    const table = await loadTable(dependencies.table, "sourcify", settings, budget);
+    return everyListed(chainId, settings, dependencies, table).map((entry, index) => ({
+      entry,
+      route: routeFor(chainId, settings, entry, index, dependencies, table),
+    }));
+  }
+  const checked = entries.map((entry, index) => ({
+    entry,
+    checked: checkEntry(chainId, settings, entry, index, dependencies),
+  }));
+  const reading = checked.find((each) => readsTable(each.checked));
+  let table: RoutingTable | undefined;
+  let failure: { readonly error: unknown } | undefined;
+  if (reading !== undefined) {
+    try {
+      table = await tableFor(reading.checked, dependencies.table, settings, budget);
+    } catch (error: unknown) {
+      if (settings.signal?.aborted === true) {
+        throw error;
+      }
+      failure = { error };
+    }
+  }
+  // As loadClient's: every key of the call, every entry's included, and the RPC secrets.
+  const secrets = [
+    ...settings.keySecrets(),
+    ...entries.flatMap((entry) => (entry.apiKey === undefined ? [] : [entry.apiKey])),
+    ...settings.rpcSecrets,
+  ];
+  return checked.map(({ entry, checked: each }, index) => ({
+    entry,
+    route:
+      failure !== undefined && readsTable(each)
+        ? tableFailure(entry, failure.error, secrets)
+        : routeFor(chainId, settings, entry, index, dependencies, table, each),
+  }));
+}
+
+/**
+ * The outcome of an entry that reads a routing table that failed to load, as `loadClient` maps a
+ * client's: a `timeout` names the entry's backend, another `ExplorerVerifyError` stays as it is,
+ * and any other error becomes `network` with it as the cause.
+ */
+function tableFailure(
+  entry: Entry,
+  error: unknown,
+  secrets: readonly string[],
+): ExplorerVerifyError {
+  if (!(error instanceof ExplorerVerifyError)) {
+    return new ExplorerVerifyError(
+      { code: "network", backend: entry.backend, attempts: 1 },
+      "Loading the routing table failed.",
+      { secrets, cause: error },
+    );
+  }
+  const { details } = error;
+  return details.code === "timeout"
+    ? new ExplorerVerifyError({ ...details, backend: entry.backend }, error.message, {
+        secrets: [],
+      })
+    : error;
+}
+
+/** `text` with `route` named after the entry, such as `backends[1].apiUrl`. */
+function renamed(text: string, index: number): string {
+  return text.replaceAll(/\broute\b(?=\.|$)/g, `backends[${String(index)}]`);
+}
+
+/**
+ * Checks one entry as a route override. An `invalid-input` is thrown with its fields named after
+ * the entry, such as `backends[1].apiUrl`.
+ */
+function checkEntry(
+  chainId: number,
+  settings: Settings,
+  override: Entry,
+  index: number,
+  dependencies: FlowDependencies,
+): CheckedRoute {
+  try {
+    return checkRouteOf(chainId, { ...settings, route: override }, dependencies);
+  } catch (error: unknown) {
+    throw entryError(error, override, index);
+  }
+}
+
+/**
+ * `error` with an `invalid-input`'s fields and hint named after the entry, such as
+ * `backends[1].apiKey`; any other error unchanged, to be thrown.
+ */
+function entryError(error: unknown, override: Entry, index: number): unknown {
+  if (!(error instanceof ExplorerVerifyError) || error.details.code !== "invalid-input") {
+    return error;
+  }
+  const issues = error.details.issues.map((issue) => ({
+    field: renamed(issue.field, index),
+    message: issue.message,
+  }));
+  return new ExplorerVerifyError(
+    { code: "invalid-input", issues },
+    `The backends option is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
+    {
+      hint: renamed(error.hint, index),
+      secrets: typeof override.apiKey === "string" ? [override.apiKey] : [],
+    },
+  );
+}
+
+/**
+ * The route of one entry, checked with {@link checkEntry} unless `checked` is given. An
+ * `unsupported-chain` is returned, as that backend's outcome, with its hint naming the entry. An
+ * `invalid-input` that needs the row, a `route.apiKey` for a standalone explorer that takes none
+ * (decision 0039), is thrown with its fields named after the entry.
  */
 function routeFor(
   chainId: number,
@@ -294,35 +419,21 @@ function routeFor(
   override: Entry,
   index: number,
   dependencies: FlowDependencies,
+  table: RoutingTable | undefined,
+  checked: CheckedRoute = checkEntry(chainId, settings, override, index, dependencies),
 ): Route | ExplorerVerifyError {
+  const own: Settings = { ...settings, route: override };
   try {
-    return routeOf(chainId, { ...settings, route: override }, dependencies);
+    return routeWith(chainId, checked, own, dependencies, table);
   } catch (error: unknown) {
-    if (!(error instanceof ExplorerVerifyError)) {
-      throw error;
+    if (!(error instanceof ExplorerVerifyError) || error.details.code === "invalid-input") {
+      throw entryError(error, override, index);
     }
-    // The fields and the hint name the entry, such as backends[1].apiUrl, not route.apiUrl.
-    const rename = (text: string): string =>
-      text.replaceAll(/\broute\b(?=\.|$)/g, `backends[${String(index)}]`);
-    if (error.details.code !== "invalid-input") {
-      // `unsupported-chain`, the only other error resolveRoute throws: this backend's outcome.
-      return new ExplorerVerifyError(error.details, error.message, {
-        hint: rename(error.hint),
-        secrets: [],
-      });
-    }
-    const issues = error.details.issues.map((issue) => ({
-      field: rename(issue.field),
-      message: issue.message,
-    }));
-    throw new ExplorerVerifyError(
-      { code: "invalid-input", issues },
-      `The backends option is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
-      {
-        hint: rename(error.hint),
-        secrets: typeof override.apiKey === "string" ? [override.apiKey] : [],
-      },
-    );
+    // `unsupported-chain`, the only other error routeWith throws: this backend's outcome.
+    return new ExplorerVerifyError(error.details, error.message, {
+      hint: renamed(error.hint, index),
+      secrets: [],
+    });
   }
 }
 
@@ -331,8 +442,13 @@ function routeFor(
  * in the row's order. A chain with no row gives Sourcify when `allowSourcifyFallback` is set, and
  * otherwise throws `unsupported-chain`, as `verify()` does.
  */
-function everyListed(chainId: number, settings: Settings, dependencies: FlowDependencies): Entry[] {
-  const row = (dependencies.table ?? ROUTING_TABLE).chains.find((each) => each.chainId === chainId);
+function everyListed(
+  chainId: number,
+  settings: Settings,
+  dependencies: FlowDependencies,
+  table: RoutingTable,
+): Entry[] {
+  const row = table.chains.find((each) => each.chainId === chainId);
   if (row === undefined) {
     if (settings.allowSourcifyFallback === true) {
       return [{ backend: "sourcify" }];

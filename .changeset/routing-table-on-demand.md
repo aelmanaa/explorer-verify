@@ -1,0 +1,8 @@
+---
+"explorer-verify": minor
+"@explorer-verify/cli": patch
+---
+
+Breaking: `routingTableDate()` returns a `Promise<string>`. The routing table's rows are now a module of their own, which a call loads with a dynamic `import()` only when its route needs them. A call without a route loads them once and keeps them. So does a call with `route.apiUrl` that may be a URL the table lists: `etherscan-v2` at `https://api.etherscan.io/v2/api`, `blockscout` at any `https` URL whose path is `/api`, or `etherscan-compatible` at any `https` URL, a proxy included. The table gives such a call the row's explorer page and, for a standalone explorer, whether it needs a key. A call with any other `route.apiUrl`, such as Sourcify, Routescan, a local server or an Etherscan proxy, never loads them. Vite, Rollup and webpack put the rows in a chunk of their own, and esbuild does the same with `--splitting`. Measured with esbuild, `verify` is 14,861 bytes gzipped and the rows 3,042, so a page that verifies on Sourcify with `route.apiUrl` ships 17,728 bytes instead of 21,292. The load counts against `timeoutMs` and stops when the signal aborts. A table that fails to load rejects the call with the loader's error; in `verifyEach()` with a list of backends, it is the outcome of each entry that needs the table. The `missing-api-key` message for a route with `route.apiUrl` names the backend's API host, such as `api.etherscan.io`, also on a chain the table does not list. Issue: https://github.com/aelmanaa/explorer-verify/issues/192
+
+What should I do? Replace `routingTableDate()` with `await routingTableDate()`. The CLI's `--version --json` output does not change.

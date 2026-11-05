@@ -19,11 +19,11 @@ import { DEFAULT_DEPENDENCIES } from "../../src/flow/verify.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { checkStatus, verify } from "../../src/index.ts";
 import { validateInput } from "../../src/input/validate.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { Handle, VerifyEvent, VerifyInput, VerifyOptions } from "../../src/types.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 // Hedera Testnet: the prior art listed a standalone host for it, which did not resolve.
 const CHAIN = 296;

@@ -11,9 +11,10 @@ import { inspect } from "node:util";
 import { BACKEND_NAMES } from "../../src/backend-names.ts";
 import type { BackendName } from "../../src/backend-names.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { SOURCIFY_API_URL, resolveRoute } from "../../src/routing/resolve.ts";
+import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { Route } from "../../src/routing/resolve.ts";
 import type { Hex, RouteOverride } from "../../src/types.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const DUMMY_KEY = "DUMMYKEYzq9x7w5v3u1t";

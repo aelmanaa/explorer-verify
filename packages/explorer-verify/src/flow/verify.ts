@@ -18,8 +18,15 @@ import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-ar
 import { validateInput } from "../input/validate.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
-import { checkApiUrl, resolveRoute, unsupported } from "../routing/resolve.ts";
-import type { Route, RoutingTable } from "../routing/resolve.ts";
+import {
+  checkApiUrl,
+  checkRoute,
+  loadRoutingTable,
+  readsTable,
+  routeFrom,
+  unsupported,
+} from "../routing/resolve.ts";
+import type { CheckedRoute, Route, RoutingTable, TableLoader } from "../routing/resolve.ts";
 import type {
   Handle,
   Logger,
@@ -79,8 +86,11 @@ export interface FlowDependencies {
   readonly backends: Readonly<Partial<Record<BackendName, Client>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
-  /** The routing table. Defaults to the shipped one; the tests pass rows for clients to come. */
-  readonly table?: RoutingTable;
+  /**
+   * The routing table, or the function that loads it. Defaults to {@link loadRoutingTable}, the
+   * shipped one; the tests pass rows for clients to come.
+   */
+  readonly table?: RoutingTable | TableLoader;
   /** Loads the constructor argument derivation. Defaults to the shipped one; tests pass others. */
   readonly derivation?: DeriveLoader;
 }
@@ -104,6 +114,8 @@ export const DEFAULT_DEPENDENCIES: FlowDependencies = {
     /** Loads the Blockscout client. */
     blockscout: async () => (await import("../backends/blockscout.ts")).blockscout,
   },
+  /** Loads the routing table, only for a call without `route.apiUrl` (decision 0040). */
+  table: loadRoutingTable,
 };
 
 /**
@@ -251,6 +263,9 @@ const LOADED = new WeakMap<ClientLoader, Backend>();
 
 /** The derivation each loader has given, by loader, as {@link LOADED} keeps clients. */
 const DERIVATIONS = new WeakMap<DeriveLoader, typeof WithDerivedArgs>();
+
+/** The table each loader has given, by loader, as {@link LOADED} keeps clients (decision 0040). */
+const TABLES = new WeakMap<TableLoader, RoutingTable>();
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
@@ -409,8 +424,9 @@ async function verifyWith(
   dependencies: FlowDependencies,
 ): Promise<VerifyResult> {
   const checked = validateInput(input);
-  const route = routeOf(checked.chainId, settings, dependencies);
-  return await verifyOnRoute(checked, route, settings, dependencies, startBudget(settings), true);
+  const budget = startBudget(settings);
+  const route = await routeOf(checked.chainId, settings, dependencies, budget);
+  return await verifyOnRoute(checked, route, settings, dependencies, budget, true);
 }
 
 /**
@@ -884,27 +900,145 @@ function invalidOptions(
  * override, the keys and the Sourcify fallback (R-RT-1 to R-RT-3). `verify()` and `checkStatus()`
  * both resolve through it, so a resumed job resolves the same route from the same options.
  *
+ * It checks the override first, then loads the routing table only when the route needs it: a
+ * call whose `route.apiUrl` cannot be a URL the table lists loads no table (decision 0040). The
+ * load counts against the budget and ends on an abort, as a client's load does (decision 0031).
+ *
  * @param chainId - The chain of the call.
  * @param settings - The options from {@link settingsOf}.
  * @param dependencies - The backend clients: `route.backend` must name one of them.
+ * @param budget - The call's budget, from {@link startBudget}.
  * @returns The route.
- * @throws ExplorerVerifyError `invalid-input` or `unsupported-chain`, as `resolveRoute` throws them.
+ * @throws ExplorerVerifyError `invalid-input` or `unsupported-chain`, as `resolveRoute` throws
+ *   them; what {@link tableFor} throws.
  * @example
  * ```ts
- * const route = routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES);
+ * const route = await routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES, budget);
  * ```
  */
-export function routeOf(
+export async function routeOf(
   chainId: number,
   settings: Settings,
   dependencies: FlowDependencies,
+  budget: Budget,
+): Promise<Route> {
+  const checked = checkRouteOf(chainId, settings, dependencies);
+  const table = await tableFor(checked, dependencies.table, settings, budget);
+  return routeWith(chainId, checked, settings, dependencies, table);
+}
+
+/**
+ * The first step of {@link routeOf}: checks the call's route override. It loads nothing.
+ *
+ * @param chainId - The chain of the call.
+ * @param settings - The options from {@link settingsOf}: the route override.
+ * @param dependencies - The backend clients: `route.backend` must name one of them.
+ * @returns The checked override.
+ * @throws ExplorerVerifyError `invalid-input`, as `resolveRoute` throws it.
+ * @example
+ * ```ts
+ * const checked = checkRouteOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES);
+ * ```
+ */
+export function checkRouteOf(
+  chainId: number,
+  settings: Settings,
+  dependencies: FlowDependencies,
+): CheckedRoute {
+  return checkRoute(chainId, settings.route, clientsOf(dependencies));
+}
+
+/**
+ * The routing table a checked route reads, loaded, or `undefined` for a route that `readsTable`
+ * says needs none (decision 0040). A loader runs once per page or process: what
+ * it gave is kept, and a load that failed is tried again by the next call. The load ends when the
+ * caller's signal aborts, with `signal.reason`, or when the budget runs out, with `timeout`
+ * naming the backend of `route.backend`, or `sourcify`, the fallback, when none is named.
+ *
+ * @param checked - The checked override, from {@link checkRouteOf}.
+ * @param source - The routing table, or the function that loads it; {@link loadRoutingTable}
+ *   when absent.
+ * @param settings - The options from {@link settingsOf}: the signal.
+ * @param budget - The call's budget, from {@link startBudget}.
+ * @returns The table, or `undefined` when the route reads none.
+ * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
+ *   the budget runs out; what the loader throws, such as the error of a chunk that fails to load.
+ * @example
+ * ```ts
+ * const table = await tableFor(checked, DEFAULT_DEPENDENCIES.table, settings, budget);
+ * ```
+ */
+export async function tableFor(
+  checked: CheckedRoute,
+  source: RoutingTable | TableLoader | undefined,
+  settings: Settings,
+  budget: Budget,
+): Promise<RoutingTable | undefined> {
+  return readsTable(checked)
+    ? await loadTable(source, checked.named ?? "sourcify", settings, budget)
+    : undefined;
+}
+
+/**
+ * Loads the routing table, as {@link tableFor} does, whatever the route.
+ *
+ * @param source - The routing table, or the function that loads it; {@link loadRoutingTable}
+ *   when absent.
+ * @param name - The backend a `timeout` names.
+ * @param settings - The options from {@link settingsOf}: the signal.
+ * @param budget - The call's budget, from {@link startBudget}.
+ * @returns The table.
+ * @throws As {@link tableFor} throws.
+ * @example
+ * ```ts
+ * const table = await loadTable(DEFAULT_DEPENDENCIES.table, "sourcify", settings, budget);
+ * ```
+ */
+export async function loadTable(
+  source: RoutingTable | TableLoader | undefined,
+  name: BackendName,
+  settings: Settings,
+  budget: Budget,
+): Promise<RoutingTable> {
+  const table = source ?? loadRoutingTable;
+  return typeof table === "function"
+    ? await bounded(table, TABLES, "the routing table", name, settings.signal, budget)
+    : table;
+}
+
+/**
+ * The last step of {@link routeOf}: the route of a checked override, with the table it reads.
+ *
+ * @param chainId - The chain of the call.
+ * @param checked - The checked override, from {@link checkRouteOf}.
+ * @param settings - The options from {@link settingsOf}: the keys and the fallback option.
+ * @param dependencies - The backend clients.
+ * @param table - The table, from {@link tableFor}.
+ * @returns The route.
+ * @throws ExplorerVerifyError `unsupported-chain`, as `resolveRoute` throws it.
+ * @example
+ * ```ts
+ * const route = routeWith(11155111, checked, settings, DEFAULT_DEPENDENCIES, table);
+ * ```
+ */
+export function routeWith(
+  chainId: number,
+  checked: CheckedRoute,
+  settings: Settings,
+  dependencies: FlowDependencies,
+  table: RoutingTable | undefined,
 ): Route {
-  return resolveRoute(chainId, settings.route, {
+  return routeFrom(chainId, checked, {
     apiKeys: settings.apiKeys(),
     allowSourcifyFallback: settings.allowSourcifyFallback === true,
-    clients: BACKEND_NAMES.filter((name) => dependencies.backends[name] !== undefined),
-    table: dependencies.table,
+    clients: clientsOf(dependencies),
+    table,
   });
+}
+
+/** The backends with a client in `dependencies`, loaded or not. */
+function clientsOf(dependencies: FlowDependencies): BackendName[] {
+  return BACKEND_NAMES.filter((name) => dependencies.backends[name] !== undefined);
 }
 
 /**

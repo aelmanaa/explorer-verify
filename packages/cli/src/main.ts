@@ -381,7 +381,7 @@ async function runCli(
     io.stdout.write(
       args.help
         ? infoText(helpResult(commands, command), args.json, helpText)
-        : infoText(versionResult(), args.json, versionText),
+        : infoText(await versionResult(), args.json, versionText),
     );
     return 0;
   }

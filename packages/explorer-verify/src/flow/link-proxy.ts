@@ -13,8 +13,8 @@ import { sleep } from "../http/fetch.ts";
 import type { Budget } from "../http/fetch.ts";
 import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Observer } from "../observe.ts";
-import { resolveRoute } from "../routing/resolve.ts";
-import type { Route, RoutingTable } from "../routing/resolve.ts";
+import { checkRoute, routeFrom } from "../routing/resolve.ts";
+import type { Route, RoutingTable, TableLoader } from "../routing/resolve.ts";
 import type { Hex, LinkProxyResult, LinkProxyTarget, VerifyOptions } from "../types.ts";
 import {
   MAX_POLL_FAILURES,
@@ -23,6 +23,7 @@ import {
   openContext,
   settingsOf,
   startBudget,
+  tableFor,
 } from "./verify.ts";
 import type { Settings } from "./verify.ts";
 
@@ -38,8 +39,11 @@ export interface LinkDependencies {
   readonly linkers: Readonly<Partial<Record<BackendName, ProxyLinker | LinkerLoader>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
-  /** The routing table. Defaults to the shipped one. */
-  readonly table?: RoutingTable;
+  /**
+   * The routing table, or the function that loads it. Defaults to the shipped one, loaded only
+   * for a call without `route.apiUrl` (decision 0040).
+   */
+  readonly table?: RoutingTable | TableLoader;
 }
 
 /**
@@ -177,20 +181,24 @@ export async function runLinkProxy(
   if (chosen !== undefined && dependencies.linkers[chosen] === undefined) {
     throw cannotLink(chosen, settings);
   }
-  const route = resolveRoute(target.chainId, settings.route, {
-    apiKeys: settings.apiKeys(),
-    allowSourcifyFallback: settings.allowSourcifyFallback === true,
-    clients: BACKEND_NAMES,
-    ...(dependencies.table === undefined ? {} : { table: dependencies.table }),
-  });
-  const load = dependencies.linkers[route.backend];
-  // A standalone entry of the routing table is not linked: Bitlayer refuses the POSTs a link
-  // sends, and no standalone explorer's proxy answers were probed (decision 0039).
-  if (load === undefined || (route.backend === "etherscan-compatible" && !route.overridden)) {
-    throw cannotLink(route.backend, settings);
-  }
+  const checked = checkRoute(target.chainId, settings.route, BACKEND_NAMES);
+  // The routing table and the linker load inside abortWins, as in verify(): an abort during a
+  // load rejects with signal.reason. Most routes with route.apiUrl load no table (decision 0040).
   return await abortWins(settings.signal, async () => {
     const budget = startBudget(settings);
+    const table = await tableFor(checked, dependencies.table, settings, budget);
+    const route = routeFrom(target.chainId, checked, {
+      apiKeys: settings.apiKeys(),
+      allowSourcifyFallback: settings.allowSourcifyFallback === true,
+      clients: BACKEND_NAMES,
+      ...(table === undefined ? {} : { table }),
+    });
+    const load = dependencies.linkers[route.backend];
+    // A standalone entry of the routing table is not linked: Bitlayer refuses the POSTs a link
+    // sends, and no standalone explorer's proxy answers were probed (decision 0039).
+    if (load === undefined || (route.backend === "etherscan-compatible" && !route.overridden)) {
+      throw cannotLink(route.backend, settings);
+    }
     const linker =
       typeof load === "function"
         ? await bounded(

@@ -11,8 +11,8 @@ import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { parseHandle } from "../../src/flow/handle.ts";
 import { createObserver } from "../../src/observe.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import type { Handle, Hex, SolidityStandardJsonInput, VerifyInput } from "../../src/types.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const CHAIN_ID = 11155111;
 const ADDRESS: Hex = "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC";

@@ -82,7 +82,9 @@ backends, in order of preference. An entry holds the backend name and only what 
 
 The table also has `schemaVersion`, 3, and `checked`, the date its rows were last checked. Schema
 3 adds the `etherscan-compatible` entry to schema 2; the library reads a schema 2 table too.
-`routingTableDate()` returns that date, and the CLI prints it with `explorer-verify --version --json`.
+`routingTableDate()` returns a promise of that date, because it loads the table
+([table chunk](#table-chunk)): `await routingTableDate()` gives a `YYYY-MM-DD` string. The CLI
+prints it with `explorer-verify --version --json`.
 
 The library derives every URL from the entry:
 
@@ -275,7 +277,8 @@ The CLI sets it with `--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routin
 A key from `apiKeys` goes only to the host the routing table lists for the route's backend and
 chain, over `https:` on the default port, and only when the route comes from the table. A route
 whose `apiUrl` you set gets no key from `apiKeys`, even when it names the table's own host: pass
-`route.apiKey` for it. [API keys](api-keys.md) has the full rule.
+`route.apiKey` for it. The `missing-api-key` message for such a route names the backend's API
+host, such as `api.etherscan.io`, where a key from `apiKeys` would go. [API keys](api-keys.md) has the full rule.
 
 ## Resuming
 
@@ -300,6 +303,33 @@ The load counts against `timeoutMs`: a client that has not loaded when the budge
 to load, such as a chunk the page cannot fetch, rejects the call with the loader's error, before
 any request to an explorer; the next call tries again. A client that loaded is kept, so later
 calls on the same backend do not wait for it.
+
+## Table chunk
+
+The routing table's rows are a module of their own too. A call loads them with a dynamic
+`import()` only when its route needs them, after the input and the options pass their checks:
+
+| Route                                                          | Loads the table |
+| -------------------------------------------------------------- | --------------- |
+| No `route`, or `route.backend` without `route.apiUrl`          | Yes             |
+| `etherscan-v2` with `apiUrl` `https://api.etherscan.io/v2/api` | Yes             |
+| `blockscout` with an `https` `apiUrl` whose path is `/api`     | Yes             |
+| `etherscan-compatible` with an `https` `apiUrl`                | Yes             |
+| Any other `route.apiUrl`, such as a local server or a proxy    | No              |
+
+The three cases with `apiUrl` load the table only to read what the row says about its own API
+URL: the result keeps its `explorerUrl`, and a standalone entry with `needsKey` still needs
+`route.apiKey`, when `apiUrl` is the row's own API URL. `verifyEach()` loads the table when
+one of its entries needs it, or for `backends: "all"`. `checkStatus()` and `linkProxy()` follow the
+same rule as `verify()`.
+
+The load counts against `timeoutMs` and ends on an abort, as a client's does. A load that does
+not end in time throws `timeout` naming `route.backend`, or `sourcify` when no backend is named,
+even when the table would have routed the call to another backend. A table that fails
+to load rejects the call with the loader's error; in `verifyEach()` with a list, it is the outcome
+of each entry that needs the table, and the other entries run. A table that loaded is kept for
+later calls. [Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide
+lists its size.
 
 ## Errors
 

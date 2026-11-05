@@ -1,13 +1,12 @@
 {
-  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030, 0031, 0032, 0033, 0034, 0036 and 0038). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decision 0031). A page that verifies on one backend ships an entry plus that backend's chunk. An entry with oneFile is measured as one file with every client inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table; the routing table entry measures the rows alone, and verify with table measures the verify entry with its rows (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
-  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify, verify (one file), checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63; the constructor-args chunk on 2026-11-04 on main f26cd8d plus #64 (decision 0032); verifyEach on 2026-11-04 on main deba6de plus #95 (decision 0034); linkProxy and the proxy-etherscan, proxy-blockscout and proxy-sourcify chunks on 2026-11-04 on main 2c9ad23 plus #94, and index on main 38365f3 plus #94 (decision 0033). The routing table and verify with table entries were measured on 2026-11-05 on main c2142eb plus #169 (decision 0038); resolveInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput and createVerifyHandler keep the ceilings of decision 0014.",
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030, 0031, 0032, 0033, 0034, 0036, 0038 and 0040). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client and the routing table, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decisions 0031 and 0040). A page that verifies on one backend ships an entry plus that backend's chunk, and the `table` chunk when the call reads the routing table. An entry with oneFile is measured as one file with every dynamic import inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table, so its size is the code's (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
+  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify, verify (one file), checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63; the constructor-args chunk on 2026-11-04 on main f26cd8d plus #64 (decision 0032); verifyEach on 2026-11-04 on main deba6de plus #95 (decision 0034); linkProxy and the proxy-etherscan, proxy-blockscout and proxy-sourcify chunks on 2026-11-04 on main 2c9ad23 plus #94, and index on main 38365f3 plus #94 (decision 0033). The table chunk was measured on 2026-11-05 on main 0ee4ea4 plus #192 (decision 0040); resolveInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput and createVerifyHandler keep the ceilings of decision 0014.",
   "entries": [
     {
       "name": "verify",
       "code": "export { verify } from \"explorer-verify\";",
       "measuredBytes": 13611,
-      "ceilingBytes": 16334,
-      "withoutTable": true
+      "ceilingBytes": 16334
     },
     {
       "name": "verify (one file)",
@@ -18,31 +17,22 @@
       "oneFile": true
     },
     {
-      "name": "verify with table",
-      "code": "export { verify } from \"explorer-verify\";",
-      "measuredBytes": 18208,
-      "ceilingBytes": 21850
-    },
-    {
       "name": "checkStatus",
       "code": "export { checkStatus } from \"explorer-verify\";",
       "measuredBytes": 11730,
-      "ceilingBytes": 14076,
-      "withoutTable": true
+      "ceilingBytes": 14076
     },
     {
       "name": "verifyEach",
       "code": "export { verifyEach } from \"explorer-verify\";",
       "measuredBytes": 15263,
-      "ceilingBytes": 18316,
-      "withoutTable": true
+      "ceilingBytes": 18316
     },
     {
       "name": "linkProxy",
       "code": "export { linkProxy } from \"explorer-verify\";",
       "measuredBytes": 11260,
-      "ceilingBytes": 13512,
-      "withoutTable": true
+      "ceilingBytes": 13512
     },
     {
       "name": "buildVerifyInput",
@@ -55,14 +45,7 @@
       "name": "index",
       "code": "export * from \"explorer-verify\";",
       "measuredBytes": 26258,
-      "ceilingBytes": 31510,
-      "withoutTable": true
-    },
-    {
-      "name": "routing table",
-      "code": "export { default } from \"./dist/src/routing/table.json\";",
-      "measuredBytes": 2971,
-      "ceilingBytes": 3566
+      "ceilingBytes": 31510
     },
     {
       "name": "createVerifyHandler",
@@ -123,6 +106,11 @@
       "name": "proxy-sourcify",
       "measuredBytes": 3350,
       "ceilingBytes": 4020
+    },
+    {
+      "name": "table",
+      "measuredBytes": 3042,
+      "ceilingBytes": 3651
     }
   ]
 }

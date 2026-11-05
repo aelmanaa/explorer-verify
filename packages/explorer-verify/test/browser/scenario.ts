@@ -2,6 +2,10 @@
 // runs it, and runs that bundle in Node and in headless Chromium against a local server that
 // replays recorded Sourcify answers. Both runs must give the same results.
 //
+// The full run and the resume pass the replay server as `route.apiUrl`, so they load no routing
+// table. The table run passes no route: the table routes the call to Sourcify, and a `fetch`
+// option sends Sourcify's requests to the replay server (decision 0040).
+//
 // `verify` and `checkStatus` come from the built package, as a dapp imports them. Keccak-256 is
 // internal and not exported, so the vectors run on its source file, bundled with the rest.
 import { checkStatus, verify } from "explorer-verify";
@@ -11,6 +15,8 @@ import { createVerifyHandler } from "explorer-verify/server";
 import { keccak256 } from "../../src/internal/keccak.ts";
 import vectors from "../fixtures/keccak256-vectors.json" with { type: "json" };
 
+// The public Sourcify API, where the routing table sends a Sepolia call that needs no key.
+const SOURCIFY_API = "https://sourcify.dev/server";
 // The Greeter on Sepolia whose responses the fixtures recorded. scripts/browser-smoke.ts expects
 // this address in the handle.
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
@@ -174,23 +180,65 @@ async function resumeScenario(handle: string, apiUrl: string): Promise<Outcome> 
 }
 
 /**
+ * Runs only `verify()` without a route, in a fresh realm: the routing table chooses Sourcify for
+ * Sepolia, which needs no key, so the call loads the table's chunk (decision 0040). The `fetch`
+ * option sends each request for the public Sourcify API to the replay server instead.
+ *
+ * @param apiUrl - The base URL of the server that replays Sourcify's answers.
+ * @returns The outcome: already verified, with the row's explorer page.
+ */
+async function tableScenario(apiUrl: string): Promise<Outcome> {
+  const viaReplay: typeof fetch = async (input, init) => {
+    const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+    const sent = url.startsWith(`${SOURCIFY_API}/`)
+      ? `${apiUrl}${url.slice(SOURCIFY_API.length)}`
+      : url;
+    return await globalThis.fetch(sent, init);
+  };
+  return await settle(
+    verify(
+      {
+        chainId: SEPOLIA,
+        address: GREETER,
+        compiler: {
+          kind: "solc",
+          version: "0.8.24+commit.e11b9ed9",
+          input: {
+            language: "Solidity",
+            sources: { "contracts/Greeter.sol": { content: "contract Greeter {}" } },
+            settings: { optimizer: { enabled: true, runs: 200 } },
+          },
+        },
+        contractName: "contracts/Greeter.sol:Greeter",
+      },
+      { fetch: viaReplay, timeoutMs: TIMEOUT_MS },
+    ),
+  );
+}
+
+/**
  * Starts the scenario the test asked for and leaves its promise on `explorerVerifySmoke`. The test
- * sets `explorerVerifySmokeConfig` first: `apiUrl`, and `resume` for a resume-only load.
+ * sets `explorerVerifySmokeConfig` first: `apiUrl`, `resume` for a resume-only load, and
+ * `fromTable: true` for a load that verifies without a route.
  *
  * @throws Error when the config is missing or malformed.
  */
 export function start(): void {
   const config: unknown = Reflect.get(globalThis, "explorerVerifySmokeConfig");
-  const apiUrl: unknown =
-    typeof config === "object" && config !== null ? Reflect.get(config, "apiUrl") : undefined;
-  const resume: unknown =
-    typeof config === "object" && config !== null ? Reflect.get(config, "resume") : undefined;
+  const read = (name: string): unknown =>
+    typeof config === "object" && config !== null ? Reflect.get(config, name) : undefined;
+  const apiUrl = read("apiUrl");
+  const resume = read("resume");
   if (typeof apiUrl !== "string") {
     throw new TypeError("explorerVerifySmokeConfig.apiUrl is not set");
   }
   Reflect.set(
     globalThis,
     "explorerVerifySmoke",
-    typeof resume === "string" ? resumeScenario(resume, apiUrl) : runScenario(apiUrl),
+    read("fromTable") === true
+      ? tableScenario(apiUrl)
+      : typeof resume === "string"
+        ? resumeScenario(resume, apiUrl)
+        : runScenario(apiUrl),
   );
 }

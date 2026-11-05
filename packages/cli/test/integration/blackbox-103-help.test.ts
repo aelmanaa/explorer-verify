@@ -269,7 +269,7 @@ describe("blackbox #103: --version", { concurrency: true }, () => {
     const date = text(body["routingTableDate"]);
     assert.match(date, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10), date);
-    assert.equal(date, routingTableDate());
+    assert.equal(date, await routingTableDate());
   });
 
   it("cli.md names the version the bin prints", TIMEOUT, () => {

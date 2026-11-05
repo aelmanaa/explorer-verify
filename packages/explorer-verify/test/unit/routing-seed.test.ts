@@ -12,15 +12,11 @@ import { describe, it } from "node:test";
 
 import { DEFAULT_DEPENDENCIES } from "../../src/flow/verify.ts";
 import { keyFor } from "../../src/http/api-keys.ts";
-import {
-  ETHERSCAN_API_URL,
-  ROUTING_TABLE,
-  SOURCIFY_API_URL,
-  resolveRoute,
-  tableTarget,
-} from "../../src/routing/resolve.ts";
+import { ETHERSCAN_API_URL, SOURCIFY_API_URL, tableTarget } from "../../src/routing/resolve.ts";
 import type { TableEntry } from "../../src/routing/resolve.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Hex } from "../../src/types.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const SEED_FILE = new URL(
   "../../../../docs/contributor/research/data/2026-11-03-routing-seed.json",

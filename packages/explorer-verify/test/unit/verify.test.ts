@@ -30,6 +30,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
@@ -201,8 +202,11 @@ async function run(t: TestContext, steps: readonly Step[], use: RunOptions = {})
     },
   };
   const state = { done: false };
+  // The table is passed loaded, so a call with a budget of a few milliseconds never races the
+  // table's dynamic import (decision 0040).
   const promise = runVerify(use.input ?? input(), options, {
     random: () => 0,
+    table: ROUTING_TABLE,
     ...use.dependencies,
     backends: use.dependencies?.backends ?? { sourcify },
   }).then(

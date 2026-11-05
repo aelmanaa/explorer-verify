@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { Hex, RouteOverride } from "../../src/index.ts";
-import { resolveRoute, SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
+import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { Route } from "../../src/routing/resolve.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";

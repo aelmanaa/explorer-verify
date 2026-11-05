@@ -15,9 +15,9 @@ import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import { keyErrorOf } from "../../src/http/api-keys.ts";
 import { verify } from "../../src/index.ts";
 import type { Handle, Hex, VerifyInput } from "../../src/index.ts";
-import { resolveRoute } from "../../src/routing/resolve.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Step } from "../helpers/fake-fetch.ts";
+import { resolveRoute } from "../helpers/route.ts";
 
 // A made-up key. Never a real one (R-SEC-1).
 const KEY = "paidplandummykeyq7w3e9r1t5";
