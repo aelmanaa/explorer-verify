@@ -10,6 +10,7 @@ import type { Backend } from "../../src/backends/backend.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { runVerify } from "../../src/flow/verify.ts";
 import type { DeriveLoader, FlowDependencies } from "../../src/flow/verify.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { VerifyInput, VerifyOptions } from "../../src/types.ts";
 import { driveMockClock, turnUntil } from "../helpers/mock-clock.ts";
 
@@ -57,7 +58,9 @@ const settingArgs: DeriveLoader = async () =>
 
 /** Dependencies with the recording client and `derivation`. */
 function dependenciesOf(derivation: DeriveLoader, submitted: VerifyInput[] = []): FlowDependencies {
-  return { backends: { blockscout: recordingClient(submitted) }, derivation };
+  // The table is passed loaded: an https Blockscout route reads it (decision 0040), and a table
+  // import racing a 5 ms budget would end the call before the derivation loader is reached.
+  return { backends: { blockscout: recordingClient(submitted) }, derivation, table: ROUTING_TABLE };
 }
 
 /** Runs `verify()` with the Blockscout route and `options`. */
