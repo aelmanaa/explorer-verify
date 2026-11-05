@@ -81,6 +81,10 @@ export interface BuiltVerifyInput {
 const STANDARD_JSON_FIELDS = ["language", "sources", "settings"] as const;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_CANDIDATES = 20;
+// The `_format` of a hardhat-zksync artifact.
+const ZKSOLC_ARTIFACT_FORMAT = "hh-zksolc-artifact-1";
+// The fields of a contract's zksolc metadata that name the zksolc version.
+const ZKSOLC_METADATA_FIELDS = ["zk_version", "zksolcVersion"] as const;
 const MAX_POSITIONS = 5;
 // The deepest nesting compared between two metadata documents, as validateInput allows.
 const MAX_DEPTH = 64;
@@ -104,6 +108,8 @@ const VERSION_HINT =
   "Pass options.compilerVersion with the full version, such as 0.8.24+commit.e11b9ed9, or add an artifact or build-info output that holds the contract metadata.";
 const CONTRACT_HINT =
   "Pass options.contract as path:Name, or as a Name that matches one entry of details.candidates.";
+const ZKSOLC_HINT =
+  "zksolc (EraVM) builds are not supported. A contract compiled with plain solc verifies with the solc build-info; a zksolc contract needs the ZKsync tooling.";
 const ABSOLUTE_HINT =
   "Rebuild with source paths and remappings relative to the project root, so no local path is published.";
 
@@ -125,6 +131,8 @@ class Findings {
   readonly userSourceNames = new Map<string, string>();
   /** The field naming a compiler other than solc, when one was seen. */
   unsupported: string | undefined;
+  /** The fields that marked a document as zksolc output. */
+  readonly zksolc = new Set<string>();
   /** Build ids: a build-info's or output file's `id`, an artifact's `buildInfoId`. */
   readonly buildIds = new Set<string>();
   stub = false;
@@ -281,6 +289,51 @@ function readArtifact(fields: Map<string, unknown>, findings: Findings): void {
   }
 }
 
+/** The field of a contract's zksolc metadata that names the zksolc version, if any. */
+function zksolcMetadataField(value: unknown): string | undefined {
+  const metadata = readMetadata(value);
+  return ZKSOLC_METADATA_FIELDS.find((name) => metadata?.has(name) === true);
+}
+
+/**
+ * The field that marks a document as zksolc (EraVM) output, or `undefined` for none. zksolc
+ * build documents share the solc shapes, so without this check they would be read as solc.
+ */
+function zksolcField(fields: Map<string, unknown>): string | undefined {
+  if (fields.get("_format") === ZKSOLC_ARTIFACT_FORMAT) {
+    return "_format";
+  }
+  for (const name of ["solcVersion", "solcLongVersion"]) {
+    const version = fields.get(name);
+    if (typeof version === "string" && version.startsWith("zkVM-")) {
+      return name;
+    }
+  }
+  if (readFields(fields.get("input"))?.has("zksolc_version") === true) {
+    return "input.zksolc_version";
+  }
+  const output = readFields(fields.get("output"));
+  if (output?.has("zk_version") === true) {
+    return "output.zk_version";
+  }
+  if (readFields(output?.get("metadata"))?.has("zksolcVersion") === true) {
+    return "output.metadata.zksolcVersion";
+  }
+  const own = zksolcMetadataField(fields.get("metadata"));
+  if (own !== undefined) {
+    return `metadata.${own}`;
+  }
+  for (const [, byName] of readFields(output?.get("contracts")) ?? []) {
+    for (const [, entry] of readFields(byName) ?? []) {
+      const found = zksolcMetadataField(readFields(entry)?.get("metadata"));
+      if (found !== undefined) {
+        return `metadata.${found}`;
+      }
+    }
+  }
+  return undefined;
+}
+
 /** Classifies one document by its shape and records what it holds. */
 function classify(document: unknown, position: number, findings: Findings): void {
   if (typeof document === "string") {
@@ -297,6 +350,11 @@ function classify(document: unknown, position: number, findings: Findings): void
   const fields = readFields(document);
   if (fields === undefined) {
     findings.unknown.push(position);
+    return;
+  }
+  const zksolc = zksolcField(fields);
+  if (zksolc !== undefined) {
+    findings.zksolc.add(zksolc);
     return;
   }
   const compilerType = fields.get("compilerType");
@@ -365,11 +423,11 @@ function incomplete(
   );
 }
 
-function unsupportedCompiler(field: string): ExplorerVerifyError {
+function unsupportedCompiler(field: string, hint?: string): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "unsupported-compiler", field },
     `The documents come from a compiler other than solc: ${field}.`,
-    { secrets: [] },
+    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
   );
 }
 
@@ -895,7 +953,7 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *   `sources` with every missing source path in `details.candidates`); `source-mismatch` for a
  *   source whose keccak-256 differs from the metadata, with the path and both hashes in `details`;
  *   `insufficient-artifact` for ABI and bytecode only; `unsupported-compiler` for a compiler other
- *   than solc; `invalid-input` for documents of no known shape, documents of different builds or
+ *   than solc, zksolc (EraVM) included; `invalid-input` for documents of no known shape, documents of different builds or
  *   versions, metadata whose `compilationTarget` does not name exactly one contract, a path not in
  *   the sources, a local path, or an input that `validateInput` rejects. Messages never repeat a
  *   value or a path.
@@ -955,6 +1013,11 @@ export function buildVerifyInput(
   });
   if (findings.unknown.length > 0) {
     throw invalid("documents", `match no known shape at ${positions(findings.unknown)}`);
+  }
+  // Sorted, so the order of the documents does not change the field named.
+  const [zksolc] = [...findings.zksolc].toSorted();
+  if (zksolc !== undefined) {
+    throw unsupportedCompiler(zksolc, ZKSOLC_HINT);
   }
   if (findings.unsupported !== undefined) {
     throw unsupportedCompiler(findings.unsupported);
