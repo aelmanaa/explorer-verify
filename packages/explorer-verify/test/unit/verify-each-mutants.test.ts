@@ -12,6 +12,7 @@ import { MAX_BACKENDS, runVerifyEach } from "../../src/flow/verify-each.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
+import { keptAlive } from "../helpers/kept-alive.ts";
 
 const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
@@ -434,9 +435,12 @@ describe("verifyEach(): a routing table that fails to load (R-RT-4, decision 004
   });
 
   it('names Sourcify in the timeout of a table load for "all"', async () => {
-    const outcome = await outcomeOf(
-      { backends: "all", fetch: unreachable, timeoutMs: 5 },
-      { ...FAILING, table: never },
+    const outcome = await keptAlive(
+      async () =>
+        await outcomeOf(
+          { backends: "all", fetch: unreachable, timeoutMs: 5 },
+          { ...FAILING, table: never },
+        ),
     );
     assert.ok(outcome instanceof ExplorerVerifyError, String(outcome));
     assert.deepEqual(outcome.details, { code: "timeout", backend: "sourcify", timeoutMs: 5 });

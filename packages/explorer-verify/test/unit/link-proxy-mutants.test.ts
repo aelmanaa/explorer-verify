@@ -10,6 +10,7 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import { runLinkProxy } from "../../src/flow/link-proxy.ts";
 import type { LinkDependencies } from "../../src/flow/link-proxy.ts";
 import type { Hex, VerifyOptions } from "../../src/types.ts";
+import { keptAlive } from "../helpers/kept-alive.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const SEPOLIA = 11155111;
@@ -322,13 +323,16 @@ describe("linkProxy(): the time budget (R-FLOW-8)", () => {
   });
 
   it("names the proxy-link code that did not load within the budget", async () => {
-    const error = await runLinkProxy(
-      { chainId: SEPOLIA, address: PROXY },
-      { ...SOURCIFY, timeoutMs: 5 },
-      { linkers: { sourcify: never } },
-    ).then(
-      (value: unknown) => value,
-      (thrown: unknown) => thrown,
+    const error = await keptAlive(
+      async () =>
+        await runLinkProxy(
+          { chainId: SEPOLIA, address: PROXY },
+          { ...SOURCIFY, timeoutMs: 5 },
+          { linkers: { sourcify: never } },
+        ).then(
+          (value: unknown) => value,
+          (thrown: unknown) => thrown,
+        ),
     );
     assert.equal(
       errorOf(error, "timeout").message,
