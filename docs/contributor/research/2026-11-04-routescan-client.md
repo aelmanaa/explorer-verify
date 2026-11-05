@@ -103,3 +103,12 @@ as Routescan's docs show it, so that the lookup and the status request share one
 - [Live probes](2026-11-03-m2-live-probes.md), probes B and C, 2026-11-03.
 - Local runs, Node.js 24.21.0 `fetch`, 2026-11-04, against `https://api.routescan.io`, no key: the
   requests listed above.
+
+## Corrections
+
+- 2026-11-05: three open questions are answered in
+  [Routescan with a real key](2026-11-05-routescan-key.md). Routescan reads a key in the `apikey`
+  header. Over its limit it answers HTTP 429 with a JSON body whose `code` is `rate-limit`; a keyed
+  429 holds its wait in `x-ratelimit-rpm-retry-after` and has no `Retry-After`. A keyed request
+  works from a browser. The row `Rate-limit answer unknown` in the mapping table is replaced by
+  the mapping in that note.

@@ -1,0 +1,32 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-05T19:35:24.557Z: no key. It was one of 150 concurrent requests sent within 2.7 s, of which 118 were answered Verification not found and 32 with this 429.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=checkverifystatus&guid=probe133n9&nocache=9oduhareeqh",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "BYPASS",
+      "cf-ray": "a55e4d36ae2ed155-CDG",
+      "connection": "keep-alive",
+      "content-length": "314",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:35:26 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "vary": "accept-encoding"
+    },
+    "body": {
+      "statusCode": 429,
+      "code": "rate-limit",
+      "error": "Too Many Requests",
+      "message": "You are reaching the maximum number of requests for this API. To avoid disruptions, please consider slowing down your requests. If you need a higher limit, consider requesting a personalized API key by visiting: https://rscan.link/api."
+    }
+  },
+  "recordedAt": "2026-11-05T19:35:24.557Z"
+}

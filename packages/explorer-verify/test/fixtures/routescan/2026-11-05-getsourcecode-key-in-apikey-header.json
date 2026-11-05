@@ -1,0 +1,58 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-05T19:32:41.602Z: a registered free-plan key, shown as [redacted], in the apikey request header. The x-ratelimit headers show the keyed tier: 300 requests a minute and 100,000 a day.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api?module=contract&action=getsourcecode&address=0x636522C3785337399Aa9105498d2Bd95Dc01D749&nocache=6rtuaryle8w",
+    "headers": {
+      "apikey": "[redacted]"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "MISS",
+      "cf-ray": "a55e4930bbf794ad-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:32:42 GMT",
+      "last-modified": "Thu, 05 Nov 2026 19:32:42 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "transfer-encoding": "chunked",
+      "vary": "accept-encoding",
+      "x-ratelimit-rpd-limit": "100000",
+      "x-ratelimit-rpd-remaining": "99999",
+      "x-ratelimit-rpd-reset": "86400",
+      "x-ratelimit-rpm-limit": "300",
+      "x-ratelimit-rpm-remaining": "299",
+      "x-ratelimit-rpm-reset": "60",
+      "x-request-id": "01a1ad32-fae6-775f-b536-3a26661dc184"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "{{\"language\":\"Solidity\",\"sources\":{\"src/ProbeBRoutescan.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n// explorer-verify live probe 2026-11-03 B: Routescan keyless submit\\ncontract ProbeBRoutescan {\\n    address public immutable owner;\\n    string public greeting;\\n\\n    constructor(address owner_, string memory greeting_) {\\n        owner = owner_;\\n        greeting = greeting_;\\n    }\\n}\\n\"}},\"settings\":{\"optimizer\":{\"enabled\":true,\"runs\":200},\"metadata\":{\"useLiteralContent\":false,\"bytecodeHash\":\"ipfs\",\"appendCBOR\":true},\"outputSelection\":{\"src/ProbeBRoutescan.sol\":{\"ProbeBRoutescan\":[\"*\"]}},\"evmVersion\":\"cancun\",\"viaIR\":false,\"libraries\":{}}}}",
+          "ABI": "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+          "ContractName": "ProbeBRoutescan",
+          "CompilerVersion": "v0.8.24+commit.e11b9ed9",
+          "OptimizationUsed": "1",
+          "Runs": "200",
+          "ConstructorArguments": "0x0000000000000000000000009d087fc03ae39b088326b67fa3c788236645b7170000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001568656c6c6f206578706c6f7265722d7665726966790000000000000000000000",
+          "EVMVersion": "cancun",
+          "Library": "",
+          "LicenseType": "",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": ""
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-05T19:32:41.602Z"
+}

@@ -101,7 +101,8 @@ request with the same URL and body:
 - after a wait that starts at 1 second and doubles each time, with jitter that keeps between half
   and all of it;
 - at least as long as the `Retry-After` header asks, in seconds or as a date. A `Retry-After`
-  above 30 seconds ends the retries at once;
+  above 30 seconds ends the retries at once. A Routescan 429 without `Retry-After` is read the
+  same way from its `x-ratelimit-rpm-retry-after` header;
 - for a lookup or a poll: after a network error, a request that took longer than 30 seconds, and
   HTTP 429, 502, 503 or 504;
 - for a submit: only after HTTP 429 or 503, which refuse the request before the explorer processes

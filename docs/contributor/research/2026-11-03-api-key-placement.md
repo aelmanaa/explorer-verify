@@ -70,3 +70,10 @@ bad key on a keyed tier, or when a key's daily limit is spent, stays unknown.
 - [Routescan get started](https://docs.routescan.io/getting-started/get-started), read 2026-11-03.
 - Live requests with the `fetch` of Node.js 24.21.0 on 2026-11-03, saved as the fixtures named
   above.
+
+## Corrections
+
+- 2026-11-05: with a real key, Routescan reads it in the `apikey` header and as an `apikey` query
+  parameter, and a made-up key of the same format gets the keyless answer
+  ([Routescan with a real key](2026-11-05-routescan-key.md)). Routescan's answer for a refused key
+  is therefore the keyless answer; its answer for a spent daily limit is still not known.

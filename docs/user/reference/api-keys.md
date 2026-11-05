@@ -48,10 +48,10 @@ route whose `apiUrl` you set, gets no key from `apiKeys`.
 | `blockscout`           | Not accepted in this release          | None: no request carries a key                 | No                           |
 
 The key never goes in a URL. Etherscan ignores a key in a request header and answers as if no key
-was sent, so the library puts it in the form body, with `chainid` in the query. Routescan's docs
-show the `apikey` header, but a live test could not confirm that Routescan reads it: Routescan
-answered a made-up key there without refusing it. The form-body placement for standalone explorers
-is also not confirmed live.
+was sent, so the library puts it in the form body, with `chainid` in the query. Routescan reads a
+key in the `apikey` header, confirmed live with a real key on 2026-11-05; it does not refuse a key
+it does not know, but answers on the keyless tier ([Routescan](routescan.md#api-key)). The
+form-body placement for standalone explorers is not confirmed live.
 
 A key goes with a request only when all of these hold:
 

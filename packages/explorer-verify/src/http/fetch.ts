@@ -200,6 +200,12 @@ export interface HttpRequest {
    */
   readonly rateLimited?: (body: string) => boolean;
   /**
+   * A response header that holds the wait before the next attempt in whole seconds, read on a
+   * rate-limit answer when `Retry-After` is absent. Routescan sends its wait only in
+   * `x-ratelimit-rpm-retry-after` (recorded 2026-11-05). The value is read as `Retry-After` is.
+   */
+  readonly retryAfterHeader?: string;
+  /**
    * Returns a query parameter, such as `nocache=k3x9`, added to `url` on each attempt, retries
    * included. Routescan uses it so that no attempt repeats a URL its CDN may have cached. Only the
    * query changes, never the host.
@@ -232,6 +238,7 @@ interface Call {
   readonly headers: Record<string, string> | undefined;
   readonly retry: RetryMode;
   readonly rateLimited: ((body: string) => boolean) | undefined;
+  readonly retryAfterHeader: string | undefined;
   readonly freshQuery: (() => string) | undefined;
 }
 
@@ -274,7 +281,9 @@ interface Progress {
  * - For `safe`, retries network errors, timeouts, 429, 502, 503 and 504. For `submit`, retries
  *   only 429 and 503. Every other status is returned to the caller.
  * - Waits at least as long as `Retry-After` asks, in seconds or as an HTTP date. A `Retry-After`
- *   above 30 s, or a wait that would pass the budget's deadline, ends the retries at once.
+ *   above 30 s, or a wait that would pass the budget's deadline, ends the retries at once. On a
+ *   rate-limit answer without `Retry-After`, `req.retryAfterHeader` names a header read in its
+ *   place.
  * - Returns a 429 whose JSON body has `customCode` `duplicate_verification_request` without a
  *   retry: a job for this contract is already running, and the backend maps it to `in-progress`.
  * - Retries a response whose body `req.rateLimited` reads as a rate-limit answer, as a 429.
@@ -484,6 +493,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
     headers: headers === undefined ? undefined : copyHeaders(headers),
     retry: required(req, "retry", "request"),
     rateLimited: optional(req, "rateLimited", "request"),
+    retryAfterHeader: optional(req, "retryAfterHeader", "request"),
     freshQuery: optional(req, "freshQuery", "request"),
   };
 }
@@ -730,7 +740,7 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
       reason: "rate-limited",
       status,
       body,
-      retryAfterMs: retryAfter(response),
+      retryAfterMs: retryAfter(response, call.retryAfterHeader),
     };
   }
   if (isRetriedServerError(status, call.retry)) {
@@ -740,7 +750,7 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
       reason: "server-error",
       status,
       body,
-      retryAfterMs: retryAfter(response),
+      retryAfterMs: retryAfter(response, undefined),
     };
   }
   // `new Response` accepts only 200 to 599. A fetch answers with another status only for an
@@ -857,10 +867,13 @@ function isDuplicate(body: string): boolean {
 
 /**
  * `Retry-After` in milliseconds: whole seconds, or an HTTP date relative to `Date.now()`, from 0
- * to {@link MAX_RETRY_AFTER_MS}. `undefined` when the header is absent or cannot be read.
+ * to {@link MAX_RETRY_AFTER_MS}. When `Retry-After` is absent, the `fallback` header, if named, is
+ * read the same way. `undefined` when both are absent or the one read cannot be read.
  */
-function retryAfter(response: Response): number | undefined {
-  const header = response.headers.get("retry-after");
+function retryAfter(response: Response, fallback: string | undefined): number | undefined {
+  const { headers } = response;
+  const header =
+    headers.get("retry-after") ?? (fallback === undefined ? null : headers.get(fallback));
   // Stryker disable next-line StringLiteral: equivalent. Neither form below matches the text that stands in for a missing header.
   const value = header?.trim() ?? "";
   // A value that is neither form, an empty one included, stays NaN and is ignored.

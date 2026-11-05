@@ -180,7 +180,10 @@ export type ErrorDetails =
        * and passed a name outside `BACKEND_NAMES`.
        */
       backend: BackendName | "unknown";
-      /** How long the backend asked to wait, when it said (`Retry-After`). */
+      /**
+       * How long the backend asked to wait, when it said: `Retry-After`, or Routescan's
+       * `x-ratelimit-rpm-retry-after`.
+       */
       retryAfterMs?: number;
       /** How many requests were tried, when the HTTP layer gave up after retries. */
       attempts?: number;

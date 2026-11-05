@@ -586,7 +586,16 @@ describe("request: a getter or Proxy trap that throws is invalid-input (R-SEC-1,
     });
   }
 
-  for (const name of ["url", "method", "body", "headers", "retry", "rateLimited", "freshQuery"]) {
+  for (const name of [
+    "url",
+    "method",
+    "body",
+    "headers",
+    "retry",
+    "rateLimited",
+    "retryAfterHeader",
+    "freshQuery",
+  ]) {
     it(`rejects a throwing request.${name} getter without its text`, async () => {
       const { fetch, calls } = answering(ok);
       const error = await explorerError(request(fullContext(fetch), throwing(post(), name)));
