@@ -13,6 +13,7 @@ Audience: contributors setting up or changing the toolchain. The toolchain mirro
 | publint, are-the-types-wrong  | `pkg:check` script                                                     | Package manifest and type resolution                                                                                                                        |
 | c8                            | `packages/*/.c8rc.json`                                                | Coverage, 95% floor per file                                                                                                                                |
 | esbuild 0.28.2                | `scripts/bundle.ts`                                                    | Browser bundle for the size check and the browser smoke test                                                                                                |
+| Rollup 4.67.4                 | `scripts/name-bundle.ts`                                               | The Rollup build of the per-name size check ([decision 0042](decisions/0042-every-exported-name-measured-in-real-bundlers.md))                              |
 | Playwright 1.64.1             | `scripts/browser-smoke.ts`                                             | Headless Chromium for the browser smoke test                                                                                                                |
 | TypeDoc 0.28.20               | `site/api-reference.ts`, `site/tsconfig.api.json`                      | The API reference of the docs site, from TSDoc, with typedoc-plugin-markdown 4.14.1 and the TypeScript 6 API ([API reference](#api-reference))              |
 | StrykerJS 10.0.0 (tap runner) | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json` | Mutation testing of the result mapping, the HTTP retry rules and the key redaction, with a score floor per file                                             |
@@ -295,7 +296,8 @@ the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
 `scripts/site-api.ts`,
 `scripts/site-copies.ts`, `scripts/check-site.ts` and `scripts/smoke-site.ts`, the last against a
 local server), `scripts/random-order.ts`, the size check
-(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), the release
+(`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), the per-name size
+check (`scripts/name-size.ts`, `scripts/name-bundle.ts` and `scripts/check-names.ts`), the release
 scripts ([releasing.md](releasing.md)) and the mutation score check
 (`scripts/mutation-score.ts` and `scripts/check-mutation-score.ts`) with a 95% floor per file on lines, branches, functions and
 statements. The release script tests create temporary git repositories, and the tag test signs
