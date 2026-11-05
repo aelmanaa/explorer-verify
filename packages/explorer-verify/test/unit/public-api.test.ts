@@ -95,6 +95,7 @@ describe("public entry point", () => {
       "exitCodeOf",
       "formatHandle",
       "linkLibraries",
+      "linkProxy",
       "parseHandle",
       "routingTableDate",
       "toBackendName",
@@ -130,6 +131,8 @@ describe("public entry point", () => {
       "no-metadata-hash",
       "metadata-unavailable",
       "constructor-args-unavailable",
+      "proxy-link-pending",
+      "proxy-link-unknown-state",
     ]);
   });
 

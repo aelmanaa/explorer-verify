@@ -210,6 +210,8 @@ covers results and errors.
 | `quota-exceeded`               | Error  | `false` | 3         |
 | `not-confirmed`                | Error  | `false` | 4         |
 | `verification-inconclusive`    | Error  | `false` | 4         |
+| `proxy-link-pending`           | Error  | `false` | 4         |
+| `proxy-link-unknown-state`     | Error  | `false` | 6         |
 | `network`                      | Error  | `false` | 5         |
 | `rate-limited`                 | Error  | `false` | 5         |
 | `timeout`                      | Error  | `false` | 5         |

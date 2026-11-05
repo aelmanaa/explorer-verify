@@ -293,7 +293,7 @@ ok   verify: 13611 bytes (ceiling 16334)
 OVER chunk routescan: 4100 bytes (ceiling 4032)
 ```
 
-The entries are `verify`, `verify (one file)`, `checkStatus`, `buildVerifyInput`, the whole index
+The entries are `verify`, `verify (one file)`, `checkStatus`, `linkProxy`, `buildVerifyInput`, the whole index
 and `createVerifyHandler` ([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
 entry holds with esbuild's analyzer:
 

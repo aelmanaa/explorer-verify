@@ -52,6 +52,8 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "no-metadata-hash": { retryable: false, exit: 2, hasHandle: false },
   "metadata-unavailable": { retryable: true, exit: 5, hasHandle: false },
   "constructor-args-unavailable": { retryable: false, exit: 2, hasHandle: false },
+  "proxy-link-pending": { retryable: true, exit: 4, hasHandle: false },
+  "proxy-link-unknown-state": { retryable: false, exit: 6, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -107,6 +109,12 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "constructor-args-unavailable": {
       code: "constructor-args-unavailable",
       reason: "bad-length",
+    },
+    "proxy-link-pending": { code: "proxy-link-pending", backend: "blockscout" },
+    "proxy-link-unknown-state": {
+      code: "proxy-link-unknown-state",
+      backend: "blockscout",
+      excerpt: text,
     },
   };
   return all[code];

@@ -1,0 +1,50 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T19:01:10.717Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifyproxycontract",
+        "address": "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a555ddabebdfcce2-LHR",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 19:01:12 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=KeoLuaRI%2BIM06iU7yhwaFfcd%2FtA1AKnKS3SCRB1Ik08MZdxFKLs79NSY%2FveWKIYsTDXlFvHlizbyMzxKassGFBr4rsyjHOfg1Thod4ofq1r%2FQ5Y%2Fzsd8wdsFuMQu8e4m%2Fx1adL5GcFIrGY6V\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "6",
+      "x-ratelimit-reset": "3528319",
+      "x-request-id": "46db9233830b30fc0dd03b16676d0888"
+    },
+    "body": {
+      "message": "OK",
+      "result": "8275d36f64f047d2d8a1f42c79bf80caea39d7cc6aeb80f8",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-04T19:01:10.717Z"
+}

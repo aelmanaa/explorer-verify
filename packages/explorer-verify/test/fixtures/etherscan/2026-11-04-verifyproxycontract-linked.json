@@ -1,0 +1,45 @@
+{
+  "source": "Live response from api.etherscan.io, recorded 2026-11-04T18:59:04.926Z with the fetch of Node.js 24.21.0; the real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifyproxycontract",
+        "address": "0xed5b8413e605598ef86cd7617f12701f74ca255c",
+        "expectedimplementation": "0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-origin": "*",
+      "cache-control": "private",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "206",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 18:59:06 GMT",
+      "server": "nginx",
+      "svid": "sepolia",
+      "vary": "Accept-Encoding",
+      "x-frame-options": "SAMEORIGIN",
+      "x-nginx-id": "4"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": "wccgmdtjug6bss2mf166jzjtqcs4uchztznlevycg6mbwlxttz"
+    }
+  },
+  "recordedAt": "2026-11-04T18:59:04.926Z"
+}

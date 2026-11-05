@@ -151,6 +151,8 @@ const KIND: Readonly<Record<ErrorCode, DeployKitErrorKind>> = {
   "no-metadata-hash": "config",
   "metadata-unavailable": "unavailable",
   "constructor-args-unavailable": "config",
+  "proxy-link-pending": "pending",
+  "proxy-link-unknown-state": "needs-review",
 };
 
 function toInput(params: VerifyContractParams): VerifyInput {
@@ -371,33 +373,35 @@ settings that route to the backend named in the handle, with the same key; other
 The table lists every code. Retryable and exit code come from the library; the deployKit kind is
 the example's choice, from `KIND` above.
 
-| Code                                                                                  | Retryable | Exit code | deployKit kind | What the tool tells its user                                                    |
-| ------------------------------------------------------------------------------------- | --------- | --------- | -------------- | ------------------------------------------------------------------------------- |
-| [`invalid-input`](../reference/errors/invalid-input.md)                               | no        | 2         | `config`       | Fix the parameter or setting the message names; nothing was sent                |
-| [`not-confirmed`](../reference/errors/not-confirmed.md)                               | yes       | 4         | `pending`      | Still checking; resume with the token, do not submit again                      |
-| [`unsupported-chain`](../reference/errors/unsupported-chain.md)                       | no        | 2         | `config`       | Choose another explorer for this chain                                          |
-| [`network`](../reference/errors/network.md)                                           | yes       | 5         | `unavailable`  | No answer after retries; try again later                                        |
-| [`rate-limited`](../reference/errors/rate-limited.md)                                 | yes       | 5         | `unavailable`  | The explorer is limiting requests; try again later                              |
-| [`timeout`](../reference/errors/timeout.md)                                           | yes       | 5         | `unavailable`  | The deadline ran out before a submit was accepted; try again                    |
-| [`unexpected-response`](../reference/errors/unexpected-response.md)                   | yes       | 5         | `unavailable`  | The explorer answered outside its API; try again later                          |
-| [`in-progress`](../reference/errors/in-progress.md)                                   | yes       | 5         | `unavailable`  | Another verification of this contract is running; wait, then try again          |
-| [`unknown-state`](../reference/errors/unknown-state.md)                               | no        | 6         | `needs-review` | Check the contract on the explorer; the token identifies the job                |
-| [`job-not-found`](../reference/errors/job-not-found.md)                               | no        | 6         | `needs-review` | The explorer forgot the job; check the contract before you submit again         |
-| [`cancelled`](../reference/errors/cancelled.md)                                       | no        | 130       | `cancelled`    | Cancelled. The core never throws it; an abort rejects with `signal.reason`      |
-| [`incomplete-input`](../reference/errors/incomplete-input.md)                         | no        | 2         | `config`       | Add the missing sources or settings                                             |
-| [`insufficient-artifact`](../reference/errors/insufficient-artifact.md)               | no        | 2         | `config`       | Use a build file with the compiler input or metadata                            |
-| [`unsupported-compiler`](../reference/errors/unsupported-compiler.md)                 | no        | 2         | `config`       | The compiler is not supported                                                   |
-| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md)       | yes       | 4         | `unavailable`  | The job ended without a verdict; verify again later, once                       |
-| [`source-mismatch`](../reference/errors/source-mismatch.md)                           | no        | 2         | `config`       | A source does not match its recorded hash; use the files of the deployed build  |
-| [`missing-api-key`](../reference/errors/missing-api-key.md)                           | no        | 3         | `auth`         | Set the API key; nothing was sent                                               |
-| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                         | no        | 3         | `auth`         | Replace the key, or use one on a plan that covers the chain                     |
-| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                             | no        | 3         | `auth`         | The key's daily limit is spent; try again after the reset                       |
-| [`internal-error`](../reference/errors/internal-error.md)                             | no        | 6         | `bug`          | The CLI creates it; the library never throws it                                 |
-| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)                         | no        | 2         | `config`       | The bytecode has no metadata hash; build the input from build files             |
-| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md)                 | yes       | 5         | `unavailable`  | The metadata could not be fetched; try again later or pass a gateway            |
-| [`constructor-args-unavailable`](../reference/errors/constructor-args-unavailable.md) | no        | 2         | `config`       | The creation code shows another build; pass the deployed build or the arguments |
+| Code                                                                                  | Retryable | Exit code | deployKit kind | What the tool tells its user                                                               |
+| ------------------------------------------------------------------------------------- | --------- | --------- | -------------- | ------------------------------------------------------------------------------------------ |
+| [`invalid-input`](../reference/errors/invalid-input.md)                               | no        | 2         | `config`       | Fix the parameter or setting the message names; nothing was sent                           |
+| [`not-confirmed`](../reference/errors/not-confirmed.md)                               | yes       | 4         | `pending`      | Still checking; resume with the token, do not submit again                                 |
+| [`unsupported-chain`](../reference/errors/unsupported-chain.md)                       | no        | 2         | `config`       | Choose another explorer for this chain                                                     |
+| [`network`](../reference/errors/network.md)                                           | yes       | 5         | `unavailable`  | No answer after retries; try again later                                                   |
+| [`rate-limited`](../reference/errors/rate-limited.md)                                 | yes       | 5         | `unavailable`  | The explorer is limiting requests; try again later                                         |
+| [`timeout`](../reference/errors/timeout.md)                                           | yes       | 5         | `unavailable`  | The deadline ran out before a submit was accepted; try again                               |
+| [`unexpected-response`](../reference/errors/unexpected-response.md)                   | yes       | 5         | `unavailable`  | The explorer answered outside its API; try again later                                     |
+| [`in-progress`](../reference/errors/in-progress.md)                                   | yes       | 5         | `unavailable`  | Another verification of this contract is running; wait, then try again                     |
+| [`unknown-state`](../reference/errors/unknown-state.md)                               | no        | 6         | `needs-review` | Check the contract on the explorer; the token identifies the job                           |
+| [`job-not-found`](../reference/errors/job-not-found.md)                               | no        | 6         | `needs-review` | The explorer forgot the job; check the contract before you submit again                    |
+| [`cancelled`](../reference/errors/cancelled.md)                                       | no        | 130       | `cancelled`    | Cancelled. The core never throws it; an abort rejects with `signal.reason`                 |
+| [`incomplete-input`](../reference/errors/incomplete-input.md)                         | no        | 2         | `config`       | Add the missing sources or settings                                                        |
+| [`insufficient-artifact`](../reference/errors/insufficient-artifact.md)               | no        | 2         | `config`       | Use a build file with the compiler input or metadata                                       |
+| [`unsupported-compiler`](../reference/errors/unsupported-compiler.md)                 | no        | 2         | `config`       | The compiler is not supported                                                              |
+| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md)       | yes       | 4         | `unavailable`  | The job ended without a verdict; verify again later, once                                  |
+| [`source-mismatch`](../reference/errors/source-mismatch.md)                           | no        | 2         | `config`       | A source does not match its recorded hash; use the files of the deployed build             |
+| [`missing-api-key`](../reference/errors/missing-api-key.md)                           | no        | 3         | `auth`         | Set the API key; nothing was sent                                                          |
+| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                         | no        | 3         | `auth`         | Replace the key, or use one on a plan that covers the chain                                |
+| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                             | no        | 3         | `auth`         | The key's daily limit is spent; try again after the reset                                  |
+| [`internal-error`](../reference/errors/internal-error.md)                             | no        | 6         | `bug`          | The CLI creates it; the library never throws it                                            |
+| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)                         | no        | 2         | `config`       | The bytecode has no metadata hash; build the input from build files                        |
+| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md)                 | yes       | 5         | `unavailable`  | The metadata could not be fetched; try again later or pass a gateway                       |
+| [`constructor-args-unavailable`](../reference/errors/constructor-args-unavailable.md) | no        | 2         | `config`       | The creation code shows another build; pass the deployed build or the arguments            |
+| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)                     | yes       | 4         | `pending`      | The explorer is still linking the proxy; call `linkProxy()` again later. There is no token |
+| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md)         | no        | 6         | `needs-review` | Check the proxy's page on the explorer; there is no token                                  |
 
-`verify()` and `checkStatus()` throw some of these codes. `buildVerifyInput`,
+`verify()`, `checkStatus()` and `linkProxy()` throw some of these codes. `buildVerifyInput`,
 `resolveInputFromBytecode` and the CLI throw the others. A test checks the code, retryable and exit
 code columns of this table against the library, so the table changes when a release adds a code.
 The [error reference](../reference/errors/index.md) has a page per code with the cause and the fix.

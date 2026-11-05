@@ -323,35 +323,9 @@ export function etherscanStyle(dialect: Dialect): Backend {
     );
   }
 
-  /**
-   * Throws for an answer any call can get: a key or daily-limit answer, an unsupported chain, or
-   * a v1 endpoint. Returns the `result` text, or `undefined` when `result` is not text.
-   */
+  /** See {@link knownAnswer}. */
   function known(ctx: Context, answer: Answer, chainId: number): string | undefined {
-    const { fields } = answer;
-    if (fields === undefined) {
-      return undefined;
-    }
-    const keyError = keyErrorOf(name, Object.fromEntries(fields), ctx.http.secrets);
-    if (keyError !== undefined) {
-      throw keyError;
-    }
-    const result = resultOf(answer);
-    if (result?.startsWith(NO_CHAIN) === true || fields.get("message") === CHAIN_NOT_SUPPORTED) {
-      throw new ExplorerVerifyError(
-        { code: "unsupported-chain", backend: name, chainId },
-        `${label} does not support chain ${String(chainId)}.`,
-        { secrets: ctx.http.secrets },
-      );
-    }
-    if (result?.startsWith(V1_ENDPOINT) === true) {
-      throw new ExplorerVerifyError(
-        { code: "unexpected-response", backend: name, status: answer.status, excerpt: answer.text },
-        `${label} answered that the request went to Etherscan's deprecated v1 API.`,
-        { hint: V1_HINT, secrets: ctx.http.secrets },
-      );
-    }
-    return result;
+    return knownAnswer(name, label, ctx, answer, chainId);
   }
 
   /** `unexpected-response` for this client; see `unexpectedAnswer` in common.ts. */
@@ -433,6 +407,57 @@ export const etherscan: Backend = etherscanStyle({
   read: post,
   creation: true,
 });
+
+/**
+ * Throws for an answer any Etherscan-style call can get: a key or daily-limit answer, an
+ * unsupported chain, or a v1 endpoint. Returns the `result` text, or `undefined` when `result` is
+ * not text. The clients and the proxy-link code read every answer through it.
+ *
+ * @param name - The backend.
+ * @param label - The API's name in messages, such as `Etherscan`.
+ * @param ctx - The call's context, for its secrets.
+ * @param answer - The answer.
+ * @param chainId - The chain of the call, for `unsupported-chain`.
+ * @returns The `result` text, or `undefined`.
+ * @throws ExplorerVerifyError `missing-api-key`, `api-key-rejected`, `quota-exceeded`,
+ *   `unsupported-chain` or `unexpected-response`.
+ * @example
+ * ```ts
+ * const result = knownAnswer("etherscan-v2", "Etherscan", ctx, answer, 11155111);
+ * ```
+ */
+export function knownAnswer(
+  name: BackendName,
+  label: string,
+  ctx: Context,
+  answer: Answer,
+  chainId: number,
+): string | undefined {
+  const { fields } = answer;
+  if (fields === undefined) {
+    return undefined;
+  }
+  const keyError = keyErrorOf(name, Object.fromEntries(fields), ctx.http.secrets);
+  if (keyError !== undefined) {
+    throw keyError;
+  }
+  const result = resultOf(answer);
+  if (result?.startsWith(NO_CHAIN) === true || fields.get("message") === CHAIN_NOT_SUPPORTED) {
+    throw new ExplorerVerifyError(
+      { code: "unsupported-chain", backend: name, chainId },
+      `${label} does not support chain ${String(chainId)}.`,
+      { secrets: ctx.http.secrets },
+    );
+  }
+  if (result?.startsWith(V1_ENDPOINT) === true) {
+    throw new ExplorerVerifyError(
+      { code: "unexpected-response", backend: name, status: answer.status, excerpt: answer.text },
+      `${label} answered that the request went to Etherscan's deprecated v1 API.`,
+      { hint: V1_HINT, secrets: ctx.http.secrets },
+    );
+  }
+  return result;
+}
 
 /**
  * A lookup or a status request as Etherscan takes it: a form-encoded POST to

@@ -1,0 +1,30 @@
+{
+  "source": "Body seen live on 2026-11-03 with curl 8.7.1 from api.etherscan.io for checkproxyverification of a link requested for an address with no code on Ethereum Sepolia, answered for more than 60 s (issue #94). The guid is a placeholder and the headers are reduced to the content type. On 2026-11-04 a live linkProxy() run also saw one pending check before the mismatch answer.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkproxyverification",
+        "guid": "cdhzipetrxshijkea1tmsqbuxjmn75i827pzdntvvubl7dnycn",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Pending in queue"
+    }
+  }
+}

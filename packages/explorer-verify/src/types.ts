@@ -136,6 +136,102 @@ export type VerifyResult =
     };
 
 /**
+ * The proxy that `linkProxy()` links to its implementation (R-FLOW-8). Other fields are ignored,
+ * as `verify()` ignores fields its input does not declare.
+ *
+ * @example
+ * ```ts
+ * import type { LinkProxyTarget } from "explorer-verify";
+ *
+ * const target: LinkProxyTarget = {
+ *   chainId: 11155111,
+ *   address: "0xed5b8413e605598ef86cd7617f12701f74ca255c",
+ *   expectedImplementation: "0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920",
+ * };
+ * ```
+ * @experimental
+ */
+export interface LinkProxyTarget {
+  /** EVM chain id the proxy is deployed on. */
+  chainId: number;
+  /** The proxy's address. */
+  address: Hex;
+  /**
+   * The implementation the proxy should point at now: the address in its EIP-1967 slot, not the
+   * one it was deployed with if it was upgraded since. When set, any other implementation the
+   * explorer reports gives `mismatch`. Etherscan also receives it as `expectedimplementation`.
+   */
+  expectedImplementation?: Hex;
+}
+
+/**
+ * The outcome of `linkProxy()`. `linked` means the explorer links the proxy to the implementation
+ * (the expected one, when `expectedImplementation` is set). `mismatch` means it holds another
+ * implementation than `expectedImplementation`. `not-linked` means the explorer definitively
+ * refused: the proxy is not verified there, or it detects no implementation. Any unknown answer
+ * throws instead, so a caller never mistakes it for a link.
+ *
+ * @example
+ * ```ts
+ * import type { LinkProxyResult } from "explorer-verify";
+ *
+ * function describe(result: LinkProxyResult): string {
+ *   if (result.status === "not-linked") {
+ *     return `not linked: ${result.reason}`;
+ *   }
+ *   if (result.status === "mismatch") {
+ *     return `points at ${result.implementation ?? "another address"}, not ${result.expectedImplementation}`;
+ *   }
+ *   return `linked to ${result.implementation}${result.implementationVerified ? "" : " (not verified)"}`;
+ * }
+ * ```
+ * @experimental
+ */
+export type LinkProxyResult =
+  | {
+      /** The explorer links the proxy to `implementation`. */
+      status: "linked";
+      /** The backend that holds the link. */
+      backend: BackendName;
+      /** The implementation the explorer reports, `0x` and 40 lowercase hex digits. */
+      implementation: Hex;
+      /**
+       * Whether the explorer holds the implementation's verified source. `false`, as for
+       * Etherscan's "unverified - without ABI" answer, means the proxy page shows no functions
+       * yet: verify the implementation, then call `linkProxy()` again.
+       */
+      implementationVerified: boolean;
+      /** The public page of the proxy. Absent when the library knows none. */
+      explorerUrl?: string;
+    }
+  | {
+      /**
+       * The explorer links the proxy to another implementation than `expectedImplementation`, or
+       * refused the link because the proxy points elsewhere. The proxy may have been upgraded
+       * since: read its EIP-1967 slot, then call `linkProxy()` with that address.
+       */
+      status: "mismatch";
+      /** The backend that holds the link. */
+      backend: BackendName;
+      /**
+       * The implementation the explorer holds for the proxy, `0x` and 40 lowercase hex digits.
+       * Absent when the explorer names none: Etherscan's refusal does not say it, so it is read
+       * from its record of the proxy, which may be empty, or with a lookup that fails.
+       */
+      implementation?: Hex;
+      /** The `expectedImplementation` of the call, in lower case. */
+      expectedImplementation: Hex;
+    }
+  | {
+      /** The explorer refused to link the proxy. */
+      status: "not-linked";
+      /** The backend that refused. */
+      backend: BackendName;
+      /** Why, from the explorer's answer, with API keys removed and cut to 300 characters. */
+      reason: string;
+    };
+
+/**
  * What `dryRun()` returns: where a `verify()` call with the same input and options would go, and
  * what the explorer holds now (R-AX-8). Nothing was submitted.
  *

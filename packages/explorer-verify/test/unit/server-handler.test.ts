@@ -365,12 +365,14 @@ describe("createVerifyHandler guards (R-SRV-3, R-SRV-4)", () => {
     assert.equal(explorer.calls.length, 0);
   });
 
-  it("forwards only verifysourcecode, checkverifystatus and getsourcecode of module contract (R-SRV-3)", async () => {
+  it("forwards only verifysourcecode, checkverifystatus and getsourcecode of module contract by default (R-SRV-3)", async () => {
     const refused = [
       { module: "contract", action: "getabi", address: OTHER },
       { module: "contract", action: "getcontractcreation", contractaddresses: OTHER },
       { module: "contract", action: "verifyproxycontract", address: OTHER },
       { module: "contract", action: "checkproxyverification", guid: "abc" },
+      { module: "contract", action: "VerifyProxyContract", address: OTHER },
+      { module: "contract", action: "checkproxyverification ", guid: "abc" },
       { module: "contract", action: "VerifySourceCode" },
       { module: "contract", action: "verifysourcecode " },
       { module: "account", action: "balance", address: OTHER },
@@ -868,6 +870,7 @@ describe("createVerifyHandler checks its options", () => {
       [{ maxBodyBytes: 1.5 }, "maxBodyBytes: must be a positive safe integer"],
       [{ timeoutMs: -1 }, "timeoutMs: must be a positive safe integer"],
       [{ timeoutMs: Infinity }, "timeoutMs: must be a positive safe integer"],
+      [{ allowProxyLink: "yes" }, "allowProxyLink: must be a boolean"],
     ];
     for (const [patch, issue] of cases) {
       const options = { ...valid, ...patch };

@@ -181,7 +181,16 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   match when the bytecode carries no metadata hash; Blockscout's empty submit response right after a
   deployment (retry the whole submit); Etherscan's "already verified" answers.
 - **R-FLOW-8** Proxies: after the implementation verifies, link the proxy to it where the backend
-  supports that (Etherscan `verifyproxycontract`).
+  supports that (Etherscan `verifyproxycontract`). `linkProxy(target, options?)` is a separate
+  export, its explorer code loaded only when called (R-RUN-5). It returns `linked`, with the
+  implementation the explorer reports and whether its source is verified; `mismatch` when the
+  explorer holds another implementation than `expectedImplementation`; or `not-linked` when the
+  explorer definitively refuses. An unknown link state, or an implementation that is not exactly
+  one non-zero address, throws `proxy-link-unknown-state`; a link still pending at the time budget
+  throws `proxy-link-pending`. Etherscan v2, standalone Etherscan-compatible explorers and
+  Blockscout get a link request; Sourcify gets one lookup; Routescan throws `invalid-input`
+  ([decision 0033](decisions/0033-proxy-link-as-a-separate-call.md)). The server handler forwards
+  the proxy-link actions only when its operator turns them on (R-SRV-3).
 
 ### Server handler (R-SRV)
 
@@ -189,12 +198,13 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   returns a `Response`, and runs in Node, edge runtimes and serverless platforms. Framework adapters stay thin.
 - **R-SRV-2** The handler holds the Etherscan key. The browser calls the handler; the handler calls
   Etherscan.
-- **R-SRV-3** It forwards only the verify-submit and status actions and a read-only lookup of one
-  address, never arbitrary explorer API calls (Etherscan terms forbid a general proxy, see
+- **R-SRV-3** It forwards only the verify-submit and status actions, the proxy-link actions
+  (`verifyproxycontract`, `checkproxyverification`) when the operator sets `allowProxyLink`, and
+  a read-only lookup of one address, never
+  arbitrary explorer API calls (Etherscan terms forbid a general proxy, see
   [research/2026-11-02-etherscan-terms.md](research/2026-11-02-etherscan-terms.md)). The lookup
   answer is reduced to what the client classifies, so no source is relayed
-  ([decision 0021](decisions/0021-server-handler-forwards-a-reduced-lookup.md)). The proxy
-  verification actions follow in M3 (#94).
+  ([decision 0021](decisions/0021-server-handler-forwards-a-reduced-lookup.md)).
 - **R-SRV-4** Guards: chain allowlist, request size limit, per-client rate limit hook, and an
   optional check that the address was created by an allowed deployer or factory.
 - **R-SRV-5** The client side uses the handler by injecting a `fetch` that targets it. No other
@@ -323,16 +333,16 @@ CLI:
 
 - **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
 
-  | Code | Meaning                                                                                                                                                                                                                          |
-  | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0    | `verified` or `already-verified`                                                                                                                                                                                                 |
-  | 1    | `failed`: the explorer definitively rejected the submission                                                                                                                                                                      |
-  | 2    | Usage or input error, including a chain the backend does not support; nothing was submitted for verification                                                                                                                     |
-  | 3    | Missing, invalid or under-privileged API key                                                                                                                                                                                     |
-  | 4    | No verdict yet. `not-confirmed`: still pending at the time budget; the output carries the handle. `verification-inconclusive`: the job ended without a verdict; no handle, call `verify()` again (decision 0011)                 |
-  | 5    | Network or explorer unavailable after retries                                                                                                                                                                                    |
-  | 6    | `unknown-state`: the explorer answered something the library cannot classify; the output carries the handle. `internal-error`: an unexpected exception inside the CLI; no handle. Do not retry automatically; a person checks it |
-  | 130  | Cancelled                                                                                                                                                                                                                        |
+  | Code | Meaning                                                                                                                                                                                                                                                                                                 |
+  | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0    | `verified` or `already-verified`                                                                                                                                                                                                                                                                        |
+  | 1    | `failed`: the explorer definitively rejected the submission                                                                                                                                                                                                                                             |
+  | 2    | Usage or input error, including a chain the backend does not support; nothing was submitted for verification                                                                                                                                                                                            |
+  | 3    | Missing, invalid or under-privileged API key                                                                                                                                                                                                                                                            |
+  | 4    | No verdict yet. `not-confirmed`: still pending at the time budget; the output carries the handle. `verification-inconclusive`: the job ended without a verdict; no handle, call `verify()` again (decision 0011). `proxy-link-pending`: a proxy link still pending; no handle, call `linkProxy()` again |
+  | 5    | Network or explorer unavailable after retries                                                                                                                                                                                                                                                           |
+  | 6    | `unknown-state`: the explorer answered something the library cannot classify; the output carries the handle. `proxy-link-unknown-state`: the same for a proxy link; no handle. `internal-error`: an unexpected exception inside the CLI; no handle. Do not retry automatically; a person checks it      |
+  | 130  | Cancelled                                                                                                                                                                                                                                                                                               |
 
   Every code in the error catalogue maps to one of these exit codes. `explorer-verify status <handle>`
   resumes a pending verification and uses the same codes (R-FLOW-5). A run on several backends
@@ -464,7 +474,8 @@ Measurement:
   forbid exposing a key in client code and operating a proxy that passes API data to third parties;
   whether a verify-only handler counts as such a proxy is the project's reading, not legal advice,
   and operators should confirm with Etherscan; and that the handler forwards only the verify-submit
-  and status actions and a reduced read-only lookup (R-SRV-3).
+  and status actions, the proxy-link actions when the operator turns them on, and a reduced read-only
+  lookup (R-SRV-3).
 
 ### Quality (R-QA)
 

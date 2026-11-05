@@ -1,0 +1,50 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T19:01:16.455Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkproxyverification",
+        "guid": "8275d36f64f047d2d8a1f42c79bf80caea39d7cc6aeb80f8"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a555ddd0dbca46df-LHR",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 19:01:17 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=%2BV82Dsx%2Bn4Rj9bGEsIUus%2FDwlgjEq9vxRj3o0AXkMyqo8ZtV6AyjOWgvfc8x3t7JuP%2BgjjimlVFNWEC96ib8XJWrmpVwwI6tyMq8q0FNWSNYgAmF8XQgvdKSdu107D3aQLSfS2N%2FOS1fTUYf\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "5",
+      "x-ratelimit-reset": "3522415",
+      "x-request-id": "a75bdd36f7765aacb6ea9f70dc127633"
+    },
+    "body": {
+      "message": "OK",
+      "result": "Verification in progress",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-04T19:01:16.455Z"
+}

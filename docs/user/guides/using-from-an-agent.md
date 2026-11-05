@@ -8,6 +8,7 @@ Audience: coding agents, and the people who run them, that call explorer-verify 
 `explorer-verify` command on someone's behalf.
 
 One step is outward and permanent: the submit, which publishes the source on a public explorer.
+Linking a proxy with `linkProxy()` is outward too: it changes the proxy's page on the explorer.
 Every other step reads local files or asks an explorer a question. This page says which call and
 which command does what, where API keys come from, how to read an outcome and when to stop and ask
 the person.
@@ -29,12 +30,13 @@ describes every option.
 These calls and commands send a submission. The explorer publishes the source, and you cannot take
 it back.
 
-| Call or command          | What it sends                                                                                                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify()`               | Looks the contract up, then submits the source when the explorer lacks it, and polls the job                                                                                                                                 |
-| `verifyEach()`           | Runs `verify()` on each backend it lists, so it can submit to several explorers in one call                                                                                                                                  |
-| `explorer-verify verify` | Runs `verify()`, or `verifyEach()` when `--backend` is given more than once. Without `--dry-run` it submits when the lookup finds no match                                                                                   |
-| `createVerifyHandler()`  | Returns a handler you deploy on your server. It forwards a browser's Etherscan submits with your key, so whoever can reach it can submit under your key. See [Server handler](../reference/server-handler.md#who-may-verify) |
+| Call or command          | What it sends                                                                                                                                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify()`               | Looks the contract up, then submits the source when the explorer lacks it, and polls the job                                                                                                                                                   |
+| `verifyEach()`           | Runs `verify()` on each backend it lists, so it can submit to several explorers in one call                                                                                                                                                    |
+| `explorer-verify verify` | Runs `verify()`, or `verifyEach()` when `--backend` is given more than once. Without `--dry-run` it submits when the lookup finds no match                                                                                                     |
+| `createVerifyHandler()`  | Returns a handler you deploy on your server. It forwards a browser's Etherscan submits with your key, so whoever can reach it can submit under your key. See [Server handler](../reference/server-handler.md#who-may-verify)                   |
+| `linkProxy()`            | Asks Etherscan, a standalone Etherscan-compatible explorer or Blockscout to link a proxy to its implementation, which changes the proxy's page there. It submits no source. On Sourcify it only reads. See [Verify a proxy](verify-a-proxy.md) |
 
 Submit only when the person asked you to verify that contract on that chain. Run a dry run first,
 and ask before the real run when the dry run says it would submit.

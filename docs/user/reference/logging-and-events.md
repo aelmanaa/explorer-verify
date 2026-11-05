@@ -17,7 +17,7 @@ Both are off by default. Without them the library writes nothing, in every runti
 `console` on its own. API keys are removed from every message, field and event before your code
 sees it.
 
-`verify()` and [checkStatus()](check-status.md) log and emit events as described here.
+`verify()`, [checkStatus()](check-status.md) and `linkProxy()` log and emit events as described here.
 
 ## Logger
 
@@ -94,7 +94,11 @@ the verification goes on.
   `verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits
   none. Its retries are logged at `warn`, with `label` set to `rpc`.
 - `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
-  `verify.retry` and `verify.result`.
+  `verify.retry` and `verify.result`. `linkProxy()` emits `verify.routed`, then one `verify.poll`
+  with `state` `pending` for each pending status check of the link, and `verify.retry` for an HTTP
+  retry. It emits no `verify.validated`, `verify.lookup`, `verify.submitted` or `verify.result`: its
+  outcome is the `LinkProxyResult` it returns, logged at `info`. See
+  [Verify a proxy](../guides/verify-a-proxy.md).
 - A call that throws emits no `verify.result`. The thrown error is the outcome.
 - `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
   if the call is aborted or the process stops, the handle resumes the verification. `verify()` also
