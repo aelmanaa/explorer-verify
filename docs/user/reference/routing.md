@@ -17,7 +17,8 @@ Without `route.apiUrl`:
 
 1. The routing table has a row for the chain: the call goes to the row's first backend that works
    with the keys you passed. A backend that needs a key is skipped when `apiKeys` has none for it.
-   Only `etherscan-v2` needs a key; Routescan, Blockscout and Sourcify do not. When no backend in the row works
+   Only `etherscan-v2` needs a key; Routescan, Blockscout and Sourcify do not, and a standalone
+   Etherscan-compatible entry needs one only when it says so. When no backend in the row works
    without a key, the call takes the first one, and fails with `missing-api-key` before it sends a
    request.
 2. `route.backend` picks another backend that the row lists. A backend the row does not list
@@ -33,20 +34,20 @@ The result's `backend` and the `verify.routed` event name the backend the call u
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 325 chains. 288
+The table is `src/routing/table.json` in the package. In this release it lists 326 chains. 288
 rows have Sourcify, the 55 chains of the Etherscan chainlist also have Etherscan v2, 111 rows have
-a Blockscout instance, 11 of them alone, and 38 rows have Routescan, 25 of them alone. The
-Etherscan-compatible client has no rows yet; reach it with `route.backend` and `route.apiUrl`, as
-[Etherscan-compatible](etherscan-compatible.md) shows. A chain has a row when
+a Blockscout instance, 11 of them alone, 38 rows have Routescan, 25 of them alone, and Bitlayer
+(200901) has a standalone Etherscan-compatible explorer alone. A chain has a row when
 [Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported, when it is in
 the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), when its Blockscout instance
-answered the API, or when Routescan's API serves it. The row has Sourcify when Sourcify supports
+answered the API, when Routescan's API serves it, or when its standalone Etherscan-compatible API
+answered without a key. The row has Sourcify when Sourcify supports
 the chain, so every chain that Sourcify serves resolves without `allowSourcifyFallback`. A
 chainlist chain also has Etherscan v2, and one that Sourcify does not support has Etherscan v2
 alone; in this release there is none. Both lists were read on 2026-11-05.
 
 A row lists its backends in this order: Etherscan v2 on a free-tier chain, Sourcify, Blockscout,
-Etherscan v2 on a paid-plan chain, then Routescan. A row holds only the backends that serve the
+Etherscan v2 on a paid-plan chain, a standalone Etherscan-compatible explorer, then Routescan. A row holds only the backends that serve the
 chain.
 
 The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
@@ -68,26 +69,30 @@ backends, in order of preference. An entry holds the backend name and only what 
 }
 ```
 
-| Field      | Meaning                                                                                |
-| ---------- | -------------------------------------------------------------------------------------- |
-| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                           |
-| `backends` | The chain's backends, in order of preference. A chain with no backend has no row       |
-| `backend`  | A name in `BACKEND_NAMES`                                                              |
-| `network`  | `routescan` only, required: `mainnet` or `testnet`                                     |
-| `explorer` | `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io`     |
-| `instance` | `blockscout` only, required: the instance's host, such as `eth-sepolia.blockscout.com` |
+| Field      | Meaning                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
+| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                                             |
+| `backends` | The chain's backends, in order of preference. A chain with no backend has no row                         |
+| `backend`  | A name in `BACKEND_NAMES`                                                                                |
+| `network`  | `routescan` only, required: `mainnet` or `testnet`                                                       |
+| `explorer` | `etherscan-v2` and `etherscan-compatible`, optional: the explorer's host, such as `sepolia.etherscan.io` |
+| `instance` | `blockscout` only, required: the instance's host, such as `eth-sepolia.blockscout.com`                   |
+| `api`      | `etherscan-compatible` only, required: the API's host and path, such as `api.btrscan.com/scan/api`       |
+| `needsKey` | `etherscan-compatible` only, optional: `true` when the API refuses a request without a key               |
 
-The table also has `schemaVersion`, 2, and `checked`, the date its rows were last checked.
+The table also has `schemaVersion`, 3, and `checked`, the date its rows were last checked. Schema
+3 adds the `etherscan-compatible` entry to schema 2; the library reads a schema 2 table too.
 `routingTableDate()` returns that date, and the CLI prints it with `explorer-verify --version --json`.
 
 The library derives every URL from the entry:
 
-| Backend        | API base                                                                     | Contract page                                                           |
-| -------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `sourcify`     | `https://sourcify.dev/server`                                                | `https://repo.sourcify.dev/<chain id>/<address>`                        |
-| `etherscan-v2` | `https://api.etherscan.io/v2/api`                                            | `https://<explorer>/address/<address>#code`, or none without `explorer` |
-| `routescan`    | `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api` | None yet                                                                |
-| `blockscout`   | `https://<instance>/api`                                                     | `https://<instance>/address/<address>?tab=contract`                     |
+| Backend                | API base                                                                     | Contract page                                                           |
+| ---------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `sourcify`             | `https://sourcify.dev/server`                                                | `https://repo.sourcify.dev/<chain id>/<address>`                        |
+| `etherscan-v2`         | `https://api.etherscan.io/v2/api`                                            | `https://<explorer>/address/<address>#code`, or none without `explorer` |
+| `routescan`            | `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api` | None yet                                                                |
+| `blockscout`           | `https://<instance>/api`                                                     | `https://<instance>/address/<address>?tab=contract`                     |
+| `etherscan-compatible` | `https://<api>`                                                              | `https://<explorer>/address/<address>#code`, or none without `explorer` |
 
 A chain without a row that goes to Sourcify through `allowSourcifyFallback` gets the same Sourcify
 page. `<address>` is the address in lower case, as `verify()` uses it (see
@@ -186,6 +191,38 @@ These listed instances have no entry, from what they answered on 2026-11-05:
 Reach a Blockscout instance without an entry with `route.apiUrl`, as [Blockscout](blockscout.md)
 shows.
 
+### Standalone Etherscan-compatible entries
+
+A chain has an `etherscan-compatible` entry when its own Etherscan-style API, as Foundry's chain
+list names it, answered a keyless request as Etherscan does on 2026-11-05. One chain qualifies,
+Bitlayer (200901):
+
+```json
+{
+  "chainId": 200901,
+  "backends": [
+    {
+      "backend": "etherscan-compatible",
+      "api": "api.btrscan.com/scan/api",
+      "explorer": "www.btrscan.com"
+    }
+  ]
+}
+```
+
+A call on 200901 goes to `https://api.btrscan.com/scan/api` with no route option, and a result
+carries `https://www.btrscan.com/address/<address>#code`. Core (1116) and Kaia (8217) answered
+HTTP 401 without a key and have no entry ([Etherscan-compatible](etherscan-compatible.md)).
+
+An entry with `needsKey: true` is skipped by a call without a key when the row lists another
+backend. A call that reaches it without `route.apiKey` throws `missing-api-key` before any
+request, unless `fetch` is set. Pass its key as `route: { backend: "etherscan-compatible",
+apiKey }`; the key goes only to the entry's host ([API keys](api-keys.md#routeapikey)). For an
+entry without `needsKey`, such as Bitlayer's, that form throws `invalid-input` naming
+`route.apiKey`. `verifyEach()` with `backends: "all"` leaves out an entry with `needsKey` when
+the row lists another backend, as a single call does, and `linkProxy()` refuses a standalone
+entry of the table.
+
 ## Request URLs
 
 - Etherscan v2 serves every chain from one URL. The route adds `chainid=<chain id>` to the query
@@ -193,7 +230,8 @@ shows.
   any letter case, is dropped, so a request never goes to another chain than the call's.
 - Routescan URLs hold the network and the chain id in the path, so the route adds no query.
 - A standalone Etherscan-compatible explorer serves one chain, so the route adds no `chainid`. A
-  query in your `route.apiUrl` is kept as you wrote it ([Etherscan-compatible](etherscan-compatible.md)).
+  query in your `route.apiUrl` is kept as you wrote it. A lookup or a status request without a key
+  adds its fields to the query as a GET ([Etherscan-compatible](etherscan-compatible.md)).
 - A Blockscout instance serves one chain at `<origin>/api`. Its `route.apiUrl` must end in `/api`
   once trailing slashes are removed, or the call throws `invalid-input` naming `route.apiUrl`. The
   client derives the lookup URL, `<apiUrl>/v2/smart-contracts/<address>`, from it, so a path
@@ -221,14 +259,16 @@ The CLI sets it with `--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routin
 
 - `backend` without `apiUrl` picks a backend from the chain's row. Every backend name has a
   client in this release, and one that the row does not list throws `unsupported-chain`.
-  No row lists `etherscan-compatible`, so it needs `apiUrl` ([Etherscan-compatible](etherscan-compatible.md)).
+  Only Bitlayer's row (200901) lists `etherscan-compatible`; other standalone explorers need
+  `apiUrl` ([Etherscan-compatible](etherscan-compatible.md)).
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
   in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
   name, password or fragment. A query string is sent with every request and shown as `?REDACTED`
   in logs. Results have no `explorerUrl` unless `apiUrl` is the table's own URL for the backend
   and chain, such as `https://api.etherscan.io/v2/api` for a chain with an Etherscan row.
-- `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it. See
-  [API keys](api-keys.md).
+- `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it, except with
+  `backend` `etherscan-compatible` on a chain whose row lists a standalone explorer with
+  `needsKey`: the key then goes to that explorer's host. See [API keys](api-keys.md).
 
 ## Keys and hosts
 
@@ -263,14 +303,14 @@ calls on the same backend do not wait for it.
 
 ## Errors
 
-| Code                | When                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `unsupported-chain` | The chain has no row and `allowSourcifyFallback` is not set. `details.backend` is `sourcify`                 |
-| `unsupported-chain` | `route.backend` names a backend that the chain's row does not list. `details.backend` names it               |
-| `unsupported-chain` | The table chose a backend this version has no client for. `details.backend` names it                         |
-| `unsupported-chain` | The explorer answered that it does not serve the chain                                                       |
-| `invalid-input`     | `route`, `route.backend`, `route.apiUrl`, `route.apiKey` or `allowSourcifyFallback` is invalid               |
-| `missing-api-key`   | The route's backend needs a key, none is bound to its host, and `fetch` is not set ([API keys](api-keys.md)) |
+| Code                | When                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `unsupported-chain` | The chain has no row and `allowSourcifyFallback` is not set. `details.backend` is `sourcify`       |
+| `unsupported-chain` | `route.backend` names a backend that the chain's row does not list. `details.backend` names it     |
+| `unsupported-chain` | The table chose a backend this version has no client for. `details.backend` names it               |
+| `unsupported-chain` | The explorer answered that it does not serve the chain                                             |
+| `invalid-input`     | `route`, `route.backend`, `route.apiUrl`, `route.apiKey` or `allowSourcifyFallback` is invalid     |
+| `missing-api-key`   | The route needs a key, none is bound to its host, and `fetch` is not set ([API keys](api-keys.md)) |
 
 Each is thrown before any request, except the explorer's own answer. See
 [unsupported-chain](errors/unsupported-chain.md).

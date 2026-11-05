@@ -184,7 +184,9 @@ export async function runLinkProxy(
     ...(dependencies.table === undefined ? {} : { table: dependencies.table }),
   });
   const load = dependencies.linkers[route.backend];
-  if (load === undefined) {
+  // A standalone entry of the routing table is not linked: Bitlayer refuses the POSTs a link
+  // sends, and no standalone explorer's proxy answers were probed (decision 0039).
+  if (load === undefined || (route.backend === "etherscan-compatible" && !route.overridden)) {
     throw cannotLink(route.backend, settings);
   }
   return await abortWins(settings.signal, async () => {
@@ -222,7 +224,10 @@ export async function runLinkProxy(
   });
 }
 
-/** `invalid-input` on `route.backend` for a backend this version cannot link a proxy on. */
+/**
+ * `invalid-input` on `route.backend` for a backend this version cannot link a proxy on, or for an
+ * `etherscan-compatible` route from the routing table rather than `route.apiUrl`.
+ */
 function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyError {
   return new ExplorerVerifyError(
     {
@@ -231,7 +236,7 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
     },
     `This version cannot link a proxy on ${backend}.`,
     {
-      hint: "Pass route.backend as etherscan-v2, etherscan-compatible (with route.apiUrl), blockscout or sourcify, whichever serves the chain.",
+      hint: "Pass route.backend as etherscan-v2, blockscout or sourcify, whichever serves the chain, or as etherscan-compatible with the explorer's route.apiUrl.",
       secrets: settings.keySecrets(),
     },
   );

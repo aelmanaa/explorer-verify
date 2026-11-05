@@ -30,8 +30,8 @@ From a browser, keep the key on your server and pass `route: { backend: "ethersc
 
 The [Routescan](routescan.md) and [Etherscan-compatible](etherscan-compatible.md) clients send
 `route.apiKey`. A key in `apiKeys` takes effect where the routing table lists its backend for the
-chain: the table lists Routescan for 38 chains ([Routing](routing.md#routescan-entries)), and no
-chain for Etherscan-compatible explorers.
+chain: the table lists Routescan for 38 chains ([Routing](routing.md#routescan-entries)). A
+standalone explorer's key never comes from `apiKeys`.
 
 ## `apiKeys`
 
@@ -92,18 +92,33 @@ const options = {
 };
 ```
 
+When a chain's routing-table row lists a standalone explorer with `needsKey: true`, name the
+backend and leave out `apiUrl`. The key is then bound to the host the row lists:
+
+```ts
+const options = { route: { backend: "etherscan-compatible", apiKey: explorerKey } };
+```
+
+No entry in this release has `needsKey`. Without `apiUrl`, the call throws before any request:
+[`invalid-input`](errors/invalid-input.md) naming `route.apiKey` when the row's standalone
+explorer takes no key, as Bitlayer's (200901) does, and
+[`unsupported-chain`](errors/unsupported-chain.md) when the row lists none.
+
 `route.apiKey` goes only to the route's host, and only with requests of the route's backend. It
-wins over `apiKeys` for that backend. It needs `route.apiUrl` in the same override: without it, the
-call throws `invalid-input` naming `route.apiKey`, so a key meant for one explorer never reaches the
-routing table's host for the chain. The same value rules apply. A backend that takes no key, such
+wins over `apiKeys` for that backend. For `etherscan-v2` and `routescan` it needs `route.apiUrl` in
+the same override: without it, the call throws `invalid-input` naming `route.apiKey`, so a key
+meant for one server never reaches the routing table's host for the chain. The same value rules
+apply. A backend that takes no key, such
 as `sourcify`, throws `invalid-input` naming `route.apiKey`. For `etherscan-compatible` and
 `etherscan-v2` the key goes in the `apikey` field of the form body; for Routescan it goes in the
 `apikey` header ([Routescan](routescan.md#api-key)).
 
 ## A missing key
 
-When the route's backend needs a key (`etherscan-v2`) and no key is bound to its host, the call
-throws [`missing-api-key`](errors/missing-api-key.md) before any request. The routing table skips
+When the route's backend needs a key (`etherscan-v2`), or its routing-table entry says its
+standalone explorer needs one, and no key is bound to its host, the call throws
+[`missing-api-key`](errors/missing-api-key.md) before any request. No standalone entry in this
+release needs a key. The routing table skips
 Etherscan for a call without its key, so this happens when `route.backend` names `etherscan-v2`, or
 when `route.apiUrl` points it at a server without `route.apiKey`.
 
@@ -141,7 +156,9 @@ The `explorer-verify` command reads keys from these variables, from `--api-key-f
 A key from `--api-key-file` or `--api-key-stdin` goes where the command line names. With
 `--api-url` and `--backend` naming `etherscan-v2`, `routescan` or `etherscan-compatible`, it
 becomes `route.apiKey` for that host. With `--backend etherscan-v2` or `--backend routescan` alone,
-it fills that `apiKeys` entry. The rules above then decide which
+it fills that `apiKeys` entry. With `--backend etherscan-compatible` alone, it becomes
+`route.apiKey` for the standalone host the routing table lists for the chain, which must have
+`needsKey`; otherwise the command exits 2. The rules above then decide which
 request carries it. See [the CLI reference](cli.md#api-keys-and-route-options).
 
 A JSON-RPC endpoint URL often holds a provider key too. The CLI takes it from `--rpc-url-file` or

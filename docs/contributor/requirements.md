@@ -125,6 +125,8 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 - **R-BE-1** Etherscan API v2: one endpoint for every chain it covers, `chainid` per request, API key
   required.
 - **R-BE-2** Etherscan-compatible standalone explorers (their own host, Etherscan request format).
+  A lookup or a status request without a key is a GET, as Bitlayer's API requires; with a key it
+  is a form POST, so the key stays out of the URL (decision 0039).
 - **R-BE-3** Blockscout: per-instance, with no key. The submit and the job status go to the
   instance's Etherscan-compatible `/api`; the lookup goes to its REST
   `/api/v2/smart-contracts/{address}`, which tells a full match from a partial one. The REST
@@ -149,7 +151,11 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
   Blockscout instance answered a recorded keyless probe also gets a Blockscout entry, or a row with
   Blockscout alone (decision 0038): 111 entries and 11 more rows. A chain whose
   Routescan API answered a recorded keyless probe also gets a Routescan entry, last in its row, or
-  a row with Routescan alone (decision 0037): 38 entries and 26 more rows, 325 rows in all. A
+  a row with Routescan alone (decision 0037): 38 entries and 26 more rows. A chain whose standalone
+  Etherscan-compatible API, from Foundry's chain list, answered a recorded keyless probe gets an
+  `etherscan-compatible` entry, before Routescan (decision 0039): Bitlayer (200901), one more
+  row, 326 rows in all. An API that refuses a keyless request gets an entry only after a run with
+  a key. A
   row lists its backends in order of preference; on a chain that needs a paid Etherscan plan,
   Sourcify comes before Etherscan v2 (decision 0027). Blockscout comes after Sourcify and a
   free-tier Etherscan v2, and before a paid-plan Etherscan v2 (decision 0038). A call goes to the first backend in the row
@@ -369,8 +375,10 @@ CLI:
   `apiKeys["etherscan-v2"]` and `ROUTESCAN_API_KEY` fills `apiKeys.routescan`. A standalone
   explorer's key fills `route.apiKey` (decision 0016). A key from `--api-key-file` or
   `--api-key-stdin` needs `--backend` naming `etherscan-v2` or `routescan`, whose `apiKeys` entry
-  it fills, or `--api-url` with `--backend` naming one of those or `etherscan-compatible`, which
-  makes it `route.apiKey`. Otherwise the CLI exits 2, because the routing table picks a backend
+  it fills, `--backend etherscan-compatible`, or `--api-url` with `--backend` naming one of those,
+  which makes it `route.apiKey`. Without `--api-url`, a standalone explorer's key goes to the
+  host the routing table lists for the chain, and only when that entry has `needsKey`
+  (decision 0039). Otherwise the CLI exits 2, because the routing table picks a backend
   partly by the keys it has. Tests assert that a dummy key never appears on stdout, on stderr
   or in JSON (extends R-SEC-1). The JSON-RPC URL of `verify` (`VerifyOptions.rpcUrl`, R-IN-3)
   can hold a provider key, so it comes from `--rpc-url-file` or `--rpc-url-stdin`, and from
@@ -469,7 +477,8 @@ Measurement:
   A handle never carries a host; the library resolves hosts from the routing table or the caller's
   options when it resumes. A key from `apiKeys` goes only to its backend's routing-table host, and
   only with requests of the route's backend; `route.apiKey` goes only to its route's host
-  (decision 0016).
+  (decision 0016): the host of `route.apiUrl`, or for `etherscan-compatible` without it, the
+  standalone host the chain's row lists with `needsKey` (decision 0039).
 - **R-SEC-3** Docs state the Etherscan plan requirement: a public dapp or any business, protocol,
   foundation or DAO use needs an Advanced or higher plan and its own key, and must show "Powered by
   Etherscan.io APIs" when it displays Etherscan data.

@@ -1,0 +1,32 @@
+{
+  "$comment": "Research data behind the etherscan-compatible entries of the routing table (decision 0039). It does not ship. The candidates are the chains whose etherscanApiUrl in alloy-chains 0.2.39 (assets/chains.json, Foundry's chain list) names a host of its own that is not Etherscan, Routescan or Blockscout, and that issue #170 names. On 2026-11-05 each API was sent the keyless request in request. hosts holds the APIs that answered as Etherscan does; scripts/routing-seed.ts reads them through scripts/routing-etherscan-compatible.ts. leftOut holds the APIs that refused the request without a key: they get an entry only after a run with a key.",
+  "checked": "2026-11-05",
+  "source": "https://raw.githubusercontent.com/alloy-rs/chains/v0.2.39/assets/chains.json",
+  "request": "GET https://<api>?module=contract&action=getsourcecode&address=0x0000000000000000000000000000000000000000",
+  "hosts": [
+    {
+      "chainId": 200901,
+      "name": "Bitlayer",
+      "api": "api.btrscan.com/scan/api",
+      "explorer": "www.btrscan.com",
+      "needsKey": false,
+      "answer": "HTTP 200, {\"status\":\"1\",\"message\":\"OK\",\"result\":[]}"
+    }
+  ],
+  "leftOut": [
+    {
+      "chainId": 1116,
+      "name": "Core",
+      "api": "openapi.coredao.org/api",
+      "explorer": "scan.coredao.org",
+      "answer": "HTTP 401, {\"status\":401,\"error\":\"Unauthorized\",\"message\":\"401 Permission Verification Failed. This apikey is illegal!\"}"
+    },
+    {
+      "chainId": 8217,
+      "name": "Kaia",
+      "api": "mainnet-oapi.kaiascan.io/api",
+      "explorer": "kaiascan.io",
+      "answer": "HTTP 401, {\"title\":\"unauthorized access\",\"message\":\"Please confirm your authority. (Access denied: The request is missing a valid access key.)\",\"code\":\"UNAUTHORIZED_ACCESS\"}"
+    }
+  ]
+}

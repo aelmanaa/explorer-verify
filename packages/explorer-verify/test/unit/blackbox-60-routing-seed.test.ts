@@ -214,17 +214,19 @@ function assertSourcifyRoute(
 }
 
 describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
-  it("has schemaVersion 2 and checked 2026-11-05", () => {
-    // #165 checked the rows again on 2026-11-05 when it removed two Etherscan v2 entries.
-    assert.equal(TABLE.schemaVersion, 2);
+  it("has schemaVersion 3 and checked 2026-11-05", () => {
+    // #165 checked the rows again on 2026-11-05 when it removed two Etherscan v2 entries; #170
+    // moved the table to schema 3 for the etherscan-compatible entry (decision 0039).
+    assert.equal(TABLE.schemaVersion, 3);
     assert.equal(TABLE.checked, "2026-11-05");
   });
 
-  it("lists 325 chains in ascending order, one row per chain (#166, #168, #169)", () => {
+  it("lists 326 chains in ascending order, one row per chain (#166, #168, #169, #170)", () => {
     // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036), 26 chains
-    // only Routescan's API served in the probe of 2026-11-05 (decision 0037), and 11 chains only
-    // a Blockscout instance served in the probe of 2026-11-05 (decision 0038).
-    assert.equal(TABLE.rows.length, 325);
+    // only Routescan's API served in the probe of 2026-11-05 (decision 0037), 11 chains only
+    // a Blockscout instance served in the probe of 2026-11-05 (decision 0038), and Bitlayer
+    // (200901), whose standalone API answered on 2026-11-05 (decision 0039).
+    assert.equal(TABLE.rows.length, 326);
     const ids = TABLE.rows.map((row) => row.chainId);
     assert.deepEqual(
       ids,
@@ -232,16 +234,21 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     );
   });
 
-  it("gives every row Sourcify, Blockscout or Routescan, and lists only the backends with a client (#122, #168, #169)", () => {
+  it("gives every row Sourcify, Blockscout, Routescan or a standalone host, and lists only the backends with a client (#122, #168, #169, #170)", () => {
     for (const row of TABLE.rows) {
       const names = row.backends.map((entry) => entry.backend);
       assert.ok(
-        names.includes("sourcify") || names.includes("blockscout") || names.join() === "routescan",
+        names.includes("sourcify") ||
+          names.includes("blockscout") ||
+          names.join() === "routescan" ||
+          names.join() === "etherscan-compatible",
         `chain ${row.chainId}`,
       );
       assert.ok(
         names.every((name) =>
-          ["sourcify", "etherscan-v2", "blockscout", "routescan"].includes(name),
+          ["sourcify", "etherscan-v2", "blockscout", "routescan", "etherscan-compatible"].includes(
+            name,
+          ),
         ),
         `chain ${row.chainId}`,
       );

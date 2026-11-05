@@ -340,7 +340,6 @@ describe("blackbox #102: --api-key-file edge cases", CONCURRENT, () => {
     const key = file("k.txt", KEY);
     const cases: readonly (readonly string[])[] = [
       [],
-      ["--backend", "etherscan-compatible"],
       ["--backend", "sourcify"],
       ["--backend", "blockscout"],
       ["--api-url", API_URL],
@@ -357,6 +356,46 @@ describe("blackbox #102: --api-key-file edge cases", CONCURRENT, () => {
       assertNoKey(result, label);
     }
   });
+
+  it(
+    "binds a key with --backend etherscan-compatible alone to the row's standalone host, and Sepolia has none (decision 0039)",
+    TIMEOUT,
+    async () => {
+      const key = file("k-standalone.txt", KEY);
+      const result = await bin([
+        ...STATUS,
+        "--json",
+        "--backend",
+        "etherscan-compatible",
+        "--api-key-file",
+        key,
+      ]);
+      assert.doesNotMatch(result.stdout, /--api-key-file (needs|cannot be used)/);
+      assert.match(result.stdout, /"code":"unsupported-chain"/);
+      assertNoKey(result, "--backend etherscan-compatible");
+    },
+  );
+
+  it(
+    "exits 2 on Bitlayer, whose table explorer takes no key, before any request (decision 0039)",
+    TIMEOUT,
+    async () => {
+      const key = file("k-bitlayer.txt", KEY);
+      const result = await bin([
+        "status",
+        "ev1:etherscan-compatible:200901:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn",
+        "--json",
+        "--backend",
+        "etherscan-compatible",
+        "--api-key-file",
+        key,
+      ]);
+      assert.equal(result.code, 2, result.stdout);
+      assert.match(result.stdout, /"code":"invalid-input"/);
+      assert.match(result.stdout, /route\.apiKey/);
+      assertNoKey(result, "bitlayer");
+    },
+  );
 });
 
 describe("blackbox #102: --api-key-stdin", CONCURRENT, () => {

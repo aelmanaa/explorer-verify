@@ -347,8 +347,11 @@ place to send the key:
 - With `--api-url`, `--backend` must be `etherscan-v2`, `routescan` or `etherscan-compatible`.
   The key becomes `route.apiKey` and goes only to that host. Use this for a standalone explorer:
   `--backend etherscan-compatible --api-url <url> --api-key-file <p>`.
-- Without `--api-url`, `--backend` must be `etherscan-v2` or `routescan`. The key fills that
-  backend's `apiKeys` entry, in place of its variable.
+- Without `--api-url`, `--backend` `etherscan-v2` or `routescan` fills that backend's `apiKeys`
+  entry, in place of its variable. `--backend etherscan-compatible` makes the key `route.apiKey`
+  for the standalone host the routing table lists for the chain, when that entry has `needsKey`.
+  On a chain whose entry takes no key, such as Bitlayer (200901), the command exits 2 with
+  `invalid-input`; a chain whose row lists none exits with `unsupported-chain`.
 - Otherwise the command exits 2: with no `--backend`, or with a backend that takes no key, such as
   `sourcify`. The routing table picks a backend partly by the keys it has, so a key without a named
   backend could reach an explorer it was not meant for.

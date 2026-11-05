@@ -1,15 +1,15 @@
 // Prints the differences between the routing table and the public chain lists it was built from
 // (#60, R-RT-1). It fetches the Etherscan chainlist, Sourcify's chain list, Routescan's two
-// explorer lists and Blockscout's chain registry, which need no key, and never writes the table. As text, it exits with 1 when it
+// explorer lists, Blockscout's chain registry and alloy-chains' list, which need no key, and never writes the table. As text, it exits with 1 when it
 // finds a difference. With `--json`, it prints the table's date, the notes and each difference
 // with its chain and list, and exits with 0: .github/workflows/routing-table.yml passes that JSON
 // to scripts/routing-table-issue.ts, which opens or updates one issue. A pull request applies the
 // change.
 //
-// With `--rows`, it prints instead the table the rules give for the live lists and the Blockscout
-// and Routescan probe data, dated today (UTC), for a pull request to save as `table.json` and
-// format with oxfmt (#166, #168, #169, decisions 0036, 0037 and 0038). Blockscout entries are
-// added first, so the Routescan entries stay last.
+// With `--rows`, it prints instead the table the rules give for the live lists and the Blockscout,
+// standalone and Routescan probe data, dated today (UTC), for a pull request to save as
+// `table.json` and format with oxfmt (#166, #168, #169, #170, decisions 0036 to 0039). Blockscout
+// entries are added first, then standalone ones, so the Routescan entries stay last.
 //
 // With `--probe-routescan`, it probes Routescan's API for each chain of Routescan's explorer lists,
 // one keyless request every 600 ms, and prints the research data for a pull request to save as
@@ -28,6 +28,11 @@ import {
   parseBlockscoutProbe,
   withBlockscout,
 } from "./routing-blockscout.ts";
+import {
+  STANDALONE_FILE,
+  parseStandaloneProbe,
+  withEtherscanCompatible,
+} from "./routing-etherscan-compatible.ts";
 import {
   ROUTESCAN_FILE,
   parseRoutescanProbe,
@@ -61,10 +66,13 @@ if (values["probe-routescan"]) {
   const read = (file: string): unknown => JSON.parse(readFileSync(path.join(root, file), "utf8"));
   const paid = new Set(live.chainlist.filter((chain) => chain.paidPlan).map((c) => c.chainId));
   const chains = withRoutescan(
-    withBlockscout(
-      table.chains,
-      blockscoutInstances(parseBlockscoutProbe(read(BLOCKSCOUT_FILE))),
-      paid,
+    withEtherscanCompatible(
+      withBlockscout(
+        table.chains,
+        blockscoutInstances(parseBlockscoutProbe(read(BLOCKSCOUT_FILE))),
+        paid,
+      ),
+      parseStandaloneProbe(read(STANDALONE_FILE)),
     ),
     parseRoutescanProbe(read(ROUTESCAN_FILE)),
   );

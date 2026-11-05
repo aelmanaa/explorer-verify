@@ -11,7 +11,8 @@
 // host: first when the free tier covers the chain, after Sourcify when it needs a paid plan
 // (decision 0027), and alone when Sourcify does not support it. `tableOf` gives the table these rules build, and
 // `scripts/compare-routing-table.ts --rows` prints it with the Blockscout entries of
-// scripts/routing-blockscout.ts (decision 0038) and then the Routescan entries of
+// scripts/routing-blockscout.ts (decision 0038), the standalone entries of
+// scripts/routing-etherscan-compatible.ts (decision 0039) and then the Routescan entries of
 // scripts/routing-routescan.ts (decision 0037) added.
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -22,6 +23,12 @@ import {
   fetchBlockscoutRegistry,
   parseBlockscoutProbe,
 } from "./routing-blockscout.ts";
+import {
+  STANDALONE_FILE,
+  fetchAlloyChains,
+  parseStandaloneProbe,
+  standaloneDifferences,
+} from "./routing-etherscan-compatible.ts";
 import {
   ROUTESCAN_FILE,
   fetchRoutescanList,
@@ -68,6 +75,8 @@ export interface TableRows {
     readonly network?: string;
     /** The `instance` of the row's `blockscout` entry, when it has one. */
     readonly instance?: string;
+    /** The `api` and `explorer` of the row's `etherscan-compatible` entry, when it has one. */
+    readonly standalone?: { readonly api: unknown; readonly explorer: unknown };
   }[];
 }
 
@@ -199,12 +208,23 @@ export function parseTable(value: unknown): TableRows {
         entries.find((entry) => field(entry, "backend") === "blockscout"),
         "instance",
       );
+      const standalone = entries.find(
+        (entry) => field(entry, "backend") === "etherscan-compatible",
+      );
       return {
         chainId: chainIdAt(row, "chainId", what),
         backends: entries.map((entry) => textAt(entry, "backend", what)),
         ...(typeof explorer === "string" ? { explorer } : {}),
         ...(typeof network === "string" ? { network } : {}),
         ...(typeof instance === "string" ? { instance } : {}),
+        ...(standalone === undefined
+          ? {}
+          : {
+              standalone: {
+                api: field(standalone, "api"),
+                explorer: field(standalone, "explorer"),
+              },
+            }),
       };
     }),
   };
@@ -227,9 +247,9 @@ export type TableEntryJson =
   | { readonly backend: "sourcify" }
   | { readonly backend: "etherscan-v2"; readonly explorer: string };
 
-/** The `table.json` the rules give, schema 2 (decision 0024). */
+/** The `table.json` the rules give, schema 3 (decisions 0024 and 0039). */
 export interface TableJson {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly checked: string;
   readonly chains: readonly {
     readonly chainId: number;
@@ -250,7 +270,7 @@ export interface TableJson {
 export function tableOf(lists: LiveLists, checked: string): TableJson {
   const live = new Map(lists.chainlist.map((chain) => [chain.chainId, chain]));
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     checked,
     chains: expectedRows(lists).map((chainId) => {
       const chain = live.get(chainId);
@@ -274,7 +294,8 @@ export type ChangedList =
   | "Etherscan chainlist"
   | "Sourcify chain list"
   | "Routescan chain list"
-  | "Blockscout chain registry";
+  | "Blockscout chain registry"
+  | "alloy-chains list";
 
 /** One difference: the chain, the public list whose answer disagrees, and the line printed. */
 export interface Difference {
@@ -451,14 +472,16 @@ export async function fetchLists(fetch: typeof globalThis.fetch): Promise<LiveLi
  */
 export async function run(root: string, fetch: typeof globalThis.fetch): Promise<RunResult> {
   const read = (file: string): unknown => JSON.parse(readFileSync(path.join(root, file), "utf8"));
-  const [live, routescan, registry] = await Promise.all([
+  const [live, routescan, registry, alloy] = await Promise.all([
     fetchLists(fetch),
     fetchRoutescanList(fetch),
     fetchBlockscoutRegistry(fetch),
+    fetchAlloyChains(fetch),
   ]);
   const table = parseTable(read(TABLE_FILE));
   const probe = parseRoutescanProbe(read(ROUTESCAN_FILE));
   const blockscout = parseBlockscoutProbe(read(BLOCKSCOUT_FILE));
+  const standalone = parseStandaloneProbe(read(STANDALONE_FILE));
   return {
     checked: table.checked,
     differences: [
@@ -471,11 +494,16 @@ export async function run(root: string, fetch: typeof globalThis.fetch): Promise
         ...difference,
         list: "Blockscout chain registry",
       })),
+      ...standaloneDifferences(table.rows, standalone, alloy).map((difference): Difference => ({
+        ...difference,
+        list: "alloy-chains list",
+      })),
     ],
     notes: [
       `table checked ${table.checked}; ${String(table.rows.length)} rows`,
       `routescan: entries compared with the API probe of ${probe.checked}, and that probe with Routescan's explorer lists`,
       `blockscout: entries compared with the instance probe of ${blockscout.checked}, and that probe with Blockscout's chain registry`,
+      `etherscan-compatible: entries compared with the API probe of ${standalone.checked}, and that probe with alloy-chains' list`,
     ],
   };
 }

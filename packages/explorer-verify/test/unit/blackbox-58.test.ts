@@ -851,7 +851,7 @@ describe("missing-api-key check (api-keys.md `## A missing key`)", () => {
     );
     assert.notEqual(error.code, "missing-api-key");
     assert.ok(globalCalls.length > 0);
-    assert.ok(globalCalls.every((url) => url === "https://explorer.example.org/api"));
+    assert.ok(globalCalls.every((url) => url.split("?")[0] === "https://explorer.example.org/api"));
   });
 
   it("a handle for etherscan-v2 throws invalid-input naming backend, with and without fetch, and sends nothing", async () => {

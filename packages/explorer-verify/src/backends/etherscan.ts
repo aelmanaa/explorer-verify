@@ -108,6 +108,12 @@ export interface Dialect {
    * prefix of `result`. A match gives `failed` with the text as the reason, without a lookup.
    */
   readonly rejections?: readonly string[];
+  /**
+   * Whether a lookup answered with `status` `"1"` and an empty `result` list means "not verified".
+   * Bitlayer's standalone API answers so for an unverified address (live, 2026-11-05). Etherscan
+   * answers with one record whose `SourceCode` is empty, so for it an empty list throws.
+   */
+  readonly emptyLookup?: boolean;
 }
 
 /**
@@ -144,7 +150,8 @@ export function etherscanStyle(dialect: Dialect): Backend {
   /**
    * Asks whether the contract is verified, with `getsourcecode`. A first result with a non-empty
    * `SourceCode` is a match: `partial` when `SimilarMatch` names another contract, else `exact`.
-   * An empty `SourceCode` is "not verified". Every other answer throws.
+   * An empty `SourceCode` is "not verified", and so is an empty `result` list when the dialect
+   * sets `emptyLookup`. Every other answer throws.
    */
   async function lookup(target: Target, ctx: Context): Promise<Match | undefined> {
     const answer = await send(
@@ -154,6 +161,9 @@ export function etherscanStyle(dialect: Dialect): Backend {
     known(ctx, answer, target.chainId);
     const result = answer.fields?.get("result");
     if (answer.status === 200 && answer.fields?.get("status") === "1" && Array.isArray(result)) {
+      if (result.length === 0 && dialect.emptyLookup === true) {
+        return undefined;
+      }
       const first = readFields(result[0]);
       const source = first?.get("SourceCode");
       if (typeof source === "string") {

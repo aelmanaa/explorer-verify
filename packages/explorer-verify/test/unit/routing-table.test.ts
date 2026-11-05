@@ -42,6 +42,11 @@ const ROUTESCAN: TableEntry = { backend: "routescan", network: "testnet" };
 const SOURCIFY: TableEntry = { backend: "sourcify" };
 const BLOCKSCOUT_HOST = "eth-sepolia.blockscout.com";
 const BLOCKSCOUT: TableEntry = { backend: "blockscout", instance: BLOCKSCOUT_HOST };
+const STANDALONE: TableEntry = {
+  backend: "etherscan-compatible",
+  api: "api.btrscan.com/scan/api",
+  explorer: "www.btrscan.com",
+};
 
 function row(chainId: number, backends: TableEntry[]): TableRow {
   return { chainId, backends };
@@ -49,7 +54,7 @@ function row(chainId: number, backends: TableEntry[]): TableRow {
 
 /** A table in the format the M2 rows will use: Etherscan, Routescan and Sourcify. */
 const TABLE: RoutingTable = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   checked: "2026-11-03",
   chains: [row(FUJI, [ROUTESCAN, SOURCIFY]), row(SEPOLIA, [ETHERSCAN, SOURCIFY])],
 };
@@ -596,7 +601,7 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
 });
 
 function brokenTable(...chains: unknown[]): unknown {
-  return { schemaVersion: 2, checked: "2026-11-03", chains };
+  return { schemaVersion: 3, checked: "2026-11-03", chains };
 }
 
 function brokenRow(chainId: unknown, ...backends: unknown[]): Record<string, unknown> {
@@ -715,9 +720,99 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
       /backend must be a name in BACKEND_NAMES/,
     ],
     [
-      "a backend with no host rule yet",
+      "an etherscan-compatible entry without an api (#170)",
       brokenTable(brokenRow(1, { backend: "etherscan-compatible" })),
-      /etherscan-compatible has no host rule yet/,
+      /api is missing/,
+    ],
+    [
+      "an etherscan-compatible api with a scheme (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "https://api.btrscan.com/scan/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api with a port (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "api.btrscan.com:8443/scan/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api with a trailing slash (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "api.btrscan.com/scan/api/" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api with a query (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "api.btrscan.com/api?x=1" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api with a dot segment (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "api.btrscan.com/../api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api with a user name (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "u@api.btrscan.com/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an upper-case etherscan-compatible api (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "API.btrscan.com/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api that is not text (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: 1 })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible needsKey other than true (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, needsKey: false })),
+      /needsKey must be true, or left out/,
+    ],
+    [
+      "an etherscan-compatible explorer with a path (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, explorer: "www.btrscan.com/x" })),
+      /explorer must be a lowercase host name/,
+    ],
+    [
+      "an etherscan-compatible api on an IPv4 literal (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "192.168.1.10/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an etherscan-compatible api on an IPv6 literal (#170)",
+      brokenTable(brokenRow(1, { ...STANDALONE, api: "[::1]/api" })),
+      /api must be a lowercase host name and path/,
+    ],
+    [
+      "an explorer host that is an IPv4 literal (#170)",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "10.0.0.1" })),
+      /explorer must be a lowercase host name/,
+    ],
+    [
+      "an explorer host that is an IPv6 literal (#170)",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, explorer: "[::1]" })),
+      /explorer must be a lowercase host name/,
+    ],
+    [
+      "a blockscout instance that is an IPv4 literal (#170)",
+      brokenTable(brokenRow(1, { backend: "blockscout", instance: "127.0.0.1" })),
+      /instance must be a lowercase host name/,
+    ],
+    [
+      "a blockscout instance that is an IPv6 literal (#170)",
+      brokenTable(brokenRow(1, { backend: "blockscout", instance: "[2001:db8::1]" })),
+      /instance must be a lowercase host name/,
+    ],
+    [
+      "an api field on another backend (#170)",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, api: "api.btrscan.com/scan/api" })),
+      /api is not a known field/,
+    ],
+    [
+      "a needsKey field on another backend (#170)",
+      brokenTable(brokenRow(1, { ...ETHERSCAN, needsKey: true })),
+      /needsKey is not a known field/,
     ],
     [
       "a blockscout entry without an instance (R-BE-3)",
@@ -786,37 +881,42 @@ describe("routing table: the checks fail on a broken table (R-RT-1, R-SEC-2)", (
     ["a row that is not an object", brokenTable(null), /chains\[0\]: must be an object/],
     [
       "a date that does not exist",
-      { schemaVersion: 2, checked: "2026-02-30", chains: [] },
+      { schemaVersion: 3, checked: "2026-02-30", chains: [] },
       /table: checked must be a YYYY-MM-DD date/,
     ],
     [
       "a bad table date",
-      { schemaVersion: 2, checked: "03/11/2026", chains: [] },
+      { schemaVersion: 3, checked: "03/11/2026", chains: [] },
       /table: checked must be a YYYY-MM-DD date/,
     ],
     [
       "a table date that is not text",
-      { schemaVersion: 2, checked: 20261103, chains: [] },
+      { schemaVersion: 3, checked: 20261103, chains: [] },
       /table: checked must be a YYYY-MM-DD date/,
     ],
     [
       "schema version 1",
       { schemaVersion: 1, checked: "2026-11-03", chains: [] },
-      /schemaVersion must be 2/,
+      /schemaVersion must be 3/,
+    ],
+    [
+      "schema version 2 in the shipped file (#170)",
+      { schemaVersion: 2, checked: "2026-11-03", chains: [] },
+      /schemaVersion must be 3/,
     ],
     [
       "chains that are not a list",
-      { schemaVersion: 2, checked: "2026-11-03", chains: {} },
+      { schemaVersion: 3, checked: "2026-11-03", chains: {} },
       /chains must be a list/,
     ],
     [
       "a table that keeps its source list (moved to the research data)",
-      { schemaVersion: 2, checked: "2026-11-03", sources: [], chains: [] },
+      { schemaVersion: 3, checked: "2026-11-03", sources: [], chains: [] },
       /sources is not a known field/,
     ],
     [
       "an unknown table field",
-      { schemaVersion: 2, checked: "2026-11-03", chains: [], extra: 1 },
+      { schemaVersion: 3, checked: "2026-11-03", chains: [], extra: 1 },
       /extra is not a known field/,
     ],
     ["a table that is not an object", [], /the table must be an object/],
@@ -890,11 +990,11 @@ describe("routing table: the URL checks on derived URLs (R-SEC-2, #59)", () => {
       /apiUrl host must be sourcify\.dev/,
     ],
     [
-      "a backend with no host rule yet",
+      "an etherscan-compatible URL without the entry's api (#170)",
       "etherscan-compatible",
       1,
       "https://explorer.example.org/api",
-      /etherscan-compatible has no host rule yet/,
+      /apiUrl host must be/,
     ],
     [
       "a blockscout URL without the entry's instance",
@@ -942,6 +1042,44 @@ describe("routing table: the URL checks on derived URLs (R-SEC-2, #59)", () => {
   it("passes a table with a blockscout entry, the instance checked as a host (R-BE-3)", () => {
     const table: RoutingTable = { ...TABLE, chains: [row(SEPOLIA, [SOURCIFY, BLOCKSCOUT])] };
     assert.deepEqual(tableProblems(table), []);
+  });
+
+  it("passes a table with etherscan-compatible entries, the api checked as a host and path (#170)", () => {
+    const table: RoutingTable = {
+      ...TABLE,
+      chains: [
+        row(1116, [
+          { backend: "etherscan-compatible", api: "openapi.coredao.org", needsKey: true },
+        ]),
+        row(200_901, [STANDALONE]),
+      ],
+    };
+    assert.deepEqual(tableProblems(table), []);
+    const target = tableTarget(200_901, STANDALONE) ?? assert.fail("no target");
+    assert.deepEqual(
+      apiUrlProblems(
+        target.apiUrl,
+        "etherscan-compatible",
+        200_901,
+        "e",
+        "api.btrscan.com/scan/api",
+      ),
+      [],
+    );
+    assert.ok(
+      apiUrlProblems(
+        "https://api.btrscan.com/scan/apix",
+        "etherscan-compatible",
+        200_901,
+        "e",
+        "api.btrscan.com/scan/api",
+      ).some((text) => /apiUrl path must match/.test(text)),
+    );
+    // A dot in the path matches only a dot.
+    assert.ok(
+      apiUrlProblems("https://x.example/a-b", "etherscan-compatible", 1, "e", "x.example/a.b")
+        .length > 0,
+    );
   });
 
   const pages: [string, string, RegExp][] = [

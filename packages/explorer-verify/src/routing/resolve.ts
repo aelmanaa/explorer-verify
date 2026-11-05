@@ -27,6 +27,11 @@ import table from "./table.json" with { type: "json" };
  * const routescan: TableEntry = { backend: "routescan", network: "testnet" };
  * const etherscan: TableEntry = { backend: "etherscan-v2", explorer: "sepolia.etherscan.io" };
  * const blockscout: TableEntry = { backend: "blockscout", instance: "eth-sepolia.blockscout.com" };
+ * const standalone: TableEntry = {
+ *   backend: "etherscan-compatible",
+ *   api: "api.btrscan.com/scan/api",
+ *   explorer: "www.btrscan.com",
+ * };
  * ```
  */
 export interface TableEntry {
@@ -35,11 +40,23 @@ export interface TableEntry {
   /** `routescan` only, and required there: the network segment, `mainnet` or `testnet`. */
   readonly network?: string;
   /**
-   * `etherscan-v2` only, optional: the explorer's host, such as `sepolia.etherscan.io`. The table
-   * test checks that it is a bare lowercase host name in CI; the resolver does not check it at run
-   * time.
+   * `etherscan-v2` and `etherscan-compatible` only, optional: the explorer's host, such as
+   * `sepolia.etherscan.io`. The table test checks that it is a bare lowercase host name in CI; the
+   * resolver does not check it at run time.
    */
   readonly explorer?: string;
+  /**
+   * `etherscan-compatible` only, and required there (schema 3): the API's host and path, without
+   * the scheme, such as `api.btrscan.com/scan/api`. The API base is `https://<api>`. The table
+   * test checks it in CI; the resolver does not check it at run time.
+   */
+  readonly api?: string;
+  /**
+   * `etherscan-compatible` only, optional (schema 3): `true` when the API refuses a request without
+   * a key. Such an entry is skipped without `route.apiKey`, and a call that names it without one
+   * throws `missing-api-key` before any request.
+   */
+  readonly needsKey?: boolean;
   /**
    * `blockscout` only, and required there: the instance's host, such as
    * `eth-sepolia.blockscout.com`. The API is `https://<instance>/api`. The table test checks that
@@ -68,11 +85,15 @@ export interface TableRow {
  *
  * @example
  * ```ts
- * const empty: RoutingTable = { schemaVersion: 2, checked: "2026-11-03", chains: [] };
+ * const empty: RoutingTable = { schemaVersion: 3, checked: "2026-11-05", chains: [] };
  * ```
  */
 export interface RoutingTable {
-  /** The format version, 2. */
+  /**
+   * The format version, 3. Schema 3 adds the `etherscan-compatible` entry to schema 2. A schema 2
+   * table is a schema 3 table without such entries, so the resolver reads both and does not look
+   * at this field.
+   */
   readonly schemaVersion: number;
   /**
    * The date the rows were last checked against their sources, as `YYYY-MM-DD`. The sources are
@@ -101,6 +122,8 @@ export interface TableTarget {
   readonly apiUrl: string;
   /** The public page of the contract at an address, or `undefined` when none is known. */
   readonly explorerUrl: ((address: Hex) => string) | undefined;
+  /** `true` when the entry says its API refuses a request without a key. */
+  readonly needsKey?: boolean;
 }
 
 /**
@@ -184,6 +207,11 @@ export interface Route {
    * overridden (R-SEC-2, decision 0016).
    */
   readonly tableHost: string | undefined;
+  /**
+   * `true` when the route goes to a table entry whose API refuses a request without a key, beyond
+   * the backends that always need one. Absent otherwise.
+   */
+  readonly needsKey?: boolean;
 }
 
 /**
@@ -240,7 +268,7 @@ const PATH = /^(?:\/[^?#]*)?$/;
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
 const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
 const API_KEY_HINT =
-  "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl and only for a backend that takes a key, or leave it out.";
+  "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl or with route.backend etherscan-compatible, and only for a backend that takes a key, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 
@@ -253,12 +281,13 @@ const API_URL_HINT =
  * - `routescan`: `https://api.routescan.io/v2/network/<network>/evm/<chainId>/etherscan/api`, with
  *   `network` `mainnet` or `testnet`; no page yet.
  * - `blockscout`: `https://<instance>/api`; page `https://<instance>/address/<address>?tab=contract`.
+ * - `etherscan-compatible`: `https://<api>`; page as for `etherscan-v2`. `needsKey` is copied.
  *
  * @param chainId - The row's chain id.
  * @param entry - The table entry.
  * @returns The derived target, or `undefined` for a backend the table cannot route (an unknown
  *   name, a backend without a template, a Routescan entry without a valid network, or a Blockscout
- *   entry without an instance).
+ *   or standalone entry without its host).
  * @example
  * ```ts
  * tableTarget(43113, { backend: "routescan", network: "testnet" })?.apiUrl;
@@ -266,8 +295,12 @@ const API_URL_HINT =
  * ```
  */
 export function tableTarget(chainId: number, entry: TableEntry): TableTarget | undefined {
-  const { backend, network, explorer, instance } = entry;
+  const { backend, network, explorer, instance, api } = entry;
   const id = String(chainId);
+  const page =
+    explorer === undefined
+      ? undefined
+      : (address: Hex): string => `https://${explorer}/address/${encodeURIComponent(address)}#code`;
   return backend === "sourcify"
     ? {
         backend,
@@ -275,28 +308,28 @@ export function tableTarget(chainId: number, entry: TableEntry): TableTarget | u
         explorerUrl: (address) => `${SOURCIFY_REPO_URL}/${id}/${encodeURIComponent(address)}`,
       }
     : backend === "etherscan-v2"
-      ? {
-          backend,
-          apiUrl: ETHERSCAN_API_URL,
-          explorerUrl:
-            explorer === undefined
-              ? undefined
-              : (address) => `https://${explorer}/address/${encodeURIComponent(address)}#code`,
-        }
-      : backend === "routescan" && (network === "mainnet" || network === "testnet")
+      ? { backend, apiUrl: ETHERSCAN_API_URL, explorerUrl: page }
+      : backend === "etherscan-compatible" && api !== undefined
         ? {
             backend,
-            apiUrl: `https://api.routescan.io/v2/network/${network}/evm/${id}/etherscan/api`,
-            explorerUrl: undefined,
+            apiUrl: `https://${api}`,
+            explorerUrl: page,
+            needsKey: entry.needsKey === true,
           }
-        : backend === "blockscout" && instance !== undefined
+        : backend === "routescan" && (network === "mainnet" || network === "testnet")
           ? {
               backend,
-              apiUrl: `https://${instance}/api`,
-              explorerUrl: (address) =>
-                `https://${instance}/address/${encodeURIComponent(address)}?tab=contract`,
+              apiUrl: `https://api.routescan.io/v2/network/${network}/evm/${id}/etherscan/api`,
+              explorerUrl: undefined,
             }
-          : undefined;
+          : backend === "blockscout" && instance !== undefined
+            ? {
+                backend,
+                apiUrl: `https://${instance}/api`,
+                explorerUrl: (address) =>
+                  `https://${instance}/address/${encodeURIComponent(address)}?tab=contract`,
+              }
+            : undefined;
 }
 
 /**
@@ -375,7 +408,8 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  * Without `override.apiUrl`:
  *
  * - A chain in the table resolves to its first backend that is usable with `choice.apiKeys`: one
- *   that needs no key, or one with a key. When none is usable, it resolves to the first, and the
+ *   that needs no key, or one with a key. A standalone entry with `needsKey` counts as needing
+ *   one, and no `apiKeys` entry gives it one. When none is usable, it resolves to the first, and the
  *   flow reports the missing key. `override.backend` picks another backend the row lists.
  * - `override.backend` that the row does not list throws `unsupported-chain` naming the chain and
  *   the backend.
@@ -399,8 +433,11 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  * of the path are removed. A query string is kept for requests and redacted in `redactedApiUrl`.
  * Error messages name the field and never repeat the value, which may hold a key.
  *
- * `override.apiKey` must be a key string as `checkRouteKey` accepts, set next to `apiUrl`, for a
- * backend that takes a `route.apiKey`.
+ * `override.apiKey` must be a key string as `checkRouteKey` accepts, for a backend that takes a
+ * `route.apiKey`, and set next to `apiUrl`. With `backend` `etherscan-compatible` it may also be
+ * set without `apiUrl` when the chain's row lists a standalone host with `needsKey`: the key then
+ * goes to that host. A row whose standalone entry takes no key throws `invalid-input` naming
+ * `route.apiKey`, and a chain whose row lists none throws `unsupported-chain` (decision 0039).
  *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
@@ -468,7 +505,13 @@ export function resolveRoute(
         }
       }
       rawKey = fields.apiKey;
-      const checked = checkRouteKey(named ?? "sourcify", rawKey, fields.apiUrl !== undefined);
+      // A standalone explorer's key may also go to the host the table lists for the chain
+      // (decision 0039): the row is checked below, and a chain without one throws.
+      const checked = checkRouteKey(
+        named ?? "sourcify",
+        rawKey,
+        fields.apiUrl !== undefined || named === "etherscan-compatible",
+      );
       if (checked.issue !== undefined) {
         issues.push({ field: "route.apiKey", message: checked.issue });
         hint ??= API_KEY_HINT;
@@ -488,6 +531,24 @@ export function resolveRoute(
   const listed = targets(row?.backends ?? []);
   // The Sourcify fallback: for a chain with no row, or a route.apiUrl without a row entry.
   const fallback = targets([{ backend: "sourcify" }]);
+  // A key without apiUrl binds to the row's standalone host, which must say it takes one: a
+  // keyed request is a form POST, which a keyless explorer such as Bitlayer refuses (decision
+  // 0039).
+  const standalone = listed.find((each) => each.backend === "etherscan-compatible");
+  if (
+    target === undefined &&
+    apiKey !== undefined &&
+    named === "etherscan-compatible" &&
+    standalone !== undefined &&
+    standalone.needsKey !== true
+  ) {
+    throw invalid(
+      [{ field: "route.apiKey", message: "is not accepted: this explorer takes no API key" }],
+      "The route is invalid",
+      "The routing table's explorer for this chain takes no key, so leave out route.apiKey.",
+      [apiKey],
+    );
+  }
   const keys = choice.apiKeys ?? {};
   let backend: BackendName;
   let entry: TableTarget | undefined;
@@ -503,7 +564,9 @@ export function resolveRoute(
     const found =
       named === undefined
         ? (pool.find(
-            (each) => !needsKey(each.backend) || readOwn(keys, each.backend) !== undefined,
+            (each) =>
+              !(needsKey(each.backend) || each.needsKey === true) ||
+              readOwn(keys, each.backend) !== undefined,
           ) ?? pool[0])
         : candidates.find((each) => each.backend === named);
     if (found === undefined) {
@@ -552,6 +615,7 @@ export function resolveRoute(
     apiKey: () => apiKey,
     overridden: target !== undefined,
     tableHost: entry === undefined ? undefined : new URL(entry.apiUrl).host,
+    needsKey: entry?.apiUrl === apiBase && entry.needsKey === true,
   });
 }
 
