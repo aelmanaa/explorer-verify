@@ -118,6 +118,12 @@ row; reach either with `route: { backend: "blockscout" }` or `route: { backend: 
 the CLI gets `--allow-sourcify-fallback`.
 [Routing](../reference/routing.md) explains the table.
 
+When the person names an explorer, pass its backend: `--backend etherscan-v2` for Etherscan, or
+`route: { backend: "etherscan-v2" }` in a library call. Without it, the routing table picks the
+explorer, and `verify` submits there. On Sepolia with no Etherscan key set, that is Sourcify, so a
+request to verify on Etherscan would publish the source on Sourcify instead. With `--backend` and
+no key, the command exits 3 with `missing-api-key` and submits nothing.
+
 ## API keys
 
 Sourcify and Blockscout need no key. Etherscan v2 needs one; Routescan takes one optionally.

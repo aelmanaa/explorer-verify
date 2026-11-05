@@ -125,6 +125,22 @@ no secret except the agent tool's own credential.
 
 Run every task with at least two models, from different providers when possible.
 
+## Pilots
+
+A pilot tries the tasks cheaply before a real run, to find gaps in the docs and the setup. One way
+is to start each model as a subagent of an agent session and give it the task's `prompt` and a
+command that runs one shell line in the copied workspace with the environment of step 3.
+
+A pilot does not count as the evaluation. A subagent started in the repository loads the
+repository's agent instructions, and it keeps its session's own file and shell tools next to the
+wrapper, so only its instructions keep it in the workspace. It can read the wrapper, the fake
+explorer and the repository, and run a copy of the CLI that reaches the real explorers. The
+[2026-11-05 pilot](../../docs/contributor/research/2026-11-05-agent-evaluation-pilot.md) saw all
+of these.
+
+Record a pilot like a run, in a research note named `<YYYY-MM-DD>-agent-evaluation-pilot.md`, and
+say there that it is a pilot.
+
 ## Record the results
 
 Write the results to `docs/contributor/research/<YYYY-MM-DD>-agent-evaluation.md`, with the date of

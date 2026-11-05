@@ -1,15 +1,15 @@
 # AGENTS.md
 
-explorer-verify will verify the source of deployed smart contracts on block explorers: Etherscan
-(API v2), Blockscout, Sourcify and Routescan. The planned API runs in a browser, on a backend or in
-a CLI, and a self-hosted server handler keeps Etherscan keys off the client.
+explorer-verify verifies the source of deployed smart contracts on block explorers: Etherscan
+(API v2), Blockscout, Sourcify, Routescan and standalone Etherscan-compatible explorers. The API
+runs in a browser, on a backend or in a CLI, and a self-hosted server handler keeps Etherscan keys
+off the client.
 
-Status: in design; nothing is published to npm yet. The repository has the toolchain, a typed public
-contract (`packages/explorer-verify/src/types.ts`), the plan, the explorer clients for Sourcify
-(`packages/explorer-verify/src/backends/sourcify.ts`) and Etherscan v2
-(`packages/explorer-verify/src/backends/etherscan.ts`), `verify()`
-(`packages/explorer-verify/src/flow/verify.ts`) and `checkStatus()`
-(`packages/explorer-verify/src/flow/status.ts`).
+Status: before 0.1.0; nothing is published to npm yet. `main` has the explorer clients
+(`packages/explorer-verify/src/backends/`), `verify()` and `checkStatus()`
+(`packages/explorer-verify/src/flow/`), the routing table, the server handler
+(`explorer-verify/server`), the `explorer-verify` command (`packages/cli`) and the Foundry and
+Hardhat build helpers (`packages/foundry`, `packages/hardhat`).
 
 ## Start here
 
