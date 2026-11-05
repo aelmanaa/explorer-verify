@@ -12,14 +12,16 @@ import {
   SOURCES,
   TABLE_FILE,
   compare,
+  differences,
   expectedRows,
+  output,
   parseChainlist,
   parseSeed,
   parseSourcifyChains,
   parseTable,
   run,
 } from "../routing-seed.ts";
-import type { ChainlistEntry, Lists, TableRows } from "../routing-seed.ts";
+import type { ChainlistEntry, Lists, RunResult, TableRows } from "../routing-seed.ts";
 
 const FIXTURES = new URL("fixtures/routing/", import.meta.url);
 const CHAINLIST: unknown = JSON.parse(
@@ -272,6 +274,67 @@ describe("routing seed: the comparison (R-RT-1)", () => {
   });
 });
 
+describe("routing seed: the chain and list of each difference (R-RT-1, #171)", () => {
+  it("gives each line its chain and the list it changed in, in the order compare() returns", () => {
+    const table = {
+      checked: "2026-11-04",
+      rows: [
+        { chainId: 1, backends: ["etherscan-v2"], explorer: "etherscan.io" },
+        rowOf(8453),
+        rowOf(324),
+        rowOf(999),
+        rowOf(43113),
+        rowOf(11155111),
+      ],
+    };
+    const changed = lists({ table, chainlist: LIVE.filter((chain) => chain.chainId !== 43113) });
+    const found = differences(changed);
+    assert.deepEqual(
+      found.map((difference) => difference.text),
+      compare(changed),
+    );
+    assert.deepEqual(
+      found.map(({ chainId, list, text }) => `${String(chainId)} | ${list} | ${text}`),
+      [
+        "1 | Sourcify chain list | table: chain 1 has no sourcify entry; Sourcify supports it",
+        "31 | Sourcify chain list | table: chain 31 has no row; Sourcify supports it and it is in the prior art",
+        "324 | Etherscan chainlist | table: chain 324 is in neither the chainlist nor the prior art",
+        "999 | Sourcify chain list | table: chain 999 lists sourcify, which no longer supports it",
+        "43113 | Etherscan chainlist | table: chain 43113 lists etherscan-v2, which the chainlist no longer lists",
+        "43113 | Etherscan chainlist | etherscan: chain 43113 left the chainlist",
+      ],
+    );
+  });
+});
+
+describe("routing seed: the command's output (R-RT-1, #171)", () => {
+  const result: RunResult = {
+    checked: "2026-11-04",
+    notes: ["table checked 2026-11-04; 5 rows"],
+    differences: [
+      { chainId: 1, list: "Etherscan chainlist", text: "etherscan: chain 1 now needs a paid plan" },
+    ],
+  };
+
+  it("prints the notes, each difference and a count as text, and exits 1 on a difference", () => {
+    assert.deepEqual(output(result, false), {
+      text: "table checked 2026-11-04; 5 rows\netherscan: chain 1 now needs a paid plan\nrouting table: 1 differences\n",
+      exitCode: 1,
+    });
+    assert.deepEqual(output({ ...result, differences: [] }, false), {
+      text: "table checked 2026-11-04; 5 rows\nrouting table: no differences\n",
+      exitCode: 0,
+    });
+  });
+
+  it("prints JSON with the date, notes and differences, and exits 0 either way (#171)", () => {
+    const printed = output(result, true);
+    assert.equal(printed.exitCode, 0);
+    assert.deepEqual(JSON.parse(printed.text), result);
+    assert.ok(printed.text.endsWith("}\n"));
+  });
+});
+
 /** A fetch that answers from `answers` by URL and records each URL asked. */
 function fakeFetch(answers: Record<string, Response>, asked: string[]): typeof globalThis.fetch {
   return async (request) => {
@@ -329,6 +392,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     );
     assert.deepEqual(asked.toSorted(), [SOURCES.etherscanChainlist, SOURCES.sourcifyChains]);
     assert.deepEqual(result.differences, []);
+    assert.equal(result.checked, "2026-11-04");
     assert.deepEqual(result.notes, [
       "table checked 2026-11-04; 5 rows",
       "routescan: not compared; its supported-chains page has no machine-readable list (see the research note)",

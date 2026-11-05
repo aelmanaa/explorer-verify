@@ -193,6 +193,19 @@ export function expectedRows(lists: Omit<Lists, "table">): number[] {
   return [...candidates].filter((id) => lists.sourcify.has(id)).toSorted((a, b) => a - b);
 }
 
+/** The public list a difference comes from. */
+export type ChangedList = "Etherscan chainlist" | "Sourcify chain list";
+
+/** One difference: the chain, the public list whose answer disagrees, and the line printed. */
+export interface Difference {
+  readonly chainId: number;
+  readonly list: ChangedList;
+  readonly text: string;
+}
+
+const CHAINLIST: ChangedList = "Etherscan chainlist";
+const SOURCIFY: ChangedList = "Sourcify chain list";
+
 /**
  * Every difference between the table, its research data and the live lists, or none.
  *
@@ -200,7 +213,22 @@ export function expectedRows(lists: Omit<Lists, "table">): number[] {
  * @returns One line per difference.
  */
 export function compare(lists: Lists): string[] {
-  const lines: string[] = [];
+  return differences(lists).map((difference) => difference.text);
+}
+
+/**
+ * Every difference between the table, its research data and the live lists, with the chain and
+ * the list each one comes from. A missing row or Sourcify entry, and a Sourcify entry for a chain
+ * Sourcify dropped, come from Sourcify's list; every other difference comes from the chainlist.
+ *
+ * @param lists - The four inputs.
+ * @returns One difference per line {@link compare} returns, in the same order.
+ */
+export function differences(lists: Lists): Difference[] {
+  const found: Difference[] = [];
+  const add = (chainId: number, list: ChangedList, text: string): void => {
+    found.push({ chainId, list, text });
+  };
   const expected = expectedRows(lists);
   const listed = new Map(lists.table.rows.map((row) => [row.chainId, row.backends]));
   const inChainlist = new Set(lists.chainlist.map((chain) => chain.chainId));
@@ -208,44 +236,56 @@ export function compare(lists: Lists): string[] {
     const backends = listed.get(id);
     if (backends === undefined) {
       const from = inChainlist.has(id) ? "the Etherscan chainlist" : "the prior art";
-      lines.push(
+      add(
+        id,
+        SOURCIFY,
         `table: chain ${String(id)} has no row; Sourcify supports it and it is in ${from}`,
       );
     } else if (!backends.includes("sourcify")) {
-      lines.push(`table: chain ${String(id)} has no sourcify entry; Sourcify supports it`);
+      add(id, SOURCIFY, `table: chain ${String(id)} has no sourcify entry; Sourcify supports it`);
     }
   }
   for (const [id, backends] of listed) {
     if (backends.includes("sourcify") && !lists.sourcify.has(id)) {
-      lines.push(`table: chain ${String(id)} lists sourcify, which no longer supports it`);
+      add(id, SOURCIFY, `table: chain ${String(id)} lists sourcify, which no longer supports it`);
     } else if (!expected.includes(id) && backends.every((name) => name === "sourcify")) {
-      lines.push(`table: chain ${String(id)} is in neither the chainlist nor the prior art`);
+      add(
+        id,
+        CHAINLIST,
+        `table: chain ${String(id)} is in neither the chainlist nor the prior art`,
+      );
     }
   }
-  lines.push(...etherscanEntries(lists));
+  found.push(...etherscanEntries(lists));
   const frozen = new Map(lists.seed.etherscan.map((chain) => [chain.chainId, chain]));
   for (const chain of lists.chainlist) {
     const before = frozen.get(chain.chainId);
     const id = `chain ${String(chain.chainId)}`;
     if (before === undefined) {
-      lines.push(`etherscan: ${id} (${chain.name}) is new in the chainlist`);
+      add(chain.chainId, CHAINLIST, `etherscan: ${id} (${chain.name}) is new in the chainlist`);
       continue;
     }
     if (before.paidPlan !== chain.paidPlan) {
-      lines.push(
+      add(
+        chain.chainId,
+        CHAINLIST,
         `etherscan: ${id} ${chain.paidPlan ? "now needs a paid plan" : "is now free-tier"}`,
       );
     }
     if (before.explorer !== chain.explorer) {
-      lines.push(`etherscan: ${id} explorer moved from ${before.explorer} to ${chain.explorer}`);
+      add(
+        chain.chainId,
+        CHAINLIST,
+        `etherscan: ${id} explorer moved from ${before.explorer} to ${chain.explorer}`,
+      );
     }
   }
   for (const id of frozen.keys()) {
     if (!inChainlist.has(id)) {
-      lines.push(`etherscan: chain ${String(id)} left the chainlist`);
+      add(id, CHAINLIST, `etherscan: chain ${String(id)} left the chainlist`);
     }
   }
-  return lines;
+  return found;
 }
 
 /**
@@ -253,45 +293,51 @@ export function compare(lists: Lists): string[] {
  * chainlist chain without the entry, an explorer host other than the chainlist's, an entry in the
  * wrong place for the chain's plan, and an entry for a chain the chainlist no longer lists.
  */
-function etherscanEntries(lists: Lists): string[] {
-  const lines: string[] = [];
+function etherscanEntries(lists: Lists): Difference[] {
+  const found: Difference[] = [];
   const live = new Map(lists.chainlist.map((chain) => [chain.chainId, chain]));
   for (const row of lists.table.rows) {
-    const id = `chain ${String(row.chainId)}`;
+    const add = (text: string): void => {
+      found.push({
+        chainId: row.chainId,
+        list: CHAINLIST,
+        text: `table: chain ${String(row.chainId)} ${text}`,
+      });
+    };
     const chain = live.get(row.chainId);
     const at = row.backends.indexOf("etherscan-v2");
     if (chain === undefined) {
       if (at !== -1) {
-        lines.push(`table: ${id} lists etherscan-v2, which the chainlist no longer lists`);
+        add("lists etherscan-v2, which the chainlist no longer lists");
       }
       continue;
     }
     if (at === -1) {
-      lines.push(`table: ${id} has no etherscan-v2 entry; it is in the Etherscan chainlist`);
+      add("has no etherscan-v2 entry; it is in the Etherscan chainlist");
       continue;
     }
     if (row.explorer !== chain.explorer) {
-      lines.push(
-        `table: ${id} etherscan-v2 explorer is ${row.explorer ?? "missing"}; the chainlist says ${chain.explorer}`,
+      add(
+        `etherscan-v2 explorer is ${row.explorer ?? "missing"}; the chainlist says ${chain.explorer}`,
       );
     }
     const sourcify = row.backends.indexOf("sourcify");
     if (chain.paidPlan && sourcify === -1) {
-      lines.push(
-        `table: ${id} lists etherscan-v2 with no sourcify entry first; it needs a paid plan`,
-      );
+      add("lists etherscan-v2 with no sourcify entry first; it needs a paid plan");
     } else if (chain.paidPlan && sourcify > at) {
-      lines.push(`table: ${id} lists etherscan-v2 before sourcify; it needs a paid plan`);
+      add("lists etherscan-v2 before sourcify; it needs a paid plan");
     } else if (!chain.paidPlan && at !== 0) {
-      lines.push(`table: ${id} lists etherscan-v2 after another backend; it is free-tier`);
+      add("lists etherscan-v2 after another backend; it is free-tier");
     }
   }
-  return lines;
+  return found;
 }
 
-/** The result of one run: the difference lines and the notes printed with them. */
+/** The result of one run: the differences and the notes printed with them. */
 export interface RunResult {
-  readonly differences: readonly string[];
+  /** The table's `checked` date. */
+  readonly checked: string;
+  readonly differences: readonly Difference[];
   readonly notes: readonly string[];
 }
 
@@ -319,17 +365,50 @@ export async function run(root: string, fetch: typeof globalThis.fetch): Promise
     fetchJson(fetch, SOURCES.sourcifyChains),
   ]);
   const table = parseTable(read(TABLE_FILE));
-  const differences = compare({
-    table,
-    seed: parseSeed(read(SEED_FILE)),
-    chainlist: parseChainlist(chainlist),
-    sourcify: parseSourcifyChains(sourcify),
-  });
   return {
-    differences,
+    checked: table.checked,
+    differences: differences({
+      table,
+      seed: parseSeed(read(SEED_FILE)),
+      chainlist: parseChainlist(chainlist),
+      sourcify: parseSourcifyChains(sourcify),
+    }),
     notes: [
       `table checked ${table.checked}; ${String(table.rows.length)} rows`,
       "routescan: not compared; its supported-chains page has no machine-readable list (see the research note)",
     ],
   };
+}
+
+/** What the command prints and the exit code it sets. */
+export interface Output {
+  readonly text: string;
+  readonly exitCode: number;
+}
+
+/**
+ * The command's output for one run. As text: the notes, one line per difference and a count, with
+ * exit code 1 when there is a difference. As JSON (`--json`, which the weekly workflow reads): the
+ * table's date, the notes and each difference with its chain and list, with exit code 0, because
+ * the JSON carries the result.
+ *
+ * @param result - The run's result.
+ * @param json - Whether to print JSON.
+ * @returns The text to print and the exit code.
+ */
+export function output(result: RunResult, json: boolean): Output {
+  if (json) {
+    const { checked, notes, differences: found } = result;
+    return {
+      text: `${JSON.stringify({ checked, notes, differences: found }, null, 2)}\n`,
+      exitCode: 0,
+    };
+  }
+  const lines = [...result.notes, ...result.differences.map((difference) => difference.text)];
+  lines.push(
+    result.differences.length === 0
+      ? "routing table: no differences"
+      : `routing table: ${String(result.differences.length)} differences`,
+  );
+  return { text: `${lines.join("\n")}\n`, exitCode: result.differences.length === 0 ? 0 : 1 };
 }
