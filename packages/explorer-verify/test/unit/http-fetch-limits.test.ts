@@ -14,6 +14,7 @@ import {
   MAX_RESPONSE_BYTES,
   MAX_RETRY_AFTER_MS,
   MAX_TIMER_MS,
+  platformFetch,
   REQUEST_TIMEOUT_MS,
   request,
   sleep,
@@ -158,12 +159,13 @@ describe("request: redirects are never followed (R-SEC-2)", () => {
       () => new FakeResponse("{}", { status: 200 }, { redirected: true }),
     ],
     [
-      "a response from another origin",
-      () => new FakeResponse("{}", { status: 200 }, { url: "https://evil.example/x" }),
-    ],
-    [
-      "a response with a URL that does not parse",
-      () => new FakeResponse("{}", { status: 200 }, { url: "not a url" }),
+      "a response that says it was redirected, from another origin",
+      () =>
+        new FakeResponse(
+          "{}",
+          { status: 200 },
+          { redirected: true, url: "https://handler.example/api/verify" },
+        ),
     ],
     ["a 304", () => new Response(null, { status: 304 })],
   ];
@@ -183,6 +185,59 @@ describe("request: redirects are never followed (R-SEC-2)", () => {
     );
     const response = await request(context({ fetch }), get());
     assert.deepEqual(await response.json(), { ok: 1 });
+  });
+
+  // Decision 0035: an injected fetch may send the request to another URL on purpose, such as a
+  // server handler on the page's origin, so the URL of its answer is not checked.
+  for (const url of ["https://dapp.example/api/verify", "not a url"]) {
+    it(`accepts an answer from ${url} through an injected fetch (decision 0035)`, async () => {
+      const { fetch, calls } = answering(
+        () => new FakeResponse('{"ok":1}', { status: 200 }, { url }),
+      );
+      const response = await request(context({ fetch }), get());
+      assert.deepEqual(await response.json(), { ok: 1 });
+      assert.equal(calls.length, 1);
+    });
+  }
+
+  // Without an injected fetch, the platform's fetch sends to the request URL and nowhere else, so
+  // an answer from another origin, or from a URL that does not parse, is a followed redirect.
+  const platformCases: [string, string][] = [
+    ["another origin", "https://evil.example/x"],
+    ["a URL that does not parse", "not a url"],
+  ];
+  for (const [name, url] of platformCases) {
+    it(`rejects an answer from ${name} through the default fetch, without a retry (R-SEC-2)`, async (t) => {
+      const { fetch, calls } = answering(() => new FakeResponse("{}", { status: 200 }, { url }));
+      t.mock.method(globalThis, "fetch", fetch);
+      const error = await explorerError(request(context(), get()));
+      assert.equal(error.code, "unexpected-response");
+      assert.match(error.message, /redirect/);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.redirect, "manual");
+    });
+  }
+
+  it("checks the origin when the caller passes platformFetch as its default (decision 0035)", async (t) => {
+    const { fetch, calls } = answering(
+      () => new FakeResponse("{}", { status: 200 }, { url: "https://evil.example/x" }),
+    );
+    t.mock.method(globalThis, "fetch", fetch);
+    const error = await explorerError(request(context({ fetch: platformFetch }), get()));
+    assert.equal(error.code, "unexpected-response");
+    assert.equal(calls.length, 1);
+  });
+
+  it("accepts an answer with the request's origin, or with no URL, through the default fetch", async (t) => {
+    const urls = ["https://api.example.org/other", ""];
+    const { fetch } = answering(
+      () => new FakeResponse('{"ok":1}', { status: 200 }, { url: urls.shift() ?? "" }),
+    );
+    t.mock.method(globalThis, "fetch", fetch);
+    for (let i = 0; i < 2; i += 1) {
+      const response = await request(context(), get());
+      assert.deepEqual(await response.json(), { ok: 1 });
+    }
   });
 });
 

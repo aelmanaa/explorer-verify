@@ -243,9 +243,13 @@ signal)`, which polling uses (R-FLOW-6).
   reading it cannot hang, and has no `content-encoding`, `content-length` or `transfer-encoding`
   header.
 - Redirects are never followed (R-SEC-2). The request sets `redirect: "manual"`. An opaque
-  redirect, a 3xx, a response marked `redirected` or one whose URL has another origin ends the
-  call with `unexpected-response`. The last two catch an injected `fetch` that ignores
-  `redirect`. The `Location` header is never read, logged or put in an error.
+  redirect, a 3xx or a response marked `redirected` ends the call with `unexpected-response`; the
+  last one catches an injected `fetch` that follows a redirect. With the default fetch
+  (`platformFetch`, also what `verify()`, `verifyEach()`, `linkProxy()` and the bytecode resolver pass when the caller sets none),
+  a response whose URL has another origin than the request ends it too. An injected `fetch` may
+  send the request elsewhere on purpose, such as a server handler, so its response URL is not
+  checked ([decision 0035](decisions/0035-injected-fetch-answers-are-not-origin-checked.md)). The
+  `Location` header is never read, logged or put in an error.
 - The body is read chunk by chunk up to `maxResponseBytes` (default 16 MiB, counted after
   decoding). A larger `content-length` fails before the read. A body above the limit, or one that
   fails or stalls after the headers arrived, is `unexpected-response` and is not retried.

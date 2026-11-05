@@ -113,6 +113,127 @@ describe("request: redirects are never followed, against local servers (R-SEC-2)
   }
 });
 
+// Decision 0035. The explorer URL is never contacted: the injected fetch sends each request to the
+// handler on 127.0.0.1, as a dapp's fetch sends it to its own server, with the real global fetch.
+const EXPLORER = "https://api.etherscan.io/v2/api";
+
+/** A fetch that sends each request to `handler` with the same query and `init`, as a dapp does. */
+function viaHandler(handler: string, follow = false): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    // A fetch that follows redirects, as one that drops the library's `redirect: "manual"`.
+    return await fetch(`${handler}${url.search}`, follow ? { ...init, redirect: "follow" } : init);
+  };
+}
+
+describe("request: an injected fetch that sends to a server handler, against local servers (decision 0035)", () => {
+  it("reads a 200 from the handler, whose URL has another origin than the explorer", async () => {
+    let hits = 0;
+    const handler = await listen((req, res) => {
+      hits += 1;
+      req.resume();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end('{"status":"1","result":"ok"}');
+    });
+    try {
+      const response = await request(
+        { backend: "etherscan-v2", secrets: [], fetch: viaHandler(`${handler.origin}/api/verify`) },
+        { url: `${EXPLORER}?chainid=1`, method: "POST", body: "action=x", retry: "submit" },
+      );
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { status: "1", result: "ok" });
+      assert.equal(hits, 1);
+    } finally {
+      await close(handler.server);
+    }
+  });
+
+  for (const status of [302, 307]) {
+    it(`refuses a ${String(status)} from the handler and does not follow it (R-SEC-2)`, async () => {
+      let elsewhere = 0;
+      const other = await listen((req, res) => {
+        elsewhere += 1;
+        req.resume();
+        res.end("{}");
+      });
+      const handler = await listen((req, res) => {
+        req.resume();
+        res.writeHead(status, { location: `${other.origin}/steal?apikey=${DUMMY_KEY}` });
+        res.end();
+      });
+      try {
+        const error = await explorerError(
+          request(
+            { backend: "etherscan-v2", secrets: [DUMMY_KEY], fetch: viaHandler(handler.origin) },
+            get(`${EXPLORER}?chainid=1`),
+          ),
+        );
+        assert.equal(error.code, "unexpected-response");
+        assert.match(error.message, /redirect, which is not followed/);
+        assert.equal(elsewhere, 0);
+        assert.ok(!surfaces(error).includes("/steal"), "the Location header leaked");
+      } finally {
+        await close(handler.server);
+        await close(other.server);
+      }
+    });
+  }
+
+  it("refuses the answer of a fetch that followed the handler's redirect (R-SEC-2)", async () => {
+    const other = await listen((req, res) => {
+      req.resume();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end('{"status":"1","result":"from elsewhere"}');
+    });
+    const handler = await listen((req, res) => {
+      req.resume();
+      res.writeHead(302, { location: `${other.origin}/elsewhere` });
+      res.end();
+    });
+    try {
+      const error = await explorerError(
+        request(
+          { backend: "etherscan-v2", secrets: [], fetch: viaHandler(handler.origin, true) },
+          get(`${EXPLORER}?chainid=1`),
+        ),
+      );
+      assert.equal(error.code, "unexpected-response");
+      assert.match(error.message, /redirect, which is not followed/);
+      assert.ok(!surfaces(error).includes("from elsewhere"), "the followed answer was read");
+    } finally {
+      await close(handler.server);
+      await close(other.server);
+    }
+  });
+
+  it("refuses an answer from another origin through the default fetch (R-SEC-2)", async (t) => {
+    const other = await listen((req, res) => {
+      req.resume();
+      res.end("{}");
+    });
+    const api = await listen((req, res) => {
+      req.resume();
+      res.end("{}");
+    });
+    // A global fetch that sends elsewhere: without an injected fetch, the origin is still checked.
+    const real = globalThis.fetch;
+    t.mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      return await real(`${other.origin}${url.pathname}`, init);
+    });
+    try {
+      const error = await explorerError(
+        request({ backend: "sourcify", secrets: [] }, get(`${api.origin}/v2/contract/1/0x01`)),
+      );
+      assert.equal(error.code, "unexpected-response");
+      assert.match(error.message, /redirect, which is not followed/);
+    } finally {
+      await close(api.server);
+      await close(other.server);
+    }
+  });
+});
+
 describe("request: response body limit, against a local server (R-FLOW-6)", () => {
   it("stops a gzip body whose decoded size is above the limit (R-FLOW-6)", async () => {
     const packed = gzipSync(new Uint8Array(8 * MiB));

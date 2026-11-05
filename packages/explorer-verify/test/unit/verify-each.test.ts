@@ -696,6 +696,75 @@ describe("verifyEach(): backends and routes", () => {
   });
 });
 
+/** A recorded answer whose `url` says it came from `url`, as a real fetch's answer does. */
+function answeredFrom(url: string, make: () => Response): () => Response {
+  return () => {
+    const answer = make();
+    Object.defineProperty(answer, "url", { value: url });
+    return answer;
+  };
+}
+
+/** A recorded Sourcify answer marked `redirected`, as a fetch that followed a redirect returns it. */
+function markedRedirected(): Response {
+  const answer = SOURCIFY_LOOKUP_EXACT();
+  Object.defineProperty(answer, "redirected", { value: true });
+  return answer;
+}
+
+// Decision 0035: each backend of verifyEach() gets the platform's fetch as its default, so an
+// answer from another origin than the request is refused there; an injected fetch may send the
+// request elsewhere on purpose, so the URL of its answer is not checked.
+describe("verifyEach(): the origin of an answer (R-SEC-2, decision 0035)", () => {
+  const ELSEWHERE = "https://elsewhere.example/server/v2/contract";
+
+  it("refuses an answer from another origin through the default fetch, on every backend", async (t) => {
+    const fake = byHost({
+      "sourcify.dev": [answeredFrom(ELSEWHERE, SOURCIFY_LOOKUP_EXACT)],
+      "api.routescan.io": [answeredFrom(ELSEWHERE, ROUTESCAN_VERIFIED)],
+    });
+    t.mock.method(globalThis, "fetch", fake.fetch);
+    const outcome = await runVerifyEach(
+      input(),
+      { backends: ["sourcify", "routescan"] },
+      DEPENDENCIES,
+    );
+    assert.equal(outcome.outcomes.length, 2);
+    for (const each of outcome.outcomes) {
+      assert.ok("error" in each, `${each.backend} read the answer`);
+      assert.equal(each.error.code, "unexpected-response");
+      assert.match(each.error.message, /redirect, which is not followed/);
+    }
+  });
+
+  it("reads the same answers through an injected fetch, such as a server handler", async () => {
+    const fake = byHost({
+      "sourcify.dev": [answeredFrom(ELSEWHERE, SOURCIFY_LOOKUP_EXACT)],
+      "api.routescan.io": [answeredFrom(ELSEWHERE, ROUTESCAN_VERIFIED)],
+    });
+    const outcome = await runVerifyEach(
+      input(),
+      { backends: ["sourcify", "routescan"], fetch: fake.fetch },
+      DEPENDENCIES,
+    );
+    assert.deepEqual(
+      outcome.outcomes.map((each) => [each.backend, each.ok]),
+      [
+        ["sourcify", true],
+        ["routescan", true],
+      ],
+    );
+  });
+
+  it("still refuses an answer marked redirected through an injected fetch", async () => {
+    const fake = byHost({ "sourcify.dev": [markedRedirected] });
+    const outcome = await verifyEach(input(), { backends: ["sourcify"], fetch: fake.fetch });
+    const [only] = outcome.outcomes;
+    assert.ok(only !== undefined && "error" in only);
+    assert.equal(only.error.code, "unexpected-response");
+  });
+});
+
 /** Calls runVerifyEach() with options the types refuse, as untyped code can; returns what it threw. */
 async function untyped(value: VerifyInput, options: unknown): Promise<unknown> {
   const pending: unknown = Reflect.apply(runVerifyEach, undefined, [value, options, DEPENDENCIES]);

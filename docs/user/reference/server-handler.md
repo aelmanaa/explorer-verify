@@ -242,7 +242,8 @@ How `deployers` decides:
   request cannot point the handler at your own network or at another host. No option changes the
   host either.
 - It never follows a redirect. Every upstream request sets `redirect: "manual"`, and a redirect
-  answer is refused with 502, because a redirect could carry the key to another host.
+  answer is refused with 502, because a redirect could carry the key to another host. Without a
+  `fetch` option, an answer whose URL has another origin than `api.etherscan.io` is refused too.
 - It never forwards a header of the client's request. The upstream request carries only
   `content-type`.
 - It never puts the key in a URL. The key goes in the form body, where Etherscan reads it.
