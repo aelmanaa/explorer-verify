@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../node_modules/.cache/tsbuild/examples-dapp",
+    "tsBuildInfoFile": "../node_modules/.cache/tsbuild/examples-dapp.tsbuildinfo",
+    // The dapp's browser modules checked again without Node types: they must use only what a
+    // browser provides.
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "references": [{ "path": "../packages/explorer-verify/tsconfig.build.json" }],
+  "include": ["dapp/src"]
+}

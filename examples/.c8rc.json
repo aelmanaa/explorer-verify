@@ -1,7 +1,12 @@
 {
   "all": true,
-  "src": ["server-nextjs", "server-cloudflare"],
-  "include": ["server-nextjs/**/*.ts", "server-cloudflare/**/*.ts"],
+  "src": ["server-nextjs", "server-cloudflare", "dapp"],
+  "include": [
+    "server-nextjs/**/*.ts",
+    "server-cloudflare/**/*.ts",
+    "dapp/src/**/*.ts",
+    "dapp/server.ts"
+  ],
   "exclude": ["test/**"],
   "reporter": ["text", "lcov"],
   "reports-dir": "coverage",

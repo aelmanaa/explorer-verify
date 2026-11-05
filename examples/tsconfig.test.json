@@ -9,8 +9,13 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  // The examples import `explorer-verify/server` by name, as an application does, which resolves
-  // to the built package. The reference builds it first.
-  "references": [{ "path": "../packages/explorer-verify/tsconfig.build.json" }],
-  "include": ["server-nextjs", "server-cloudflare", "test"]
+  // The examples import `explorer-verify`, `explorer-verify/server` and, in the dapp's export
+  // script, `@explorer-verify/foundry` by name, as an application does, which resolves to each
+  // built package. The references build them first, and let the type-aware lint read their
+  // sources when no build exists.
+  "references": [
+    { "path": "../packages/explorer-verify/tsconfig.build.json" },
+    { "path": "../packages/foundry/tsconfig.build.json" }
+  ],
+  "include": ["server-nextjs", "server-cloudflare", "dapp", "test"]
 }
