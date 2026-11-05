@@ -1,5 +1,5 @@
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Hex, SolidityStandardJsonInput, VerifyInput } from "../types.ts";
 import { isLocalPath } from "./paths.ts";
@@ -541,7 +541,7 @@ function checkCreationBytecode(value: unknown, problems: Problems): { value?: He
  *   });
  *   console.log(input.compiler.version); // "0.8.24+commit.e11b9ed9"
  * } catch (error) {
- *   if (error instanceof ExplorerVerifyError && error.details.code === "invalid-input") {
+ *   if (error instanceof ExplorerVerifyError && error.code === "invalid-input") {
  *     for (const issue of error.details.issues) {
  *       console.error(`${issue.field} ${issue.message}`);
  *     }
@@ -617,9 +617,5 @@ function invalid({ issues, hints }: Problems): ExplorerVerifyError {
           hint: issues.length > 1 ? `${hint} Then fix the other fields in details.issues.` : hint,
           secrets: [],
         };
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues },
-    `The input is invalid: ${fields}.`,
-    options,
-  );
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, options);
 }

@@ -8,7 +8,7 @@ import type { BackendName } from "./backend-names.ts";
 import { formatHandle } from "./flow/format-handle.ts";
 import { addressDigits, readFields } from "./internal/read-fields.ts";
 import { redact, redactExcerpt, redactJobId } from "./redact.ts";
-import type { Handle } from "./types.ts";
+import type { Handle, Hex } from "./types.ts";
 
 /**
  * Every error code the library throws. A code never changes meaning once released; new codes are
@@ -76,7 +76,7 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
  * import type { InputIssue } from "explorer-verify";
  *
  * function report(error: ExplorerVerifyError): InputIssue[] {
- *   return error.details.code === "invalid-input" ? error.details.issues : [];
+ *   return error.code === "invalid-input" ? error.details.issues : [];
  * }
  * ```
  * @experimental
@@ -97,7 +97,7 @@ export interface InputIssue {
  * import type { MetadataAttempt } from "explorer-verify";
  *
  * function tried(error: ExplorerVerifyError): MetadataAttempt[] {
- *   return error.details.code === "metadata-unavailable" ? error.details.attempts : [];
+ *   return error.code === "metadata-unavailable" ? error.details.attempts : [];
  * }
  * ```
  * @experimental
@@ -120,8 +120,10 @@ export interface MetadataAttempt {
 }
 
 /**
- * The data that comes with each error code. Checking `details.code` narrows `details` to that
- * code's member, with no cast.
+ * The data that comes with each error code. Checking `error.code`, or `details.code`, narrows
+ * `details` to that code's member, with no cast. A `backend` field always holds a name from
+ * `BACKEND_NAMES`: a name outside it, which only code that bypasses the types can pass, becomes
+ * `etherscan-compatible`, as in a handle.
  *
  * @example
  * ```ts
@@ -130,7 +132,7 @@ export interface MetadataAttempt {
  * try {
  *   await verify(input);
  * } catch (error) {
- *   if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+ *   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
  *     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
  *   }
  * }
@@ -155,31 +157,22 @@ export type ErrorDetails =
       code: "unsupported-chain";
       /** The chain that was asked for. */
       chainId: number;
-      /**
-       * The backend that refused it. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that refused it. */
+      backend: BackendName;
     }
   | {
       /** Every request to the backend failed before it answered, retries included. */
       code: "network";
-      /**
-       * The backend that could not be reached. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that could not be reached. */
+      backend: BackendName;
       /** How many requests were tried. */
       attempts: number;
     }
   | {
       /** The backend answered 429 on every try. */
       code: "rate-limited";
-      /**
-       * The backend that limited the requests. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that limited the requests. */
+      backend: BackendName;
       /**
        * How long the backend asked to wait, when it said: `Retry-After`, or Routescan's
        * `x-ratelimit-rpm-retry-after`.
@@ -191,22 +184,16 @@ export type ErrorDetails =
   | {
       /** The time budget ran out before the explorer accepted the submission: there is no handle. */
       code: "timeout";
-      /**
-       * The backend that did not answer in time. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that did not answer in time. */
+      backend: BackendName;
       /** The budget that ran out, in milliseconds. */
       timeoutMs: number;
     }
   | {
       /** The backend answered with a status or a body the library does not recognise. */
       code: "unexpected-response";
-      /**
-       * The backend that answered. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that answered. */
+      backend: BackendName;
       /** The HTTP status. */
       status: number;
       /** The start of the response body, redacted, at most 300 characters. */
@@ -217,11 +204,8 @@ export type ErrorDetails =
   | {
       /** The backend is already verifying this contract from another submission. */
       code: "in-progress";
-      /**
-       * The backend that is busy with the contract. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that is busy with the contract. */
+      backend: BackendName;
     }
   | {
       /** The explorer reported a final state the library cannot classify. */
@@ -258,8 +242,8 @@ export type ErrorDetails =
        * the Solidity metadata lists.
        */
       code: "incomplete-input";
-      /** What is missing: `input`, `compilerVersion`, `contract` or `sources`. */
-      field: string;
+      /** What is missing. */
+      field: "input" | "compilerVersion" | "contract" | "sources";
       /**
        * For `contract`: the fully qualified names found in the documents, sorted, at most 20.
        * For `sources`: the source paths the metadata lists that have no content, sorted, at most
@@ -274,8 +258,8 @@ export type ErrorDetails =
        * input cannot be built from them.
        */
       code: "insufficient-artifact";
-      /** Always `input`: the part that cannot be built. */
-      field: string;
+      /** The part that cannot be built. */
+      field: "input";
     }
   | {
       /** The documents come from a compiler other than solc, or a language other than Solidity. */
@@ -292,11 +276,8 @@ export type ErrorDetails =
        * error or before its node saw the contract. Polling that job again gives the same answer.
        */
       code: "verification-inconclusive";
-      /**
-       * The backend whose job ended without a verdict. `"unknown"` appears only when code bypassed
-       * the types and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend whose job ended without a verdict. */
+      backend: BackendName;
       /** The explorer's code and message, redacted, at most 300 characters. */
       reason: string;
     }
@@ -309,9 +290,9 @@ export type ErrorDetails =
       /** The source path, as the metadata lists it. */
       path: string;
       /** The hash the metadata records, `0x` and 64 lowercase hex digits. */
-      expected: string;
+      expected: Hex;
       /** The keccak-256 hash of the content passed, `0x` and 64 lowercase hex digits. */
-      actual: string;
+      actual: Hex;
     }
   | {
       /**
@@ -319,29 +300,20 @@ export type ErrorDetails =
        * answered that the key is missing.
        */
       code: "missing-api-key";
-      /**
-       * The backend that needs the key. `"unknown"` appears only when code bypassed the types and
-       * passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that needs the key. */
+      backend: BackendName;
     }
   | {
       /** The explorer refused the API key, as Etherscan's `Invalid API Key (#err2)`. */
       code: "api-key-rejected";
-      /**
-       * The backend that refused the key. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that refused the key. */
+      backend: BackendName;
     }
   | {
       /** The API key's daily limit is spent, so another request in this call cannot succeed. */
       code: "quota-exceeded";
-      /**
-       * The backend whose limit is spent. `"unknown"` appears only when code bypassed the types
-       * and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend whose limit is spent. */
+      backend: BackendName;
     }
   | {
       /**
@@ -397,11 +369,8 @@ export type ErrorDetails =
        * calling `linkProxy()` again starts a new link, which is safe.
        */
       code: "proxy-link-pending";
-      /**
-       * The backend that is linking the proxy. `"unknown"` appears only when code bypassed the
-       * types and passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that is linking the proxy. */
+      backend: BackendName;
     }
   | {
       /**
@@ -410,14 +379,79 @@ export type ErrorDetails =
        * proxy is not reported as linked. There is no handle: a link has none.
        */
       code: "proxy-link-unknown-state";
-      /**
-       * The backend that answered. `"unknown"` appears only when code bypassed the types and
-       * passed a name outside `BACKEND_NAMES`.
-       */
-      backend: BackendName | "unknown";
+      /** The backend that answered. */
+      backend: BackendName;
       /** The start of the explorer's answer, redacted, at most 300 characters. */
       excerpt: string;
     };
+
+/**
+ * Each code's member of {@link ErrorDetails}, keyed by code. `DetailsByCode["rate-limited"]` is the
+ * same type as `DetailsOf<"rate-limited">`.
+ *
+ * @example
+ * ```ts
+ * import type { DetailsByCode } from "explorer-verify";
+ *
+ * const handlers: { [C in keyof DetailsByCode]?: (details: DetailsByCode[C]) => string } = {
+ *   "rate-limited": (details) => `wait ${String(details.retryAfterMs ?? 5_000)} ms`,
+ *   "not-confirmed": (details) => `resume ${details.handle.jobId}`,
+ * };
+ * ```
+ * @experimental
+ */
+export type DetailsByCode = {
+  [C in ErrorCode]: Extract<
+    ErrorDetails,
+    {
+      /** The member's code. */
+      code: C;
+    }
+  >;
+};
+
+/**
+ * The `details` of an error with code `C`: its member of {@link ErrorDetails}.
+ *
+ * @template C - One error code, or a union of codes.
+ * @example
+ * ```ts
+ * import type { DetailsOf } from "explorer-verify";
+ *
+ * function wait(details: DetailsOf<"rate-limited">): number {
+ *   return details.retryAfterMs ?? 5_000;
+ * }
+ * ```
+ * @experimental
+ */
+export type DetailsOf<C extends ErrorCode> = DetailsByCode[C];
+
+/**
+ * One `ExplorerVerifyError<K>` for each code `K` in `C`, as a union. `ExplorerVerifyError.is` and
+ * `instanceof` narrow a caught value to this type, so a check of `error.code`, in an `if` or a
+ * `switch`, also narrows `error.details`.
+ *
+ * @template C - The codes. Defaults to every code.
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { AnyExplorerVerifyError } from "explorer-verify";
+ *
+ * function waitMs(error: AnyExplorerVerifyError): number | undefined {
+ *   return error.code === "rate-limited" ? error.details.retryAfterMs : undefined;
+ * }
+ *
+ * function onError(error: unknown): void {
+ *   if (error instanceof ExplorerVerifyError) {
+ *     console.error(waitMs(error));
+ *   }
+ * }
+ * ```
+ * @experimental
+ */
+export type AnyExplorerVerifyError<C extends ErrorCode = ErrorCode> = C extends ErrorCode
+  ? ExplorerVerifyError<C>
+  : never;
 
 /**
  * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
@@ -576,268 +610,180 @@ const CAUSE_DEPTH = 4;
 const AGGREGATE_ERRORS = 5;
 const UNREADABLE_CAUSE = "[unreadable cause]";
 const OMITTED_CAUSE = "[cause omitted]";
-// Stands in for a backend name that is not in BACKEND_NAMES, which only code that bypasses the
-// types can pass.
-const UNKNOWN_BACKEND = "unknown";
-// The handle's backend type has no "unknown": a handle with a name outside BACKEND_NAMES, which
-// only code that bypasses the types can build, gets this name so the handle stays a valid Handle.
-const UNKNOWN_HANDLE_BACKEND: BackendName = "etherscan-compatible";
-
-const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
-  "invalid-input": {
-    hint: "Fix the fields listed in details.issues, then call again.",
-    retryable: false,
-  },
-  "not-confirmed": {
-    hint: "Call checkStatus with details.handle later to continue polling.",
-    retryable: true,
-  },
-  "unsupported-chain": {
-    hint: "Check the chain ID, or pick a backend that serves this chain with the route option.",
-    retryable: false,
-  },
-  network: {
-    hint: "Check the network connection and the explorer's status page, then call again.",
-    retryable: true,
-  },
-  "rate-limited": {
-    hint: "Wait details.retryAfterMs, or a few seconds when it is not set, then call again.",
-    retryable: true,
-  },
-  timeout: {
-    hint: "Call again, or raise timeoutMs. The explorer had not accepted the submission yet.",
-    retryable: true,
-  },
-  "unexpected-response": {
-    hint: "Call again later. If the error persists, check the explorer's status page and report details.status and details.excerpt.",
-    retryable: true,
-  },
-  "in-progress": {
-    hint: "Wait for the explorer to finish its current verification of this contract, then call again.",
-    retryable: true,
-  },
-  "unknown-state": {
-    hint: "Do not retry automatically. Check the contract on the explorer and report details.excerpt.",
-    retryable: false,
-  },
-  "job-not-found": {
-    hint: "Do not retry automatically. Check the contract on the explorer; if it is not verified, call verify() again.",
-    retryable: false,
-  },
-  cancelled: {
-    hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
-    retryable: false,
-  },
-  "incomplete-input": {
-    hint: "Add what details.field names: a build-info with its input, the full compiler version, the contract as path:Name, or the source files listed in details.candidates.",
-    retryable: false,
-  },
-  "insufficient-artifact": {
-    hint: "ABI and bytecode are not enough to verify. Routes left: (1) ask the publisher to ship build-info or metadata; (2) the bytecode-metadata resolver, when the bytecode carries a metadata hash and the metadata is published; (3) the explorer's own matching (Etherscan Similar Match, Sourcify similarity), when an identical contract is already verified.",
-    retryable: false,
-  },
-  "unsupported-compiler": {
-    hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
-    retryable: false,
-  },
-  "verification-inconclusive": {
-    hint: "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
-    retryable: true,
-  },
-  "source-mismatch": {
-    hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
-    retryable: false,
-  },
-  "missing-api-key": {
-    hint: "Pass the key in apiKeys under the backend named in details.backend, or as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.",
-    retryable: false,
-  },
-  "api-key-rejected": {
-    hint: "Check the key on the explorer's account page: it may be mistyped, revoked or issued by another explorer. Pass a valid key, then call again.",
-    retryable: false,
-  },
-  "quota-exceeded": {
-    hint: "The key's daily limit is spent. Call again after the explorer resets the limit, or use a key on a plan with a higher limit.",
-    retryable: false,
-  },
-  "internal-error": {
-    hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
-    retryable: false,
-  },
-  "no-metadata-hash": {
-    hint: "Build the input from the build files with buildVerifyInput instead.",
-    retryable: false,
-  },
-  "metadata-unavailable": {
-    hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
-    retryable: true,
-  },
-  "constructor-args-unavailable": {
-    hint: "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
-    retryable: false,
-  },
-  "proxy-link-pending": {
-    hint: "Call linkProxy() again later: the explorer had not finished linking the proxy. A new call is safe.",
-    retryable: true,
-  },
-  "proxy-link-unknown-state": {
-    hint: "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
-    retryable: false,
-  },
-};
+// A backend name outside BACKEND_NAMES, which only code that bypasses the types can pass, becomes
+// this name, so `details.backend` and a handle's backend stay within `BackendName`.
+const UNKNOWN_BACKEND: BackendName = "etherscan-compatible";
+// A source-mismatch hash: `0x` and 64 lowercase hex digits.
+const HASH = /^0x[0-9a-f]{64}$/;
 
 /**
- * A new `details`, built field by field from the fields its code declares, so an extra field
- * never reaches the error. Every string is redacted and every excerpt cut to 300 characters.
+ * The codes for which trying again may succeed without changing the input. A list, not a record of
+ * every code, so the bundle does not repeat every code name once more.
  */
-function redactDetails(details: ErrorDetails, secrets: readonly string[]): ErrorDetails {
-  // Every code is listed, so a new code fails the exhaustiveness lint until it is added here.
-  let copy: ErrorDetails;
-  switch (details.code) {
-    case "invalid-input":
-      copy = {
-        code: "invalid-input",
-        issues: details.issues.map((issue) => ({
-          field: text(issue.field, secrets),
-          message: text(issue.message, secrets),
-        })),
-      };
-      break;
-    case "not-confirmed":
-      copy = { code: "not-confirmed", handle: redactHandle(details.handle, secrets) };
-      break;
-    case "job-not-found":
-      copy = { code: "job-not-found", handle: redactHandle(details.handle, secrets) };
-      break;
-    case "cancelled":
-      copy = { code: "cancelled" };
-      if (details.handle !== undefined) {
-        copy.handle = redactHandle(details.handle, secrets);
-      }
-      if (details.handles !== undefined) {
-        copy.handles = details.handles.map((handle) => redactHandle(handle, secrets));
-      }
-      break;
-    case "unknown-state":
-      copy = {
-        code: "unknown-state",
-        handle: redactHandle(details.handle, secrets),
-        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
-      };
-      break;
-    case "unexpected-response":
-      copy = {
-        code: "unexpected-response",
-        backend: backendOf(details.backend),
-        status: numberOf(details.status),
-        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
-      };
-      if (details.retryAfterMs !== undefined) {
-        copy.retryAfterMs = numberOf(details.retryAfterMs);
-      }
-      break;
-    case "unsupported-chain":
-      copy = {
-        code: "unsupported-chain",
-        chainId: numberOf(details.chainId),
-        backend: backendOf(details.backend),
-      };
-      break;
-    case "network":
-      copy = {
-        code: "network",
-        backend: backendOf(details.backend),
-        attempts: numberOf(details.attempts),
-      };
-      break;
-    case "rate-limited":
-      copy = { code: "rate-limited", backend: backendOf(details.backend) };
-      if (details.retryAfterMs !== undefined) {
-        copy.retryAfterMs = numberOf(details.retryAfterMs);
-      }
-      if (details.attempts !== undefined) {
-        copy.attempts = numberOf(details.attempts);
-      }
-      break;
-    case "timeout":
-      copy = {
-        code: "timeout",
-        backend: backendOf(details.backend),
-        timeoutMs: numberOf(details.timeoutMs),
-      };
-      break;
-    case "in-progress":
-      copy = { code: "in-progress", backend: backendOf(details.backend) };
-      break;
-    case "incomplete-input":
-      copy = {
-        code: "incomplete-input",
-        field: text(details.field, secrets),
-        candidates: Array.isArray(details.candidates)
-          ? details.candidates.map((candidate) => text(candidate, secrets))
-          : [],
-      };
-      break;
-    case "insufficient-artifact":
-      copy = { code: "insufficient-artifact", field: text(details.field, secrets) };
-      break;
-    case "unsupported-compiler":
-      copy = { code: "unsupported-compiler", field: text(details.field, secrets) };
-      break;
-    case "verification-inconclusive":
-      copy = {
-        code: "verification-inconclusive",
-        backend: backendOf(details.backend),
-        reason: redactExcerpt(stringOf(details.reason), secrets, EXCERPT_LENGTH),
-      };
-      break;
-    case "source-mismatch":
-      copy = {
-        code: "source-mismatch",
-        path: text(details.path, secrets),
-        expected: text(details.expected, secrets),
-        actual: text(details.actual, secrets),
-      };
-      break;
-    case "missing-api-key":
-    case "api-key-rejected":
-    case "quota-exceeded":
-      copy = { code: details.code, backend: backendOf(details.backend) };
-      break;
-    case "internal-error":
-      copy = { code: "internal-error" };
-      break;
-    case "no-metadata-hash":
-      copy = {
-        code: "no-metadata-hash",
-        found: oneOf(details.found, ["no-metadata", "no-code", "version-only"]),
-      };
-      break;
-    case "metadata-unavailable":
-      copy = {
-        code: "metadata-unavailable",
-        hash: text(details.hash, secrets),
-        attempts: Array.isArray(details.attempts) ? details.attempts.map(copyAttempt) : [],
-      };
-      break;
-    case "constructor-args-unavailable":
-      copy = {
-        code: "constructor-args-unavailable",
-        reason: oneOf(details.reason, ["prefix-mismatch", "bad-length"]),
-      };
-      break;
-    case "proxy-link-pending":
-      copy = { code: "proxy-link-pending", backend: backendOf(details.backend) };
-      break;
-    case "proxy-link-unknown-state":
-      copy = {
-        code: "proxy-link-unknown-state",
-        backend: backendOf(details.backend),
-        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
-      };
-      break;
-  }
-  return copy;
+const RETRYABLE: readonly ErrorCode[] = [
+  "not-confirmed",
+  "network",
+  "rate-limited",
+  "timeout",
+  "unexpected-response",
+  "in-progress",
+  "verification-inconclusive",
+  "metadata-unavailable",
+  "proxy-link-pending",
+];
+
+/** Builds the redacted copy of one code's details. */
+type Redactor<C extends ErrorCode> = (
+  details: DetailsOf<C>,
+  secrets: readonly string[],
+) => DetailsOf<C>;
+
+/**
+ * For each code, a function that builds a new `details` field by field from the fields its code
+ * declares, so an extra field never reaches the error. Every string is redacted and every excerpt
+ * cut to 300 characters. The mapped type lists every code, so a new code does not compile until it
+ * has an entry here.
+ */
+const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
+  "invalid-input": (details, secrets) => ({
+    code: "invalid-input",
+    issues: details.issues.map((issue) => ({
+      field: text(issue.field, secrets),
+      message: text(issue.message, secrets),
+    })),
+  }),
+  "not-confirmed": (details, secrets) => ({
+    code: "not-confirmed",
+    handle: redactHandle(details.handle, secrets),
+  }),
+  "job-not-found": (details, secrets) => ({
+    code: "job-not-found",
+    handle: redactHandle(details.handle, secrets),
+  }),
+  cancelled: (details, secrets) => {
+    const copy: DetailsOf<"cancelled"> = { code: "cancelled" };
+    if (details.handle !== undefined) {
+      copy.handle = redactHandle(details.handle, secrets);
+    }
+    if (details.handles !== undefined) {
+      copy.handles = details.handles.map((handle) => redactHandle(handle, secrets));
+    }
+    return copy;
+  },
+  "unknown-state": (details, secrets) => ({
+    code: "unknown-state",
+    handle: redactHandle(details.handle, secrets),
+    excerpt: excerptOf(details.excerpt, secrets),
+  }),
+  "unexpected-response": (details, secrets) => {
+    const copy: DetailsOf<"unexpected-response"> = {
+      code: "unexpected-response",
+      backend: backendOf(details.backend),
+      status: numberOf(details.status),
+      excerpt: excerptOf(details.excerpt, secrets),
+    };
+    if (details.retryAfterMs !== undefined) {
+      copy.retryAfterMs = numberOf(details.retryAfterMs);
+    }
+    return copy;
+  },
+  "unsupported-chain": (details) => ({
+    code: "unsupported-chain",
+    chainId: numberOf(details.chainId),
+    backend: backendOf(details.backend),
+  }),
+  network: (details) => ({
+    code: "network",
+    backend: backendOf(details.backend),
+    attempts: numberOf(details.attempts),
+  }),
+  "rate-limited": (details) => {
+    const copy: DetailsOf<"rate-limited"> = {
+      code: "rate-limited",
+      backend: backendOf(details.backend),
+    };
+    if (details.retryAfterMs !== undefined) {
+      copy.retryAfterMs = numberOf(details.retryAfterMs);
+    }
+    if (details.attempts !== undefined) {
+      copy.attempts = numberOf(details.attempts);
+    }
+    return copy;
+  },
+  timeout: (details) => ({
+    code: "timeout",
+    backend: backendOf(details.backend),
+    timeoutMs: numberOf(details.timeoutMs),
+  }),
+  "in-progress": (details) => ({ code: "in-progress", backend: backendOf(details.backend) }),
+  "incomplete-input": (details, secrets) => ({
+    code: "incomplete-input",
+    field: oneOf(details.field, ["input", "compilerVersion", "contract", "sources"]),
+    candidates: Array.isArray(details.candidates)
+      ? details.candidates.map((candidate) => text(candidate, secrets))
+      : [],
+  }),
+  "insufficient-artifact": (details) => ({
+    code: "insufficient-artifact",
+    field: oneOf(details.field, ["input"]),
+  }),
+  "unsupported-compiler": (details, secrets) => ({
+    code: "unsupported-compiler",
+    field: text(details.field, secrets),
+  }),
+  "verification-inconclusive": (details, secrets) => ({
+    code: "verification-inconclusive",
+    backend: backendOf(details.backend),
+    reason: excerptOf(details.reason, secrets),
+  }),
+  "source-mismatch": (details, secrets) => ({
+    code: "source-mismatch",
+    path: text(details.path, secrets),
+    expected: hashOf(details.expected),
+    actual: hashOf(details.actual),
+  }),
+  "missing-api-key": (details) => ({
+    code: "missing-api-key",
+    backend: backendOf(details.backend),
+  }),
+  "api-key-rejected": (details) => ({
+    code: "api-key-rejected",
+    backend: backendOf(details.backend),
+  }),
+  "quota-exceeded": (details) => ({ code: "quota-exceeded", backend: backendOf(details.backend) }),
+  "internal-error": () => ({ code: "internal-error" }),
+  "no-metadata-hash": (details) => ({
+    code: "no-metadata-hash",
+    found: oneOf(details.found, ["no-metadata", "no-code", "version-only"]),
+  }),
+  "metadata-unavailable": (details, secrets) => ({
+    code: "metadata-unavailable",
+    hash: text(details.hash, secrets),
+    attempts: Array.isArray(details.attempts) ? details.attempts.map(copyAttempt) : [],
+  }),
+  "constructor-args-unavailable": (details) => ({
+    code: "constructor-args-unavailable",
+    reason: oneOf(details.reason, ["prefix-mismatch", "bad-length"]),
+  }),
+  "proxy-link-pending": (details) => ({
+    code: "proxy-link-pending",
+    backend: backendOf(details.backend),
+  }),
+  "proxy-link-unknown-state": (details, secrets) => ({
+    code: "proxy-link-unknown-state",
+    backend: backendOf(details.backend),
+    excerpt: excerptOf(details.excerpt, secrets),
+  }),
+};
+
+/** The redacted copy of `details`, built by its code's redactor. */
+function redactDetails<C extends ErrorCode>(
+  code: C,
+  details: DetailsOf<C>,
+  secrets: readonly string[],
+): DetailsOf<C> {
+  const redactor: Redactor<C> = REDACTORS[code];
+  return redactor(details, secrets);
 }
 
 // The helpers below take `unknown`: the types say what callers pass, but an error must never throw
@@ -868,14 +814,23 @@ function copyAttempt(attempt: unknown): MetadataAttempt {
   return copy;
 }
 
-/** A known backend name, or `undefined`. */
-function knownBackend(value: unknown): BackendName | undefined {
-  return toBackendName(value);
+/** A known backend name, or `etherscan-compatible` for anything else. */
+function backendOf(value: unknown): BackendName {
+  return toBackendName(value) ?? UNKNOWN_BACKEND;
 }
 
-/** A known backend name, or `"unknown"`. */
-function backendOf(value: unknown): BackendName | typeof UNKNOWN_BACKEND {
-  return knownBackend(value) ?? UNKNOWN_BACKEND;
+/**
+ * A source-mismatch hash: `0x` and 64 lowercase hex digits, kept as it is; `0x` for anything else.
+ * A hash is public, so it is not redacted, and the shape check keeps anything else out.
+ */
+function hashOf(value: unknown): Hex {
+  const hash = stringOf(value);
+  return HASH.test(hash) ? `0x${hash.slice(2)}` : "0x";
+}
+
+/** A redacted excerpt of an explorer's answer, at most 300 characters. */
+function excerptOf(value: unknown, secrets: readonly string[]): string {
+  return redactExcerpt(stringOf(value), secrets, EXCERPT_LENGTH);
 }
 
 /** A number, or `NaN` for anything else. */
@@ -903,7 +858,7 @@ function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
   const digits = addressDigits(handle.address);
   return {
     version: 1,
-    backend: knownBackend(handle.backend) ?? UNKNOWN_HANDLE_BACKEND,
+    backend: backendOf(handle.backend),
     chainId: numberOf(handle.chainId),
     address: `0x${digits ?? text(stringOf(handle.address).slice(2), secrets)}`,
     jobId: redactJobId(stringOf(handle.jobId), secrets),
@@ -1027,35 +982,51 @@ function redactCause(cause: unknown, secrets: readonly string[], depth: number):
   }
 }
 
+// The brand that `ExplorerVerifyError.is` and `instanceof` check. `Symbol.for` returns the same
+// symbol in every copy of the package, so an error from another copy passes too (decision 0044).
+const BRAND: unique symbol = Symbol.for("explorer-verify.error");
+
 /**
  * The error every library function throws, except on abort, where the call rejects with
- * `signal.reason` unchanged. Narrow on `details.code`; `code` holds the same value.
+ * `signal.reason` unchanged. Check `code` to narrow `details` to that code's data.
+ *
+ * `ExplorerVerifyError.is(error, code?)` and `instanceof` recognise an error built by any copy of
+ * explorer-verify, for example when a build helper resolves another version than the CLI. Both
+ * narrow `error` to {@link AnyExplorerVerifyError}, so a check of `error.code` narrows `details`.
  *
  * The constructor removes API keys from the message, the hint, every string in `details` and the
  * cause, so nothing the error holds can print a key (R-SEC-1). `JSON.stringify(error)` calls
  * {@link ExplorerVerifyError.toJSON}, which also leaves out `cause`, the stack and `details`.
+ * `Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`. The brand is a
+ * symbol key, so `structuredClone(error)` and `postMessage` drop it, and the copy is not recognised;
+ * send `error.toJSON()` across instead.
  *
+ * @template C - The error's code. Defaults to every code.
  * @example
  * ```ts
- * import { ExplorerVerifyError } from "explorer-verify";
+ * import { ExplorerVerifyError, verify } from "explorer-verify";
  *
  * try {
  *   await verify(input);
  * } catch (error) {
- *   if (error instanceof ExplorerVerifyError) {
- *     console.error(JSON.stringify(error));
- *     if (error.retryable) {
- *       // try again later
+ *   if (ExplorerVerifyError.is(error, "not-confirmed")) {
+ *     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+ *   } else if (error instanceof ExplorerVerifyError) {
+ *     switch (error.code) {
+ *       case "rate-limited":
+ *         console.error(`Wait ${String(error.details.retryAfterMs ?? 5_000)} ms.`);
+ *         break;
+ *       default:
+ *         console.error(JSON.stringify(error));
  *     }
  *   }
- *   throw error;
  * }
  * ```
  * @experimental
  */
-export class ExplorerVerifyError extends Error {
-  /** The stable error code, equal to `details.code`. */
-  readonly code: ErrorCode;
+export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error {
+  /** The stable error code, equal to `details.code`. Check it to narrow `details`. */
+  readonly code: C;
   /** One sentence: what to do next (R-DX-3). */
   readonly hint: string;
   /**
@@ -1064,41 +1035,143 @@ export class ExplorerVerifyError extends Error {
    * `verification-inconclusive`, it means a new `verify()`, which looks the contract up first.
    */
   readonly retryable: boolean;
-  /** The code's data, redacted. Check `details.code` to narrow it. */
-  readonly details: ErrorDetails;
+  /** The code's data, redacted. */
+  readonly details: DetailsOf<C>;
   /** The code's own page in the error reference (R-AX-10). */
   readonly docsUrl: string;
 
   /**
    * Library code creates these; callers catch them. Every string passes through the key
-   * redaction here, the one place all errors are built.
+   * redaction here, the one place all errors are built. Without a `hint`, the error's hint points
+   * to `docsUrl`; pass one from {@link ERROR_HINTS} for the code's default hint.
    *
    * @param details - The code and its data.
    * @param message - What went wrong.
-   * @param options - The key values to redact, and optionally a specific hint and the cause.
+   * @param options - The key values to redact, and optionally a hint and the cause.
    * @example
    * ```ts
+   * import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
+   *
    * throw new ExplorerVerifyError(
    *   { code: "invalid-input", issues: [{ field: "chainId", message: "must be a positive integer" }] },
    *   "The input is invalid: chainId.",
-   *   { secrets: [] },
+   *   { hint: ERROR_HINTS["invalid-input"], secrets: [] },
    * );
    * ```
    */
-  constructor(details: ErrorDetails, message: string, options: ExplorerVerifyErrorOptions) {
+  constructor(
+    details: DetailsOf<C> & { code: C },
+    message: string,
+    options: ExplorerVerifyErrorOptions,
+  ) {
     // The message is redacted before `super`, which builds the stack from it.
     super(
       redact(message, options.secrets),
       "cause" in options ? { cause: redactCause(options.cause, options.secrets, 1) } : undefined,
     );
-    const entry = CATALOGUE[details.code];
+    const code: C = details.code;
+    const docsUrl = docsUrlOf(code);
     const hint =
-      options.hint !== undefined && options.hint.trim() !== "" ? options.hint : entry.hint;
-    this.code = details.code;
+      options.hint !== undefined && options.hint.trim() !== ""
+        ? options.hint
+        : `Read ${docsUrl} for what to do next.`;
+    this.code = code;
     this.hint = redact(hint, options.secrets);
-    this.retryable = entry.retryable;
-    this.details = redactDetails(details, options.secrets);
-    this.docsUrl = docsUrlOf(details.code);
+    this.retryable = RETRYABLE.includes(code);
+    this.details = redactDetails(code, details, options.secrets);
+    this.docsUrl = docsUrl;
+    // The brand is a symbol key that is not enumerable, so `Object.keys(error)`, a spread and
+    // `JSON.stringify` leave it out.
+    Object.defineProperty(this, BRAND, { value: true });
+  }
+
+  /**
+   * Whether `value` is an `ExplorerVerifyError` from any copy of explorer-verify. It checks a
+   * brand, not the class, so it does not depend on which copy of the package built the error, and
+   * it never throws.
+   *
+   * @param value - Anything, usually a caught error.
+   * @returns `true` when `value` is such an error; `value` then narrows to
+   *   {@link AnyExplorerVerifyError}, so a check of `value.code` narrows `details`.
+   * @example
+   * ```ts
+   * import { ExplorerVerifyError } from "explorer-verify";
+   *
+   * function describe(error: unknown): string {
+   *   if (!ExplorerVerifyError.is(error)) {
+   *     return "not ours";
+   *   }
+   *   return error.code === "not-confirmed" ? error.details.handle.jobId : error.code;
+   * }
+   * ```
+   */
+  static is(value: unknown): value is AnyExplorerVerifyError;
+  /**
+   * Whether `value` is an `ExplorerVerifyError` from any copy of explorer-verify with the code
+   * `code`. It checks a brand, not the class, and it never throws.
+   *
+   * @param value - Anything, usually a caught error.
+   * @param code - The code to check for.
+   * @returns `true` when `value` is such an error with that code; `value` then narrows to
+   *   {@link AnyExplorerVerifyError} of `code`.
+   * @example
+   * ```ts
+   * import { ExplorerVerifyError, checkStatus } from "explorer-verify";
+   * import type { Handle } from "explorer-verify";
+   *
+   * async function resume(handle: Handle): Promise<void> {
+   *   try {
+   *     await checkStatus(handle);
+   *   } catch (error) {
+   *     if (ExplorerVerifyError.is(error, "rate-limited")) {
+   *       console.error(error.details.retryAfterMs);
+   *     }
+   *     throw error;
+   *   }
+   * }
+   * ```
+   */
+  static is<K extends ErrorCode>(value: unknown, code: K): value is AnyExplorerVerifyError<K>;
+  static is(value: unknown, code?: ErrorCode): boolean {
+    try {
+      // An own property only, so a brand set on Object.prototype does not brand every object.
+      return (
+        typeof value === "object" &&
+        value !== null &&
+        Object.getOwnPropertyDescriptor(value, BRAND)?.value === true &&
+        (code === undefined || Reflect.get(value, "code") === code)
+      );
+    } catch {
+      // A Proxy whose traps throw is not an error of this library.
+      return false;
+    }
+  }
+
+  /**
+   * Makes `instanceof ExplorerVerifyError` check the same brand as
+   * {@link ExplorerVerifyError.is}, so it also holds for an error from another copy of the package.
+   * For a subclass, `instanceof` checks the prototype chain as usual.
+   *
+   * @param value - The left side of `instanceof`.
+   * @returns Whether `value` is an `ExplorerVerifyError` from any copy of explorer-verify, or, for a
+   *   subclass, an instance of that subclass.
+   * @example
+   * ```ts
+   * import { ExplorerVerifyError } from "explorer-verify";
+   *
+   * function code(error: unknown): string {
+   *   return error instanceof ExplorerVerifyError ? error.code : "not ours";
+   * }
+   * ```
+   */
+  static override [Symbol.hasInstance]<T>(
+    this: abstract new (...args: never[]) => T,
+    value: unknown,
+  ): value is ExplorerVerifyError extends T ? AnyExplorerVerifyError : T;
+  static override [Symbol.hasInstance](value: unknown): boolean {
+    return this === ExplorerVerifyError
+      ? ExplorerVerifyError.is(value)
+      : Function.prototype[Symbol.hasInstance].call(this, value);
   }
 
   /**
@@ -1124,6 +1197,7 @@ export class ExplorerVerifyError extends Error {
    * ```
    */
   toJSON(): ErrorJson {
+    const details: ErrorDetails = this.details;
     const json: ErrorJson = {
       code: this.code,
       message: this.message,
@@ -1131,12 +1205,12 @@ export class ExplorerVerifyError extends Error {
       docsUrl: this.docsUrl,
       retryable: this.retryable,
     };
-    const handle = "handle" in this.details ? this.details.handle : undefined;
+    const handle = "handle" in details ? details.handle : undefined;
     if (handle !== undefined) {
       json.handle = formatHandle(handle);
     }
-    if (this.details.code === "cancelled" && this.details.handles !== undefined) {
-      json.handles = this.details.handles.map((each) => ({
+    if (details.code === "cancelled" && details.handles !== undefined) {
+      json.handles = details.handles.map((each) => ({
         backend: each.backend,
         handle: formatHandle(each),
       }));

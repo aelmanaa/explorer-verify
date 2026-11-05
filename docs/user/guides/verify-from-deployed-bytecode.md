@@ -120,7 +120,7 @@ try {
     { rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com", ipfsGateway: "http://127.0.0.1:8080" },
   );
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.details.code === "metadata-unavailable") {
+  if (error instanceof ExplorerVerifyError && error.code === "metadata-unavailable") {
     for (const attempt of error.details.attempts) {
       console.log(attempt.source, attempt.outcome, attempt.status);
     }

@@ -7,6 +7,7 @@
  * not export it.
  */
 import type { Backend, Context, Target } from "../backends/backend.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { ErrorDetails } from "../errors.ts";
 import { keyFor } from "../http/api-keys.ts";
@@ -260,7 +261,7 @@ async function readCreation(
 ): Promise<string | undefined> {
   const served = hexQuantity(await rpcCall(rpc, "eth_chainId", []));
   if (served !== undefined && served !== input.chainId) {
-    throw new ExplorerVerifyError(
+    throw newError(
       {
         code: "invalid-input",
         issues: [{ field: "rpcUrl", message: "serves another chain than chainId" }],
@@ -316,7 +317,7 @@ async function rpcCall(
     }
     if (error.details.code === "timeout") {
       // The details name the route's backend; the message names the endpoint that ran out.
-      throw new ExplorerVerifyError(
+      throw newError(
         error.details,
         `The time budget ran out while reading the creation transaction from rpcUrl (${method}).`,
         { secrets: http.secrets },
@@ -346,7 +347,7 @@ function argumentsOf(code: string, compiled: string): Hex | { readonly skipped: 
 }
 
 function mismatch(reason: Mismatch, input: VerifyInput): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "constructor-args-unavailable", reason },
     reason === "prefix-mismatch"
       ? `The creation code of ${input.address} does not start with creationBytecode: the input differs from the deployed build.`

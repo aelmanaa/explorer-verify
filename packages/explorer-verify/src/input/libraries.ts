@@ -3,8 +3,8 @@
  * for a contract linked after compiling, the addresses change the metadata hash (live probe E,
  * 2026-11-03).
  */
-import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { VerifyInput } from "../types.ts";
 import { validateInput } from "./validate.ts";
@@ -96,9 +96,7 @@ export function linkLibraries(input: VerifyInput): VerifyInput {
 /** An `invalid-input` error listing `issues`, which name fields and never repeat a value. */
 function invalid(issues: InputIssue[]): ExplorerVerifyError {
   const fields = issues.map((issue) => issue.field).join(", ");
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues },
-    `The input is invalid: ${fields}.`,
-    { secrets: [] },
-  );
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, {
+    secrets: [],
+  });
 }

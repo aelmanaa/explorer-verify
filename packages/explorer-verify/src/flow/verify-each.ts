@@ -6,6 +6,7 @@
  */
 import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { collisions, needsKey } from "../http/api-keys.ts";
@@ -213,7 +214,7 @@ async function loadClient(
     if (error instanceof ExplorerVerifyError) {
       throw error;
     }
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "network", backend: route.backend, attempts: 1 },
       `Loading the ${route.backend} client failed.`,
       { secrets, cause: error },
@@ -271,7 +272,7 @@ function checkRuns(
     }
   }
   if (issues.length > 0) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "invalid-input", issues },
       `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
       { hint: BACKENDS_HINT, secrets },
@@ -353,7 +354,7 @@ function tableFailure(
   secrets: readonly string[],
 ): ExplorerVerifyError {
   if (!(error instanceof ExplorerVerifyError)) {
-    return new ExplorerVerifyError(
+    return newError(
       { code: "network", backend: entry.backend, attempts: 1 },
       "Loading the routing table failed.",
       { secrets, cause: error },
@@ -361,7 +362,7 @@ function tableFailure(
   }
   const { details } = error;
   return details.code === "timeout"
-    ? new ExplorerVerifyError({ ...details, backend: entry.backend }, error.message, {
+    ? newError({ ...details, backend: entry.backend }, error.message, {
         // Stryker disable next-line ArrayDeclaration: equivalent. The message is the timeout's own, already redacted.
         secrets: [],
       })
@@ -403,7 +404,7 @@ function entryError(error: unknown, override: Entry, index: number): unknown {
     field: renamed(issue.field, index),
     message: issue.message,
   }));
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The backends option is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
@@ -437,7 +438,7 @@ function routeFor(
       throw entryError(error, override, index);
     }
     // `unsupported-chain`, the only other error routeWith throws: this backend's outcome.
-    return new ExplorerVerifyError(error.details, error.message, {
+    return newError(error.details, error.message, {
       hint: renamed(error.hint, index),
       // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the chain id and the backend name.
       secrets: [],
@@ -516,7 +517,7 @@ function entriesOf(options: VerifyEachOptions | undefined, settings: Settings): 
   }
   const entries = raw === "all" ? "all" : listOf(raw, issues);
   if (issues.length > 0) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "invalid-input", issues },
       `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
       { hint: BACKENDS_HINT, secrets: settings.keySecrets() },

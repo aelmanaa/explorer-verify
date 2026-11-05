@@ -1,3 +1,4 @@
+import { newError } from "../../error-hints.ts";
 /**
  * The bytecode-metadata resolver (R-IN-5, decision 0026): reads the metadata hash solc appends to
  * the runtime bytecode, finds the metadata and the sources that hash names, and rebuilds the
@@ -177,7 +178,7 @@ interface Found {
 }
 
 function invalid(issues: InputIssue[], secrets: readonly string[]): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The resolver input is invalid: ${issues.map(({ field }) => field).join(", ")}.`,
     { hint: OPTIONS_HINT, secrets },
@@ -377,7 +378,7 @@ function context(call: Call, source: MetadataAttempt["source"]): HttpContext {
 }
 
 function unavailable(call: Call, message: string): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "metadata-unavailable", hash: call.hash, attempts: call.attempts },
     message,
     { secrets: call.settings.secrets },
@@ -770,7 +771,7 @@ export async function buildVerifyInputFromBytecode(
   const bytecode = "bytes" in code ? code.bytes : await readBytecode(call, code.rpcUrl);
   const auxdata = readAuxdata(bytecode);
   if (auxdata.kind !== "ipfs" && auxdata.kind !== "swarm") {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "no-metadata-hash", found: auxdata.kind },
       auxdata.kind === "no-code"
         ? "No bytecode is deployed at the address."

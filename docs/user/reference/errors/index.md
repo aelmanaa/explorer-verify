@@ -7,8 +7,8 @@ Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 Audience: developers and agents handling errors from explorer-verify.
 
 Every error the library throws is an `ExplorerVerifyError`, except on abort, where the call rejects
-with `signal.reason` unchanged. Check `error.details.code` to read the data for that code. Each
-error has:
+with `signal.reason` unchanged. Check `error.code`; TypeScript then narrows `error.details` to that
+code's data. Each error has:
 
 | Field       | Contents                                                                              |
 | ----------- | ------------------------------------------------------------------------------------- |
@@ -20,6 +20,7 @@ error has:
 | `details`   | The code's data, such as the handle                                                   |
 | `cause`     | A redacted copy of the underlying error. `toJSON()` and `JSON.stringify` leave it out |
 
+`Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`.
 `JSON.stringify(error)` prints `code`, `message`, `hint`, `docsUrl`, `retryable` and, when there is
 one, the handle in its one-line form. It never prints `cause`, the stack or an API key.
 
@@ -29,11 +30,64 @@ import { ExplorerVerifyError, verify } from "explorer-verify";
 try {
   await verify(input);
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
   }
   throw error;
 }
+```
+
+### Recognise an error
+
+`ExplorerVerifyError.is(error, code)` checks the error and its code in one call, and narrows
+`error.details` to that code. Leave out `code` to accept any code; a `switch` on `error.code` then
+narrows `details` in each case:
+
+```ts
+import { ExplorerVerifyError, checkStatus } from "explorer-verify";
+import type { Handle } from "explorer-verify";
+
+async function resume(handle: Handle): Promise<void> {
+  try {
+    await checkStatus(handle);
+  } catch (error) {
+    if (ExplorerVerifyError.is(error, "rate-limited")) {
+      console.error(`Wait ${String(error.details.retryAfterMs ?? 5_000)} ms.`);
+    } else if (ExplorerVerifyError.is(error)) {
+      switch (error.code) {
+        case "not-confirmed":
+          console.error(error.details.handle.jobId);
+          break;
+        default:
+          console.error(error.code, error.hint);
+      }
+    }
+    throw error;
+  }
+}
+```
+
+To pass a caught error to your own function and still narrow it by code there, type the parameter
+as `AnyExplorerVerifyError`, not `ExplorerVerifyError`.
+
+`ExplorerVerifyError.is` and `instanceof` check a brand, `Symbol.for("explorer-verify.error")`, not
+the class. Both hold for an error from another installed copy of explorer-verify, for example when
+a build helper resolves another version than your code. The brand is a symbol key, so
+`structuredClone` and `postMessage` drop it; send `error.toJSON()` to a worker or another window.
+
+### Create an error
+
+Library code creates these errors. Code that builds one itself, such as a wrapper that reports its
+own failures the same way, passes the code's default hint from `ERROR_HINTS`. Without a `hint`, the
+error's hint points to `docsUrl`:
+
+```ts
+import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
+
+const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper failed.", {
+  hint: ERROR_HINTS["internal-error"],
+  secrets: [],
+});
 ```
 
 ## API keys in errors

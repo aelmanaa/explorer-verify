@@ -106,7 +106,7 @@ export async function verifyFromPage(input: VerifyInput): Promise<string> {
       ? `rejected: ${result.reason}`
       : `${result.status} on ${result.backend}`;
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       return "still checking: the handle stays saved";
     }
     localStorage.removeItem(PENDING_KEY);

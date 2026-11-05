@@ -9,6 +9,7 @@ import { homedir } from "node:os";
 
 import {
   ERROR_EXIT_CODES,
+  ERROR_HINTS,
   ExplorerVerifyError,
   exitCodeOf,
   parseHandle,
@@ -123,7 +124,7 @@ function internalError(error: unknown, secrets: readonly string[]): ExplorerVeri
   return new ExplorerVerifyError(
     { code: "internal-error" },
     `An unexpected error occurred: ${redacted.message.slice(0, MESSAGE_LENGTH)}`,
-    { secrets, cause: error },
+    { hint: ERROR_HINTS["internal-error"], secrets, cause: error },
   );
 }
 
@@ -178,7 +179,7 @@ function cancelledError(signal: SignalName, state: RunState): ExplorerVerifyErro
       ...(handles.length === 0 ? {} : { handles }),
     },
     `The run was cancelled by ${signal}.`,
-    { secrets: [] },
+    { hint: ERROR_HINTS.cancelled, secrets: [] },
   );
 }
 

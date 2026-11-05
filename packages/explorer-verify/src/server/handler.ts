@@ -22,6 +22,7 @@
  *   redacted (R-SEC-1).
  */
 import type { BackendName } from "../backend-names.ts";
+import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
@@ -1089,7 +1090,7 @@ function readLimit(
 }
 
 function invalidOptions(issues: InputIssue[], secrets: readonly string[]): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "invalid-input", issues },
     `The handler options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {

@@ -1,6 +1,7 @@
 # 0009: Verify options, the resumable handle and the error shape
 
-Status: Accepted (2026-11-02)
+Status: Accepted (2026-11-02). The brand-check point of section 3 is superseded by
+[decision 0044](0044-errors-narrow-by-code-and-carry-a-brand.md).
 
 ## Context
 
@@ -122,8 +123,9 @@ type ErrorDetails =
 - `retryable` for `not-confirmed` means trying `checkStatus(details.handle)` again. A new
   `verify()` would submit the contract again.
 - Abort is not a catalogue error. The call rejects with `signal.reason` unchanged (see decision 1).
-- No `isExplorerVerifyError` brand check. It needs a type predicate, which the type-escape check
-  flags, and callers narrow with `instanceof`. Two copies of the package in one bundle break
+- (Superseded by [decision 0044](0044-errors-narrow-by-code-and-carry-a-brand.md), which adds
+  `ExplorerVerifyError.is` with a `Symbol.for` brand.) No `isExplorerVerifyError` brand check. It
+  needs a type predicate, which the type-escape check flags, and callers narrow with `instanceof`. Two copies of the package in one bundle break
   `instanceof`; a caller in that case can check `error.name === "ExplorerVerifyError"`. If that case
   turns out common, a later decision adds the brand check with an allowlist entry.
 - This change adds the class and two codes, `invalid-input` and `not-confirmed`, which `parseHandle`

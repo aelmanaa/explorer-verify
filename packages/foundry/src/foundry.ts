@@ -6,7 +6,7 @@
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { buildVerifyInput, ExplorerVerifyError } from "explorer-verify";
+import { buildVerifyInput, ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "explorer-verify";
 
 /**
@@ -172,17 +172,13 @@ interface ArtifactMatch {
 function invalid(
   field: string,
   message: string,
-  hint?: string,
+  hint: string = ERROR_HINTS["invalid-input"],
   cause?: unknown,
 ): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues: [{ field, message }] },
     `The input is invalid: ${field}.`,
-    {
-      ...(hint === undefined ? {} : { hint }),
-      ...(cause === undefined ? {} : { cause }),
-      secrets: [],
-    },
+    { hint, ...(cause === undefined ? {} : { cause }), secrets: [] },
   );
 }
 

@@ -14,7 +14,7 @@ export async function resumeVerification(show: (line: string) => void): Promise<
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       show("Still checking. The handle stays saved for the next load.");
       return;
     }

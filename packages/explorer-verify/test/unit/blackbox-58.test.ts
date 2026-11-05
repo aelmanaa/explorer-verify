@@ -17,6 +17,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   ERROR_CODES,
   ERROR_EXIT_CODES,
+  ERROR_HINTS,
   ExplorerVerifyError,
   checkStatus,
   exitCodeOf,
@@ -293,7 +294,11 @@ const validateEnvelope = strictValidator(
 );
 
 /** Every text a caller can see from one call: requests, log lines, events, the outcome. */
-function everything(outcome: VerifyOutcome, seen: Seen, calls: readonly Call[]): string {
+function everything(
+  outcome: VerifyOutcome | ExplorerVerifyError,
+  seen: Seen,
+  calls: readonly Call[],
+): string {
   const parts: string[] = [];
   for (const call of calls) {
     parts.push(call.url, call.body, call.headers);
@@ -1113,6 +1118,7 @@ describe("new error codes (api-keys.md, error pages, json-output.md, verify.md)"
         { code, backend: "etherscan-v2" },
         `the explorer said ${ETHERSCAN_KEY}`,
         {
+          hint: ERROR_HINTS[code],
           secrets: [ETHERSCAN_KEY],
           cause: new Error(`inner ${ETHERSCAN_KEY}`),
         },
@@ -1135,11 +1141,11 @@ describe("new error codes (api-keys.md, error pages, json-output.md, verify.md)"
       );
     });
 
-    it(`${code}: an unknown backend in details reads "unknown"`, () => {
+    it(`${code}: an unknown backend in details reads etherscan-compatible, as in a handle`, () => {
       const details = { code, backend: "nope" };
       const error = Reflect.construct(ExplorerVerifyError, [details, "m", { secrets: [] }]);
       assert.ok(error instanceof ExplorerVerifyError);
-      assert.deepEqual(error.details, { code, backend: "unknown" });
+      assert.deepEqual(error.details, { code, backend: "etherscan-compatible" });
     });
 
     it(`${code}: toEnvelope with secrets removes a key from the message`, () => {

@@ -1,4 +1,11 @@
 {
   "$comment": "Every lint escape in shipped code (packages/*/src, except vendored code). scripts/check-type-escapes.ts fails on any escape not listed here, and on any entry that no longer matches. Add one only when no typed alternative exists, with the reason.",
-  "allowed": []
+  "allowed": [
+    {
+      "file": "packages/explorer-verify/src/errors.ts",
+      "rule": "type-predicate",
+      "count": 3,
+      "reason": "The two overloads of ExplorerVerifyError.is and ExplorerVerifyError[Symbol.hasInstance] check a Symbol.for brand, so they hold for an error from another copy of the package, and narrow the value to one class type per code, so a check of error.code narrows details. TypeScript narrows a value only through a predicate. Decision 0044."
+    }
+  ]
 }

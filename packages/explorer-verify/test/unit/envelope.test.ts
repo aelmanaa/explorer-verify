@@ -37,7 +37,10 @@ const schema = envelopeSchema;
  * follow the schema's order, and it survives a JSON round trip unchanged. Every envelope this file
  * produces goes through here (R-AX-5, R-AX-12).
  */
-function envelope(outcome: VerifyOutcome, options?: EnvelopeOptions): Envelope {
+function envelope(
+  outcome: VerifyOutcome | ExplorerVerifyError,
+  options?: EnvelopeOptions,
+): Envelope {
   const value = options === undefined ? toEnvelope(outcome) : toEnvelope(outcome, options);
   assert.deepEqual(validateEnvelope(value), [], "the envelope breaks envelope.schema.json");
   assert.deepEqual(outOfOrderKeys(schema, value), [], "keys are not in the schema's order");
@@ -167,7 +170,7 @@ function errorFor(code: ErrorCode): ExplorerVerifyError {
 }
 
 /** Every outcome: one result per status, then one error per code. */
-function everyOutcome(): VerifyOutcome[] {
+function everyOutcome(): (VerifyOutcome | ExplorerVerifyError)[] {
   return [
     ...Object.values(RESULTS).map(({ result }) => result),
     ...ERROR_CODES.map((code) => errorFor(code)),

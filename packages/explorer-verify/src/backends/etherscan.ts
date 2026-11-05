@@ -12,7 +12,8 @@
  * docs/contributor/research/2026-11-04-routescan-client.md.
  */
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
@@ -207,7 +208,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
       fields["constructorArguements"] = args;
     }
     const req = form(ctx, name, fields, "submit", dialect.retryAfterHeader);
-    const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
+    const unconfirmed = (answer: Answer): AnyExplorerVerifyError | undefined =>
       UNCONFIRMED_STATUSES.includes(answer.status) ||
       (answer.status === 200 && answer.fields === undefined)
         ? unexpected(ctx, answer, "the submit")
@@ -233,7 +234,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
   async function untilIndexed(
     ctx: Context,
     req: HttpRequest,
-    unconfirmed: (answer: Answer) => ExplorerVerifyError | undefined,
+    unconfirmed: (answer: Answer) => AnyExplorerVerifyError | undefined,
     attempt = 1,
   ): Promise<SubmitAttempt> {
     const sent = await attemptSubmit(ctx, req, unconfirmed);
@@ -330,13 +331,13 @@ export function etherscanStyle(dialect: Dialect): Backend {
       return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };
     }
     if (startsWithAny(result, NO_JOB)) {
-      throw new ExplorerVerifyError(
+      throw newError(
         { code: "job-not-found", handle },
         `${label} does not know the verification job ${handle.jobId}.`,
         { secrets: ctx.http.secrets },
       );
     }
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "unknown-state", handle, excerpt: answer.text },
       `${label} reported a job state for ${handle.jobId} that this client does not recognise; the result is not known.`,
       { secrets: ctx.http.secrets },
@@ -354,7 +355,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
     answer: Answer,
     what: string,
     whole = false,
-  ): ExplorerVerifyError {
+  ): ExplorerVerifyError<"unexpected-response"> {
     return unexpectedAnswer(ctx, name, label, answer, what, whole);
   }
 
@@ -463,7 +464,7 @@ export function knownAnswer(
   }
   const result = resultOf(answer);
   if (result?.startsWith(NO_CHAIN) === true || fields.get("message") === CHAIN_NOT_SUPPORTED) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "unsupported-chain", backend: name, chainId },
       `${label} does not support chain ${String(chainId)}.`,
       // Stryker disable next-line ObjectLiteral: equivalent. The message holds only the API's name and the chain id.
@@ -471,7 +472,7 @@ export function knownAnswer(
     );
   }
   if (result?.startsWith(V1_ENDPOINT) === true) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "unexpected-response", backend: name, status: answer.status, excerpt: answer.text },
       `${label} answered that the request went to Etherscan's deprecated v1 API.`,
       { hint: V1_HINT, secrets: ctx.http.secrets },

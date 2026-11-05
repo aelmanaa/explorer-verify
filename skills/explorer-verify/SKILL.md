@@ -184,7 +184,7 @@ try {
     // An abort rejects with signal.reason. Keep the stored handle and exit 130.
     process.exitCode = 130;
   } else if (error instanceof ExplorerVerifyError) {
-    if (error.details.code === "not-confirmed") {
+    if (error.code === "not-confirmed") {
       storeHandle(formatHandle(error.details.handle));
     } else {
       rmSync(HANDLE_FILE, { force: true });
@@ -228,8 +228,11 @@ state always throws; it never comes back as a result.
   `result.match` (`exact` or `partial`) and, for a public explorer, `result.explorerUrl`. `failed`
   carries `result.reason`: the explorer rejected the source, for example because the bytecode
   differs.
-- `error.details.code` is a stable code. `error.hint` says what to do next, `error.retryable` says
-  whether trying again may succeed, and `error.docsUrl` links the code's own page in the docs.
+- `error.code` is a stable code, and checking it narrows `error.details` to that code's data.
+  `ExplorerVerifyError.is(error, "not-confirmed")` does both checks in one call and also holds for
+  an error from another installed copy of the package. `error.hint` says what to do next,
+  `error.retryable` says whether trying again may succeed, and `error.docsUrl` links the code's own
+  page in the docs.
   Append `.md` to `error.docsUrl` to fetch that page as Markdown.
   `ERROR_CODES` lists every code.
 
@@ -288,7 +291,7 @@ try {
 } catch (error) {
   if (!(error instanceof ExplorerVerifyError)) throw error;
   const envelope = toEnvelope(error);
-  console.log(envelope.ok, error.details.code, error.retryable, exitCodeOf(error));
+  console.log(envelope.ok, error.code, error.retryable, exitCodeOf(error));
   process.exitCode = exitCodeOf(error);
 }
 ```
@@ -460,5 +463,5 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
   through unchanged, and never set `redirect: "follow"`.
 - Do not take a host from a handle or from stored data. Hosts come from the routing table or from
   the `route` option.
-- Do not parse error messages. Read `error.details.code`, `error.retryable` and the exit code.
+- Do not parse error messages. Read `error.code`, `error.retryable` and the exit code.
 - Do not reformat or re-save source files before passing them to `buildVerifyInput()`.

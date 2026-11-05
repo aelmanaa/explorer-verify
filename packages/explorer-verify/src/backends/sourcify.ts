@@ -6,7 +6,8 @@
  * docs/contributor/research/2026-11-02-sourcify-v2.md.
  */
 import type { BackendName } from "../backend-names.ts";
-import { ExplorerVerifyError } from "../errors.ts";
+import { newError } from "../error-hints.ts";
+import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
@@ -170,7 +171,7 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
     retry: "submit",
   };
   // A 500, 502 or 504, or a 202 that is not JSON, may come after Sourcify received the submit.
-  const unconfirmed = (answer: Answer): ExplorerVerifyError | undefined =>
+  const unconfirmed = (answer: Answer): AnyExplorerVerifyError | undefined =>
     UNCONFIRMED_STATUSES.includes(answer.status) ||
     (answer.status === 202 && answer.fields === undefined)
       ? unrecognised(ctx, answer, "the submit")
@@ -196,7 +197,7 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
   });
   const { status, fields } = answer;
   if (status === 404 && codeOf(fields) === "job_not_found") {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "job-not-found", handle },
       `Sourcify does not know the verification job ${handle.jobId}.`,
       { secrets: ctx.http.secrets },
@@ -251,7 +252,7 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
     return { state: "failed", reason };
   }
   if (TRANSIENT_CODES.includes(code)) {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "verification-inconclusive", backend: NAME, reason },
       `Sourcify ended job ${handle.jobId} without a verdict (${reason}).`,
       { secrets: ctx.http.secrets },
@@ -306,7 +307,7 @@ function readSubmit(input: ResolvedInput, ctx: Context, answer: Answer): SubmitO
   } else if (status === 400 && code === "unsupported_chain") {
     throw unsupportedChain(ctx, input.chainId);
   } else if (status === 429 && code === "duplicate_verification_request") {
-    throw new ExplorerVerifyError(
+    throw newError(
       { code: "in-progress", backend: NAME },
       `Sourcify is already verifying ${input.address} on chain ${String(input.chainId)}.`,
       { secrets: ctx.http.secrets },
@@ -352,17 +353,25 @@ function contractPath(kind: "contract" | "verify", target: Target): string {
 }
 
 /** `unexpected-response` for an answer to `what`, such as `the lookup`, that the client does not know. */
-function unrecognised(ctx: Context, answer: Answer, what: string): ExplorerVerifyError {
+function unrecognised(
+  ctx: Context,
+  answer: Answer,
+  what: string,
+): ExplorerVerifyError<"unexpected-response"> {
   return unexpectedAnswer(ctx, NAME, LABEL, answer, what);
 }
 
 /** `unexpected-response` whose whole message is `message`. */
-function unexpected(ctx: Context, answer: Answer, message: string): ExplorerVerifyError {
+function unexpected(
+  ctx: Context,
+  answer: Answer,
+  message: string,
+): ExplorerVerifyError<"unexpected-response"> {
   return unexpectedAnswer(ctx, NAME, LABEL, answer, message, true);
 }
 
 function unsupportedChain(ctx: Context, chainId: number): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "unsupported-chain", backend: NAME, chainId },
     `Sourcify does not support chain ${String(chainId)}.`,
     { secrets: ctx.http.secrets },
@@ -375,7 +384,7 @@ function unknownState(
   answer: Answer,
   what: string,
 ): ExplorerVerifyError {
-  return new ExplorerVerifyError(
+  return newError(
     { code: "unknown-state", handle, excerpt: answer.text },
     `Sourcify reported ${what}; the result is not known.`,
     { secrets: ctx.http.secrets },

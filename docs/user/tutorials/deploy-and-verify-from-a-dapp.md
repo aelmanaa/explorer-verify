@@ -341,14 +341,14 @@ export async function verifyOnSourcify(
     localStorage.removeItem(PENDING_KEY);
     show(summary(result));
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       show("Sourcify is still checking. Reload the page later to see the result.");
       return;
     }
     // Every other end leaves nothing to resume.
     localStorage.removeItem(PENDING_KEY);
     if (error instanceof ExplorerVerifyError) {
-      show(`${error.details.code}: ${error.hint}`);
+      show(`${error.code}: ${error.hint}`);
       return;
     }
     throw error;
@@ -447,7 +447,7 @@ export async function resumeVerification(show: (line: string) => void): Promise<
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
+    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
       show("Still checking. The handle stays saved for the next load.");
       return;
     }
