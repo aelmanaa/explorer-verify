@@ -1,4 +1,4 @@
-// Tests for findFoundryBuild and verifyInputFromFoundry (R-DX-2), run on the Foundry 1.8.1 output
+// Tests for findFoundryBuild and buildVerifyInputFromFoundry (R-DX-2), run on the Foundry 1.8.1 output
 // in test/fixtures/project/ (see test/fixtures/README.md). `out-build-info/` comes from
 // `forge build --build-info`, `out/` from a default `forge build`, which writes a stub build-info.
 import assert from "node:assert/strict";
@@ -22,8 +22,8 @@ import { fileURLToPath } from "node:url";
 import { buildVerifyInput, ExplorerVerifyError } from "explorer-verify";
 import type { ErrorCode } from "explorer-verify";
 
-import { findFoundryBuild, verifyInputFromFoundry } from "../../src/index.ts";
-import type { FindFoundryBuildOptions } from "../../src/index.ts";
+import { findFoundryBuild, buildVerifyInputFromFoundry } from "../../src/index.ts";
+import type { FindBuildOptions } from "../../src/index.ts";
 
 const ROOT = fileURLToPath(new URL("../fixtures/project/", import.meta.url));
 // Foundry 1.8.1 output of one library file built with solc 0.8.20 and 0.8.24, with
@@ -100,8 +100,8 @@ async function rejection(
 }
 
 /** `value` typed as the options without a cast, as a JavaScript caller passes it. */
-function optionsOf(value: unknown): FindFoundryBuildOptions {
-  const box: { options: FindFoundryBuildOptions } = { options: { root: "", contract: "" } };
+function optionsOf(value: unknown): FindBuildOptions {
+  const box: { options: FindBuildOptions } = { options: { root: "", contract: "" } };
   Reflect.set(box, "options", value);
   return box.options;
 }
@@ -143,7 +143,7 @@ const CASES = [
   },
 ] as const;
 
-describe("verifyInputFromFoundry after forge build --build-info (R-DX-2)", () => {
+describe("buildVerifyInputFromFoundry after forge build --build-info (R-DX-2)", () => {
   for (const { contract, artifact, what } of CASES) {
     it(`gives the same compiler part as the files passed by hand: ${what}`, async () => {
       const byHand = buildVerifyInput([
@@ -151,7 +151,11 @@ describe("verifyInputFromFoundry after forge build --build-info (R-DX-2)", () =>
         readJson(ROOT, `${FULL}/${artifact}`),
       ]);
       for (const name of [contract, contract.slice(contract.indexOf(":") + 1)]) {
-        const built = await verifyInputFromFoundry({ root: ROOT, contract: name, out: FULL });
+        const built = await buildVerifyInputFromFoundry({
+          root: ROOT,
+          contract: name,
+          outDir: FULL,
+        });
         assert.deepEqual(built, byHand);
         assert.equal(built.contractName, contract);
       }
@@ -159,10 +163,10 @@ describe("verifyInputFromFoundry after forge build --build-info (R-DX-2)", () =>
   }
 
   it("keeps the linked library address of the build (R-DX-2)", async () => {
-    const built = await verifyInputFromFoundry({
+    const built = await buildVerifyInputFromFoundry({
       root: ROOT,
       contract: "Counter",
-      out: FULL,
+      outDir: FULL,
     });
     assert.deepEqual(built.compiler.input.settings["libraries"], {
       "src/Tally.sol": { Tally: LIBRARY },
@@ -170,13 +174,9 @@ describe("verifyInputFromFoundry after forge build --build-info (R-DX-2)", () =>
   });
 
   it("returns the artifact and the build-info, relative to the root, with no sources", async () => {
-    const build = await findFoundryBuild({ root: ROOT, contract: "Greeter", out: FULL });
+    const build = await findFoundryBuild({ root: ROOT, contract: "Greeter", outDir: FULL });
     assert.equal(build.contract, "src/Greeter.sol:Greeter");
-    assert.deepEqual(build.files, {
-      artifact: `${FULL}/Greeter.sol/Greeter.json`,
-      buildInfo: BUILD_INFO,
-      sources: [],
-    });
+    assert.deepEqual(build.files, [`${FULL}/Greeter.sol/Greeter.json`, BUILD_INFO]);
     assert.deepEqual(build.documents, [
       readJson(ROOT, `${FULL}/Greeter.sol/Greeter.json`),
       readJson(ROOT, BUILD_INFO),
@@ -185,24 +185,28 @@ describe("verifyInputFromFoundry after forge build --build-info (R-DX-2)", () =>
   });
 });
 
-describe("verifyInputFromFoundry after a default forge build (R-DX-2)", () => {
+describe("buildVerifyInputFromFoundry after a default forge build (R-DX-2)", () => {
   for (const { contract, artifact, what } of CASES) {
     it(`gives the same compiler part as the artifact and sources passed by hand: ${what}`, async () => {
       const build = await findFoundryBuild({ root: ROOT, contract });
-      assert.equal(build.files.buildInfo, undefined);
+      assert.equal(build.documents.length, 1);
       const sources = Object.fromEntries(
-        build.files.sources.map((file) => [file, readText(ROOT, file)]),
+        build.files.slice(1).map((file) => [file, readText(ROOT, file)]),
       );
       assert.ok(Object.keys(sources).length > 0);
       const byHand = buildVerifyInput([readJson(ROOT, `out/${artifact}`)], { sources });
-      assert.deepEqual(await verifyInputFromFoundry({ root: ROOT, contract }), byHand);
+      assert.deepEqual(await buildVerifyInputFromFoundry({ root: ROOT, contract }), byHand);
       assert.deepEqual(build.sources, sources);
     });
   }
 
   it("rebuilds the same compiler input as the full build-info, apart from the extra sources", async () => {
-    const full = await verifyInputFromFoundry({ root: ROOT, contract: "Counter", out: FULL });
-    const stub = await verifyInputFromFoundry({ root: ROOT, contract: "Counter" });
+    const full = await buildVerifyInputFromFoundry({
+      root: ROOT,
+      contract: "Counter",
+      outDir: FULL,
+    });
+    const stub = await buildVerifyInputFromFoundry({ root: ROOT, contract: "Counter" });
     assert.equal(stub.compiler.version, full.compiler.version);
     // Solidity metadata records the library address in lower case; the bytes are the same.
     assert.deepEqual(stub.compiler.input.settings["libraries"], {
@@ -219,8 +223,8 @@ describe("verifyInputFromFoundry after a default forge build (R-DX-2)", () => {
       contract: "Greeter",
       buildInfoDir: path.join(ROOT, FULL, "build-info"),
     });
-    assert.equal(build.files.artifact, "out/Greeter.sol/Greeter.json");
-    assert.equal(build.files.buildInfo, BUILD_INFO);
+    assert.equal(build.files[0], "out/Greeter.sol/Greeter.json");
+    assert.equal(build.files[1], BUILD_INFO);
   });
 
   it("does not take the stub as a build-info: the stub never lists a contract", async () => {
@@ -233,7 +237,7 @@ describe("verifyInputFromFoundry after a default forge build (R-DX-2)", () => {
   it("fails with the builder's incomplete-input and a forge build --build-info hint without the sources", async () => {
     const root = copyProject("out");
     const error = await rejection(
-      async () => await verifyInputFromFoundry({ root, contract: "Greeter" }),
+      async () => await buildVerifyInputFromFoundry({ root, contract: "Greeter" }),
       "incomplete-input",
     );
     assert.deepEqual(error.details, {
@@ -249,7 +253,7 @@ describe("verifyInputFromFoundry after a default forge build (R-DX-2)", () => {
     const root = copyProject("out", "src");
     write(root, "src/Base.sol", `${readText(ROOT, "src/Base.sol")}\n`);
     const error = await rejection(
-      async () => await verifyInputFromFoundry({ root, contract: "Greeter" }),
+      async () => await buildVerifyInputFromFoundry({ root, contract: "Greeter" }),
       "source-mismatch",
     );
     assert.equal(
@@ -260,11 +264,64 @@ describe("verifyInputFromFoundry after a default forge build (R-DX-2)", () => {
   });
 });
 
+describe("buildVerifyInputFromFoundry forwards compilerVersion and sources (R-IN-7, #223)", () => {
+  it("passes compilerVersion to buildVerifyInput, which refuses another version", async () => {
+    const same = await buildVerifyInputFromFoundry({
+      root: ROOT,
+      contract: "Greeter",
+      outDir: FULL,
+      compilerVersion: "0.8.24+commit.e11b9ed9",
+    });
+    assert.equal(same.compiler.version, "0.8.24+commit.e11b9ed9");
+    const error = await rejection(
+      async () =>
+        await buildVerifyInputFromFoundry({
+          root: ROOT,
+          contract: "Greeter",
+          outDir: FULL,
+          compilerVersion: "0.8.20+commit.a1b79de6",
+        }),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(error), [
+      { field: "compilerVersion", message: "differs from the compiler version in the documents" },
+    ]);
+  });
+
+  it("uses the caller's sources when the root has none", async () => {
+    const root = copyProject("out");
+    const sources = {
+      "src/Base.sol": readText(ROOT, "src/Base.sol"),
+      "src/Greeter.sol": readText(ROOT, "src/Greeter.sol"),
+    };
+    const built = await buildVerifyInputFromFoundry({ root, contract: "Greeter", sources });
+    const byHand = await buildVerifyInputFromFoundry({ root: ROOT, contract: "Greeter" });
+    assert.deepEqual(built, byHand);
+  });
+
+  it("lets a caller's source replace the file read for the same path", async () => {
+    const changed = `${readText(ROOT, "src/Base.sol")}\n`;
+    const error = await rejection(
+      async () =>
+        await buildVerifyInputFromFoundry({
+          root: ROOT,
+          contract: "Greeter",
+          sources: { "src/Base.sol": changed },
+        }),
+      "source-mismatch",
+    );
+    assert.equal(
+      error.details.code === "source-mismatch" ? error.details.path : "",
+      "src/Base.sol",
+    );
+  });
+});
+
 describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
   it("rejects a bare name that matches two contracts with invalid-input listing both", async () => {
-    for (const out of ["out", FULL]) {
+    for (const outDir of ["out", FULL]) {
       const error = await rejection(
-        async () => await findFoundryBuild({ root: ROOT, contract: "Token", out }),
+        async () => await findFoundryBuild({ root: ROOT, contract: "Token", outDir }),
         "invalid-input",
       );
       const [issue, ...others] = issuesOf(error);
@@ -272,19 +329,19 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
       assert.equal(issue?.field, "contract");
       assert.equal(
         issue?.message,
-        `matches 2 artifacts: src/a/Token.sol:Token (${out}/Token.sol/Token.json), src/b/Token.sol:Token (${out}/b/Token.sol/Token.json)`,
+        `matches 2 artifacts: src/a/Token.sol:Token (${outDir}/Token.sol/Token.json), src/b/Token.sol:Token (${outDir}/b/Token.sol/Token.json)`,
       );
       assert.match(error.hint, /path:Name/);
     }
   });
 
   it("tells the two apart by path, as Foundry names the conflicting artifacts", async () => {
-    const a = await verifyInputFromFoundry({ root: ROOT, contract: "src/a/Token.sol:Token" });
-    const b = await verifyInputFromFoundry({ root: ROOT, contract: "src/b/Token.sol:Token" });
+    const a = await buildVerifyInputFromFoundry({ root: ROOT, contract: "src/a/Token.sol:Token" });
+    const b = await buildVerifyInputFromFoundry({ root: ROOT, contract: "src/b/Token.sol:Token" });
     assert.equal(a.contractName, "src/a/Token.sol:Token");
     assert.equal(b.contractName, "src/b/Token.sol:Token");
     const files = await findFoundryBuild({ root: ROOT, contract: "src/b/Token.sol:Token" });
-    assert.equal(files.files.artifact, "out/b/Token.sol/Token.json");
+    assert.equal(files.files[0], "out/b/Token.sol/Token.json");
   });
 
   it("accepts a path with ./ or backslashes", async () => {
@@ -298,9 +355,9 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
     const build = await findFoundryBuild({
       root: path.relative(process.cwd(), ROOT),
       contract: "Ping",
-      out: path.join(ROOT, FULL),
+      outDir: path.join(ROOT, FULL),
     });
-    assert.equal(build.files.buildInfo, BUILD_INFO);
+    assert.equal(build.files[1], BUILD_INFO);
   });
 
   it("rejects a contract with no artifact", async () => {
@@ -384,7 +441,7 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
     assert.equal(build.contract, "Greeter");
     assert.deepEqual(build.sources, {});
     const error = await rejection(
-      async () => await verifyInputFromFoundry({ root, contract: "Greeter" }),
+      async () => await buildVerifyInputFromFoundry({ root, contract: "Greeter" }),
       "insufficient-artifact",
     );
     assert.doesNotMatch(error.hint, /forge build --build-info/);
@@ -400,7 +457,7 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
     const byHand = buildVerifyInput([readJson(root, BUILD_INFO)], {
       contract: "src/Greeter.sol:Greeter",
     });
-    const built = await verifyInputFromFoundry({ root, contract: "Greeter", out: FULL });
+    const built = await buildVerifyInputFromFoundry({ root, contract: "Greeter", outDir: FULL });
     assert.deepEqual(built, byHand);
   });
 
@@ -410,7 +467,7 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
     write(root, "out/Pair.sol/Ping.json", { ...artifact, rawMetadata: "not json" });
     const build = await findFoundryBuild({ root, contract: "Ping" });
     assert.equal(build.contract, "src/Pair.sol:Ping");
-    assert.deepEqual(build.files.sources, ["src/Pair.sol"]);
+    assert.deepEqual(build.files.slice(1), ["src/Pair.sol"]);
   });
 
   it("lists artifacts without metadata by file, and needs no build-info directory", async () => {
@@ -429,7 +486,7 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
       "matches 2 artifacts: a contract without metadata (out/Greeter.sol/Greeter.0.8.24.json), a contract without metadata (out/Greeter.sol/Greeter.json)",
     );
     const build = await findFoundryBuild({ root, contract: "Ping" });
-    assert.equal(build.files.buildInfo, undefined);
+    assert.equal(build.documents.length, 1);
   });
 });
 
@@ -448,8 +505,8 @@ describe("findFoundryBuild picks the build-info (R-DX-2)", () => {
         contracts: { ...contracts, "src/Pair.sol": { ...pair, Ping: { abi: ping["abi"] } } },
       },
     });
-    const build = await findFoundryBuild({ root, contract: "Ping", out: FULL });
-    assert.equal(build.files.buildInfo, BUILD_INFO);
+    const build = await findFoundryBuild({ root, contract: "Ping", outDir: FULL });
+    assert.equal(build.files[1], BUILD_INFO);
   });
 
   it("skips a build-info whose metadata for the contract differs, and takes the first by name that matches", async () => {
@@ -471,8 +528,8 @@ describe("findFoundryBuild picks the build-info (R-DX-2)", () => {
     write(root, `${FULL}/build-info/0-other.json`, other);
     write(root, `${FULL}/build-info/z-copy.json`, buildInfo);
     write(root, `${FULL}/build-info/notes.txt`, '"Greeter"');
-    const build = await findFoundryBuild({ root, contract: "Greeter", out: FULL });
-    assert.equal(build.files.buildInfo, BUILD_INFO);
+    const build = await findFoundryBuild({ root, contract: "Greeter", outDir: FULL });
+    assert.equal(build.files[1], BUILD_INFO);
   });
 
   it("falls back to the metadata rebuild when no build-info lists the contract with its metadata", async () => {
@@ -487,16 +544,16 @@ describe("findFoundryBuild picks the build-info (R-DX-2)", () => {
     };
     delete moved["src/Pair.sol"];
     write(root, BUILD_INFO, { ...buildInfo, output: { ...output, contracts: moved } });
-    const build = await findFoundryBuild({ root, contract: "Ping", out: FULL });
-    assert.equal(build.files.buildInfo, undefined);
-    assert.deepEqual(build.files.sources, ["src/Pair.sol"]);
+    const build = await findFoundryBuild({ root, contract: "Ping", outDir: FULL });
+    assert.equal(build.documents.length, 1);
+    assert.deepEqual(build.files.slice(1), ["src/Pair.sol"]);
   });
 
   it("rejects a build-info that mentions the contract and is not JSON", async () => {
     const root = copyProject(FULL);
     write(root, `${FULL}/build-info/broken.json`, '{"Greeter"');
     const error = await rejection(
-      async () => await findFoundryBuild({ root, contract: "Greeter", out: FULL }),
+      async () => await findFoundryBuild({ root, contract: "Greeter", outDir: FULL }),
       "invalid-input",
     );
     assert.deepEqual(issuesOf(error), [
@@ -512,7 +569,7 @@ describe("findFoundryBuild picks the build-info (R-DX-2)", () => {
     const buildInfo = record(readJson(root, BUILD_INFO));
     write(root, BUILD_INFO, { ...buildInfo, solcLongVersion: "0.8.25+commit.00000000" });
     const error = await rejection(
-      async () => await verifyInputFromFoundry({ root, contract: "Greeter", out: FULL }),
+      async () => await buildVerifyInputFromFoundry({ root, contract: "Greeter", outDir: FULL }),
       "invalid-input",
     );
     assert.deepEqual(issuesOf(error), [
@@ -527,9 +584,9 @@ describe("findFoundryBuild picks the build-info (R-DX-2)", () => {
 
 describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", () => {
   it("never puts an absolute path in its result", async () => {
-    for (const out of ["out", FULL]) {
+    for (const outDir of ["out", FULL]) {
       for (const { contract } of CASES) {
-        const build = await findFoundryBuild({ root: ROOT, contract, out });
+        const build = await findFoundryBuild({ root: ROOT, contract, outDir });
         const found = [...strings(build.files), ...Object.keys(build.sources), build.contract];
         for (const value of found) {
           assert.ok(!path.isAbsolute(value), value);
@@ -551,7 +608,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
     symlinkSync(path.join(root, "vendor/Base.sol"), path.join(root, "src/Base.sol"), "file");
     symlinkSync(path.join(outside, "Greeter.sol"), path.join(root, "src/Greeter.sol"), "file");
     const build = await findFoundryBuild({ root, contract: "Greeter" });
-    assert.deepEqual(build.files.sources, ["src/Base.sol"]);
+    assert.deepEqual(build.files.slice(1), ["src/Base.sol"]);
     assert.equal(build.sources["src/Base.sol"], readText(ROOT, "src/Base.sol"));
   });
 
@@ -559,7 +616,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
     const root = copyProject("out", "src");
     truncateSync(path.join(root, "src/Base.sol"), 16 * 1024 * 1024 + 1);
     const build = await findFoundryBuild({ root, contract: "Greeter" });
-    assert.deepEqual(build.files.sources, ["src/Greeter.sol"]);
+    assert.deepEqual(build.files.slice(1), ["src/Greeter.sol"]);
   });
 
   it("does not read a source whose metadata path is absolute or leaves the root", async () => {
@@ -589,7 +646,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
       },
     });
     const build = await findFoundryBuild({ root, contract: "src/Greeter.sol:Greeter" });
-    assert.deepEqual(build.files.sources, ["src/Base.sol", "src/Greeter.sol"]);
+    assert.deepEqual(build.files.slice(1), ["src/Base.sol", "src/Greeter.sol"]);
     assert.deepEqual(Object.keys(build.sources), ["src/Base.sol", "src/Greeter.sol"]);
   });
 
@@ -601,7 +658,10 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
       "invalid-input",
     );
     assert.deepEqual(issuesOf(error), [
-      { field: "out", message: "holds a file that is not a JSON object: out/Pair.sol/Pong.json" },
+      {
+        field: "outDir",
+        message: "holds a file that is not a JSON object: out/Pair.sol/Pong.json",
+      },
     ]);
   });
 
@@ -617,7 +677,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
       "invalid-input",
     );
     assert.deepEqual(issuesOf(error), [
-      { field: "out", message: "could not be read: out/Pair.sol/Pong.json" },
+      { field: "outDir", message: "could not be read: out/Pair.sol/Pong.json" },
     ]);
     assert.ok(error.cause instanceof Error);
     assert.ok(!error.message.includes(root));
@@ -637,7 +697,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
         "invalid-input",
       );
       assert.deepEqual(issuesOf(error), [
-        { field: "out", message: "could not be read: out/Pair.sol" },
+        { field: "outDir", message: "could not be read: out/Pair.sol" },
       ]);
     } finally {
       chmodSync(path.join(root, "out/Pair.sol"), 0o755);
@@ -660,7 +720,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
       "file",
     );
     const build = await findFoundryBuild({ root, contract: "Greeter" });
-    assert.equal(build.files.artifact, "out/Greeter.sol/Greeter.json");
+    assert.equal(build.files[0], "out/Greeter.sol/Greeter.json");
   });
 
   it("goes at most 32 directories deep under the output directory", async () => {
@@ -670,7 +730,7 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
     mkdirSync(deep, { recursive: true });
     cpSync(path.join(root, "out/Pair.sol/Ping.json"), path.join(deep, "Ping.json"));
     const build = await findFoundryBuild({ root, contract: "Ping" });
-    assert.equal(build.files.artifact, "out/Pair.sol/Ping.json");
+    assert.equal(build.files[0], "out/Pair.sol/Ping.json");
   });
 
   it("rejects a root that is not a directory", async () => {
@@ -683,12 +743,12 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
   });
 
   it("rejects a missing output directory with a forge build hint", async () => {
-    for (const out of ["missing", "foundry.toml"]) {
+    for (const outDir of ["missing", "foundry.toml"]) {
       const error = await rejection(
-        async () => await findFoundryBuild({ root: ROOT, contract: "Greeter", out }),
+        async () => await findFoundryBuild({ root: ROOT, contract: "Greeter", outDir }),
         "invalid-input",
       );
-      assert.deepEqual(issuesOf(error), [{ field: "out", message: "is not a directory" }]);
+      assert.deepEqual(issuesOf(error), [{ field: "outDir", message: "is not a directory" }]);
       assert.match(error.hint, /forge build/);
     }
   });
@@ -725,9 +785,9 @@ describe("findFoundryBuild checks its options", () => {
       "must have a source path before the colon",
     ],
     [
-      "an out that is not a string",
-      { root: ROOT, contract: "Greeter", out: 1 },
-      "out",
+      "an outDir that is not a string",
+      { root: ROOT, contract: "Greeter", outDir: 1 },
+      "outDir",
       "must be a non-empty string when set",
     ],
     [
@@ -753,9 +813,9 @@ describe("a contract built with two compiler versions (R-DX-2)", () => {
 
   it("skips the Name.metadata.json files that extra_output_files writes", async () => {
     const build = await findFoundryBuild({ root: MULTI, contract: "Old" });
-    assert.equal(build.files.artifact, "out/Old.sol/Old.json");
-    assert.equal(build.files.buildInfo, MULTI_BUILD_INFO["0.8.20"]);
-    const built = await verifyInputFromFoundry({ root: MULTI, contract: "src/New.sol:New" });
+    assert.equal(build.files[0], "out/Old.sol/Old.json");
+    assert.equal(build.files[1], MULTI_BUILD_INFO["0.8.20"]);
+    const built = await buildVerifyInputFromFoundry({ root: MULTI, contract: "src/New.sol:New" });
     assert.equal(built.compiler.version, "0.8.24+commit.e11b9ed9");
   });
 
@@ -783,10 +843,10 @@ describe("a contract built with two compiler versions (R-DX-2)", () => {
           contract: "Context",
           artifact: option,
         });
-        assert.deepEqual(build.files, { artifact, buildInfo, sources: [] });
+        assert.deepEqual(build.files, [artifact, buildInfo]);
       }
       const byHand = buildVerifyInput([readJson(MULTI, buildInfo), readJson(MULTI, artifact)]);
-      const built = await verifyInputFromFoundry({ root: MULTI, contract: CONTEXT, artifact });
+      const built = await buildVerifyInputFromFoundry({ root: MULTI, contract: CONTEXT, artifact });
       assert.deepEqual(built, byHand);
       assert.equal(built.compiler.version.slice(0, version.length + 1), `${version}+`);
     });
@@ -822,7 +882,7 @@ describe("a contract built with two compiler versions (R-DX-2)", () => {
     const root = copyProject("out", "src");
     rmSync(path.join(root, "out/build-info"), { recursive: true });
     const build = await findFoundryBuild({ root, contract: "Ping" });
-    assert.equal(build.files.buildInfo, undefined);
+    assert.equal(build.documents.length, 1);
   });
 
   it("rejects a build-info file larger than 256 MB without reading it", async () => {
@@ -831,7 +891,7 @@ describe("a contract built with two compiler versions (R-DX-2)", () => {
     writeFileSync(big, "");
     truncateSync(big, 256 * 1024 * 1024 + 1);
     const error = await rejection(
-      async () => await findFoundryBuild({ root, contract: "Ping", out: FULL }),
+      async () => await findFoundryBuild({ root, contract: "Ping", outDir: FULL }),
       "invalid-input",
     );
     assert.deepEqual(issuesOf(error), [

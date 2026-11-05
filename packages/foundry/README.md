@@ -9,10 +9,10 @@ Status: before 0.1.0; nothing is published to npm yet.
 Install it next to `explorer-verify`, which it takes as a peer dependency.
 
 ```ts
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
 // After forge build --build-info in the project root.
-const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 // built.contractName: "src/Greeter.sol:Greeter"
 ```
 

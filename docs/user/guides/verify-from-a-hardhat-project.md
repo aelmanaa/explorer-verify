@@ -20,25 +20,25 @@ copy of the core and `instanceof ExplorerVerifyError` works on the helper's erro
 1. Compile the project with the settings you deployed with: `npx hardhat compile` on Hardhat 2,
    `npx hardhat build` on Hardhat 3. See [Build with the deploy profile](#build-with-the-deploy-profile).
 2. Install `explorer-verify` and `@explorer-verify/hardhat`.
-3. Call `verifyInputFromHardhat` with the project folder and the contract.
+3. Call `buildVerifyInputFromHardhat` with the project folder and the contract.
 4. Add the chain ID and the deployed address, and pass the input to
    [`verify`](../reference/verify.md).
 
 ```ts
-import { verifyInputFromHardhat } from "@explorer-verify/hardhat";
-import { validateInput } from "explorer-verify";
+import { buildVerifyInputFromHardhat } from "@explorer-verify/hardhat";
+import type { VerifyInput } from "explorer-verify";
 
-const built = await verifyInputFromHardhat({
+const built = await buildVerifyInputFromHardhat({
   root: ".",
   contract: "contracts/Greeter.sol:Greeter",
 });
 console.log(built.contractName);
 
-const input = validateInput({
+const input: VerifyInput = {
   chainId: 11155111,
   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   ...built,
-});
+};
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
@@ -51,6 +51,10 @@ project/contracts/Greeter.sol:Greeter
 ```
 
 On Hardhat 2 it prints `contracts/Greeter.sol:Greeter`.
+
+`built` has no `chainId` and no `address`, so `verify(built)` does not compile. When the chain ID
+or the address comes from untyped data, such as parsed JSON, check the whole input with
+`validateInput` before you pass it to `verify`.
 
 ## Build with the deploy profile
 
@@ -70,11 +74,16 @@ only a partial match.
 
 ## Options
 
-| Option      | Required | What it is                                                                                                                                                                                                                                   |
-| ----------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `root`      | Yes      | The project folder, absolute or relative to the working directory                                                                                                                                                                            |
-| `contract`  | Yes      | `path:Name`, with the source path as the artifacts folder names it (`contracts/Greeter.sol:Greeter`), or a bare `Name` that matches exactly one artifact. A Hardhat 3 input source name (`project/contracts/Greeter.sol:Greeter`) also works |
-| `artifacts` | No       | The artifacts folder, relative to `root` or absolute. Defaults to `artifacts`. Pass the `paths.artifacts` value when the Hardhat config sets it                                                                                              |
+| Option            | Required | What it is                                                                                                                                                                                                                                   |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `root`            | Yes      | The project folder, absolute or relative to the working directory                                                                                                                                                                            |
+| `contract`        | Yes      | `path:Name`, with the source path as the artifacts folder names it (`contracts/Greeter.sol:Greeter`), or a bare `Name` that matches exactly one artifact. A Hardhat 3 input source name (`project/contracts/Greeter.sol:Greeter`) also works |
+| `outDir`          | No       | The artifacts folder, relative to `root` or absolute. Defaults to `artifacts`. Pass the `paths.artifacts` value when the Hardhat config sets it                                                                                              |
+| `artifact`        | No       | The contract's artifact file, relative to `root` or absolute. It replaces the search under `outDir`, and must be the `<Name>.json` artifact of `contract` inside `outDir`                                                                    |
+| `compilerVersion` | No       | Passed to `buildVerifyInput`, which checks it against the version in the build-info. `buildVerifyInputFromHardhat` only                                                                                                                      |
+| `sources`         | No       | Passed to `buildVerifyInput`. A Hardhat build-info holds every source, so it is rarely needed. `buildVerifyInputFromHardhat` only                                                                                                            |
+
+`@explorer-verify/foundry` takes the same options, and also `buildInfoDir`.
 
 `path` is the source path that Hardhat uses for the artifact folder, such as
 `contracts/Greeter.sol`, on both versions. On Hardhat 3 the returned name uses the input source
@@ -84,20 +93,22 @@ searched for in the artifacts folder, outside `build-info/`, without following s
 
 Each file the helper reads, with its symlinks resolved, must be a regular file inside the artifacts
 folder and at most 256 MiB long. A Hardhat 2 `buildInfo` path must point into
-`<artifacts>/build-info/`.
+`<outDir>/build-info/`.
 
 ## Which files it reads
 
-| Version   | Files                                                                                                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Hardhat 3 | The artifact `<artifacts>/<path>/<Name>.json`; the build-info `<artifacts>/build-info/<id>.json` and its output file `<id>.output.json`, where `<id>` is the artifact's `buildInfoId` |
-| Hardhat 2 | The artifact `<artifacts>/<path>/<Name>.json`; the build-info that the `buildInfo` field of `<Name>.dbg.json`, next to the artifact, names                                            |
+| Version   | Files                                                                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hardhat 3 | The artifact `<outDir>/<path>/<Name>.json`; the build-info `<outDir>/build-info/<id>.json` and its output file `<id>.output.json`, where `<id>` is the artifact's `buildInfoId` |
+| Hardhat 2 | The artifact `<outDir>/<path>/<Name>.json`; the build-info that the `buildInfo` field of `<Name>.dbg.json`, next to the artifact, names                                         |
 
 The version is detected per contract: an artifact with `buildInfoId` is read as Hardhat 3, one
 without it through its `.dbg.json` file.
 
 To read the files without building the input, call `findHardhatBuild` with the same options. It
-returns the parsed `documents` and the `files` they came from, relative to `root`:
+returns the same shape as `findFoundryBuild`: the `contract` as `path:Name` from where the artifact
+is, the parsed `documents`, an empty `sources` and the `files` the documents came from, relative to
+`root`:
 
 ```ts
 import { findHardhatBuild } from "@explorer-verify/hardhat";
@@ -116,7 +127,7 @@ artifacts/build-info/solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0.json
 artifacts/build-info/solc-0_8_24-2c15e64bd16481586acae188ce2eaa479a4781e0.output.json
 ```
 
-`verifyInputFromHardhat` returns the same result as passing those documents to `buildVerifyInput`
+`buildVerifyInputFromHardhat` returns the same result as passing those documents to `buildVerifyInput`
 by hand. The helper holds no format logic of its own: `buildVerifyInput` reads the compiler input,
 the version and the contract name.
 
@@ -130,10 +141,10 @@ To record the addresses, pass them in `libraries`, keyed by `path:Name`. Each ke
 `linkReferences` is a source path, and each name under it a library:
 
 ```ts
-import { verifyInputFromHardhat } from "@explorer-verify/hardhat";
+import { buildVerifyInputFromHardhat } from "@explorer-verify/hardhat";
 import { validateInput } from "explorer-verify";
 
-const built = await verifyInputFromHardhat({
+const built = await buildVerifyInputFromHardhat({
   root: ".",
   contract: "contracts/Counter.sol:Counter",
 });
@@ -164,10 +175,10 @@ addresses to `settings.libraries` for an explorer that needs them there. See
 The helper throws an `ExplorerVerifyError` from the same catalogue as the core. See
 [Errors](../reference/errors/index.md) for each code.
 
-| Code               | When                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invalid-input`    | An option of the wrong type; an artifacts folder that is missing or is a file; no artifact for the contract; a source path outside the artifacts folder; a file that is not JSON, cannot be read, is not a regular file, is larger than 256 MiB or resolves outside the artifacts folder; a `.dbg.json` file without a `buildInfo` path, or with one outside the build-info folder |
-| `incomplete-input` | `details.field` is `contract` when a bare name matches several artifacts, listed in `details.candidates`. It is `input` when a build-info file, a Hardhat 3 output file or a Hardhat 2 `.dbg.json` file is missing; the message names the file, relative to `root`                                                                                                                 |
+| Code               | When                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `invalid-input`    | An option of the wrong type; an artifacts folder that is missing or is a file; no artifact for the contract; an `artifact` file that is not the contract's artifact; a source path outside the artifacts folder; a file that is not JSON, cannot be read, is not a regular file, is larger than 256 MiB or resolves outside the artifacts folder; a `.dbg.json` file without a `buildInfo` path, or with one outside the build-info folder |
+| `incomplete-input` | `details.field` is `contract` when a bare name matches several artifacts, listed in `details.candidates`. It is `input` when a build-info file, a Hardhat 3 output file or a Hardhat 2 `.dbg.json` file is missing; the message names the file, relative to `root`                                                                                                                                                                         |
 
 Each `invalid-input` message repeats its issue, so it names the option or the file, for example
 `The input is invalid: contract matches no artifact: artifacts/contracts/Missing.sol/Missing.json does not exist.`

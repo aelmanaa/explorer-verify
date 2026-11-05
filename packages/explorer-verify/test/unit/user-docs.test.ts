@@ -151,13 +151,13 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-from-a-foundry-project.md",
     example: 0,
-    what: "verifyInputFromFoundry in a Foundry project",
+    what: "buildVerifyInputFromFoundry in a Foundry project",
     setup: "foundry",
   },
   {
     page: "guides/verify-from-a-foundry-project.md",
     example: 1,
-    what: "verifyInputFromFoundry picks one of two compiler versions",
+    what: "buildVerifyInputFromFoundry picks one of two compiler versions",
     setup: "foundry-multi",
   },
   {
@@ -169,7 +169,7 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
-    what: "verifyInputFromHardhat on Hardhat 3",
+    what: "buildVerifyInputFromHardhat on Hardhat 3",
     setup: "hardhat-3",
   },
   {
@@ -187,7 +187,7 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
-    what: "verifyInputFromHardhat on Hardhat 2",
+    what: "buildVerifyInputFromHardhat on Hardhat 2",
     setup: "hardhat-2",
     stdout: "contracts/Greeter.sol:Greeter\n",
   },

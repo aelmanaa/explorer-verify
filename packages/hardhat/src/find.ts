@@ -8,20 +8,21 @@ import path from "node:path";
 import { ExplorerVerifyError } from "explorer-verify";
 
 /**
- * Options for {@link findHardhatBuild}.
+ * Options for {@link findHardhatBuild}. `@explorer-verify/foundry` takes the same fields, and also
+ * `buildInfoDir`: Hardhat always writes build-info files inside its output folder.
  *
  * @example
  * ```ts
- * import type { FindHardhatBuildOptions } from "@explorer-verify/hardhat";
+ * import type { FindBuildOptions } from "@explorer-verify/hardhat";
  *
- * const options: FindHardhatBuildOptions = {
+ * const options: FindBuildOptions = {
  *   root: ".",
  *   contract: "contracts/Greeter.sol:Greeter",
  * };
  * ```
  * @experimental
  */
-export interface FindHardhatBuildOptions {
+export interface FindBuildOptions {
   /** The project directory: the folder that holds the Hardhat config. */
   root: string;
   /**
@@ -32,29 +33,45 @@ export interface FindHardhatBuildOptions {
    */
   contract: string;
   /**
-   * The artifacts folder, relative to `root` or absolute. Defaults to `artifacts`. Set it when the
-   * Hardhat config sets `paths.artifacts`.
+   * The output folder of the build (the `paths.artifacts` setting of the Hardhat config), relative
+   * to `root` or absolute. Defaults to `artifacts`.
    */
-  artifacts?: string;
+  outDir?: string;
+  /**
+   * The contract's artifact file, relative to `root` or absolute, such as
+   * `artifacts/contracts/Greeter.sol/Greeter.json`. Skips the search under `outDir`. The file must
+   * be inside `outDir` and be the artifact of `contract`: named `<Name>.json`, and under the
+   * contract's source path when `contract` has one.
+   */
+  artifact?: string;
 }
 
 /**
  * The build files of one contract, parsed: the artifact, the build-info and, for Hardhat 3, the
  * build-info output file. Pass `documents` to `buildVerifyInput` from `explorer-verify`.
+ * `findFoundryBuild` in `@explorer-verify/foundry` returns the same shape.
  *
  * @example
  * ```ts
- * import type { HardhatBuild } from "@explorer-verify/hardhat";
+ * import type { ProjectBuild } from "@explorer-verify/hardhat";
  *
- * function describe(build: HardhatBuild): string {
+ * function describe(build: ProjectBuild): string {
  *   return build.files.join(", "); // "artifacts/contracts/Greeter.sol/Greeter.json, ..."
  * }
  * ```
  * @experimental
  */
-export interface HardhatBuild {
+export interface ProjectBuild {
+  /**
+   * The contract as `path:Name`, with the source path as Hardhat names it in the output folder,
+   * such as `contracts/Greeter.sol:Greeter`. It comes from where the artifact is, not from its
+   * content; `buildVerifyInput` reads the full name from the documents.
+   */
+  contract: string;
   /** The parsed JSON documents, in the order of `files`. */
   documents: unknown[];
+  /** Always empty: a Hardhat build-info file holds every source. */
+  sources: Record<string, string>;
   /** The path of each file read, relative to `root`, with `/` as the separator. */
   files: string[];
 }
@@ -74,7 +91,7 @@ const MAX_FILE_BYTES = 256 * 1024 * 1024;
 const COMPILE_HINT =
   "Compile the project (npx hardhat compile on Hardhat 2, npx hardhat build on Hardhat 3), then try again.";
 const ARTIFACTS_HINT =
-  "Compile the project first, or pass options.artifacts with the paths.artifacts value of the Hardhat config.";
+  "Compile the project first, or pass options.outDir with the paths.artifacts value of the Hardhat config.";
 const CONTRACT_HINT =
   "Pass options.contract as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one entry of details.candidates.";
 
@@ -154,12 +171,12 @@ class Project {
       this.real = await realpath(this.artifacts);
     } catch (error) {
       if (hasCode(error, NOT_FOUND)) {
-        throw invalid("artifacts", `names no folder: ${shown} does not exist`, ARTIFACTS_HINT);
+        throw invalid("outDir", `names no folder: ${shown} does not exist`, ARTIFACTS_HINT);
       }
       throw this.unreadable(this.artifacts, error);
     }
     if (!(await stat(this.real)).isDirectory()) {
-      throw invalid("artifacts", `names no folder: ${shown} is a file`, ARTIFACTS_HINT);
+      throw invalid("outDir", `names no folder: ${shown} is a file`, ARTIFACTS_HINT);
     }
   }
 
@@ -232,21 +249,89 @@ class Project {
   }
 }
 
+/** The checked options: `artifact` is `undefined` when it was not passed. */
+interface CheckedOptions {
+  root: string;
+  contract: string;
+  outDir: string;
+  artifact: string | undefined;
+}
+
 /** Reads the options; a wrong type gives `invalid-input` naming the option. */
-function readOptions(options: FindHardhatBuildOptions): Required<FindHardhatBuildOptions> {
+function readOptions(options: FindBuildOptions): CheckedOptions {
   const root: unknown = ownField(options, "root");
   const contract: unknown = ownField(options, "contract");
-  const artifacts: unknown = ownField(options, "artifacts") ?? DEFAULT_ARTIFACTS;
+  const outDir: unknown = ownField(options, "outDir") ?? DEFAULT_ARTIFACTS;
+  const artifact: unknown = ownField(options, "artifact");
   if (typeof root !== "string" || root === "") {
     throw invalid("root", "must be the project directory as a non-empty string");
   }
   if (typeof contract !== "string") {
     throw invalid("contract", "must be path:Name or Name as a string");
   }
-  if (typeof artifacts !== "string" || artifacts === "") {
-    throw invalid("artifacts", "must be a non-empty string");
+  if (typeof outDir !== "string" || outDir === "") {
+    throw invalid("outDir", "must be a non-empty string");
   }
-  return { root, contract, artifacts };
+  if (artifact !== undefined && (typeof artifact !== "string" || artifact === "")) {
+    throw invalid("artifact", "must be a non-empty string when set");
+  }
+  return { root, contract, outDir, artifact };
+}
+
+/** The `Name` part of `path:Name` or `Name`, checked. */
+function contractName(contract: string): string {
+  const name = contract.slice(contract.lastIndexOf(":") + 1);
+  if (!IDENTIFIER.test(name)) {
+    throw invalid("contract", "must be path:Name or Name, with a Solidity identifier as Name");
+  }
+  return name;
+}
+
+/**
+ * The artifact files of `path:Name`, absolute, in the order to try: the path, then the path
+ * without a leading `project/`.
+ */
+function sourceArtifacts(project: Project, source: string, name: string): [string, ...string[]] {
+  const fallback = source.startsWith(PROJECT_PREFIX) ? [source.slice(PROJECT_PREFIX.length)] : [];
+  const sources = [source, ...fallback];
+  const file = (each: string): string => path.resolve(project.artifacts, each, `${name}.json`);
+  if (
+    sources.some(
+      (each) => each === "" || path.isAbsolute(each) || !isInside(project.artifacts, file(each)),
+    )
+  ) {
+    throw invalid("contract", "must have a source path relative to the artifacts folder");
+  }
+  return [file(source), ...fallback.map(file)];
+}
+
+/**
+ * The file the `artifact` option names, absolute, checked against `contract`: inside the output
+ * folder, named `<Name>.json`, and one of the files of `path:Name` when the contract has a path.
+ */
+function namedArtifact(project: Project, contract: string, artifact: string): [string] {
+  const colon = contract.lastIndexOf(":");
+  const name = contractName(contract);
+  const file = path.resolve(project.root, artifact);
+  const allowed =
+    colon === -1
+      ? isInside(project.artifacts, file) && path.basename(file) === `${name}.json`
+      : sourceArtifacts(project, contract.slice(0, colon), name).includes(file);
+  if (!allowed) {
+    throw invalid(
+      "artifact",
+      `is not the artifact of the contract in the artifacts folder: ${project.show(file)}`,
+    );
+  }
+  return [file];
+}
+
+/** The contract as `path:Name`, from where its artifact is in the output folder. */
+function contractOf(project: Project, artifactFile: string): string {
+  const relative = path.relative(project.artifacts, artifactFile).split(path.sep).join("/");
+  const name = path.posix.basename(relative, ".json");
+  const source = path.posix.dirname(relative);
+  return source === "." ? name : `${source}:${name}`;
 }
 
 /**
@@ -255,23 +340,9 @@ function readOptions(options: FindHardhatBuildOptions): Required<FindHardhatBuil
  */
 async function locateArtifact(project: Project, contract: string): Promise<[string, ...string[]]> {
   const colon = contract.lastIndexOf(":");
-  const name = contract.slice(colon + 1);
-  if (!IDENTIFIER.test(name)) {
-    throw invalid("contract", "must be path:Name or Name, with a Solidity identifier as Name");
-  }
+  const name = contractName(contract);
   if (colon !== -1) {
-    const source = contract.slice(0, colon);
-    const fallback = source.startsWith(PROJECT_PREFIX) ? [source.slice(PROJECT_PREFIX.length)] : [];
-    const sources = [source, ...fallback];
-    const file = (each: string): string => path.resolve(project.artifacts, each, `${name}.json`);
-    if (
-      sources.some(
-        (each) => each === "" || path.isAbsolute(each) || !isInside(project.artifacts, file(each)),
-      )
-    ) {
-      throw invalid("contract", "must have a source path relative to the artifacts folder");
-    }
-    return [file(source), ...fallback.map(file)];
+    return sourceArtifacts(project, contract.slice(0, colon), name);
   }
   const matches = await project.search(name);
   const [match, ...more] = matches;
@@ -329,24 +400,27 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  * It reads files only; it does not run a compile, load the Hardhat config or need `hardhat`
  * installed.
  *
- * - The artifact is `<artifacts>/<path>/<Name>.json`. A bare `Name` is searched for in the
- *   artifacts folder, outside `build-info/`, without following symlinks, and must match one file.
- * - Hardhat 3: the artifact's `buildInfoId` names `<artifacts>/build-info/<id>.json` and its output
+ * - The artifact is `<outDir>/<path>/<Name>.json`, or the file the `artifact` option names. A bare
+ *   `Name` is searched for in the output folder, outside `build-info/`, without following
+ *   symlinks, and must match one file.
+ * - Hardhat 3: the artifact's `buildInfoId` names `<outDir>/build-info/<id>.json` and its output
  *   file `<id>.output.json`. Both are read.
  * - Hardhat 2: the artifact has no `buildInfoId`. The `buildInfo` path in `<Name>.dbg.json`, next
- *   to the artifact, names the build-info file, which must be in `<artifacts>/build-info/`.
+ *   to the artifact, names the build-info file, which must be in `<outDir>/build-info/`.
  *
- * Each file it reads, with its symlinks resolved, must be a regular file inside the artifacts
- * folder and at most 256 MiB long.
+ * Each file it reads, with its symlinks resolved, must be a regular file inside the output folder
+ * and at most 256 MiB long.
  *
- * @param options - The project root, the contract and, when the config moves it, the artifacts
- *   folder.
- * @returns The parsed documents and the files they came from, relative to `root`.
- * @throws ExplorerVerifyError `invalid-input` for an option of the wrong type, an artifacts folder
+ * @param options - The project root, the contract and, when the config moves it, the output
+ *   folder; or the artifact file.
+ * @returns The contract as `path:Name`, the parsed documents, an empty `sources` and the files
+ *   the documents came from, relative to `root`.
+ * @throws ExplorerVerifyError `invalid-input` for an option of the wrong type, an output folder
  *   that is missing or is a file, a contract with no artifact (the message names the file it
- *   looked for), a source path outside the artifacts folder, a file that is not JSON, cannot be
- *   read, is not a regular file, is larger than 256 MiB or resolves outside the artifacts folder,
- *   or a `buildInfo` path outside the build-info folder; `incomplete-input` with `details.field`
+ *   looked for), an `artifact` file that is not the contract's artifact in the output folder, a
+ *   source path outside the output folder, a file that is not JSON, cannot be read, is not a
+ *   regular file, is larger than 256 MiB or resolves outside the output folder, or a `buildInfo`
+ *   path outside the build-info folder; `incomplete-input` with `details.field`
  *   `contract` and the matches in `details.candidates` when a bare name matches several
  *   artifacts, or with `details.field` `input` and the path it looked for in the message when a
  *   build-info file or the `.dbg.json` file is missing.
@@ -361,14 +435,17 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  * ```
  * @experimental
  */
-export async function findHardhatBuild(options: FindHardhatBuildOptions): Promise<HardhatBuild> {
-  const { root, contract, artifacts } = readOptions(options);
-  const project = new Project(root, artifacts);
+export async function findHardhatBuild(options: FindBuildOptions): Promise<ProjectBuild> {
+  const checked = readOptions(options);
+  const project = new Project(checked.root, checked.outDir);
   await project.open();
   const { file: artifactFile, artifact } = await readArtifact(
     project,
-    await locateArtifact(project, contract),
+    checked.artifact === undefined
+      ? await locateArtifact(project, checked.contract)
+      : namedArtifact(project, checked.contract, checked.artifact),
   );
+  const contract = contractOf(project, artifactFile);
   const buildInfoDir = path.join(project.artifacts, BUILD_INFO_DIR);
   const buildInfoId = ownField(artifact, "buildInfoId");
   if (buildInfoId !== undefined) {
@@ -380,7 +457,9 @@ export async function findHardhatBuild(options: FindHardhatBuildOptions): Promis
     const input = await readBuildFile(project, inputFile, "build-info file");
     const output = await readBuildFile(project, outputFile, "build-info output file");
     return {
+      contract,
       documents: [artifact, input, output],
+      sources: {},
       files: [artifactFile, inputFile, outputFile].map((file) => project.show(file)),
     };
   }
@@ -401,7 +480,9 @@ export async function findHardhatBuild(options: FindHardhatBuildOptions): Promis
   }
   const input = await readBuildFile(project, inputFile, "build-info file");
   return {
+    contract,
     documents: [artifact, input],
+    sources: {},
     files: [artifactFile, inputFile].map((file) => project.show(file)),
   };
 }

@@ -4,7 +4,7 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-Cause: `resolveInputFromBytecode` could not get what it needs. The JSON-RPC endpoint gave no
+Cause: `buildVerifyInputFromBytecode` could not get what it needs. The JSON-RPC endpoint gave no
 bytecode, no source returned usable metadata for the hash in the bytecode, the IPFS gateway failed
 on a source file the metadata lists, or the time budget ran out. `details.hash` holds the hash from
 the bytecode, as `ipfs:` and the CID or `bzzr0:` or `bzzr1:` and 64 hex digits. It is empty when

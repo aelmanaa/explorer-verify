@@ -28,7 +28,7 @@ other side: build files of unknown origin, in a package you did not write.
 ## Write the files when you build the package
 
 Build the contracts, then run a script that writes the two files. This one reads a Foundry build
-with `@explorer-verify/foundry`; for Hardhat, `verifyInputFromHardhat` from
+with `@explorer-verify/foundry`; for Hardhat, `buildVerifyInputFromHardhat` from
 `@explorer-verify/hardhat` returns the same shape. See
 [Verify a contract from a Foundry project](verify-from-a-foundry-project.md) and
 [Verify a contract from a Hardhat project](verify-from-a-hardhat-project.md).
@@ -36,10 +36,10 @@ with `@explorer-verify/foundry`; for Hardhat, `verifyInputFromHardhat` from
 ```ts
 import { mkdir, writeFile } from "node:fs/promises";
 
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
 // After `forge build --build-info`, in the root of the contracts project.
-const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 
 const standardJson = JSON.stringify(built.compiler.input);
 const manifest = JSON.stringify({

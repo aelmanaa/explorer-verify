@@ -2,7 +2,7 @@
 
 One Foundry project, `project/`, built on 2026-11-03 with Foundry 1.8.1 (commit `982849d3`) and
 solc 0.8.24 (`0.8.24+commit.e11b9ed9`), optimizer on, 200 runs, for the tests of
-`findFoundryBuild` and `verifyInputFromFoundry` (R-DX-2).
+`findFoundryBuild` and `buildVerifyInputFromFoundry` (R-DX-2).
 
 ## The contracts
 

@@ -6,11 +6,11 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who have a deployed contract's address but not its build files, such as a
 block explorer, a wallet or a monitoring tool. Nothing is released yet.
-`resolveInputFromBytecode` and [`verify`](../reference/verify.md) exist.
+`buildVerifyInputFromBytecode` and [`verify`](../reference/verify.md) exist.
 
 solc appends a hash of the contract's metadata to the runtime bytecode. The metadata names the
 compiler version, the settings and a keccak-256 hash for every source file.
-`resolveInputFromBytecode` reads that hash, finds the metadata and the sources it names, and
+`buildVerifyInputFromBytecode` reads that hash, finds the metadata and the sources it names, and
 returns the `compiler` part of the verification input and the fully qualified contract name, as
 `buildVerifyInput` does.
 
@@ -18,20 +18,20 @@ returns the `compiler` part of the verification input and the fully qualified co
 
 1. Pick where the bytecode comes from: `rpcUrl`, a JSON-RPC endpoint of the contract's chain, or
    `bytecode`, the runtime bytecode you already read.
-2. Call `resolveInputFromBytecode` with the chain ID and the address. It looks for a verified copy
+2. Call `buildVerifyInputFromBytecode` with the chain ID and the address. It looks for a verified copy
    on Sourcify at the same address, on any chain.
 3. Pass the result, with the chain ID and the address, to [`verify`](../reference/verify.md).
 
 ```ts
 import { verify } from "explorer-verify";
-import { resolveInputFromBytecode } from "explorer-verify/resolve";
+import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
 
 const target = {
   chainId: 11155111,
   address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
 } as const;
 
-const built = await resolveInputFromBytecode(target, {
+const built = await buildVerifyInputFromBytecode(target, {
   rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
 });
 console.log(built.contractName);
@@ -57,7 +57,7 @@ The resolver tries two sources, in this order, and uses the first metadata that 
 
 1. **Sourcify.** It lists the chains on which the address is verified, and fetches the metadata
    and sources of at most three: the call's chain first, then exact matches. Pass
-   `sourcify: false` to skip it.
+   `allowSourcifyLookup: false` to skip it.
 2. **Your IPFS gateway.** With `ipfsGateway` set, it requests `<gateway>/ipfs/<CID>` for the
    metadata, then each source by the `dweb:/ipfs/` address the metadata lists. There is no default
    gateway: pass one you run or pay for, such as a local node at `http://127.0.0.1:8080`. On
@@ -83,17 +83,18 @@ keccak-256 hash.
 
 ## Options
 
-| Option        | What it does                                                                                  |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| `bytecode`    | The runtime bytecode, `0x` and hex digits, at most 65536 bytes. Pass it or `rpcUrl`, not both |
-| `rpcUrl`      | A JSON-RPC endpoint. The resolver checks `eth_chainId`, then calls `eth_getCode` at `latest`  |
-| `ipfsGateway` | An IPFS path gateway. Its query string is kept on every request                               |
-| `sourcify`    | `false` skips Sourcify; it then needs `ipfsGateway`. Defaults to `true`                       |
-| `sources`     | Source contents by path, for files no source holds                                            |
-| `fetch`       | The `fetch` every request goes through. Defaults to `globalThis.fetch`                        |
-| `signal`      | Cancels the call; it rejects with `signal.reason`                                             |
-| `timeoutMs`   | Time budget for the whole call, in milliseconds. Defaults to 120000                           |
-| `logger`      | Receives log lines, with the URLs' keys removed                                               |
+| Option                | What it does                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `bytecode`            | The runtime bytecode, `0x` and hex digits, at most 65536 bytes. Pass it or `rpcUrl`, not both                                         |
+| `rpcUrl`              | A JSON-RPC endpoint. The resolver checks `eth_chainId`, then calls `eth_getCode` at `latest`                                          |
+| `ipfsGateway`         | An IPFS path gateway. Its query string is kept on every request                                                                       |
+| `allowSourcifyLookup` | `false` skips Sourcify; it then needs `ipfsGateway`. Defaults to `true`. Not the same as `verify()`'s `allowSourcifyFallback`         |
+| `sources`             | Source contents by path, for files no source holds                                                                                    |
+| `fetch`               | The `fetch` every request goes through. Defaults to `globalThis.fetch`                                                                |
+| `signal`              | Cancels the call; it rejects with `signal.reason`                                                                                     |
+| `timeoutMs`           | Time budget for the whole call, in milliseconds. Defaults to 120000                                                                   |
+| `logger`              | Receives log lines, with the URLs' keys removed                                                                                       |
+| `onEvent`             | Receives a `verify.retry` event before each retry of a Sourcify request; see [Logging and events](../reference/logging-and-events.md) |
 
 `rpcUrl` and `ipfsGateway` must use `https`, or `http` on `localhost`, `127.0.0.1` or `[::1]`, with
 no user name, password or fragment. Many providers put a key in the URL path or query, so every
@@ -111,10 +112,10 @@ carry a `label` field, `rpc` or `ipfs`, in place of a backend name.
 
 ```ts no-run
 import { ExplorerVerifyError } from "explorer-verify";
-import { resolveInputFromBytecode } from "explorer-verify/resolve";
+import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
 
 try {
-  await resolveInputFromBytecode(
+  await buildVerifyInputFromBytecode(
     { chainId: 11155111, address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc" },
     { rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com", ipfsGateway: "http://127.0.0.1:8080" },
   );
@@ -128,13 +129,13 @@ try {
 }
 ```
 
-| Code                                                                  | Cause                                                                                           |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)         | No code at the address, or bytecode built with `appendCBOR: false` or `bytecodeHash: "none"`    |
-| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md) | The endpoint gave no bytecode, no source returned matching metadata, or the time budget ran out |
-| [`incomplete-input`](../reference/errors/incomplete-input.md)         | No source holds some source files; `details.candidates` lists them                              |
-| [`source-mismatch`](../reference/errors/source-mismatch.md)           | A file from the gateway or `sources` does not match its keccak-256 hash                         |
-| [`invalid-input`](../reference/errors/invalid-input.md)               | A bad option, `sourcify: false` without `ipfsGateway`, or an `rpcUrl` that serves another chain |
+| Code                                                                  | Cause                                                                                                      |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)         | No code at the address, or bytecode built with `appendCBOR: false` or `bytecodeHash: "none"`               |
+| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md) | The endpoint gave no bytecode, no source returned matching metadata, or the time budget ran out            |
+| [`incomplete-input`](../reference/errors/incomplete-input.md)         | No source holds some source files; `details.candidates` lists them                                         |
+| [`source-mismatch`](../reference/errors/source-mismatch.md)           | A file from the gateway or `sources` does not match its keccak-256 hash                                    |
+| [`invalid-input`](../reference/errors/invalid-input.md)               | A bad option, `allowSourcifyLookup: false` without `ipfsGateway`, or an `rpcUrl` that serves another chain |
 
 ## Limits
 

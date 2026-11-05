@@ -522,7 +522,7 @@
     },
     {
       "entry": "explorer-verify/resolve",
-      "name": "resolveInputFromBytecode",
+      "name": "buildVerifyInputFromBytecode",
       "esbuildSplit": {
         "minBytes": 63435,
         "gzipBytes": 21858,
@@ -566,7 +566,7 @@
     },
     {
       "entry": "@explorer-verify/foundry",
-      "name": "verifyInputFromFoundry",
+      "name": "buildVerifyInputFromFoundry",
       "esbuildSplit": {
         "minBytes": 7798,
         "gzipBytes": 3135,
@@ -610,7 +610,7 @@
     },
     {
       "entry": "@explorer-verify/hardhat",
-      "name": "verifyInputFromHardhat",
+      "name": "buildVerifyInputFromHardhat",
       "esbuildSplit": {
         "minBytes": 5275,
         "gzipBytes": 2184,

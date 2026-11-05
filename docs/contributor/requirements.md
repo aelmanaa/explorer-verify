@@ -237,7 +237,8 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
 - **R-DX-2** Build helpers for Foundry and Hardhat (2 and 3) find the build-info, artifact and
   source files for a contract in a project directory, read them, and pass them to the R-IN-7
   builder. They hold no format logic of their own. They read files, so they are Node-only and stay
-  out of the core entry point.
+  out of the core entry point. Both take the same option names and return the same result shape,
+  and the builders share one name family: `buildVerifyInput`, `buildVerifyInputFrom<Source>`.
 - **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
   The CLI and the library share the catalogue (R-AX-10).
 - **R-DX-4** TSDoc on every export, with an example that compiles.

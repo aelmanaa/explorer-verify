@@ -1,4 +1,4 @@
-// Black-box tests for issue #34: resolveInputFromBytecode from the `explorer-verify/resolve`
+// Black-box tests for issue #34: buildVerifyInputFromBytecode from the `explorer-verify/resolve`
 // subpath. Written from the issue, the how-to "Verify from deployed bytecode", the error pages
 // no-metadata-hash and metadata-unavailable, json-output.md, R-IN-5 and the TSDoc of the exported
 // function and options. The implementation was not read.
@@ -20,7 +20,7 @@ import {
   verify,
 } from "explorer-verify";
 import type { LogFields, Logger } from "explorer-verify";
-import { resolveInputFromBytecode } from "explorer-verify/resolve";
+import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
 
 // --- fixtures ---------------------------------------------------------------------------------
 
@@ -345,7 +345,7 @@ async function caught(promise: Promise<unknown>): Promise<unknown> {
 }
 
 function callUntyped(target: unknown, options: unknown): Promise<unknown> {
-  const result: unknown = Reflect.apply(resolveInputFromBytecode, undefined, [target, options]);
+  const result: unknown = Reflect.apply(buildVerifyInputFromBytecode, undefined, [target, options]);
   return Promise.resolve(result);
 }
 
@@ -439,10 +439,10 @@ function noMetadataHash(error: ExplorerVerifyError): string {
 describe("#34 bytecode given directly", () => {
   it("resolves the IPFS build through the gateway and makes no RPC request", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     assert.equal(built.contractName, "src/Greeter.sol:Greeter");
@@ -464,10 +464,10 @@ describe("#34 bytecode given directly", () => {
 
   it("accepts upper-case hex digits in bytecode", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: `0x${IPFS.runtime.slice(2).toUpperCase()}`,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     assert.equal(built.contractName, "src/Greeter.sol:Greeter");
@@ -476,7 +476,7 @@ describe("#34 bytecode given directly", () => {
   it("no-metadata for appendCBOR: false", async () => {
     const n = scenario({});
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: NOCBOR.runtime,
         fetch: n.fetch,
         ipfsGateway: GW,
@@ -489,7 +489,11 @@ describe("#34 bytecode given directly", () => {
   it("version-only for bytecodeHash: none", async () => {
     const n = scenario({});
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: NONE.runtime, fetch: n.fetch, ipfsGateway: GW }),
+      buildVerifyInputFromBytecode(TARGET, {
+        bytecode: NONE.runtime,
+        fetch: n.fetch,
+        ipfsGateway: GW,
+      }),
     );
     assert.equal(noMetadataHash(e), "version-only");
     assert.equal(n.seen.length, 0);
@@ -497,7 +501,9 @@ describe("#34 bytecode given directly", () => {
 
   it("no-code for bytecode 0x", async () => {
     const n = scenario({});
-    const e = await evError(resolveInputFromBytecode(TARGET, { bytecode: "0x", fetch: n.fetch }));
+    const e = await evError(
+      buildVerifyInputFromBytecode(TARGET, { bytecode: "0x", fetch: n.fetch }),
+    );
     assert.equal(noMetadataHash(e), "no-code");
   });
 
@@ -515,7 +521,7 @@ describe("#34 bytecode given directly", () => {
     it(`malformed metadata, ${name}: a typed error, no request`, async (t) => {
       const n = scenario({ gateway: gatewayFor(IPFS) });
       const e = await evError(
-        resolveInputFromBytecode(TARGET, { bytecode, fetch: n.fetch, ipfsGateway: GW }),
+        buildVerifyInputFromBytecode(TARGET, { bytecode, fetch: n.fetch, ipfsGateway: GW }),
       );
       t.diagnostic(`actual: ${e.code} ${JSON.stringify(e.details)} | ${e.message}`);
       // Not specified in detail: the docs list no-metadata for "no CBOR block". We require a typed
@@ -539,11 +545,11 @@ describe("#34 bytecode given directly", () => {
         ["solc", SOLC_VERSION],
       ]);
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode,
       fetch: n.fetch,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
     });
     assert.equal(built.contractName, "src/Greeter.sol:Greeter");
   });
@@ -557,7 +563,7 @@ describe("#34 bytecode given directly", () => {
   for (const [name, bytecode] of badBytecode) {
     it(`invalid-input for bytecode ${name}`, async () => {
       const n = scenario({});
-      const e = await evError(resolveInputFromBytecode(TARGET, { bytecode, fetch: n.fetch }));
+      const e = await evError(buildVerifyInputFromBytecode(TARGET, { bytecode, fetch: n.fetch }));
       assert.equal(e.code, "invalid-input", `${name}: ${e.code}`);
       assert.equal(n.seen.length, 0);
     });
@@ -596,7 +602,11 @@ describe("#34 invalid-input", () => {
     ],
     ["timeoutMs negative", TARGET, { bytecode: IPFS.runtime, timeoutMs: -1 }],
     ["timeoutMs NaN", TARGET, { bytecode: IPFS.runtime, timeoutMs: Number.NaN }],
-    ["sourcify not boolean", TARGET, { bytecode: IPFS.runtime, sourcify: "no" }],
+    [
+      "allowSourcifyLookup not boolean",
+      TARGET,
+      { bytecode: IPFS.runtime, allowSourcifyLookup: "no" },
+    ],
     ["sources not strings", TARGET, { bytecode: IPFS.runtime, sources: { a: 1 } }],
     ["fetch not a function", TARGET, { bytecode: IPFS.runtime, fetch: "x" }],
   ];
@@ -636,10 +646,10 @@ describe("#34 invalid-input", () => {
         const g = /\/ipfs\/([^/?]+)/.exec(new URL(req.url).pathname);
         return gatewayFor(IPFS)(g?.[1] ?? "");
       });
-      const built = await resolveInputFromBytecode(TARGET, {
+      const built = await buildVerifyInputFromBytecode(TARGET, {
         rpcUrl: `http://${host}:8545`,
         ipfsGateway: `http://${host}:8080`,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       });
       assert.equal(built.contractName, "src/Greeter.sol:Greeter");
@@ -653,10 +663,10 @@ describe("#34 bytecode fetched by RPC", () => {
   it("checks eth_chainId, then eth_getCode at latest; secrets stay out of the logs", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
     const { logger, lines } = capture();
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       rpcUrl: RPC_URL,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
       logger,
     });
@@ -673,7 +683,9 @@ describe("#34 bytecode fetched by RPC", () => {
 
   it("invalid-input when the endpoint serves another chain; no eth_getCode", async () => {
     const n = scenario({ chainIdHex: "0x1" });
-    const e = await evError(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch }));
+    const e = await evError(
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch }),
+    );
     assert.equal(e.code, "invalid-input");
     if (e.details.code !== "invalid-input") assert.fail();
     assert.ok(
@@ -690,7 +702,7 @@ describe("#34 bytecode fetched by RPC", () => {
   it("no-metadata-hash no-code when eth_getCode returns 0x", async () => {
     const n = scenario({ code: "0x" });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, ipfsGateway: GW }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, ipfsGateway: GW }),
     );
     assert.equal(noMetadataHash(e), "no-code");
     assertHosts(n.seen, ["rpc.example"]);
@@ -729,7 +741,7 @@ describe("#34 bytecode fetched by RPC", () => {
     it(`metadata-unavailable, rpc attempt, for ${name}`, async () => {
       const n = scenario({ rpc });
       const e = await evError(
-        resolveInputFromBytecode(TARGET, {
+        buildVerifyInputFromBytecode(TARGET, {
           rpcUrl: RPC_URL,
           fetch: n.fetch,
           ipfsGateway: GW,
@@ -753,7 +765,7 @@ describe("#34 bytecode fetched by RPC", () => {
     });
     const e = await evError(
       // A short budget ends the retries after the first failure, so the test takes no real wait.
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, timeoutMs: 100 }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, timeoutMs: 100 }),
     );
     const d = metadataUnavailable(e);
     assert.equal(d.attempts[0]?.source, "rpc");
@@ -765,7 +777,9 @@ describe("#34 bytecode fetched by RPC", () => {
     const n = net(
       () => new Response(null, { status: 302, headers: { location: "https://evil.example/" } }),
     );
-    const e = await evError(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch }));
+    const e = await evError(
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch }),
+    );
     metadataUnavailable(e);
     assertHosts(n.seen, ["rpc.example"]);
   });
@@ -780,7 +794,7 @@ describe("#34 Sourcify", () => {
       allChains: allChains([String(SEPOLIA), "exact_match"]),
       contract: () => json(LIVE_SOURCIFY),
     });
-    const built = await resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch });
+    const built = await buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch });
     assert.equal(built.contractName, "contracts/Greeter.sol:Greeter");
     assert.equal(built.compiler.version, "0.8.24+commit.e11b9ed9");
     assertHosts(n.seen, ["rpc.example", "sourcify.dev"]);
@@ -793,7 +807,7 @@ describe("#34 Sourcify", () => {
       contract: (c) =>
         c === "84532" ? json(sourcifyBody(IPFS, "84532")) : json({ match: null }, 404),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       fetch: n.fetch,
     });
@@ -806,7 +820,7 @@ describe("#34 Sourcify", () => {
       allChains: allChains([String(SEPOLIA), "match"]),
       contract: () => json(sourcifyBody(IPFS, String(SEPOLIA), "match")),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       fetch: n.fetch,
     });
@@ -826,7 +840,7 @@ describe("#34 Sourcify", () => {
       contract: () => json(sourcifyBody(NONE, "1")), // never matches the IPFS hash
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
     );
     const d = metadataUnavailable(e);
     const chains = n.seen
@@ -844,7 +858,7 @@ describe("#34 Sourcify", () => {
   it("not found on Sourcify, no gateway: metadata-unavailable with a sourcify not-found attempt", async () => {
     const n = scenario({});
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
     );
     const d = metadataUnavailable(e);
     assert.equal(d.hash, `ipfs:${ipfsCidOf(IPFS.runtime)}`);
@@ -861,7 +875,7 @@ describe("#34 Sourcify", () => {
       contract: () => json(LIVE_SOURCIFY),
       gateway: gatewayFor(IPFS),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: GW,
       fetch: n.fetch,
@@ -879,7 +893,11 @@ describe("#34 Sourcify", () => {
       gateway: () => text(NONE.metadata),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: IPFS.runtime, ipfsGateway: GW, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, {
+        bytecode: IPFS.runtime,
+        ipfsGateway: GW,
+        fetch: n.fetch,
+      }),
     );
     const d = metadataUnavailable(e);
     assert.deepEqual(
@@ -892,21 +910,25 @@ describe("#34 Sourcify", () => {
     assertNoSecret(e);
   });
 
-  it("sourcify: false makes no Sourcify request", async () => {
+  it("allowSourcifyLookup: false makes no Sourcify request", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    await resolveInputFromBytecode(TARGET, {
+    await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     assertHosts(n.seen, ["gw.example"]);
   });
 
-  it("sourcify: false and no gateway: metadata-unavailable with no attempts and no request", async (t) => {
+  it("allowSourcifyLookup: false and no gateway: metadata-unavailable with no attempts and no request", async (t) => {
     const n = scenario({});
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: IPFS.runtime, sourcify: false, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, {
+        bytecode: IPFS.runtime,
+        allowSourcifyLookup: false,
+        fetch: n.fetch,
+      }),
     );
     t.diagnostic(`actual: ${e.code} ${JSON.stringify(e.details)} | ${e.message}`);
     // Not documented: an empty attempts list (or invalid-input) is the plausible outcome.
@@ -922,7 +944,7 @@ describe("#34 Sourcify", () => {
   it("Sourcify 500 on all-chains: an unavailable sourcify attempt with status 500", async () => {
     const n = scenario({ allChains: () => text("boom", 500) });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         fetch: n.fetch,
         timeoutMs: 20_000,
@@ -946,7 +968,7 @@ describe("#34 Sourcify", () => {
       contract: () => json({ ...body, sources }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: IPFS.runtime, fetch: n.fetch }),
     );
     assert.equal(e.code, "incomplete-input", `${e.code}: ${e.message}`);
     if (e.details.code !== "incomplete-input") assert.fail();
@@ -959,7 +981,7 @@ describe("#34 Sourcify", () => {
       allChains: allChains([String(SEPOLIA), "exact_match"]),
       contract: () => json(sourcifyBody(BZZR1, String(SEPOLIA))),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: BZZR1.runtime,
       fetch: n.fetch,
     });
@@ -972,7 +994,7 @@ describe("#34 Sourcify", () => {
       contract: () => json(sourcifyBody(BZZR1, "84532")),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: BZZR1.runtime, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: BZZR1.runtime, fetch: n.fetch }),
     );
     const d = metadataUnavailable(e);
     assert.match(d.hash, /^bzzr1:[0-9a-f]{64}$/);
@@ -985,7 +1007,7 @@ describe("#34 Sourcify", () => {
       contract: () => json(sourcifyBody(BZZR1, String(SEPOLIA), "match")),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { bytecode: BZZR1.runtime, fetch: n.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: BZZR1.runtime, fetch: n.fetch }),
     );
     metadataUnavailable(e);
   });
@@ -993,7 +1015,7 @@ describe("#34 Sourcify", () => {
   it("Swarm: never asks the IPFS gateway", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: BZZR1.runtime,
         ipfsGateway: GW,
         fetch: n.fetch,
@@ -1012,7 +1034,7 @@ describe("#34 Sourcify", () => {
       allChains: allChains([String(SEPOLIA), "exact_match"]),
       contract: () => json(sourcifyBody(LARGE, String(SEPOLIA))),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: LARGE.runtime,
       fetch: n.fetch,
     });
@@ -1022,10 +1044,10 @@ describe("#34 Sourcify", () => {
   it("large metadata from the gateway", async () => {
     const cid = ipfsCidOf(LARGE.runtime);
     const n = scenario({ gateway: (c) => (c === cid ? text(LARGE.metadata) : text("nf", 404)) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: LARGE.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     assert.equal(built.compiler.input.sources["src/Greeter.sol"]?.content, LARGE_CONTENT);
@@ -1040,10 +1062,10 @@ describe("#34 IPFS gateway", () => {
   it("gateway 404 on the metadata: an ipfs not-found attempt", async () => {
     const n = scenario({ gateway: () => text("nf", 404) });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1062,10 +1084,10 @@ describe("#34 IPFS gateway", () => {
     });
     const started = Date.now();
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
         timeoutMs: 30_000,
       }),
@@ -1096,10 +1118,10 @@ describe("#34 IPFS gateway", () => {
         }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1116,10 +1138,10 @@ describe("#34 IPFS gateway", () => {
       return Promise.resolve(text("nf", 404));
     };
     await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: fake,
       }),
     );
@@ -1144,10 +1166,10 @@ describe("#34 IPFS gateway", () => {
         ),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1165,10 +1187,10 @@ describe("#34 IPFS gateway", () => {
         }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1178,10 +1200,10 @@ describe("#34 IPFS gateway", () => {
   it("wrong content for the metadata CID: hash-mismatch", async () => {
     const n = scenario({ gateway: () => text(IPFS.metadata.replace("Says hello", "Says hullo")) });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1196,10 +1218,10 @@ describe("#34 IPFS gateway", () => {
     const body = "not json at all";
     const n = scenario({ gateway: () => text(body) });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: bytecodeWithCid(cidv0(body)),
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1221,10 +1243,10 @@ describe("#34 IPFS gateway", () => {
       gateway: gatewayFor(IPFS, { [cidv0(BASE_SRC)]: () => text("nf", 404) }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1244,10 +1266,10 @@ describe("#34 IPFS gateway", () => {
     const n = scenario({
       gateway: gatewayFor(IPFS, { [cidv0(BASE_SRC)]: () => text("nf", 404) }),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       sources: { "src/Base.sol": BASE_SRC },
       fetch: n.fetch,
     });
@@ -1259,10 +1281,10 @@ describe("#34 IPFS gateway", () => {
       gateway: gatewayFor(IPFS, { [cidv0(BASE_SRC)]: () => text("nf", 404) }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         sources: { "src/Base.sol": `${BASE_SRC}\n` },
         fetch: n.fetch,
       }),
@@ -1277,10 +1299,10 @@ describe("#34 IPFS gateway", () => {
       gateway: gatewayFor(IPFS, { [cidv0(BASE_SRC)]: () => text(`${BASE_SRC}// tampered\n`) }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1297,10 +1319,10 @@ describe("#34 IPFS gateway", () => {
       gateway: gatewayFor(IPFS, { [cidv0(BASE_SRC)]: () => text("boom", 500) }),
     });
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
         timeoutMs: 30_000,
       }),
@@ -1317,10 +1339,10 @@ describe("#34 IPFS gateway", () => {
 
   it("gateway with a trailing slash does not double the slash", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    await resolveInputFromBytecode(TARGET, {
+    await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: "https://gw.example/",
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     for (const r of n.seen) assert.match(new URL(r.url).pathname, /^\/ipfs\/Qm/);
@@ -1329,10 +1351,10 @@ describe("#34 IPFS gateway", () => {
   it("embedded sources (useLiteralContent) need no source request", async () => {
     const cid = ipfsCidOf(LARGE.runtime);
     const n = scenario({ gateway: (c) => (c === cid ? text(LARGE.metadata) : text("nf", 404)) });
-    await resolveInputFromBytecode(TARGET, {
+    await buildVerifyInputFromBytecode(TARGET, {
       bytecode: LARGE.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     // The large metadata embeds src/Greeter.sol only if useLiteralContent applied to all sources.
@@ -1351,7 +1373,7 @@ describe("#34 abort and timeout", () => {
     const reason = new Error("stop");
     const n = scenario({});
     const error = await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         rpcUrl: RPC_URL,
         fetch: n.fetch,
         signal: AbortSignal.abort(reason),
@@ -1387,7 +1409,7 @@ describe("#34 abort and timeout", () => {
       return n.fetch(req.url, { method: req.method, body: req.body });
     });
     const error = await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
         fetch: hang.fetch,
@@ -1408,7 +1430,7 @@ describe("#34 abort and timeout", () => {
     });
     const started = Date.now();
     const error = await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         rpcUrl: RPC_URL,
         fetch: n.fetch,
         signal: controller.signal,
@@ -1428,7 +1450,7 @@ describe("#34 abort and timeout", () => {
     });
     const started = Date.now();
     const e = await evError(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, timeoutMs: 200 }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: n.fetch, timeoutMs: 200 }),
     );
     t.diagnostic(`actual: ${e.code} ${JSON.stringify(e.details)} | ${e.message}`);
     assert.ok(Date.now() - started < 3000, `took ${Date.now() - started} ms`);
@@ -1441,7 +1463,7 @@ describe("#34 abort and timeout", () => {
     const n = net(() => new Promise<Response>(() => undefined));
     const started = Date.now();
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: IPFS.runtime,
         ipfsGateway: GW,
         fetch: n.fetch,
@@ -1466,7 +1488,7 @@ describe("#34 secrets and hosts", () => {
     });
     const { logger, lines } = capture();
     const e = await evError(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         rpcUrl: RPC_URL,
         ipfsGateway: GW,
         fetch: n.fetch,
@@ -1497,10 +1519,10 @@ describe("#34 secrets and hosts", () => {
       other: () => text("evil", 200),
     });
     const outcome = await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: bytecodeWithCid(cid),
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1525,10 +1547,10 @@ describe("#34 secrets and hosts", () => {
     const cid = cidv0(metadata);
     const n = scenario({ gateway: (c) => (c === cid ? text(metadata) : text("nf", 404)) });
     await caught(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: bytecodeWithCid(cid),
         ipfsGateway: GW,
-        sourcify: false,
+        allowSourcifyLookup: false,
         fetch: n.fetch,
       }),
     );
@@ -1544,10 +1566,10 @@ describe("#34 secrets and hosts", () => {
 describe("#34 feeding verify()", () => {
   it("the result validates and submits to Sourcify with the rebuilt input", async () => {
     const n = scenario({ gateway: gatewayFor(IPFS) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: IPFS.runtime,
       ipfsGateway: GW,
-      sourcify: false,
+      allowSourcifyLookup: false,
       fetch: n.fetch,
     });
     const input = { ...TARGET, ...built };
@@ -1619,12 +1641,16 @@ describe("#34 feeding verify()", () => {
 
   it("TSDoc @examples import the resolver and its types from explorer-verify/resolve", async () => {
     const main: Record<string, unknown> = await import("explorer-verify");
-    assert.equal(main.resolveInputFromBytecode, undefined);
+    assert.equal(main.buildVerifyInputFromBytecode, undefined);
     const dts = readFileSync(
       new URL("../../dist/src/input/resolvers/bytecode.d.ts", import.meta.url),
       "utf8",
     );
-    for (const name of ["resolveInputFromBytecode", "BytecodeTarget", "ResolveInputOptions"]) {
+    for (const name of [
+      "buildVerifyInputFromBytecode",
+      "BytecodeTarget",
+      "BuildFromBytecodeOptions",
+    ]) {
       const imports = [...dts.matchAll(/import (?:type )?\{([^}]*)\} from "([^"]+)"/g)].filter(
         ([, names]) => names?.includes(name) === true,
       );

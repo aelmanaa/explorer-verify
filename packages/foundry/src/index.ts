@@ -1,2 +1,2 @@
-export { findFoundryBuild, verifyInputFromFoundry } from "./foundry.ts";
-export type { FindFoundryBuildOptions, FoundryBuild, FoundryBuildFiles } from "./foundry.ts";
+export { buildVerifyInputFromFoundry, findFoundryBuild } from "./foundry.ts";
+export type { BuildFromProjectOptions, FindBuildOptions, ProjectBuild } from "./foundry.ts";

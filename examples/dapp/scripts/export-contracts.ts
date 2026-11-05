@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
 // The ABI and the creation bytecode, from Foundry's artifact.
 const artifact: unknown = JSON.parse(await readFile("out/Greeter.sol/Greeter.json", "utf8"));
@@ -16,7 +16,7 @@ if (
   throw new Error("out/Greeter.sol/Greeter.json holds no ABI and bytecode.");
 }
 // The compiler version, the contract name and the Standard JSON input, from the build-info.
-const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 
 await mkdir("public/contracts", { recursive: true });
 await writeFile(

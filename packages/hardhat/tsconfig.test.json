@@ -7,5 +7,9 @@
     "tsBuildInfoFile": "../../node_modules/.cache/tsbuild/hardhat-test.tsbuildinfo"
   },
   "include": ["src", "test"],
-  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }]
+  // The shared shape test imports the Foundry helper by its package name, from its build.
+  "references": [
+    { "path": "../explorer-verify/tsconfig.build.json" },
+    { "path": "../foundry/tsconfig.build.json" }
+  ]
 }

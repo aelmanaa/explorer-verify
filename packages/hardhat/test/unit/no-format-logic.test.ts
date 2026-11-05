@@ -81,7 +81,7 @@ describe("R-DX-2: no format logic in @explorer-verify/hardhat", () => {
       }
     }
     // The options reader uses the same function on the options object.
-    for (const option of ["root", "contract", "artifacts"]) {
+    for (const option of ["root", "contract", "outDir", "artifact"]) {
       read.delete(option);
     }
     assert.deepEqual(read, ALLOWED_FIELDS);
@@ -104,6 +104,6 @@ describe("R-DX-2: no format logic in @explorer-verify/hardhat", () => {
     const texts = await sources();
     const index = texts.get("index.ts") ?? "";
     assert.match(index, /import \{ buildVerifyInput \} from "explorer-verify";/);
-    assert.match(code(index), /return buildVerifyInput\(build\.documents\);/);
+    assert.match(code(index), /return buildVerifyInput\(build\.documents, \{/);
   });
 });

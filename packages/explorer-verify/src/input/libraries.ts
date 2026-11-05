@@ -23,7 +23,8 @@ import { validateInput } from "./validate.ts";
  * The input is checked with `validateInput` first, so the result is a new, normalised copy that
  * shares no object with `input`, and the addresses are in lower case.
  *
- * @param input - The input to check and link. Any value is accepted, as for `validateInput`.
+ * @param input - The input to check and link. It is checked as `validateInput` checks it; pass
+ *   untyped data to `validateInput` first.
  * @returns A new {@link VerifyInput} whose `settings.libraries` holds every address of `libraries`.
  * @throws ExplorerVerifyError with code `invalid-input` when `validateInput` rejects the input,
  *   including a value `settings.libraries` already holds for the same library, under its path or
@@ -42,7 +43,7 @@ import { validateInput } from "./validate.ts";
  * ```
  * @experimental
  */
-export function linkLibraries(input: unknown): VerifyInput {
+export function linkLibraries(input: VerifyInput): VerifyInput {
   const checked = validateInput(input);
   const { libraries } = checked;
   if (libraries === undefined) {
