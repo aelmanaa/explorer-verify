@@ -28,6 +28,8 @@ import { makeFifo } from "../helpers/spawn-bin.ts";
 const ETHERSCAN_KEY = "zz9dummyetherscanclikey7xv";
 const ROUTESCAN_KEY = "rr4dummyroutescanclikey2pl";
 const FLAG_KEY = "ff6dummyflagclikeyqq3mw";
+// Real Blockscout keys start with proapi_; this one does too, so redaction is tested on that form.
+const BLOCKSCOUT_KEY = "proapi_0d3adbeef5ca1ab1e0c11dummy96";
 
 const DIR = mkdtempSync(join(tmpdir(), "explorer-verify-keys-"));
 after(() => {
@@ -117,11 +119,39 @@ describe("readRouteOptions: the environment (R-AX-9)", () => {
     assert.deepEqual(read.secrets, [ETHERSCAN_KEY, ROUTESCAN_KEY]);
   });
 
-  it("names exactly the two variables", () => {
+  it("names exactly the three variables, each with its one host", () => {
     assert.deepEqual(
-      KEY_VARIABLES.map(({ name, backend }) => `${name}=${backend}`),
-      ["ETHERSCAN_API_KEY=etherscan-v2", "ROUTESCAN_API_KEY=routescan"],
+      KEY_VARIABLES.map(({ name, backend, host }) => `${name}=${backend}@${host}`),
+      [
+        "ETHERSCAN_API_KEY=etherscan-v2@api.etherscan.io",
+        "ROUTESCAN_API_KEY=routescan@api.routescan.io",
+        "BLOCKSCOUT_API_KEY=blockscout-hosted@api.blockscout.com",
+      ],
     );
+  });
+
+  it("maps BLOCKSCOUT_API_KEY to apiKeys.blockscout-hosted, never to the instance backend (decision 0041)", async () => {
+    const read = await readWith(
+      { backend: "blockscout-hosted" },
+      { BLOCKSCOUT_API_KEY: BLOCKSCOUT_KEY },
+    );
+    assert.deepEqual(read.issues, []);
+    assert.deepEqual(read.options, {
+      apiKeys: { "blockscout-hosted": BLOCKSCOUT_KEY },
+      route: { backend: "blockscout-hosted" },
+    });
+    assert.deepEqual(read.secrets, [BLOCKSCOUT_KEY]);
+    assert.deepEqual(keyVariableValues({ BLOCKSCOUT_API_KEY: BLOCKSCOUT_KEY }), [BLOCKSCOUT_KEY]);
+  });
+
+  it("fills apiKeys.blockscout-hosted from --api-key-file with --backend blockscout-hosted", async () => {
+    const path = keyFile("blockscout.txt", `${FLAG_KEY}\n`);
+    const read = await readWith({ backend: "blockscout-hosted", "api-key-file": path });
+    assert.deepEqual(read.issues, []);
+    assert.deepEqual(read.options, {
+      apiKeys: { "blockscout-hosted": FLAG_KEY },
+      route: { backend: "blockscout-hosted" },
+    });
   });
 
   it("counts an empty value as unset", async () => {
@@ -143,8 +173,8 @@ describe("readRouteOptions: the environment (R-AX-9)", () => {
     assert.ok(!JSON.stringify(read.issues).includes("spaces"));
   });
 
-  it("ignores other variables that hold keys, such as BLOCKSCOUT_API_KEY", async () => {
-    const read = await readWith({}, { BLOCKSCOUT_API_KEY: ETHERSCAN_KEY, API_KEY: FLAG_KEY });
+  it("ignores other variables that hold keys, such as API_KEY", async () => {
+    const read = await readWith({}, { API_KEY: FLAG_KEY });
     assert.deepEqual(read.options, {});
   });
 });
@@ -184,7 +214,7 @@ describe("readRouteOptions: --api-key-file (R-AX-9)", () => {
     [
       "--api-url and no --backend",
       { "api-url": "https://explorer.example.org/api" },
-      "needs --backend etherscan-v2, routescan or etherscan-compatible with --api-url",
+      "needs --backend etherscan-v2, routescan, blockscout-hosted or etherscan-compatible with --api-url",
     ],
     [
       "--api-url and --backend sourcify",

@@ -833,15 +833,20 @@ describe("apiKeys and route.apiKey: options validation (R-SEC-1, R-IN-6)", () =>
     assert.doesNotMatch(error.hint, /^Pass route\.apiKey/);
   });
 
-  it("takes route.apiKey only for Etherscan-family and Routescan routes, next to apiUrl (decision 0016)", () => {
+  it("takes route.apiKey only for Etherscan-family, Routescan and hosted Blockscout routes, next to apiUrl (decisions 0016, 0041)", () => {
     assert.deepEqual(
       BACKEND_NAMES.filter(
         (name) => checkRouteKey(name, STANDALONE_KEY, true).key === STANDALONE_KEY,
       ),
-      ["etherscan-v2", "etherscan-compatible", "routescan"],
+      ["etherscan-v2", "etherscan-compatible", "blockscout-hosted", "routescan"],
     );
     // Without apiUrl, a standalone key could reach the routing table's host for the chain.
-    for (const name of ["etherscan-v2", "etherscan-compatible", "routescan"] as const) {
+    for (const name of [
+      "etherscan-v2",
+      "etherscan-compatible",
+      "blockscout-hosted",
+      "routescan",
+    ] as const) {
       assert.deepEqual(checkRouteKey(name, STANDALONE_KEY, false), {
         issue: "needs route.apiUrl: the key is sent only to that host",
       });

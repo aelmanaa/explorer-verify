@@ -476,7 +476,9 @@ export interface RouteOverride {
   /**
    * The backend to use instead of the one the routing table picks. Without `apiUrl`, the
    * routing table must list it for the chain; otherwise the call throws `unsupported-chain`
-   * naming the chain and the backend. With `apiUrl`, any backend goes. A name outside
+   * naming the chain and the backend. `blockscout-hosted` is the exception: the table never lists
+   * it, and without `apiUrl` it goes to `https://api.blockscout.com/<chainId>/api` for any chain
+   * (decision 0041). With `apiUrl`, any backend goes. A name outside
    * `BACKEND_NAMES`, or a backend this version has no client for, throws `invalid-input` naming
    * `route.backend`.
    */
@@ -568,14 +570,15 @@ export interface VerifyOptions {
    */
   allowSourcifyFallback?: boolean;
   /**
-   * API keys by backend name (decision 0009, amended by 0016). A key is sent only to its backend's
-   * API host in the routing table, `api.etherscan.io` for `etherscan-v2` and `api.routescan.io`
-   * for `routescan`, and only when the call's route resolves to that backend (R-SEC-2). A route
-   * that moves `apiUrl` to another host gets no key from here; pass `route.apiKey` for it.
+   * API keys by backend name (decision 0009, amended by 0016 and 0041). A key is sent only to its
+   * backend's one API host, `api.etherscan.io` for `etherscan-v2`, `api.routescan.io` for
+   * `routescan` and `api.blockscout.com` for `blockscout-hosted`, Blockscout's hosted API, and
+   * only when the call's route resolves to that backend (R-SEC-2). A route that moves `apiUrl` to
+   * another host gets no key from here; pass `route.apiKey` for it.
    *
-   * - Accepted names: `etherscan-v2` and `routescan`. `etherscan-compatible` throws
-   *   `invalid-input`: each standalone explorer has its own host, so its key goes in
-   *   `route.apiKey`. `sourcify` and `blockscout` take no key in this release and throw too.
+   * - Accepted names: `etherscan-v2`, `routescan` and `blockscout-hosted`. `etherscan-compatible`
+   *   throws `invalid-input`: each standalone explorer has its own host, so its key goes in
+   *   `route.apiKey`. `sourcify` and `blockscout`, whose instances take no key, throw too.
    * - Each value is a primitive string of 8 to 1024 characters, each a letter, a digit, `.`, `_`,
    *   `~` or `-`, and not all digits. A bad value throws `invalid-input` naming
    *   `apiKeys.<backend>`, never the value. So does a key found in the contract address or the
@@ -584,12 +587,15 @@ export interface VerifyOptions {
    * - Only own enumerable string-keyed properties are read, each once; a non-enumerable property
    *   or a Symbol key is ignored. The object must be a plain object.
    * - Every key is removed from logs, events, errors and results (R-SEC-1).
-   * - When the route's backend needs a key (`etherscan-v2`) and none is bound to its host, the
+   * - When the route's backend needs a key (`etherscan-v2`, `blockscout-hosted`) and none is
+   *   bound to its host, the
    *   call throws `missing-api-key` before any request, unless `fetch` is set: an injected `fetch`
    *   may lead to a server that adds the key, so the request goes out without one.
    *
    * Etherscan's terms forbid an Etherscan key in browser code. In a browser, inject a `fetch` that
-   * targets a server that holds the key instead (R-SRV-5).
+   * targets a server that holds the key instead (R-SRV-5). Blockscout's hosted API sends no CORS
+   * headers and the server handler does not forward Blockscout, so a browser cannot use
+   * `blockscout-hosted`; use `blockscout`, an instance, which needs no key.
    *
    * @example
    * ```ts

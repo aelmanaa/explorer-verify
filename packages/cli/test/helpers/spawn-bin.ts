@@ -20,6 +20,7 @@ const CLEARED = [
   "EXPLORER_VERIFY_LOG",
   "ETHERSCAN_API_KEY",
   "ROUTESCAN_API_KEY",
+  "BLOCKSCOUT_API_KEY",
 ];
 
 export interface BinResult {

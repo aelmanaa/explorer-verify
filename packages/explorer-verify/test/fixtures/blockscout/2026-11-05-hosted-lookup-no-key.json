@@ -1,0 +1,32 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:35:51.869Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.blockscout.com/11155111/api/v2/smart-contracts/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC"
+  },
+  "response": {
+    "status": 402,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e4dd5ffa322af-CDG",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "87",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:35:52 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "payment-required": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIyMDAwIiwiYXNzZXQiOiIweGNlYkE5MzAwZjJiOTQ4NzEwZDI2NTNkRDdCMDdmMzNBOEIzMjExOEMiLCJleHRyYSI6eyJuYW1lIjoiVVNEQyIsInZlcnNpb24iOiIyIn0sIm1heFRpbWVvdXRTZWNvbmRzIjo2MCwibmV0d29yayI6ImVpcDE1NTo0MjIyMCIsInBheVRvIjoiMHgyNDJiYTZkNjhmZmViNGEwOThiNTkxYjMyZDM3MGY5NzNmZjg4MmI3Iiwic2NoZW1lIjoiZXhhY3QifSx7ImFtb3VudCI6IjIwMDAiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIn0sIm1heFRpbWVvdXRTZWNvbmRzIjo2MCwibmV0d29yayI6ImVpcDE1NTo4NDUzIiwicGF5VG8iOiIweGQ0NDFEOUY0YzU5Q0IyNjI1M0UyRjBBN2E2MmFjOWNFNzgyM2I0YjQiLCJzY2hlbWUiOiJleGFjdCJ9XSwiZXJyb3IiOiJQQVlNRU5ULVNJR05BVFVSRSBoZWFkZXIgaXMgcmVxdWlyZWQiLCJleHRlbnNpb25zIjp7ImJhemFhciI6eyJpbmZvIjp7ImlucHV0Ijp7Im1ldGhvZCI6IkdFVCIsInBhdGhQYXJhbXMiOnsiYWRkcmVzc19oYXNoX3BhcmFtIjoiMHg4Mjc1RDM2RjY0RjA0N0QyRDhhMUY0MmM3OUJmODBDYWVhMzlEN2NDIiwiY2hhaW5faWQiOiIxMTE1NTExMSJ9LCJ0eXBlIjoiaHR0cCJ9LCJvdXRwdXQiOnsiZXhhbXBsZSI6eyJoYXNfY29uc3RydWN0b3JfYXJncyI6dHJ1ZSwiZmlsZV9wYXRoIjoic3RyaW5nIiwiY3JlYXRpb25fc3RhdHVzIjoic3RyaW5nIiwidHJhbnNhY3Rpb25zX2NvdW50IjowLCJzb3VyY2VfY29kZSI6InN0cmluZyIsImRlcGxveWVkX2J5dGVjb2RlIjoic3RyaW5nIiwib3B0aW1pemF0aW9uX2VuYWJsZWQiOnRydWUsInZlcmlmaWVkX3R3aW5fYWRkcmVzc19oYXNoIjoic3RyaW5nIiwicmVwdXRhdGlvbiI6InN0cmluZyIsImlzX3ZlcmlmaWVkIjp0cnVlLCJnaXRodWJfcmVwb3NpdG9yeV9tZXRhZGF0YSI6e30sInZlcmlmaWNhdGlvbl9tZXRhZGF0YSI6e30sImNvbXBpbGVyX3NldHRpbmdzIjp7fSwib3B0aW1pemF0aW9uX3J1bnMiOjAsInNvdXJjaWZ5X3JlcG9fdXJsIjoic3RyaW5nIiwiZGVjb2RlZF9jb25zdHJ1Y3Rvcl9hcmdzIjpbW3t9XV0sImNvbXBpbGVyX3ZlcnNpb24iOiJzdHJpbmciLCJpc192ZXJpZmllZF92aWFfdmVyaWZpZXJfYWxsaWFuY2UiOnRydWUsInZlcmlmaWVkX2F0Ijoic3RyaW5nIiwiaW1wbGVtZW50YXRpb25zIjpbeyJhZGRyZXNzX2hhc2giOiJzdHJpbmciLCJuYW1lIjoic3RyaW5nIn1dLCJwcm94eV90eXBlIjoic3RyaW5nIiwibWFya2V0X2NhcCI6InN0cmluZyIsImV4dGVybmFsX2xpYnJhcmllcyI6W3siYWRkcmVzc19oYXNoIjoic3RyaW5nIiwibmFtZSI6InN0cmluZyJ9XSwiY3JlYXRpb25fYnl0ZWNvZGUiOiJzdHJpbmciLCJuYW1lIjoic3RyaW5nIiwiaXNfYmx1ZXByaW50Ijp0cnVlLCJsaWNlbnNlX3R5cGUiOiJzdHJpbmciLCJpc19mdWxseV92ZXJpZmllZCI6dHJ1ZSwiY29pbl9iYWxhbmNlIjoic3RyaW5nIiwiaXNfdmVyaWZpZWRfdmlhX2V0aF9ieXRlY29kZV9kYiI6dHJ1ZSwibGFuZ3VhZ2UiOiJzdHJpbmciLCJldm1fdmVyc2lvbiI6InN0cmluZyIsImNhbl9iZV92aXN1YWxpemVkX3ZpYV9zb2wydW1sIjp0cnVlLCJpc192ZXJpZmllZF92aWFfc291cmNpZnkiOnRydWUsImFkZGl0aW9uYWxfc291cmNlcyI6W3siZmlsZV9wYXRoIjoic3RyaW5nIiwic291cmNlX2NvZGUiOiJzdHJpbmcifV0sImNlcnRpZmllZCI6dHJ1ZSwiY29uZmxpY3RpbmdfaW1wbGVtZW50YXRpb25zIjpbeyJpbXBsZW1lbnRhdGlvbnMiOlt7ImFkZHJlc3NfaGFzaCI6InN0cmluZyIsIm5hbWUiOiJzdHJpbmcifV0sInByb3h5X3R5cGUiOiJzdHJpbmcifV0sImFiaSI6W3t9XSwiaXNfY2hhbmdlZF9ieXRlY29kZSI6dHJ1ZSwiaXNfcGFydGlhbGx5X3ZlcmlmaWVkIjp0cnVlLCJwYWNrYWdlX25hbWUiOiJzdHJpbmciLCJjb25zdHJ1Y3Rvcl9hcmdzIjoic3RyaW5nIn0sInR5cGUiOiJqc29uIn19LCJyb3V0ZVRlbXBsYXRlIjoiLzpjaGFpbl9pZC9hcGkvdjIvc21hcnQtY29udHJhY3RzLzphZGRyZXNzX2hhc2hfcGFyYW0iLCJzY2hlbWEiOnsiJHNjaGVtYSI6Imh0dHBzOi8vanNvbi1zY2hlbWEub3JnL2RyYWZ0LzIwMjAtMTIvc2NoZW1hIiwicHJvcGVydGllcyI6eyJpbnB1dCI6eyJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsInByb3BlcnRpZXMiOnsibWV0aG9kIjp7ImVudW0iOlsiR0VUIiwiSEVBRCIsIkRFTEVURSJdLCJ0eXBlIjoic3RyaW5nIn0sInBhdGhQYXJhbXMiOnsicHJvcGVydGllcyI6eyJhZGRyZXNzX2hhc2hfcGFyYW0iOnsidHlwZSI6InN0cmluZyJ9LCJjaGFpbl9pZCI6eyJ0eXBlIjoic3RyaW5nIn19LCJ0eXBlIjoib2JqZWN0In0sInR5cGUiOnsiY29uc3QiOiJodHRwIiwidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsidHlwZSIsIm1ldGhvZCJdLCJ0eXBlIjoib2JqZWN0In0sIm91dHB1dCI6eyJwcm9wZXJ0aWVzIjp7ImV4YW1wbGUiOnsidHlwZSI6Im9iamVjdCJ9LCJ0eXBlIjp7InR5cGUiOiJzdHJpbmcifX0sInJlcXVpcmVkIjpbInR5cGUiXSwidHlwZSI6Im9iamVjdCJ9fSwicmVxdWlyZWQiOlsiaW5wdXQiXSwidHlwZSI6Im9iamVjdCJ9fX0sInJlc291cmNlIjp7ImRlc2NyaXB0aW9uIjoiQWNjZXNzIHRvIGFwaS92Mi9zbWFydC1jb250cmFjdHMvOmFkZHJlc3NfaGFzaC4gUmV0cmlldmUgZGV0YWlsZWQgaW5mb3JtYXRpb24gYWJvdXQgYSB2ZXJpZmllZCBzbWFydCBjb250cmFjdCIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiIsInVybCI6Imh0dHBzOi8vYXBpLmJsb2Nrc2NvdXQuY29tLzExMTU1MTExL2FwaS92Mi9zbWFydC1jb250cmFjdHMvMHg4Mjc1RDM2RjY0RjA0N0QyRDhhMUY0MmM3OUJmODBDYWVhMzlEN2NDIn0sIng0MDJWZXJzaW9uIjoyfQ==",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=efNZufQhlsQcdxL0dK1LdyWSlCTbiRueZwT9%2BhAK1Y%2FA2QPTBFNKts3Cy9Cg8vAStzIt2tXNUUgz8iTfsd4HZ2CXsnV7VpouzEHIDoQIxFGkrNsAXCcw5NB12YFaO82SciUooA%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-request-id": "51cd14b134aa8f6eb8c2b96cc5a03efb"
+    },
+    "body": {
+      "error": "Proceed with API key or make a X402 payment to continue"
+    }
+  },
+  "recordedAt": "2026-11-05T19:35:51.869Z"
+}

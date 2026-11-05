@@ -17,10 +17,18 @@ import type { OptionSpecs, OptionValue } from "./arguments.ts";
 import type { OutputStream } from "./stderr.ts";
 import type { Environment } from "./terminal.ts";
 
-/** The environment variables the CLI reads keys from, and the backend each one fills. */
-export const KEY_VARIABLES: readonly { readonly name: string; readonly backend: BackendName }[] = [
-  { name: "ETHERSCAN_API_KEY", backend: "etherscan-v2" },
-  { name: "ROUTESCAN_API_KEY", backend: "routescan" },
+/**
+ * The environment variables the CLI reads keys from, the backend each one fills, and the one host
+ * the library sends that key to (decisions 0016 and 0041).
+ */
+export const KEY_VARIABLES: readonly {
+  readonly name: string;
+  readonly backend: BackendName;
+  readonly host: string;
+}[] = [
+  { name: "ETHERSCAN_API_KEY", backend: "etherscan-v2", host: "api.etherscan.io" },
+  { name: "ROUTESCAN_API_KEY", backend: "routescan", host: "api.routescan.io" },
+  { name: "BLOCKSCOUT_API_KEY", backend: "blockscout-hosted", host: "api.blockscout.com" },
 ];
 
 /** The options of a command that talks to an explorer (R-AX-9, R-RT-2). */
@@ -60,10 +68,16 @@ export const REFUSED_KEY_OPTIONS: readonly string[] = [
   "etherscan-api-key",
   "etherscan-key",
   "routescan-api-key",
+  "blockscout-api-key",
 ];
 
+/** The key variables as a list, such as `A, B or C`. */
+const VARIABLE_LIST: string = KEY_VARIABLES.map(({ name }) => name)
+  .join(", ")
+  .replace(/, (?=[^,]*$)/, " or ");
+
 /** The issue message of a refused key option. It never repeats the value. */
-export const REFUSED_KEY_MESSAGE: string = `is not accepted: a key on the command line shows in the process list and the shell history; set ${KEY_VARIABLES.map(({ name }) => name).join(" or ")}, or use --api-key-file <path> or --api-key-stdin`;
+export const REFUSED_KEY_MESSAGE: string = `is not accepted: a key on the command line shows in the process list and the shell history; set ${VARIABLE_LIST}, or use --api-key-file <path> or --api-key-stdin`;
 
 /** The backends whose key `--api-key-file` or `--api-key-stdin` can give with `--backend` alone. */
 const FLAG_KEY_BACKENDS: readonly BackendName[] = KEY_VARIABLES.map(({ backend }) => backend);
@@ -261,7 +275,7 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
       message:
         apiUrl === undefined
           ? "needs --backend or --api-url, to name where the key goes"
-          : "needs --backend etherscan-v2, routescan or etherscan-compatible with --api-url",
+          : "needs --backend etherscan-v2, routescan, blockscout-hosted or etherscan-compatible with --api-url",
     };
   }
   if (!ROUTE_KEY_BACKENDS.includes(backend)) {
@@ -384,11 +398,12 @@ function checked(field: string, key: string, secrets: string[]): FlagKey {
 /**
  * Reads the route options and the keys of a command (R-AX-9, R-RT-2):
  *
- * - `ETHERSCAN_API_KEY` fills `apiKeys["etherscan-v2"]` and `ROUTESCAN_API_KEY` fills
- *   `apiKeys.routescan`. An empty value counts as unset.
+ * - `ETHERSCAN_API_KEY` fills `apiKeys["etherscan-v2"]`, `ROUTESCAN_API_KEY` fills
+ *   `apiKeys.routescan` and `BLOCKSCOUT_API_KEY` fills `apiKeys["blockscout-hosted"]`. An empty
+ *   value counts as unset.
  * - `--api-key-file <path>` and `--api-key-stdin` give one key, with one trailing newline removed.
  *   With `--api-url`, it goes in `route.apiKey`, bound to that host. Otherwise `--backend` must
- *   name `etherscan-v2` or `routescan`, and the key fills that `apiKeys` entry, winning over its
+ *   name `etherscan-v2`, `routescan` or `blockscout-hosted`, and the key fills that `apiKeys` entry, winning over its
  *   variable. Without either flag, the key has no named destination, which is an issue.
  * - `--api-key-stdin` with `--input-json -`, or with stdin a terminal, is an issue at once.
  * - `--backend <name>` and `--api-url <url>` fill `route`; the library checks the URL.
@@ -497,7 +512,7 @@ function eachBackend(
     if (values.has(name)) {
       issues.push({
         field: `--${name}`,
-        message: `cannot be combined with a repeated --backend: each backend uses its routing-table URL and the key of its environment variable, ${KEY_VARIABLES.map((each) => each.name).join(" or ")}`,
+        message: `cannot be combined with a repeated --backend: each backend uses its routing-table URL and the key of its environment variable, ${VARIABLE_LIST}`,
       });
     }
   }

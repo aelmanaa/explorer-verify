@@ -16,7 +16,7 @@ import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
-import { checkRouteKey, needsKey } from "../http/api-keys.ts";
+import { checkRouteKey, HOSTED_BLOCKSCOUT_HOST, needsKey } from "../http/api-keys.ts";
 import type { ApiKeys } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
 import type { Hex, RouteOverride } from "../types.ts";
@@ -315,7 +315,9 @@ function fixedHost(backend: BackendName): string | undefined {
       ? new URL(ETHERSCAN_API_URL).host
       : backend === "routescan"
         ? ROUTESCAN_HOST
-        : undefined;
+        : backend === "blockscout-hosted"
+          ? HOSTED_BLOCKSCOUT_HOST
+          : undefined;
 }
 // Hostnames as `URL` reports them: lowercase, IPv4 normalised, IPv6 compressed in brackets.
 const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
@@ -469,7 +471,9 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  *   one, and no `apiKeys` entry gives it one. When none is usable, it resolves to the first, and the
  *   flow reports the missing key. `override.backend` picks another backend the row lists.
  * - `override.backend` that the row does not list throws `unsupported-chain` naming the chain and
- *   the backend.
+ *   the backend, except `blockscout-hosted`, which no row lists: it goes to
+ *   `https://api.blockscout.com/<chainId>/api` for any chain, with the page of the row's
+ *   Blockscout instance (decision 0041).
  * - A chain missing from the table resolves to Sourcify when `choice.allowSourcifyFallback` is
  *   true. Otherwise it throws `unsupported-chain`, whose hint names the fallback option and the
  *   route override.
@@ -577,10 +581,20 @@ export function checkRoute(
         if (typeof checked === "string") {
           issues.push({ field: "route.apiUrl", message: checked });
           hint ??= API_URL_HINT;
-        } else if (named === "blockscout" && !checked.apiBase.endsWith("/api")) {
+        } else if (
+          (named === "blockscout" || named === "blockscout-hosted") &&
+          !checked.apiBase.endsWith("/api")
+        ) {
           // The client derives the REST lookup from the instance's /api.
-          issues.push({ field: "route.apiUrl", message: "must end in /api for blockscout" });
+          issues.push({ field: "route.apiUrl", message: `must end in /api for ${named}` });
           hint ??= "Pass the instance's API URL, such as https://eth-sepolia.blockscout.com/api.";
+        } else if (
+          named === "blockscout" &&
+          checked.apiBase.startsWith(`https://${HOSTED_BLOCKSCOUT_HOST}/`)
+        ) {
+          // The instance client sends no key and reads no key answer (decision 0041).
+          issues.push({ field: "route.apiUrl", message: "is Blockscout's hosted API" });
+          hint ??= `Set route.backend "blockscout-hosted" and leave out route.apiUrl.`;
         } else {
           target = checked;
         }
@@ -690,7 +704,19 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
   let tableHost: string | undefined;
   let apiBase: string;
   let search = "";
-  if (target === undefined) {
+  if (target === undefined && named === "blockscout-hosted") {
+    // Blockscout's hosted API serves each chain it indexes at one host, with the chain in the
+    // path, so it needs no row. The page is the row's instance page: a contract verified through
+    // the hosted API shows there (live, 2026-11-05). Decision 0041.
+    backend = named;
+    tableHost = HOSTED_BLOCKSCOUT_HOST;
+    apiBase = `https://${tableHost}/${String(chainId)}/api`;
+    entry = {
+      backend,
+      apiUrl: apiBase,
+      explorerUrl: listed.find((each) => each.backend === "blockscout")?.explorerUrl,
+    };
+  } else if (target === undefined) {
     if (table === undefined) {
       throw new TypeError(
         "The routing table is not loaded: pass choice.table for a route without route.apiUrl.",

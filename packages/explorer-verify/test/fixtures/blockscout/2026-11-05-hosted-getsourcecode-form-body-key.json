@@ -1,0 +1,87 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:35:55.727Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.blockscout.com/11155111/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e4dee1c5b22af-CDG",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "755",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:35:55 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=IBNNY%2BTBiUNF%2BC18MtFDpsR8jt11zPYo0XPjQ9XmGGmhN%2B2NDU2IIMn2bdtsVz2My%2B4sv0L3xWhyxYm4pry%2FGd5y5Gkq2hp%2FgjFWoaysE%2FtYK9NfP2KXZkuZa7NBJgNBGc63LQ%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99920",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "4",
+      "x-ratelimit-reset": "127",
+      "x-request-id": "ce963322db773c9687f63fc44ae5e18c"
+    },
+    "body": {
+      "message": "OK",
+      "result": [
+        {
+          "AdditionalSources": [
+            {
+              "SourceCode": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nabstract contract Base {\n    address public immutable owner;\n\n    constructor(address owner_) {\n        owner = owner_;\n    }\n}\n",
+              "Filename": "contracts/Base.sol"
+            }
+          ],
+          "CompilerSettings": {
+            "evmVersion": "cancun",
+            "libraries": {},
+            "metadata": {
+              "appendCBOR": true,
+              "bytecodeHash": "ipfs",
+              "useLiteralContent": false
+            },
+            "optimizer": {
+              "enabled": true,
+              "runs": 200
+            },
+            "outputSelection": {
+              "*": {
+                "": ["*"],
+                "*": ["*"]
+              }
+            }
+          },
+          "OptimizationRuns": 200,
+          "IsProxy": "false",
+          "SourceCode": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\nimport {Base} from \"./Base.sol\";\n\n// explorer-verify live fixture 2026-11-02 chain 11155111 deployment A\ncontract Greeter is Base {\n    string public greeting;\n\n    constructor(address owner_, string memory greeting_) Base(owner_) {\n        greeting = greeting_;\n    }\n}\n",
+          "ABI": "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner_\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"greeting_\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"greeting\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+          "ContractName": "Greeter",
+          "CompilerVersion": "v0.8.24+commit.e11b9ed9",
+          "OptimizationUsed": "true",
+          "EVMVersion": "cancun",
+          "FileName": "contracts/Greeter.sol",
+          "Address": "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+        }
+      ],
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-05T19:35:55.727Z"
+}

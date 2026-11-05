@@ -1,0 +1,34 @@
+{
+  "source": "Live response from api.blockscout.com, recorded 2026-11-05T19:35:53.143Z with the fetch of Node.js 24.21.0.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.blockscout.com/11155111/api/v2/smart-contracts/0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
+    "headers": {
+      "authorization": "Bearer proapi_0123456789abcdef0123456789abcdef"
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a55e4dddfe5722af-CDG",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "44",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Thu, 05 Nov 2026 19:35:53 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=oLP075Ow3f79lz484Tcp6wFYyAey%2FZDIywJ3Wek9v0sBv%2FhN65J9nRGVc6IoT1pPmUbkvtNljW5QK8lZnd0O9YTH32y2cCE2gVlbsWI29y9cXoHG42o62%2FyXBqjVuUJOBim5gw%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-request-id": "a280ced9d2d5ca12da28b5966cfcb049"
+    },
+    "body": {
+      "error": "Unauthorized"
+    }
+  },
+  "recordedAt": "2026-11-05T19:35:53.143Z"
+}

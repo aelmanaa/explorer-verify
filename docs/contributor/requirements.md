@@ -136,8 +136,10 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
   instance's Etherscan-compatible `/api`; the lookup goes to its REST
   `/api/v2/smart-contracts/{address}`, which tells a full match from a partial one. The REST
   standard-input submit is not used: it returns no job id and no failure verdict
-  ([research](research/2026-11-04-blockscout-client.md)). The hosted multichain API with a key
-  comes later.
+  ([research](research/2026-11-04-blockscout-client.md)). The backend `blockscout-hosted` sends the
+  same requests to the hosted multichain API, `https://api.blockscout.com/<chainId>/api`, with
+  `apiKeys["blockscout-hosted"]` in the `authorization` header. No row lists it; a call names it
+  (decision 0041, [research](research/2026-11-05-blockscout-hosted-api.md)).
 - **R-BE-4** Sourcify API v2 (`/v2/verify/{chainId}/{address}`, job polling, `/v2/contract/...`
   lookup). No key.
 - **R-BE-5** Routescan (Etherscan-compatible host per network).

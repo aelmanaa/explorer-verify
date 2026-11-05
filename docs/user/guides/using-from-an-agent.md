@@ -126,9 +126,11 @@ no key, the command exits 3 with `missing-api-key` and submits nothing.
 
 ## API keys
 
-Sourcify and Blockscout need no key. Etherscan v2 needs one; Routescan takes one optionally.
+Sourcify and Blockscout instances need no key. Etherscan v2 needs one; Routescan takes one
+optionally. Blockscout's hosted API, `--backend blockscout-hosted`, needs `BLOCKSCOUT_API_KEY`.
 
-- The command reads `ETHERSCAN_API_KEY` and `ROUTESCAN_API_KEY` from the environment, or one key
+- The command reads `ETHERSCAN_API_KEY`, `ROUTESCAN_API_KEY` and `BLOCKSCOUT_API_KEY` from the
+  environment, or one key
   from `--api-key-file <path>` or `--api-key-stdin` with `--backend`. A variable is sent only to
   its routing-table host, so with `--api-url` give the key with one of the two flags.
   [CLI: API keys and route options](../reference/cli.md#api-keys-and-route-options) has the rules.
@@ -150,7 +152,7 @@ explorer-verify verify --input-json verify-input.json --api-key --json
 ```
 
 ```text
-{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --api-key is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY or ROUTESCAN_API_KEY, or use --api-key-file <path> or --api-key-stdin.","hint":"Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
+{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --api-key is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin.","hint":"Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
 ```
 
 Errors, events, log lines, results and the command's output replace keys with `[redacted]`; see

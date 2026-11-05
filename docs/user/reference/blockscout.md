@@ -10,8 +10,9 @@ explorer and how it reads each answer.
 A Blockscout explorer serves one chain from its own host, with its API at `<origin>/api`, such as
 `https://eth-sepolia.blockscout.com/api`. explorer-verify talks to one such instance at a time. It
 sends no API key, and a Blockscout instance answers browsers directly. [verify()](verify.md) and
-[checkStatus()](check-status.md) use this client. The hosted multichain API at
-`api.blockscout.com`, which needs a key, is not supported yet.
+[checkStatus()](check-status.md) use this client. Blockscout's hosted API at
+`api.blockscout.com` serves many chains and needs a key: it is the separate backend
+`blockscout-hosted` ([The hosted API](#the-hosted-api)).
 
 The routing table lists a Blockscout instance for 111 chains
 ([Blockscout rows](routing.md#blockscout-rows)). On those, `route: { backend: "blockscout" }`
@@ -37,8 +38,88 @@ A `route.apiUrl` that does not end in `/api` throws [`invalid-input`](errors/inv
 naming `route.apiUrl`. Trailing slashes are removed first, so `https://eth-sepolia.blockscout.com/api/`
 is accepted. A path before `/api` is kept: with `https://example.org/explorer/api`, the lookup goes
 to `https://example.org/explorer/api/v2/smart-contracts/<address>`. A key in `route.apiKey` or `apiKeys.blockscout` also throws `invalid-input`
-([API keys](api-keys.md)). A result has no `explorerUrl` when `route.apiUrl` names an instance
+([API keys](api-keys.md)). So does a `route.apiUrl` on `api.blockscout.com`: the hosted API is
+`blockscout-hosted`. A result has no `explorerUrl` when `route.apiUrl` names an instance
 other than the one the chain's row lists.
+
+## The hosted API
+
+Blockscout's docs say the per-instance API "has been deprecated", with no removal date, and point
+to the hosted API instead ([Blockscout APIs](https://docs.blockscout.com/devs/apis), read
+2026-11-05). The hosted API serves each chain it indexes at
+`https://api.blockscout.com/<chainId>/api`, with the same requests and the same answers as an
+instance. It needs a key on every plan, the free one included; get one at
+[dev.blockscout.com](https://dev.blockscout.com/).
+
+explorer-verify reaches it as the backend `blockscout-hosted`. Name it in `route.backend`, and
+pass the key as `apiKeys["blockscout-hosted"]`:
+
+```ts
+import { verify } from "explorer-verify";
+
+// On a server: the hosted API cannot be used from a browser.
+const result = await verify(input, {
+  route: { backend: "blockscout-hosted" },
+  apiKeys: { "blockscout-hosted": blockscoutKey },
+});
+console.log(`${result.status} ${result.backend}`);
+```
+
+```text
+already-verified blockscout-hosted
+```
+
+- The routing table never picks `blockscout-hosted`: a call reaches it only when `route.backend`
+  or a `verifyEach()` entry names it. `backends: "all"` leaves it out, even with its key, because
+  a contract verified there shows on the chain's instance too.
+- The chain needs no row. A chain the hosted API does not serve answers HTTP 404
+  `Network not supported`, which throws [`unsupported-chain`](errors/unsupported-chain.md).
+- The result's `explorerUrl` is the contract page of the instance that the chain's row lists, when
+  it lists one. On 2026-11-05 a contract verified through the hosted API showed as verified on
+  `eth-sepolia.blockscout.com` right after.
+- The key goes in the `authorization` request header, as `Bearer <key>`, on every request, never
+  in a URL. It goes only to `api.blockscout.com` ([API keys](api-keys.md#apikeys)). The
+  `blockscout` backend, an instance, never gets it.
+- A handle is `ev1:blockscout-hosted:<chainId>:<address>:<jobId>`, so
+  [checkStatus()](check-status.md) and the CLI's `status` resume on the hosted API.
+- `linkProxy()` sends the instance's proxy-link requests with the key. They were not run against
+  the hosted API.
+- From the CLI: `--backend blockscout-hosted`, with the key in `BLOCKSCOUT_API_KEY`, a key file or
+  stdin ([CLI](cli.md#api-keys-and-route-options)).
+
+Not from a browser: the hosted API sends no CORS headers, so a browser cannot read its answers,
+and the [server handler](server-handler.md) forwards only Etherscan. In a browser, use the
+`blockscout` backend, which needs no key.
+
+### Key answers
+
+Without a key and without `fetch`, the call throws [`missing-api-key`](errors/missing-api-key.md)
+before any request. With `fetch` set, the request goes out, and the answer decides. The key errors
+exit with code 3, `unsupported-chain` with code 2, and none is retryable. No error holds the key or
+the explorer's text.
+
+| Answer                                                                           | Error                                              |
+| -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| HTTP 401 `Unauthorized`, a key the API does not know                             | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| HTTP 402 to a request that carried a key                                         | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| HTTP 402 `Featured chain <id> requires one of the following plans: ...`          | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| Any other HTTP 402, as `Proceed with API key or make a X402 payment to continue` | [`missing-api-key`](errors/missing-api-key.md)     |
+| HTTP 404 `Network not supported`                                                 | [`unsupported-chain`](errors/unsupported-chain.md) |
+
+A free-plan key was refused for Base Sepolia (84532) with the `Featured chain` answer, and accepted
+for Sepolia (11155111). Blockscout's docs say a free plan is refused once its daily credits are
+spent, without the answer's text; such a 402 to a keyed request reads as `api-key-rejected`. The
+hint of that error names the `blockscout` backend, which needs no key.
+
+### Hosted rate limits
+
+The free plan allows 5 requests per second and 100,000 credits a day; a request costs 20 credits
+by default ([API general info, pricing, and routes](https://docs.blockscout.com/devs/pro-api-routes),
+read 2026-11-05). Each answer carries `x-ratelimit-limit`, `x-ratelimit-remaining`,
+`x-ratelimit-reset` (milliseconds) and `x-credits-remaining`. Over the limit, the hosted API
+answers HTTP 429 `{"error":"Too Many Requests"}` with no `Retry-After`; explorer-verify retries it
+with backoff, as for an instance. On 2026-11-05, 12 requests sent at once got 5 answers and 7
+HTTP 429.
 
 ## Requests
 
@@ -46,6 +127,8 @@ The lookup goes to the instance's REST API, which tells a full match from a part
 and the status request go to its Etherscan-compatible API, as a POST with a form-encoded body
 (`application/x-www-form-urlencoded`) that holds `module=contract`, the action and its fields. All
 three are built from the instance's `/api` URL, `<api>` below, and none carries a key.
+`blockscout-hosted` sends the same requests to `https://api.blockscout.com/<chainId>/api`, each
+with the key in the `authorization` header.
 
 | Step   | Request                                                       | Sends                                                      |
 | ------ | ------------------------------------------------------------- | ---------------------------------------------------------- |

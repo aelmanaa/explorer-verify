@@ -238,7 +238,7 @@ describe("resolveRoute: route.backend and route.apiUrl (R-RT-2)", () => {
     const error = thrown(() => resolveRoute(1, override));
     assert.equal(
       error.hint,
-      "Leave out route.backend, or name one of: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.",
+      "Leave out route.backend, or name one of: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan.",
     );
   });
 });

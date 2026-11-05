@@ -9,6 +9,7 @@ export const BACKEND_NAMES = [
   "etherscan-v2",
   "etherscan-compatible",
   "blockscout",
+  "blockscout-hosted",
   "sourcify",
   "routescan",
 ] as const;

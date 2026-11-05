@@ -231,6 +231,12 @@ const RUNS: readonly DocRun[] = [
     fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
   },
   {
+    page: "reference/blockscout.md",
+    example: 1,
+    what: "route.hostedApi with apiKeys.blockscout: the hosted lookup finds the Greeter verified (#96)",
+    fixtures: ["blockscout/2026-11-05-hosted-lookup-full"],
+  },
+  {
     page: "reference/check-status.md",
     example: 1,
     what: "verify() ends not-confirmed, then checkStatus() on the stored handle",
@@ -716,6 +722,7 @@ describe("the user-docs checks catch a broken example", () => {
       "apiKey",
       "etherscanKey",
       "explorerKey",
+      "blockscoutKey",
       "deployerAddress",
       "built",
       "request",

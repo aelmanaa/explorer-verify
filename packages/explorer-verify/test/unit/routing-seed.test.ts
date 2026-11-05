@@ -321,6 +321,7 @@ describe("routing table rows (R-RT-1)", () => {
       "etherscan-compatible",
       "routescan",
       "blockscout",
+      "blockscout-hosted",
     ]);
     for (const row of ROUTING_TABLE.chains) {
       const names = row.backends.map((entry) => entry.backend);

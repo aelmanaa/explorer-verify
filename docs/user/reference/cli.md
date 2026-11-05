@@ -215,26 +215,26 @@ Examples:
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --allow-sourcify-fallback --dry-run --json`: Check a contract on a chain that the routing table does not list, on the public Sourcify API.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it.
 
-| Option                          | What it does                                                                                                                                                                                   |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan. Give it more than once to verify on each backend in one run. Repeatable. |
-| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                                      |
-| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                         |
-| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                 |
-| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                                                    |
-| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                                               |
-| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                                                    |
-| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                 |
-| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                         |
-| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                         |
-| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                                                   |
-| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                            |
-| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                      |
-| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                            |
-| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                    |
-| `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.          |
-| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                    |
-| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                        |
+| Option                          | What it does                                                                                                                                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`              | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan. Give it more than once to verify on each backend in one run. Repeatable. |
+| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                                                         |
+| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                                            |
+| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                                    |
+| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                                                                       |
+| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                                                                  |
+| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                                                                       |
+| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                                    |
+| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                                            |
+| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                                            |
+| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                                                                      |
+| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                                               |
+| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                                         |
+| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                                               |
+| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                                       |
+| `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.                             |
+| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                                       |
+| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                                           |
 
 ### `status`
 
@@ -250,7 +250,7 @@ Examples:
 
 | Option                      | What it does                                                                                                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`          | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                                 |
+| `--backend <name>`          | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan.                                              |
 | `--api-url <url>`           | Use this explorer API URL instead of the routing table's.                                                                                                                             |
 | `--api-key-file <path>`     | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                |
 | `--api-key-stdin`           | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                        |
@@ -272,14 +272,15 @@ Examples:
 
 ## Environment variables
 
-| Variable              | What it does                                                                             |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off.               |
-| `NO_COLOR`            | Any value but empty turns colour off under --color auto.                                 |
-| `TERM`                | dumb turns colour and the spinner off under --color auto.                                |
-| `CI`                  | Any value but empty turns the spinner and the pager off.                                 |
-| `ETHERSCAN_API_KEY`   | The API key of etherscan-v2, sent only to its routing-table host. Empty counts as unset. |
-| `ROUTESCAN_API_KEY`   | The API key of routescan, sent only to its routing-table host. Empty counts as unset.    |
+| Variable              | What it does                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off.                |
+| `NO_COLOR`            | Any value but empty turns colour off under --color auto.                                  |
+| `TERM`                | dumb turns colour and the spinner off under --color auto.                                 |
+| `CI`                  | Any value but empty turns the spinner and the pager off.                                  |
+| `ETHERSCAN_API_KEY`   | The API key of etherscan-v2, sent only to api.etherscan.io. Empty counts as unset.        |
+| `ROUTESCAN_API_KEY`   | The API key of routescan, sent only to api.routescan.io. Empty counts as unset.           |
+| `BLOCKSCOUT_API_KEY`  | The API key of blockscout-hosted, sent only to api.blockscout.com. Empty counts as unset. |
 
 ## Exit codes
 
@@ -326,10 +327,11 @@ A command that talks to an explorer reads its API keys from environment variable
 from stdin. No flag takes a key as its value: a key on the command line shows in the process list
 and the shell history. [API keys](api-keys.md) says which host each key goes to.
 
-| Variable            | Fills                                                      |
-| ------------------- | ---------------------------------------------------------- |
-| `ETHERSCAN_API_KEY` | `apiKeys["etherscan-v2"]`, sent only to `api.etherscan.io` |
-| `ROUTESCAN_API_KEY` | `apiKeys.routescan`, sent only to `api.routescan.io`       |
+| Variable             | Fills                                                             |
+| -------------------- | ----------------------------------------------------------------- |
+| `ETHERSCAN_API_KEY`  | `apiKeys["etherscan-v2"]`, sent only to `api.etherscan.io`        |
+| `ROUTESCAN_API_KEY`  | `apiKeys.routescan`, sent only to `api.routescan.io`              |
+| `BLOCKSCOUT_API_KEY` | `apiKeys["blockscout-hosted"]`, sent only to `api.blockscout.com` |
 
 An empty variable counts as unset. A variable that is set but holds a bad key is a usage error
 that names the variable, even when the route does not use it.
@@ -344,11 +346,12 @@ that names the variable, even when the route does not use it.
 `--api-key-file` and `--api-key-stdin` remove one trailing newline (`\n` or `\r\n`) and need a
 place to send the key:
 
-- With `--api-url`, `--backend` must be `etherscan-v2`, `routescan` or `etherscan-compatible`.
+- With `--api-url`, `--backend` must be `etherscan-v2`, `routescan`, `blockscout-hosted` or
+  `etherscan-compatible`.
   The key becomes `route.apiKey` and goes only to that host. Use this for a standalone explorer:
   `--backend etherscan-compatible --api-url <url> --api-key-file <p>`.
-- Without `--api-url`, `--backend` `etherscan-v2` or `routescan` fills that backend's `apiKeys`
-  entry, in place of its variable. `--backend etherscan-compatible` makes the key `route.apiKey`
+- Without `--api-url`, `--backend` `etherscan-v2`, `routescan` or `blockscout-hosted` fills that
+  backend's `apiKeys` entry, in place of its variable. `--backend etherscan-compatible` makes the key `route.apiKey`
   for the standalone host the routing table lists for the chain, when that entry has `needsKey`.
   On a chain whose entry takes no key, such as Bitlayer (200901), the command exits 2 with
   `invalid-input`; a chain whose row lists none exits with `unsupported-chain`.
@@ -368,8 +371,8 @@ reads stdin too. Pipe the key instead:
 printf '%s' "$KEY" | explorer-verify <command> --backend etherscan-v2 --api-key-stdin
 ```
 
-`--api-key`, `--apikey`, `--api_key`, `--key`, `--etherscan-api-key`, `--etherscan-key` and
-`--routescan-api-key` are refused with exit 2. The argument after them is dropped with them, unless
+`--api-key`, `--apikey`, `--api_key`, `--key`, `--etherscan-api-key`, `--etherscan-key`,
+`--routescan-api-key` and `--blockscout-api-key` are refused with exit 2. The argument after them is dropped with them, unless
 it starts with `-`; it is then read as the next option. Either way the value never shows up as an
 argument or in a message. An error about a key names the variable or the flag, never the key. An
 error about a key file does not name its path either, because a path typed by mistake can be a

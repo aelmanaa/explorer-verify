@@ -113,6 +113,8 @@ export const DEFAULT_DEPENDENCIES: FlowDependencies = {
     routescan: async () => (await import("../backends/routescan.ts")).routescan,
     /** Loads the Blockscout client. */
     blockscout: async () => (await import("../backends/blockscout.ts")).blockscout,
+    /** Loads the client for Blockscout's hosted API, from the same module (decision 0041). */
+    "blockscout-hosted": async () => (await import("../backends/blockscout.ts")).blockscoutHosted,
   },
   /** Loads the routing table, only for a call without `route.apiUrl` (decision 0040). */
   table: loadRoutingTable,

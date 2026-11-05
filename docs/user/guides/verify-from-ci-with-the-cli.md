@@ -199,7 +199,7 @@ explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80cae
 ## Keys from CI secrets
 
 Store the key as a repository or environment secret, and pass it in `env` to the steps that run
-the CLI, and to no other step. The CLI reads `ETHERSCAN_API_KEY` and `ROUTESCAN_API_KEY`, and no
+the CLI, and to no other step. The CLI reads `ETHERSCAN_API_KEY`, `ROUTESCAN_API_KEY` and `BLOCKSCOUT_API_KEY`, and no
 flag takes a key as its value: a key on the command line shows in the process list and the shell
 history. GitHub's docs also advise against passing secrets on the command line
 ([Using secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
