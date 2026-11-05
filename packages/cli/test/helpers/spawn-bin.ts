@@ -44,9 +44,10 @@ export interface BinOptions {
   cwd?: string;
   /**
    * Loads the fake explorer before the bin, with this scenario, so no request reaches the network.
-   * `log` names a file that gets one JSON line per request.
+   * `log` names a file that gets one JSON line per request. `bug` makes the command throw
+   * a plain Error with that message once it has read its keys: the CLI reports `internal-error`.
    */
-  fake?: { scenario?: string; log?: string };
+  fake?: { scenario?: string; log?: string; bug?: string };
   /** Called with each stderr chunk and the child, for example to send a signal. */
   onStderr?: (text: string, child: ChildProcess) => void;
   /** Kills the child with SIGKILL after this many milliseconds, and sets `timedOut`. */
@@ -109,6 +110,7 @@ export function runBin(args: readonly string[], options: BinOptions = {}): Promi
         : {
             FAKE_EXPLORER: fake.scenario ?? "verified",
             ...(fake.log === undefined ? {} : { FAKE_EXPLORER_LOG: fake.log }),
+            ...(fake.bug === undefined ? {} : { FAKE_CLI_BUG: fake.bug }),
           };
     const [file, argv]: [string, string[]] =
       options.stdinTerminal === true

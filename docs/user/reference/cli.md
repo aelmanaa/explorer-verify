@@ -9,8 +9,7 @@ Audience: people, CI jobs and agents that run the `explorer-verify` command.
 The command ships in the `@explorer-verify/cli` package, which is not published yet. It runs on
 Node 22.18 and later. `verify` verifies a contract from its build files, and `status` resumes a
 submitted verification from its handle. This page describes both, and the output contract that
-every command follows. A hidden `simulate` command runs a verification with no network, so the
-tests can drive every exit path; a later release removes it.
+every command follows.
 
 The sections from Usage to Exit codes are generated from the CLI's own help, so they match
 `explorer-verify --help` for this version.
@@ -127,7 +126,7 @@ three options.
   exits 0. It leads with examples, then lists the usage, the commands, the options, the
   environment variables and the exit codes, and links this page and `llms.txt`.
 - `explorer-verify help <command>` or `explorer-verify <command> --help` prints the help of one
-  command, its own options first. A hidden command has help too, when you name it.
+  command, its own options first.
 - With `--json`, help prints one envelope, `{ "schemaVersion": 1, "ok": true, "result": ... }`,
   whose `result` holds the same content as the text: the topic, the usage, the examples, the
   commands with their options, the global options, the environment variables, the exit codes and
@@ -148,7 +147,7 @@ three options.
 - A usage error wins over both: `explorer-verify --help --colour` exits 2. Help checks the option
   names and the values of the global options, such as `--color`. It does not check the values of
   a command's own options, because the command checks them when it runs:
-  `explorer-verify simulate --outcome bogus --help` prints the help and exits 0.
+  `explorer-verify status --timeout soon --help` prints the help and exits 0.
 
 <!-- Generated from the CLI's help by scripts/generate-cli-reference.ts. Edit the command table, not this part. -->
 
@@ -228,34 +227,6 @@ Examples:
 | `--timeout <seconds>`   | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.     |
 | `--input-json <file>`   | Read the whole status request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package. |
 
-## Hidden commands
-
-Usage messages and the CLI's own help do not list these commands, and a later release removes them. `explorer-verify help <command>` still shows their help.
-
-### `simulate`
-
-Run a simulated verification with no network, to test the output contract. A later release removes it.
-
-```text
-explorer-verify simulate [options]
-```
-
-Examples:
-
-- `explorer-verify simulate --json --outcome not-confirmed`: Print a not-confirmed envelope with a handle, and exit 4.
-- `explorer-verify simulate --verbose --polls 3`: Show every stage event and three polls on stderr, then print verified.
-
-| Option                  | What it does                                                                                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend <name>`      | Use this backend instead of the routing table's: etherscan-v2, etherscan-compatible, blockscout, sourcify, routescan.                                                            |
-| `--api-url <url>`       | Use this explorer API URL instead of the routing table's.                                                                                                                        |
-| `--api-key-file <path>` | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                           |
-| `--api-key-stdin`       | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                   |
-| `--outcome <name>`      | The outcome: verified, already-verified, failed, missing-api-key, not-confirmed, network, unknown-state, internal-error, pending, which polls until cancelled. Default verified. |
-| `--polls <n>`           | Polls before the outcome, 0 to 1000. Default 0.                                                                                                                                  |
-| `--retries <n>`         | verify.retry events before the submit, 0 to 1000. Default 0.                                                                                                                     |
-| `--message <text>`      | The message of the exception that --outcome internal-error throws.                                                                                                               |
-
 ## Global options
 
 | Option                  | What it does                                                                |
@@ -309,8 +280,7 @@ an API key. It lists at most 20 problems and counts the rest.
 When a command or an option is mistyped, the hint of the usage error names the single closest
 command or option by edit distance, such as `Did you mean --color?`. A name is close when at most
 a third of its characters differ, and one may always differ. Names shorter than three characters
-are not compared. A mistyped command comes before a mistyped option, and a hidden command is never
-suggested. The word `help` is a command name for this purpose, so `explorer-verify hlp` suggests
+are not compared. A mistyped command comes before a mistyped option. The word `help` is a command name for this purpose, so `explorer-verify hlp` suggests
 `help`. When nothing is close, the hint names nothing. The suggestion is always one of the CLI's
 own names, never what you typed. A name whose length differs too much is skipped without
 comparing, so a long mistyped argument costs no time.

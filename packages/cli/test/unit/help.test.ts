@@ -19,6 +19,7 @@ import {
 } from "../../src/help.ts";
 import { LOG_VARIABLE } from "../../src/log-level.ts";
 import { helpProblems } from "../helpers/schema.ts";
+import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const NEVER: Command["run"] = async () => await Promise.reject(new Error("must not run"));
 
@@ -125,12 +126,12 @@ describe("help: the CLI's own help (R-AX-11)", () => {
   });
 
   it("never lists a hidden command", () => {
-    const text = helpText(helpResult(COMMANDS));
-    assert.ok(COMMANDS.some((command) => command.hidden === true));
+    const text = helpText(helpResult(WITH_SCRIPTED));
+    assert.ok(WITH_SCRIPTED.some((command) => command.hidden === true));
     assert.match(text, /^Commands:\n {2}verify +Verify a deployed\b.*\n {2}status +Resume\b/m);
-    assert.doesNotMatch(text, /simulate/);
+    assert.doesNotMatch(text, /scripted/);
     assert.deepEqual(
-      helpResult(COMMANDS).commands.map((command) => command.name),
+      helpResult(WITH_SCRIPTED).commands.map((command) => command.name),
       ["verify", "status"],
     );
   });

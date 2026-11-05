@@ -16,7 +16,7 @@ describe("the built bin: help and version (R-AX-11)", () => {
   });
 
   it("prints the help envelope with --json", async () => {
-    const result = await runBin(["help", "simulate", "--json"]);
+    const result = await runBin(["help", "status", "--json"]);
     assert.equal(result.code, 0);
     assert.deepEqual(helpProblems(oneEnvelope(result.stdout)), []);
   });

@@ -10,10 +10,10 @@ import type { VerifyResult } from "explorer-verify";
 
 import type { Command, RunCommand } from "../../src/command.ts";
 import { main, pendingHandles } from "../../src/main.ts";
-import { POLL_MS } from "../../src/simulate.ts";
 import { fakeIo, jsonLines } from "../helpers/fake-io.ts";
 import type { FakeIoOptions } from "../helpers/fake-io.ts";
 import { envelopeProblems, oneEnvelope } from "../helpers/schema.ts";
+import { POLL_MS, WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const DUMMY_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
 const HANDLE = formatHandle({
@@ -26,7 +26,7 @@ const HANDLE = formatHandle({
 
 async function run(argv: readonly string[], options: FakeIoOptions = {}) {
   const fake = fakeIo(argv, options);
-  const code = await main(fake.io);
+  const code = await main(fake.io, WITH_SCRIPTED);
   return { code, stdout: fake.stdout(), stderr: fake.stderr() };
 }
 
@@ -37,12 +37,12 @@ async function settle(): Promise<void> {
   });
 }
 
-/** Runs `simulate` with mock timers, ticking one poll at a time until it ends. */
+/** Runs `scripted` with mock timers, ticking one poll at a time until it ends. */
 async function runWithPolls(t: TestContext, argv: readonly string[]) {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const fake = fakeIo(argv);
   const state: { code?: number } = {};
-  const done = main(fake.io).then((value) => {
+  const done = main(fake.io, WITH_SCRIPTED).then((value) => {
     state.code = value;
     return value;
   });
@@ -82,8 +82,8 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
     { argv: ["--outcome", "nope"], code: 2, ok: false, field: "error" },
   ];
   for (const { argv, code, ok, field } of cases) {
-    it(`exits ${String(code)} for simulate ${argv.join(" ") || "(verified)"}`, async () => {
-      const result = await run(["simulate", "--json", ...argv]);
+    it(`exits ${String(code)} for scripted ${argv.join(" ") || "(verified)"}`, async () => {
+      const result = await run(["scripted", "--json", ...argv]);
       assert.equal(result.code, code);
       const envelope = oneEnvelope(result.stdout);
       assert.deepEqual(envelopeProblems(envelope), []);
@@ -94,7 +94,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
   }
 
   it("prints an invalid-input envelope for a usage error, with exit code 2", async () => {
-    const result = await run(["--json", "--color=pink", "--nope", "simulate", "extra"]);
+    const result = await run(["--json", "--color=pink", "--nope", "scripted", "extra"]);
     assert.equal(result.code, 2);
     const envelope = oneEnvelope(result.stdout);
     assert.deepEqual(envelopeProblems(envelope), []);
@@ -103,7 +103,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
     assert.equal(Reflect.get(error, "code"), "invalid-input");
     assert.equal(
       Reflect.get(error, "message"),
-      "The command line is invalid: argument 3 is not an option; --color must be one of auto, always, never; simulate takes no arguments.",
+      "The command line is invalid: argument 3 is not an option; --color must be one of auto, always, never; scripted takes no arguments.",
     );
     assert.equal(
       Reflect.get(error, "hint"),
@@ -112,7 +112,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
   });
 
   it("refuses --quiet with --verbose with exit code 2 (R-AX-15)", async () => {
-    const result = await run(["simulate", "--json", "-q", "--verbose"]);
+    const result = await run(["scripted", "--json", "-q", "--verbose"]);
     assert.equal(result.code, 2);
     assert.match(result.stdout, /--quiet cannot be combined with --verbose/);
   });
@@ -127,14 +127,14 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
   });
 
   it("counts the polls before the outcome", async (t) => {
-    const result = await runWithPolls(t, ["simulate", "--json", "--polls", "3", "--verbose"]);
+    const result = await runWithPolls(t, ["scripted", "--json", "--polls", "3", "--verbose"]);
     assert.equal(result.code, 0);
     assert.equal((result.stderr.match(/debug: Poll \d on sourcify: pending\./g) ?? []).length, 3);
   });
 
   it("refuses --polls and --retries outside 0 to 1000", async () => {
     for (const value of ["-1", "1001", "1.5", "x", "99999"]) {
-      const result = await run(["simulate", "--json", `--polls=${value}`, "--retries", "2000"]);
+      const result = await run(["scripted", "--json", `--polls=${value}`, "--retries", "2000"]);
       assert.equal(result.code, 2, value);
       assert.match(
         result.stdout,
@@ -146,22 +146,22 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
 
 describe("main: stdout (R-AX-6, R-AX-12)", () => {
   it("prints a short summary without --json, and the error only on stderr", async () => {
-    const verified = await run(["simulate"]);
+    const verified = await run(["scripted"]);
     assert.equal(
       verified.stdout,
       "verified: exact match on sourcify\nhttps://repo.sourcify.dev/11155111/0x5fbdb2315678afecb367f032d93f642f64180aa3\n",
     );
-    const failed = await run(["simulate", "--outcome", "network"]);
+    const failed = await run(["scripted", "--outcome", "network"]);
     assert.equal(failed.code, 5);
     assert.equal(failed.stdout, "");
     assert.match(
       failed.stderr,
-      /^error: The simulated explorer could not be reached\. \(network\)$/m,
+      /^error: The scripted explorer could not be reached\. \(network\)$/m,
     );
   });
 
   it("gives byte-identical stdout for the same input", async () => {
-    for (const argv of [["simulate", "--json"], ["simulate"], ["simulate", "--json", "--bad"]]) {
+    for (const argv of [["scripted", "--json"], ["scripted"], ["scripted", "--json", "--bad"]]) {
       const first = await run(argv);
       const second = await run(argv);
       assert.equal(first.stdout, second.stdout, argv.join(" "));
@@ -169,13 +169,13 @@ describe("main: stdout (R-AX-6, R-AX-12)", () => {
   });
 
   it("gives the same stdout at every log level (R-AX-15)", async () => {
-    const base = await run(["simulate", "--json", "--outcome", "not-confirmed"]);
+    const base = await run(["scripted", "--json", "--outcome", "not-confirmed"]);
     for (const extra of [["-q"], ["--verbose"], ["--log-format", "json"]]) {
-      const other = await run(["simulate", "--json", "--outcome", "not-confirmed", ...extra]);
+      const other = await run(["scripted", "--json", "--outcome", "not-confirmed", ...extra]);
       assert.equal(other.stdout, base.stdout, extra.join(" "));
     }
     for (const level of ["debug", "warn", "error", "off"]) {
-      const other = await run(["simulate", "--json", "--outcome", "not-confirmed"], {
+      const other = await run(["scripted", "--json", "--outcome", "not-confirmed"], {
         env: { EXPLORER_VERIFY_LOG: level },
       });
       assert.equal(other.stdout, base.stdout, level);
@@ -183,13 +183,13 @@ describe("main: stdout (R-AX-6, R-AX-12)", () => {
   });
 
   it("colours stdout and stderr per stream (R-AX-6)", async () => {
-    const terminal = await run(["simulate", "--retries", "1"], {
+    const terminal = await run(["scripted", "--retries", "1"], {
       stdoutIsTerminal: true,
       stderrIsTerminal: false,
     });
     assert.ok(terminal.stdout.includes("\u001B[32mverified"));
     assert.ok(!terminal.stderr.includes("\u001B"));
-    const forced = await run(["simulate", "--retries", "1", "--color=always"], {
+    const forced = await run(["scripted", "--retries", "1", "--color=always"], {
       env: { NO_COLOR: "1" },
     });
     assert.ok(forced.stdout.includes("\u001B[32mverified"));
@@ -199,7 +199,7 @@ describe("main: stdout (R-AX-6, R-AX-12)", () => {
 
 describe("main: stderr (R-AX-14, R-AX-15)", () => {
   it("writes JSON lines that parse, with the reserved names nested", async () => {
-    const result = await run(["simulate", "--verbose", "--log-format", "json"]);
+    const result = await run(["scripted", "--verbose", "--log-format", "json"]);
     const lines = jsonLines(result.stderr);
     assert.equal(lines.length, result.stderr.split("\n").length - 1);
     for (const line of lines) {
@@ -211,26 +211,26 @@ describe("main: stderr (R-AX-14, R-AX-15)", () => {
       ]);
     }
     const [first] = lines;
-    assert.deepEqual(first?.["fields"], { type: "simulate", fields: "simulate" });
+    assert.deepEqual(first?.["fields"], { type: "scripted", fields: "scripted" });
   });
 
   it("warns once about an invalid EXPLORER_VERIFY_LOG, naming the variable and never the value", async () => {
     const value = "LOUD-VALUE-123";
-    const result = await run(["simulate"], { env: { EXPLORER_VERIFY_LOG: value } });
+    const result = await run(["scripted"], { env: { EXPLORER_VERIFY_LOG: value } });
     assert.equal(
       result.stderr.split("\n")[0],
       "warning: EXPLORER_VERIFY_LOG is not one of debug, info, warn, error, off, so it is ignored.",
     );
     assert.ok(!result.stderr.includes(value));
-    const verbose = await run(["simulate", "--verbose"], { env: { EXPLORER_VERIFY_LOG: value } });
+    const verbose = await run(["scripted", "--verbose"], { env: { EXPLORER_VERIFY_LOG: value } });
     assert.match(verbose.stderr, /^warning: EXPLORER_VERIFY_LOG/);
-    const quiet = await run(["simulate", "-q"], { env: { EXPLORER_VERIFY_LOG: value } });
+    const quiet = await run(["scripted", "-q"], { env: { EXPLORER_VERIFY_LOG: value } });
     assert.equal(quiet.stderr, "");
   });
 
   it("logs the redacted stack of an unexpected error at debug", async () => {
     const result = await run([
-      "simulate",
+      "scripted",
       "--verbose",
       "--outcome",
       "internal-error",
@@ -245,7 +245,7 @@ describe("main: stderr (R-AX-14, R-AX-15)", () => {
 describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
   it("redacts a key from the message of an unexpected exception", async () => {
     const result = await run([
-      "simulate",
+      "scripted",
       "--json",
       "--outcome",
       "internal-error",
@@ -322,7 +322,7 @@ describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
   });
 
   it("returns 6 without throwing when even stdout fails", async () => {
-    const fake = fakeIo(["simulate", "--json"]);
+    const fake = fakeIo(["scripted", "--json"]);
     const io = {
       ...fake.io,
       stdout: {
@@ -331,7 +331,7 @@ describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
         },
       },
     };
-    assert.equal(await main(io), 6);
+    assert.equal(await main(io, WITH_SCRIPTED), 6);
   });
 
   it("keeps an ExplorerVerifyError a command throws", async () => {
@@ -413,10 +413,10 @@ describe("main: signals (R-AX-7)", () => {
     assert.equal(await done, 130);
   });
 
-  it("cancels simulate --outcome pending during a poll", async (t) => {
+  it("cancels scripted --outcome pending during a poll", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
-    const fake = fakeIo(["simulate", "--json", "--outcome", "pending"]);
-    const done = main(fake.io);
+    const fake = fakeIo(["scripted", "--json", "--outcome", "pending"]);
+    const done = main(fake.io, WITH_SCRIPTED);
     for (let step = 0; step < 3; step++) {
       await settle();
       t.mock.timers.tick(POLL_MS);

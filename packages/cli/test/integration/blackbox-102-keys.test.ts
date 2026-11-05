@@ -39,16 +39,39 @@ function assertNoKey(result: BinResult, label: string, keys: readonly string[] =
   }
 }
 
-async function runFile(path: string, extra: readonly string[] = []): Promise<BinResult> {
-  return await runBin([
-    "simulate",
-    "--json",
-    "--backend",
-    "etherscan-v2",
-    "--api-key-file",
-    path,
-    ...extra,
-  ]);
+/** A status run on an Etherscan handle: with the key set, the fake Etherscan answers verified. */
+const STATUS = [
+  "status",
+  "ev1:etherscan-v2:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn",
+];
+/** An Etherscan-style handle of `backend` for the Greeter. */
+function handle(backend: string): string {
+  return `ev1:${backend}:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn`;
+}
+/** A status run on a Sourcify handle, which needs no key. */
+const SOURCIFY_STATUS = [
+  "status",
+  "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+];
+
+/**
+ * Runs the bin against the fake explorer, so no request leaves the machine. `bug` makes the
+ * command throw an Error with that message once it has read its keys: an internal error.
+ */
+async function bin(
+  args: readonly string[],
+  options: BinOptions = {},
+  bug?: string,
+): Promise<BinResult> {
+  return await runBin(args, { ...options, fake: bug === undefined ? {} : { bug } });
+}
+
+async function runFile(path: string, bug?: string): Promise<BinResult> {
+  return await bin(
+    [...STATUS, "--json", "--backend", "etherscan-v2", "--api-key-file", path],
+    {},
+    bug,
+  );
 }
 
 /** Where a key comes from: extra arguments and the spawn options. */
@@ -110,11 +133,15 @@ const SOME_MODES: readonly (readonly string[])[] = [
 ];
 
 // The internal error echoes the key in upper case, so the scrub must ignore letter case.
-const LEAK = ["--outcome", "internal-error", "--message", `boom ${KEY.toUpperCase()} boom`];
-const OUTCOMES: readonly { args: readonly string[]; code: number }[] = [
+const LEAK = `boom ${KEY.toUpperCase()} boom`;
+const OUTCOMES: readonly { args: readonly string[]; bug?: string; code: number }[] = [
   { args: [], code: 0 },
-  { args: ["--outcome", "missing-api-key"], code: 3 },
-  { args: LEAK, code: 6 },
+  // ETHERSCAN_API_KEY goes only to the routing table's host, so with --api-url it is not used.
+  {
+    args: ["--backend", "etherscan-v2", "--api-url", "https://api.etherscan.io/v2/api"],
+    code: 3,
+  },
+  { args: [], bug: LEAK, code: 6 },
 ];
 
 describe("blackbox #102: each key source never reaches stdout or stderr", CONCURRENT, () => {
@@ -122,8 +149,7 @@ describe("blackbox #102: each key source never reaches stdout or stderr", CONCUR
     it(`${source.name}: an internal error that echoes the key`, TIMEOUT, async () => {
       const results = await Promise.all(
         SOME_MODES.map(
-          async (mode) =>
-            await runBin(["simulate", ...mode, ...source.args, ...LEAK], source.options),
+          async (mode) => await bin([...STATUS, ...mode, ...source.args], source.options, LEAK),
         ),
       );
       for (const [index, result] of results.entries()) {
@@ -140,31 +166,37 @@ describe("blackbox #102: each key source never reaches stdout or stderr", CONCUR
     const results = await Promise.all(
       runs.map(
         async ({ mode, outcome }) =>
-          await runBin(["simulate", ...mode, ...outcome.args], {
-            env: { ETHERSCAN_API_KEY: KEY },
-          }),
+          await bin(
+            [...STATUS, ...mode, ...outcome.args],
+            { env: { ETHERSCAN_API_KEY: KEY } },
+            outcome.bug,
+          ),
       ),
     );
     for (const [index, result] of results.entries()) {
       const run = runs[index];
       assert.ok(run !== undefined);
-      const label = [...run.mode, ...run.outcome.args].join(" ");
+      const label = [...run.mode, ...run.outcome.args, `exit ${String(run.outcome.code)}`].join(
+        " ",
+      );
       assert.equal(result.code, run.outcome.code, `${label}: ${result.stderr}`);
       assertNoKey(result, label);
     }
   });
 
   it("redacts both variables at once", TIMEOUT, async () => {
-    const result = await runBin(
-      ["simulate", "--json", "--outcome", "internal-error", "--message", `${KEY} ${KEY2}`],
+    const result = await bin(
+      [...STATUS, "--json"],
       { env: { ETHERSCAN_API_KEY: KEY, ROUTESCAN_API_KEY: KEY2 } },
+      `${KEY} ${KEY2}`,
     );
     assert.equal(result.code, 6);
     assertNoKey(result, "two keys", [KEY, KEY2]);
   });
 
   it("treats an empty variable as unset", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--json"], {
+    // With no key, chain 11155111 routes to Sourcify, so the Sourcify handle is polled.
+    const result = await bin([...SOURCIFY_STATUS, "--json"], {
       env: { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" },
     });
     assert.equal(result.code, 0, result.stderr);
@@ -181,7 +213,7 @@ describe("blackbox #102: a bad key in a variable is a usage error naming it", ()
     const results = await Promise.all(
       runs.map(
         async ({ value, name }) =>
-          await runBin(["simulate", "--json", "--backend", "sourcify"], {
+          await bin([...SOURCIFY_STATUS, "--json", "--backend", "sourcify"], {
             env: { [name]: value },
           }),
       ),
@@ -212,10 +244,10 @@ describe("blackbox #102: key flags are refused, the value never echoed", () => {
   ];
   it("exits 2 in both argument orders, with the hint", TIMEOUT, async () => {
     const runs = forms.flatMap((form) => [
-      ["simulate", "--json", ...form],
-      [...form, "simulate", "--verbose"],
+      [...STATUS, "--json", ...form],
+      [...form, ...STATUS, "--verbose"],
     ]);
-    const results = await Promise.all(runs.map(async (args) => await runBin(args)));
+    const results = await Promise.all(runs.map(async (args) => await bin(args)));
     for (const [index, result] of results.entries()) {
       const label = (runs[index] ?? []).join(" ").replace(KEY, "<KEY>");
       assert.equal(result.code, 2, `${label}: ${result.stderr}`);
@@ -228,7 +260,7 @@ describe("blackbox #102: key flags are refused, the value never echoed", () => {
   });
 
   it("does not echo the value with a valid key also set", TIMEOUT, async () => {
-    const result = await runBin(["simulate", "--json", "--api-key", KEY2], {
+    const result = await bin([...STATUS, "--json", "--api-key", KEY2], {
       env: { ETHERSCAN_API_KEY: KEY },
     });
     assert.equal(result.code, 2);
@@ -281,12 +313,7 @@ describe("blackbox #102: --api-key-file edge cases", CONCURRENT, () => {
   });
 
   it("a trailing CRLF is removed, and the key is redacted", TIMEOUT, async () => {
-    const result = await runFile(file("crlf.txt", `${KEY}\r\n`), [
-      "--outcome",
-      "internal-error",
-      "--message",
-      `x ${KEY} y`,
-    ]);
+    const result = await runFile(file("crlf.txt", `${KEY}\r\n`), `x ${KEY} y`);
     assert.equal(result.code, 6, result.stderr);
     assert.match(result.stdout, /\[redacted\]/);
     assertNoKey(result, "crlf");
@@ -321,9 +348,7 @@ describe("blackbox #102: --api-key-file edge cases", CONCURRENT, () => {
       ["--backend", "blockscout", "--api-url", API_URL],
     ];
     const results = await Promise.all(
-      cases.map(
-        async (args) => await runBin(["simulate", "--json", ...args, "--api-key-file", key]),
-      ),
+      cases.map(async (args) => await bin([...STATUS, "--json", ...args, "--api-key-file", key])),
     );
     for (const [index, result] of results.entries()) {
       const label = (cases[index] ?? []).join(" ");
@@ -343,7 +368,7 @@ describe("blackbox #102: --api-key-stdin", CONCURRENT, () => {
     const results = await Promise.all(
       orders.map(
         async (args) =>
-          await runBin(["simulate", "--json", "--backend", "etherscan-v2", ...args], {
+          await bin([...STATUS, "--json", "--backend", "etherscan-v2", ...args], {
             stdin: { text: `${KEY}\n` },
           }),
       ),
@@ -358,8 +383,8 @@ describe("blackbox #102: --api-key-stdin", CONCURRENT, () => {
     "with stdin a terminal exits 2 without waiting",
     { ...TIMEOUT, skip: hasPty() ? false : "needs python3 with its pty module" },
     async () => {
-      const result = await runBin(
-        ["simulate", "--json", "--backend", "etherscan-v2", "--api-key-stdin"],
+      const result = await bin(
+        [...STATUS, "--json", "--backend", "etherscan-v2", "--api-key-stdin"],
         { stdinTerminal: true },
       );
       assert.equal(result.code, 2);
@@ -368,12 +393,12 @@ describe("blackbox #102: --api-key-stdin", CONCURRENT, () => {
 
   it("exits 2 when empty, combined with --api-key-file, unnamed or bad", TIMEOUT, async () => {
     const results = await Promise.all([
-      runBin(["simulate", "--json", "--backend", "etherscan-v2", "--api-key-stdin"], {
+      bin([...STATUS, "--json", "--backend", "etherscan-v2", "--api-key-stdin"], {
         stdin: "ended",
       }),
-      runBin(
+      bin(
         [
-          "simulate",
+          ...STATUS,
           "--json",
           "--backend",
           "etherscan-v2",
@@ -383,8 +408,8 @@ describe("blackbox #102: --api-key-stdin", CONCURRENT, () => {
         ],
         { stdin: { text: KEY } },
       ),
-      runBin(["simulate", "--json", "--api-key-stdin"], { stdin: { text: KEY } }),
-      runBin(["simulate", "--json", "--verbose", "--backend", "etherscan-v2", "--api-key-stdin"], {
+      bin([...STATUS, "--json", "--api-key-stdin"], { stdin: { text: KEY } }),
+      bin([...STATUS, "--json", "--verbose", "--backend", "etherscan-v2", "--api-key-stdin"], {
         stdin: { text: `${KEY}<x>\n` },
       }),
     ]);
@@ -423,18 +448,29 @@ describe("blackbox #102: a key with --api-url goes only to that host (R-SEC-2)",
     server.close();
   });
 
-  it("neither a variable nor a key file reaches stdout, stderr or the host", TIMEOUT, async () => {
+  // These runs load no fake explorer: the bin's own fetch talks to the local server above.
+  it("a variable is never sent to --api-url, and a key file goes only there", TIMEOUT, async () => {
     const results = await Promise.all([
       ...["etherscan-v2", "etherscan-compatible"].map(
         async (backend) =>
           await runBin(
-            ["simulate", "--json", "--verbose", "--backend", backend, "--api-url", `${base}/api`],
+            [
+              "status",
+              handle(backend),
+              "--json",
+              "--verbose",
+              "--backend",
+              backend,
+              "--api-url",
+              `${base}/api`,
+            ],
             { env: { ETHERSCAN_API_KEY: KEY } },
           ),
       ),
       runBin(
         [
-          "simulate",
+          "status",
+          handle("etherscan-compatible"),
           "--json",
           "--verbose",
           "--backend",
@@ -442,15 +478,27 @@ describe("blackbox #102: a key with --api-url goes only to that host (R-SEC-2)",
           "--api-url",
           `${base}/api`,
           "--api-key-file",
-          file("k3.txt", KEY),
+          file("k3.txt", KEY2),
         ],
-        { env: { ETHERSCAN_API_KEY: KEY2 } },
+        { env: { ETHERSCAN_API_KEY: KEY } },
       ),
     ]);
+    // The variable's key is sent nowhere: etherscan-v2 needs a key, so it exits 3 before any
+    // request, and etherscan-compatible polls the host without one.
+    const [v2] = results;
+    assert.equal(v2?.code, 3, v2?.stdout);
+    assert.match(v2?.stdout ?? "", /"code":"missing-api-key"/);
+    // The server echoes every request back, the key file's key included; the CLI removes it.
     for (const result of results) {
       assertNoKey(result, "api-url", [KEY, KEY2]);
     }
-    // cli.md: simulate "sends nothing".
-    assert.deepEqual(seen, []);
+    assert.ok(
+      seen.every((line) => !line.includes(KEY)),
+      "the variable's key reached the host",
+    );
+    assert.ok(
+      seen.some((line) => line.includes(KEY2)),
+      "the key file's key never reached the host",
+    );
   });
 });

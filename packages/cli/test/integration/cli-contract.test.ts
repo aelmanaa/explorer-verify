@@ -146,6 +146,8 @@ interface Case {
   readonly env?: Record<string, string>;
   /** Sends SIGINT once stderr matches it: the run is then cancelled. */
   readonly cancelAfter?: RegExp;
+  /** Makes the command throw a plain Error with this message (the test preload only). */
+  readonly bug?: string;
   /** Whether `error.handle` is set (`true`) or absent (`false`); unchecked when undefined. */
   readonly handle?: boolean;
   /** The expected `error.retryable`; unchecked when undefined. */
@@ -193,6 +195,19 @@ const NO_ROUTESCAN = {
     "the routing table lists no Routescan route, so the CLI reads the key and sends it nowhere",
 };
 
+/**
+ * An exception the CLI does not expect: the test preload makes the command throw a plain Error
+ * once it has read its keys (FAKE_CLI_BUG). The CLI ships no test-only command, so this is how the
+ * built bin reaches `internal-error` (#137).
+ */
+const INTERNAL_ERROR = {
+  kind: "internal-error",
+  bug: "a bug in the command",
+  handle: false,
+  retryable: false,
+  noRequests: true,
+} as const;
+
 const CONTRACTS: Readonly<Record<string, Contract>> = {
   verify: {
     cases: [
@@ -236,6 +251,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
       },
       { kind: "network", args: VERIFY, scenario: "offline", handle: false, twice: true },
       { kind: "unknown-state", args: VERIFY, scenario: "unclassified", handle: true },
+      { ...INTERNAL_ERROR, args: VERIFY },
       {
         kind: "cancelled",
         args: VERIFY,
@@ -299,6 +315,7 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         scenario: "unclassified",
         handle: true,
       },
+      { ...INTERNAL_ERROR, args: ["status", SOURCIFY_HANDLE] },
       {
         kind: "cancelled",
         args: ["status", SOURCIFY_HANDLE, "--verbose"],
@@ -314,58 +331,6 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         args: ["status", ETHERSCAN_HANDLE, ...ETHERSCAN, "--api-key-file", KEY_FILE],
         secrets: [KEY],
         used: "key",
-      },
-    ],
-  },
-  // A placeholder for tests that a later release removes; its row goes with it. It sends nothing,
-  // so its keys are read and never sent.
-  simulate: {
-    cases: [
-      { kind: "verified", args: ["simulate", "--polls", "1"], twice: true },
-      { kind: "already-verified", args: ["simulate", "--outcome", "already-verified"] },
-      { kind: "failed", args: ["simulate", "--outcome", "failed"], twice: true },
-      { kind: "invalid-input", args: ["simulate", "--outcome", "nope"], twice: true },
-      { kind: "missing-api-key", args: ["simulate", "--outcome", "missing-api-key"] },
-      {
-        kind: "not-confirmed",
-        args: ["simulate", "--outcome", "not-confirmed"],
-        handle: true,
-        twice: true,
-      },
-      {
-        kind: "network",
-        args: ["simulate", "--outcome", "network", "--retries", "1"],
-        handle: false,
-        twice: true,
-      },
-      { kind: "unknown-state", args: ["simulate", "--outcome", "unknown-state"], handle: true },
-      {
-        kind: "internal-error",
-        args: ["simulate", "--outcome", "internal-error"],
-        handle: false,
-        retryable: false,
-      },
-      {
-        kind: "cancelled",
-        args: ["simulate", "--outcome", "pending"],
-        cancelAfter: /Handle:/,
-        handle: true,
-      },
-    ],
-    secretRuns: [
-      {
-        ...variableRun("ETHERSCAN_API_KEY", ["simulate"]),
-        used: { unsent: "simulate sends nothing" },
-      },
-      {
-        ...variableRun("ROUTESCAN_API_KEY", ["simulate"]),
-        used: { unsent: "simulate sends nothing" },
-      },
-      {
-        source: "--api-key-file",
-        args: ["simulate", ...ETHERSCAN, "--api-key-file", KEY_FILE],
-        secrets: [KEY],
-        used: { unsent: "simulate sends nothing" },
       },
     ],
   },
@@ -427,7 +392,12 @@ interface Run extends BinResult {
 /** Runs the bin in the Foundry project against the fake explorer, with a hang timeout. */
 async function run(
   args: readonly string[],
-  options: { scenario?: Scenario; env?: Record<string, string>; cancelAfter?: RegExp } = {},
+  options: {
+    scenario?: Scenario;
+    env?: Record<string, string>;
+    cancelAfter?: RegExp;
+    bug?: string;
+  } = {},
 ): Promise<Run> {
   runs += 1;
   const log = join(DIR, `requests-${String(runs)}.jsonl`);
@@ -435,7 +405,11 @@ async function run(
   let sent = false;
   const binOptions: BinOptions = {
     cwd: PROJECT,
-    fake: { scenario: options.scenario ?? "verified", log },
+    fake: {
+      scenario: options.scenario ?? "verified",
+      log,
+      ...(options.bug === undefined ? {} : { bug: options.bug }),
+    },
     timeoutMs: HANG_MS,
     ...(options.env === undefined ? {} : { env: options.env }),
     ...(cancelAfter === undefined
@@ -496,7 +470,7 @@ function nameOf(args: readonly string[]): string {
 // ---------------------------------------------------------------------------------------------
 
 describe("CLI contract: the table covers every command and every kind", () => {
-  it("has one row per command of the command table, hidden ones included", () => {
+  it("has one row per command of the command table", () => {
     assert.deepEqual(
       Object.keys(CONTRACTS).toSorted(),
       COMMANDS.map((command) => command.name).toSorted(),

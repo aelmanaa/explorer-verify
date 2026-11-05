@@ -10,12 +10,13 @@ import type { Command, RunCommand } from "../../src/command.ts";
 import { main, tidyStack } from "../../src/main.ts";
 import { fakeIo } from "../helpers/fake-io.ts";
 import { envelopeProblems, oneEnvelope } from "../helpers/schema.ts";
+import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const DUMMY_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678";
 
 async function run(argv: readonly string[]) {
   const fake = fakeIo(argv);
-  const code = await main(fake.io);
+  const code = await main(fake.io, WITH_SCRIPTED);
   return { code, stdout: fake.stdout(), stderr: fake.stderr() };
 }
 
@@ -38,7 +39,7 @@ describe("main: internal-error redaction (R-SEC-1)", () => {
     // The cut applies to "Error: <message>"; the key starts 10 characters before it.
     const padding = `${"x".repeat(500 - "Error: ".length - 11)} `;
     const result = await run([
-      "simulate",
+      "scripted",
       "--json",
       "--outcome",
       "internal-error",
@@ -102,7 +103,7 @@ describe("main: signals outside the command (R-AX-7)", () => {
   });
 
   it("ignores a signal once the outcome is fixed, so the envelope is written in full", async () => {
-    const fake = fakeIo(["simulate", "--json"]);
+    const fake = fakeIo(["scripted", "--json"]);
     let out = "";
     const io = {
       ...fake.io,
@@ -113,7 +114,7 @@ describe("main: signals outside the command (R-AX-7)", () => {
         },
       },
     };
-    assert.equal(await main(io), 0);
+    assert.equal(await main(io, WITH_SCRIPTED), 0);
     assert.equal(oneEnvelope(out)["ok"], true);
   });
 });
@@ -121,8 +122,8 @@ describe("main: signals outside the command (R-AX-7)", () => {
 describe("main: a stderr that throws", () => {
   it("keeps the envelope and the exit code", async () => {
     for (const [argv, expected] of [
-      [["simulate", "--json", "--verbose"], 0],
-      [["simulate", "--json", "--outcome", "network"], 5],
+      [["scripted", "--json", "--verbose"], 0],
+      [["scripted", "--json", "--outcome", "network"], 5],
     ] as const) {
       const fake = fakeIo(argv);
       const io = {
@@ -133,7 +134,7 @@ describe("main: a stderr that throws", () => {
           },
         },
       };
-      assert.equal(await main(io), expected, argv.join(" "));
+      assert.equal(await main(io, WITH_SCRIPTED), expected, argv.join(" "));
       assert.deepEqual(envelopeProblems(oneEnvelope(fake.stdout())), []);
     }
   });
@@ -142,13 +143,13 @@ describe("main: a stderr that throws", () => {
 describe("main: usage-error wording", () => {
   it("lists at most 20 issues and counts the rest", async () => {
     const extra = Array.from({ length: 25 }, (_, index) => `--x${String(index)}`);
-    const result = await run(["simulate", "--json", ...extra]);
+    const result = await run(["scripted", "--json", ...extra]);
     assert.equal(result.code, 2);
     assert.match(result.stdout, /argument 22 is not an option; and 5 more\./);
   });
 
   it("refuses a negative --polls with the range", async () => {
-    const result = await run(["simulate", "--json", "--polls", "-1"]);
+    const result = await run(["scripted", "--json", "--polls", "-1"]);
     assert.equal(result.code, 2);
     assert.match(result.stdout, /--polls must be a whole number from 0 to 1000/);
   });
