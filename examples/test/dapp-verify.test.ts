@@ -2,16 +2,15 @@
 // recorded Sourcify and Etherscan answers for the Sepolia Greeter: the input loads from the
 // page's own files, Sourcify verifies with no key and the handle is kept for a reload, the resume
 // step polls without submitting, and Etherscan is reached only through the dapp's server, which
-// adds the key (R-FLOW-5, R-SEC-1).
+// adds the key (R-FLOW-5, R-SEC-1). The same step over real HTTP is in dapp-verify-http.test.ts.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
-import { ExplorerVerifyError, validateInput } from "explorer-verify";
+import { ExplorerVerifyError } from "explorer-verify";
 import type { VerifyInput } from "explorer-verify";
 
-import { createDappServer, dappRoutes } from "../dapp/server.ts";
+import { dappRoutes } from "../dapp/server.ts";
 import { loadVerifyInput } from "../dapp/src/load-input.ts";
 import { resumeVerification } from "../dapp/src/resume.ts";
 import { verifyOnEtherscan, viaHandler } from "../dapp/src/verify-etherscan.ts";
@@ -29,9 +28,6 @@ import type { SourcifyAnswer } from "./dapp-browser.ts";
 import { answer, ETHERSCAN_API_URL, KEY, recorded } from "./network.ts";
 
 const DEPLOYMENT = { chainId: 11155111, address: ADDRESS, creationTxHash: TX_HASH };
-/** Node's own fetch, taken before any test replaces the global. */
-const NODE_FETCH = globalThis.fetch;
-const VERIFY_FILE = new URL("../dapp/public/contracts/Greeter.verify.json", import.meta.url);
 const JOB = "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const EXPLORER_URL = `https://repo.sourcify.dev/11155111/${ADDRESS.toLowerCase()}`;
 
@@ -300,36 +296,6 @@ describe("examples/dapp/src/verify-etherscan.ts", () => {
     assert.ok(sent.includes(new URLSearchParams({ apikey: KEY }).toString()));
     assert.deepEqual(network.sourcify, []);
   });
-
-  it(
-    // A real fetch gives the handler's answer the dapp's URL; verify() reads it since #183.
-    "verifies through the dapp's server over HTTP, as a browser does (#183)",
-    async (t) => {
-      const getsourcecode = recorded("2026-11-04-getsourcecode-sepolia-greeter");
-      const server = createDappServer({
-        apiKey: KEY,
-        fetch: async () => answer(getsourcecode.body),
-      });
-      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-      t.after(() => server.close());
-      const address = server.address();
-      const origin =
-        typeof address === "object" && address !== null
-          ? `http://127.0.0.1:${String(address.port)}`
-          : "";
-      setGlobal(t, "fetch", async (target: RequestInfo | URL, init?: RequestInit) => {
-        const url = urlOf(target);
-        return await NODE_FETCH(url.startsWith("/") ? `${origin}${url}` : url, init);
-      });
-      const loaded = validateInput({
-        ...Object(JSON.parse(readFileSync(VERIFY_FILE, "utf8"))),
-        ...DEPLOYMENT,
-      });
-      // Real timers: the requests go over loopback, and a mock clock would race them.
-      const result = await verifyOnEtherscan(loaded);
-      assert.equal(result.status, "already-verified");
-    },
-  );
 
   it("sends a Request for Etherscan to the server, and any other request as it is", async (t) => {
     const seen: string[] = [];
