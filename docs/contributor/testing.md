@@ -40,6 +40,7 @@ run time, so c8 would report them at 0%.
 | Integration      | `packages/cli/test/integration/` (CLI); `packages/explorer-verify/test/unit/server-handler*.test.ts` (handler) | The server handler and the CLI end to end against a local fake explorer. The CLI tests spawn the built bin with stdout piped and stdin closed         | CLI contract harness in place (#7); handler done |
 | Mutation         | `packages/explorer-verify/stryker.config.json`, `mutation-floors.json`, `.github/workflows/mutation.yml`       | The unit tests fail when the result mapping, the HTTP retry rules or the key redaction is changed (R-FLOW-4, R-FLOW-6, R-SEC-1)                       | In place                                         |
 | Live             | `scripts/live-matrix.ts`, maintainer only; [2026-11-04 run](research/2026-11-04-live-matrix.md)                | Real verification on public testnets per backend, with dated results (R-QA-2)                                                                         | In place                                         |
+| Live check       | `scripts/live-check.ts`, `test/live/targets.json`, `.github/workflows/live.yml` weekly                         | Lookups on every backend with a client, a Sourcify submit and the CORS header still give the recorded answers (R-QA-4)                                | In place                                         |
 | Docs check       | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                           | In place                                         |
 | Docs examples    | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                              | In place                                         |
 | Link check       | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in `docs/user/`, `llms.txt` and the built site; external links once a week                                                 | In place                                         |
@@ -196,6 +197,70 @@ that JSON:
 
 It finds the issue by a hidden marker at the start of the body, among the open issues the
 workflow's token opened. A pull request applies the change to the table; the workflow never does.
+
+## Live check
+
+Unit tests replay recorded answers, so they cannot see an explorer change its API, a status
+string, a host or a CORS header. `.github/workflows/live.yml` asks the real explorers once a week
+(R-QA-4). `scripts/live-check.ts` reads `test/live/targets.json`: contracts the live matrix of
+2026-11-04 ([#66](https://github.com/aelmanaa/explorer-verify/issues/66)) deployed and verified on
+Sepolia, Arbitrum Sepolia and Avalanche Fuji. For each target it:
+
+- looks the contract up and expects the recorded match;
+- looks up an address with no code and expects "not verified";
+- with `cors`, checks that the lookup's GET answered `access-control-allow-origin: *`; Sourcify,
+  Routescan and Blockscout have one such target each;
+- with `submitInput`, submits the recorded source, `test/live/sourcify-sepolia-input.json`, to
+  Sourcify and expects `already-verified`. This is the only submit; nothing new is verified.
+
+The script runs the built core package, as the live matrix does. The lookups go through the
+public `dryRun()`. The submit calls the Sourcify client directly, because the public API always
+looks the contract up first and would never send it. Either way, every request goes through the
+library's HTTP layer and its retries. No target sets an API URL: each backend's URL comes from
+the routing table, so a changed host in the table also fails the check. Requests to one backend are spaced by the target file's
+`minIntervalMs`: 600 ms for Routescan's keyless tier (2 requests per second) and 400 ms for
+Etherscan.
+
+Who can run it and with what:
+
+- It starts on a schedule (Tuesdays, 05:41 UTC) and on a manual dispatch by a maintainer, never on
+  a pull request or a push, and only in `aelmanaa/explorer-verify`: a fork's copy does nothing.
+- The job runs in the `live` environment. Its secret `ETHERSCAN_API_KEY` is the only key; Sourcify,
+  Blockscout and Routescan are asked without one.
+- The script reads a key only from the variable a target names in `keyEnv`. Every error passes
+  through the library's redaction, and the script removes each key and the GitHub token from all
+  its output once more, the issue text included (R-SEC-1). `scripts/test/live-check.test.ts` runs
+  it against a local fake that echoes the key, and checks that no key reaches stdout, stderr, the
+  summary or the issue. The test key does not match the library's pattern for a bare Etherscan
+  key, so the test fails when the script's own redaction is removed.
+
+Before the first run, a maintainer sets up the repository:
+
+1. Create the `live` environment.
+2. Set its deployment branches to selected branches, `main` only. A required reviewer is
+   optional; with one, each weekly run waits for approval.
+3. Add the environment secret `ETHERSCAN_API_KEY`.
+4. Check that the label `status:needs-triage` exists.
+
+Where the results go:
+
+- The run prints a JSON result with its date and each check per backend. The workflow writes it
+  to the run summary as a table and keeps `live-check.json` as an artifact for 90 days.
+- When a check fails, the run fails and opens an issue titled "Live check failed", labelled
+  `status:needs-triage`, with the backend, the check and the redacted answer. A later failure
+  comments on the open issue instead of opening another. Only an open issue that
+  `github-actions[bot]` opened with that label and title counts. Each explorer answer sits in a
+  code span, so no mention, issue reference, HTML or comment in it renders.
+- The routing table's `checked` date is not changed by the workflow. A maintainer copies the date
+  of a passing run into `routing/table.json` in a pull request.
+
+Run it locally with `pnpm --filter explorer-verify run build`, then `node scripts/live-check.ts`. Without `ETHERSCAN_API_KEY`, pass
+`--backends sourcify,routescan,blockscout`. The first passing run was on 2026-11-05, from the
+maintainer's machine: 18 checks on `sourcify` (Sepolia, Arbitrum Sepolia), `etherscan-v2`
+(Sepolia, Arbitrum Sepolia), `routescan` (Avalanche Fuji, Sepolia) and `blockscout` (Sepolia)
+(R-QA-2). Blockscout runs on Sepolia only: on 2026-11-05 the Arbitrum Sepolia instance answered
+`curl` with a browser challenge (HTTP 403). `etherscan-compatible` has no target, because no public
+standalone explorer answers.
 
 ## Browser smoke test
 

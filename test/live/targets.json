@@ -1,0 +1,65 @@
+{
+  "source": "Contracts deployed and verified by the live matrix on 2026-11-04 (issue #66). Public addresses only.",
+  "noCodeAddress": "0x000000000000000000000000000000000066e604",
+  "minIntervalMs": {
+    "etherscan-v2": 400,
+    "routescan": 600
+  },
+  "targets": [
+    {
+      "label": "SrcSep1",
+      "backend": "sourcify",
+      "chainId": 11155111,
+      "address": "0x55863fd47cee89a0519985bb4ab3139de69853eb",
+      "match": "exact",
+      "cors": true,
+      "submitInput": "sourcify-sepolia-input.json"
+    },
+    {
+      "label": "SrcArb1",
+      "backend": "sourcify",
+      "chainId": 421614,
+      "address": "0x102dd176a390d718317e7ef90e0e28c8fe928d55",
+      "match": "exact"
+    },
+    {
+      "label": "EthSep1",
+      "backend": "etherscan-v2",
+      "chainId": 11155111,
+      "address": "0x07b6c96d6c0e1b1417b06972ab27b5f73f31789f",
+      "match": "exact",
+      "keyEnv": "ETHERSCAN_API_KEY"
+    },
+    {
+      "label": "EthArb1",
+      "backend": "etherscan-v2",
+      "chainId": 421614,
+      "address": "0x8af03aae77366e789075e6ad0829cfea8f36156c",
+      "match": "exact",
+      "keyEnv": "ETHERSCAN_API_KEY"
+    },
+    {
+      "label": "RsFuji1",
+      "backend": "routescan",
+      "chainId": 43113,
+      "address": "0xc4376f48419e244154d1dd117bffe2c3e177494c",
+      "match": "exact",
+      "cors": true
+    },
+    {
+      "label": "RsSep1",
+      "backend": "routescan",
+      "chainId": 11155111,
+      "address": "0x1484e53a8ec20f989aaa552380f4dbb94feaf0a5",
+      "match": "exact"
+    },
+    {
+      "label": "SrcSep1",
+      "backend": "blockscout",
+      "chainId": 11155111,
+      "address": "0x55863fd47cee89a0519985bb4ab3139de69853eb",
+      "match": "exact",
+      "cors": true
+    }
+  ]
+}
