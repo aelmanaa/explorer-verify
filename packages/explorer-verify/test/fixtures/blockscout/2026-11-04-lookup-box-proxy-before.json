@@ -1,0 +1,47 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T18:59:38.130Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "GET",
+    "url": "https://eth-sepolia.blockscout.com/api/v2/smart-contracts/0xed5b8413e605598ef86cd7617f12701f74ca255c"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "temporary_token",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a555db6bded5e3cc-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 18:59:39 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=EUj%2Fl%2FifBCJooXqgcTqHb5UFABmRZUtGrCR3Y0mtsv%2FPIPWMWJIL8NHGLWEqnoJImhn5KpmaY1h8jg7iGgpgbDVH%2BS3mNl%2Fxu1y5th%2FSclF31AyRzTmfDKdp4a8asw7jAKyeC2VLCvpaDGE3\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "180",
+      "x-ratelimit-remaining": "179",
+      "x-ratelimit-reset": "20470",
+      "x-request-id": "4343a6680321a99a6e679659841f0e5d"
+    },
+    "body": {
+      "conflicting_implementations": null,
+      "creation_bytecode": "0x6080604052348015600e575f80fd5b5060405161013f38038061013f833981016040819052602b916087565b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc8190556040516001600160a01b038216907fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b905f90a25060b2565b5f602082840312156096575f80fd5b81516001600160a01b038116811460ab575f80fd5b9392505050565b6081806100be5f395ff3fe608060405236600a57005b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc54365f80375f80365f845af490503d5f803e8080156047573d5ff35b3d5ffdfea264697066735822122056438cf591b3f95e5e6333e85570bce4b333115eb97546bfd638dea44d5cb45164736f6c634300081a003300000000000000000000000075038a8c55f5ec7196b54384fdbcffb1f2ce9920",
+      "creation_status": "success",
+      "deployed_bytecode": "0x608060405236600a57005b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc54365f80375f80365f845af490503d5f803e8080156047573d5ff35b3d5ffdfea264697066735822122056438cf591b3f95e5e6333e85570bce4b333115eb97546bfd638dea44d5cb45164736f6c634300081a0033",
+      "implementations": [
+        {
+          "address_hash": "0x75038a8C55f5ec7196b54384FDbcffb1f2ce9920",
+          "name": null
+        }
+      ],
+      "proxy_type": "eip1967"
+    }
+  },
+  "recordedAt": "2026-11-04T18:59:38.130Z"
+}

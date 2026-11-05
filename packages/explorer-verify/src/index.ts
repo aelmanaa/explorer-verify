@@ -15,6 +15,7 @@ export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";
 export { formatHandle, parseHandle } from "./flow/handle.ts";
 export { dryRun } from "./flow/dry-run.ts";
 export { checkStatus } from "./flow/status.ts";
+export { linkProxy } from "./flow/link-proxy.ts";
 export { verify } from "./flow/verify.ts";
 export { verifyEach } from "./flow/verify-each.ts";
 export { buildVerifyInput } from "./input/build.ts";
@@ -28,6 +29,8 @@ export type {
   DryRunResult,
   Handle,
   Hex,
+  LinkProxyResult,
+  LinkProxyTarget,
   LogFields,
   Logger,
   LogValue,

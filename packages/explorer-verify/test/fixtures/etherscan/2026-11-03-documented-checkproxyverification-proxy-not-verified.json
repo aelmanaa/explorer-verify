@@ -1,0 +1,30 @@
+{
+  "source": "The only example answer of checkproxyverification in Etherscan's API documentation, https://docs.etherscan.io/api-reference/endpoint/checkproxyverification, read 2026-11-03 and 2026-11-04. The guid is a placeholder and the headers are reduced to the content type. Not seen live: on 2026-11-04 Etherscan linked a proxy whose source it had not verified.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkproxyverification",
+        "guid": "gwgrrnfy56zf6vc1fljuejwg6pelnc5yns6fg6y2i6zfpgzquz",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "The proxy contract at 0xcbdcd3815b5f975e1a2c944a9b2cd1c985a1cb7f does not seem to be verified. Please verify and publish the contract source before proceeding with this proxy verification."
+    }
+  }
+}

@@ -27,8 +27,9 @@ reading:
 - The terms forbid exposing a key in client code, and forbid operating "an API proxy, gateway,
   relay or data feed that passes API Data through to third parties".
 - The handler forwards only the verify-submit action, `verifysourcecode`, the status action,
-  `checkverifystatus`, and a read-only lookup, `getsourcecode`, whose answer it reduces so that no
-  source code and no ABI is passed on. Whether a handler limited to these counts as such a proxy is
+  `checkverifystatus`, the two proxy-link actions when you turn them on, `verifyproxycontract` and
+  `checkproxyverification`, and a read-only lookup, `getsourcecode`, whose answer it reduces so
+  that no source code and no ABI is passed on. Whether a handler limited to these counts as such a proxy is
   this project's reading, not legal advice. Confirm with Etherscan.
 - A public dapp, or any use by a business, protocol, foundation or DAO, needs an Advanced plan or
   higher. When it displays Etherscan data, it must show "Powered by Etherscan.io APIs". See
@@ -70,16 +71,17 @@ Mount it on one route of your application, such as `POST /api/verify`.
 [Run the server handler](../guides/run-the-server-handler.md) does this in a Next.js route and a
 Cloudflare Worker.
 
-| Option         | Required | What it does                                                                                                                                                                                 |
-| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apiKey`       | Yes      | Your Etherscan key. The same rules as `apiKeys` apply: 8 to 1024 letters, digits, `.`, `_`, `~` or `-`, not all digits                                                                       |
-| `chains`       | Yes      | The chain ids the handler serves, 1 to 10,000 of them. A request for another chain gets 403                                                                                                  |
-| `deployers`    | No       | Addresses. When set, a submit or a lookup is forwarded only for a contract one of them created. See [Who may verify](#who-may-verify)                                                        |
-| `rateLimit`    | No       | `(request) => boolean \| Promise<boolean>`. Called for every POST before the body is read. `false` refuses the request with 429                                                              |
-| `maxBodyBytes` | No       | The largest request body, in bytes as received. Default 8 MiB (8,388,608)                                                                                                                    |
-| `timeoutMs`    | No       | The time limit for one handled request, from its arrival to the answer, body included. Default 20,000                                                                                        |
-| `fetch`        | No       | The `fetch` used to reach Etherscan. Default `globalThis.fetch`                                                                                                                              |
-| `logger`       | No       | `{ debug, info, warn, error }`, as `VerifyOptions.logger` takes it. Gets each refusal at `info`, each upstream failure at `warn` and each internal failure at `error`, with the key redacted |
+| Option           | Required | What it does                                                                                                                                                                                                  |
+| ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiKey`         | Yes      | Your Etherscan key. The same rules as `apiKeys` apply: 8 to 1024 letters, digits, `.`, `_`, `~` or `-`, not all digits                                                                                        |
+| `chains`         | Yes      | The chain ids the handler serves, 1 to 10,000 of them. A request for another chain gets 403                                                                                                                   |
+| `deployers`      | No       | Addresses. When set, a submit, a lookup or a proxy link request is forwarded only for a contract one of them created. See [Who may verify](#who-may-verify)                                                   |
+| `allowProxyLink` | No       | `true` forwards the proxy-link actions `verifyproxycontract` and `checkproxyverification` that `linkProxy()` sends. Default `false`: both get 403 `action-not-allowed`. See [Who may verify](#who-may-verify) |
+| `rateLimit`      | No       | `(request) => boolean \| Promise<boolean>`. Called for every POST before the body is read. `false` refuses the request with 429                                                                               |
+| `maxBodyBytes`   | No       | The largest request body, in bytes as received. Default 8 MiB (8,388,608)                                                                                                                                     |
+| `timeoutMs`      | No       | The time limit for one handled request, from its arrival to the answer, body included. Default 20,000                                                                                                         |
+| `fetch`          | No       | The `fetch` used to reach Etherscan. Default `globalThis.fetch`                                                                                                                                               |
+| `logger`         | No       | `{ debug, info, warn, error }`, as `VerifyOptions.logger` takes it. Gets each refusal at `info`, each upstream failure at `warn` and each internal failure at `error`, with the key redacted                  |
 
 A bad option throws [`invalid-input`](errors/invalid-input.md) when the handler is created. The
 issues name the option and never repeat its value. The options are read once: later changes to the
@@ -125,23 +127,32 @@ body, once. A request holds at most 16 fields, query and body together. Any othe
 including a query parameter that your platform or a proxy in front of it adds: mount the handler
 where the query reaches it unchanged.
 
-| `action`            | Fields besides `module=contract`, `action` and `chainid`                                                                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verifysourcecode`  | Required: `contractaddress`, `sourceCode`, `contractname`, `compilerversion`, `codeformat`. Optional: `constructorArguments`, `constructorArguements`, `licenseType` |
-| `checkverifystatus` | Required: `guid`                                                                                                                                                     |
-| `getsourcecode`     | Required: `address`, one address                                                                                                                                     |
+| `action`                 | Fields besides `module=contract`, `action` and `chainid`                                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verifysourcecode`       | Required: `contractaddress`, `sourceCode`, `contractname`, `compilerversion`, `codeformat`. Optional: `constructorArguments`, `constructorArguements`, `licenseType` |
+| `checkverifystatus`      | Required: `guid`                                                                                                                                                     |
+| `getsourcecode`          | Required: `address`, one address                                                                                                                                     |
+| `verifyproxycontract`    | With `allowProxyLink` only. Required: `address`, the proxy. Optional: `expectedimplementation`, one address                                                          |
+| `checkproxyverification` | With `allowProxyLink` only. Required: `guid`                                                                                                                         |
 
 The handler rebuilds the body from these fields alone, adds `apikey` and sends it to
 `https://api.etherscan.io/v2/api?chainid=<id>` as a form-encoded POST. It answers with Etherscan's
 status and JSON body, with every copy of the key replaced by `[redacted]`.
 
 A `getsourcecode` answer is reduced before it is returned. It keeps `status`, `message` and, of the
-first result only, `SourceCode`, `SimilarMatch`, `ContractName` and `CompilerVersion`. A non-empty
+first result only, `SourceCode`, `SimilarMatch`, `ContractName`, `CompilerVersion` and, when it is an
+address, `Implementation`, which `linkProxy()` reads after a mismatch. A non-empty
 `SourceCode` becomes the fixed text `[source not relayed by explorer-verify/server]`, exported as
 `SOURCE_MARKER`; an empty one stays empty. A text `result`, such as a key error, is kept.
 
-It forwards nothing else: no other lookup, no proxy verification (planned:
-[#94](https://github.com/aelmanaa/explorer-verify/issues/94)), and no other module or action.
+With `allowProxyLink: true`, the handler also forwards the two proxy-link actions that `linkProxy()`
+sends, so a browser can link a proxy through the handler
+as it verifies through it. With `deployers` set, the deployer check runs on the proxy's address
+before `verifyproxycontract`. After Etherscan refuses a link for another implementation than
+expected, `linkProxy()` also sends the forwarded `getsourcecode` for the proxy, to read the
+implementation Etherscan holds. See [Verify a proxy](../guides/verify-a-proxy.md).
+
+It forwards nothing else: no other lookup, and no other module or action.
 
 ## Refusals
 
@@ -170,7 +181,7 @@ The checks run in this order:
 | 400    | `bad-request`            | The body cannot be read, or the request holds more than 16 fields, counted before parsing                                                 |
 | 400    | `forbidden-field`        | A field names an API key, a route, an API URL, a backend, a URL or a host, in any case, such as `apikey` or `apiUrl`                      |
 | 400    | `bad-request`            | A field is given twice                                                                                                                    |
-| 403    | `action-not-allowed`     | `module` is not `contract`, or `action` is not one of the three above                                                                     |
+| 403    | `action-not-allowed`     | `module` is not `contract`, or `action` is not one of those above, the proxy-link ones only with `allowProxyLink`                         |
 | 400    | `bad-request`            | `chainid` is missing or not a positive integer without leading zeros                                                                      |
 | 403    | `chain-not-allowed`      | The chain is not in `chains`                                                                                                              |
 | 400    | `bad-request`            | A field the action does not take (counted, never named), a missing field, or a value of the wrong form                                    |
@@ -188,6 +199,10 @@ visitors' browsers send requests to your handler, even when it sends no CORS hea
 use it:
 
 - Set `deployers`, so the handler forwards only contracts your own addresses created.
+- Leave `allowProxyLink` off unless your application links proxies. A proxy link request needs no
+  source: Etherscan linked a proxy whose source it had not verified on 2026-11-04. With it on,
+  whoever can reach the handler can change which implementation a proxy's page on Etherscan shows,
+  under your key. Turn it on together with `deployers`.
 - Check the caller in `rateLimit`, which sees the headers before the body is read. This hook refuses
   requests from other sites:
 
@@ -206,8 +221,12 @@ const rateLimit: RateLimit = (request) => {
 How `deployers` decides:
 
 - With `deployers` set, the handler sends Etherscan's `getcontractcreation` for the address before
-  it forwards a submit or a lookup. It forwards only when the record names one of `deployers` as
-  the `contractCreator` or the `contractFactory`. Status polls are not checked.
+  it forwards a submit, a lookup or a proxy link request (`verifyproxycontract`, for the proxy's
+  `address`). It forwards only when the record names one of `deployers` as the `contractCreator`
+  or the `contractFactory`. Status polls and `checkproxyverification` are not checked.
+- `expectedimplementation` is not checked against `deployers`: a proxy your addresses created may
+  be linked to any implementation the request names, and Etherscan links it only when the proxy
+  points there.
 - `contractCreator` is the sender of the transaction that created the contract, also when a factory
   created it. Listing a wallet admits every contract it deployed, directly or through any factory.
 - Listing a factory admits every contract that factory created for anyone. Never list a public

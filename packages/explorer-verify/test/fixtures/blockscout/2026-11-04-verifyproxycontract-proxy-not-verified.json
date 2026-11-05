@@ -1,0 +1,50 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T18:59:22.542Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifyproxycontract",
+        "address": "0xfa0e910758d502780263871f92a85736597b87f4"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a555db0c580d5e8d-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 18:59:24 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=PFIzj4bRoBIScDhdrUrmS7UmEQDGxFbdSY8637aSx8WTkt4P2NubiGTfILLAoL1YjXKmVf99d4IcxeeJ72gwYhBy9azpF9%2F6bRWlax8uD%2FBb6hy8aKJY7ckRtARrHUbD%2F%2FMzA4oMyoSAYYwu\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "9",
+      "x-ratelimit-reset": "35668",
+      "x-request-id": "2dc08f9710f789549d6466fe87a134a2"
+    },
+    "body": {
+      "message": "Smart-contract not found or is not verified",
+      "result": null,
+      "status": "0"
+    }
+  },
+  "recordedAt": "2026-11-04T18:59:22.542Z"
+}

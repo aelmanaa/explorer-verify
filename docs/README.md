@@ -17,6 +17,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Verify a contract from a Foundry project](user/guides/verify-from-a-foundry-project.md)            | Find a contract's build files under `out/` and build the input              |
 | [Verify a contract from a Hardhat project](user/guides/verify-from-a-hardhat-project.md)            | Build the input from a Hardhat 2 or Hardhat 3 project's build files         |
 | [Verify from deployed bytecode](user/guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode    |
+| [Verify a proxy](user/guides/verify-a-proxy.md)                                                     | Verify the implementation and the proxy, then link them with `linkProxy()`  |
 | [Run the server handler](user/guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS       |
 | [Verify from a browser](user/guides/verify-from-a-browser.md)                                       | Bundler or CDN, keyless explorers, the handle across a reload, size         |
 | [Verify from Node.js](user/guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue     |

@@ -48,6 +48,8 @@ export const ERROR_CODES = [
   "no-metadata-hash",
   "metadata-unavailable",
   "constructor-args-unavailable",
+  "proxy-link-pending",
+  "proxy-link-unknown-state",
 ] as const;
 
 /**
@@ -381,6 +383,34 @@ export type ErrorDetails =
        * `bad-length`: what follows `creationBytecode` is not a whole number of 32-byte words.
        */
       reason: "prefix-mismatch" | "bad-length";
+    }
+  | {
+      /**
+       * `linkProxy()` asked the explorer to link a proxy, and the link was still pending when the
+       * time budget ran out, or the status requests kept failing (R-FLOW-8). There is no handle:
+       * calling `linkProxy()` again starts a new link, which is safe.
+       */
+      code: "proxy-link-pending";
+      /**
+       * The backend that is linking the proxy. `"unknown"` appears only when code bypassed the
+       * types and passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
+    }
+  | {
+      /**
+       * `linkProxy()` got an answer about a proxy link that the library cannot classify, such as
+       * Etherscan's `Error!` or an implementation that is not one address (R-FLOW-4, R-FLOW-8). The
+       * proxy is not reported as linked. There is no handle: a link has none.
+       */
+      code: "proxy-link-unknown-state";
+      /**
+       * The backend that answered. `"unknown"` appears only when code bypassed the types and
+       * passed a name outside `BACKEND_NAMES`.
+       */
+      backend: BackendName | "unknown";
+      /** The start of the explorer's answer, redacted, at most 300 characters. */
+      excerpt: string;
     };
 
 /**
@@ -435,6 +465,8 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "no-metadata-hash": 2,
   "metadata-unavailable": 5,
   "constructor-args-unavailable": 2,
+  "proxy-link-pending": 4,
+  "proxy-link-unknown-state": 6,
 };
 
 /**
@@ -638,6 +670,14 @@ const CATALOGUE: Record<ErrorCode, { hint: string; retryable: boolean }> = {
     hint: "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
     retryable: false,
   },
+  "proxy-link-pending": {
+    hint: "Call linkProxy() again later: the explorer had not finished linking the proxy. A new call is safe.",
+    retryable: true,
+  },
+  "proxy-link-unknown-state": {
+    hint: "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
+    retryable: false,
+  },
 };
 
 /**
@@ -778,6 +818,16 @@ function redactDetails(details: ErrorDetails, secrets: readonly string[]): Error
       copy = {
         code: "constructor-args-unavailable",
         reason: oneOf(details.reason, ["prefix-mismatch", "bad-length"]),
+      };
+      break;
+    case "proxy-link-pending":
+      copy = { code: "proxy-link-pending", backend: backendOf(details.backend) };
+      break;
+    case "proxy-link-unknown-state":
+      copy = {
+        code: "proxy-link-unknown-state",
+        backend: backendOf(details.backend),
+        excerpt: redactExcerpt(stringOf(details.excerpt), secrets, EXCERPT_LENGTH),
       };
       break;
   }

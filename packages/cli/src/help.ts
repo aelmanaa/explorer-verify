@@ -60,13 +60,13 @@ export const EXIT_CODES: readonly ExitCodeHelp[] = [
   {
     code: 4,
     meaning:
-      "No verdict yet: not-confirmed (the output carries the handle) or verification-inconclusive",
+      "No verdict yet: not-confirmed (the output carries the handle), verification-inconclusive or proxy-link-pending",
   },
   { code: 5, meaning: "Network: the explorer was unavailable after retries" },
   {
     code: 6,
     meaning:
-      "Unknown state: unknown-state (the output carries the handle) or internal-error, a bug in the CLI. Do not retry automatically",
+      "Unknown state: unknown-state (the output carries the handle), proxy-link-unknown-state, or internal-error, a bug in the CLI. Do not retry automatically",
   },
   { code: 130, meaning: "Cancelled: SIGINT or SIGTERM stopped the run" },
 ];

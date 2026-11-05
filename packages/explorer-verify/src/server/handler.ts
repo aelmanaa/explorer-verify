@@ -13,8 +13,10 @@
  * - take a host, a route, an API URL or a key from the request. Every upstream request goes to
  *   Etherscan's v2 API at the routing module's `ETHERSCAN_API_URL`, so a client cannot point it
  *   elsewhere;
- * - forward an action other than `verifysourcecode`, `checkverifystatus` and the read-only lookup
- *   `getsourcecode`, whose answer it reduces so that no source is relayed (R-SRV-3);
+ * - forward an action other than `verifysourcecode`, `checkverifystatus`, the proxy-link actions
+ *   `verifyproxycontract` and `checkproxyverification` (only with `allowProxyLink`), and the
+ *   read-only lookup `getsourcecode`, whose answer it reduces so that no source is relayed
+ *   (R-SRV-3);
  * - follow a redirect: every upstream request has `redirect: "manual"`, and a 3xx is refused;
  * - return a key: refusals are fixed sentences, and every string of an upstream answer is
  *   redacted (R-SEC-1).
@@ -85,7 +87,7 @@ const INDEX_RETRY_SECONDS = 5;
 // `module`, `action` and `chainid`, what may be retried, and the field holding the contract
 // address. The submit fields are the ones the Etherscan docs and the recorded requests in
 // test/fixtures/etherscan name; both spellings of the constructor argument field are sent by the
-// prior art.
+// prior art. A proxy link request may be sent again: it starts a new check and undoes nothing.
 const ACTIONS: Readonly<
   Record<
     Action,
@@ -105,9 +107,30 @@ const ACTIONS: Readonly<
   },
   checkverifystatus: { required: ["guid"], optional: [], retry: "safe", address: undefined },
   getsourcecode: { required: ["address"], optional: [], retry: "safe", address: "address" },
+  verifyproxycontract: {
+    required: ["address"],
+    optional: ["expectedimplementation"],
+    retry: "safe",
+    address: "address",
+  },
+  checkproxyverification: { required: ["guid"], optional: [], retry: "safe", address: undefined },
 };
 
-type Action = "verifysourcecode" | "checkverifystatus" | "getsourcecode";
+type Action =
+  | "verifysourcecode"
+  | "checkverifystatus"
+  | "getsourcecode"
+  | "verifyproxycontract"
+  | "checkproxyverification";
+
+/** The forwarded actions, for the check of a request's `action`. */
+const ACTION_NAMES: readonly Action[] = [
+  "verifysourcecode",
+  "checkverifystatus",
+  "getsourcecode",
+  "verifyproxycontract",
+  "checkproxyverification",
+];
 
 // Fields that would let a request choose where it goes or which key it uses, compared in lower
 // case. Each is refused by name, so the refusal says why.
@@ -189,6 +212,14 @@ export interface VerifyHandlerOptions {
    * also for a contract a factory created, and listing a public factory admits anyone who uses it.
    */
   readonly deployers?: readonly string[];
+  /**
+   * Whether the handler forwards the proxy-link actions, `verifyproxycontract` and
+   * `checkproxyverification`, that `linkProxy()` sends (R-FLOW-8). Off by default: Etherscan links
+   * a proxy whose source it has not verified, so a link request needs no source, and turning it on
+   * lets whoever can reach the handler change a proxy's page under your key. With `deployers` set,
+   * the deployer check runs on the proxy's `address`; `expectedimplementation` is not checked.
+   */
+  readonly allowProxyLink?: boolean;
   /** Called for every POST before its body is read. See {@link RateLimit}. */
   readonly rateLimit?: RateLimit;
   /**
@@ -253,6 +284,7 @@ interface Settings {
   readonly key: () => string;
   readonly chains: ReadonlySet<number>;
   readonly deployers: ReadonlySet<string> | undefined;
+  readonly allowProxyLink: boolean;
   readonly rateLimit: RateLimit | undefined;
   readonly maxBodyBytes: number;
   readonly timeoutMs: number;
@@ -331,7 +363,8 @@ const ETHERSCAN_ROUTE: Route = Object.freeze({
  * 6. a field that names an API key, a route, an API URL, a backend, a URL or a host, in any case
  *    (400): the handler routes from its own configuration only; a field given twice (400);
  * 7. a `module` other than `contract`, or an action other than `verifysourcecode`,
- *    `checkverifystatus` and `getsourcecode` (403, R-SRV-3);
+ *    `checkverifystatus`, `getsourcecode` and, with `allowProxyLink`, `verifyproxycontract` and
+ *    `checkproxyverification` (403, R-SRV-3);
  * 8. a missing or malformed `chainid` (400), or a chain not in `chains` (403);
  * 9. a field the action does not take, a missing field, or a value of the wrong form (400);
  * 10. with `deployers` set, a submit or lookup for an address none of them created (403), or one
@@ -498,7 +531,8 @@ function redactDeep(value: unknown, secrets: readonly string[]): unknown {
 /**
  * A `getsourcecode` answer reduced to what the client classifies (decision 0021): `status`,
  * `message`, and of the first result only whether it has source, `SimilarMatch`, `ContractName`
- * and `CompilerVersion`. A `result` that is text, such as a key error, is kept.
+ * and `CompilerVersion`, and `Implementation` when it is an address, which `linkProxy()` reads
+ * after a mismatch (R-FLOW-8). A `result` that is text, such as a key error, is kept.
  */
 function reduceLookup(answer: ReadonlyMap<string, unknown>): Record<string, unknown> {
   const reduced: Record<string, unknown> = {
@@ -519,6 +553,11 @@ function reduceLookup(answer: ReadonlyMap<string, unknown>): Record<string, unkn
         if (typeof value === "string") {
           entry[name] = value;
         }
+      }
+      // The proxy's implementation, only as an address: no other text is relayed.
+      const implementation = first.get("Implementation");
+      if (typeof implementation === "string" && addressDigits(implementation) !== undefined) {
+        entry["Implementation"] = implementation;
       }
     }
     reduced["result"] = first === undefined ? [] : [entry];
@@ -820,17 +859,16 @@ function parse(settings: Settings, query: URLSearchParams, form: URLSearchParams
   }
 
   const actionName = fields.get("action");
-  const action: Action | undefined =
-    actionName === "verifysourcecode" ||
-    actionName === "checkverifystatus" ||
-    actionName === "getsourcecode"
-      ? actionName
-      : undefined;
+  // The proxy-link actions only when the operator turned them on.
+  const allowed = settings.allowProxyLink ? ACTION_NAMES : ACTION_NAMES.slice(0, 3);
+  const action = allowed.find((name) => name === actionName);
   if (fields.get("module") !== "contract" || action === undefined) {
     throw new Refusal(
       403,
       "action-not-allowed",
-      "Only module contract with the verifysourcecode, checkverifystatus or getsourcecode action is forwarded.",
+      settings.allowProxyLink
+        ? "Only module contract with the verifysourcecode, checkverifystatus, getsourcecode, verifyproxycontract or checkproxyverification action is forwarded."
+        : "Only module contract with the verifysourcecode, checkverifystatus or getsourcecode action is forwarded.",
     );
   }
 
@@ -886,6 +924,7 @@ function parse(settings: Settings, query: URLSearchParams, form: URLSearchParams
 const VALUE_CHECKS: readonly (readonly [string, (value: string) => boolean])[] = [
   ["contractaddress", (value) => addressDigits(value) !== undefined],
   ["address", (value) => addressDigits(value) !== undefined],
+  ["expectedimplementation", (value) => addressDigits(value) !== undefined],
   ["guid", (value) => JOB_ID.test(value)],
   ["contractname", (value) => value.length <= MAX_NAME_LENGTH],
   ["compilerversion", (value) => COMPILER_VERSION.test(value)],
@@ -937,6 +976,10 @@ function readSettings(options: VerifyHandlerOptions): Settings {
       issues.push({ field, message: "must be a function" });
     }
   }
+  const allowProxyLink: unknown = read.allowProxyLink;
+  if (allowProxyLink !== undefined && typeof allowProxyLink !== "boolean") {
+    issues.push({ field: "allowProxyLink", message: "must be a boolean" });
+  }
   const rawLogger: unknown = read.logger;
   if (
     rawLogger !== undefined &&
@@ -955,6 +998,7 @@ function readSettings(options: VerifyHandlerOptions): Settings {
     key: () => key,
     chains,
     deployers,
+    allowProxyLink: allowProxyLink === true,
     rateLimit: read.rateLimit,
     maxBodyBytes,
     timeoutMs,
@@ -986,6 +1030,7 @@ function readOptions(options: VerifyHandlerOptions): {
       apiKey: readOwn(options, "apiKey"),
       chains: readOwn(options, "chains"),
       deployers: readOwn(options, "deployers"),
+      allowProxyLink: readOwn(options, "allowProxyLink"),
       rateLimit: readOwn(options, "rateLimit"),
       maxBodyBytes: readOwn(options, "maxBodyBytes"),
       timeoutMs: readOwn(options, "timeoutMs"),

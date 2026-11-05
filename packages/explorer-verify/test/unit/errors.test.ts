@@ -109,6 +109,12 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     code: "constructor-args-unavailable",
     reason: "prefix-mismatch",
   },
+  "proxy-link-pending": { code: "proxy-link-pending", backend: "etherscan-v2" },
+  "proxy-link-unknown-state": {
+    code: "proxy-link-unknown-state",
+    backend: "etherscan-v2",
+    excerpt: `Error! ${DUMMY_KEY}`,
+  },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -227,6 +233,16 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
     retryable: false,
     exitCode: 2,
+  },
+  "proxy-link-pending": {
+    hint: "Call linkProxy() again later: the explorer had not finished linking the proxy. A new call is safe.",
+    retryable: true,
+    exitCode: 4,
+  },
+  "proxy-link-unknown-state": {
+    hint: "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
+    retryable: false,
+    exitCode: 6,
   },
 };
 
@@ -363,6 +379,8 @@ describe("ExplorerVerifyError", () => {
       case "no-metadata-hash":
       case "metadata-unavailable":
       case "constructor-args-unavailable":
+      case "proxy-link-pending":
+      case "proxy-link-unknown-state":
         assert.fail(`unexpected code ${details.code}`);
     }
   });
@@ -441,8 +459,14 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
   it("maps to 4 and 6 only codes whose details carry the handle, as R-AX-7 promises", () => {
     // R-AX-7 and decision 0011: verification-inconclusive exits 4 with no handle, because the
     // finished job cannot give another answer; the fix is a new verify(). R-AX-5 and decision
-    // 0010: internal-error exits 6 with no handle, because no explorer job is involved.
-    const withoutHandle: readonly ErrorCode[] = ["verification-inconclusive", "internal-error"];
+    // 0010: internal-error exits 6 with no handle, because no explorer job is involved. R-FLOW-8
+    // and decision 0033: proxy-link-pending exits 4 with no handle; the fix is a new linkProxy().
+    const withoutHandle: readonly ErrorCode[] = [
+      "verification-inconclusive",
+      "internal-error",
+      "proxy-link-pending",
+      "proxy-link-unknown-state",
+    ];
     for (const code of ERROR_CODES) {
       const exit = ERROR_EXIT_CODES[code];
       if ((exit === 4 || exit === 6) && !withoutHandle.includes(code)) {

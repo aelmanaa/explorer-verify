@@ -177,3 +177,59 @@ export interface Backend {
    */
   readonly creationCode?: (target: Target, ctx: Context) => Promise<string | undefined>;
 }
+
+/**
+ * One step of a proxy link (R-FLOW-8), as a {@link ProxyLinker} reports it.
+ *
+ * - `submitted`: the explorer accepted the request and gave a job id to check.
+ * - `pending`: the explorer is still linking. Check again.
+ * - `linked`: the explorer links the proxy to `implementation`, one address in lower case, never
+ *   the zero address. `implementationVerified` is absent when the answer does not say; the flow
+ *   then asks {@link ProxyLinker.verified}. The flow compares it with `expectedImplementation`.
+ * - `mismatch`: the explorer refused because the proxy points at another implementation than
+ *   `expectedImplementation`. `implementation` is the one it holds, when it says.
+ * - `not-linked`: the explorer definitively refused. `reason` is its text, redacted and cut.
+ */
+export type LinkStep =
+  | { readonly state: "submitted"; readonly jobId: string }
+  | { readonly state: "pending" }
+  | {
+      readonly state: "linked";
+      readonly implementation: Hex;
+      readonly implementationVerified?: boolean;
+    }
+  | { readonly state: "mismatch"; readonly implementation: Hex | undefined }
+  | { readonly state: "not-linked"; readonly reason: string };
+
+/** A {@link LinkStep} other than `submitted`: what a status check answers. */
+export type LinkVerdict = Exclude<LinkStep, { readonly state: "submitted" }>;
+
+/**
+ * The proxy to link: a {@link Target} and, when the caller set it, the implementation it should
+ * point at, both in lower case.
+ */
+export interface LinkTarget extends Target {
+  readonly expectedImplementation?: Hex;
+}
+
+/**
+ * How one explorer links a proxy to its implementation (R-FLOW-8). Each linker sits in a module of
+ * its own that `linkProxy()` loads with a dynamic `import()`, so `verify()` never bundles it.
+ * Every method sends its requests through `ctx.http`. A request answered in a form the client does
+ * not know throws `unexpected-response`, since nothing started; a status check answered with a
+ * text it does not know throws `proxy-link-unknown-state`.
+ */
+export interface ProxyLinker {
+  /**
+   * Asks the explorer to link the proxy or, for an explorer that links on its own, reads the link.
+   * Never answers `pending`.
+   */
+  readonly request: (target: LinkTarget, ctx: Context) => Promise<LinkStep>;
+  /** Asks once for the state of a link that `request` submitted. */
+  readonly check: (jobId: string, target: LinkTarget, ctx: Context) => Promise<LinkVerdict>;
+  /**
+   * Whether the explorer holds the implementation's verified source, for a linker whose `linked`
+   * answer does not say. Absent when every `linked` step says.
+   */
+  readonly verified?: (implementation: Hex, chainId: number, ctx: Context) => Promise<boolean>;
+}

@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-04T19:46:45.587Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=2592000",
+      "content-length": "131",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 19:46:46 GMT",
+      "etag": "W/\"83-l489HCbTorWrkfPQkErknpHgIM8\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "135864f0cd49a722995769ab85c0973b",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "match": null,
+      "creationMatch": null,
+      "runtimeMatch": null,
+      "chainId": "11155111",
+      "address": "0x75038a8C55f5ec7196b54384FDbcffb1f2ce9920"
+    }
+  },
+  "recordedAt": "2026-11-04T19:46:45.587Z"
+}

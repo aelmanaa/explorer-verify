@@ -58,6 +58,8 @@ and from a Hardhat project in
 [docs/user/guides/verify-from-a-hardhat-project.md](docs/user/guides/verify-from-a-hardhat-project.md),
 and from a deployed contract's bytecode alone in
 [docs/user/guides/verify-from-deployed-bytecode.md](docs/user/guides/verify-from-deployed-bytecode.md).
+Linking a verified proxy to its implementation with `linkProxy()` is in
+[docs/user/guides/verify-a-proxy.md](docs/user/guides/verify-a-proxy.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md),
 [docs/user/reference/etherscan.md](docs/user/reference/etherscan.md),
 [docs/user/reference/routescan.md](docs/user/reference/routescan.md),

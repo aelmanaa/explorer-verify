@@ -1,0 +1,50 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com, recorded 2026-11-04T19:01:04.709Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkproxyverification",
+        "guid": "ed5b8413e605598ef86cd7617f12701f74ca255c6aeb80cb"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a555dd877b3b8672-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 19:01:05 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=MGOyBIpwKxX2ECQpdkEolthWPi4JmjsZGu91%2FoGopNBF7QhoT%2BemOogODSwhyv%2Fq13F0W%2BJPMtrhebTbe98mxqGuaQl0Se4IabljdvEmbJqMP6KDKBTa1nQMUeYWphfcEtWaPiM6ZhwgoZ17\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "7",
+      "x-ratelimit-reset": "3534112",
+      "x-request-id": "c2729c6a5873efb4df155281c014a10b"
+    },
+    "body": {
+      "message": "OK",
+      "result": "The proxy's (0xed5b8413e605598ef86cd7617f12701f74ca255c) implementation contract is found at 0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920 and is successfully updated.",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-04T19:01:04.709Z"
+}

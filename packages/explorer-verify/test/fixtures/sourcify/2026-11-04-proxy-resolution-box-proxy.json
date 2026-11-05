@@ -1,0 +1,42 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-04T19:46:28.053Z with the fetch of Node.js 24.21.0, no key.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xed5b8413e605598ef86cd7617f12701f74ca255c?fields=proxyResolution"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=2592000",
+      "cache-control": "public,max-age=3600",
+      "content-length": "354",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Wed, 04 Nov 2026 19:46:31 GMT",
+      "etag": "W/\"162-zobiSI9MS8307sviUc3gCHlswaE\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "d6943c9ab781109df84446d46bb9d361",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "proxyResolution": {
+        "isProxy": true,
+        "proxyType": "EIP1967Proxy",
+        "implementations": [
+          {
+            "address": "0x75038a8C55f5ec7196b54384FDbcffb1f2ce9920"
+          }
+        ]
+      },
+      "matchId": "58398881",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "exact_match",
+      "verifiedAt": "2026-11-04T18:59:55Z",
+      "match": "exact_match",
+      "chainId": "11155111",
+      "address": "0xed5B8413e605598EF86CD7617f12701F74ca255C"
+    }
+  },
+  "recordedAt": "2026-11-04T19:46:28.053Z"
+}

@@ -169,9 +169,24 @@ export async function withClient(
 /**
  * Runs `load`, and rejects first when `signal` aborts or the budget runs out. `memo` keeps what
  * each loader gave, so a later call takes it at once. `what` names the code in the `timeout`
- * message, and `name` is the backend the `timeout` details name.
+ * message, and `name` is the backend the `timeout` details name. `linkProxy()` loads its explorer
+ * code through it too.
+ *
+ * @param load - Loads the module's export.
+ * @param memo - What each loader gave.
+ * @param what - The code, as `the sourcify client`.
+ * @param name - The backend.
+ * @param signal - The caller's signal.
+ * @param budget - The call's budget.
+ * @returns What `load` gives.
+ * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
+ *   the budget runs out; what the loader throws.
+ * @example
+ * ```ts
+ * const linker = await bounded(load, LINKERS, "the sourcify proxy-link code", "sourcify", signal, budget);
+ * ```
  */
-async function bounded<T extends object>(
+export async function bounded<T extends object>(
   load: () => Promise<T>,
   memo: WeakMap<() => Promise<T>, T>,
   what: string,
@@ -544,10 +559,48 @@ export function openCall(
   budget: Budget = startBudget(settings),
 ): Call {
   const backend = backendOf(route, target.chainId, dependencies);
+  const { ctx, observer } = openContext(
+    settings,
+    route,
+    target,
+    dependencies.random,
+    checkKey,
+    budget,
+  );
+  return { backend, ctx, budget, target, settings, observer };
+}
+
+/**
+ * The part of {@link openCall} that needs no backend client: the keys from the route's query, the
+ * key checks, the one observer and the HTTP context. `linkProxy()` starts here, with its own
+ * explorer code in place of a client.
+ *
+ * @param settings - The options from {@link settingsOf}.
+ * @param route - The resolved route.
+ * @param target - The contract the call is about.
+ * @param random - The backoff jitter source, or `undefined` for `Math.random`.
+ * @param checkKey - Whether a backend that needs a key and has none throws `missing-api-key`.
+ * @param budget - The call's budget.
+ * @returns The context and the observer.
+ * @throws ExplorerVerifyError `invalid-input` when a key sits in the handle's fixed part, and
+ *   `missing-api-key` when `checkKey` is set and the route's backend has no key.
+ * @example
+ * ```ts
+ * const { ctx, observer } = openContext(settings, route, target, undefined, true, budget);
+ * ```
+ */
+export function openContext(
+  settings: Settings,
+  route: Route,
+  target: Target,
+  random: (() => number) | undefined,
+  checkKey: boolean,
+  budget: Budget,
+): { readonly ctx: Context; readonly observer: Observer } {
   const routeKey = route.apiKey();
   const keySecrets = settings.keySecrets();
   const secrets = [
-    ...routeSecrets(route, target.chainId, target.address, backend.name),
+    ...routeSecrets(route, target.chainId, target.address, route.backend),
     ...keySecrets,
     ...settings.rpcSecrets,
     ...(routeKey === undefined ? [] : [routeKey]),
@@ -562,7 +615,7 @@ export function openCall(
   if (routeKey !== undefined) {
     named.push(["route.apiKey", routeKey]);
   }
-  const clashes = collisions(named, visiblePart(backend.name, target.chainId, target.address));
+  const clashes = collisions(named, visiblePart(route.backend, target.chainId, target.address));
   if (clashes.length > 0) {
     throw invalidOptions(clashes, secrets);
   }
@@ -578,16 +631,12 @@ export function openCall(
     secrets,
   });
   return {
-    backend,
     ctx: {
       route,
       apiKeys,
       pollIntervalMs: settings.pollIntervalMs,
-      http: httpContext(route, settings, observer, secrets, budget, dependencies),
+      http: httpContext(route, settings, observer, secrets, budget, random),
     },
-    budget,
-    target,
-    settings,
     observer,
   };
 }
@@ -914,7 +963,7 @@ function httpContext(
   observer: Observer,
   secrets: readonly string[],
   budget: Budget,
-  dependencies: FlowDependencies,
+  random: (() => number) | undefined,
 ): HttpContext {
   return {
     backend: route.backend,
@@ -924,7 +973,7 @@ function httpContext(
     // Always set, so a `fetch` added to `Object.prototype` can never stand in for the default.
     fetch: settings.fetch ?? defaultFetch,
     ...(settings.signal === undefined ? {} : { signal: settings.signal }),
-    ...(dependencies.random === undefined ? {} : { random: dependencies.random }),
+    ...(random === undefined ? {} : { random }),
   };
 }
 

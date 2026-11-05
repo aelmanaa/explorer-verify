@@ -154,6 +154,12 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     code: "constructor-args-unavailable",
     reason: "bad-length",
   },
+  "proxy-link-pending": { code: "proxy-link-pending", backend: "etherscan-v2" },
+  "proxy-link-unknown-state": {
+    code: "proxy-link-unknown-state",
+    backend: "etherscan-v2",
+    excerpt: LEAKY_URL,
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

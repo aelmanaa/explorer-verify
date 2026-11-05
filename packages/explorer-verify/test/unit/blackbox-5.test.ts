@@ -51,6 +51,8 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "no-metadata-hash": { exit: 2, retryable: false },
   "metadata-unavailable": { exit: 5, retryable: true },
   "constructor-args-unavailable": { exit: 2, retryable: false },
+  "proxy-link-pending": { exit: 4, retryable: true },
+  "proxy-link-unknown-state": { exit: 6, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -116,6 +118,12 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "constructor-args-unavailable": () => ({
     code: "constructor-args-unavailable",
     reason: "bad-length",
+  }),
+  "proxy-link-pending": () => ({ code: "proxy-link-pending", backend: "sourcify" }),
+  "proxy-link-unknown-state": (text) => ({
+    code: "proxy-link-unknown-state",
+    backend: "sourcify",
+    excerpt: text,
   }),
 };
 

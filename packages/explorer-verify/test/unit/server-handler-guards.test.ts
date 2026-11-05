@@ -144,13 +144,19 @@ describe("createVerifyHandler forwards a read-only lookup (R-SRV-3, R-FLOW-1, de
     });
   });
 
-  it("never relays source, ABI or any other field, also in a large answer", async () => {
+  it("never relays source, ABI or any other field, nor an Implementation that is not an address", async () => {
     const source = `contract Secret {} ${"x".repeat(2 * 1024 * 1024)}`;
     const answer = {
       status: "1",
       message: "OK",
       result: [
-        { SourceCode: source, ABI: "[]", ContractName: 5, Proxy: "1", Implementation: CHILD },
+        {
+          SourceCode: source,
+          ABI: "[]",
+          ContractName: 5,
+          Proxy: "1",
+          Implementation: "0xnot-an-address",
+        },
         { SourceCode: "second" },
       ],
       extra: "dropped",
@@ -165,6 +171,26 @@ describe("createVerifyHandler forwards a read-only lookup (R-SRV-3, R-FLOW-1, de
       message: "OK",
       result: [{ SourceCode: SOURCE_MARKER }],
     });
+  });
+
+  it("keeps Implementation only when it is an address, for linkProxy() after a mismatch (R-FLOW-8)", async () => {
+    const cases: [unknown, Record<string, string>][] = [
+      [CHILD, { SourceCode: "", Implementation: CHILD }],
+      ["", { SourceCode: "" }],
+      [`${CHILD} and more`, { SourceCode: "" }],
+      [7, { SourceCode: "" }],
+    ];
+    for (const [implementation, want] of cases) {
+      const { handler } = setup([
+        json({
+          status: "1",
+          message: "OK",
+          result: [{ SourceCode: "", Implementation: implementation }],
+        }),
+      ]);
+      const body: unknown = await (await handler(post(SIMILAR.fields))).json();
+      assert.deepEqual(Reflect.get(Object(body), "result"), [want], String(implementation));
+    }
   });
 
   it("keeps a text result such as a key error, redacted, and drops any other result", async () => {
@@ -205,13 +231,114 @@ describe("createVerifyHandler forwards a read-only lookup (R-SRV-3, R-FLOW-1, de
       ["getcontractcreation", "getsourcecode"],
     );
   });
+});
 
-  it("does not forward proxy verification yet (#94)", async () => {
-    for (const action of ["verifyproxycontract", "checkproxyverification"]) {
-      const { handler } = setup();
-      const response = await handler(post({ module: "contract", action, guid: "abc" }));
-      assert.deepEqual(await code(response), { status: 403, code: "action-not-allowed" });
+/** `setup` with the proxy-link actions turned on. */
+function linking(
+  steps: ExplorerStep[] = [],
+  options: Partial<VerifyHandlerOptions> = {},
+): ReturnType<typeof setup> {
+  return setup(steps, { allowProxyLink: true, ...options });
+}
+
+describe("createVerifyHandler forwards the proxy-link actions only with allowProxyLink (R-SRV-3, R-FLOW-8)", () => {
+  const PROXY = "0xed5b8413e605598ef86cd7617f12701f74ca255c";
+  const IMPLEMENTATION = "0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920";
+  const REQUESTED = etherscanFixture("2026-11-04-verifyproxycontract-linked");
+  const LINKED = etherscanFixture("2026-11-04-checkproxyverification-linked");
+
+  it("names the proxy-link actions in the refusal only when they are turned on", async () => {
+    const getabi = { module: "contract", action: "getabi", address: PROXY };
+    const on = await (await linking().handler(post(getabi))).json();
+    const off = await (await setup().handler(post(getabi))).json();
+    assert.match(String(Reflect.get(Object(on), "result")), /verifyproxycontract/);
+    assert.doesNotMatch(String(Reflect.get(Object(off), "result")), /verifyproxycontract/);
+  });
+
+  it("refuses both actions by default, and with allowProxyLink false, and sends nothing", async () => {
+    for (const options of [{}, { allowProxyLink: false }]) {
+      for (const fields of [
+        { module: "contract", action: "verifyproxycontract", address: PROXY },
+        { module: "contract", action: "checkproxyverification", guid: "abc" },
+      ]) {
+        const { handler, explorer } = setup([], options);
+        const response = await handler(post(fields));
+        assert.deepEqual(await code(response), { status: 403, code: "action-not-allowed" });
+        assert.equal(explorer.calls.length, 0);
+      }
     }
+  });
+
+  it("forwards verifyproxycontract with expectedimplementation and the key in the body", async () => {
+    const { handler, explorer } = linking([json(REQUESTED.body)]);
+    const response = await handler(
+      post({
+        module: "contract",
+        action: "verifyproxycontract",
+        address: PROXY,
+        expectedimplementation: IMPLEMENTATION,
+      }),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), REQUESTED.body);
+    const [call] = explorer.calls;
+    assert.ok(call !== undefined);
+    assert.equal(call.url, `${ETHERSCAN_API_URL}?chainid=${String(ARB_SEPOLIA)}`);
+    assert.deepEqual(Object.fromEntries(call.form), {
+      module: "contract",
+      action: "verifyproxycontract",
+      address: PROXY,
+      expectedimplementation: IMPLEMENTATION,
+      apikey: KEY,
+    });
+  });
+
+  it("forwards checkproxyverification with the guid", async () => {
+    const { handler, explorer } = linking([json(LINKED.body)]);
+    const guid = "wccgmdtjug6bss2mf166jzjtqcs4uchztznlevycg6mbwlxttz";
+    const response = await handler(
+      post({ module: "contract", action: "checkproxyverification", guid }),
+    );
+    assert.deepEqual(await response.json(), LINKED.body);
+    assert.equal(explorer.calls[0]?.form.get("guid"), guid);
+  });
+
+  it("refuses a malformed address, expectedimplementation or guid, and an extra field", async () => {
+    const refused = [
+      { module: "contract", action: "verifyproxycontract", address: "0x1234" },
+      { module: "contract", action: "verifyproxycontract" },
+      {
+        module: "contract",
+        action: "verifyproxycontract",
+        address: PROXY,
+        expectedimplementation: "not-an-address",
+      },
+      { module: "contract", action: "verifyproxycontract", address: PROXY, guid: "abc" },
+      { module: "contract", action: "checkproxyverification", guid: "a b" },
+      { module: "contract", action: "checkproxyverification", guid: "abc", address: PROXY },
+    ];
+    for (const fields of refused) {
+      const { handler, explorer } = linking();
+      const response = await handler(post(fields));
+      assert.deepEqual(
+        await code(response),
+        { status: 400, code: "bad-request" },
+        JSON.stringify(fields),
+      );
+      assert.equal(explorer.calls.length, 0);
+    }
+  });
+
+  it("runs the deployer check on the proxy before verifyproxycontract (R-SRV-4)", async () => {
+    const { handler, explorer } = linking([json(CREATION.body)], { deployers: [PROXY] });
+    const response = await handler(
+      post({ module: "contract", action: "verifyproxycontract", address: CHILD }),
+    );
+    assert.deepEqual(await code(response), { status: 403, code: "address-not-allowed" });
+    assert.deepEqual(
+      explorer.calls.map((call) => call.form.get("action")),
+      ["getcontractcreation"],
+    );
   });
 });
 
