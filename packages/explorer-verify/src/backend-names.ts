@@ -23,10 +23,10 @@ export type BackendName = (typeof BACKEND_NAMES)[number];
 /**
  * Looks up a backend by name.
  *
- * @param value - Any string, for example from configuration.
+ * @param value - Any value, for example a string from configuration.
  * @returns The matching {@link BackendName}, or `undefined` when `value` names none.
  * @experimental
  */
-export function toBackendName(value: string): BackendName | undefined {
+export function toBackendName(value: unknown): BackendName | undefined {
   return BACKEND_NAMES.find((name) => name === value);
 }

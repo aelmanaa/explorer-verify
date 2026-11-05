@@ -2,13 +2,13 @@
   "files": [
     {
       "file": "src/backends/sourcify.ts",
-      "measured": 96.34,
-      "floor": 89
+      "measured": 99.71,
+      "floor": 98
     },
     {
       "file": "src/backends/common.ts",
-      "measured": 91.33,
-      "floor": 90
+      "measured": 98.82,
+      "floor": 97
     },
     {
       "file": "src/flow/verify.ts",
@@ -27,28 +27,28 @@
     },
     {
       "file": "src/http/api-keys.ts",
-      "measured": 95.64,
-      "floor": 93
-    },
-    {
-      "file": "src/routing/resolve.ts",
-      "measured": 96.03,
-      "floor": 92
-    },
-    {
-      "file": "src/errors.ts",
-      "measured": 98.99,
+      "measured": 99.04,
       "floor": 97
     },
     {
+      "file": "src/routing/resolve.ts",
+      "measured": 99.24,
+      "floor": 97
+    },
+    {
+      "file": "src/errors.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
       "file": "src/observe.ts",
-      "measured": 95.71,
-      "floor": 94
+      "measured": 100.0,
+      "floor": 99
     },
     {
       "file": "src/redact.ts",
-      "measured": 88.76,
-      "floor": 77
+      "measured": 98.3,
+      "floor": 97
     }
   ]
 }

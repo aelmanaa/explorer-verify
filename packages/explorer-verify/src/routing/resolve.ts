@@ -442,7 +442,7 @@ export function resolveRoute(
       hint = ROUTE_HINT;
     } else {
       if (fields.backend !== undefined) {
-        named = typeof fields.backend === "string" ? toBackendName(fields.backend) : undefined;
+        named = toBackendName(fields.backend);
         const problem =
           named === undefined
             ? "must name a known backend"
@@ -484,6 +484,7 @@ export function resolveRoute(
   const row = (choice.table ?? ROUTING_TABLE).chains.find((each) => each.chainId === chainId);
   const targets = (entries: readonly TableEntry[]): TableTarget[] =>
     entries.flatMap((each) => tableTarget(chainId, each) ?? []);
+  // Stryker disable next-line ArrayDeclaration: equivalent. tableTarget routes no entry that is not an object with a backend.
   const listed = targets(row?.backends ?? []);
   // The Sourcify fallback: for a chain with no row, or a route.apiUrl without a row entry.
   const fallback = targets([{ backend: "sourcify" }]);
@@ -541,6 +542,7 @@ export function resolveRoute(
           [{ field: "path", message: "must be empty or start with /, and contain no ? or #" }],
           "The request path is invalid",
           undefined,
+          // Stryker disable next-line ArrayDeclaration: equivalent. The message names only the field, so no secret can appear in it.
           [],
         );
       }
@@ -585,6 +587,7 @@ export function unsupported(
         why === "row"
           ? "Set allowSourcifyFallback: true, or set route.apiUrl and route.backend."
           : "Set route.backend to another backend the chain lists, or set route.apiUrl with it.",
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the chain id and the backend name.
       secrets: [],
     },
   );
@@ -600,6 +603,7 @@ function invalid(
   return new ExplorerVerifyError(
     { code: "invalid-input", issues },
     `${summary}: ${names}.`,
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
     hint === undefined ? { secrets } : { hint, secrets },
   );
 }

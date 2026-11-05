@@ -42,9 +42,11 @@ const BEARER_TOKEN = 8;
 const BARE_KEY = 34;
 // The most escape sequences, such as `\"`, that a JSON apikey member value runs through.
 const JSON_ESCAPES = 1024;
+// Stryker disable next-line StringLiteral: equivalent. JSON_NAME only feeds EXCERPT_MARGIN, whose largest term is the URL user info.
 const JSON_NAME = '"x-api-key"';
 // A bare Etherscan-style key: 34 uppercase letters and digits, with at least one of each.
 const BARE_KEY_PATTERN = new RegExp(
+  // Stryker disable next-line ArithmeticOperator: equivalent. A longer lookahead cannot pass the 34th character: the next one is not a letter or digit.
   String.raw`(?<![A-Za-z0-9])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[A-Z])(?=[A-Z0-9]{0,${String(BARE_KEY - 1)}}[0-9])[A-Z0-9]{${String(BARE_KEY)}}(?![A-Za-z0-9])`,
   "g",
 );
@@ -67,12 +69,14 @@ export const REDACTION_PATTERNS: readonly {
       "gi",
     ),
     replacement: `$1${REDACTED}`,
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.
     needs: ["key"],
   },
   // Other key-like parameter names, followed by `=`.
   {
     pattern: new RegExp(String.raw`${NAME_START}(${KEY_LIKE_NAME}${EQUALS})${VALUE}`, "gi"),
     replacement: `$1${REDACTED}`,
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.
     needs: ["key", "token", "auth", "secret", "password"],
   },
   // A JSON member such as `"apiKey": "..."`. The value runs through up to 1024 escape sequences
@@ -85,6 +89,7 @@ export const REDACTION_PATTERNS: readonly {
       "gi",
     ),
     replacement: `$1${REDACTED}`,
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.
     needs: ["key"],
   },
   // The user name and password of a URL, such as `https://user:pass@host`. The scheme starts at
@@ -95,6 +100,7 @@ export const REDACTION_PATTERNS: readonly {
       "gi",
     ),
     replacement: `$1${REDACTED}@`,
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.
     needs: ["://"],
   },
   // An HTTP bearer token. The value must look like a token, so "bearer of bad news" stays.
@@ -104,6 +110,7 @@ export const REDACTION_PATTERNS: readonly {
       "gi",
     ),
     replacement: `$1${REDACTED}`,
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.
     needs: ["bearer"],
   },
   // A bare Etherscan-style key. A handle's job id skips it: see redactJobId.
@@ -174,6 +181,7 @@ function secretPattern(secrets: readonly string[], upper: string): RegExp | unde
   for (const secret of secrets) {
     if (secret.length >= MIN_SECRET_LENGTH) {
       for (const form of forms(secret)) {
+        // Stryker disable next-line ConditionalExpression: equivalent when always true. A form the text does not hold matches nothing; the check only keeps the pattern short.
         if (upper.includes(form.toUpperCase())) {
           all.add(form);
         }
@@ -258,8 +266,11 @@ function redactPatterns(text: string, skip?: RegExp): string {
  */
 export const EXCERPT_MARGIN: number = Math.max(
   SCHEME + "://".length + USERINFO + "@".length,
+  // Stryker disable next-line ArithmeticOperator,StringLiteral: equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.
   "bearer".length + SPACING + BEARER_TOKEN,
+  // Stryker disable next-line ArithmeticOperator,StringLiteral: equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.
   JSON_NAME.length + SPACING + ":".length + SPACING + '"'.length,
+  // Stryker disable next-line ArithmeticOperator: equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.
   BARE_KEY + 1,
 );
 
@@ -390,6 +401,7 @@ export function redactingLogger(logger: Logger, secrets: readonly string[] = [])
             ? [loggable(message, secrets)]
             : [loggable(message, secrets), loggableFields(fields, secrets)];
         const returned: unknown = Reflect.apply(logger[method], logger, args);
+        // Stryker disable next-line ConditionalExpression: equivalent when always true. A promise resolved with undefined never rejects.
         if (returned !== undefined) {
           // An async logger method returns a promise. A rejection would be unhandled and stop a
           // Node process, so it is caught and dropped, like a throw. It is not awaited.

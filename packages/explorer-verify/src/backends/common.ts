@@ -82,6 +82,7 @@ export async function attemptSubmit(
       (error.details.code === "network" ||
         (error.details.code === "unexpected-response" &&
           error.details.status >= 200 &&
+          // Stryker disable next-line EqualityOperator: equivalent. A 3xx is a redirect, which never reads the body, so no 300 error has a cause.
           error.details.status < 300 &&
           error.cause !== undefined))
     ) {
@@ -258,6 +259,7 @@ export function standardJsonFields(input: ResolvedInput): Record<string, string>
     sourceCode: JSON.stringify({ language, sources, settings }),
     contractaddress: input.address,
     contractname: input.contractName,
+    // Stryker disable next-line Regex: equivalent. A solc version has a `v` only as its first character, so removing the first `v` removes the same one; validateInput drops it already.
     compilerversion: `v${input.compiler.version.replace(/^v/, "")}`,
   };
 }

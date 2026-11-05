@@ -320,21 +320,23 @@ the server handler and the input builders are not mutated yet.
 
 | File                       | What a surviving mutant can break                                  | Score | Killed only | Limit        |
 | -------------------------- | ------------------------------------------------------------------ | ----- | ----------- | ------------ |
-| `src/backends/sourcify.ts` | Sourcify answers mapped to results and errors (R-FLOW-4)           | 96.34 | 90.14       | 89           |
-| `src/backends/common.ts`   | Submit, resubmit and handle rules shared by the clients (R-FLOW-4) | 91.33 | 91.33       | 90           |
+| `src/backends/sourcify.ts` | Sourcify answers mapped to results and errors (R-FLOW-4)           | 99.71 | 99.71       | 98           |
+| `src/backends/common.ts`   | Submit, resubmit and handle rules shared by the clients (R-FLOW-4) | 98.82 | 98.82       | 97           |
 | `src/flow/verify.ts`       | The flow engine: submit, poll, budget, recovery (R-FLOW-4)         | 91.83 | 89.64       | 88           |
 | `src/flow/status.ts`       | `checkStatus()` (R-FLOW-4)                                         | 96.00 | 96.00       | 2 undetected |
 | `src/http/fetch.ts`        | Retry, timeout and abort rules (R-FLOW-6)                          | 95.48 | 90.32       | 89           |
-| `src/http/api-keys.ts`     | Which key goes to which host (R-SEC-1)                             | 95.64 | 94.63       | 93           |
-| `src/routing/resolve.ts`   | Which backend and URL a chain gets, so where a key goes            | 96.03 | 93.55       | 92           |
-| `src/errors.ts`            | The error catalogue and its redaction (R-SEC-1)                    | 98.99 | 98.99       | 97           |
-| `src/observe.ts`           | The logger and event guard (R-DX-5, R-DX-6, R-SEC-1)               | 95.71 | 95.71       | 94           |
-| `src/redact.ts`            | Key redaction (R-SEC-1)                                            | 88.76 | 78.28       | 77           |
+| `src/http/api-keys.ts`     | Which key goes to which host (R-SEC-1)                             | 99.04 | 98.08       | 97           |
+| `src/routing/resolve.ts`   | Which backend and URL a chain gets, so where a key goes            | 99.24 | 98.22       | 97           |
+| `src/errors.ts`            | The error catalogue and its redaction (R-SEC-1)                    | 100   | 100         | 99           |
+| `src/observe.ts`           | The logger and event guard (R-DX-5, R-DX-6, R-SEC-1)               | 100   | 100         | 99           |
+| `src/redact.ts`            | Key redaction (R-SEC-1)                                            | 98.30 | 98.30       | 97           |
 
-"Score" is Stryker's score from the full run of 2026-11-04 on commit `ff437c9` (StrykerJS
-10.0.0, Node 24.21.0, concurrency 4); "Killed only" counts timed-out mutants as not detected. Many of the survivors in
-`redact.ts` only make it slower, such as an empty list of the words that must appear before a
-pattern is tried; no test can kill them.
+"Score" is Stryker's score (StrykerJS 10.0.0, Node 24.21.0); "Killed only" counts timed-out
+mutants as not detected. The rows of `verify.ts`, `status.ts` and `fetch.ts` come from the full
+run of 2026-11-04 on commit `ff437c9` (concurrency 4). The other rows come from incremental runs of
+one file at a time on 2026-11-05 (concurrency 2), which started from the report of that full run.
+Mutants that a `// Stryker disable` comment marks as equivalent are not counted (see
+[When a mutant survives](#when-a-mutant-survives)).
 
 The check compares Stryker's score, which counts timeouts as detected, with the floor. Each floor
 is set lower than that score: from the killed mutants alone, over the valid ones (killed, timed
@@ -428,6 +430,74 @@ Read it in `mutation.html`. Most survivors are one of these:
 - An equivalent mutant: the change does not alter behaviour, for example an empty default
   `secrets` list replaced by a list holding a string that never occurs. No test can kill it.
 - Text no test reads, such as a log message. Check the text in a test when it matters to a user.
+
+Stryker has no per-mutant ignore in its config. Record an equivalent mutant in the source, on the
+line before it, with the reason:
+
+```ts
+// Stryker disable next-line ConditionalExpression: equivalent when always true. A promise resolved with undefined never rejects.
+if (returned !== undefined) {
+```
+
+The comment skips every mutant of the named mutators on the next line, so it also skips the ones a
+test kills. Use it only when it skips at most one killed mutant, and prefer a small change that
+removes the mutant, such as dropping code that can never run. Stryker reads the comment only
+before a statement or an expression: after the last statement of a `try` block it does not skip
+the `catch` block on the next line.
+
+`pnpm run check` runs `scripts/check-stryker-disables.ts`. It fails on a `Stryker disable` in
+`packages/*/src` that is not `// Stryker disable next-line <Mutator>[,<Mutator>]: <reason>`, such
+as a disable without `next-line` (it can last to the end of the file), `all`, or a missing reason.
+It prints each comment with its file and line, and fails when the table below does not list the
+comments in source order. After adding or removing one, run
+`node scripts/check-stryker-disables.ts --write`, then `pnpm run format`.
+
+<!-- stryker-disables:start -->
+
+| File                                                | Mutators                          | Why the mutants are equivalent                                                                                                                    |
+| --------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/explorer-verify/src/backends/common.ts`   | EqualityOperator                  | equivalent. A 3xx is a redirect, which never reads the body, so no 300 error has a cause.                                                         |
+| `packages/explorer-verify/src/backends/common.ts`   | Regex                             | equivalent. A solc version has a `v` only as its first character, so removing the first `v` removes the same one; validateInput drops it already. |
+| `packages/explorer-verify/src/backends/sourcify.ts` | ConditionalExpression             | equivalent when always true. JSON.stringify drops a field whose value is undefined.                                                               |
+| `packages/explorer-verify/src/backends/sourcify.ts` | OptionalChaining                  | equivalent. A 202 without a JSON body is unconfirmed, so readSubmit never gets one.                                                               |
+| `packages/explorer-verify/src/http/api-keys.ts`     | ConditionalExpression             | equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.                                                |
+| `packages/explorer-verify/src/observe.ts`           | ConditionalExpression             | equivalent when always false. redactingLogger drops the line when reading a method of an undefined logger throws, as SILENT drops it.             |
+| `packages/explorer-verify/src/observe.ts`           | ConditionalExpression             | equivalent when always true. A promise resolved with undefined never rejects.                                                                     |
+| `packages/explorer-verify/src/redact.ts`            | StringLiteral                     | equivalent. JSON_NAME only feeds EXCERPT_MARGIN, whose largest term is the URL user info.                                                         |
+| `packages/explorer-verify/src/redact.ts`            | ArithmeticOperator                | equivalent. A longer lookahead cannot pass the 34th character: the next one is not a letter or digit.                                             |
+| `packages/explorer-verify/src/redact.ts`            | ArrayDeclaration, StringLiteral   | equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.         |
+| `packages/explorer-verify/src/redact.ts`            | ArrayDeclaration, StringLiteral   | equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.         |
+| `packages/explorer-verify/src/redact.ts`            | ArrayDeclaration, StringLiteral   | equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.         |
+| `packages/explorer-verify/src/redact.ts`            | ArrayDeclaration, StringLiteral   | equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.         |
+| `packages/explorer-verify/src/redact.ts`            | ArrayDeclaration, StringLiteral   | equivalent. `needs` only skips a pattern that cannot match: each pattern requires its `needs` text, so running it anyway changes nothing.         |
+| `packages/explorer-verify/src/redact.ts`            | ConditionalExpression             | equivalent when always true. A form the text does not hold matches nothing; the check only keeps the pattern short.                               |
+| `packages/explorer-verify/src/redact.ts`            | ArithmeticOperator, StringLiteral | equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.              |
+| `packages/explorer-verify/src/redact.ts`            | ArithmeticOperator, StringLiteral | equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.              |
+| `packages/explorer-verify/src/redact.ts`            | ArithmeticOperator                | equivalent. This term is smaller than the URL user info term, and each mutant only makes it smaller, so the maximum does not change.              |
+| `packages/explorer-verify/src/redact.ts`            | ConditionalExpression             | equivalent when always true. A promise resolved with undefined never rejects.                                                                     |
+| `packages/explorer-verify/src/routing/resolve.ts`   | ArrayDeclaration                  | equivalent. tableTarget routes no entry that is not an object with a backend.                                                                     |
+| `packages/explorer-verify/src/routing/resolve.ts`   | ArrayDeclaration                  | equivalent. The message names only the field, so no secret can appear in it.                                                                      |
+| `packages/explorer-verify/src/routing/resolve.ts`   | ArrayDeclaration                  | equivalent. The message holds only the chain id and the backend name.                                                                             |
+| `packages/explorer-verify/src/routing/resolve.ts`   | ConditionalExpression             | equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.                                                |
+
+<!-- stryker-disables:end -->
+
+These survivors are equivalent and stay counted, because a comment would skip more killed mutants
+or cannot reach them:
+
+| File                       | Mutant                                                                                  | Why no test can kill it                                                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `src/backends/common.ts`   | `send`: the `catch` block emptied                                                       | `parsed` is already `undefined` when the parse throws                                                       |
+| `src/backends/common.ts`   | `attemptSubmit`: `error.details.code === "unexpected-response"` always true             | Only an `unexpected-response` error has a `status`; for any other code the status check fails               |
+| `src/backends/sourcify.ts` | `poll`: `fields === undefined` always false                                             | Without fields, `isJobCompleted` is `undefined`, so the `boolean` check throws the same error               |
+| `src/http/api-keys.ts`     | `plainEntries` and `originOf`: the `catch` block emptied                                | The function ends after the block and returns `undefined` either way                                        |
+| `src/http/api-keys.ts`     | `plainEntries`: `value === null` always false                                           | `Object.getPrototypeOf(null)` throws, and the `catch` block returns `undefined`, as the check does          |
+| `src/routing/resolve.ts`   | `readOverride`: the `catch` block emptied                                               | The function ends after the block and returns `undefined` either way                                        |
+| `src/routing/resolve.ts`   | `readOverride`: `value === null` always false                                           | `Object.getPrototypeOf(null)` throws, and the `catch` block returns `undefined`, as the check does          |
+| `src/routing/resolve.ts`   | `resolveRoute`: the secrets of an invalid route `[]` replaced by a list with text       | The message names only fields, so no other text can appear in it                                            |
+| `src/redact.ts`            | `redactPatterns`: the `needs` check always true                                         | `needs` only skips a pattern that cannot match                                                              |
+| `src/redact.ts`            | `loggable`: `value !== null` always true                                                | `JSON.stringify(null)` is `"null"`, the text the last branch gives                                          |
+| `src/redact.ts`            | `redact` and `redactingLogger`: the default `secrets` `[]` replaced by a list with text | Only a test that logs or redacts Stryker's own placeholder text could tell; such a test checks nothing real |
 
 ## Deterministic tests
 

@@ -15,6 +15,7 @@
     "scripts/check-mutation-score.ts",
     "scripts/check-packed-files.ts",
     "scripts/mutation-score.ts",
+    "scripts/stryker-disables.ts",
     "scripts/package-docs.ts",
     "scripts/random-order.ts",
     "scripts/record-released-codes.ts",
