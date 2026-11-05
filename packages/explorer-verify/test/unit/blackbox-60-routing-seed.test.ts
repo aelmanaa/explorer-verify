@@ -220,9 +220,10 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     assert.equal(TABLE.checked, "2026-11-05");
   });
 
-  it("lists 288 chains in ascending order, one row per chain (#166)", () => {
-    // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036).
-    assert.equal(TABLE.rows.length, 288);
+  it("lists 314 chains in ascending order, one row per chain (#166, #168)", () => {
+    // Every chain Sourcify listed with supported: true on 2026-11-05 (decision 0036), and 26
+    // chains only Routescan's API served in the probe of 2026-11-05 (decision 0037).
+    assert.equal(TABLE.rows.length, 314);
     const ids = TABLE.rows.map((row) => row.chainId);
     assert.deepEqual(
       ids,
@@ -230,12 +231,12 @@ describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
     );
   });
 
-  it("gives every row Sourcify, and lists only the backends with a client (#122)", () => {
+  it("gives every row Sourcify or Routescan, and lists only the backends with a client (#122, #168)", () => {
     for (const row of TABLE.rows) {
       const names = row.backends.map((entry) => entry.backend);
-      assert.ok(names.includes("sourcify"), `chain ${row.chainId}`);
+      assert.ok(names.includes("sourcify") || names.join() === "routescan", `chain ${row.chainId}`);
       assert.ok(
-        names.every((name) => name === "sourcify" || name === "etherscan-v2"),
+        names.every((name) => ["sourcify", "etherscan-v2", "routescan"].includes(name)),
         `chain ${row.chainId}`,
       );
     }
@@ -271,8 +272,12 @@ describe("blackbox #60: each named chain resolves to Sourcify (routing.md, R-RT-
 });
 
 describe("blackbox #60: every listed chain resolves to Sourcify", () => {
-  it("routes all 288 rows to https://sourcify.dev/server", async () => {
-    for (const row of TABLE.rows) {
+  it("routes all 288 rows with Sourcify to https://sourcify.dev/server", async () => {
+    const withSourcify = TABLE.rows.filter((row) =>
+      row.backends.some((entry) => entry.backend === "sourcify"),
+    );
+    assert.equal(withSourcify.length, 288);
+    for (const row of withSourcify) {
       assertSourcifyRoute(row.chainId, await run(row.chainId));
     }
   });
@@ -363,7 +368,8 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
     });
   }
 
-  for (const chainId of [43113, 43114]) {
+  // 43113 and 43114 have Routescan entries since #168; 80002 and 421614 do not.
+  for (const chainId of [80002, 421614]) {
     it(`route.backend routescan on ${String(chainId)}, a row without it, throws unsupported-chain`, async () => {
       const { error, calls } = await failure(chainId, { route: { backend: "routescan" } });
       assert.deepEqual(error.details, { code: "unsupported-chain", chainId, backend: "routescan" });

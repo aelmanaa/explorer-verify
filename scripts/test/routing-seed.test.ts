@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
+import { ROUTESCAN_FILE, ROUTESCAN_LISTS, withRoutescan } from "../routing-routescan.ts";
 import {
   SEED_FILE,
   SOURCES,
@@ -32,6 +33,29 @@ const CHAINLIST: unknown = JSON.parse(
 const SOURCIFY: unknown = JSON.parse(
   readFileSync(new URL("sourcify-chains.json", FIXTURES), "utf8"),
 );
+
+/** Routescan's explorer lists, recorded on 2026-11-05 and trimmed to 4 and 3 chains. */
+const ROUTESCAN_MAINNET: unknown = JSON.parse(
+  readFileSync(new URL("routescan-mainnet.json", FIXTURES), "utf8"),
+);
+const ROUTESCAN_TESTNET: unknown = JSON.parse(
+  readFileSync(new URL("routescan-testnet.json", FIXTURES), "utf8"),
+);
+/** A probe of those lists: chains 10 and 421614 answered `chain not supported`. */
+const PROBE = {
+  checked: "2026-11-05",
+  served: [
+    { chainId: 1, name: "Ethereum", network: "mainnet" },
+    { chainId: 43113, name: "C-Chain Fuji", network: "testnet" },
+    { chainId: 43114, name: "C-Chain", network: "mainnet" },
+    { chainId: 68414, name: "Henesys", network: "mainnet" },
+    { chainId: 11155111, name: "Sepolia", network: "testnet" },
+  ],
+  refused: [
+    { chainId: 10, name: "OP Mainnet", network: "mainnet" },
+    { chainId: 421614, name: "Arbitrum Sepolia", network: "testnet" },
+  ],
+} as const;
 
 /** The recorded chainlist: chains 1, 8453, 43113 and 11155111. */
 const LIVE = parseChainlist(CHAINLIST);
@@ -128,8 +152,9 @@ describe("routing seed: parsing the recorded lists (R-RT-1)", () => {
     const root = new URL("../../", import.meta.url);
     const table = parseTable(JSON.parse(readFileSync(new URL(TABLE_FILE, root), "utf8")));
     const seed = parseSeed(JSON.parse(readFileSync(new URL(SEED_FILE, root), "utf8")));
-    assert.equal(table.rows.length, 288);
+    assert.equal(table.rows.length, 314);
     assert.equal(table.rows.filter((row) => row.backends.includes("etherscan-v2")).length, 55);
+    assert.equal(table.rows.filter((row) => row.backends.includes("routescan")).length, 38);
     assert.equal(seed.etherscan.length, 55);
   });
 
@@ -152,11 +177,13 @@ describe("routing seed: parsing the recorded lists (R-RT-1)", () => {
   it("finds no missing or stale etherscan-v2 entry in the shipped table, against the chainlist of 2026-11-04 (R-RT-1, #122)", () => {
     // The chainlist read on 2026-11-04 equals the research data's frozen copy of 2026-11-03 (see
     // the research note of 2026-11-04), so the frozen copy stands in for the live answer. Every
-    // row has Sourcify, so the Sourcify set is the table's own chains.
+    // row but the Routescan-only ones has Sourcify, so the Sourcify set is those rows' chains.
     const root = new URL("../../", import.meta.url);
     const table = parseTable(JSON.parse(readFileSync(new URL(TABLE_FILE, root), "utf8")));
     const seed = parseSeed(JSON.parse(readFileSync(new URL(SEED_FILE, root), "utf8")));
-    const sourcify = new Set(table.rows.map((row) => row.chainId));
+    const sourcify = new Set(
+      table.rows.filter((row) => row.backends.includes("sourcify")).map((row) => row.chainId),
+    );
     assert.deepEqual(compare({ table, seed, chainlist: seed.etherscan, sourcify }), []);
   });
 });
@@ -346,6 +373,14 @@ function fakeFetch(answers: Record<string, Response>, asked: string[]): typeof g
   };
 }
 
+/** The answers of Routescan's two explorer lists, with another mainnet answer when given. */
+function routescanAnswers(mainnet: unknown = ROUTESCAN_MAINNET): Record<string, Response> {
+  return {
+    [ROUTESCAN_LISTS.mainnet]: Response.json(mainnet),
+    [ROUTESCAN_LISTS.testnet]: Response.json(ROUTESCAN_TESTNET),
+  };
+}
+
 describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
   let root = "";
   before(() => {
@@ -356,14 +391,18 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
         {
           schemaVersion: 2,
           checked: "2026-11-04",
-          chains: [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
-            chainId: row.chainId,
-            backends: row.backends.map((backend) =>
-              backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
-            ),
-          })),
+          chains: withRoutescan(
+            [1, 31, 324, 8453, 43113, 11155111].map(rowOf).map((row) => ({
+              chainId: row.chainId,
+              backends: row.backends.map((backend) =>
+                backend === "etherscan-v2" ? { backend, explorer: row.explorer } : { backend },
+              ),
+            })),
+            PROBE,
+          ),
         },
       ],
+      [ROUTESCAN_FILE, PROBE],
       [
         SEED_FILE,
         {
@@ -380,7 +419,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("fetches the two lists, compares and notes what it did not compare", async () => {
+  it("fetches the four lists, compares and notes what it compared (#168)", async () => {
     const asked: string[] = [];
     const result = await run(
       root,
@@ -388,17 +427,45 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
         {
           [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
           [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          ...routescanAnswers(),
         },
         asked,
       ),
     );
-    assert.deepEqual(asked.toSorted(), [SOURCES.etherscanChainlist, SOURCES.sourcifyChains]);
+    assert.deepEqual(asked.toSorted(), [
+      SOURCES.etherscanChainlist,
+      ROUTESCAN_LISTS.mainnet,
+      ROUTESCAN_LISTS.testnet,
+      SOURCES.sourcifyChains,
+    ]);
     assert.deepEqual(result.differences, []);
     assert.equal(result.checked, "2026-11-04");
     assert.deepEqual(result.notes, [
-      "table checked 2026-11-04; 6 rows",
-      "routescan: not compared; its supported-chains page has no machine-readable list (see the research note)",
+      "table checked 2026-11-04; 8 rows",
+      "routescan: entries compared with the API probe of 2026-11-05, and that probe with Routescan's explorer lists",
     ]);
+  });
+
+  it("reports a Routescan difference with Routescan's list (#168, decision 0037)", async () => {
+    const result = await run(
+      root,
+      fakeFetch(
+        {
+          [SOURCES.etherscanChainlist]: Response.json(CHAINLIST),
+          [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+          ...routescanAnswers({ items: [] }),
+        },
+        [],
+      ),
+    );
+    assert.deepEqual(
+      result.differences.map((difference) => [difference.chainId, difference.list]),
+      [
+        [1, "Routescan chain list"],
+        [43114, "Routescan chain list"],
+        [68414, "Routescan chain list"],
+      ],
+    );
   });
 
   it("fails on an answer other than HTTP 200", async () => {
@@ -409,6 +476,7 @@ describe("routing seed: run() with a fake fetch (R-RT-1)", () => {
           {
             [SOURCES.etherscanChainlist]: new Response("blocked", { status: 403 }),
             [SOURCES.sourcifyChains]: Response.json(SOURCIFY),
+            ...routescanAnswers(),
           },
           [],
         ),

@@ -17,22 +17,25 @@ https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api
 The free tier needs no key and sends CORS headers, so a page in a browser can verify through it
 directly. [verify()](verify.md) and [checkStatus()](check-status.md) use this client.
 
-The routing table lists no Routescan rows yet, so a call reaches Routescan only through
-`route.backend` `routescan` with `route.apiUrl` set to the chain's URL ([Routing](routing.md)). A
-result then has no `explorerUrl`. This call resumes a job on Avalanche Fuji (43113) that Routescan
-has since forgotten; the lookup that follows finds the contract verified:
+The routing table lists Routescan for the 38 chains whose API answered a keyless probe on
+2026-11-05, and derives each chain's URL from its network ([Routing](routing.md#routescan-entries)).
+Routescan comes last in a row:
+
+- On a chain whose row lists only Routescan, such as Henesys (68414), a call goes to Routescan
+  with no option.
+- On a chain whose row also lists Sourcify or Etherscan v2, such as Avalanche Fuji (43113), pass
+  `route: { backend: "routescan" }`. No `route.apiUrl` is needed.
+- On any other chain, pass `route.backend` `routescan` with `route.apiUrl` set to the chain's URL.
+
+A result from Routescan has no `explorerUrl`. This call resumes a job on Avalanche Fuji (43113)
+that Routescan has since forgotten; the lookup that follows finds the contract verified:
 
 ```ts
 import { checkStatus } from "explorer-verify";
 
 const result = await checkStatus(
   "ev1:routescan:43113:0x636522c3785337399aa9105498d2bd95dc01d749:f111a4c8-368c-51d2-8163-c7ab477a1d91",
-  {
-    route: {
-      backend: "routescan",
-      apiUrl: "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
-    },
-  },
+  { route: { backend: "routescan" } },
 );
 console.log(`${result.status} ${result.backend}`);
 ```
@@ -41,7 +44,7 @@ console.log(`${result.status} ${result.backend}`);
 verified routescan
 ```
 
-`verify()` takes the same `route`:
+`verify()` takes the same `route`. On a chain the table does not list for Routescan, add the URL:
 
 <!-- no-run: a live submit to Routescan; the example above runs. -->
 
@@ -51,7 +54,7 @@ import { verify } from "explorer-verify";
 const result = await verify(input, {
   route: {
     backend: "routescan",
-    apiUrl: "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api",
+    apiUrl: "https://api.routescan.io/v2/network/mainnet/evm/<chain id>/etherscan/api",
   },
 });
 console.log(result.status);
@@ -65,7 +68,8 @@ A key is optional. It goes in the `apikey` request header, never in the URL or t
 - `route.apiKey` is bound to the host of your `route.apiUrl`, whatever that host is. Set
   `apiUrl` to a Routescan URL to send the key to `api.routescan.io`.
 - `apiKeys.routescan` goes only to `api.routescan.io`, and only on a route the routing table
-  lists. The table lists no Routescan rows yet, so in this release it is not sent.
+  lists: a chain with a Routescan entry, without `route.apiUrl`. It does not move a call to
+  Routescan on a row that lists Sourcify or Etherscan v2 first; pass `route.backend` for that.
 
 Without a key, requests go out with no `apikey` header, on the keyless tier. Routescan documents 2
 requests per second and 10,000 calls per day for that tier
@@ -136,3 +140,7 @@ network, such as `mainnet` for Fuji.
 - On 2026-11-04, a status request without a key confirmed the network of each of the 24 chains
   that Routescan's supported-chains page listed on 2026-11-03; see the
   [research note](../../contributor/research/2026-11-04-routescan-client.md#chains-confirmed-on-2026-11-04).
+- Routescan's explorer lists name chains its API does not serve. On 2026-11-05, 7 of the 45
+  chains they named answered `chain not supported`, among them OP Mainnet (10) and OP Sepolia
+  (11155420), so the table has no Routescan entry for them; see the
+  [research note](../../contributor/research/2026-11-05-routescan-rows.md).
