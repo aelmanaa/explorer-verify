@@ -16,6 +16,8 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 
+import { gitHubApi as markedIssueApi, syncIssue } from "./github-issue.ts";
+import type { GitHubOptions, IssueApi } from "./github-issue.ts";
 import { errorMessage, isMainModule } from "./release-packages.ts";
 import type { ChangedList, Difference } from "./routing-seed.ts";
 
@@ -25,32 +27,14 @@ export const TITLE = "Routing table differs from the public chain lists";
 export const MARKER = "<!-- routing-table-compare -->";
 /** The labels of a new issue. */
 export const LABELS: readonly string[] = ["type:chore", "area:routing", "status:needs-triage"];
-/** The login GitHub gives the workflow's own token. */
-export const BOT = "github-actions[bot]";
+export { BOT } from "./github-issue.ts";
+export type { GitHubOptions, Issue, IssueApi } from "./github-issue.ts";
 
 /** The JSON `compare-routing-table.ts --json` prints. */
 export interface Report {
   readonly checked: string;
   readonly notes: readonly string[];
   readonly differences: readonly Difference[];
-}
-
-/** An open issue: its number and body. */
-export interface Issue {
-  readonly number: number;
-  readonly body: string;
-}
-
-/** The GitHub calls the script makes. The tests pass a fake. */
-export interface IssueApi {
-  /** The open issue with {@link MARKER} in its body, if any. */
-  findOpen(): Promise<Issue | undefined>;
-  /** Opens an issue and returns its number. */
-  create(title: string, body: string, labels: readonly string[]): Promise<number>;
-  /** Replaces the body of an issue. */
-  update(issue: number, body: string): Promise<void>;
-  /** Comments on an issue, then closes it as completed. */
-  close(issue: number, comment: string): Promise<void>;
 }
 
 const LISTS: readonly ChangedList[] = [
@@ -162,100 +146,28 @@ export function closingComment(report: Report): string {
  * @returns One line that says what the script did.
  */
 export async function sync(report: Report, api: IssueApi): Promise<string> {
-  const open = await api.findOpen();
-  if (report.differences.length === 0) {
-    if (open === undefined) {
-      return "routing table: no differences; no open issue";
-    }
-    await api.close(open.number, closingComment(report));
-    return `routing table: no differences; closed issue #${String(open.number)}`;
-  }
-  const body = issueBody(report);
-  if (open === undefined) {
-    const created = await api.create(TITLE, body, LABELS);
-    return `routing table: opened issue #${String(created)}`;
-  }
-  if (open.body === body) {
-    return `routing table: issue #${String(open.number)} already lists these differences`;
-  }
-  await api.update(open.number, body);
-  return `routing table: updated issue #${String(open.number)}`;
-}
-
-/** Where the GitHub calls go and how they authenticate. */
-export interface GitHubOptions {
-  /** `owner/name`. */
-  readonly repository: string;
-  readonly token: string;
-  /** The REST API root, `https://api.github.com` on github.com. */
-  readonly apiUrl: string;
-  readonly fetch: typeof globalThis.fetch;
+  return await syncIssue(
+    api,
+    {
+      title: TITLE,
+      labels: LABELS,
+      subject: "routing table",
+      quiet: "no differences",
+      same: "already lists these differences",
+    },
+    report.differences.length === 0 ? undefined : issueBody(report),
+    closingComment(report),
+  );
 }
 
 /**
- * The GitHub REST calls behind {@link IssueApi}. A status other than 2xx throws an error that
- * names the method, path and status, never the token.
+ * The GitHub REST calls behind {@link IssueApi}, finding the issue by {@link MARKER}.
  *
  * @param options - The repository, token, API root and fetch.
  * @returns The calls.
  */
 export function gitHubApi(options: GitHubOptions): IssueApi {
-  const base = `${options.apiUrl.replace(/\/+$/, "")}/repos/${options.repository}`;
-  async function call(method: string, route: string, body?: unknown): Promise<unknown> {
-    const response = await options.fetch(`${base}${route}`, {
-      method,
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${options.token}`,
-        "content-type": "application/json",
-        "x-github-api-version": "2022-11-28",
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    if (!response.ok) {
-      throw new Error(`GitHub ${method} ${route} answered HTTP ${String(response.status)}`);
-    }
-    const parsed: unknown = response.status === 204 ? undefined : await response.json();
-    return parsed;
-  }
-  return {
-    async findOpen() {
-      const query = new URLSearchParams({ state: "open", creator: BOT, per_page: "100" });
-      const answer = await call("GET", `/issues?${query.toString()}`);
-      const issues: unknown[] = Array.isArray(answer) ? answer : [];
-      for (const issue of issues) {
-        const number = field(issue, "number");
-        const body = field(issue, "body");
-        if (
-          typeof number === "number" &&
-          typeof body === "string" &&
-          field(issue, "pull_request") === undefined &&
-          body.startsWith(MARKER)
-        ) {
-          return { number, body };
-        }
-      }
-      return undefined;
-    },
-    async create(title, body, labels) {
-      const answer = await call("POST", "/issues", { title, body, labels });
-      const number = field(answer, "number");
-      if (typeof number !== "number") {
-        throw new TypeError("GitHub POST /issues answered without an issue number");
-      }
-      return number;
-    },
-    async update(issue, body) {
-      await call("PATCH", `/issues/${String(issue)}`, { body });
-    },
-    async close(issue, comment) {
-      await call("POST", `/issues/${String(issue)}/comments`, { body: comment });
-      await call("PATCH", `/issues/${String(issue)}`, {
-        state: "closed",
-        state_reason: "completed",
-      });
-    },
-  };
+  return markedIssueApi(options, MARKER);
 }
 
 /** The environment variables the command reads. */

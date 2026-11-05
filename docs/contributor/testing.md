@@ -45,6 +45,7 @@ run time, so c8 would report them at 0%.
 | Docs examples    | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                              | In place                                         |
 | Link check       | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in `docs/user/`, `llms.txt` and the built site; external links once a week                                                 | In place                                         |
 | Routing table    | `scripts/compare-routing-table.ts`, `.github/workflows/routing-table.yml` weekly                               | The routing table against the live Etherscan chainlist and Sourcify chain list (R-RT-1)                                                               | In place                                         |
+| Deprecation      | `scripts/blockscout-deprecation.ts`, `.github/workflows/routing-table.yml` weekly                              | Blockscout's per-instance API shows no deprecation header, hosted-API answer, docs change or spread of failures                                       | In place                                         |
 | Agent evaluation | [`test/agent-eval/`](../../test/agent-eval/README.md), maintainer only                                         | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                     | Task set in place; first run pending (#7)        |
 
 ## Agent readiness (R-AX)
@@ -197,6 +198,46 @@ that JSON:
 
 It finds the issue by a hidden marker at the start of the body, among the open issues the
 workflow's token opened. A pull request applies the change to the table; the workflow never does.
+`scripts/github-issue.ts` holds this open, update or close logic, which the Blockscout
+deprecation watch shares.
+
+## Blockscout deprecation watch
+
+The library reaches Blockscout through each chain's own instance API, without a key. Blockscout's
+docs say that per-instance API is deprecated in favour of the hosted multichain API, which needs a
+key ([#96](https://github.com/aelmanaa/explorer-verify/issues/96)). The second job of
+`.github/workflows/routing-table.yml` runs `scripts/blockscout-deprecation.ts` once a week to see
+when that changes ([#198](https://github.com/aelmanaa/explorer-verify/issues/198)). It sends no
+key and follows no redirect. It reports four signals:
+
+| Signal   | Fires when                                                                                                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `header` | An instance answer has a `Deprecation` (RFC 9745) or `Sunset` (RFC 8594) header, a `Link` header with either relation, or a `Warning` header                                  |
+| `answer` | An instance answer's body or `Location` header names `api.blockscout.com` or `dev.blockscout.com`, or has words such as "deprecated", "sunset" or "will be removed"           |
+| `docs`   | A watched docs section no longer matches the SHA-256 recorded in `docs/contributor/research/data/2026-11-05-blockscout-deprecation-docs.json`, or its page or heading is gone |
+| `down`   | 5 or more of the sampled instances do not answer with a block number in the same run, so a spread of failures shows apart from one outage                                     |
+
+The sample is every routing-table instance on a `*.blockscout.com` host: 42 of the 111. Blockscout
+runs those hosts, so only those can be switched off by its decision, and they would show a
+deprecation first. The other instances are run by chain teams. Each sampled host gets one
+`GET /api?module=block&action=eth_block_number` a week, one host at a time, 500 ms apart. Then
+each watched docs page gets one `GET` of its Markdown form.
+
+A watched section is the text under one heading, up to the next heading, with white space
+collapsed. So a change elsewhere on the page, or in line breaks only, does not fire. A `docs`
+signal stays until a pull request records the new text, hash and read date in the data file.
+
+With `--report`, the script opens one issue titled "Blockscout per-instance API: deprecation
+signal", labelled `status:needs-triage`, replaces its body while a signal remains, and comments
+and closes it when none remains. The body names each signal, where it fired and what was seen,
+and links #96. Explorer and docs text sits in code spans, as in the live check, so no mention,
+reference or HTML renders. The table stops at 40 rows or 50,000 characters, below GitHub's
+65,536-character limit. Each week, the run summary and the `blockscout-deprecation.json` artifact,
+kept 90 days, record how many sampled instances answered.
+
+Run it locally with `node scripts/blockscout-deprecation.ts`; it exits 1 when it sees a signal.
+The baseline of 2026-11-05 is in
+[the deprecation watch note](research/2026-11-05-blockscout-deprecation-watch.md).
 
 ## Live check
 
