@@ -401,6 +401,12 @@ A test gives the same result on every run, on every machine and in any order.
   that calls `mock.timers.tick()` on every turn spends the budget during the load, and a loop with
   a small turn limit can end before the load does. To wait for a step, such as the submit, use
   `turnUntil`, not a fixed number of turns.
+- No test races real time. The client load's deadline is a real `AbortSignal.timeout`, so a test
+  that turns the event loop many times passes a budget real time cannot spend (`MAX_TIMER_MS`) and
+  checks the mock clock instead. Only a test of a load that never settles relies on the real
+  deadline.
+- No wall-clock limits in the default run: a busy machine makes them fail. The 1 MB Keccak-256
+  speed check runs only with `KECCAK_BENCH=1`, on an idle machine and without coverage.
 - Write a file that a child process reads before the process starts, with `writeFiles` from
   `test/helpers/skill.ts`. It replaces the file whole, so no process reads it empty or half
   written.

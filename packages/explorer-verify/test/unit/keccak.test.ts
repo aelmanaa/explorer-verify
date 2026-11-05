@@ -92,17 +92,32 @@ describe("keccak256 (R-IN-7, decision 0012)", () => {
     }
   });
 
-  // Block coverage (c8 sets NODE_V8_COVERAGE) slows this loop many times over, so the time budget
-  // runs only in the plain test runs.
-  const timed = process.env["NODE_V8_COVERAGE"] === undefined;
+  it("hashes 1 MB: the Keccak-256 digest of another implementation, and node:crypto sha3-256 with SHA-3 padding", () => {
+    // 1 MiB of 0x61 is 7,710 full blocks and a last partial one. The Keccak-256 digest is from
+    // Foundry's `cast keccak` 1.8.1 (2026-11-05), an implementation independent of this one.
+    const input = new Uint8Array(1024 * 1024).fill(0x61);
+    assert.equal(
+      keccak256(input),
+      "0xf5f3e54ad3d703f8e9edfd7ce79341b1d9286a692fa6c13ff13ee6ea94dbf97d",
+    );
+    const expected = `0x${createHash("sha3-256").update(input).digest("hex")}`;
+    assert.equal(sponge256(input, SHA3_PADDING), expected);
+  });
+
+  // A wall-clock limit depends on the machine's load: under load averages above 100 this check
+  // took over two seconds while the code had not changed (#163). So it runs only on request, on an
+  // idle machine: KECCAK_BENCH=1. It is also meaningless under block coverage (c8 sets
+  // NODE_V8_COVERAGE), which slows this loop many times over.
+  const timed =
+    process.env["KECCAK_BENCH"] === "1" && process.env["NODE_V8_COVERAGE"] === undefined;
   it(
-    "hashes 1 MB in under two seconds, best of three runs",
+    "hashes 1 MB in under two seconds, best of three runs (KECCAK_BENCH=1)",
     {
-      skip: timed ? false : "timing is not meaningful under coverage",
+      skip: timed ? false : "set KECCAK_BENCH=1, without coverage",
     },
     () => {
-      // About 0.15 s on an idle laptop (2026-11-03). The best of three runs absorbs a busy CI
-      // runner; the first implementation took about 4 s and would fail.
+      // About 0.15 s on an idle laptop (2026-11-03). The first implementation took about 4 s and
+      // would fail.
       const input = new Uint8Array(1024 * 1024).fill(0x61);
       let best = Number.POSITIVE_INFINITY;
       for (let run = 0; run < 3; run++) {

@@ -25,6 +25,7 @@ import {
   withClient,
 } from "../../src/flow/verify.ts";
 import type { Client, FlowDependencies } from "../../src/flow/verify.ts";
+import { MAX_TIMER_MS } from "../../src/http/fetch.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { VerifyInput, VerifyOptions } from "../../src/types.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
@@ -262,6 +263,14 @@ async function settleJobs(): Promise<void> {
 /** `setImmediate` as the runtime gives it, kept before any test mocks it. */
 const realImmediate = setImmediate;
 
+/**
+ * Options with a budget that real time cannot spend during a test. The load's deadline is a real
+ * `AbortSignal.timeout`, and on a loaded machine thousands of real turns can take seconds (#163).
+ * The tests that turn many times check the mock clock, not the real deadline. The 5 ms test below
+ * checks that the real deadline ends a load that never settles.
+ */
+const UNBOUNDED: VerifyOptions = { fetch: noFetch, timeoutMs: MAX_TIMER_MS };
+
 /** What `promise` settles with: `{ resolved }` or the rejection reason. */
 async function outcomeOf(promise: Promise<unknown>): Promise<unknown> {
   return await promise.then(
@@ -309,7 +318,7 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
           table: TABLE,
         };
         const state = { settled: false };
-        const pending = outcomeOf(run(dependencies, { fetch: noFetch })).finally(() => {
+        const pending = outcomeOf(run(dependencies, UNBOUNDED)).finally(() => {
           state.settled = true;
         });
         while (!state.settled) {
@@ -338,13 +347,16 @@ describe("a client load is bounded by the signal and the budget (R-FLOW-6, decis
         },
         table: TABLE,
       };
-      const pending = outcomeOf(run(dependencies, { fetch: noFetch, timeoutMs: 1_000 }));
+      const pending = outcomeOf(run(dependencies, UNBOUNDED));
       await driveMockClock(pending, () => {
         t.mock.timers.runAll();
       });
       const outcome = await pending;
       assert.ok(!(outcome instanceof Error), String(outcome));
+      // The mock clock when the load ends, and after the call: a driver that moves it during the
+      // load fails here.
       assert.deepEqual(clock, [0]);
+      assert.equal(Date.now(), 0);
     });
 
     it(`${name}: a load that never ends rejects with signal.reason when the signal aborts`, async () => {
