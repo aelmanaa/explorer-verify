@@ -11,7 +11,7 @@ import type { Backend } from "../../src/backends/backend.ts";
 import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
 import { runCheckStatus } from "../../src/flow/status.ts";
-import { openCall, settingsOf } from "../../src/flow/verify.ts";
+import { openCall, settingsOf, startBudget, withHandler } from "../../src/flow/verify.ts";
 import {
   MAX_KEY_LENGTH,
   checkKey,
@@ -22,9 +22,10 @@ import {
   checkRouteKey,
   withKey,
 } from "../../src/http/api-keys.ts";
-import type { ApiKeys, KeyContext } from "../../src/http/api-keys.ts";
+import type { CheckedKeys, KeyContext } from "../../src/http/api-keys.ts";
 import { request } from "../../src/http/fetch.ts";
 import type { HttpRequest } from "../../src/http/fetch.ts";
+import { refuseHandlerKey } from "../../src/http/handler-url.ts";
 import type { Route } from "../../src/routing/resolve.ts";
 import type { RouteOverride, VerifyOptions } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
@@ -69,7 +70,7 @@ function routeOf(backend: BackendName, apiBase: string, apiKey?: string): Route 
   };
 }
 
-function keyed(route: Route, apiKeys: ApiKeys = KEYS): KeyContext {
+function keyed(route: Route, apiKeys: CheckedKeys = KEYS): KeyContext {
   return { route, apiKeys: () => apiKeys };
 }
 
@@ -416,7 +417,7 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
     assertKeyError(error, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2.",
+      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
     );
     assert.equal(spy.mock.callCount(), 0);
   });
@@ -447,18 +448,43 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
     requireKey(keyed(routeOf("etherscan-v2", ETHERSCAN_API, ETHERSCAN_KEY), {}), false, []);
   });
 
-  it("opens a keyed call without a key when fetch is injected (R-SRV-5)", (t) => {
+  it("still throws missing-api-key when fetch is injected without handlerUrl (R-SEC-1, decision 0046)", (t) => {
     const fake = t.mock.fn(() => Promise.reject(new Error("no request expected")));
+    const error = thrown(() =>
+      openCall(settingsOf({ fetch: fake }), routeOf("etherscan-v2", ETHERSCAN_API), target, {
+        backends: { "etherscan-v2": sourcifyLike },
+      }),
+    );
+    assertKeyError(error, "missing-api-key");
+    assert.equal(fake.mock.callCount(), 0);
+  });
+
+  it("opens a keyed call without a key when handlerUrl is set (R-SRV-5, decision 0046)", async (t) => {
+    const fake = t.mock.fn(() => Promise.reject(new Error("no request expected")));
+    const read = settingsOf({ fetch: fake, handlerUrl: "https://dapp.example/api/verify" });
     const call = openCall(
-      settingsOf({ fetch: fake }),
+      await withHandler(read, startBudget(read)),
       routeOf("etherscan-v2", ETHERSCAN_API),
       target,
-      {
-        backends: { "etherscan-v2": sourcifyLike },
-      },
+      { backends: { "etherscan-v2": sourcifyLike } },
     );
     assert.equal(call.backend.name, "etherscan-v2");
     assert.equal(fake.mock.callCount(), 0);
+  });
+
+  it("refuses a key bound to a route that goes through the server handler (decision 0046)", () => {
+    const error = thrown(() => {
+      refuseHandlerKey([ETHERSCAN_KEY]);
+    });
+    assert.equal(error.details.code, "invalid-input");
+    assert.deepEqual(
+      error.details.code === "invalid-input" ? error.details.issues.map((i) => i.field) : [],
+      ["route.apiKey"],
+    );
+    assert.ok(!JSON.stringify(error.toJSON()).includes(ETHERSCAN_KEY));
+    assert.ok(!error.message.includes(ETHERSCAN_KEY));
+    // Without a key bound, the handler route needs none (R-SRV-5).
+    requireKey(keyed(routeOf("etherscan-v2", ETHERSCAN_API), {}), true, []);
   });
 
   it("skips the check for backends that work without a key (R-SRV-5)", () => {
@@ -693,6 +719,18 @@ describe("apiKeys and route.apiKey: options validation (R-SEC-1, R-IN-6)", () =>
     assert.deepEqual(readApiKeys(bare).keys, { routescan: ROUTESCAN_KEY });
     assert.deepEqual(settingsOf(undefined).apiKeys(), {});
     assert.deepEqual(settingsOf(undefined).keySecrets(), []);
+  });
+
+  it("accepts a blockscout-hosted key, a KeyedBackendName (decisions 0041 and 0046)", () => {
+    const hosted = "blockscout-hosted-dummy-key-217";
+    // Compiles only because `blockscout-hosted` is a KeyedBackendName.
+    const options: VerifyOptions = { apiKeys: { "blockscout-hosted": hosted } };
+    assert.deepEqual(settingsOf(options).apiKeys(), { "blockscout-hosted": hosted });
+    assert.deepEqual(readApiKeys({ "blockscout-hosted": hosted }), {
+      keys: { "blockscout-hosted": hosted },
+      issues: [],
+      secrets: [hosted],
+    });
   });
 
   it("refuses etherscan-compatible, sourcify and blockscout keys (decision 0016)", () => {

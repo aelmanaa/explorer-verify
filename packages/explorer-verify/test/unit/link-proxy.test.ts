@@ -1228,7 +1228,7 @@ async function throughHandler(
     {
       timeoutMs: 20_000,
       pollIntervalMs: 3_000,
-      route: { backend: "etherscan-v2" },
+      handlerUrl: "https://dapp.example/api/verify",
       fetch: viaHandler,
     },
     DEFAULT_LINK_DEPENDENCIES,
@@ -1272,6 +1272,39 @@ describe("linkProxy(): the origin of an answer (R-SEC-2, decision 0035)", () => 
     assert.ok(!(outcome instanceof Error), String(outcome));
     assert.equal(Reflect.get(Object(outcome), "status"), "linked");
     assert.deepEqual(sent, ["verifyproxycontract", "checkproxyverification"]);
+  });
+
+  it("links through handlerUrl with the platform's fetch: requests go to the handler, its answers are kept (decision 0046)", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const sent: string[] = [];
+    const answers = [
+      answeredFrom(HANDLER, "2026-11-04-verifyproxycontract-linked"),
+      answeredFrom(HANDLER, "2026-11-04-checkproxyverification-linked"),
+    ];
+    t.mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body;
+      assert.ok(body instanceof URLSearchParams);
+      assert.equal(body.get("apikey"), null);
+      sent.push(
+        `${input instanceof Request ? input.url : String(input)} ${String(body.get("action"))}`,
+      );
+      const next = answers.shift();
+      assert.ok(next !== undefined, "unexpected request");
+      return await Promise.resolve(next);
+    });
+    const call = linkProxy(
+      { chainId: SEPOLIA, address: PROXY },
+      { timeoutMs: 20_000, pollIntervalMs: 3_000, handlerUrl: HANDLER },
+    );
+    await driveMockClock(call, () => {
+      t.mock.timers.runAll();
+    });
+    const outcome = await call;
+    assert.equal(outcome.status, "linked");
+    assert.deepEqual(sent, [
+      `${HANDLER}?chainid=${String(SEPOLIA)} verifyproxycontract`,
+      `${HANDLER}?chainid=${String(SEPOLIA)} checkproxyverification`,
+    ]);
   });
 
   it("still refuses an answer marked redirected through an injected fetch", async (t) => {

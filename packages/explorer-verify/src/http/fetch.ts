@@ -164,6 +164,11 @@ export interface HttpContext {
    * two, so its retries and the client's do not multiply.
    */
   readonly maxAttempts?: number;
+  /**
+   * For a route through the caller's server handler (decision 0046): the URL a request is sent
+   * to, the handler's for a request to Etherscan's API. Log lines and errors name that URL.
+   */
+  readonly sendTo?: ((url: string) => string) | undefined;
 }
 
 /**
@@ -467,6 +472,8 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
   const budget = optional(ctx, "budget", "context");
   const headers = optional(req, "headers", "request");
   const injected = optional(ctx, "fetch", "context");
+  const sendTo = optional(ctx, "sendTo", "context");
+  const requestUrl = required(req, "url", "request");
   return {
     backend: required(ctx, "backend", "context"),
     label: optional(ctx, "label", "context"),
@@ -487,7 +494,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
           },
     random: optional(ctx, "random", "context") ?? Math.random,
     maxAttempts: optional(ctx, "maxAttempts", "context"),
-    url: required(req, "url", "request"),
+    url: sendTo === undefined ? requestUrl : sendTo(requestUrl),
     method: required(req, "method", "request"),
     body: optional(req, "body", "request"),
     headers: headers === undefined ? undefined : copyHeaders(headers),

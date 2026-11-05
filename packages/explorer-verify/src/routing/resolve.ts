@@ -17,7 +17,7 @@ import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { checkRouteKey, HOSTED_BLOCKSCOUT_HOST, needsKey } from "../http/api-keys.ts";
-import type { ApiKeys } from "../http/api-keys.ts";
+import type { CheckedKeys } from "../http/api-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
 import type { Hex, RoutedBy, RouteOverride } from "../types.ts";
 
@@ -250,7 +250,7 @@ export interface Route {
  */
 export interface RouteChoice {
   /** The caller's checked keys. A backend that needs a key is skipped without one. */
-  readonly apiKeys?: ApiKeys;
+  readonly apiKeys?: CheckedKeys;
   /** Whether a chain missing from the table resolves to Sourcify (R-RT-3). Defaults to false. */
   readonly allowSourcifyFallback?: boolean;
   /**
@@ -308,6 +308,19 @@ export const SOURCIFY_API_URL = "https://sourcify.dev/server";
  * ```
  */
 export const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
+
+/**
+ * What `choiceKeys` puts under `etherscan-v2` when `handlerUrl` is set, so that the routing table
+ * chooses as it does with an Etherscan key (decision 0046). The empty string is never sent: it
+ * only marks the backend as keyed. {@link routeFrom} reads keys with `!== undefined`; a
+ * truthiness check there would drop it and break `handlerUrl`.
+ *
+ * @example
+ * ```ts
+ * const keys = { ...settings.apiKeys(), "etherscan-v2": HANDLER_KEY };
+ * ```
+ */
+export const HANDLER_KEY = "";
 
 const SOURCIFY_REPO_URL = "https://repo.sourcify.dev";
 const ROUTESCAN_HOST = "api.routescan.io";
@@ -747,6 +760,8 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
         ? (pool.find(
             (each) =>
               !(needsKey(each.backend) || each.needsKey === true) ||
+              // `!== undefined`, not truthiness: with `handlerUrl`, `etherscan-v2` holds HANDLER_KEY,
+              // the empty string, and must count as keyed (decision 0046).
               readOwn(keys, each.backend) !== undefined,
           ) ?? pool[0])
         : candidates.find((each) => each.backend === named);
@@ -883,7 +898,7 @@ export async function routesFor(
   const table = await loadRoutingTable();
   const row = table.chains.find((each) => each.chainId === chainId);
   const listed = (row?.backends ?? []).flatMap((each) => tableTarget(chainId, each)?.backend ?? []);
-  const apiKeys: ApiKeys = Object.fromEntries(
+  const apiKeys: CheckedKeys = Object.fromEntries(
     Object.entries(options.apiKeys ?? {}).filter(([, key]) => typeof key === "string"),
   );
   const allowSourcifyFallback = options.allowSourcifyFallback === true;

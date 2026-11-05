@@ -6,8 +6,10 @@ import { describe, it } from "node:test";
 
 import { BACKEND_NAMES, ExplorerVerifyError, parseHandle } from "../../src/index.ts";
 import type {
+  ApiKeys,
   BackendName,
   ErrorCode,
+  KeyedBackendName,
   ErrorDetails,
   ErrorJson,
   Handle,
@@ -34,15 +36,30 @@ const verifyOptionKeys: Equals<
   | "apiKeys"
   | "allowSourcifyFallback"
   | "rpcUrl"
+  | "handlerUrl"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;
 const noApiKey: "apiKey" extends keyof VerifyOptions ? false : true = true;
-// Decision 0009 planned `apiKeys` keyed by backend name for M2; #58 adds it.
+// Decision 0009 planned `apiKeys` keyed by backend name for M2; #58 adds it. Decision 0046 narrows
+// it to the backends that take a key there, so `apiKeys: { sourcify: "..." }` does not compile.
 const apiKeysType: Equals<
   VerifyOptions["apiKeys"],
-  Partial<Record<BackendName, string | undefined>> | undefined
+  { [B in KeyedBackendName]?: string | undefined } | undefined
 > = true;
+const apiKeysExported: Equals<VerifyOptions["apiKeys"], ApiKeys | undefined> = true;
+const apiKeysNames: Equals<keyof NonNullable<VerifyOptions["apiKeys"]>, KeyedBackendName> = true;
+const keyedNames: Equals<KeyedBackendName, "etherscan-v2" | "routescan" | "blockscout-hosted"> =
+  true;
+const noSourcifyKey: "sourcify" extends keyof NonNullable<VerifyOptions["apiKeys"]> ? false : true =
+  true;
+const noBlockscoutKey: Extract<
+  BackendName,
+  "blockscout" | "etherscan-compatible"
+> extends keyof NonNullable<VerifyOptions["apiKeys"]>
+  ? false
+  : true = true;
+const handlerUrlType: Equals<VerifyOptions["handlerUrl"], string | undefined> = true;
 const noAbort: "abort" extends keyof VerifyOptions ? false : true = true;
 const signalType: Equals<VerifyOptions["signal"], AbortSignal | undefined> = true;
 const fetchType: Equals<VerifyOptions["fetch"], typeof fetch | undefined> = true;
@@ -139,6 +156,12 @@ describe("blackbox #11: type-level contract (compiles only when true)", () => {
       verifyOptionsEmptyOk,
       noApiKey,
       apiKeysType,
+      apiKeysNames,
+      apiKeysExported,
+      keyedNames,
+      noSourcifyKey,
+      noBlockscoutKey,
+      handlerUrlType,
       noAbort,
       signalType,
       fetchType,

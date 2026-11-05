@@ -42,6 +42,8 @@ describe("examples/dapp/src/verify-etherscan.ts", () => {
         typeof address === "object" && address !== null
           ? `http://127.0.0.1:${String(address.port)}`
           : "";
+      // The page the dapp runs in: its handlerUrl path resolves against it (decision 0046).
+      setGlobal(t, "location", { href: `${origin}/` });
       setGlobal(t, "fetch", async (target: RequestInfo | URL, init?: RequestInit) => {
         const url = urlOf(target);
         return await NODE_FETCH(url.startsWith("/") ? `${origin}${url}` : url, init);

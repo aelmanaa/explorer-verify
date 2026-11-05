@@ -910,13 +910,19 @@ describe("the Etherscan client through createVerifyHandler (R-SRV-5, R-SEC-1)", 
         input(),
         {
           fetch: toHandler,
-          route: { backend: "etherscan-v2", apiUrl: HANDLER },
+          handlerUrl: HANDLER,
           pollIntervalMs: 1_000,
         },
         { backends: { "etherscan-v2": etherscan }, table: TABLE, random: () => 0 },
       ),
     );
-    assert.deepEqual(outcome, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    // The route is the routing table's, so the result links the explorer page (decision 0046).
+    assert.deepEqual(outcome, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: `https://sepolia.arbiscan.io/address/${D1.toLowerCase()}#code`,
+    });
     assert.equal(seen.length, 4);
     for (const line of seen) {
       assert.ok(line.startsWith(`${HANDLER}?chainid=${String(ARB_SEPOLIA)} `), line);
@@ -943,11 +949,16 @@ describe("the Etherscan client through createVerifyHandler (R-SRV-5, R-SEC-1)", 
       checkStatus(handle(), {
         fetch: async (target, init) =>
           await handler(new Request(target instanceof Request ? target : String(target), init)),
-        route: { backend: "etherscan-v2", apiUrl: "https://verify.example.org/api" },
-        allowSourcifyFallback: true,
+        handlerUrl: "https://verify.example.org/api",
       }),
     );
-    assert.deepEqual(outcome, { status: "verified", backend: "etherscan-v2", match: "exact" });
+    // The route is the routing table's, so the result links the explorer page (decision 0046).
+    assert.deepEqual(outcome, {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: `https://sepolia.arbiscan.io/address/${D1.toLowerCase()}#code`,
+    });
     assertKeyOnlyInBodies(upstream.calls);
   });
 });

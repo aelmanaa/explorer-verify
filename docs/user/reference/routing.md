@@ -224,7 +224,7 @@ HTTP 401 without a key and have no entry ([Etherscan-compatible](etherscan-compa
 
 An entry with `needsKey: true` is skipped by a call without a key when the row lists another
 backend. A call that reaches it without `route.apiKey` throws `missing-api-key` before any
-request, unless `fetch` is set. Pass its key as `route: { backend: "etherscan-compatible",
+request, whether `fetch` is set or not. Pass its key as `route: { backend: "etherscan-compatible",
 apiKey }`; the key goes only to the entry's host ([API keys](api-keys.md#routeapikey)). For an
 entry without `needsKey`, such as Bitlayer's, that form throws `invalid-input` naming
 `route.apiKey`. `verifyEach()` with `backends: "all"` leaves out an entry with `needsKey` when

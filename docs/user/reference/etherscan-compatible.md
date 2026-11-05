@@ -86,8 +86,8 @@ the route's origin ([API keys](api-keys.md#routeapikey)).
   explorers need none. An explorer that needs one answers `Missing/Invalid API Key`, which throws
   [`missing-api-key`](errors/missing-api-key.md).
 - A routing-table entry can say that its explorer needs a key. A call to it without
-  `route.apiKey` throws `missing-api-key` before any request, unless `fetch` is set. No entry in
-  this release says so: Bitlayer answers without a key.
+  `route.apiKey` throws `missing-api-key` before any request, whether `fetch` is set or not. No
+  entry in this release says so: Bitlayer answers without a key.
 
 The form-body placement follows Etherscan's, which was confirmed live on 2026-11-03. It has not
 been confirmed on a standalone explorer.

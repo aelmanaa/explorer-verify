@@ -25,8 +25,8 @@ Without the key, the same call goes to Sourcify and sends no key. On the 10 chai
 Etherscan plan, Sourcify comes first even with a key; with a paid plan, add
 `route: { backend: "etherscan-v2" }`.
 
-From a browser, keep the key on your server and pass `route: { backend: "etherscan-v2" }` with a
-`fetch` that sends the requests to your [server handler](server-handler.md#point-the-client-at-it).
+From a browser, keep the key on your server and pass `handlerUrl`, the URL of your
+[server handler](server-handler.md#point-the-client-at-it). See [A server adds the key](#a-server-adds-the-key).
 
 The [Routescan](routescan.md) and [Etherscan-compatible](etherscan-compatible.md) clients send
 `route.apiKey`. A key in `apiKeys` takes effect where the routing table lists its backend for the
@@ -38,6 +38,10 @@ standalone explorer's key never comes from `apiKeys`.
 `VerifyOptions.apiKeys` holds one key per backend name. Each key goes where this table says, for a
 chain whose routing table row lists that backend. A chain whose row lists no Etherscan entry, or a
 route whose `apiUrl` you set, gets no key from `apiKeys`.
+
+Its type accepts only `etherscan-v2`, `routescan` and `blockscout-hosted`, exported as
+`KeyedBackendName`, so `apiKeys: { sourcify: "..." }` does not compile. From JavaScript, the other
+names throw `invalid-input`, as the table says.
 
 | Backend                | Host the key goes to                  | Where in the request                           | Needed                       |
 | ---------------------- | ------------------------------------- | ---------------------------------------------- | ---------------------------- |
@@ -128,11 +132,10 @@ release needs a key. The routing table skips
 Etherscan for a call without its key, so this happens when `route.backend` names `etherscan-v2`, or
 when `route.apiUrl` points it at a server without `route.apiKey`.
 
-With `fetch` set, the check is skipped: an injected `fetch` may lead to your own server, which adds
-the key, as the planned server handler does. The request goes out without a key. If the explorer
-answers that the key is missing, the call throws `missing-api-key`. Reach a proxy that adds keys
-through an injected `fetch`, not through `route.apiUrl`: a key from `apiKeys` never follows an
-`apiUrl` to another host, so the check would fire.
+An injected `fetch` does not change this: a `fetch` for logging, retries, tests or a proxy still
+gets `missing-api-key` before any request. Only `handlerUrl` sends an Etherscan request without a
+key ([A server adds the key](#a-server-adds-the-key)). If the explorer answers that the key is
+missing, the call throws `missing-api-key` too.
 
 | Explorer answer                                         | Error                                            |
 | ------------------------------------------------------- | ------------------------------------------------ |
@@ -143,6 +146,51 @@ through an injected `fetch`, not through `route.apiUrl`: a key from `apiKeys` ne
 All three exit with code 3 and are not retryable. `details.backend` names the backend; no error
 holds the key. Blockscout's hosted API answers with HTTP 401 and 402 instead; see
 [Key answers](blockscout.md#key-answers).
+
+## A server adds the key
+
+In a browser, set `handlerUrl` to your [server handler](server-handler.md), which holds the
+Etherscan key and adds it:
+
+<!-- no-run: it posts to /api/verify on the page's own origin, which a test run does not serve. -->
+
+```ts no-run
+import { verify } from "explorer-verify";
+
+const result = await verify(input, { handlerUrl: "/api/verify" });
+```
+
+With `handlerUrl` set:
+
+- Each request to Etherscan's v2 API goes to `handlerUrl` instead, with its query, method, headers
+  and body, and no key. Requests to Sourcify, Blockscout and Routescan go to them directly. Log
+  lines, the `verify.routed` event, a dry run's `apiHost` and errors name the handler for those
+  requests.
+- The routing table chooses as it does with `apiKeys["etherscan-v2"]`: a chain whose row lists
+  Etherscan first goes to the handler, a chain that needs a paid Etherscan plan or has no Etherscan
+  entry goes where it would with a key, and `verifyEach()` with `backends: "all"` keeps
+  `etherscan-v2`. Set `route.backend: "etherscan-v2"` to use the handler on any chain with an
+  Etherscan entry.
+- The call needs no Etherscan key. `apiKeys["etherscan-v2"]` with it throws `invalid-input`, and so
+  does a `route.apiKey` for Etherscan's API, in every function, a dry run included: the handler
+  adds its own key.
+- A route whose `apiUrl` is on another host keeps that host and its own key rules.
+- Requests go through `fetch` when you set it.
+- A refusal from the handler, such as `chain-not-allowed`, throws `unexpected-response` whose
+  message names the handler's code. A 4xx refusal is not retryable, and its hint points at your
+  `createVerifyHandler` options; a 5xx answer stays retryable.
+- A path such as `/api/verify` resolves against the page, so it works only in a browser page; in
+  Node, a path throws `invalid-input` naming `handlerUrl`. Elsewhere, pass an absolute URL that
+  starts with `https://`, or `http://` on `localhost`, `127.0.0.1` or `[::1]`. The value has no
+  user name, password, query, fragment, whitespace, control character or backslash, is not on
+  Etherscan's API host, and has at most 2048 characters; otherwise the call throws `invalid-input`
+  naming `handlerUrl`.
+- A path takes the page's origin, scheme included, so on a plain `http:` page it resolves to that
+  same `http:` origin. An absolute `http://` URL, by contrast, must be on loopback.
+- Log lines, events and errors show the handler URL, path included, and it is not redacted. Keep
+  secrets out of it; your handler holds the key.
+- The code that checks `handlerUrl` loads on demand, in a chunk of its own, when a call that sets
+  it starts. A caller who never sets it never downloads that code.
 
 ## Keys in logs, events, errors and results
 

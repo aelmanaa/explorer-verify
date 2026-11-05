@@ -7,6 +7,7 @@
 import type { BackendName } from "../backend-names.ts";
 import type { ApiKeysReader } from "../http/api-keys.ts";
 import type { HttpContext } from "../http/fetch.ts";
+import type { ResolvedHandler } from "../http/handler-url.ts";
 import type { Route } from "../routing/resolve.ts";
 import type { Handle, Hex, VerifyInput } from "../types.ts";
 
@@ -72,6 +73,11 @@ export interface Context {
    * Absent means 3000.
    */
   readonly pollIntervalMs?: number;
+  /**
+   * The caller's server handler, for a route whose requests go through it (decision 0046): it
+   * words the errors of the handler's answers. Absent otherwise.
+   */
+  readonly handler?: ResolvedHandler | undefined;
 }
 
 /**

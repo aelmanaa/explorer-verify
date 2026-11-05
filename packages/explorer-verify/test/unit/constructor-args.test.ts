@@ -344,8 +344,8 @@ function whats(seen: readonly Seen[]): string[] {
 }
 
 const WITH_KEY: VerifyOptions = { apiKeys: { "etherscan-v2": KEY } };
-// An Etherscan route with no key: an injected fetch may lead to a server that adds the key.
-const NO_KEY: VerifyOptions = { route: { backend: "etherscan-v2" } };
+// An Etherscan route with no key: the server handler adds it (decision 0046).
+const NO_KEY: VerifyOptions = { handlerUrl: "https://handler.example.org/api/verify" };
 
 // ---------------------------------------------------------------------------------------------
 

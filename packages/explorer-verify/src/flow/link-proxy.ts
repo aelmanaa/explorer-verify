@@ -25,6 +25,9 @@ import {
   settingsOf,
   startBudget,
   tableFor,
+  apiHostOf,
+  choiceKeys,
+  withHandler,
 } from "./verify.ts";
 import type { Settings } from "./verify.ts";
 
@@ -175,24 +178,25 @@ export async function runLinkProxy(
   options: VerifyOptions | undefined,
   dependencies: LinkDependencies,
 ): Promise<LinkProxyResult> {
-  const settings = settingsOf(options);
-  settings.signal?.throwIfAborted();
+  const read = settingsOf(options);
+  read.signal?.throwIfAborted();
   const target = checkTarget(value);
   // Before routing: a backend named in route.backend that cannot link is refused with no lookup
   // of the routing table and no request.
-  const named = readFields(settings.route)?.get("backend");
+  const named = readFields(read.route)?.get("backend");
   const chosen = BACKEND_NAMES.find((name) => name === named);
   if (chosen !== undefined && dependencies.linkers[chosen] === undefined) {
-    throw cannotLink(chosen, settings);
+    throw cannotLink(chosen, read);
   }
-  const checked = checkRoute(target.chainId, settings.route, BACKEND_NAMES);
+  const checked = checkRoute(target.chainId, read.route, BACKEND_NAMES);
   // The routing table and the linker load inside abortWins, as in verify(): an abort during a
   // load rejects with signal.reason. Most routes with route.apiUrl load no table (decision 0040).
-  return await abortWins(settings.signal, async () => {
-    const budget = startBudget(settings);
+  return await abortWins(read.signal, async () => {
+    const budget = startBudget(read);
+    const settings = await withHandler(read, budget);
     const table = await tableFor(checked, dependencies.table, settings, budget);
     const route = routeFrom(target.chainId, checked, {
-      apiKeys: settings.apiKeys(),
+      apiKeys: choiceKeys(settings),
       allowSourcifyFallback: settings.allowSourcifyFallback === true,
       clients: BACKEND_NAMES,
       table,
@@ -257,7 +261,7 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
 /** Sends the link request, checks it until it ends, and maps the end to a result. */
 async function link(call: LinkCall): Promise<LinkProxyResult> {
   const { backend, linker, target, ctx, observer } = call;
-  observer.emit({ type: "verify.routed", backend, apiHost: new URL(ctx.route.apiBase).host });
+  observer.emit({ type: "verify.routed", backend, apiHost: apiHostOf(ctx) });
   observer.log.debug(
     `Linking proxy ${target.address} on chain ${String(target.chainId)} on ${backend}`,
     { backend, chainId: target.chainId, api: ctx.route.redactedApiUrl },

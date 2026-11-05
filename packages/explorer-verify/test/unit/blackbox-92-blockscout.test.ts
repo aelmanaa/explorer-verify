@@ -19,6 +19,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { jsKeys } from "../helpers/js-keys.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import { compileStrict } from "./envelope-schema.ts";
 
@@ -1035,7 +1036,7 @@ describe("blackbox #92: route and keys (R-SEC-2)", () => {
   });
 
   it("apiKeys.blockscout throws invalid-input before any request", async () => {
-    const run = setup({}, { apiKeys: { blockscout: OTHER_KEY } });
+    const run = setup({}, { apiKeys: jsKeys("blockscout", OTHER_KEY) });
     const error = await errorOf(verify(makeInput(), run.options));
     assert.equal(error.details.code, "invalid-input");
     assert.equal(run.calls.length, 0);

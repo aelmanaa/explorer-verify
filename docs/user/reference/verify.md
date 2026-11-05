@@ -145,7 +145,7 @@ Every field is optional.
 
 | Option                  | Default              | What it does                                                                                                                                                                           |
 | ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fetch`                 | `globalThis.fetch`   | Every request goes through it. Point it at your own server to proxy the calls. It must not follow redirects                                                                            |
+| `fetch`                 | `globalThis.fetch`   | Every request goes through it, for logging, retries, tests or a proxy. It must not follow redirects, and it does not turn off the missing-key check                                    |
 | `signal`                | none                 | Cancels the call. The call rejects with `signal.reason`, unchanged                                                                                                                     |
 | `timeoutMs`             | `120000`             | Time budget for the whole call, every request and retry included                                                                                                                       |
 | `pollIntervalMs`        | `3000`               | Wait before each status poll                                                                                                                                                           |
@@ -155,6 +155,7 @@ Every field is optional.
 | `allowSourcifyFallback` | `false`              | Lets a chain the routing table does not list go to the public Sourcify API. Without it, such a chain throws `unsupported-chain`. See [Routing](routing.md)                             |
 | `apiKeys`               | none                 | API keys by backend name, each sent only to its backend's host. See [API keys](api-keys.md)                                                                                            |
 | `rpcUrl`                | none                 | A JSON-RPC endpoint of the contract's chain, used only to derive constructor arguments. See [Constructor arguments](#constructor-arguments)                                            |
+| `handlerUrl`            | none                 | Your server handler, which adds the Etherscan key. Etherscan requests go there with no key. See [API keys](api-keys.md#a-server-adds-the-key)                                          |
 
 `timeoutMs` and `pollIntervalMs` must be positive numbers of milliseconds; anything else throws
 `invalid-input`. A value above 2147483647, the largest delay `setTimeout` takes, is lowered to it.
@@ -277,11 +278,11 @@ The result is a `DryRunResult`:
   `api-url` when `route.apiUrl` named the server.
 
 A dry run needs no API key. Where `verify()` would throw `missing-api-key`, a dry run sends nothing
-and returns `lookup: "skipped"`. With an injected `fetch`, it looks the contract up, because the
-`fetch` may reach a server that adds the key. It throws what `verify()` throws before its submit:
-`invalid-input`, `unsupported-chain`, and the errors of a failed lookup. It emits
-`verify.validated`, `verify.routed` and `verify.lookup`, whose `match` is `skipped` when no request
-was sent.
+and returns `lookup: "skipped"`, whether `fetch` is set or not. With `handlerUrl`, it looks the
+contract up through your server handler, which adds the key, and `apiHost` names the handler. It
+throws what `verify()` throws before its submit: `invalid-input`, `unsupported-chain`, and the
+errors of a failed lookup. It emits `verify.validated`, `verify.routed` and `verify.lookup`, whose
+`match` is `skipped` when no request was sent.
 
 The CLI runs it for `explorer-verify verify --dry-run` and prints the result in an envelope with
 `ok: true` and exit code 0 ([CLI](cli.md#dry-run)). `toEnvelope()` and `exitCodeOf()` take a
@@ -323,9 +324,8 @@ It prints one line per backend, such as `sourcify verified` and `etherscan-v2 al
   an entry are ignored, as they are in `route`. A top-level `route` throws `invalid-input`.
 - `"all"` stands for every backend the routing table lists for the chain that this version has a
   client for, less a backend that needs a key when none is set in `apiKeys`, as the routing table
-  chooses for `verify()`. This holds with an injected `fetch` too. To reach a keyed backend
-  through a server that adds the key, name it in the array: there an injected `fetch` skips the
-  key check ([API keys](api-keys.md#a-missing-key)).
+  chooses for `verify()`. With `handlerUrl`, `etherscan-v2` counts as keyed, so it stays, and its
+  requests go to your server handler ([API keys](api-keys.md#a-server-adds-the-key)).
 - Two entries that resolve to the same backend and API URL throw `invalid-input`. The URL is
   compared once normalised, so `"sourcify"` and
   `{ backend: "sourcify", apiUrl: "https://sourcify.dev/server/" }` are the same entry. The same
@@ -422,7 +422,7 @@ artifact or a Hardhat artifact. It is never sent to an explorer.
      `creationTxHash` names another transaction. Its input is not the creation code.
 2. On an Etherscan v2 route with a key bound to the route: Etherscan's `getcontractcreation`. Its
    `creationBytecode` is the contract's own creation code with its arguments, also for a contract a
-   factory created. With an injected `fetch` and no key, this request is not sent: a server
+   factory created. Without a key, as with `handlerUrl`, this request is not sent: a server
    handler does not forward it.
 
 A JSON-RPC request that fails, a result that is not usable, or a transaction that is not found

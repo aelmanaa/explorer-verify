@@ -84,6 +84,8 @@ with fields a handle does not have, such as `apiUrl`. Messages never repeat a va
 Pass the same `route`, `apiKeys` and `allowSourcifyFallback` the submit used, so the route
 resolves to the same backend ([Routing](routing.md#resuming)). A handle from a self-hosted Sourcify
 server, resumed without its `route`, is polled on the public server, which does not know the job.
+Pass `handlerUrl` too when the submit used it. A Sourcify handle from `verifyEach()`, on a chain
+where `handlerUrl` makes Etherscan the choice, resumes only with `route: { backend: "sourcify" }`.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`.
 

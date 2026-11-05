@@ -108,6 +108,9 @@ const KEY = "zz9dummyetherscankeyqq7xv";
 const RPC_SECRET = "rpcpathsecretq7w3zk9";
 const RPC_QUERY_SECRET = "rpcquerysecretm4n8p2";
 const RPC_HOST = "rpc.example.org";
+// A server handler that adds the Etherscan key: the keyless Etherscan case (decision 0046).
+const HANDLER_HOST = "handler.example.org";
+const HANDLER_URL = `https://${HANDLER_HOST}/api/verify`;
 const RPC_URL = `https://${RPC_HOST}/v3/${RPC_SECRET}`;
 const RPC_URL_QUERY = `https://${RPC_HOST}/rpc?project=${RPC_QUERY_SECRET}`;
 const SECRETS = [KEY, RPC_SECRET, RPC_QUERY_SECRET];
@@ -327,7 +330,11 @@ function fake(script: FakeScript): Fake {
           : step.body;
       return await respond({ ...step, body }, signal);
     }
-    if (url.host === "api.etherscan.io" || url.host === "api.routescan.io") {
+    if (
+      url.host === "api.etherscan.io" ||
+      url.host === "api.routescan.io" ||
+      url.host === HANDLER_HOST
+    ) {
       const form = new URLSearchParams(raw);
       const action = form.get("action") ?? url.searchParams.get("action") ?? "";
       calls.push({ ...base, what: url.host === "api.routescan.io" ? `rs:${action}` : action });
@@ -859,7 +866,7 @@ describe("blackbox #64: library placeholders (R-IN-3)", () => {
 
 describe("blackbox #64: soft fallbacks submit without arguments and warn (decision 0032)", () => {
   it("no source to ask: Etherscan route, injected fetch, no key, no rpcUrl", async () => {
-    const run = setup({ etherscan: ETHERSCAN_FLOW }, { apiKeys: {} });
+    const run = setup({ etherscan: ETHERSCAN_FLOW }, { apiKeys: {}, handlerUrl: HANDLER_URL });
     const result = await drive(verify(greeterInput(), run.options));
     assert.equal(result.status, "verified");
     assert.ok(
@@ -873,7 +880,7 @@ describe("blackbox #64: soft fallbacks submit without arguments and warn (decisi
   it("no source to ask: rpcUrl but no creationTxHash, and no key", async () => {
     const run = setup(
       { rpc: RPC_GREETER, etherscan: ETHERSCAN_FLOW },
-      { apiKeys: {}, rpcUrl: RPC_URL },
+      { apiKeys: {}, handlerUrl: HANDLER_URL, rpcUrl: RPC_URL },
     );
     await drive(verify(makeInput({ creationBytecode: GREETER.bytecode }), run.options));
     assert.ok(!rpcCalls(run).some((call) => call.what === "eth_getTransactionByHash"));
@@ -950,7 +957,10 @@ describe("blackbox #64: soft fallbacks submit without arguments and warn (decisi
 
   for (const [name, rpc] of rpcFailures) {
     it(`${name}, no key: warns and submits without arguments`, async () => {
-      const run = setup({ rpc, etherscan: ETHERSCAN_FLOW }, { apiKeys: {}, rpcUrl: RPC_URL });
+      const run = setup(
+        { rpc, etherscan: ETHERSCAN_FLOW },
+        { apiKeys: {}, handlerUrl: HANDLER_URL, rpcUrl: RPC_URL },
+      );
       const result = await drive(verify(greeterInput(), run.options));
       assert.equal(result.status, "verified");
       assertSubmittedNoArgs(run);
@@ -1086,7 +1096,7 @@ describe("blackbox #64: hard errors throw constructor-args-unavailable (decision
   it("factory-deployment when the factory transaction is known and no key is bound: warns and submits without arguments", async () => {
     const run = setup(
       { rpc: RPC_FACTORY, etherscan: ETHERSCAN_FLOW },
-      { rpcUrl: RPC_URL, apiKeys: {} },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const result = await drive(verify(childInput({ creationTxHash: CHILD.txHash }), run.options));
     assert.equal(result.status, "verified");
@@ -1367,7 +1377,7 @@ describe("blackbox #64: no secret part of rpcUrl or key is visible (R-SEC-1)", (
         },
         etherscan: ETHERSCAN_FLOW,
       },
-      { rpcUrl: RPC_URL_QUERY, apiKeys: {} },
+      { rpcUrl: RPC_URL_QUERY, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const result = await drive(verify(greeterInput(), run.options));
     assertNoCreationWarn(run);
@@ -1383,7 +1393,7 @@ describe("blackbox #64: no secret part of rpcUrl or key is visible (R-SEC-1)", (
         },
         etherscan: ETHERSCAN_FLOW,
       },
-      { rpcUrl: RPC_URL, apiKeys: {} },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const result = await drive(verify(greeterInput(), run.options));
     assertNoSecretVisible(run, result);
@@ -1422,7 +1432,7 @@ describe("blackbox #64: no secret part of rpcUrl or key is visible (R-SEC-1)", (
     };
     const run = setup(
       { etherscan: ETHERSCAN_FLOW },
-      { rpcUrl: RPC_URL, apiKeys: {}, fetch: leaky },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL, fetch: leaky },
     );
     const result = await drive(verify(greeterInput(), run.options));
     assertNoCreationWarn(run);
@@ -1547,7 +1557,7 @@ describe("blackbox #64: more edges", () => {
         rpc: { ...RPC_GREETER, eth_chainId: { body: { result: "sepolia" } } },
         etherscan: ETHERSCAN_FLOW,
       },
-      { rpcUrl: RPC_URL, apiKeys: {} },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const outcome = await drive(verify(greeterInput(), run.options)).catch(
       (error: unknown) => error,
@@ -1571,7 +1581,7 @@ describe("blackbox #64: more edges", () => {
         },
         etherscan: ETHERSCAN_FLOW,
       },
-      { rpcUrl: RPC_URL, apiKeys: {} },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const outcome = await drive(verify(greeterInput(), run.options)).catch(
       (error: unknown) => error,
@@ -1586,7 +1596,7 @@ describe("blackbox #64: more edges", () => {
         rpc: { ...RPC_GREETER, eth_chainId: { http: 302, body: {} } },
         etherscan: ETHERSCAN_FLOW,
       },
-      { rpcUrl: RPC_URL, apiKeys: {} },
+      { rpcUrl: RPC_URL, apiKeys: {}, handlerUrl: HANDLER_URL },
     );
     const outcome = await drive(verify(greeterInput(), run.options)).catch(
       (error: unknown) => error,
@@ -1596,7 +1606,7 @@ describe("blackbox #64: more edges", () => {
   });
 
   it("the log line for no-source carries reason as a field, at info", async () => {
-    const run = setup({ etherscan: ETHERSCAN_FLOW }, { apiKeys: {} });
+    const run = setup({ etherscan: ETHERSCAN_FLOW }, { apiKeys: {}, handlerUrl: HANDLER_URL });
     await drive(verify(greeterInput(), run.options));
     assertSkipped(run, "no-source", "info");
   });

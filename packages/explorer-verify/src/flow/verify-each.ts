@@ -28,6 +28,7 @@ import {
   DEFAULT_DEPENDENCIES,
   abortWins,
   checkRouteOf,
+  choiceKeys,
   loadTable,
   routeWith,
   settingsOf,
@@ -35,6 +36,7 @@ import {
   tableFor,
   verifyOnRoute,
   withClient,
+  withHandler,
 } from "./verify.ts";
 import type { FlowDependencies, Settings } from "./verify.ts";
 
@@ -132,13 +134,14 @@ export async function runVerifyEach(
   options: VerifyEachOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<VerifyEachResult> {
-  const settings = settingsOf(options);
-  const entries = entriesOf(options, settings);
-  settings.signal?.throwIfAborted();
-  return await abortWins(settings.signal, async () => {
+  const read = settingsOf(options);
+  const entries = entriesOf(options, read);
+  read.signal?.throwIfAborted();
+  return await abortWins(read.signal, async () => {
     const checked = validateInput(input);
     const { chainId } = checked;
-    const budget = startBudget(settings);
+    const budget = startBudget(read);
+    const settings = await withHandler(read, budget);
     const runs = await runsOf(chainId, entries, settings, dependencies, budget);
     // Every entry's key is a secret of every call, whether its route resolved or not, so no
     // output of one backend shows another's.
@@ -486,9 +489,10 @@ function everyListed(
     );
   }
   // As the routing table chooses for verify(): a backend that needs a key is left out without
-  // one, whether or not `fetch` is injected. When every listed backend needs a key and none is
-  // set, they all stay, and each ends in `missing-api-key` unless `fetch` is injected.
-  const keys = settings.apiKeys();
+  // one, whether or not `fetch` is set. `handlerUrl` counts as an Etherscan key, as it does for
+  // verify() (decision 0046). When every listed backend needs a key and none is set, they all
+  // stay, and each ends in `missing-api-key`.
+  const keys = choiceKeys(settings);
   const usable = names.filter(
     (name) => !(needsKey(name) || keyed.includes(name)) || readOwn(keys, name) !== undefined,
   );

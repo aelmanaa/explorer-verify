@@ -579,6 +579,11 @@ export interface ExplorerVerifyErrorOptions {
    */
   hint?: string;
   /**
+   * Replaces the code's default `retryable` for this error, such as `false` for a refusal of the
+   * caller's server handler that only its configuration can lift.
+   */
+  retryable?: boolean;
+  /**
    * The underlying error, kept for debugging as a redacted copy: a plain `Error` with the
    * original name, message and stack, the primitive `code`, `errno` and `syscall`, a one-line
    * summary of an `AggregateError`'s errors, and its own cause, up to four levels deep. A string
@@ -1077,7 +1082,7 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
         : `Read ${docsUrl} for what to do next.`;
     this.code = code;
     this.hint = redact(hint, options.secrets);
-    this.retryable = RETRYABLE.includes(code);
+    this.retryable = options.retryable ?? RETRYABLE.includes(code);
     this.details = redactDetails(code, details, options.secrets);
     this.docsUrl = docsUrl;
     // The brand is a symbol key that is not enumerable, so `Object.keys(error)`, a spread and

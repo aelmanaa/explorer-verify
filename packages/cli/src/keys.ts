@@ -11,7 +11,14 @@ import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 
 import { BACKEND_NAMES, ERROR_CODES, toBackendName } from "explorer-verify";
-import type { BackendName, InputIssue, RouteOverride, VerifyOptions } from "explorer-verify";
+import type {
+  ApiKeys,
+  BackendName,
+  InputIssue,
+  KeyedBackendName,
+  RouteOverride,
+  VerifyOptions,
+} from "explorer-verify";
 
 import type { OptionSpecs, OptionValue } from "./arguments.ts";
 import type { OutputStream } from "./stderr.ts";
@@ -23,7 +30,7 @@ import type { Environment } from "./terminal.ts";
  */
 export const KEY_VARIABLES: readonly {
   readonly name: string;
-  readonly backend: BackendName;
+  readonly backend: KeyedBackendName;
   readonly host: string;
 }[] = [
   { name: "ETHERSCAN_API_KEY", backend: "etherscan-v2", host: "api.etherscan.io" },
@@ -80,7 +87,7 @@ const VARIABLE_LIST: string = KEY_VARIABLES.map(({ name }) => name)
 export const REFUSED_KEY_MESSAGE: string = `is not accepted: a key on the command line shows in the process list and the shell history; set ${VARIABLE_LIST}, or use --api-key-file <path> or --api-key-stdin`;
 
 /** The backends whose key `--api-key-file` or `--api-key-stdin` can give with `--backend` alone. */
-const FLAG_KEY_BACKENDS: readonly BackendName[] = KEY_VARIABLES.map(({ backend }) => backend);
+const FLAG_KEY_BACKENDS: readonly KeyedBackendName[] = KEY_VARIABLES.map(({ backend }) => backend);
 
 /** The backends that take a key: those of {@link FLAG_KEY_BACKENDS}, and standalone explorers. */
 const ROUTE_KEY_BACKENDS: readonly BackendName[] = [...FLAG_KEY_BACKENDS, "etherscan-compatible"];
@@ -253,7 +260,7 @@ type FlagKey = { key: string } | { issue: InputIssue } | undefined;
  */
 type Destination =
   | { readonly kind: "route" }
-  | { readonly kind: "backend"; readonly backend: BackendName }
+  | { readonly kind: "backend"; readonly backend: KeyedBackendName }
   | { readonly kind: "none" }
   | { readonly kind: "problem"; readonly message: string };
 
@@ -286,9 +293,9 @@ function destinationOf(route: RouteOverride, backendGiven: boolean): Destination
   }
   // Without --api-url, a standalone explorer's key goes to the host the routing table lists for
   // the chain; a chain whose row lists none fails with unsupported-chain (decision 0039).
-  return apiUrl === undefined && FLAG_KEY_BACKENDS.includes(backend)
-    ? { kind: "backend", backend }
-    : { kind: "route" };
+  const keyed =
+    apiUrl === undefined ? FLAG_KEY_BACKENDS.find((name) => name === backend) : undefined;
+  return keyed === undefined ? { kind: "route" } : { kind: "backend", backend: keyed };
 }
 
 /** The options that read stdin, in the order a conflict between two of them is reported. */
@@ -418,7 +425,7 @@ export async function readRouteOptions(sources: RouteSources): Promise<ReadRoute
   const { values, env } = sources;
   const issues: InputIssue[] = [];
   const secrets: string[] = [];
-  const apiKeys: Partial<Record<BackendName, string>> = {};
+  const apiKeys: ApiKeys = {};
   for (const { name, backend } of KEY_VARIABLES) {
     const value = env[name];
     if (value === undefined || value === "") {
@@ -493,7 +500,7 @@ function eachBackend(
   given: readonly string[],
   values: ReadonlyMap<string, OptionValue>,
   read: {
-    readonly apiKeys: Partial<Record<BackendName, string>>;
+    readonly apiKeys: ApiKeys;
     readonly secrets: readonly string[];
     readonly issues: InputIssue[];
   },

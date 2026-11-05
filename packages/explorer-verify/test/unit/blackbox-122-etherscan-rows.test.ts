@@ -257,10 +257,31 @@ describe("#122 paid-plan chain", () => {
     assert.equal(f.calls.length, 0);
   });
 
-  it('route.backend "etherscan-v2" without a key, with a proxy fetch, sends no key (server handler case)', async () => {
-    const { result, calls } = await run(PAID, { route: { backend: "etherscan-v2" } });
+  it('route.backend "etherscan-v2" without a key, with a proxy fetch and no handlerUrl: missing-api-key, nothing sent (decision 0046)', async () => {
+    const f = fake();
+    const error = await errorOf(
+      verify(makeInput(PAID), { fetch: f.fetch, route: { backend: "etherscan-v2" } }),
+    );
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(f.calls.length, 0);
+  });
+
+  it("handlerUrl on a paid-plan chain goes to Sourcify first, as an Etherscan key does (decision 0046)", async () => {
+    const { result, calls } = await run(PAID, { handlerUrl: "https://dapp.example/api/verify" });
+    assert.equal(result.backend, "sourcify");
+    assert.ok(calls.every((call) => call.url.host !== "dapp.example"));
+  });
+
+  it("handlerUrl with route.backend etherscan-v2 sends no key, to the handler only (server handler case, decision 0046)", async () => {
+    const { result, calls } = await run(PAID, {
+      handlerUrl: "https://dapp.example/api/verify",
+      route: { backend: "etherscan-v2" },
+    });
     assert.equal(result.backend, "etherscan-v2");
+    assert.ok(calls.length > 0);
     for (const call of calls) {
+      assert.equal(call.url.origin, "https://dapp.example");
+      assert.equal(call.url.pathname, "/api/verify");
       assert.equal(new URLSearchParams(call.body).get("apikey"), null);
     }
   });
@@ -315,12 +336,27 @@ describe("#122 a chain without an Etherscan entry", () => {
 });
 
 describe("#122 route.apiUrl overrides keep the 0016/0023 key rules", () => {
-  it("apiUrl = the table's own Etherscan URL: apiKeys not sent (proxy fetch), explorerUrl kept", async () => {
+  it("apiUrl = the table's own Etherscan URL, apiKeys and a proxy fetch: missing-api-key, nothing sent", async () => {
+    const f = fake();
+    const error = await errorOf(
+      verify(makeInput(FREE), {
+        fetch: f.fetch,
+        apiKeys: { "etherscan-v2": KEY },
+        route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
+      }),
+    );
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(f.calls.length, 0);
+    assert.ok(!inspect(error).includes(KEY));
+  });
+
+  it("apiUrl = the table's own Etherscan URL through handlerUrl: no key sent, explorerUrl kept", async () => {
     const { result, calls } = await run(FREE, {
-      apiKeys: { "etherscan-v2": KEY },
+      handlerUrl: "https://dapp.example/api/verify",
       route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
     });
     assert.equal(result.backend, "etherscan-v2");
+    assert.ok(calls.every((call) => call.url.host === "dapp.example"));
     assertNoKey(calls, KEY);
     assert.equal(
       result.status !== "failed" ? result.explorerUrl : undefined,
@@ -342,14 +378,31 @@ describe("#122 route.apiUrl overrides keep the 0016/0023 key rules", () => {
     assert.ok(!inspect(error).includes(KEY));
   });
 
-  it("apiUrl elsewhere with apiKeys: the key never reaches the other host", async () => {
-    const { calls, result } = await run(FREE, {
-      apiKeys: { "etherscan-v2": KEY },
-      route: { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/v2/api" },
-    });
-    assert.ok(calls.every((call) => call.url.host === "proxy.example.org"));
-    assertNoKey(calls, KEY);
-    assert.ok(result.status === "failed" || result.explorerUrl === undefined);
+  it("apiUrl elsewhere with apiKeys: the key never reaches the other host, nothing is sent", async () => {
+    const f = fake();
+    const error = await errorOf(
+      verify(makeInput(FREE), {
+        fetch: f.fetch,
+        apiKeys: { "etherscan-v2": KEY },
+        route: { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/v2/api" },
+      }),
+    );
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(f.calls.length, 0);
+    assert.ok(!inspect(error).includes(KEY));
+  });
+
+  it("apiUrl elsewhere with handlerUrl: the route keeps its host and still needs a key (decision 0046)", async () => {
+    const f = fake();
+    const error = await errorOf(
+      verify(makeInput(FREE), {
+        fetch: f.fetch,
+        handlerUrl: "https://dapp.example/api/verify",
+        route: { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/v2/api" },
+      }),
+    );
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(f.calls.length, 0);
   });
 
   it("apiUrl elsewhere with route.apiKey: route key goes there in the body; apiKeys key never", async () => {

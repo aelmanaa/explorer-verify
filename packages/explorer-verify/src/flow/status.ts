@@ -18,6 +18,7 @@ import {
   settle,
   startBudget,
   withClient,
+  withHandler,
 } from "./verify.ts";
 import type { FlowDependencies } from "./verify.ts";
 
@@ -102,8 +103,8 @@ export async function runCheckStatus(
   options: VerifyOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<VerifyResult> {
-  const settings = settingsOf(options);
-  settings.signal?.throwIfAborted();
+  const read = settingsOf(options);
+  read.signal?.throwIfAborted();
   const handle = parseHandle(value);
   // Lower case, as verify() uses it, so the lookup and the explorer page match a verify() call.
   const target: Target = {
@@ -112,8 +113,9 @@ export async function runCheckStatus(
   };
   // The routing table and the client load inside abortWins, as in verify(): an abort during a
   // load rejects with signal.reason, whatever the load does after it.
-  return await abortWins(settings.signal, async () => {
-    const budget = startBudget(settings);
+  return await abortWins(read.signal, async () => {
+    const budget = startBudget(read);
+    const settings = await withHandler(read, budget);
     const route = await routeOf(handle.chainId, settings, dependencies, budget);
     checkBackend(handle, route);
     const loaded = await withClient(route, dependencies, settings, budget);

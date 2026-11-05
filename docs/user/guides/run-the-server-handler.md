@@ -375,126 +375,61 @@ Worker answers one in case a browser sends it.
 
 ## Point the browser at the handler
 
-The browser keeps no key. It passes `verify()` a `fetch` that sends each Etherscan request to the
-handler, with the same query, method and body, and sends every other request unchanged. No other
-code changes between direct and proxied use. With `fetch` set, `verify()` sends an Etherscan
-request without a key and leaves the key to the server.
+The browser keeps no key. It passes `verify()` the handler's URL as `handlerUrl`. Each Etherscan
+request then goes to the handler, with the same query, method and body and no key, and every other
+request goes to its explorer unchanged. The routing table chooses as it does with an Etherscan
+key, so a chain whose row lists Etherscan first goes to the handler. No other code changes between
+direct and proxied use.
+[API keys](../reference/api-keys.md#a-server-adds-the-key) lists the rules.
+
+An injected `fetch` alone does not send a request without its key: without `handlerUrl`, a call
+routed to Etherscan with no key throws `missing-api-key` before any request. Pass `fetch` next to
+`handlerUrl` when you need your own, for logging or retries; the requests go through it.
 
 The handler's answer comes from the handler's URL, not from `api.etherscan.io`. `verify()` reads it
-as Etherscan's answer, because the `fetch` you pass chose that URL. A redirect from the handler, or
-an answer your `fetch` got by following one, still ends the call with `unexpected-response`, so
-keep the `redirect: "manual"` that `verify()` sets.
+as Etherscan's answer, because `handlerUrl` chose that URL. A redirect from the handler still ends
+the call with `unexpected-response`. So does a refusal of the handler, such as
+`chain-not-allowed`, and its message names that code. Log lines, events and errors name the
+handler's URL for these requests.
 
 For the Next.js route, the handler URL is the path `/api/verify`:
 
 ```ts
-// The browser side of the Next.js example: verify() with a fetch that sends each Etherscan request
-// to the route in app/api/verify/route.ts. The browser holds no key.
+// The browser side of the Next.js example: verify() with handlerUrl, which sends each Etherscan
+// request to the route in app/api/verify/route.ts. The browser holds no key.
 // Guide: docs/user/guides/run-the-server-handler.md
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-/** The only origin whose requests go to the handler. Every other request is sent unchanged. */
-const ETHERSCAN_API = "https://api.etherscan.io";
-
 /**
- * A `fetch` that sends each Etherscan request to the handler at `handlerUrl`, with the same query,
- * method, headers and body, and every other request unchanged. It takes a URL and `init`, as
- * verify() calls it, or a `Request`. `init` is passed on as is, so the `redirect: "manual"` that
- * verify() sets is kept.
- * @param handlerUrl Where the handler runs: `/api/verify` in the dapp's own pages.
- * @returns The `fetch` to pass to verify().
- */
-export function handlerFetch(handlerUrl: string): typeof fetch {
-  return async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.origin !== ETHERSCAN_API) {
-      return await fetch(input, init);
-    }
-    const target = `${handlerUrl}${url.search}`;
-    if (!(input instanceof Request)) {
-      return await fetch(target, init);
-    }
-    // A Request carries its own method, headers, body, redirect mode and signal; `init` overrides
-    // them, as it does in fetch().
-    const request = new Request(input, init);
-    const hasBody = request.method !== "GET" && request.method !== "HEAD";
-    return await fetch(target, {
-      method: request.method,
-      headers: request.headers,
-      body: hasBody ? await request.arrayBuffer() : null,
-      redirect: request.redirect,
-      signal: request.signal,
-    });
-  };
-}
-
-/**
- * Verifies a contract from the browser. Etherscan requests go through the route; Sourcify and
- * Blockscout requests go to the explorer directly.
+ * Verifies a contract on Etherscan from the browser, through the route, which adds the key.
  * @param input The contract and its compiler input.
  * @returns The verification result.
  */
 export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResult> {
-  return await verify(input, { fetch: handlerFetch("/api/verify") });
+  return await verify(input, { handlerUrl: "/api/verify" });
 }
 ```
 
 For the Worker, it is the Worker's full URL:
 
 ```ts
-// The browser side of the Cloudflare example: verify() in the dapp, with a fetch that sends each
-// Etherscan request to the Worker on its own origin. The browser holds no key.
+// The browser side of the Cloudflare example: verify() in the dapp, with handlerUrl, which sends
+// each Etherscan request to the Worker on its own origin. The browser holds no key.
 // Guide: docs/user/guides/run-the-server-handler.md
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
-
-/** The only origin whose requests go to the handler. Every other request is sent unchanged. */
-const ETHERSCAN_API = "https://api.etherscan.io";
 
 /** Where the Worker runs. Replace it with your Worker's URL. */
 export const WORKER_URL = "https://verify.your-dapp.example/api/verify";
 
 /**
- * A `fetch` that sends each Etherscan request to the handler at `handlerUrl`, with the same query,
- * method, headers and body, and every other request unchanged. It takes a URL and `init`, as
- * verify() calls it, or a `Request`. `init` is passed on as is, so the `redirect: "manual"` that
- * verify() sets is kept.
- * @param handlerUrl The Worker's full URL, such as {@link WORKER_URL}.
- * @returns The `fetch` to pass to verify().
- */
-export function handlerFetch(handlerUrl: string): typeof fetch {
-  return async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.origin !== ETHERSCAN_API) {
-      return await fetch(input, init);
-    }
-    const target = `${handlerUrl}${url.search}`;
-    if (!(input instanceof Request)) {
-      return await fetch(target, init);
-    }
-    // A Request carries its own method, headers, body, redirect mode and signal; `init` overrides
-    // them, as it does in fetch().
-    const request = new Request(input, init);
-    const hasBody = request.method !== "GET" && request.method !== "HEAD";
-    return await fetch(target, {
-      method: request.method,
-      headers: request.headers,
-      body: hasBody ? await request.arrayBuffer() : null,
-      redirect: request.redirect,
-      signal: request.signal,
-    });
-  };
-}
-
-/**
- * Verifies a contract from the browser. Etherscan requests go through the Worker; Sourcify and
- * Blockscout requests go to the explorer directly.
+ * Verifies a contract on Etherscan from the browser, through the Worker, which adds the key.
  * @param input The contract and its compiler input.
  * @returns The verification result.
  */
 export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResult> {
-  return await verify(input, { fetch: handlerFetch(WORKER_URL) });
+  return await verify(input, { handlerUrl: WORKER_URL });
 }
 ```
 
@@ -502,10 +437,10 @@ export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResul
 
 CI type-checks both examples, the Worker a second time without Node types, and runs their tests on
 Node.js. The tests call the route's `POST` and the Worker's `fetch` with the request the browser
-sends through `handlerFetch`, against recorded Etherscan answers. They check that the answer has
+sends through `handlerUrl`, against recorded Etherscan answers. They check that the answer has
 the shape the client reads, that the key goes to Etherscan only in the form body, and that no
 response and no log line holds the key, even when Etherscan echoes it. One test serves the
-Next.js route over HTTP on 127.0.0.1 and calls `verify()` through `handlerFetch` with the real
+Next.js route over HTTP on 127.0.0.1 and calls `verify()` with `handlerUrl` and the real
 `fetch`, as a browser does. The examples are not deployed, and the tests do not run in the Workers
 runtime.
 

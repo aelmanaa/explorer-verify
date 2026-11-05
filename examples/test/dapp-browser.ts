@@ -7,8 +7,8 @@
 import { readFileSync } from "node:fs";
 import type { TestContext } from "node:test";
 
-/** The page's origin. */
-const ORIGIN = "https://dapp.example";
+/** The page's origin. A `handlerUrl` path resolves against it (decision 0046). */
+export const ORIGIN = "https://dapp.example";
 
 // The page's work must not wait on real I/O while a test drives the mock clock: a slow read
 // would let the clock run ahead and spend the call's budget. So the build files are read here,
@@ -217,7 +217,9 @@ export function browserNetwork(
   const sourcify: string[] = [];
   const queue: (string | SourcifyAnswer)[] = [...answers];
   const fake = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = input instanceof Request ? input.url : String(input);
+    const given = input instanceof Request ? input.url : String(input);
+    // A request to the page's own origin, as a path or as an absolute URL.
+    const url = given.startsWith(`${ORIGIN}/`) ? given.slice(ORIGIN.length) : given;
     const file = PAGE_FILES.get(url);
     if (file !== undefined) {
       return new Response(file, { headers: { "content-type": "application/json; charset=utf-8" } });

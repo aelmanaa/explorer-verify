@@ -147,9 +147,11 @@ verified
 
 The handle holds no key and no URL, so it is safe to store, show or paste into a support request.
 `checkStatus()` resolves the route from the handle's chain and the options you pass, never from the
-handle; pass the same `route` and `fetch` the submit used. See [checkStatus()](../reference/check-status.md),
+handle; pass the same `route`, `fetch` and `handlerUrl` the submit used. See [checkStatus()](../reference/check-status.md),
 and step 5 of the [tutorial](../tutorials/deploy-and-verify-from-a-dapp.md#step-5-resume-after-a-page-reload)
 for a resume that also handles `not-confirmed`.
+A Sourcify handle from `verifyEach()`, on a chain where `handlerUrl` makes Etherscan the choice,
+resumes only with `route: { backend: "sourcify" }`.
 
 A browser tab has no fixed limit on how long a call may run, but the user can close it. Keep the
 default budget of 120 seconds (`timeoutMs`) or shorter, and rely on the saved handle for the rest.
@@ -158,9 +160,25 @@ default budget of 120 seconds (`timeoutMs`) or shorter, and rely on the saved ha
 
 Never put an Etherscan key in browser code: Etherscan's API terms forbid exposing a key in
 client-side applications. Run the [server handler](run-the-server-handler.md) on your server
-instead. The page then passes `verify()` a `fetch` that sends each Etherscan request to the handler,
-and the handler adds the key. The guide has that `fetch`, `handlerFetch`, for a Next.js route and
-a Cloudflare Worker, and step 7 of the
+instead, at `/api/verify` on the page's origin or on a host of its own. The page then passes the
+handler's URL as `handlerUrl`:
+
+<!-- no-run: it posts to /api/verify on the page's own origin, which a test run does not serve. -->
+
+```ts no-run
+import { verify } from "explorer-verify";
+
+// Your server runs createVerifyHandler at /api/verify and holds the key.
+const result = await verify(input, { handlerUrl: "/api/verify" });
+console.log(`${result.status} on ${result.backend}`);
+```
+
+Each Etherscan request goes to the handler with no key, and the handler adds it. With no
+`route.backend`, the routing table chooses as it does with an Etherscan key: a chain whose row
+lists Etherscan first goes to the handler. An injected `fetch` alone does not do this:
+without `handlerUrl`, a call routed to Etherscan with no key throws `missing-api-key` before any
+request. [API keys](../reference/api-keys.md#a-server-adds-the-key) lists the rules, the guide
+shows the handler as a Next.js route and a Cloudflare Worker, and step 7 of the
 [tutorial](../tutorials/deploy-and-verify-from-a-dapp.md#step-7-verify-on-etherscan-through-your-server)
 uses it from a dapp.
 
@@ -177,7 +195,7 @@ The errors a page meets most often:
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [`not-confirmed`](../reference/errors/not-confirmed.md)         | Keep the handle and resume it with `checkStatus()` on a later load                 |
 | [`network`](../reference/errors/network.md)                     | The explorer did not answer, or the browser blocked the request. Try again later   |
-| [`missing-api-key`](../reference/errors/missing-api-key.md)     | The route needs a key and the page has none. Route Etherscan through the handler   |
+| [`missing-api-key`](../reference/errors/missing-api-key.md)     | The route needs a key and the page has none. Set `handlerUrl` to your handler      |
 | [`unsupported-chain`](../reference/errors/unsupported-chain.md) | The routing table has no row for the chain. See [Routing](../reference/routing.md) |
 | [`in-progress`](../reference/errors/in-progress.md)             | Another submission of the contract is being checked. Try again in a minute         |
 

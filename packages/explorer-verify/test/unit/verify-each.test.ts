@@ -272,6 +272,57 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     assert.equal(r.events.filter((event) => event.type === "verify.submitted").length, 2);
   });
 
+  it("R-SEC-1: an injected fetch without a key or handlerUrl gives missing-api-key for Etherscan with no request to it (decision 0046)", async (t) => {
+    const fake = byHost({ "sourcify.dev": [SOURCIFY_LOOKUP_EXACT] });
+    const r = await run(t, { fetch: fake.fetch, backends: ["sourcify", "etherscan-v2"] });
+    const [first, second] = resultOf(r).outcomes;
+    assert.equal(first?.ok, true);
+    assert.ok(second !== undefined && "error" in second);
+    assert.deepEqual(second.error.details, { code: "missing-api-key", backend: "etherscan-v2" });
+    assert.equal(fake.sent.get("api.etherscan.io"), undefined);
+  });
+
+  it("R-SRV-5: handlerUrl sends Etherscan requests to the handler with no key, and Sourcify requests directly (decision 0046)", async (t) => {
+    const fake = byHost({
+      "sourcify.dev": [SOURCIFY_LOOKUP_EXACT],
+      "dapp.example": [ETHERSCAN_VERIFIED],
+    });
+    const r = await run(t, {
+      fetch: fake.fetch,
+      handlerUrl: "https://dapp.example/api/verify",
+      backends: ["sourcify", "etherscan-v2"],
+    });
+    assert.deepEqual(
+      resultOf(r).outcomes.map((outcome) => outcome.ok),
+      [true, true],
+    );
+    assert.equal(fake.sent.get("api.etherscan.io"), undefined);
+    const [sent] = fake.sent.get("dapp.example") ?? [];
+    assert.ok(sent !== undefined);
+    assert.equal(sent.url, `https://dapp.example/api/verify?chainid=${String(SEPOLIA)}`);
+    assert.equal(new URLSearchParams(sent.body).get("apikey"), null);
+    assert.equal(fake.sent.get("sourcify.dev")?.length, 1);
+  });
+
+  it('R-SRV-5: "all" with handlerUrl keeps etherscan-v2, which goes to the handler (decision 0046)', async (t) => {
+    const fake = byHost({
+      "sourcify.dev": [SOURCIFY_LOOKUP_EXACT],
+      "dapp.example": [ETHERSCAN_VERIFIED],
+      "api.routescan.io": [ETHERSCAN_VERIFIED],
+    });
+    const r = await run(t, {
+      fetch: fake.fetch,
+      handlerUrl: "https://dapp.example/api/verify",
+      backends: "all",
+    });
+    assert.deepEqual(
+      resultOf(r).outcomes.map((outcome) => outcome.backend),
+      ["etherscan-v2", "sourcify", "routescan"],
+    );
+    assert.equal(fake.sent.get("dapp.example")?.length, 1);
+    assert.equal(fake.sent.get("api.etherscan.io"), undefined);
+  });
+
   it("keeps the other outcomes when one backend ends in unknown-state (R-FLOW-4)", async (t) => {
     const fake = byHost({
       "sourcify.dev": [
@@ -283,7 +334,11 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     });
     const r = await run(
       t,
-      { fetch: fake.fetch, backends: ["etherscan-v2", "sourcify"] },
+      {
+        fetch: fake.fetch,
+        backends: ["etherscan-v2", "sourcify"],
+        apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
+      },
       DEPENDENCIES,
       input(OTHER),
     );
@@ -394,6 +449,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     const r = await run(t, {
       fetch: fake.fetch,
       backends: ["sourcify", "etherscan-v2"],
+      apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
       timeoutMs: 4_000,
     });
     const [first, second] = resultOf(r).outcomes;
@@ -426,6 +482,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     const r = await run(t, {
       fetch: fake.fetch,
       backends: ["sourcify", "etherscan-v2"],
+      apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
       timeoutMs: 5_000,
     });
     const codes = resultOf(r).outcomes.map((outcome) =>
@@ -457,6 +514,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
         fetch: fake.fetch,
         signal: controller.signal,
         backends: ["sourcify", "etherscan-v2"],
+        apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
         onEvent: (event) => {
           events.push(event);
         },

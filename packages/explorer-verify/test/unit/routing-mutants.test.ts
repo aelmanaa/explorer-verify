@@ -8,7 +8,7 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import { runCheckStatus } from "../../src/flow/status.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import { keyFor } from "../../src/http/api-keys.ts";
-import type { ApiKeys } from "../../src/http/api-keys.ts";
+import type { CheckedKeys } from "../../src/http/api-keys.ts";
 import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
@@ -69,7 +69,7 @@ describe("routing: cases from the mutation review of #59", () => {
 
   it("R5: does not treat an inherited apiKeys field as a key when choosing the backend", async () => {
     await withPrototypeField("etherscan-v2", ETHERSCAN_KEY, () => {
-      const apiKeys: ApiKeys = {};
+      const apiKeys: CheckedKeys = {};
       const route = resolveRoute(SEPOLIA, undefined, {
         table: tableOf(ETHERSCAN, SOURCIFY),
         apiKeys,
@@ -79,7 +79,7 @@ describe("routing: cases from the mutation review of #59", () => {
   });
 
   it("K2/K3: keyFor needs https on the exact table host even for a non-overridden route", () => {
-    const apiKeys: ApiKeys = { "etherscan-v2": ETHERSCAN_KEY };
+    const apiKeys: CheckedKeys = { "etherscan-v2": ETHERSCAN_KEY };
     const base = resolveRoute(SEPOLIA, undefined, { table: tableOf(ETHERSCAN, SOURCIFY), apiKeys });
     assert.equal(base.overridden, false);
     for (const apiBase of ["http://api.etherscan.io/v2/api", "https://xapi.etherscan.io/v2/api"]) {

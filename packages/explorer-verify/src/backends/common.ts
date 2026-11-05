@@ -39,7 +39,12 @@ export interface Answer {
  * ```
  */
 export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
-  const response = await request(ctx.http, req);
+  let response: Response;
+  try {
+    response = await request(ctx.http, req);
+  } catch (error: unknown) {
+    throw ctx.handler === undefined ? error : ctx.handler.annotate(error, ctx.http.secrets);
+  }
   const text = await response.text();
   let parsed: unknown;
   try {
@@ -283,7 +288,8 @@ export function resultOf(answer: Answer): string | undefined {
 
 /**
  * `unexpected-response` with the answer's status and text. `what` names the request, as
- * `the lookup`, or is the whole message when `whole` is set.
+ * `the lookup`, or is the whole message when `whole` is set. Through the caller's server handler,
+ * the handler's code words it, and names the handler's refusal `code` when there is one.
  *
  * @param ctx - The call's context, for its secrets.
  * @param backend - The backend.
@@ -305,6 +311,10 @@ export function unexpected(
   what: string,
   whole = false,
 ): ExplorerVerifyError<"unexpected-response"> {
+  // Through the caller's server handler, the answer is the handler's (decision 0046).
+  if (!whole && ctx.handler !== undefined) {
+    return ctx.handler.unexpected(backend, answer, what, ctx.http.secrets);
+  }
   return newError(
     { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
     whole
