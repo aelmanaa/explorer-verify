@@ -214,10 +214,10 @@ function assertSourcifyRoute(
 }
 
 describe("blackbox #60: the table as data (routing.md, R-RT-1)", () => {
-  it("has schemaVersion 2 and checked 2026-11-04", () => {
-    // #122 checked the rows again on 2026-11-04 when it added the Etherscan v2 entries.
+  it("has schemaVersion 2 and checked 2026-11-05", () => {
+    // #165 checked the rows again on 2026-11-05 when it removed two Etherscan v2 entries.
     assert.equal(TABLE.schemaVersion, 2);
-    assert.equal(TABLE.checked, "2026-11-04");
+    assert.equal(TABLE.checked, "2026-11-05");
   });
 
   it("lists 94 chains in ascending order, one row per chain", () => {

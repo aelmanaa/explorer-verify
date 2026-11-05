@@ -542,7 +542,7 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
   });
 
   it("is dated (R-RT-1)", () => {
-    assert.equal(ROUTING_TABLE.checked, "2026-11-04");
+    assert.equal(ROUTING_TABLE.checked, "2026-11-05");
   });
 
   it("sends a call with an Etherscan key to api.etherscan.io, the key in the POST body only (R-RT-1, R-SEC-2, #122)", async () => {

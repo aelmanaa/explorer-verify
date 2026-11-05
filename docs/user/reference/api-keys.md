@@ -6,7 +6,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers and agents who pass an explorer API key to `verify()` or `checkStatus()`.
 
-The routing table lists Etherscan v2 for the 57 chains of the Etherscan chainlist
+The routing table lists Etherscan v2 for the 55 chains of the Etherscan chainlist
 ([Routing](routing.md#etherscan-rows-and-paid-plans)). Pass your Etherscan key in `apiKeys`:
 
 ```ts
@@ -21,7 +21,7 @@ console.log(`${result.status} ${result.backend}`);
 already-verified etherscan-v2
 ```
 
-Without the key, the same call goes to Sourcify and sends no key. On the 11 chains that need a paid
+Without the key, the same call goes to Sourcify and sends no key. On the 10 chains that need a paid
 Etherscan plan, Sourcify comes first even with a key; with a paid plan, add
 `route: { backend: "etherscan-v2" }`.
 
@@ -160,7 +160,7 @@ a key in client code. This is a reading of the terms at <https://etherscan.io/ap
 [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md) explains the
 rule.
 
-Separately, the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) marks 11 chains "Paid
-Plan required" (read 2026-11-04). The routing table puts Sourcify first on those chains, so a
+Separately, the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) marks 10 chains "Paid
+Plan required" (read 2026-11-05). The routing table puts Sourcify first on those chains, so a
 key goes to Etherscan there only when you set `route.backend` to `etherscan-v2`
 ([Routing](routing.md#etherscan-rows-and-paid-plans)).

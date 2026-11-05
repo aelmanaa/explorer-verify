@@ -270,10 +270,10 @@ describe("#122 every chainlist row", () => {
   const rows = table.chains.filter((row) =>
     row.backends.some((each) => each.backend === "etherscan-v2"),
   );
-  it("has 57 rows: 46 Etherscan-first, 11 Sourcify-first", () => {
-    assert.equal(rows.length, 57);
-    assert.equal(rows.filter((row) => row.backends[0]?.backend === "etherscan-v2").length, 46);
-    assert.equal(rows.filter((row) => row.backends[0]?.backend === "sourcify").length, 11);
+  it("has 55 rows: 45 Etherscan-first, 10 Sourcify-first (#165)", () => {
+    assert.equal(rows.length, 55);
+    assert.equal(rows.filter((row) => row.backends[0]?.backend === "etherscan-v2").length, 45);
+    assert.equal(rows.filter((row) => row.backends[0]?.backend === "sourcify").length, 10);
   });
   for (const row of rows) {
     const first = row.backends[0]?.backend;

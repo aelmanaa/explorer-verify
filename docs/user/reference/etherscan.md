@@ -13,7 +13,7 @@ the server that the `route` option names, such as your own
 the query as `chainid`. Etherscan needs an API key ([API keys](api-keys.md)).
 [verify()](verify.md) and [checkStatus()](check-status.md) use this client.
 
-The routing table lists Etherscan v2 for the 57 chains of the Etherscan chainlist, each with its
+The routing table lists Etherscan v2 for the 55 chains of the Etherscan chainlist, each with its
 explorer host ([Routing](routing.md#etherscan-rows-and-paid-plans)). Pass the key in `apiKeys`:
 
 ```ts
@@ -32,7 +32,7 @@ https://sepolia.etherscan.io/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc#
 ```
 
 The result's `explorerUrl` is the contract's page on the chain's explorer. Without a key, the
-call goes to Sourcify. On the 11 chains that need a paid Etherscan plan, Sourcify comes first: add
+call goes to Sourcify. On the 10 chains that need a paid Etherscan plan, Sourcify comes first: add
 `route: { backend: "etherscan-v2" }` to use Etherscan there.
 
 From a browser, pass `route: { backend: "etherscan-v2" }` and a `fetch` that sends the requests to

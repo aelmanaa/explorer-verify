@@ -105,6 +105,31 @@ Not checked: the answer to `verifysourcecode` with a free-plan key on a paid-pla
 would publish a source, so none was sent. Decision 0027 keeps Sourcify first on these chains; this
 check does not change that order.
 
+## The check of 2026-11-05
+
+Added for [#165](https://github.com/aelmanaa/explorer-verify/issues/165).
+
+| Source                                                       | Read                                     | What it gave                                                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [Etherscan chainlist](https://api.etherscan.io/v2/chainlist) | 2026-11-05 01:09 UTC, curl 8.7.1, no key | 55 chains, all with status 1. 45 say "Free-tier available" and 10 say "Paid Plan required". 11124 and 43113 are missing |
+
+The other 55 chains have the same chain ids, explorer hosts and comments as on 2026-11-04. Two
+chains left the list: 11124 (Abstract Sepolia Testnet, free-tier) and 43113 (Avalanche Fuji
+Testnet, paid plan). The change removes the `etherscan-v2` entry from both rows. Both keep
+`sourcify`, because Sourcify supports them and they are among the prior art's rows. The frozen
+copy in [data/2026-11-03-routing-seed.json](data/2026-11-03-routing-seed.json) drops the two
+chains, and the table's `checked` date moves to 2026-11-05.
+
+Before the change, `node scripts/compare-routing-table.ts` printed 4 differences: both rows
+listed `etherscan-v2`, and both chains had left the chainlist. After the change, at 01:11 UTC, it
+printed `routing table: no differences`.
+
+What Etherscan answers for `chainid=11124` or `chainid=43113` was not checked.
+
+Size, with `pnpm run size` (esbuild 0.28.2, Node.js 24.21.0), minified and gzipped: the
+`routing table` entry goes from 933 to 929 bytes, and `verify with table` from 15,323 to 15,313
+bytes. The other entries do not change.
+
 ## Open questions
 
 - Etherscan's answer to a submit with a free-plan key on a paid-plan chain. If it is the refusal
@@ -118,7 +143,7 @@ check does not change that order.
   every call and its answer in
   `packages/explorer-verify/test/fixtures/etherscan/2026-11-04-paid-plan-probe-summary.json`, and
   the five full answers in the fixtures named above
-- Etherscan chainlist: https://api.etherscan.io/v2/chainlist (read 2026-11-04)
+- Etherscan chainlist: https://api.etherscan.io/v2/chainlist (read 2026-11-04 and 2026-11-05)
 - Sourcify chains: https://sourcify.dev/server/chains (read 2026-11-04)
 - Issue: https://github.com/aelmanaa/explorer-verify/issues/122
 - The frozen chainlist of 2026-11-03: [data/2026-11-03-routing-seed.json](data/2026-11-03-routing-seed.json)
