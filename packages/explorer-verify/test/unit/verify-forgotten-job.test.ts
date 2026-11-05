@@ -24,6 +24,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
 import { compileStrict, validateEnvelope } from "./envelope-schema.ts";
@@ -121,11 +122,21 @@ interface Run {
 
 type Start = (options: VerifyOptions, backend: Backend) => Promise<VerifyResult>;
 
+// The table is passed loaded: run() below gives the call a fixed number of real turns, and a
+// table import that outlasts them leaves the call unsettled (decision 0040).
 const startVerify: Start = async (options, backend) =>
-  await runVerify(INPUT, options, { random: () => 0, backends: { sourcify: backend } });
+  await runVerify(INPUT, options, {
+    random: () => 0,
+    backends: { sourcify: backend },
+    table: ROUTING_TABLE,
+  });
 
 const startCheckStatus: Start = async (options, backend) =>
-  await runCheckStatus(LINE, options, { random: () => 0, backends: { sourcify: backend } });
+  await runCheckStatus(LINE, options, {
+    random: () => 0,
+    backends: { sourcify: backend },
+    table: ROUTING_TABLE,
+  });
 
 /**
  * Runs `start` on mock timers until it settles, with a logger and onEvent that record every line
