@@ -24,6 +24,10 @@ You need Node 22.18 or later, [Foundry](https://getfoundry.sh/), a bundler for t
 ETH. Steps 1 to 6 need no account and no API key.
 
 The code blocks are plain TypeScript modules with no framework. Each one names the file it goes in.
+The finished dapp is in the repository, in
+[`examples/dapp/`](../../../examples/dapp/src/main.ts); each module it shares with this page is the
+same file. [Run the example](#run-the-example) says how to start
+it.
 
 ## Step 1: Build the contract and ship its files
 
@@ -93,9 +97,18 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { verifyInputFromFoundry } from "@explorer-verify/foundry";
 
 // The ABI and the creation bytecode, from Foundry's artifact.
-const artifact: { abi: unknown[]; bytecode: { object: string } } = JSON.parse(
-  await readFile("out/Greeter.sol/Greeter.json", "utf8"),
-);
+const artifact: unknown = JSON.parse(await readFile("out/Greeter.sol/Greeter.json", "utf8"));
+if (
+  typeof artifact !== "object" ||
+  artifact === null ||
+  !("abi" in artifact) ||
+  !("bytecode" in artifact) ||
+  typeof artifact.bytecode !== "object" ||
+  artifact.bytecode === null ||
+  !("object" in artifact.bytecode)
+) {
+  throw new Error("out/Greeter.sol/Greeter.json holds no ABI and bytecode.");
+}
 // The compiler version, the contract name and the Standard JSON input, from the build-info.
 const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 
@@ -105,7 +118,7 @@ await writeFile(
   JSON.stringify({ abi: artifact.abi, bytecode: artifact.bytecode.object }),
 );
 await writeFile("public/contracts/Greeter.verify.json", JSON.stringify(built));
-console.log(`${built.contractName} ${built.compiler.version}`);
+process.stdout.write(`${built.contractName} ${built.compiler.version}\n`);
 ```
 
 It prints:
@@ -131,10 +144,16 @@ Install it in the dapp with `npm install viem`, and save this module as `src/dep
 <!-- fragment: it needs viem and a browser wallet; the test project has neither. -->
 
 ```ts fragment
-import "viem/window";
 import { createPublicClient, createWalletClient, custom, isHex } from "viem";
-import type { Abi, Hex } from "viem";
+import type { Abi, EIP1193Provider, Hex } from "viem";
 import { sepolia } from "viem/chains";
+
+declare global {
+  interface Window {
+    /** The provider that most browser wallets inject (EIP-1193). */
+    ethereum?: EIP1193Provider;
+  }
+}
 
 export interface Deployment {
   chainId: number;
@@ -180,12 +199,14 @@ async function waitForDeployment(creationTxHash: Hex): Promise<Deployment> {
   const { reader } = clients();
   const receipt = await reader.waitForTransactionReceipt({ hash: creationTxHash });
   localStorage.removeItem(CREATION_TX_KEY);
-  if (receipt.status !== "success" || !receipt.contractAddress) {
+  const address = receipt.contractAddress;
+  if (receipt.status !== "success" || address === null || address === undefined) {
     throw new Error(`The deployment failed in transaction ${creationTxHash}.`);
   }
-  return { chainId: sepolia.id, address: receipt.contractAddress, creationTxHash };
+  return { chainId: sepolia.id, address, creationTxHash };
 }
 
+/** Deploys Greeter from the user's wallet, owned by the user, and waits until it is mined. */
 export async function deployGreeter(greeting: string): Promise<Deployment> {
   const { wallet } = clients();
   const [account] = await wallet.requestAddresses();
@@ -216,8 +237,9 @@ export async function resumeDeployment(): Promise<Deployment | undefined> {
 `deployGreeter` returns the contract's address and the creation transaction hash. The page shows
 both when the transaction is mined (see the button code in step 4).
 
-The tests of this repository do not run this block: it needs a wallet, a funded account and a
-live network. It was type-checked against viem 2.57.8 on 2026-11-04. The viem calls are those of
+The docs tests do not run this block, because it needs viem and a wallet. The example's tests run
+the same module, `examples/dapp/src/deploy.ts`, against viem 2.57.8 with a fake EIP-1193 wallet.
+The viem calls are those of
 the viem docs, read on 2026-11-04: [Wallet Client](https://viem.sh/docs/clients/wallet),
 [`deployContract`](https://viem.sh/docs/contract/deployContract),
 [`switchChain`](https://viem.sh/docs/actions/wallet/switchChain) and
@@ -255,6 +277,7 @@ export interface Deployment {
   creationTxHash: string;
 }
 
+/** Loads explorer-verify and the verify file, and returns the checked input for a deployment. */
 export async function loadVerifyInput(deployment: Deployment): Promise<VerifyInput> {
   const { validateInput } = await import("explorer-verify");
   const response = await fetch("/contracts/Greeter.verify.json");
@@ -297,9 +320,10 @@ function summary(result: VerifyResult): string {
   if (result.status === "failed") {
     return `Sourcify rejected the source: ${result.reason}`;
   }
-  return `${result.status} (${result.match}) ${result.explorerUrl ?? ""}`;
+  return [result.status, `(${result.match})`, result.explorerUrl].join(" ");
 }
 
+/** Verifies on Sourcify, saves the handle for a reload, and shows each step with `show`. */
 export async function verifyOnSourcify(
   input: VerifyInput,
   show: (line: string) => void,
@@ -392,8 +416,9 @@ if (pending !== undefined) {
 }
 ```
 
-Point your bundler at `src/main.ts`. The tests of this repository do not run this module; each
-module it imports is tested as described on its own step. A bundler that splits code puts each
+Point your bundler at `src/main.ts`. The docs tests do not run this module. The example's
+`src/main.ts` holds the same code, adds the steps that follow, and is tested on a fake page. A
+bundler that splits code puts each
 explorer client in a chunk of its own, and this page loads only the Sourcify client: see
 [client chunks](../reference/routing.md#client-chunks).
 
@@ -410,6 +435,7 @@ import { ExplorerVerifyError, checkStatus } from "explorer-verify";
 
 const PENDING_KEY = "greeter-verification";
 
+/** Polls the job whose handle a previous page load saved, if any. Never submits. */
 export async function resumeVerification(show: (line: string) => void): Promise<void> {
   const stored = localStorage.getItem(PENDING_KEY);
   if (stored === null) {
@@ -544,7 +570,10 @@ already-verified etherscan-v2
 ```
 
 In the dapp, the handler runs on your server and the browser's `fetch` posts to it. Save this as
-`src/verify-etherscan.ts`, and call `verifyOnEtherscan(input)` with the input of step 3:
+`src/verify-etherscan.ts`, and call `verifyOnEtherscan(input)` with the input of step 3.
+This path from a page works from the next release of explorer-verify, which carries the fix for
+[issue #183](https://github.com/aelmanaa/explorer-verify/issues/183). The fix is merged but not
+yet published; an earlier build reads the handler's answer as a redirect and stops.
 
 <!-- no-run: it posts to /api/verify on the dapp's own origin, which a test run does not serve. -->
 
@@ -552,7 +581,8 @@ In the dapp, the handler runs on your server and the browser's `fetch` posts to 
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-const viaHandler: typeof fetch = async (input, init) => {
+/** Sends each Etherscan request to the dapp's server, and any other request as it is. */
+export const viaHandler: typeof fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
   if (url.origin !== "https://api.etherscan.io") {
     return await fetch(input, init);
@@ -560,6 +590,7 @@ const viaHandler: typeof fetch = async (input, init) => {
   return await fetch(`/api/verify${url.search}`, init);
 };
 
+/** Verifies on Etherscan through the dapp's server, which adds the key. */
 export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResult> {
   return await verify(input, {
     route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
@@ -575,6 +606,34 @@ the handler has no `explorerUrl`. The guide's `handlerFetch` also handles a `Req
 first argument. [Etherscan](../reference/etherscan.md) describes what the client sends and how it
 reads each answer, and [Server handler](../reference/server-handler.md) lists the handler's
 options and refusals.
+
+## Run the example
+
+[`examples/dapp/`](../../../examples/dapp/src/main.ts) is the dapp of this page. Its `src/main.ts` runs the
+steps on a click, resumes on load (step 5), and verifies on Etherscan too when the page's box is
+ticked (step 7). `server.ts` serves `public/` and runs the server handler at `/api/verify` for
+Sepolia only, and answers 403 to a request a browser marks as cross-site. It is for loopback only:
+before you bind it to another address, add a rate limit, an `Origin` and `Host` check and your
+own sign-in. From a clone of the repository, with Node 22.18 or later and pnpm:
+
+```bash
+pnpm install
+pnpm run build
+pnpm --filter explorer-verify-examples run dapp:build
+pnpm --filter explorer-verify-examples run dapp:serve
+```
+
+Open `http://127.0.0.1:8080` in a browser with a wallet that holds some Sepolia ETH, and click
+**Deploy and verify**. Each line the page shows comes from one of the steps above. The server
+reads the Etherscan key from `ETHERSCAN_API_KEY` in its environment; without it, `/api/verify`
+answers 503 and the rest of the page works. The example builds explorer-verify from the
+repository, which has the fix for issue #183, so the Etherscan box works; a dapp that installs
+explorer-verify needs the next release, as
+[step 7](#step-7-verify-on-etherscan-through-your-server) says.
+
+The build files in `public/contracts/` come from the example's Foundry project. After a change to
+a contract in `src/`, run `forge build --build-info` and `node scripts/export-contracts.ts` in
+`examples/dapp/`.
 
 ## What you built
 
@@ -592,3 +651,9 @@ step 7 against the build, with Sourcify and Etherscan answers recorded on 2026-1
 Step 3 and the second block of step 7 are type-checked but not run, because they request files or
 routes from the dapp's own origin. Step 2 and the button code are not run, because they need a
 wallet, a live network or the dapp's own files.
+
+The example's tests run every module of the example, with no network and no browser: a fake
+EIP-1193 wallet, an in-memory `localStorage`, the example's server for the page's own files and
+`/api/verify`, and the same recorded answers. They also check that each block above that names an
+example file is that file, unchanged, and that the bundle puts each explorer client in a chunk of
+its own.

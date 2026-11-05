@@ -1,0 +1,4 @@
+# Foundry build output and the bundle; scripts/build.ts writes public/app/.
+out/
+cache/
+public/app/

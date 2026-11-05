@@ -32,6 +32,8 @@
         "server-nextjs/lib/verify-client.ts",
         "server-cloudflare/src/index.ts",
         "server-cloudflare/client/verify-client.ts",
+        "dapp/src/main.ts",
+        "dapp/scripts/*.ts",
         "test/**/*.test.ts"
       ],
       "project": ["**/*.ts"]

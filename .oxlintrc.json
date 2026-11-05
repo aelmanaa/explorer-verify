@@ -171,6 +171,14 @@
       }
     },
     {
+      // Two dapp scripts read process.env: serve.ts reads PORT and ETHERSCAN_API_KEY, and
+      // sepolia-run.ts reads SEPOLIA_PRIVATE_KEY, SEPOLIA_RPC_URL and ETHERSCAN_API_KEY.
+      "files": ["examples/dapp/scripts/**"],
+      "rules": {
+        "node/no-process-env": "off"
+      }
+    },
+    {
       "files": ["examples/test/**"],
       "rules": {
         "jsdoc-js/require-jsdoc": "off",

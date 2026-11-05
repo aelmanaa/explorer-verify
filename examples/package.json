@@ -2,7 +2,7 @@
   "name": "explorer-verify-examples",
   "version": "0.0.0",
   "private": true,
-  "description": "Examples of createVerifyHandler in a Next.js route and a Cloudflare Worker, type-checked and tested in CI. Never published.",
+  "description": "Example applications of explorer-verify: the server handler in a Next.js route and a Cloudflare Worker, and the dapp of the deploy-and-verify tutorial. Type-checked and tested in CI. Never published.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -12,12 +12,17 @@
     "test": "pnpm run test:unit",
     "test:unit": "node ../scripts/node-test.ts unit \"test/**/*.test.ts\"",
     "test:randomize": "node ../scripts/node-test.ts unit --test-randomize \"test/**/*.test.ts\"",
-    "coverage": "c8 --check-coverage node --test \"test/**/*.test.ts\""
+    "coverage": "c8 --check-coverage node --test \"test/**/*.test.ts\"",
+    "dapp:build": "node dapp/scripts/build.ts",
+    "dapp:serve": "node dapp/scripts/serve.ts"
   },
   "dependencies": {
-    "explorer-verify": "workspace:*"
+    "explorer-verify": "workspace:*",
+    "viem": "2.57.8"
   },
   "devDependencies": {
-    "c8": "catalog:"
+    "@explorer-verify/foundry": "workspace:*",
+    "c8": "catalog:",
+    "esbuild": "catalog:"
   }
 }
