@@ -119,6 +119,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | `packages/hardhat/`                            | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
 | `packages/cli/`                                | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
 | `examples/`                                    | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, type-checked and tested                                       |
+| `test/agent-eval/`                             | The agent evaluation's task set and how to run it ([README](test/agent-eval/README.md)); CI checks each task's reference command                                 |
 | `scripts/`                                     | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
 | `docs/user/`                                   | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
 | `llms.txt`                                     | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |

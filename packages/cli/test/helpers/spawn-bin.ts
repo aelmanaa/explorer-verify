@@ -27,6 +27,8 @@ export interface BinResult {
   signal: NodeJS.Signals | null;
   stdout: string;
   stderr: string;
+  /** Whether `timeoutMs` ran out and the child was killed: a hang (R-AX-6). */
+  timedOut: boolean;
 }
 
 export interface BinOptions {
@@ -47,6 +49,8 @@ export interface BinOptions {
   fake?: { scenario?: string; log?: string };
   /** Called with each stderr chunk and the child, for example to send a signal. */
   onStderr?: (text: string, child: ChildProcess) => void;
+  /** Kills the child with SIGKILL after this many milliseconds, and sets `timedOut`. */
+  timeoutMs?: number;
 }
 
 function environment(extra: Record<string, string>): NodeJS.ProcessEnv {
@@ -92,7 +96,13 @@ export function runBin(args: readonly string[], options: BinOptions = {}): Promi
   return new Promise((resolve, reject) => {
     const stdin = options.stdin ?? "ignore";
     const { fake } = options;
-    const bin = fake === undefined ? [BIN] : ["--import", PRELOAD, BIN];
+    // The preload is TypeScript, and some Node releases (24.0.0 among them) warn on stderr that
+    // type stripping is experimental. The bin itself is JavaScript and never warns, so the flag
+    // keeps stderr what the bin writes.
+    const bin =
+      fake === undefined
+        ? [BIN]
+        : ["--disable-warning=ExperimentalWarning", "--import", PRELOAD, BIN];
     const fakeEnv: Record<string, string> =
       fake === undefined
         ? {}
@@ -125,10 +135,19 @@ export function runBin(args: readonly string[], options: BinOptions = {}): Promi
       stderr += chunk;
       options.onStderr?.(stderr, child);
     });
+    let timedOut = false;
+    const timer =
+      options.timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            timedOut = true;
+            child.kill("SIGKILL");
+          }, options.timeoutMs);
     child.on("error", reject);
     child.on("close", (code, signal) => {
+      clearTimeout(timer);
       child.stdin?.destroy();
-      resolve({ code, signal, stdout, stderr });
+      resolve({ code, signal, stdout, stderr, timedOut });
     });
   });
 }
