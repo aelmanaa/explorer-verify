@@ -26,7 +26,7 @@ import { addressDigits, readChainId, readFields, readOwn } from "../../internal/
 import { createObserver } from "../../observe.ts";
 import type { Observer } from "../../observe.ts";
 import { checkApiUrl, SOURCIFY_API_URL } from "../../routing/resolve.ts";
-import type { Hex, Logger } from "../../types.ts";
+import type { Hex, Logger, VerifyEvent } from "../../types.ts";
 import { buildVerifyInput } from "../build.ts";
 import type { BuiltVerifyInput } from "../build.ts";
 import { parseMetadata, readMetadata } from "../metadata.ts";
@@ -36,7 +36,7 @@ import type { Auxdata } from "./auxdata.ts";
 import { ipfsCid } from "./ipfs.ts";
 
 /**
- * The contract whose bytecode {@link resolveInputFromBytecode} reads.
+ * The contract whose bytecode {@link buildVerifyInputFromBytecode} reads.
  *
  * @example
  * ```ts
@@ -57,13 +57,13 @@ export interface BytecodeTarget {
 }
 
 /**
- * Options for {@link resolveInputFromBytecode}. Pass `bytecode` or `rpcUrl`, not both.
+ * Options for {@link buildVerifyInputFromBytecode}. Pass `bytecode` or `rpcUrl`, not both.
  *
  * @example
  * ```ts
- * import type { ResolveInputOptions } from "explorer-verify/resolve";
+ * import type { BuildFromBytecodeOptions } from "explorer-verify/resolve";
  *
- * const options: ResolveInputOptions = {
+ * const options: BuildFromBytecodeOptions = {
  *   rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
  *   ipfsGateway: "http://127.0.0.1:8080",
  *   timeoutMs: 60_000,
@@ -71,7 +71,7 @@ export interface BytecodeTarget {
  * ```
  * @experimental
  */
-export interface ResolveInputOptions {
+export interface BuildFromBytecodeOptions {
   /**
    * The deployed runtime bytecode, `0x` and hex digits, when you already have it. At most
    * 65536 bytes.
@@ -93,9 +93,11 @@ export interface ResolveInputOptions {
   /**
    * Whether to look for a verified copy on Sourcify at the same address, on any chain. Defaults to
    * `true`. A copy is used only when its metadata hashes to the bytecode's IPFS hash; for a Swarm
-   * hash, only an exact match on the same chain is used. `false` needs `ipfsGateway`.
+   * hash, only an exact match on the same chain is used. `false` needs `ipfsGateway`. Not the
+   * same as `VerifyOptions.allowSourcifyFallback`, which routes a chain the routing table does
+   * not list to Sourcify.
    */
-  sourcify?: boolean;
+  allowSourcifyLookup?: boolean;
   /**
    * Source contents by path, as the metadata lists the paths, for sources no other source has.
    * Each must hash to the metadata's `keccak256` for its path.
@@ -113,6 +115,13 @@ export interface ResolveInputOptions {
    * field, `rpc` or `ipfs`, and no backend name.
    */
   logger?: Logger;
+  /**
+   * Receives events with secrets removed, as `VerifyOptions.onEvent` does (R-DX-6). The resolver
+   * emits `verify.retry` before each retry of a request to Sourcify. Requests to `rpcUrl` and
+   * `ipfsGateway` emit no event; their retries are logged. An exception it throws, or a rejection
+   * of a promise it returns, is logged once at `warn` and does not change the outcome.
+   */
+  onEvent?: (event: VerifyEvent) => void | Promise<void>;
 }
 
 /** The default time budget, as for `verify()`. */
@@ -141,12 +150,13 @@ interface Settings {
   /** The bytecode the caller passed, or the JSON-RPC endpoint to read it from. */
   readonly code: { readonly bytes: Uint8Array } | { readonly rpcUrl: Endpoint };
   readonly gateway: Endpoint | undefined;
-  readonly sourcify: boolean;
+  readonly allowSourcifyLookup: boolean;
   readonly sources: Record<string, string>;
   readonly fetch: typeof fetch;
   readonly signal: AbortSignal | undefined;
   readonly timeoutMs: number;
   readonly logger: Logger | undefined;
+  readonly onEvent: BuildFromBytecodeOptions["onEvent"];
   readonly secrets: string[];
 }
 
@@ -214,14 +224,14 @@ function readSources(value: unknown, issues: InputIssue[]): Record<string, strin
 
 /** Each option, read once as an own property; `undefined` when absent. */
 type ReadOptions = {
-  readonly [K in keyof ResolveInputOptions]-?: ResolveInputOptions[K] | undefined;
+  readonly [K in keyof BuildFromBytecodeOptions]-?: BuildFromBytecodeOptions[K] | undefined;
 };
 
 /**
  * The options, each read once as an own property, or `undefined` when `options` is not an object
  * or a getter or Proxy trap throws. The thrown error is dropped: it may repeat a caller value.
  */
-function readOptions(options: ResolveInputOptions | undefined): ReadOptions | undefined {
+function readOptions(options: BuildFromBytecodeOptions | undefined): ReadOptions | undefined {
   const raw: unknown = options;
   if (options === undefined || typeof raw !== "object" || raw === null) {
     return options === undefined ? readOptions({}) : undefined;
@@ -231,26 +241,30 @@ function readOptions(options: ResolveInputOptions | undefined): ReadOptions | un
       bytecode: readOwn(options, "bytecode"),
       rpcUrl: readOwn(options, "rpcUrl"),
       ipfsGateway: readOwn(options, "ipfsGateway"),
-      sourcify: readOwn(options, "sourcify"),
+      allowSourcifyLookup: readOwn(options, "allowSourcifyLookup"),
       sources: readOwn(options, "sources"),
       fetch: readOwn(options, "fetch"),
       signal: readOwn(options, "signal"),
       timeoutMs: readOwn(options, "timeoutMs"),
       logger: readOwn(options, "logger"),
+      onEvent: readOwn(options, "onEvent"),
     };
   } catch {
     return undefined;
   }
 }
 
-/** Adds an issue for each of `sourcify`, `fetch`, `signal`, `timeoutMs` and `logger` of the wrong kind. */
+/**
+ * Adds an issue for each of `allowSourcifyLookup`, `fetch`, `signal`, `timeoutMs`, `logger` and
+ * `onEvent` of the wrong kind.
+ */
 function checkKinds(read: ReadOptions, issues: InputIssue[]): void {
-  const sourcify: unknown = read.sourcify;
-  if (sourcify !== undefined && typeof sourcify !== "boolean") {
-    issues.push({ field: "sourcify", message: "must be a boolean" });
+  const lookup: unknown = read.allowSourcifyLookup;
+  if (lookup !== undefined && typeof lookup !== "boolean") {
+    issues.push({ field: "allowSourcifyLookup", message: "must be a boolean" });
   }
-  if (sourcify === false && read.ipfsGateway === undefined) {
-    issues.push({ field: "ipfsGateway", message: "is required when sourcify is false" });
+  if (lookup === false && read.ipfsGateway === undefined) {
+    issues.push({ field: "ipfsGateway", message: "is required when allowSourcifyLookup is false" });
   }
   const fetchOption: unknown = read.fetch;
   if (fetchOption !== undefined && typeof fetchOption !== "function") {
@@ -274,10 +288,17 @@ function checkKinds(read: ReadOptions, issues: InputIssue[]): void {
   if (logger !== undefined && (logger === null || typeof logger !== "object")) {
     issues.push({ field: "logger", message: "must be an object" });
   }
+  const onEvent: unknown = read.onEvent;
+  if (onEvent !== undefined && typeof onEvent !== "function") {
+    issues.push({ field: "onEvent", message: "must be a function" });
+  }
 }
 
 /** Reads and checks the target and the options, each field once, as an own property. */
-function readSettings(target: BytecodeTarget, options: ResolveInputOptions | undefined): Settings {
+function readSettings(
+  target: BytecodeTarget,
+  options: BuildFromBytecodeOptions | undefined,
+): Settings {
   const issues: InputIssue[] = [];
   const targetFields = readFields(target);
   const chainId = readChainId(targetFields?.get("chainId"));
@@ -321,7 +342,7 @@ function readSettings(target: BytecodeTarget, options: ResolveInputOptions | und
     address: `0x${digits.toLowerCase()}`,
     code,
     gateway,
-    sourcify: read.sourcify !== false,
+    allowSourcifyLookup: read.allowSourcifyLookup !== false,
     sources,
     // Called as a plain function, never as a method of the options.
     fetch: fetchOption === undefined ? platformFetch : (input, init) => fetchOption(input, init),
@@ -329,6 +350,7 @@ function readSettings(target: BytecodeTarget, options: ResolveInputOptions | und
     timeoutMs:
       timeoutMs === undefined ? DEFAULT_RESOLVE_TIMEOUT_MS : Math.min(timeoutMs, MAX_TIMER_MS),
     logger: read.logger,
+    onEvent: read.onEvent,
     secrets,
   };
 }
@@ -689,7 +711,7 @@ async function fetchSources(
  *    that `eth_chainId` is `target.chainId`. Bytecode above 65536 bytes is refused.
  * 2. Reads the metadata hash from the CBOR block: IPFS (`ipfs`) or Swarm (`bzzr0`, `bzzr1`).
  * 3. Looks for a verified copy on Sourcify at the same address, on any chain (unless
- *    `options.sourcify` is `false`). A copy is used only when its metadata, serialised as solc
+ *    `options.allowSourcifyLookup` is `false`). A copy is used only when its metadata, serialised as solc
  *    does, has the bytecode's IPFS hash; for a Swarm hash, only an exact match on the same chain.
  *    A source of the copy whose keccak-256 differs from the metadata is not used.
  * 4. Otherwise, when `options.ipfsGateway` is set and the hash is IPFS, fetches
@@ -719,23 +741,27 @@ async function fetchSources(
  * @example
  * ```ts
  * import { verify } from "explorer-verify";
- * import { resolveInputFromBytecode } from "explorer-verify/resolve";
+ * import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
  *
  * const target = { chainId: 84532, address: "0x06dc80b924f113d9b6758c95aa9854b46936f2c0" } as const;
- * const built = await resolveInputFromBytecode(target, { rpcUrl: "https://sepolia.base.org" });
+ * const built = await buildVerifyInputFromBytecode(target, { rpcUrl: "https://sepolia.base.org" });
  * const result = await verify({ ...target, ...built });
  * ```
  * @experimental
  */
-export async function resolveInputFromBytecode(
+export async function buildVerifyInputFromBytecode(
   target: BytecodeTarget,
-  options?: ResolveInputOptions,
+  options?: BuildFromBytecodeOptions,
 ): Promise<BuiltVerifyInput> {
   const settings = readSettings(target, options);
   settings.signal?.throwIfAborted();
   const call: Call = {
     settings,
-    observer: createObserver({ logger: settings.logger, secrets: settings.secrets }),
+    observer: createObserver({
+      logger: settings.logger,
+      onEvent: settings.onEvent,
+      secrets: settings.secrets,
+    }),
     budget: { deadline: Date.now() + settings.timeoutMs, timeoutMs: settings.timeoutMs },
     attempts: [],
     hash: "",
@@ -754,7 +780,7 @@ export async function resolveInputFromBytecode(
   }
   call.hash = hashText(auxdata);
   call.observer.log.debug("read the metadata hash from the bytecode", { hash: call.hash });
-  let found = settings.sourcify ? await fromSourcify(call, auxdata) : undefined;
+  let found = settings.allowSourcifyLookup ? await fromSourcify(call, auxdata) : undefined;
   if (found === undefined && settings.gateway !== undefined && auxdata.kind === "ipfs") {
     found = await fromGateway(call, settings.gateway, auxdata.cid);
   }

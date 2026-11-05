@@ -1,5 +1,5 @@
 // Tests for the bytecode-metadata resolver (R-IN-5, decision 0026): reading the CBOR block, the
-// IPFS hash solc computes, and resolveInputFromBytecode on recorded answers. The Sourcify, JSON-RPC
+// IPFS hash solc computes, and buildVerifyInputFromBytecode on recorded answers. The Sourcify, JSON-RPC
 // and ipfs.io answers were recorded live on 2026-11-04; the solc vectors were compiled with the
 // solc npm package 0.8.26 (see the source field of test/fixtures/ipfs/solc-0.8.26-greeter.json).
 import assert from "node:assert/strict";
@@ -13,10 +13,11 @@ import type {
   LogFields,
   Logger,
   MetadataAttempt,
+  VerifyEvent,
 } from "../../src/index.ts";
 import { hexBytes, readAuxdata } from "../../src/input/resolvers/auxdata.ts";
-import { resolveInputFromBytecode } from "../../src/input/resolvers/bytecode.ts";
-import type { ResolveInputOptions } from "../../src/input/resolvers/bytecode.ts";
+import { buildVerifyInputFromBytecode } from "../../src/input/resolvers/bytecode.ts";
+import type { BuildFromBytecodeOptions } from "../../src/input/resolvers/bytecode.ts";
 import { base58, ipfsCid } from "../../src/input/resolvers/ipfs.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
@@ -336,7 +337,7 @@ describe("ipfsCid (R-IN-5, decision 0026)", () => {
   });
 });
 
-describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () => {
+describe("buildVerifyInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () => {
   it("reads the bytecode over JSON-RPC and copies Sourcify's metadata and sources", async () => {
     const { fetch, calls } = replay(
       loadFixture("rpc", "2026-11-04-eth-chainid-sepolia"),
@@ -345,7 +346,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
       sourcifyFixture("2026-11-04-contract-metadata-sources"),
     );
     const { logger, lines } = recordingLogger();
-    const built = await resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, logger });
+    const built = await buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, logger });
     assert.equal(built.contractName, "contracts/Greeter.sol:Greeter");
     assert.equal(built.compiler.version, "0.8.24+commit.e11b9ed9");
     assert.deepEqual(Object.keys(built.compiler.input.sources).toSorted(), [
@@ -381,7 +382,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
       sourcifyFixture("2026-11-04-all-chains-greeter"),
       sourcifyFixture("2026-11-04-contract-metadata-sources"),
     );
-    const built = await resolveInputFromBytecode(
+    const built = await buildVerifyInputFromBytecode(
       { chainId: SEPOLIA, address: "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC" },
       { bytecode: getCode.result, fetch },
     );
@@ -417,7 +418,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
     };
     const { fetch, urls } = router(routes);
     const { logger, lines } = recordingLogger();
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: getCode.runtime,
       fetch,
       logger,
@@ -440,7 +441,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
       [`${SOURCIFY}/all-chains/${ADDRESS}`]: json({ results }),
     });
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
     );
     expectCode(error, "metadata-unavailable");
     assert.deepEqual(urls.slice(1), [
@@ -469,7 +470,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
       }),
       [`${SOURCIFY}/${String(SEPOLIA)}/${ADDRESS}?fields=metadata,sources`]: copy,
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: swarm.runtime,
       fetch: same.fetch,
     });
@@ -485,7 +486,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
         [`${SOURCIFY}/${String(SEPOLIA)}/${ADDRESS}?fields=metadata,sources`]: copy,
       });
       const error = await rejection(
-        resolveInputFromBytecode(TARGET, { bytecode: swarm.runtime, fetch: other.fetch }),
+        buildVerifyInputFromBytecode(TARGET, { bytecode: swarm.runtime, fetch: other.fetch }),
       );
       expectCode(error, "metadata-unavailable");
       assert.ok(error.details.code === "metadata-unavailable");
@@ -501,7 +502,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
       fixtureWith("2026-11-04-all-chains-not-verified", "sourcify", { results: [] }, 404),
     );
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
     );
     expectCode(error, "metadata-unavailable");
     assert.equal(error.retryable, true);
@@ -555,7 +556,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
     for (const [what, routes, attempts] of cases) {
       const { fetch } = router(routes);
       const error = await rejection(
-        resolveInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
+        buildVerifyInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
       );
       expectCode(error, "metadata-unavailable");
       assert.ok(error.details.code === "metadata-unavailable");
@@ -572,7 +573,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
     const metadata: unknown = JSON.parse(found.metadata);
     const odd = router({ [`${SOURCIFY}/all-chains/${ADDRESS}`]: json({ results: "none" }) });
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { bytecode: found.runtime, fetch: odd.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: found.runtime, fetch: odd.fetch }),
     );
     assert.ok(error.details.code === "metadata-unavailable");
     assert.deepEqual(error.details.attempts, [
@@ -587,7 +588,7 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
         sources: "none",
       }),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
       sources: VECTORS.sources,
       fetch: bare.fetch,
@@ -595,12 +596,12 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
     assert.equal(built.contractName, "src/Greeter.sol:Greeter");
   });
 
-  it("asks no one but the gateway when sourcify is false", async () => {
+  it("asks no one but the gateway when allowSourcifyLookup is false", async () => {
     const { fetch, urls } = router({});
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: vector("ipfs").runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
       }),
@@ -610,14 +611,14 @@ describe("resolveInputFromBytecode: a verified copy on Sourcify (R-IN-5)", () =>
   });
 });
 
-describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
+describe("buildVerifyInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
   it("fetches the metadata and each source from the gateway, and rebuilds the input", async () => {
     const found = vector("ipfs");
     const routes = gatewayRoutes(found);
     const { fetch, urls } = router(routes);
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
-      sourcify: false,
+      allowSourcifyLookup: false,
       ipfsGateway: `${GATEWAY}/`,
       fetch,
     });
@@ -633,9 +634,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     const found = vector("ipfs");
     const { fetch, urls } = router({});
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: `https://gw.example/${DUMMY_KEY}?token=${DUMMY_KEY}`,
         fetch,
       }),
@@ -655,9 +656,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     const found = vector("large");
     const routes = gatewayRoutes(found);
     const { fetch } = router(routes);
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
-      sourcify: false,
+      allowSourcifyLookup: false,
       ipfsGateway: GATEWAY,
       fetch,
     });
@@ -667,9 +668,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
   it("uses the caller's sources instead of fetching them", async () => {
     const found = vector("ipfs");
     const { fetch, urls } = router({ [ipfs(cidIn(found.runtime))]: textResponse(found.metadata) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
-      sourcify: false,
+      allowSourcifyLookup: false,
       ipfsGateway: GATEWAY,
       sources: VECTORS.sources,
       fetch,
@@ -684,7 +685,7 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
       ...gatewayRoutes(found),
       [`${SOURCIFY}/all-chains/${ADDRESS}`]: json({ results: [] }, 404),
     });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
       ipfsGateway: GATEWAY,
       fetch,
@@ -700,9 +701,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     });
     const { logger, lines } = recordingLogger();
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
         logger,
@@ -726,7 +727,7 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     assert.ok(typeof getCode === "object" && getCode !== null && "result" in getCode);
     assert.ok(typeof getCode.result === "string");
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: getCode.result,
         ipfsGateway: "https://ipfs.io",
         fetch,
@@ -745,9 +746,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     const found = vector("ipfs");
     const { fetch } = router({ [ipfs(cidIn(found.runtime))]: textResponse("bad", 500) });
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
       }),
@@ -765,9 +766,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     delete routes[ipfs(baseCid)];
     const { fetch } = router(routes);
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
       }),
@@ -784,9 +785,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
     routes[ipfs(baseCid)] = textResponse(`${BASE}\n`);
     const { fetch } = router(routes);
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
       }),
@@ -804,9 +805,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
       routes[ipfs(baseCid)] = failure;
       const { fetch } = router(routes);
       const error = await rejection(
-        resolveInputFromBytecode(TARGET, {
+        buildVerifyInputFromBytecode(TARGET, {
           bytecode: found.runtime,
-          sourcify: false,
+          allowSourcifyLookup: false,
           ipfsGateway: GATEWAY,
           fetch,
         }),
@@ -833,9 +834,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
       [ipfs(ipfsCid(new TextEncoder().encode(metadata)))]: textResponse(metadata),
     });
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         fetch,
       }),
@@ -851,9 +852,9 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
       const runtime = found.runtime.replace(cidHex(found.runtime), cidHexOf(cid));
       const { fetch } = router({ [ipfs(cid)]: textResponse(file) });
       const error = await rejection(
-        resolveInputFromBytecode(TARGET, {
+        buildVerifyInputFromBytecode(TARGET, {
           bytecode: runtime,
-          sourcify: false,
+          allowSourcifyLookup: false,
           ipfsGateway: GATEWAY,
           fetch,
         }),
@@ -869,7 +870,7 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
   it("records a timeout and stops when the time budget runs out", async () => {
     const found = vector("ipfs");
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
         ipfsGateway: GATEWAY,
         fetch: neverAnswers,
@@ -883,7 +884,7 @@ describe("resolveInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () => {
   });
 });
 
-describe("resolveInputFromBytecode: bounded work on large answers (R-FLOW-6)", () => {
+describe("buildVerifyInputFromBytecode: bounded work on large answers (R-FLOW-6)", () => {
   // Block coverage (c8 sets NODE_V8_COVERAGE) slows hashing many times over, so the time bound
   // runs only in the plain test runs, as in keccak.test.ts.
   const timed = process.env["NODE_V8_COVERAGE"] === undefined;
@@ -917,7 +918,7 @@ describe("resolveInputFromBytecode: bounded work on large answers (R-FLOW-6)", (
       json({ jsonrpc: "2.0", id: 1, result: `0x${"60".repeat(65_537)}` }),
     );
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: big.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: big.fetch }),
     );
     assert.ok(error.details.code === "metadata-unavailable");
     assert.deepEqual(error.details.attempts, [
@@ -925,7 +926,7 @@ describe("resolveInputFromBytecode: bounded work on large answers (R-FLOW-6)", (
     ]);
     const huge = replay(json({ jsonrpc: "2.0", id: 1, result: "x".repeat(1_048_577) }));
     const refused = await rejection(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: huge.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: huge.fetch }),
     );
     assert.ok(refused.details.code === "metadata-unavailable");
     assert.deepEqual(refused.details.attempts, [
@@ -944,7 +945,7 @@ describe("resolveInputFromBytecode: bounded work on large answers (R-FLOW-6)", (
       }),
     });
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: vector("ipfs").runtime, fetch }),
     );
     assert.ok(error.details.code === "metadata-unavailable");
     assert.deepEqual(error.details.attempts, [
@@ -953,7 +954,7 @@ describe("resolveInputFromBytecode: bounded work on large answers (R-FLOW-6)", (
   });
 });
 
-describe("resolveInputFromBytecode: a Sourcify copy that is not usable as it is (R-IN-5)", () => {
+describe("buildVerifyInputFromBytecode: a Sourcify copy that is not usable as it is (R-IN-5)", () => {
   it("drops a Sourcify source that fails its hash and takes it from the gateway", async () => {
     const found = vector("ipfs");
     const metadata: unknown = JSON.parse(found.metadata);
@@ -971,7 +972,7 @@ describe("resolveInputFromBytecode: a Sourcify copy that is not usable as it is 
     };
     const withGateway = router({ ...gatewayRoutes(found), ...copy });
     const { logger, lines } = recordingLogger();
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
       ipfsGateway: GATEWAY,
       fetch: withGateway.fetch,
@@ -982,7 +983,7 @@ describe("resolveInputFromBytecode: a Sourcify copy that is not usable as it is 
 
     const without = router(copy);
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { bytecode: found.runtime, fetch: without.fetch }),
+      buildVerifyInputFromBytecode(TARGET, { bytecode: found.runtime, fetch: without.fetch }),
     );
     expectCode(error, "incomplete-input");
     assert.ok(error.details.code === "incomplete-input");
@@ -1003,7 +1004,9 @@ describe("resolveInputFromBytecode: a Sourcify copy that is not usable as it is 
         sources: {},
       }),
     });
-    const error = await rejection(resolveInputFromBytecode(TARGET, { bytecode: runtime, fetch }));
+    const error = await rejection(
+      buildVerifyInputFromBytecode(TARGET, { bytecode: runtime, fetch }),
+    );
     assert.ok(error.details.code === "metadata-unavailable");
     assert.deepEqual(error.details.attempts, [
       { source: "sourcify", outcome: "not-metadata", status: 200 },
@@ -1027,13 +1030,13 @@ function cidHexOf(cid: string): string {
   return value.toString(16).padStart(68, "0");
 }
 
-describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
+describe("buildVerifyInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
   it("throws no-metadata-hash with no-code when nothing is deployed", async () => {
     const { fetch } = replay(
       loadFixture("rpc", "2026-11-04-eth-chainid-sepolia"),
       loadFixture("rpc", "2026-11-04-eth-getcode-no-code"),
     );
-    const error = await rejection(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
+    const error = await rejection(buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
     expectCode(error, "no-metadata-hash");
     assert.equal(error.retryable, false);
     assert.deepEqual(error.details, { code: "no-metadata-hash", found: "no-code" });
@@ -1049,7 +1052,7 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
       }),
     );
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         rpcUrl: `https://rpc.example/v2/${DUMMY_KEY}`,
         fetch,
       }),
@@ -1064,7 +1067,9 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
         fixtureWith("2026-11-04-eth-chainid-sepolia", "rpc", { jsonrpc: "2.0", id: 1, result }),
       );
       expectCode(
-        await rejection(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: again.fetch })),
+        await rejection(
+          buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: again.fetch }),
+        ),
         "invalid-input",
       );
     }
@@ -1083,7 +1088,9 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
     ];
     for (const [what, response, extra] of answers) {
       const { fetch } = replay(response);
-      const error = await rejection(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
+      const error = await rejection(
+        buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }),
+      );
       expectCode(error, "metadata-unavailable");
       assert.ok(error.details.code === "metadata-unavailable");
       assert.equal(error.details.hash, "");
@@ -1101,7 +1108,9 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
         loadFixture("rpc", "2026-11-04-eth-chainid-sepolia"),
         json({ jsonrpc: "2.0", id: 1, result }),
       );
-      const error = await rejection(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
+      const error = await rejection(
+        buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }),
+      );
       expectCode(error, "metadata-unavailable");
       assert.ok(error.details.code === "metadata-unavailable");
       assert.deepEqual(error.details.attempts, [
@@ -1113,7 +1122,7 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
   it("reports a network failure, after the budget ends the retries, without a status", async () => {
     const { fetch } = replay(new TypeError("fetch failed"));
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, timeoutMs: 100 }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, timeoutMs: 100 }),
     );
     expectCode(error, "metadata-unavailable");
     assert.ok(error.details.code === "metadata-unavailable");
@@ -1124,7 +1133,7 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
     const { fetch } = replay(
       new Response("slow down", { status: 429, headers: { "retry-after": "900" } }),
     );
-    const error = await rejection(resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
+    const error = await rejection(buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch }));
     assert.ok(error.details.code === "metadata-unavailable");
     assert.deepEqual(error.details.attempts, [
       { source: "rpc", outcome: "unavailable", status: 429 },
@@ -1132,7 +1141,7 @@ describe("resolveInputFromBytecode: the JSON-RPC endpoint (R-IN-5)", () => {
   });
 });
 
-describe("resolveInputFromBytecode: bytecode without a hash (R-IN-5)", () => {
+describe("buildVerifyInputFromBytecode: bytecode without a hash (R-IN-5)", () => {
   it("throws no-metadata-hash for a version-only block and for no block, and sends nothing", async () => {
     const cases: [string, "version-only" | "no-metadata"][] = [
       ["none", "version-only"],
@@ -1141,7 +1150,7 @@ describe("resolveInputFromBytecode: bytecode without a hash (R-IN-5)", () => {
     for (const [name, found] of cases) {
       const { fetch, calls } = replay();
       const error = await rejection(
-        resolveInputFromBytecode(TARGET, { bytecode: vector(name).runtime, fetch }),
+        buildVerifyInputFromBytecode(TARGET, { bytecode: vector(name).runtime, fetch }),
       );
       expectCode(error, "no-metadata-hash");
       assert.deepEqual(error.details, { code: "no-metadata-hash", found });
@@ -1153,7 +1162,10 @@ describe("resolveInputFromBytecode: bytecode without a hash (R-IN-5)", () => {
 
 /** Calls the resolver with arguments of any type, as a JavaScript caller may. No cast is needed. */
 async function issuesOf(target: unknown, options: unknown): Promise<string[]> {
-  const pending: unknown = Reflect.apply(resolveInputFromBytecode, undefined, [target, options]);
+  const pending: unknown = Reflect.apply(buildVerifyInputFromBytecode, undefined, [
+    target,
+    options,
+  ]);
   const error = await rejection(Promise.resolve(pending));
   expectCode(error, "invalid-input");
   assert.ok(error.details.code === "invalid-input");
@@ -1161,13 +1173,13 @@ async function issuesOf(target: unknown, options: unknown): Promise<string[]> {
 }
 
 /** Options with `name` set to `value` next to a valid bytecode. */
-function optionsWith(name: string, value: unknown): ResolveInputOptions {
-  const options: ResolveInputOptions = { bytecode: vector("ipfs").runtime };
+function optionsWith(name: string, value: unknown): BuildFromBytecodeOptions {
+  const options: BuildFromBytecodeOptions = { bytecode: vector("ipfs").runtime };
   Reflect.set(options, name, value);
   return options;
 }
 
-describe("resolveInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
+describe("buildVerifyInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
   it("names each bad field of the target and the options, before any request", async () => {
     assert.deepEqual(await issuesOf({ chainId: 0, address: "0x12" }, { bytecode: "0x" }), [
       "chainId: must be a positive integer",
@@ -1190,8 +1202,8 @@ describe("resolveInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
     assert.deepEqual(await issuesOf(TARGET, { bytecode: `0x${"00".repeat(65_537)}` }), [
       bytecodeIssue,
     ]);
-    assert.deepEqual(await issuesOf(TARGET, { bytecode: "0x00", sourcify: false }), [
-      "ipfsGateway: is required when sourcify is false",
+    assert.deepEqual(await issuesOf(TARGET, { bytecode: "0x00", allowSourcifyLookup: false }), [
+      "ipfsGateway: is required when allowSourcifyLookup is false",
     ]);
     assert.deepEqual(
       await issuesOf(TARGET, {
@@ -1206,7 +1218,8 @@ describe("resolveInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
   });
 
   const kinds: [string, unknown, string][] = [
-    ["sourcify", "yes", "must be a boolean"],
+    ["allowSourcifyLookup", "yes", "must be a boolean"],
+    ["onEvent", "log", "must be a function"],
     ["sources", { "src/A.sol": 1 }, "must be an object of source contents by path"],
     ["sources", "src/A.sol", "must be an object of source contents by path"],
     ["fetch", "https://example.org", "must be a function"],
@@ -1235,16 +1248,16 @@ describe("resolveInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
 
   it("ignores inherited options and keeps a source path named __proto__ as a path", async () => {
     const found = vector("ipfs");
-    const inherited: ResolveInputOptions = { bytecode: "0x" };
+    const inherited: BuildFromBytecodeOptions = { bytecode: "0x" };
     Object.setPrototypeOf(inherited, { rpcUrl: RPC_URL });
-    const error = await rejection(resolveInputFromBytecode(TARGET, inherited));
+    const error = await rejection(buildVerifyInputFromBytecode(TARGET, inherited));
     expectCode(error, "no-metadata-hash");
     const sources: Record<string, string> = { ...VECTORS.sources };
     Object.defineProperty(sources, "__proto__", { value: "x", enumerable: true });
     const { fetch, urls } = router({ [ipfs(cidIn(found.runtime))]: textResponse(found.metadata) });
-    const built = await resolveInputFromBytecode(TARGET, {
+    const built = await buildVerifyInputFromBytecode(TARGET, {
       bytecode: found.runtime,
-      sourcify: false,
+      allowSourcifyLookup: false,
       ipfsGateway: GATEWAY,
       sources,
       fetch,
@@ -1263,9 +1276,9 @@ describe("resolveInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
     const { fetch, urls } = router(gatewayRoutes(found));
     globalThis.fetch = fetch;
     try {
-      const built = await resolveInputFromBytecode(TARGET, {
+      const built = await buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: GATEWAY,
         timeoutMs: Number.MAX_SAFE_INTEGER,
       });
@@ -1317,14 +1330,14 @@ describe("the details of no-metadata-hash and metadata-unavailable (R-SEC-1)", (
   });
 });
 
-describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () => {
+describe("buildVerifyInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () => {
   it("rejects with the signal's reason, unchanged, before and during a request", async () => {
     const before = new AbortController();
     const reason = new Error("stop");
     before.abort(reason);
     const { fetch, calls } = replay();
     await assert.rejects(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, signal: before.signal }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, signal: before.signal }),
       (error: unknown) => error === reason,
     );
     assert.equal(calls.length, 0);
@@ -1339,7 +1352,11 @@ describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () =
       });
     };
     await assert.rejects(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch: hanging, signal: during.signal }),
+      buildVerifyInputFromBytecode(TARGET, {
+        rpcUrl: RPC_URL,
+        fetch: hanging,
+        signal: during.signal,
+      }),
       (error: unknown) => error === reason,
     );
   });
@@ -1352,7 +1369,7 @@ describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () =
       return await Promise.resolve(json({}, 500));
     };
     await assert.rejects(
-      resolveInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, signal: controller.signal }),
+      buildVerifyInputFromBytecode(TARGET, { rpcUrl: RPC_URL, fetch, signal: controller.signal }),
       (error: unknown) => error === reason,
     );
   });
@@ -1368,7 +1385,7 @@ describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () =
     };
     const { fetch } = router(routes);
     const error = await rejection(
-      resolveInputFromBytecode(TARGET, {
+      buildVerifyInputFromBytecode(TARGET, {
         bytecode: found.runtime,
         ipfsGateway: gateway,
         fetch,
@@ -1383,19 +1400,19 @@ describe("resolveInputFromBytecode: abort and secrets (R-FLOW-6, R-SEC-1)", () =
   });
 });
 
-describe("resolveInputFromBytecode: retries to the caller's endpoints are logged (#134, R-DX-5, R-SEC-1)", () => {
+describe("buildVerifyInputFromBytecode: retries to the caller's endpoints are logged (#134, R-DX-5, R-SEC-1)", () => {
   const rpcUrl = `https://rpc.example.org/v2/${DUMMY_KEY}`;
   const gateway = `https://gw.example.org/?token=${DUMMY_KEY}`;
   const cases = [
     {
       label: "rpc",
-      options: (fetch: typeof globalThis.fetch): ResolveInputOptions => ({ rpcUrl, fetch }),
+      options: (fetch: typeof globalThis.fetch): BuildFromBytecodeOptions => ({ rpcUrl, fetch }),
     },
     {
       label: "ipfs",
-      options: (fetch: typeof globalThis.fetch): ResolveInputOptions => ({
+      options: (fetch: typeof globalThis.fetch): BuildFromBytecodeOptions => ({
         bytecode: vector("ipfs").runtime,
-        sourcify: false,
+        allowSourcifyLookup: false,
         ipfsGateway: gateway,
         fetch,
       }),
@@ -1407,7 +1424,7 @@ describe("resolveInputFromBytecode: retries to the caller's endpoints are logged
       const { logger, lines } = recordingLogger();
       const busy = Array.from({ length: 5 }, () => textResponse("busy", 503));
       const { fetch, calls } = replay(...busy);
-      const pending = resolveInputFromBytecode(TARGET, { ...options(fetch), logger });
+      const pending = buildVerifyInputFromBytecode(TARGET, { ...options(fetch), logger });
       await driveMockClock(pending, () => {
         t.mock.timers.runAll();
       });
@@ -1423,4 +1440,48 @@ describe("resolveInputFromBytecode: retries to the caller's endpoints are logged
       assert.doesNotMatch(JSON.stringify(error.details), /DUMMYKEY|sourcify/);
     });
   }
+});
+
+describe("buildVerifyInputFromBytecode: onEvent (#223, R-DX-6)", () => {
+  it("emits verify.retry for each retry of a Sourcify request", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const events: VerifyEvent[] = [];
+    const busy = Array.from({ length: 5 }, () => textResponse("busy", 503));
+    const { fetch, calls } = replay(...busy);
+    const pending = buildVerifyInputFromBytecode(TARGET, {
+      bytecode: vector("ipfs").runtime,
+      fetch,
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    await driveMockClock(pending, () => {
+      t.mock.timers.runAll();
+    });
+    expectCode(await rejection(pending), "metadata-unavailable");
+    assert.equal(calls.length, 5);
+    assert.deepEqual(
+      events.map((event) => [event.type, "backend" in event ? event.backend : ""]),
+      Array.from({ length: 4 }, () => ["verify.retry", "sourcify"]),
+    );
+  });
+
+  it("emits nothing for retries to the caller's JSON-RPC endpoint", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const events: VerifyEvent[] = [];
+    const busy = Array.from({ length: 5 }, () => textResponse("busy", 503));
+    const { fetch } = replay(...busy);
+    const pending = buildVerifyInputFromBytecode(TARGET, {
+      rpcUrl: RPC_URL,
+      fetch,
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    await driveMockClock(pending, () => {
+      t.mock.timers.runAll();
+    });
+    expectCode(await rejection(pending), "metadata-unavailable");
+    assert.deepEqual(events, []);
+  });
 });

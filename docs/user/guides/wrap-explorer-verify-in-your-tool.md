@@ -402,7 +402,7 @@ the example's choice, from `KIND` above.
 | [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md)         | no        | 6         | `needs-review` | Check the proxy's page on the explorer; there is no token                                  |
 
 `verify()`, `checkStatus()` and `linkProxy()` throw some of these codes. `buildVerifyInput`,
-`resolveInputFromBytecode` and the CLI throw the others. A test checks the code, retryable and exit
+`buildVerifyInputFromBytecode` and the CLI throw the others. A test checks the code, retryable and exit
 code columns of this table against the library, so the table changes when a release adds a code.
 The [error reference](../reference/errors/index.md) has a page per code with the cause and the fix.
 

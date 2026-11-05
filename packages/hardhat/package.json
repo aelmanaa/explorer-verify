@@ -65,6 +65,7 @@
     "explorer-verify": "workspace:^"
   },
   "devDependencies": {
+    "@explorer-verify/foundry": "workspace:*",
     "c8": "catalog:",
     "explorer-verify": "workspace:^"
   }

@@ -7,8 +7,8 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "explorer-verify";
 
-import { findHardhatBuild, verifyInputFromHardhat } from "../../src/index.ts";
-import type { FindHardhatBuildOptions } from "../../src/index.ts";
+import { findHardhatBuild, buildVerifyInputFromHardhat } from "../../src/index.ts";
+import type { FindBuildOptions } from "../../src/index.ts";
 import {
   HARDHAT_2,
   HARDHAT_2_BUILD_ID,
@@ -113,7 +113,7 @@ describe("R-DX-2: findHardhatBuild on Hardhat 3", () => {
     await withCopy(HARDHAT_3, async (root) => {
       const output = JSON.parse(await readFile(path.join(root, H3_OUTPUT), "utf8"));
       await writeJson(root, H3_OUTPUT, { ...output, id: "another-build" });
-      const error = await rejection(verifyInputFromHardhat({ root, contract: "Greeter" }));
+      const error = await rejection(buildVerifyInputFromHardhat({ root, contract: "Greeter" }));
       assert.equal(issue(error).field, "documents");
     });
   });
@@ -155,7 +155,7 @@ describe("R-DX-2: findHardhatBuild on Hardhat 2", () => {
       const buildInfo = JSON.parse(await readFile(path.join(root, H2_INPUT), "utf8"));
       delete buildInfo.input.sources["contracts/Greeter.sol"];
       await writeJson(root, H2_INPUT, buildInfo);
-      const error = await rejection(verifyInputFromHardhat({ root, contract: "Greeter" }));
+      const error = await rejection(buildVerifyInputFromHardhat({ root, contract: "Greeter" }));
       assert.equal(issue(error).field, "contract");
     });
   });
@@ -267,7 +267,7 @@ describe("R-DX-2: choosing the contract", () => {
       contract: "project/contracts/Greeter.sol:Greeter",
     });
     assert.equal(build.files[0], "artifacts/contracts/Greeter.sol/Greeter.json");
-    const built = await verifyInputFromHardhat({
+    const built = await buildVerifyInputFromHardhat({
       root: HARDHAT_3,
       contract: "project/contracts/Pair.sol:Second",
     });
@@ -326,10 +326,10 @@ describe("R-DX-2: choosing the contract", () => {
 });
 
 describe("R-DX-2: the artifacts folder", () => {
-  it("reads the folder that options.artifacts names, relative to the root", async () => {
+  it("reads the folder that options.outDir names, relative to the root", async () => {
     await withCopy(HARDHAT_3, async (root) => {
       await rename(path.join(root, "artifacts"), path.join(root, "out"));
-      const build = await findHardhatBuild({ root, contract: "First", artifacts: "out" });
+      const build = await findHardhatBuild({ root, contract: "First", outDir: "out" });
       assert.deepEqual(build.files, [
         "out/contracts/Pair.sol/First.json",
         `out/build-info/${HARDHAT_3_BUILD_ID}.json`,
@@ -338,7 +338,7 @@ describe("R-DX-2: the artifacts folder", () => {
       const absolute = await findHardhatBuild({
         root,
         contract: "First",
-        artifacts: path.join(root, "out"),
+        outDir: path.join(root, "out"),
       });
       assert.deepEqual(absolute.files, build.files);
     });
@@ -349,7 +349,7 @@ describe("R-DX-2: the artifacts folder", () => {
       await rm(path.join(root, "artifacts"), { recursive: true });
       const error = await rejection(findHardhatBuild({ root, contract: "Greeter" }));
       assert.deepEqual(issue(error), {
-        field: "artifacts",
+        field: "outDir",
         message: "names no folder: artifacts does not exist",
       });
       assert.match(error.hint, /paths\.artifacts/);
@@ -359,13 +359,13 @@ describe("R-DX-2: the artifacts folder", () => {
       );
       assert.equal(
         named.message,
-        "The input is invalid: artifacts names no folder: artifacts does not exist.",
+        "The input is invalid: outDir names no folder: artifacts does not exist.",
       );
       // An artifacts path that is a file is no folder either.
       await writeFile(path.join(root, "artifacts"), "");
       const file = await rejection(findHardhatBuild({ root, contract: "Greeter" }));
       assert.deepEqual(issue(file), {
-        field: "artifacts",
+        field: "outDir",
         message: "names no folder: artifacts is a file",
       });
     });
@@ -373,7 +373,7 @@ describe("R-DX-2: the artifacts folder", () => {
 
   it("refuses an artifacts folder that cannot be read, keeping the cause", async () => {
     const error = await rejection(
-      findHardhatBuild({ root: HARDHAT_3, contract: "Greeter", artifacts: "a".repeat(300) }),
+      findHardhatBuild({ root: HARDHAT_3, contract: "Greeter", outDir: "a".repeat(300) }),
     );
     assert.equal(issue(error).message, "cannot be read");
     assert.ok(error.cause instanceof Error);
@@ -502,8 +502,8 @@ describe("R-DX-2: options", () => {
     ["root", "a number as root", { root: 1, contract: "Greeter" }],
     ["contract", "no contract", { root: HARDHAT_3 }],
     ["contract", "a number as contract", { root: HARDHAT_3, contract: 1 }],
-    ["artifacts", "an empty artifacts", { root: HARDHAT_3, contract: "Greeter", artifacts: "" }],
-    ["artifacts", "a number as artifacts", { root: HARDHAT_3, contract: "Greeter", artifacts: 1 }],
+    ["outDir", "an empty outDir", { root: HARDHAT_3, contract: "Greeter", outDir: "" }],
+    ["outDir", "a number as outDir", { root: HARDHAT_3, contract: "Greeter", outDir: 1 }],
     ["root", "no options", undefined],
     ["root", "a string as options", "options"],
   ];
@@ -516,8 +516,8 @@ describe("R-DX-2: options", () => {
 });
 
 /** `value` typed as the options without a cast, as a JavaScript caller passes it. */
-function optionsOf(value: unknown): FindHardhatBuildOptions {
-  const box: { options: FindHardhatBuildOptions } = { options: { root: "", contract: "" } };
+function optionsOf(value: unknown): FindBuildOptions {
+  const box: { options: FindBuildOptions } = { options: { root: "", contract: "" } };
   Reflect.set(box, "options", value);
   return box.options;
 }

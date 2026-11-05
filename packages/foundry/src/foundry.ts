@@ -7,23 +7,24 @@ import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { buildVerifyInput, ExplorerVerifyError } from "explorer-verify";
-import type { BuiltVerifyInput } from "explorer-verify";
+import type { BuildVerifyInputOptions, BuiltVerifyInput } from "explorer-verify";
 
 /**
- * Options for {@link findFoundryBuild} and {@link verifyInputFromFoundry}.
+ * Options for {@link findFoundryBuild}. `@explorer-verify/hardhat` takes the same fields, except
+ * `buildInfoDir`: Hardhat always writes build-info files inside its output directory.
  *
  * @example
  * ```ts
- * import type { FindFoundryBuildOptions } from "@explorer-verify/foundry";
+ * import type { FindBuildOptions } from "@explorer-verify/foundry";
  *
- * const options: FindFoundryBuildOptions = {
+ * const options: FindBuildOptions = {
  *   root: ".",
  *   contract: "src/Greeter.sol:Greeter",
  * };
  * ```
  * @experimental
  */
-export interface FindFoundryBuildOptions {
+export interface FindBuildOptions {
   /**
    * The project root, the directory that holds `foundry.toml`. A relative path resolves against
    * the current working directory.
@@ -34,55 +35,52 @@ export interface FindFoundryBuildOptions {
    * such as `src/Greeter.sol:Greeter`, or a bare `Name` that matches one artifact.
    */
   contract: string;
-  /** The output directory of the build, relative to `root` or absolute. Default: `out`. */
-  out?: string;
   /**
-   * The build-info directory, relative to `root` or absolute. Default: `build-info` inside `out`.
-   * When set, it must be a directory.
+   * The output directory of the build (the `out` setting of `foundry.toml`), relative to `root` or
+   * absolute. Default: `out`.
+   */
+  outDir?: string;
+  /**
+   * The build-info directory, relative to `root` or absolute. Default: `build-info` inside
+   * `outDir`. When set, it must be a directory.
    */
   buildInfoDir?: string;
   /**
    * The contract's artifact file, relative to `root` or absolute, such as
-   * `out/Context.sol/Context.0.8.20.json`. Skips the search under `out`. Use it when Foundry built
-   * the contract with several compiler versions or profiles and wrote one artifact for each.
+   * `out/Context.sol/Context.0.8.20.json`. Skips the search under `outDir`. Use it when Foundry
+   * built the contract with several compiler versions or profiles and wrote one artifact for each.
    */
   artifact?: string;
 }
 
 /**
- * The files {@link findFoundryBuild} read, as paths relative to the root with forward slashes.
+ * Options for {@link buildVerifyInputFromFoundry}: where to find the build, as for
+ * {@link findFoundryBuild}, and the `compilerVersion` and `sources` options of `buildVerifyInput`.
  *
  * @example
  * ```ts
- * import type { FoundryBuildFiles } from "@explorer-verify/foundry";
+ * import type { BuildFromProjectOptions } from "@explorer-verify/foundry";
  *
- * const files: FoundryBuildFiles = {
- *   artifact: "out/Greeter.sol/Greeter.json",
- *   buildInfo: "out/build-info/cc03796b40982b2b.json",
- *   sources: [],
+ * const options: BuildFromProjectOptions = {
+ *   root: ".",
+ *   contract: "src/Greeter.sol:Greeter",
+ *   compilerVersion: "0.8.24+commit.e11b9ed9",
  * };
  * ```
  * @experimental
  */
-export interface FoundryBuildFiles {
-  /** The contract's artifact. */
-  artifact: string;
-  /** The build-info file that holds the compiler input, or `undefined` when none lists the contract. */
-  buildInfo: string | undefined;
-  /** The source files read because no build-info lists the contract, sorted. */
-  sources: string[];
-}
+export type BuildFromProjectOptions = FindBuildOptions & Omit<BuildVerifyInputOptions, "contract">;
 
 /**
  * What {@link findFoundryBuild} returns: the parsed documents and source contents to pass to
- * `buildVerifyInput`.
+ * `buildVerifyInput`. `findHardhatBuild` in `@explorer-verify/hardhat` returns the same shape.
  *
  * @example
  * ```ts
  * import { buildVerifyInput } from "explorer-verify";
- * import type { FoundryBuild } from "@explorer-verify/foundry";
+ * import type { ProjectBuild } from "@explorer-verify/foundry";
  *
- * declare const build: FoundryBuild;
+ * declare const build: ProjectBuild;
  * const built = buildVerifyInput(build.documents, {
  *   contract: build.contract,
  *   sources: build.sources,
@@ -90,7 +88,7 @@ export interface FoundryBuildFiles {
  * ```
  * @experimental
  */
-export interface FoundryBuild {
+export interface ProjectBuild {
   /**
    * The contract as `path:Name`, read from the artifact's Solidity metadata, or the bare `Name`
    * when the artifact holds no metadata.
@@ -107,13 +105,16 @@ export interface FoundryBuild {
    * contents are not checked here: `buildVerifyInput` checks each one's keccak-256 hash.
    */
   sources: Record<string, string>;
-  /** The files read, relative to the root. */
-  files: FoundryBuildFiles;
+  /**
+   * The files read, relative to the root with `/` as the separator: the artifact, then the
+   * build-info file when one lists the contract, else the source files in `sources`, sorted.
+   */
+  files: string[];
 }
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_LISTED = 20;
-// The deepest directory level under `out` that the artifact search enters.
+// The deepest directory level under `outDir` that the artifact search enters.
 const MAX_DEPTH = 32;
 const MEGABYTE = 1024 * 1024;
 // The largest artifact or build-info file read, and the largest source file.
@@ -126,9 +127,9 @@ const METADATA_FILE = ".metadata.json";
 const ARTIFACT_FIELDS = ["abi", "bytecode", "deployedBytecode"];
 
 const OUT_HINT =
-  "Run forge build in the project root, or pass out with the output directory of the build (the out setting of foundry.toml).";
+  "Run forge build in the project root, or pass outDir with the output directory of the build (the out setting of foundry.toml).";
 const MISSING_HINT =
-  "Check the contract name and the out option, then run forge build so the output directory holds the contract's artifact.";
+  "Check the contract name and the outDir option, then run forge build so the output directory holds the contract's artifact.";
 const AMBIGUOUS_HINT =
   "Pass contract as path:Name with one of the paths listed, or pass artifact with one of the files listed.";
 const VERSIONS_HINT =
@@ -268,7 +269,7 @@ async function readDirectory(
  */
 async function listFiles(root: string, dir: string, skip: string, depth = 0): Promise<string[]> {
   const files: string[] = [];
-  for (const entry of await readDirectory(root, dir, "out")) {
+  for (const entry of await readDirectory(root, dir, "outDir")) {
     const file = path.join(dir, entry.name);
     if (entry.isFile) {
       files.push(file);
@@ -279,7 +280,7 @@ async function listFiles(root: string, dir: string, skip: string, depth = 0): Pr
   return files.toSorted();
 }
 
-function readOptions(options: FindFoundryBuildOptions): Options {
+function readOptions(options: FindBuildOptions): Options {
   const fields = fieldsOf(options);
   if (fields === undefined) {
     throw invalid("options", "must be an object");
@@ -293,7 +294,7 @@ function readOptions(options: FindFoundryBuildOptions): Options {
     throw invalid("contract", "must be path:Name or Name as a string");
   }
   const strings = new Map<string, string>();
-  for (const name of ["out", "buildInfoDir", "artifact"]) {
+  for (const name of ["outDir", "buildInfoDir", "artifact"]) {
     const value = fields.get(name);
     if (typeof value === "string" && value.trim() !== "") {
       strings.set(name, value);
@@ -302,7 +303,7 @@ function readOptions(options: FindFoundryBuildOptions): Options {
     }
   }
   const root = path.resolve(rootOption);
-  const out = path.resolve(root, strings.get("out") ?? "out");
+  const out = path.resolve(root, strings.get("outDir") ?? "out");
   const buildInfoOption = strings.get("buildInfoDir");
   const artifactOption = strings.get("artifact");
   return {
@@ -412,7 +413,7 @@ async function readArtifact(
 }
 
 /**
- * The artifacts of `spec` under `out`: files named after the contract, in a directory named after
+ * The artifacts of `spec` under `outDir`: files named after the contract, in a directory named after
  * the source file when a path is given, whose metadata targets the contract.
  */
 async function findArtifacts(
@@ -429,7 +430,7 @@ async function findArtifacts(
     ) {
       continue;
     }
-    const { match } = await readArtifact(root, file, "out", spec);
+    const { match } = await readArtifact(root, file, "outDir", spec);
     if (match !== undefined) {
       matches.push(match);
     }
@@ -606,7 +607,7 @@ async function readSources(
  * Finds the build files of one contract in a Foundry project and returns them parsed, ready for
  * `buildVerifyInput` (R-DX-2). It runs no `forge` command and reads no `foundry.toml`.
  *
- * 1. It finds the contract's artifact under `out`, or reads the file the `artifact` option names.
+ * 1. It finds the contract's artifact under `outDir`, or reads the file the `artifact` option names.
  *    The search looks for files named `Name.json` or `Name.<suffix>.json`, such as
  *    `Context.0.8.20.json`, in a directory named after the source file when `contract` has a
  *    path. It skips `Name.metadata.json`, never follows a symbolic link, and goes at most 32
@@ -622,7 +623,7 @@ async function readSources(
  *    names, from the root, so the core can rebuild the input from the metadata. It reads only
  *    regular files of at most 16 MB whose real path, after symbolic links, is under the root.
  *
- * The files under `out` and `buildInfoDir` are trusted: they are parsed as they are, up to 256 MB
+ * The files under `outDir` and `buildInfoDir` are trusted: they are parsed as they are, up to 256 MB
  * each. The source contents are not checked here; `buildVerifyInput` checks their hashes. Paths in
  * `files` are relative to the root, and the core's builder rejects a local path in the input
  * (R-IN-7).
@@ -641,7 +642,7 @@ async function readSources(
  * import { findFoundryBuild } from "@explorer-verify/foundry";
  *
  * const build = await findFoundryBuild({ root: ".", contract: "src/Greeter.sol:Greeter" });
- * // build.files.buildInfo is undefined after a default forge build: build.sources holds the files.
+ * // After a default forge build, build.documents holds only the artifact and build.sources the files.
  * const built = buildVerifyInput(build.documents, {
  *   contract: build.contract,
  *   sources: build.sources,
@@ -649,7 +650,7 @@ async function readSources(
  * ```
  * @experimental
  */
-export async function findFoundryBuild(options: FindFoundryBuildOptions): Promise<FoundryBuild> {
+export async function findFoundryBuild(options: FindBuildOptions): Promise<ProjectBuild> {
   const checked = readOptions(options);
   const { root, spec, out } = checked;
   if (!(await isDirectory(root))) {
@@ -658,7 +659,7 @@ export async function findFoundryBuild(options: FindFoundryBuildOptions): Promis
   let artifact: ArtifactMatch;
   if (checked.artifact === undefined) {
     if (!(await isDirectory(out))) {
-      throw invalid("out", "is not a directory", OUT_HINT);
+      throw invalid("outDir", "is not a directory", OUT_HINT);
     }
     artifact = await pickArtifact(root, await listFiles(root, out, checked.buildInfoDir), spec);
   } else {
@@ -671,7 +672,7 @@ export async function findFoundryBuild(options: FindFoundryBuildOptions): Promis
       contract,
       documents: [artifact.document, buildInfo.document],
       sources: {},
-      files: { artifact: artifact.file, buildInfo: buildInfo.file, sources: [] },
+      files: [artifact.file, buildInfo.file],
     };
   }
   const sources = await readSources(root, artifact.metadata);
@@ -679,16 +680,20 @@ export async function findFoundryBuild(options: FindFoundryBuildOptions): Promis
     contract,
     documents: [artifact.document],
     sources,
-    files: { artifact: artifact.file, buildInfo: undefined, sources: Object.keys(sources) },
+    files: [artifact.file, ...Object.keys(sources)],
   };
 }
 
 /**
  * Finds the contract's build files with {@link findFoundryBuild}, then builds the `compiler` part
- * of `VerifyInput` and the contract name with the core's `buildVerifyInput` (R-DX-2, R-IN-7).
+ * of `VerifyInput` and the contract name with the core's `buildVerifyInput` (R-DX-2, R-IN-7). It
+ * passes the contract the build names, the source files it read, and the `compilerVersion` and
+ * `sources` options. A source in `options.sources` replaces the file read for the same path.
  *
- * @param options - As for {@link findFoundryBuild}.
- * @returns The compiler part of `VerifyInput` and the fully qualified contract name.
+ * @param options - As for {@link findFoundryBuild}, and the `compilerVersion` and `sources`
+ *   options of `buildVerifyInput`.
+ * @returns The compiler part of `VerifyInput` and the fully qualified contract name. Add `chainId`
+ *   and `address` to get a `VerifyInput`.
  * @throws ExplorerVerifyError Every error of {@link findFoundryBuild} and of `buildVerifyInput`.
  *   When no build-info lists the contract and the rebuild from metadata fails with
  *   `incomplete-input` (a source file is missing) or `source-mismatch` (a file changed since the
@@ -696,11 +701,11 @@ export async function findFoundryBuild(options: FindFoundryBuildOptions): Promis
  *   `forge build --build-info`.
  * @example
  * ```ts
- * import { validateInput } from "explorer-verify";
- * import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+ * import { verify } from "explorer-verify";
+ * import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
  *
- * const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
- * const input = validateInput({
+ * const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+ * const result = await verify({
  *   chainId: 11155111,
  *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
  *   ...built,
@@ -708,15 +713,25 @@ export async function findFoundryBuild(options: FindFoundryBuildOptions): Promis
  * ```
  * @experimental
  */
-export async function verifyInputFromFoundry(
-  options: FindFoundryBuildOptions,
+export async function buildVerifyInputFromFoundry(
+  options: BuildFromProjectOptions,
 ): Promise<BuiltVerifyInput> {
   const build = await findFoundryBuild(options);
+  const { compilerVersion, sources } = options;
+  // With no source read, the caller's sources go to the core as they are, so the core checks them.
+  const merged =
+    sources === undefined || Object.keys(build.sources).length === 0
+      ? (sources ?? build.sources)
+      : { ...build.sources, ...sources };
   try {
-    return buildVerifyInput(build.documents, { contract: build.contract, sources: build.sources });
+    return buildVerifyInput(build.documents, {
+      contract: build.contract,
+      ...(compilerVersion === undefined ? {} : { compilerVersion }),
+      sources: merged,
+    });
   } catch (error) {
     if (
-      build.files.buildInfo === undefined &&
+      build.documents.length === 1 &&
       error instanceof ExplorerVerifyError &&
       (error.code === "incomplete-input" || error.code === "source-mismatch")
     ) {

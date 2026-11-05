@@ -18,14 +18,15 @@ fully qualified contract name. If you write the package and deploy its contracts
 1. Find the build-info file of the build in the package, and the artifact of your contract. The SDK
    documents where they are.
 2. Parse them and pass them to `buildVerifyInput`, in any order.
-3. Add the chain ID and the deployed address, and check the result with `validateInput`.
+3. Add the chain ID and the deployed address. The result is a `VerifyInput`.
 4. Pass the input to [`verify`](../reference/verify.md).
 
 ```ts
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
-import { buildVerifyInput, validateInput } from "explorer-verify";
+import { buildVerifyInput } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
 
 const require = createRequire(import.meta.url);
 // The SDK documents where its build-info and artifacts live in the package.
@@ -40,7 +41,7 @@ const built = buildVerifyInput([
 ]);
 console.log(built.contractName); // the Hardhat 3 input source name
 
-const input = validateInput({ chainId: 11155111, address: deployedAddress, ...built });
+const input: VerifyInput = { chainId: 11155111, address: deployedAddress, ...built };
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
@@ -51,6 +52,9 @@ It prints:
 ```text
 project/contracts/Greeter.sol:Greeter
 ```
+
+When the chain ID or the address comes from untyped data, such as parsed JSON, check the whole
+input with `validateInput` before you pass it to `verify`.
 
 The file reads are yours. `buildVerifyInput` itself takes parsed objects and uses no Node API, so it
 also runs in a browser, for example on JSON your dapp bundles. It sends nothing.

@@ -130,7 +130,7 @@ describe("the agent page's lists (R-AX-3)", () => {
       "verify",
       "verifyEach",
     ]);
-    for (const name of ["dryRun", "checkStatus", "resolveInputFromBytecode"]) {
+    for (const name of ["dryRun", "checkStatus", "buildVerifyInputFromBytecode"]) {
       assert.ok(safe.functions.includes(name), `${name}() is safe`);
     }
   });

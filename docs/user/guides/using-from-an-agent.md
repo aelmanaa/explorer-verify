@@ -48,19 +48,19 @@ Etherscan, Blockscout and Routescan. See [Sourcify](../reference/sourcify.md#beh
 
 These calls and commands never submit. Run them without asking.
 
-| Step               | Call or command                                                                                                          | Effect                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build              | `buildVerifyInput()`, `verifyInputFromFoundry()`, `findFoundryBuild()`, `verifyInputFromHardhat()`, `findHardhatBuild()` | Build the compiler input and contract name from build files. Read local files, send nothing                                                         |
-| Validate           | `validateInput()`, `linkLibraries()`                                                                                     | Check the input and list every problem; add library addresses to `settings.libraries`. Send nothing                                                 |
-| Resolve            | `resolveInputFromBytecode()`                                                                                             | Reads the bytecode from your RPC endpoint, and the metadata and sources from Sourcify or an IPFS gateway. Read-only requests                        |
-| Dry run and lookup | `dryRun()`, `explorer-verify verify --dry-run`                                                                           | Validates, resolves the explorer and looks the contract up once, which tells whether `verify()` would submit. Never submits                         |
-| Status             | `checkStatus()`, `explorer-verify status`                                                                                | Polls the job of a handle, for a submission the explorer already has. Never submits                                                                 |
-| Handles and output | `parseHandle()`, `formatHandle()`, `toEnvelope()`, `exitCodeOf()`, `toBackendName()`, `routingTableDate()`               | Read or write a handle, turn an outcome into the JSON envelope and the exit code, check a backend name, give the routing table's date. Send nothing |
-| Help and version   | `explorer-verify help`, `explorer-verify --version --json`                                                               | Print the help or the versions and the routing table's date. Contact no explorer                                                                    |
+| Step               | Call or command                                                                                                                    | Effect                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build              | `buildVerifyInput()`, `buildVerifyInputFromFoundry()`, `findFoundryBuild()`, `buildVerifyInputFromHardhat()`, `findHardhatBuild()` | Build the compiler input and contract name from build files. Read local files, send nothing                                                         |
+| Validate           | `validateInput()`, `linkLibraries()`                                                                                               | Check the input and list every problem; add library addresses to `settings.libraries`. Send nothing                                                 |
+| Resolve            | `buildVerifyInputFromBytecode()`                                                                                                   | Reads the bytecode from your RPC endpoint, and the metadata and sources from Sourcify or an IPFS gateway. Read-only requests                        |
+| Dry run and lookup | `dryRun()`, `explorer-verify verify --dry-run`                                                                                     | Validates, resolves the explorer and looks the contract up once, which tells whether `verify()` would submit. Never submits                         |
+| Status             | `checkStatus()`, `explorer-verify status`                                                                                          | Polls the job of a handle, for a submission the explorer already has. Never submits                                                                 |
+| Handles and output | `parseHandle()`, `formatHandle()`, `toEnvelope()`, `exitCodeOf()`, `toBackendName()`, `routingTableDate()`                         | Read or write a handle, turn an outcome into the JSON envelope and the exit code, check a backend name, give the routing table's date. Send nothing |
+| Help and version   | `explorer-verify help`, `explorer-verify --version --json`                                                                         | Print the help or the versions and the routing table's date. Contact no explorer                                                                    |
 
-`verifyInputFromFoundry()` and `findFoundryBuild()` come from `@explorer-verify/foundry`,
-`verifyInputFromHardhat()` and `findHardhatBuild()` from `@explorer-verify/hardhat`,
-`resolveInputFromBytecode()` from `explorer-verify/resolve` and `createVerifyHandler()` from
+`buildVerifyInputFromFoundry()` and `findFoundryBuild()` come from `@explorer-verify/foundry`,
+`buildVerifyInputFromHardhat()` and `findHardhatBuild()` from `@explorer-verify/hardhat`,
+`buildVerifyInputFromBytecode()` from `explorer-verify/resolve` and `createVerifyHandler()` from
 `explorer-verify/server`. The rest come from `explorer-verify`.
 
 ### Dry run before you submit

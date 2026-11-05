@@ -8,6 +8,12 @@ import { ExplorerVerifyError, linkLibraries, validateInput, verify } from "../..
 import type { Hex, VerifyInput } from "../../src/index.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
+/** linkLibraries called as untyped JavaScript calls it, so the runtime checks are tested. */
+function linkUntyped(input: unknown): VerifyInput {
+  const linked: unknown = Reflect.apply(linkLibraries, undefined, [input]);
+  return validateInput(linked);
+}
+
 const CHAIN_ID = 11155111; // routing.md: sourcify
 const ADDRESS: Hex = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const LIB_MIXED: Hex = "0xd0B737fC4e4195144824eB07b2d1bb778525b86B";
@@ -93,7 +99,7 @@ function issuesOf(error: ExplorerVerifyError): { field: string; message: string 
 
 /** Asserts invalid-input naming exactly `field`, with none of `secrets` in message or JSON. */
 function assertRejected(input: unknown, field: string, secrets: readonly string[]): void {
-  for (const call of [() => validateInput(input), () => linkLibraries(input)]) {
+  for (const call of [() => validateInput(input), () => linkUntyped(input)]) {
     const error = rejectionOf(call);
     assert.equal(error.code, "invalid-input");
     const fields = issuesOf(error).map((issue) => issue.field);
@@ -434,12 +440,12 @@ function settingsLibs(input: unknown): unknown {
 
 describe("linkLibraries (R-IN-4)", () => {
   it("merges into settings.libraries in Standard JSON shape, lower case (doc example)", () => {
-    const linked = linkLibraries(makeInput({}, { "src/MathLib.sol:MathLib": LIB_MIXED }));
+    const linked = linkUntyped(makeInput({}, { "src/MathLib.sol:MathLib": LIB_MIXED }));
     assert.deepEqual(settingsLibs(linked), { "src/MathLib.sol": { MathLib: LIB_LOWER } });
   });
 
   it("keeps entries settings.libraries already holds, merging into the same path", () => {
-    const linked = linkLibraries(
+    const linked = linkUntyped(
       makeInput(
         { libraries: { "lib/Other.sol": { Other: OTHER } } },
         { "lib/Other.sol:Second": LIB_MIXED, "src/MathLib.sol:MathLib": LIB_MIXED },
@@ -453,14 +459,14 @@ describe("linkLibraries (R-IN-4)", () => {
 
   it("without libraries, input comes back unchanged (deep equal)", () => {
     const input = makeInput();
-    const linked = linkLibraries(input);
+    const linked = linkUntyped(input);
     assert.deepEqual(linked, validateInput(input));
     assert.equal(settingsLibs(linked), undefined);
   });
 
   it("is idempotent", () => {
-    const once = linkLibraries(makeInput({}, { "src/MathLib.sol:MathLib": LIB_MIXED }));
-    const twice = linkLibraries(once);
+    const once = linkUntyped(makeInput({}, { "src/MathLib.sol:MathLib": LIB_MIXED }));
+    const twice = linkUntyped(once);
     assert.deepEqual(twice, once);
   });
 
@@ -470,7 +476,7 @@ describe("linkLibraries (R-IN-4)", () => {
       { "src/MathLib.sol:MathLib": LIB_MIXED },
     );
     const before: unknown = JSON.parse(JSON.stringify(input));
-    const linked = linkLibraries(input);
+    const linked = linkUntyped(input);
     assert.deepEqual(input, before);
     assert.notEqual(linked, input);
     for (const path of [
@@ -488,7 +494,7 @@ describe("linkLibraries (R-IN-4)", () => {
 
   it("rejects a conflicting address like validateInput", () => {
     const error = rejectionOf(() =>
-      linkLibraries(
+      linkUntyped(
         makeInput(
           { libraries: { "src/MathLib.sol": { MathLib: OTHER } } },
           { "src/MathLib.sol:MathLib": LIB_MIXED },
@@ -502,7 +508,7 @@ describe("linkLibraries (R-IN-4)", () => {
     it(`library named ${name} is linked as an own data property, no prototype pollution`, () => {
       // JSON.parse creates "__proto__" as an own property.
       const libraries: unknown = JSON.parse(`{"src/MathLib.sol:${name}":"${LIB_MIXED}"}`);
-      const linked = linkLibraries(makeInput({}, libraries));
+      const linked = linkUntyped(makeInput({}, libraries));
       const byPath = at(settingsLibs(linked), "src/MathLib.sol");
       assert.ok(Object.hasOwn(byPath, name), `${name} not an own property`);
       assert.equal(Reflect.get(byPath, name), LIB_LOWER);
@@ -525,7 +531,7 @@ describe("linkLibraries (R-IN-4)", () => {
       writable: true,
       configurable: true,
     });
-    const linked = linkLibraries(input);
+    const linked = linkUntyped(input);
     const libs = at(settingsLibs(linked));
     assert.ok(Object.hasOwn(libs, "__proto__"));
     assert.equal(Reflect.get(at(libs, "__proto__"), "MathLib"), LIB_LOWER);
@@ -534,7 +540,7 @@ describe("linkLibraries (R-IN-4)", () => {
 
   it("existing settings.libraries holding a __proto__ library is kept", () => {
     const settingsLib: unknown = JSON.parse(`{"src/MathLib.sol":{"__proto__":"${OTHER}"}}`);
-    const linked = linkLibraries(
+    const linked = linkUntyped(
       makeInput({ libraries: settingsLib }, { "src/MathLib.sol:MathLib": LIB_MIXED }),
     );
     const byPath = at(settingsLibs(linked), "src/MathLib.sol");

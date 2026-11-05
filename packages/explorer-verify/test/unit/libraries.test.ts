@@ -12,6 +12,19 @@ import { buildVerifyInput, linkLibraries, validateInput, verify } from "../../sr
 import type { VerifyInput, VerifyResult } from "../../src/index.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
+/**
+ * linkLibraries called as untyped JavaScript calls it, so the runtime checks are tested. Its
+ * parameter is `VerifyInput`; the result goes through validateInput, which returns an equal copy.
+ */
+function linkUntyped(input: unknown): VerifyInput {
+  const linked: unknown = Reflect.apply(linkLibraries, undefined, [input]);
+  return validateInput(linked);
+}
+
+// `linkLibraries(42)` does not compile: its parameter is VerifyInput (#223).
+const numberIsNotAnInput: 42 extends Parameters<typeof linkLibraries>[0] ? false : true = true;
+assert.ok(numberIsNotAnInput);
+
 /** A JSON file, read relative to this test. */
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -110,7 +123,7 @@ describe("linkLibraries (R-IN-4)", () => {
     const links = hardhatLinks(TALLY);
     assert.deepEqual(Object.keys(links), ["project/contracts/Tally.sol:Tally"]);
 
-    const linked = linkLibraries({ ...input, libraries: links });
+    const linked = linkUntyped({ ...input, libraries: links });
 
     assert.deepEqual(linked.compiler.input.settings["libraries"], {
       "project/contracts/Tally.sol": { Tally: TALLY.toLowerCase() },
@@ -127,7 +140,7 @@ describe("linkLibraries (R-IN-4)", () => {
 
   it("gives back the input solc compiled when the addresses are merged into an unlinked copy (R-IN-4)", () => {
     const original = validateInput(solcInput());
-    const linked = linkLibraries(unlinkedSolcInput({}, { "src/Tally.sol:Tally": TALLY }));
+    const linked = linkUntyped(unlinkedSolcInput({}, { "src/Tally.sol:Tally": TALLY }));
     assert.deepEqual(linked.compiler.input.settings["libraries"], {
       "src/Tally.sol": { Tally: TALLY.toLowerCase() },
     });
@@ -142,17 +155,17 @@ describe("linkLibraries (R-IN-4)", () => {
       { "src/Tally.sol": { Other: other }, "src/Counter.sol": "kept as it is" },
       { "src/Tally.sol:Tally": TALLY },
     );
-    const linked = linkLibraries(input);
+    const linked = linkUntyped(input);
     assert.deepEqual(linked.compiler.input.settings["libraries"], {
       "src/Tally.sol": { Other: other, Tally: TALLY.toLowerCase() },
       "src/Counter.sol": "kept as it is",
     });
-    assert.deepEqual(linkLibraries(linked), linked);
+    assert.deepEqual(linkUntyped(linked), linked);
   });
 
   it("adds a library named __proto__ as a key, never as a prototype (R-IN-4)", () => {
     const libraries = JSON.parse(`{"src/Tally.sol:__proto__":"${TALLY}"}`);
-    const linked = linkLibraries(unlinkedSolcInput({}, record(libraries)));
+    const linked = linkUntyped(unlinkedSolcInput({}, record(libraries)));
     const entry = record(record(linked.compiler.input.settings["libraries"])["src/Tally.sol"]);
     assert.ok(Object.hasOwn(entry, "__proto__"));
     assert.equal(Object.getPrototypeOf(entry), Object.prototype);
@@ -162,13 +175,13 @@ describe("linkLibraries (R-IN-4)", () => {
     const input = hardhatInput();
     const checked = validateInput(input);
     assert.equal(Object.hasOwn(checked, "libraries"), false);
-    assert.deepEqual(linkLibraries(input), checked);
-    assert.deepEqual(linkLibraries(solcInput()), validateInput(solcInput()));
+    assert.deepEqual(linkUntyped(input), checked);
+    assert.deepEqual(linkUntyped(solcInput()), validateInput(solcInput()));
   });
 
   it("rejects a conflicting address already in settings.libraries (R-IN-4)", () => {
     const other = `0x${"b".repeat(40)}`;
-    for (const run of [validateInput, linkLibraries]) {
+    for (const run of [validateInput, linkUntyped]) {
       assert.deepEqual(
         issuesOf(() => run(solcInput({ "src/Tally.sol:Tally": other }))),
         [
@@ -180,7 +193,7 @@ describe("linkLibraries (R-IN-4)", () => {
       );
     }
     // The same address in another case is the same address.
-    const same = linkLibraries(
+    const same = linkUntyped(
       solcInput({ "src/Tally.sol:Tally": TALLY.toUpperCase().replace("0X", "0x") }),
     );
     assert.deepEqual(same.compiler.input.settings["libraries"], {
@@ -200,7 +213,7 @@ describe("validateInput libraries (R-IN-4, R-IN-6)", () => {
       { "src/Tally.sol": { Tally: other } },
     ];
     for (const settingsLibraries of held) {
-      for (const run of [validateInput, linkLibraries]) {
+      for (const run of [validateInput, linkUntyped]) {
         assert.deepEqual(
           issuesOf(() => run(unlinkedSolcInput(settingsLibraries, links))),
           [{ field: "libraries.1", message: "conflicts with compiler.input.settings.libraries" }],
@@ -220,21 +233,21 @@ describe("validateInput libraries (R-IN-4, R-IN-6)", () => {
         "src/Counter.sol:Other": TALLY.toLowerCase(),
       });
       assert.deepEqual(
-        issuesOf(() => linkLibraries(unlinkedSolcInput({ "": shared }, links))),
+        issuesOf(() => linkUntyped(unlinkedSolcInput({ "": shared }, links))),
         [{ field: "libraries.1", message: "conflicts with compiler.input.settings.libraries" }],
         JSON.stringify(shared),
       );
     }
     // The same address under the empty path, in any case, is accepted, and the path entry is added.
     const upper = TALLY.toUpperCase().replace("0X", "0x");
-    const linked = linkLibraries(unlinkedSolcInput({ "": { Tally: upper } }, links));
+    const linked = linkUntyped(unlinkedSolcInput({ "": { Tally: upper } }, links));
     assert.deepEqual(linked.compiler.input.settings["libraries"], {
       "": { Tally: upper },
       "src/Tally.sol": { Tally: TALLY.toLowerCase() },
       "src/Counter.sol": { Other: TALLY.toLowerCase() },
     });
     // An empty-path entry that is not an object names no library, and is copied as it is.
-    const kept = linkLibraries(unlinkedSolcInput({ "": "kept" }, links));
+    const kept = linkUntyped(unlinkedSolcInput({ "": "kept" }, links));
     assert.equal(record(kept.compiler.input.settings["libraries"])[""], "kept");
   });
 
@@ -316,12 +329,12 @@ describe("validateInput libraries (R-IN-4, R-IN-6)", () => {
   it("rejects in linkLibraries a settings.libraries that cannot hold the addresses (R-IN-4)", () => {
     const links = { "src/Tally.sol:Tally": TALLY, "src/Counter.sol:Other": TALLY };
     assert.deepEqual(
-      issuesOf(() => linkLibraries(unlinkedSolcInput("none", links))),
+      issuesOf(() => linkUntyped(unlinkedSolcInput("none", links))),
       [{ field: "compiler.input.settings.libraries", message: "must be an object" }],
     );
     assert.deepEqual(
       issuesOf(() =>
-        linkLibraries(unlinkedSolcInput({ "src/Counter.sol": [TALLY], "src/Tally.sol": 1 }, links)),
+        linkUntyped(unlinkedSolcInput({ "src/Counter.sol": [TALLY], "src/Tally.sol": 1 }, links)),
       ),
       [
         { field: "libraries.1", message: "conflicts with compiler.input.settings.libraries" },
@@ -464,7 +477,7 @@ describe("verify() with libraries, replaying live probe E (R-IN-4)", () => {
 
   it("sends the linked input from linkLibraries and returns the recorded partial match (R-IN-4)", async (t) => {
     const submit = recorded("verify-linked-with-libraries-submit");
-    const input = linkLibraries(probeInput(submit, {}));
+    const input = linkUntyped(probeInput(submit, {}));
     const { result, bodies } = await replayVerify(t, input, [
       notVerified(input.address),
       submit.response,

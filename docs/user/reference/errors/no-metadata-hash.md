@@ -4,7 +4,7 @@ Version: explorer-verify 0.0.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-Cause: `resolveInputFromBytecode` read the deployed bytecode, and its end holds no metadata hash,
+Cause: `buildVerifyInputFromBytecode` read the deployed bytecode, and its end holds no metadata hash,
 so the resolver cannot find the metadata. `details.found` says what it found: `no-code` when
 nothing is deployed at the address, `no-metadata` when there is no CBOR block (solc's
 `appendCBOR: false`, or a compiler other than solc), and `version-only` when the block holds only

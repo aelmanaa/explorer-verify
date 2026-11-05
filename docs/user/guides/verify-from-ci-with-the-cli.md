@@ -36,22 +36,22 @@ forge build --build-info
 For Hardhat, run `npx hardhat build` (Hardhat 3) or `npx hardhat compile` (Hardhat 2).
 
 Then write the request file. This script, `scripts/write-verify-input.ts`, builds the input with
-[`verifyInputFromFoundry`](verify-from-a-foundry-project.md), adds the chain and the address from
+[`buildVerifyInputFromFoundry`](verify-from-a-foundry-project.md), adds the chain and the address from
 the environment, checks the whole request with `validateInput()`, and writes `verify-input.json`.
-For Hardhat, use [`verifyInputFromHardhat`](verify-from-a-hardhat-project.md) the same way. Run it
+For Hardhat, use [`buildVerifyInputFromHardhat`](verify-from-a-hardhat-project.md) the same way. Run it
 with `node scripts/write-verify-input.ts`:
 
 ```ts
 import { writeFile } from "node:fs/promises";
 
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 import { validateInput } from "explorer-verify";
 
 const { CHAIN_ID, CONTRACT_ADDRESS } = process.env;
 if (CHAIN_ID === undefined || CONTRACT_ADDRESS === undefined) {
   throw new Error("Set CHAIN_ID and CONTRACT_ADDRESS.");
 }
-const built = await verifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
 // Throws invalid-input, naming each bad field, before the CLI runs.
 const request = validateInput({ ...built, chainId: Number(CHAIN_ID), address: CONTRACT_ADDRESS });
 await writeFile("verify-input.json", JSON.stringify(request));

@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 
 import { buildVerifyInput } from "explorer-verify";
 
-import { findHardhatBuild, verifyInputFromHardhat } from "../../src/index.ts";
+import { findHardhatBuild, buildVerifyInputFromHardhat } from "../../src/index.ts";
 import {
   HARDHAT_2,
   HARDHAT_2_BUILD_ID,
@@ -41,7 +41,7 @@ describe("R-DX-2: Hardhat 3.21.2 build", () => {
         await readJson(HARDHAT_3, output),
       ]);
       for (const contract of [`${source}:${name}`, name]) {
-        const built = await verifyInputFromHardhat({ root: HARDHAT_3, contract });
+        const built = await buildVerifyInputFromHardhat({ root: HARDHAT_3, contract });
         assert.deepEqual(built, byHand);
         assert.deepEqual(built.compiler, byHand.compiler);
       }
@@ -63,7 +63,7 @@ describe("R-DX-2: Hardhat 2.29.1 build", () => {
         await readJson(HARDHAT_2, input),
       ]);
       for (const contract of [`${source}:${name}`, name]) {
-        const built = await verifyInputFromHardhat({ root: HARDHAT_2, contract });
+        const built = await buildVerifyInputFromHardhat({ root: HARDHAT_2, contract });
         assert.deepEqual(built, byHand);
       }
       assert.equal(byHand.contractName, `${source}:${name}`);
@@ -77,7 +77,7 @@ describe("R-DX-2: Hardhat 2.29.1 build", () => {
 describe("R-DX-2: the library-linked contract", () => {
   it("keeps the library out of the compiler settings: Hardhat links at deploy time", async () => {
     for (const root of [HARDHAT_2, HARDHAT_3]) {
-      const built = await verifyInputFromHardhat({ root, contract: "Counter" });
+      const built = await buildVerifyInputFromHardhat({ root, contract: "Counter" });
       assert.equal(built.compiler.input.settings.libraries, undefined);
     }
   });

@@ -89,7 +89,7 @@ export interface InputIssue {
 }
 
 /**
- * One source `resolveInputFromBytecode` tried, and what happened.
+ * One source `buildVerifyInputFromBytecode` tried, and what happened.
  *
  * @example
  * ```ts
@@ -349,7 +349,7 @@ export type ErrorDetails =
     }
   | {
       /**
-       * The deployed bytecode holds no metadata hash, so `resolveInputFromBytecode` cannot find
+       * The deployed bytecode holds no metadata hash, so `buildVerifyInputFromBytecode` cannot find
        * the metadata.
        */
       code: "no-metadata-hash";
@@ -362,7 +362,7 @@ export type ErrorDetails =
     }
   | {
       /**
-       * `resolveInputFromBytecode` could not read the bytecode from the JSON-RPC endpoint, or no
+       * `buildVerifyInputFromBytecode` could not read the bytecode from the JSON-RPC endpoint, or no
        * source it tried returned the metadata the bytecode's hash names.
        */
       code: "metadata-unavailable";

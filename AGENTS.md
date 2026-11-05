@@ -115,7 +115,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/explorer-verify/src/`                | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
 | `packages/explorer-verify/src/server`          | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
-| `packages/explorer-verify/src/input/resolvers` | `explorer-verify/resolve`: `resolveInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                               |
+| `packages/explorer-verify/src/input/resolvers` | `explorer-verify/resolve`: `buildVerifyInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                           |
 | `packages/explorer-verify/test/unit/`          | Unit tests, `*.test.ts`                                                                                                                                          |
 | `packages/foundry/`                            | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
 | `packages/hardhat/`                            | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |

@@ -23,25 +23,25 @@ Install both packages: `explorer-verify` and `@explorer-verify/foundry`. The hel
 ## Steps
 
 1. Build with build-info in the project root: `forge build --build-info`.
-2. Call `verifyInputFromFoundry` with the project root and the contract.
-3. Add the chain ID and the deployed address, and check the result with `validateInput`.
+2. Call `buildVerifyInputFromFoundry` with the project root and the contract.
+3. Add the chain ID and the deployed address. The result is a `VerifyInput`.
 4. Pass the input to [`verify`](../reference/verify.md).
 
 ```ts
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
-import { validateInput } from "explorer-verify";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
+import type { VerifyInput } from "explorer-verify";
 
-const built = await verifyInputFromFoundry({
+const built = await buildVerifyInputFromFoundry({
   root: ".",
   contract: "src/Greeter.sol:Greeter",
 });
 console.log(built.contractName, built.compiler.version);
 
-const input = validateInput({
+const input: VerifyInput = {
   chainId: 11155111,
   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   ...built,
-});
+};
 
 // verify() looks the contract up and submits the input only when the explorer lacks it.
 // const result = await verify(input);
@@ -53,15 +53,23 @@ It prints:
 src/Greeter.sol:Greeter 0.8.24+commit.e11b9ed9
 ```
 
+`built` has no `chainId` and no `address`, so `verify(built)` does not compile. When the chain ID
+or the address comes from untyped data, such as parsed JSON or command-line arguments, check the
+whole input with `validateInput` before you pass it to `verify`.
+
 ## Options
 
-| Option         | Default            | Meaning                                                                                                                     |
-| -------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `root`         | required           | The project root, the directory that holds `foundry.toml`. A relative path resolves against the process's working directory |
-| `contract`     | required           | `path:Name`, such as `src/Greeter.sol:Greeter`, or a bare `Name` that matches one artifact                                  |
-| `out`          | `out`              | The output directory of the build, relative to `root` or absolute. Pass it when `foundry.toml` sets `out`                   |
-| `buildInfoDir` | `<out>/build-info` | The build-info directory, relative to `root` or absolute. When you pass it, it must exist                                   |
-| `artifact`     | none               | The contract's artifact file, relative to `root` or absolute. It replaces the search under `out`                            |
+| Option            | Default               | Meaning                                                                                                                             |
+| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `root`            | required              | The project root, the directory that holds `foundry.toml`. A relative path resolves against the process's working directory         |
+| `contract`        | required              | `path:Name`, such as `src/Greeter.sol:Greeter`, or a bare `Name` that matches one artifact                                          |
+| `outDir`          | `out`                 | The output directory of the build, relative to `root` or absolute. Pass it when `foundry.toml` sets `out`                           |
+| `buildInfoDir`    | `<outDir>/build-info` | The build-info directory, relative to `root` or absolute. When you pass it, it must exist                                           |
+| `artifact`        | none                  | The contract's artifact file, relative to `root` or absolute. It replaces the search under `outDir`                                 |
+| `compilerVersion` | none                  | Passed to `buildVerifyInput`. `buildVerifyInputFromFoundry` only                                                                    |
+| `sources`         | none                  | Source contents by path, passed to `buildVerifyInput`; each replaces the file read for its path. `buildVerifyInputFromFoundry` only |
+
+`@explorer-verify/hardhat` takes the same options, except `buildInfoDir`.
 
 The path in `contract` is the source path relative to the root, as Foundry writes it in the
 metadata. A leading `./` and backslashes are accepted.
@@ -75,9 +83,9 @@ choose. The error lists both files, and `forge clean` does not help: the next bu
 again. Pass the file of the build you deployed:
 
 ```ts
-import { verifyInputFromFoundry } from "@explorer-verify/foundry";
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
-const built = await verifyInputFromFoundry({
+const built = await buildVerifyInputFromFoundry({
   root: ".",
   contract: "lib/utils/Context.sol:Context",
   artifact: "out/Context.sol/Context.0.8.20.json",
@@ -96,7 +104,7 @@ the input comes from the same compile.
 
 ## What it reads
 
-1. The artifact. Without the `artifact` option, it looks under `out` for files named
+1. The artifact. Without the `artifact` option, it looks under `outDir` for files named
    `Name.json` or `Name.<suffix>.json`, in a directory named after the source file when
    `contract` has a path. It skips `Name.metadata.json`, which `extra_output_files = ["metadata"]`
    writes. It keeps the files that hold `abi`, `bytecode` or `deployedBytecode` and whose Solidity
@@ -114,11 +122,12 @@ the input comes from the same compile.
    regular file of at most 16 MB whose real path, after symbolic links, is under the root. A
    source that fails this check is left out, and `buildVerifyInput` reports it as missing.
 
-The helper trusts the files under `out` and `buildInfoDir`: it parses them as they are, up to
+The helper trusts the files under `outDir` and `buildInfoDir`: it parses them as they are, up to
 256 MB each. It does not check the source contents it reads. `buildVerifyInput` checks each
 source's keccak-256 hash against the metadata.
 
-`findFoundryBuild` does steps 1 to 3 and returns what it found, without building the input:
+`findFoundryBuild` does steps 1 to 3 and returns what it found, without building the input.
+`findHardhatBuild` returns the same shape:
 
 ```ts
 import { findFoundryBuild } from "@explorer-verify/foundry";
@@ -126,7 +135,7 @@ import { buildVerifyInput } from "explorer-verify";
 
 const build = await findFoundryBuild({ root: ".", contract: "Greeter" });
 console.log(build.contract);
-console.log(JSON.stringify(build.files, null, 2));
+console.log(build.files.join("\n"));
 const built = buildVerifyInput(build.documents, {
   contract: build.contract,
   sources: build.sources,
@@ -137,17 +146,15 @@ After `forge build --build-info`, it prints:
 
 ```text
 src/Greeter.sol:Greeter
-{
-  "artifact": "out/Greeter.sol/Greeter.json",
-  "buildInfo": "out/build-info/cc03796b40982b2b.json",
-  "sources": []
-}
+out/Greeter.sol/Greeter.json
+out/build-info/cc03796b40982b2b.json
 ```
 
 `build.documents` holds the parsed artifact, then the parsed build-info when one was found.
 `build.sources` holds the source contents by path when no build-info was found, else it is empty.
-The paths in `build.files` are relative to the root; a file outside the root, such as an `out`
-directory elsewhere, gets a path that starts with `..`. `buildVerifyInput` still rejects any local
+`build.files` lists the files read: the artifact, then the build-info, or else the source files.
+The paths are relative to the root; a file outside the root, such as an output directory
+elsewhere, gets a path that starts with `..`. `buildVerifyInput` still rejects any local
 path in the input.
 
 ## Build-info or a default build
@@ -178,12 +185,12 @@ that file.
 Every error is an `ExplorerVerifyError` from `explorer-verify`. See
 [Errors](../reference/errors/index.md) for each code.
 
-| Code                    | When                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invalid-input`         | An option is not valid; `root`, `out` or a passed `buildInfoDir` is not a directory; no artifact matches (with a wrong path, the issue lists the contracts of that name); more than one matches (the issue lists each `path:Name` and its file); the `artifact` file is not the contract's artifact; a file is too large, cannot be read or is not JSON |
-| `incomplete-input`      | No build-info lists the contract and a source file the metadata lists is missing. `details.candidates` lists the paths, and the hint says to run `forge build --build-info`                                                                                                                                                                             |
-| `source-mismatch`       | No build-info lists the contract and a source file changed since the build. The hint says to run `forge build --build-info`                                                                                                                                                                                                                             |
-| `insufficient-artifact` | The artifact holds no metadata and no build-info lists the contract                                                                                                                                                                                                                                                                                     |
+| Code                    | When                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid-input`         | An option is not valid; `root`, `outDir` or a passed `buildInfoDir` is not a directory; no artifact matches (with a wrong path, the issue lists the contracts of that name); more than one matches (the issue lists each `path:Name` and its file); the `artifact` file is not the contract's artifact; a file is too large, cannot be read or is not JSON |
+| `incomplete-input`      | No build-info lists the contract and a source file the metadata lists is missing. `details.candidates` lists the paths, and the hint says to run `forge build --build-info`                                                                                                                                                                                |
+| `source-mismatch`       | No build-info lists the contract and a source file changed since the build. The hint says to run `forge build --build-info`                                                                                                                                                                                                                                |
+| `insufficient-artifact` | The artifact holds no metadata and no build-info lists the contract                                                                                                                                                                                                                                                                                        |
 
 A file that cannot be read gives `invalid-input` with the file's path relative to the root; the
 Node error is kept as the error's `cause`. Any other error from `buildVerifyInput` passes through

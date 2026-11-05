@@ -15,7 +15,7 @@ also carries the server handler, and scoped add-ons for Node-only code.
 | -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine                                            | Any (browser, Node, edge)                    |
 | `explorer-verify`          | `explorer-verify/server`   | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key. Uses only `Request` and `Response` | Node, edge runtimes and serverless platforms |
-| `explorer-verify`          | `explorer-verify/resolve`  | Input resolvers: `resolveInputFromBytecode` (decision 0026)                                                     | Any (browser, Node, edge)                    |
+| `explorer-verify`          | `explorer-verify/resolve`  | Input resolvers: `buildVerifyInputFromBytecode` (decision 0026)                                                 | Any (browser, Node, edge)                    |
 | `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                                         |
 | `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                                         |
 | `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 2 and 3 build-info and emits `VerifyInput` parts (decision 0018)                | Node                                         |
@@ -144,7 +144,7 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   returns it normalised: the version without a leading `v`, and the address, constructor
   arguments and creation transaction hash in lower case. The result is a deep copy. It throws
   `invalid-input` with every problem found. `verify()` will call it first.
-- `linkLibraries(input: unknown): VerifyInput` validates the input and merges `libraries` into
+- `linkLibraries(input: VerifyInput): VerifyInput` validates the input and merges `libraries` into
   `settings.libraries` (R-IN-4). `verify()` does not call it
   ([decision 0025](decisions/0025-library-addresses-not-merged-by-default.md)).
 - Every failure throws `ExplorerVerifyError` with `code`, `hint`, `retryable`, `docsUrl` and
