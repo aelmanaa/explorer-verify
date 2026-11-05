@@ -6,6 +6,8 @@
     "outDir": "node_modules/.cache/tsbuild/scripts",
     "tsBuildInfoFile": "node_modules/.cache/tsbuild/scripts.tsbuildinfo"
   },
+  // The live matrix imports the built core package; the reference builds it first.
+  "references": [{ "path": "./packages/explorer-verify/tsconfig.build.json" }],
   // The CLI reference generator imports the CLI's command table and help from source.
   "include": ["scripts", "site/.vitepress/config.ts", "site/api-reference.ts", "packages/cli/src"]
 }

@@ -1,0 +1,24 @@
+{
+  "chainId": 11155111,
+  "address": "0x00000000000000000000000000000000000000a6",
+  "contractName": "src/OfflineDerive.sol:OfflineDerive",
+  "compilerVersion": "0.8.24+commit.e11b9ed9",
+  "creationTxHash": "0xa6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+  "creationBytecode": "0x6080604052",
+  "constructorArgs": "0x0000000000000000000000000000000000000000000000000000000000000003",
+  "input": {
+    "language": "Solidity",
+    "sources": {
+      "src/OfflineDerive.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.24;\n\ncontract OfflineDerive {\n    uint256 public constant MARK = 660403;\n}\n"
+      }
+    },
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "cancun"
+    }
+  }
+}

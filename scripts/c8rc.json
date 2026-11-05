@@ -11,6 +11,8 @@
     "scripts/check-tarballs.ts",
     "scripts/check-agent-docs.ts",
     "scripts/generate-cli-reference.ts",
+    "scripts/live-matrix.ts",
+    "scripts/live-matrix-fake.ts",
     "scripts/decision-sources.ts",
     "scripts/check-mutation-score.ts",
     "scripts/check-packed-files.ts",

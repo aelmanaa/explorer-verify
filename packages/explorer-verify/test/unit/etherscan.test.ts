@@ -678,6 +678,18 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
     });
   });
 
+  it("the recorded deployment bytecode mismatch with a not-verified lookup returns failed with its text (R-FLOW-4, live matrix 2026-11-04)", async () => {
+    const s = setup([
+      answer("2026-11-04-checkverifystatus-fail-bytecode-mismatch"),
+      NOT_VERIFIED(),
+    ]);
+    assert.deepEqual(await etherscan.poll(handle(), s.ctx), {
+      state: "failed",
+      reason:
+        "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode.",
+    });
+  });
+
   it("cuts and redacts the failed reason (R-SEC-1)", async () => {
     const s = setup([text(`Fail - Unable to verify ${KEY} ${"x".repeat(1000)}`), NOT_VERIFIED()]);
     const outcome = await etherscan.poll(handle(), s.ctx);

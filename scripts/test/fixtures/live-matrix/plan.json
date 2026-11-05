@@ -1,0 +1,32 @@
+{
+  "tools": { "forge": "offline fixture" },
+  "targets": [
+    {
+      "id": "etherscan-compatible/fake",
+      "backend": "etherscan-compatible",
+      "chain": "Local fake",
+      "chainId": 11155111,
+      "apiUrl": "fake",
+      "keyEnv": "LIVE_MATRIX_DUMMY_KEY",
+      "timeoutMs": 20000,
+      "pollIntervalMs": 1000,
+      "noCode": "0x00000000000000000000000000000000000000c0",
+      "wrongEdit": { "from": "MARK = 660402", "to": "MARK = 660403" },
+      "contracts": { "fresh": "fresh.json", "resume": "resume.json" },
+      "cases": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "etherscan-v2/fake",
+      "backend": "etherscan-v2",
+      "chain": "Local fake",
+      "chainId": 11155111,
+      "apiUrl": "fake",
+      "keyEnv": "LIVE_MATRIX_DUMMY_KEY",
+      "timeoutMs": 20000,
+      "pollIntervalMs": 1000,
+      "contracts": { "fresh": "fresh.json", "derive": "derive.json", "cross": "cross.json" },
+      "cross": { "backend": "sourcify", "apiUrl": "fake", "waitMs": 0, "pollMs": 0 },
+      "cases": [6, 7, 8]
+    }
+  ]
+}
