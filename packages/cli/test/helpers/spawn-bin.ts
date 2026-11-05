@@ -96,7 +96,13 @@ export function runBin(args: readonly string[], options: BinOptions = {}): Promi
   return new Promise((resolve, reject) => {
     const stdin = options.stdin ?? "ignore";
     const { fake } = options;
-    const bin = fake === undefined ? [BIN] : ["--import", PRELOAD, BIN];
+    // The preload is TypeScript, and some Node releases (24.0.0 among them) warn on stderr that
+    // type stripping is experimental. The bin itself is JavaScript and never warns, so the flag
+    // keeps stderr what the bin writes.
+    const bin =
+      fake === undefined
+        ? [BIN]
+        : ["--disable-warning=ExperimentalWarning", "--import", PRELOAD, BIN];
     const fakeEnv: Record<string, string> =
       fake === undefined
         ? {}

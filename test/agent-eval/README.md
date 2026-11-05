@@ -74,7 +74,7 @@ no secret except the agent tool's own credential.
    NODE="$(command -v node)"
    EVAL="$(mktemp -d)"
    mkdir "$EVAL/bin" "$EVAL/home"
-   printf '#!/bin/sh\nexec "%s" --import "%s/packages/cli/test/helpers/fake-explorer-preload.ts" "%s/packages/cli/dist/src/bin.js" "$@"\n' \
+   printf '#!/bin/sh\nexec "%s" --disable-warning=ExperimentalWarning --import "%s/packages/cli/test/helpers/fake-explorer-preload.ts" "%s/packages/cli/dist/src/bin.js" "$@"\n' \
      "$NODE" "$REPO" "$REPO" > "$EVAL/bin/explorer-verify"
    chmod +x "$EVAL/bin/explorer-verify"
    ```
