@@ -23,7 +23,8 @@ const PAGE = readFileSync(
 const BIN = fileURLToPath(new URL("../../dist/src/bin.js", import.meta.url));
 const PRELOAD = fileURLToPath(new URL("../helpers/fake-explorer-preload.ts", import.meta.url));
 const TIMEOUT = { timeout: 60_000 };
-const HANDLE = `ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:${JOB}`;
+const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
+const HANDLE = `ev1:sourcify:11155111:${ADDRESS}:${JOB}`;
 
 /** The page's `scripts/verify.sh`: its one bash block that starts with a shebang. */
 const SCRIPT = blocks(PAGE).filter(
@@ -62,10 +63,24 @@ interface ScriptRun {
   output: string;
 }
 
-/** Runs the page's script with bash in the Foundry project, on the request file `request`. */
+/** The arguments the workflow gives the script, with `extra` after them. */
+function verifyArgs(extra: readonly string[] = []): string[] {
+  return [
+    ADDRESS,
+    "--chain",
+    "11155111",
+    "--foundry",
+    ".",
+    "--contract",
+    "src/Greeter.sol:Greeter",
+    ...extra,
+  ];
+}
+
+/** Runs the page's script with bash in the Foundry project, with the arguments `args`. */
 async function runScript(
   name: string,
-  request: string,
+  args: readonly string[],
   scenario: string,
   env: Record<string, string> = {},
   shim: string = BIN_SHIM,
@@ -78,7 +93,7 @@ async function runScript(
   for (const variable of ["CI", "ETHERSCAN_API_KEY", "ROUTESCAN_API_KEY", "EXPLORER_VERIFY_LOG"]) {
     delete base[variable];
   }
-  const child = spawn("bash", [script, request], {
+  const child = spawn("bash", [script, ...args], {
     cwd: PROJECT,
     env: {
       ...base,
@@ -100,17 +115,6 @@ async function runScript(
     child.on("close", resolve);
   });
   return { code, stdout, output: readFileSync(githubOutput, "utf8") };
-}
-
-/** Writes a request file: the project's request, with `change` applied. */
-function requestFile(name: string, change: (value: Record<string, unknown>) => void): string {
-  const value: Record<string, unknown> = {
-    ...JSON.parse(readFileSync(join(PROJECT, "verify-input.json"), "utf8")),
-  };
-  change(value);
-  const file = join(DIR, `${name}.json`);
-  writeFileSync(file, JSON.stringify(value));
-  return file;
 }
 
 describe("the CI guide's command-line examples (R-AX-2)", () => {
@@ -142,26 +146,28 @@ describe(
     });
 
     it("exit code 0: prints the status and the backend", TIMEOUT, async () => {
-      const run = await runScript("verified", join(PROJECT, "verify-input.json"), "verified");
+      const run = await runScript("verified", verifyArgs(["--backend", "sourcify"]), "verified");
       assert.equal(run.code, 0);
       assert.equal(run.stdout, "already-verified on sourcify\n");
       assert.equal(run.output, "");
     });
 
     it("exit code 2: fails with the code and the hint", TIMEOUT, async () => {
-      const file = requestFile("bad-chain", (value) => {
-        value["chainId"] = 0;
-      });
-      const run = await runScript("bad-chain", file, "verified");
+      const run = await runScript(
+        "bad-chain",
+        [ADDRESS, "--chain", "0", "--foundry", ".", "--contract", "src/Greeter.sol:Greeter"],
+        "verified",
+      );
       assert.equal(run.code, 2);
       assert.match(run.stdout, /^::error::invalid-input: \S/);
     });
 
     it("exit code 3: fails when the route needs a key and none is set", TIMEOUT, async () => {
-      const file = requestFile("etherscan", (value) => {
-        value["route"] = { backend: "etherscan-v2" };
-      });
-      const run = await runScript("etherscan", file, "verified");
+      const run = await runScript(
+        "etherscan",
+        verifyArgs(["--backend", "etherscan-v2"]),
+        "verified",
+      );
       assert.equal(run.code, 3);
       assert.match(run.stdout, /^::error::missing-api-key: \S/);
     });
@@ -170,7 +176,7 @@ describe(
       "exit code 4 with a handle: passes, warns and writes the handle output",
       TIMEOUT,
       async () => {
-        const run = await runScript("pending", join(PROJECT, "verify-input.json"), "pending", {
+        const run = await runScript("pending", verifyArgs(["--backend", "sourcify"]), "pending", {
           // Long enough for the lookup and the submit on a slow runner; the job never ends.
           VERIFY_TIMEOUT: "4",
         });
@@ -200,15 +206,9 @@ describe(
           },
         });
         const shim = `#!/bin/sh\nprintf '%s\\n' '${envelope}'\nexit 2\n`;
-        const run = await runScript(
-          "escape",
-          join(PROJECT, "verify-input.json"),
-          "verified",
-          {},
-          shim,
-        );
+        const run = await runScript("escape", verifyArgs(), "verified", {}, shim);
         assert.equal(run.code, 2);
-        assert.equal(run.stdout, "::error::invalid-input: 50%25 done%0D%0A::warning::injected\n");
+        assert.equal(run.stdout, "::error::invalid-input: m 50%25 done%0D%0A::warning::injected\n");
       },
     );
   },

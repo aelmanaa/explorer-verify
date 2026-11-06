@@ -98,7 +98,10 @@ describe("R-DX-2: the artifact option of findHardhatBuild", () => {
     ];
     for (const [contract, artifact] of cases) {
       const error = await rejection(findHardhatBuild({ root: HARDHAT_3, contract, artifact }));
-      const shown = path.relative(HARDHAT_3, path.resolve(HARDHAT_3, artifact));
+      // A file outside the project is named by its absolute path, not one that starts with "..".
+      const file = path.resolve(HARDHAT_3, artifact);
+      const relative = path.relative(HARDHAT_3, file);
+      const shown = relative.startsWith("..") ? file : relative;
       assert.deepEqual(issues(error), [
         {
           field: "artifact",

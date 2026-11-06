@@ -1,7 +1,8 @@
 /**
- * The `verify` command (R-DX-1, R-AX-8, R-AX-16): reads the build files of `--input`, or the whole
- * request of `--input-json`, builds and checks the input, then calls `verify()`, or `dryRun()`
- * with `--dry-run`. The address may come first, without the word `verify`.
+ * The `verify` command (R-DX-1, R-AX-8, R-AX-16): reads the build files of `--input`, the build of
+ * the Foundry or Hardhat project of `--foundry` or `--hardhat`, or the whole request of
+ * `--input-json`, builds and checks the input, then calls `verify()`, or `dryRun()` with
+ * `--dry-run`. The address may come first, without the word `verify`.
  */
 import {
   BACKEND_NAMES,
@@ -30,7 +31,8 @@ import type {
   PrepareContext,
   Prepared,
 } from "./command.ts";
-import { readJsonFile, readJsonRequest } from "./request.ts";
+import { PROJECT_OPTIONS, inputFromProject, projectOf } from "./project.ts";
+import { FOLDER_MESSAGE, readJsonFile, readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
 import { RPC_URL_OPTIONS, readRpcUrl } from "./rpc-url.ts";
 import { AUTO, refusal } from "./target.ts";
@@ -262,6 +264,30 @@ function librariesOf(
   return Object.fromEntries(libraries);
 }
 
+/** The issue of an `--input` that names a folder: a project goes to `--foundry` or `--hardhat`. */
+const FOLDER_INPUT_MESSAGE =
+  "names a folder, not a file: for a Foundry or Hardhat project, pass --foundry <dir> or --hardhat <dir> with --contract path:Name";
+
+/**
+ * The issue of a command line with more arguments than `verify` takes. When `--artifact` or
+ * `--input` is given, the extra argument is most likely a second file that a shell glob such as
+ * `--input out/build-info/*.json` expanded to, so the issue says what the option takes.
+ *
+ * @param values - The checked option values.
+ * @returns The issue, or `undefined` for the default one.
+ */
+function extraArgumentsIssue(values: ReadonlyMap<string, OptionValue>): InputIssue | undefined {
+  if (values.has("artifact")) {
+    return {
+      field: "--artifact",
+      message: "takes one file: name the artifact of the build you deployed",
+    };
+  }
+  return values.has("input")
+    ? { field: "--input", message: "takes one file; repeat --input for each" }
+    : undefined;
+}
+
 /** Reads every `--input` file, in order, or throws with an issue for each that fails. */
 async function documentsOf(paths: readonly string[]): Promise<unknown[]> {
   const documents: unknown[] = [];
@@ -269,7 +295,11 @@ async function documentsOf(paths: readonly string[]): Promise<unknown[]> {
   for (const [index, path] of paths.entries()) {
     const read = await readJsonFile(path, `--input[${String(index + 1)}]`);
     if ("issue" in read) {
-      issues.push(read.issue);
+      issues.push(
+        read.issue.message === FOLDER_MESSAGE
+          ? { field: read.issue.field, message: FOLDER_INPUT_MESSAGE }
+          : read.issue,
+      );
     } else {
       documents.push(read.value);
     }
@@ -289,11 +319,14 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
     issues.push({ field: "verify", message: "needs the contract address" });
   }
   const chainId = chainOf(values, issues);
+  const project = projectOf(values, issues);
   const paths = listOption(values, "input");
-  if (paths.length === 0) {
+  const projectGiven = values.has("foundry") || values.has("hardhat");
+  if (paths.length === 0 && !projectGiven) {
     issues.push({
       field: "--input",
-      message: "is needed: a build file, or the whole request with --input-json",
+      message:
+        "is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json",
     });
   }
   const libraries = librariesOf(values, issues);
@@ -302,10 +335,13 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   }
   const contract = stringOption(values, "contract");
   const compilerVersion = stringOption(values, "compiler-version");
-  const built = buildVerifyInput(await documentsOf(paths), {
-    ...(contract === undefined ? {} : { contract }),
-    ...(compilerVersion === undefined ? {} : { compilerVersion }),
-  });
+  const built =
+    project === undefined
+      ? buildVerifyInput(await documentsOf(paths), {
+          ...(contract === undefined ? {} : { contract }),
+          ...(compilerVersion === undefined ? {} : { compilerVersion }),
+        })
+      : await inputFromProject(project);
   const constructorArgs = stringOption(values, "constructor-args");
   const creationTxHash = stringOption(values, "creation-tx");
   return validateInput({
@@ -461,7 +497,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
 }
 
 const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
-const FOUNDRY_FILES = "--input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json";
+const FOUNDRY = "--foundry . --contract src/Greeter.sol:Greeter";
 
 /** The options of `verify`, in help order. */
 const OPTIONS: OptionSpecs = {
@@ -477,17 +513,19 @@ const OPTIONS: OptionSpecs = {
     value: "<id>",
     description: "The chain ID the contract is deployed on, such as 11155111.",
   },
+  ...PROJECT_OPTIONS,
+  contract: {
+    type: "string",
+    value: "<path:Name>",
+    description:
+      "The contract as path:Name, such as src/Greeter.sol:Greeter, or as Name when one contract has that name. Needed with --foundry and --hardhat, and when the build files hold several.",
+  },
   input: {
     type: "string",
     value: "<file>",
     multiple: true,
     description:
-      "A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input.",
-  },
-  contract: {
-    type: "string",
-    value: "<path:Name>",
-    description: "The contract, such as src/Greeter.sol:Greeter, when the files hold several.",
+      "A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeat it for each file. In a project, use --foundry or --hardhat instead.",
   },
   "compiler-version": {
     type: "string",
@@ -530,24 +568,29 @@ export const VERIFY: Command = {
   usage: "<address>",
   examples: [
     {
-      args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY_FILES} --dry-run --json`,
+      args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY} --dry-run --json`,
       description:
-        "Check a Foundry build and look the contract up, without submitting: one envelope.",
+        "Check the Greeter of the Foundry project in this folder and look it up, without submitting: one envelope.",
     },
     {
-      args: `${ADDRESS} --chain 11155111 ${FOUNDRY_FILES} --backend sourcify`,
+      args: `${ADDRESS} --chain 11155111 ${FOUNDRY} --backend sourcify`,
       description:
-        "Verify on Sourcify from a Foundry build-info and artifact; the address may come first, without verify.",
+        "Verify on Sourcify from the Foundry project's build; the address may come first, without verify.",
     },
     {
-      args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY_FILES} --backend auto`,
+      args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY} --backend auto`,
       description:
         "Verify where the routing table points: the first backend the chain lists that needs no key or has one.",
     },
     {
-      args: `verify ${ADDRESS} --chain 999999 ${FOUNDRY_FILES} --allow-sourcify-fallback --dry-run --json`,
+      args: `verify ${ADDRESS} --chain 999999 ${FOUNDRY} --allow-sourcify-fallback --dry-run --json`,
       description:
         "Check a contract on a chain that the routing table does not list, on the public Sourcify API.",
+    },
+    {
+      args: `verify ${ADDRESS} --chain 11155111 --input build/build-info.json --input build/Greeter.json --backend sourcify`,
+      description:
+        "Verify from build files kept outside a project, such as those a package ships: repeat --input for each file.",
     },
     {
       args: "verify --input-json verify-input.json --json",
@@ -557,5 +600,6 @@ export const VERIFY: Command = {
   ],
   options: OPTIONS,
   maxPositionals: 1,
+  extraArguments: extraArgumentsIssue,
   prepare,
 };

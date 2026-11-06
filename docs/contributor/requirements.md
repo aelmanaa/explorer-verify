@@ -239,9 +239,11 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
 
 ### Developer experience (R-DX)
 
-- **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`.
-  Its machine contract (JSON output, streams, exit codes, dry run, key input, progress, verbosity
-  and JSON input) is R-AX-5 to R-AX-12 and R-AX-14 to R-AX-16.
+- **R-DX-1** A CLI: `explorer-verify <address> --chain <id> --input <file> --contract <path:Name>`,
+  or `--foundry <dir>` or `--hardhat <dir>` with `--contract <path:Name>` in place of `--input`,
+  which finds the build files with the R-DX-2 helpers (decision 0051). Its machine contract (JSON
+  output, streams, exit codes, dry run, key input, progress, verbosity and JSON input) is R-AX-5
+  to R-AX-12 and R-AX-14 to R-AX-16.
 - **R-DX-2** Build helpers for Foundry and Hardhat (2 and 3) find the build-info, artifact and
   source files for a contract in a project directory, read them, and pass them to the R-IN-7
   builder. They hold no format logic of their own. They read files, so they are Node-only and stay

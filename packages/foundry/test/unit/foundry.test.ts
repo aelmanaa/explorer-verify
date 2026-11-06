@@ -955,6 +955,12 @@ describe("a contract built with two compiler versions (R-DX-2)", () => {
       ["out/Old.sol/Old.json", "src/New.sol:Old", "holds the artifact of another contract"],
       ["out/Missing.json", "Context", "could not be read: out/Missing.json"],
       ["out/Old.sol", "Old", "is not a file: out/Old.sol"],
+      // A file outside the project is named by its absolute path, not one that starts with "..".
+      [
+        "../missing.json",
+        "Context",
+        `could not be read: ${path.resolve(MULTI, "../missing.json").split(path.sep).join("/")}`,
+      ],
     ];
     for (const [artifact, contract, message] of cases) {
       const error = await rejection(

@@ -56,6 +56,20 @@ On Hardhat 2 it prints `contracts/Greeter.sol:Greeter`.
 or the address comes from untyped data, such as parsed JSON, check the whole input with
 `validateInput` before you pass it to `verify`.
 
+## From the command line
+
+The `explorer-verify` command calls this helper when you pass `--hardhat` with the project folder
+and `--contract`. In the project folder, after the build:
+
+```bash
+explorer-verify verify 0x5FbDB2315678afecb367f032d93F642f64180aa3 --chain 11155111 \
+  --hardhat . --contract contracts/Greeter.sol:Greeter --dry-run --json
+```
+
+You do not name the build-info files. `--out-dir` and `--artifact` set the `outDir` and `artifact`
+options below. To submit, drop `--dry-run` and add `--backend <name>`, or `--backend auto` for the
+routing table's pick. The [CLI reference](../reference/cli.md#verify) lists every option.
+
 ## Build with the deploy profile
 
 The build files must come from the build that produced the deployed bytecode. Hardhat 3 has build

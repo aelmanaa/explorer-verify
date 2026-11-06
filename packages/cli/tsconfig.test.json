@@ -8,6 +8,10 @@
     "types": ["node"]
   },
   // The tests import the CLI sources directly, and the integration tests spawn the built bin.
-  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }],
+  "references": [
+    { "path": "../explorer-verify/tsconfig.build.json" },
+    { "path": "../foundry/tsconfig.build.json" },
+    { "path": "../hardhat/tsconfig.build.json" }
+  ],
   "include": ["src", "test"]
 }

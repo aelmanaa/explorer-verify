@@ -7,25 +7,24 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers who verify contracts in a CI job, such as a GitHub Actions workflow that runs
 after a deployment. Nothing is published to npm yet.
 
-The job builds the contracts, writes the verification request to a file, runs a dry run, then
-verifies with `--json` and acts on the exit code. The key comes from a CI secret, in an environment
+The job builds the contracts, runs a dry run on the project's build, then verifies with `--json`
+and acts on the exit code. The key comes from a CI secret, in an environment
 variable, never from a flag. The [CLI reference](../reference/cli.md) describes every option, and
 [Using explorer-verify from an agent](using-from-an-agent.md) the same flow for an agent.
 
 ## Setup
 
-Node.js 22.18 or later. Add the CLI, and the helper for your build tool, as development
-dependencies:
+Node.js 22.18 or later. Add the CLI as a development dependency:
 
 ```bash
-npm install --save-dev @explorer-verify/cli @explorer-verify/foundry
+npm install --save-dev @explorer-verify/cli
 ```
 
-For Hardhat, install `@explorer-verify/hardhat` in place of `@explorer-verify/foundry`. In CI,
-`npm ci --ignore-scripts` installs them from the lockfile, and the workflow below puts `node_modules/.bin` on the
-`PATH`, so the steps and the script run `explorer-verify` directly.
+The CLI reads Foundry and Hardhat projects itself. In CI, `npm ci --ignore-scripts` installs it
+from the lockfile, and the workflow below puts `node_modules/.bin` on the `PATH`, so the steps and
+the script run `explorer-verify` directly.
 
-## Build and write the request
+## Build
 
 Build with build-info, so the compiler input is kept as solc received it:
 
@@ -35,54 +34,25 @@ forge build --build-info
 
 For Hardhat, run `npx hardhat build` (Hardhat 3) or `npx hardhat compile` (Hardhat 2).
 
-Then write the request file. This script, `scripts/write-verify-input.ts`, builds the input with
-[`buildVerifyInputFromFoundry`](verify-from-a-foundry-project.md), adds the chain and the address from
-the environment, checks the whole request with `validateInput()`, and writes `verify-input.json`
-with `route.backend`, the explorer to submit to.
-For Hardhat, use [`buildVerifyInputFromHardhat`](verify-from-a-hardhat-project.md) the same way. Run it
-with `node scripts/write-verify-input.ts`:
+`--foundry .` and `--contract path:Name` then point the CLI at the project and the contract. It
+finds the contract's artifact and the build-info file that lists it, whose name is a hash. For
+Hardhat, pass `--hardhat .` with the contract's path, such as `contracts/Greeter.sol:Greeter`.
+[CLI](../reference/cli.md#verify) lists `--out-dir` and `--artifact` for other layouts.
 
-```ts
-import { writeFile } from "node:fs/promises";
-
-import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
-import { validateInput } from "explorer-verify";
-
-const { CHAIN_ID, CONTRACT_ADDRESS } = process.env;
-if (CHAIN_ID === undefined || CONTRACT_ADDRESS === undefined) {
-  throw new Error("Set CHAIN_ID and CONTRACT_ADDRESS.");
-}
-const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
-// Throws invalid-input, naming each bad field, before the CLI runs.
-const request = validateInput({ ...built, chainId: Number(CHAIN_ID), address: CONTRACT_ADDRESS });
-// verify submits only where the request says: a backend, or "auto" for the routing table's pick.
-await writeFile(
-  "verify-input.json",
-  JSON.stringify({ ...request, route: { backend: "sourcify" } }),
-);
-console.log(`verify-input.json: ${request.contractName} on chain ${String(request.chainId)}`);
-```
-
-With `CHAIN_ID=11155111` and the Greeter's address, it prints:
-
-```text
-verify-input.json: src/Greeter.sol:Greeter on chain 11155111
-```
-
-The file holds no key: the request has no field for one. `--input-json` reads it, and
-`explorer-verify` ships its JSON Schema as `explorer-verify/input.schema.json`
-([The request as JSON](../reference/cli.md#the-request-as-json)). You can also pass the build files
-with `--input` and the address and chain as arguments; Foundry and Hardhat name build-info files by
-a hash, so the script is simpler in a job.
+A job that writes the request itself, with
+[`buildVerifyInputFromFoundry`](verify-from-a-foundry-project.md) and `validateInput()`, can pass
+the file with `--input-json` instead
+([The request as JSON](../reference/cli.md#the-request-as-json)). It holds no key: the request has
+no field for one.
 
 ## Dry run first
 
-A dry run validates the request, resolves the explorer and looks the contract up, and never
-submits. It needs no key:
+A dry run builds and validates the input, resolves the explorer and looks the contract up, and
+never submits. It needs no key:
 
 ```sh
 # exit code 0
-explorer-verify verify --input-json verify-input.json --dry-run --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run --json
 ```
 
 ```text
@@ -90,9 +60,8 @@ explorer-verify verify --input-json verify-input.json --dry-run --json
 ```
 
 `backend` names the explorer the real run will use, and `routedBy` says how it was chosen. With
-`route.backend` set to `"auto"`, the routing table picks it partly by the keys set, so run the dry
-run with the same environment as the real run. Without `route.backend`, the real run exits 2 and
-submits nothing. `lookup` tells what the real
+`--backend auto`, the routing table picks it partly by the keys set, so run the dry run with the
+same environment as the real run. Without `--backend`, the real run exits 2 and submits nothing. `lookup` tells what the real
 run will do:
 
 - `exact` or `partial`: the explorer already holds the contract. The run submits nothing.
@@ -107,7 +76,7 @@ With `--json`, stdout holds exactly one line, the
 
 ```sh
 # exit code 0
-explorer-verify verify --input-json verify-input.json --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --json
 ```
 
 ```text
@@ -121,13 +90,14 @@ version 20261026, read on 2026-11-04).
 
 ## Act on the exit code
 
-`scripts/verify.sh` runs the command and branches on the exit code. It writes the handle of a
+`scripts/verify.sh` runs `explorer-verify verify` with the arguments it is given, adds `--json`,
+and branches on the exit code. It writes the handle of a
 pending job as a step output, `handle`, so a later job can resume it, and it fails the step on
 every other code but 0. It needs `bash` and `jq`:
 
 ```bash
 #!/usr/bin/env bash
-# Verifies the request in $1. Exit codes: https://aelmanaa.github.io/explorer-verify/reference/json-output
+# Runs explorer-verify verify with the given arguments. Exit codes: https://aelmanaa.github.io/explorer-verify/reference/json-output
 set -uo pipefail
 
 # Escapes text from an explorer for a workflow command line: %, CR and LF.
@@ -139,7 +109,7 @@ escape() {
   printf '%s' "$text"
 }
 
-envelope=$(explorer-verify verify --input-json "$1" --json --timeout "${VERIFY_TIMEOUT:-300}")
+envelope=$(explorer-verify verify "$@" --json --timeout "${VERIFY_TIMEOUT:-300}")
 code=$?
 
 case "$code" in
@@ -153,13 +123,13 @@ case "$code" in
       echo "handle=$handle" >>"${GITHUB_OUTPUT:-/dev/null}"
       exit 0
     fi
-    echo "::error::$(escape "$(jq -r '.error.code + ": " + .error.hint' <<<"$envelope")")"
+    echo "::error::$(escape "$(jq -r '.error.code + ": " + .error.message + " " + .error.hint' <<<"$envelope")")"
     ;;
   1)
     echo "::error::The explorer rejected the source: $(escape "$(jq -r '.result.reason' <<<"$envelope")")"
     ;;
   2 | 3 | 5 | 6 | 130)
-    echo "::error::$(escape "$(jq -r '.error.code + ": " + .error.hint' <<<"$envelope")")"
+    echo "::error::$(escape "$(jq -r '.error.code + ": " + .error.message + " " + .error.hint' <<<"$envelope")")"
     ;;
   *)
     echo "::error::explorer-verify exited with $code"
@@ -172,7 +142,7 @@ exit "$code"
 | --------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | 0         | `verified` or `already-verified`                              | Prints the status and the backend                                                                               |
 | 1         | `failed`: the explorer rejected the source                    | Fails with the reason. Fix the build, not the job                                                               |
-| 2         | Usage or input error; nothing was submitted                   | Fails with the code and the hint                                                                                |
+| 2         | Usage or input error; nothing was submitted                   | Fails with the code, the message and the hint                                                                   |
 | 3         | API key missing, rejected or out of quota                     | Fails with the hint. Check the secret                                                                           |
 | 4         | `not-confirmed` with a handle, or `verification-inconclusive` | With a handle: passes, warns and writes the `handle` output. Without one: fails; run `verify` again later, once |
 | 5         | Network or explorer unavailable after retries                 | Fails. Re-run the job later: `verify` looks the contract up before it submits                                   |
@@ -244,21 +214,23 @@ jobs:
       # Puts explorer-verify on the PATH of the later steps.
       - run: echo "$PWD/node_modules/.bin" >>"$GITHUB_PATH"
       - run: forge build --build-info
-      - run: node scripts/write-verify-input.ts
+      - run: >-
+          explorer-verify verify "$CONTRACT_ADDRESS" --chain 11155111
+          --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run --json
         env:
-          CHAIN_ID: "11155111"
           CONTRACT_ADDRESS: ${{ inputs.address }}
-      - run: explorer-verify verify --input-json verify-input.json --dry-run --json
-        env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
       - id: verify
-        run: bash scripts/verify.sh verify-input.json
+        run: >-
+          bash scripts/verify.sh "$CONTRACT_ADDRESS" --chain 11155111
+          --foundry . --contract src/Greeter.sol:Greeter --backend sourcify
         env:
+          CONTRACT_ADDRESS: ${{ inputs.address }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
 ```
 
-- The input goes into the script through `env`, not into the `run` line, so a crafted value cannot
-  change the shell command.
+- The address goes into the steps through `env`, not into the `run` line, so a crafted value
+  cannot change the shell command.
 - `npm ci --ignore-scripts` runs no install script, and no step before the dry run has the key, so
   install scripts never see it. The key is still in the environment of the steps that run
   `explorer-verify`, with the code your lockfile installed: trust your lockfile.
@@ -283,5 +255,4 @@ own testnet deployments. See [Etherscan plans and attribution](../explanation/et
 The CLI's integration tests run the `sh` examples on this page against the built command, in a
 Foundry project with a fake explorer, and check each exit code and stdout. They run
 `scripts/verify.sh` with `bash` and `jq` for exit codes 0, 2, 3 and 4, and check that it escapes
-`%`, CR and LF in a hint. The repository's docs test
-runs the TypeScript script in a Foundry project. The workflow itself is not run.
+`%`, CR and LF in a hint. The workflow itself is not run.

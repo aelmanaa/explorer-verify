@@ -340,7 +340,10 @@ describe("verify: usage errors name options, never values (R-AX-5, R-AX-9)", () 
     );
     assert.match(message, /--input\[1\] names a file that cannot be read \(ENOENT\)/);
     assert.match(message, /--input\[2\] is not valid JSON/);
-    assert.match(message, /--input\[3\] must name a regular file/);
+    assert.match(
+      message,
+      /--input\[3\] names a folder, not a file: for a Foundry or Hardhat project, pass --foundry/,
+    );
     assert.doesNotMatch(message, /secretname|broken-input/);
   });
 

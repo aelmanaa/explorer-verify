@@ -41,8 +41,17 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
 /** A JSON value read from a file or stdin, or the issue that stopped it. */
 export type ReadJson = { readonly value: unknown } | { readonly issue: InputIssue };
 
-/** Thrown when a path is not a regular file. */
-class NotRegularFile extends Error {}
+/** Thrown when a path is not a regular file; `folder` says whether it is a folder. */
+class NotRegularFile extends Error {
+  readonly folder: boolean;
+  constructor(folder: boolean) {
+    super("not a regular file");
+    this.folder = folder;
+  }
+}
+
+/** The issue message of a path that names a folder. */
+export const FOLDER_MESSAGE = "must name a regular file, not a folder";
 
 /** Thrown when a file or stdin holds more than {@link MAX_JSON_BYTES}. */
 class TooLarge extends Error {}
@@ -71,7 +80,7 @@ async function readFileText(path: string, limit: number): Promise<string> {
   try {
     const stat = await file.stat();
     if (!stat.isFile()) {
-      throw new NotRegularFile();
+      throw new NotRegularFile(stat.isDirectory());
     }
     if (stat.size > limit) {
       throw new TooLarge();
@@ -115,7 +124,7 @@ function parsed(text: string, field: string): ReadJson {
 /** The issue of a read that failed. */
 function readIssue(error: unknown, field: string, unreadable: string): InputIssue {
   if (error instanceof NotRegularFile) {
-    return { field, message: "must name a regular file" };
+    return { field, message: error.folder ? FOLDER_MESSAGE : "must name a regular file" };
   }
   if (error instanceof TooLarge) {
     return { field, message: `must be at most ${String(MAX_JSON_BYTES / 1024 / 1024)} MiB` };

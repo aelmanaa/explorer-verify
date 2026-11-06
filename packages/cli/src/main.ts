@@ -15,11 +15,11 @@ import {
   parseHandle,
   toEnvelope,
 } from "explorer-verify";
-import type { ExitCode, Handle, InputIssue } from "explorer-verify";
+import type { Envelope, ExitCode, Handle, InputIssue } from "explorer-verify";
 
 import { readArguments } from "./arguments.ts";
 import type { Arguments, OptionValue } from "./arguments.ts";
-import { stringOption, usageError } from "./command.ts";
+import { USAGE_HINT, stringOption, usageError } from "./command.ts";
 import type { Command, CommandContext, CommandResult, RunCommand } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
 import { helpResult, helpText } from "./help.ts";
@@ -296,6 +296,16 @@ async function runCommand(
   }
 }
 
+/**
+ * The envelope with the CLI's usage hint in place of the library's generic `invalid-input` hint,
+ * which names `details`, a field the envelope does not carry.
+ */
+function withUsageHint(envelope: Envelope): Envelope {
+  return "error" in envelope && envelope.error.hint === ERROR_HINTS["invalid-input"]
+    ? { ...envelope, error: { ...envelope.error, hint: USAGE_HINT } }
+    : envelope;
+}
+
 /** Writes the outcome: stdout from its envelope, its error line on stderr; returns its exit code. */
 function finish(
   outcome: Outcome,
@@ -304,7 +314,7 @@ function finish(
   options: { json: boolean; color: boolean },
 ): ExitCode {
   // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8).
-  const envelope = toEnvelope(outcome);
+  const envelope = withUsageHint(toEnvelope(outcome));
   const code = exitCodeOf(outcome);
   const text = stdoutText(envelope, options.json, options.color);
   // The stderr writer never throws, so stdout is written whatever stderr does.
@@ -367,13 +377,15 @@ async function runCli(
   }
   const command = commands.find(({ name }) => name === args.command);
   if (command !== undefined && !args.help && args.positionals.length > command.maxPositionals) {
-    issues.push({
-      field: command.name,
-      message:
-        command.maxPositionals === 0
-          ? "takes no arguments"
-          : `takes at most ${String(command.maxPositionals)} arguments`,
-    });
+    issues.push(
+      command.extraArguments?.(args.values) ?? {
+        field: command.name,
+        message:
+          command.maxPositionals === 0
+            ? "takes no arguments"
+            : `takes at most ${String(command.maxPositionals)} argument${command.maxPositionals === 1 ? "" : "s"}`,
+      },
+    );
   }
   const version = args.values.get("version") === true;
   if (state.received === undefined && issues.length === 0 && (args.help || version)) {

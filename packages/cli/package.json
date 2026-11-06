@@ -65,6 +65,8 @@
     "pkg:check": "publint --strict && attw --pack . --profile esm-only"
   },
   "dependencies": {
+    "@explorer-verify/foundry": "workspace:*",
+    "@explorer-verify/hardhat": "workspace:*",
     "explorer-verify": "workspace:*"
   },
   "devDependencies": {

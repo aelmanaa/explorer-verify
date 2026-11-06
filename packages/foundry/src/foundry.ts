@@ -207,6 +207,14 @@ function relative(root: string, file: string): string {
   return path.relative(root, file).split(path.sep).join("/");
 }
 
+/**
+ * `file` as an error names it: relative to `root` when it is inside, else the absolute path, so a
+ * file outside the project is not shown as a path that starts with `..`.
+ */
+function shown(root: string, file: string): string {
+  return isInside(root, file) ? relative(root, file) : file.split(path.sep).join("/");
+}
+
 /** Whether `file` is `dir` or inside it. */
 function isInside(dir: string, file: string): boolean {
   const rel = path.relative(dir, file);
@@ -226,7 +234,7 @@ async function isDirectory(dir: string): Promise<boolean> {
  * `field`, naming the file relative to the root, with the Node error as its cause.
  */
 async function readText(root: string, file: string, field: string, limit: number): Promise<string> {
-  const name = relative(root, file);
+  const name = shown(root, file);
   try {
     const info = await stat(file);
     if (!info.isFile()) {
@@ -259,7 +267,7 @@ async function readDirectory(
       isDirectory: entry.isDirectory(),
     }));
   } catch (error) {
-    throw invalid(field, `could not be read: ${relative(root, dir)}`, READ_HINT, error);
+    throw invalid(field, `could not be read: ${shown(root, dir)}`, READ_HINT, error);
   }
 }
 
@@ -428,11 +436,7 @@ async function readArtifact(
   const parsed = parseJson(await readText(root, file, field, JSON_LIMIT));
   const fields = fieldsOf(parsed);
   if (fields === undefined) {
-    throw invalid(
-      field,
-      `holds a file that is not a JSON object: ${relative(root, file)}`,
-      JSON_HINT,
-    );
+    throw invalid(field, `holds a file that is not a JSON object: ${shown(root, file)}`, JSON_HINT);
   }
   if (!ARTIFACT_FIELDS.some((name) => fields.has(name))) {
     return { match: undefined, artifact: false };
@@ -530,7 +534,7 @@ async function readNamedArtifact(
   if (!artifact) {
     throw invalid(
       "artifact",
-      `is not a Foundry artifact with abi or bytecode: ${relative(root, file)}`,
+      `is not a Foundry artifact with abi or bytecode: ${shown(root, file)}`,
     );
   }
   if (match === undefined) {
@@ -572,7 +576,7 @@ async function findBuildInfo(
     if (document === undefined) {
       throw invalid(
         "buildInfoDir",
-        `holds a file that is not JSON: ${relative(root, file)}`,
+        `holds a file that is not JSON: ${shown(root, file)}`,
         JSON_HINT,
       );
     }
