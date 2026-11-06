@@ -127,7 +127,7 @@ const MAX_LENGTH_GAP = 2;
  * @param name - The typed name.
  * @returns One of {@link CHAIN_NAMES}, or `undefined`.
  */
-export function closestChain(name: string): string | undefined {
+function closestChain(name: string): string | undefined {
   const typed = normal(name);
   const names = [...CHAIN_NAMES.keys()];
   const same = names.find((each) => normal(each) === typed);
