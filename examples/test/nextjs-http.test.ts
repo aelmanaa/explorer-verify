@@ -1,5 +1,5 @@
 // The Next.js example over real HTTP: verify() in the "browser" sends each Etherscan request through
-// the guide's handlerFetch, with the real global fetch, to the route's POST served by node:http on
+// handlerUrl, with the real global fetch, to the route's POST served by node:http on
 // 127.0.0.1. Etherscan itself is replaced by recorded answers. The handler's answer comes from
 // another origin than api.etherscan.io, as it does in a browser, and must be read as an answer, not
 // as a redirect (decision 0035, issue #183). A redirect from the handler is still refused.
@@ -14,7 +14,6 @@ import { ExplorerVerifyError, verify } from "explorer-verify";
 import type { VerifyInput } from "explorer-verify";
 
 import { POST } from "../server-nextjs/app/api/verify/route.ts";
-import { handlerFetch } from "../server-nextjs/lib/verify-client.ts";
 import {
   answer,
   captureConsole,
@@ -116,7 +115,7 @@ function etherscan(t: TestContext, answers: readonly Response[]): string[] {
 }
 
 describe("examples/server-nextjs over HTTP (decision 0035)", () => {
-  it("verify() reads the route's answer through handlerFetch, as a browser does (#183)", async (t) => {
+  it("verify() reads the route's answer through handlerUrl, as a browser does (#183)", async (t) => {
     captureConsole(t);
     const upstream = etherscan(t, [answer(CREATION.body), answer(LOOKUP.body)]);
     const origin = await listen(t, async (base, req, res) => {
@@ -126,8 +125,7 @@ describe("examples/server-nextjs over HTTP (decision 0035)", () => {
     });
 
     const result = await verify(INPUT, {
-      route: { backend: "etherscan-v2" },
-      fetch: handlerFetch(`${origin}/api/verify`),
+      handlerUrl: `${origin}/api/verify`,
     });
 
     assert.equal(result.status, "already-verified");
@@ -152,8 +150,7 @@ describe("examples/server-nextjs over HTTP (decision 0035)", () => {
 
     await assert.rejects(
       verify(INPUT, {
-        route: { backend: "etherscan-v2" },
-        fetch: handlerFetch(`${origin}/api/verify`),
+        handlerUrl: `${origin}/api/verify`,
       }),
       (error: unknown) => {
         assert.ok(error instanceof ExplorerVerifyError);

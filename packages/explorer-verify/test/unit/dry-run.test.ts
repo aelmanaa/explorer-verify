@@ -187,7 +187,7 @@ describe("dryRun (R-AX-8)", () => {
     assert.ok(!JSON.stringify(result).includes(KEY));
   });
 
-  it("looks up a keyed backend without a key when fetch is injected (R-SRV-5)", async () => {
+  it("skips the lookup of a keyed backend without a key, even when fetch is injected (decision 0046)", async () => {
     const keyed = keyedBackend();
     const result = await runDryRun(
       input(),
@@ -197,6 +197,21 @@ describe("dryRun (R-AX-8)", () => {
       },
       { backends: { sourcify, "etherscan-v2": keyed.backend } },
     );
+    assert.equal(result.lookup, "skipped");
+    assert.equal(keyed.lookups(), 0);
+  });
+
+  it("looks up a keyed backend without a key through handlerUrl (R-SRV-5, decision 0046)", async () => {
+    const keyed = keyedBackend();
+    const result = await runDryRun(
+      input(),
+      {
+        fetch: () => Promise.reject(new Error("no request")),
+        handlerUrl: "https://dapp.example/api/verify",
+      },
+      { backends: { sourcify, "etherscan-v2": keyed.backend } },
+    );
+    assert.equal(result.backend, "etherscan-v2");
     assert.equal(result.lookup, "exact");
     assert.equal(keyed.lookups(), 1);
   });

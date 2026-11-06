@@ -522,9 +522,11 @@ these options for this dapp:
   controls; here users deploy from their own wallets, so limit callers with `rateLimit` and your own
   sign-in.
 
-The block below runs both halves in one Node script, so you can try the path before you deploy the
-server. The handler is created as on the server; the browser's `fetch` calls it directly, as a
-request from the dapp's origin:
+The browser passes the handler's URL to `verify()` as `handlerUrl`. Each Etherscan request then
+goes to the handler with no key. Sepolia's row lists Etherscan first, so the call routes there, as it
+would with a key. The block below runs both halves in one Node script, so you can try the path
+before you deploy the server. The handler is created as on the server; a `fetch` passed next to
+`handlerUrl` calls it directly, as a request from the dapp's origin:
 
 ```ts
 import { verify } from "explorer-verify";
@@ -545,20 +547,18 @@ const handler = createVerifyHandler({
   rateLimit: fromDapp,
 });
 
-// Browser side: send each Etherscan request to the handler. Here the handler is called directly.
-const viaHandler: typeof fetch = async (input, init) => {
-  const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.origin !== "https://api.etherscan.io") {
-    return await fetch(input, init);
-  }
+// Browser side: handlerUrl sends each Etherscan request to the handler, with no key. Here the
+// handler is called directly, in place of the network.
+const toHandler: typeof fetch = async (target, init) => {
   const headers = new Headers(init?.headers);
   headers.set("origin", DAPP_ORIGIN);
-  return await handler(new Request(`${DAPP_ORIGIN}/api/verify${url.search}`, { ...init, headers }));
+  const url = target instanceof Request ? target.url : String(target);
+  return await handler(new Request(url, { ...init, headers }));
 };
 
 const result = await verify(input, {
-  route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
-  fetch: viaHandler,
+  handlerUrl: `${DAPP_ORIGIN}/api/verify`,
+  fetch: toHandler,
 });
 console.log(`${result.status} ${result.backend}`);
 ```
@@ -571,9 +571,8 @@ already-verified etherscan-v2
 
 In the dapp, the handler runs on your server and the browser's `fetch` posts to it. Save this as
 `src/verify-etherscan.ts`, and call `verifyOnEtherscan(input)` with the input of step 3.
-This path from a page works from the next release of explorer-verify, which carries the fix for
-[issue #183](https://github.com/aelmanaa/explorer-verify/issues/183). The fix is merged but not
-yet published; an earlier build reads the handler's answer as a redirect and stops.
+`handlerUrl` and the fix for [issue #183](https://github.com/aelmanaa/explorer-verify/issues/183)
+come with the next release.
 
 <!-- no-run: it posts to /api/verify on the dapp's own origin, which a test run does not serve. -->
 
@@ -581,31 +580,19 @@ yet published; an earlier build reads the handler's answer as a redirect and sto
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-/** Sends each Etherscan request to the dapp's server, and any other request as it is. */
-export const viaHandler: typeof fetch = async (input, init) => {
-  const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.origin !== "https://api.etherscan.io") {
-    return await fetch(input, init);
-  }
-  return await fetch(`/api/verify${url.search}`, init);
-};
-
-/** Verifies on Etherscan through the dapp's server, which adds the key. */
+/** Verifies on Etherscan through the dapp's server at /api/verify, which adds the key. */
 export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResult> {
-  return await verify(input, {
-    route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
-    fetch: viaHandler,
-  });
+  return await verify(input, { handlerUrl: "/api/verify" });
 }
 ```
 
-`verify()` sends no key when it has none: the handler adds yours. The answer comes from
-`/api/verify` on the dapp's origin, and `verify()` reads it because `viaHandler` chose that URL; a
-redirect from your server still ends the call with `unexpected-response`. A result reached through
-the handler has no `explorerUrl`. The guide's `handlerFetch` also handles a `Request` passed as the
-first argument. [Etherscan](../reference/etherscan.md) describes what the client sends and how it
-reads each answer, and [Server handler](../reference/server-handler.md) lists the handler's
-options and refusals.
+The browser sends no key: the handler adds yours. The answer comes from `/api/verify` on the
+dapp's origin, and `verify()` reads it because `handlerUrl` chose that URL; a redirect from your
+server still ends the call with `unexpected-response`. The routing table still decides the route,
+so a result reached through the handler carries the Etherscan page as `explorerUrl`.
+[Etherscan](../reference/etherscan.md) describes what the client sends and how it reads each
+answer, and [Server handler](../reference/server-handler.md) lists the handler's options and
+refusals.
 
 ## Run the example
 

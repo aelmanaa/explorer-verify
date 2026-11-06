@@ -1,20 +1,14 @@
 // The Cloudflare Workers example (examples/server-cloudflare): the Worker's `fetch` called with the
-// Request a browser on the dapp's origin sends through the client's injected fetch, against
+// Request a browser on the dapp's origin sends through handlerUrl, against
 // recorded Etherscan answers (R-SRV-1, R-SRV-2, R-SRV-4, R-SRV-5), its CORS answers, and the key
 // never in a response or a log line (R-SEC-1).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
-import { ExplorerVerifyError } from "explorer-verify";
-import type { VerifyInput } from "explorer-verify";
 import { SOURCE_MARKER } from "explorer-verify/server";
 
-import {
-  handlerFetch,
-  verifyFromBrowser,
-  WORKER_URL,
-} from "../server-cloudflare/client/verify-client.ts";
+import { verifyFromBrowser, WORKER_URL } from "../server-cloudflare/client/verify-client.ts";
 import worker from "../server-cloudflare/src/index.ts";
 import type { Env } from "../server-cloudflare/src/index.ts";
 import {
@@ -26,7 +20,10 @@ import {
   ETHERSCAN_API_URL,
   KEY,
   network,
+  greeterInput,
+  inPage,
   recorded,
+  toHandler,
 } from "./network.ts";
 
 const DAPP = "https://your-dapp.example";
@@ -43,17 +40,21 @@ function bindings(deployers?: string): Env {
     : { ETHERSCAN_API_KEY: KEY, ALLOWED_ORIGIN: DAPP, VERIFY_DEPLOYERS: deployers };
 }
 
-/** A browser on `origin` that calls the Worker through the dapp's injected fetch. */
+/** A browser on `origin` that calls the Worker through handlerUrl. */
 function browser(
   t: TestContext,
   env: Env,
   answers: readonly Response[],
   origin: string = DAPP,
-): { viaHandler: typeof fetch; net: ReturnType<typeof network>; lines: string[] } {
+): {
+  viaHandler: ReturnType<typeof toHandler>;
+  net: ReturnType<typeof network>;
+  lines: string[];
+} {
   const serve = async (request: Request): Promise<Response> => await worker.fetch(request, env);
   const net = network(WORKER, serve, { origin, "sec-fetch-site": "cross-site" }, answers);
   t.mock.method(globalThis, "fetch", net.fetch);
-  return { viaHandler: handlerFetch(WORKER_URL), net, lines: captureConsole(t) };
+  return { viaHandler: toHandler(WORKER_URL), net, lines: captureConsole(t) };
 }
 
 /** A CORS preflight for a POST from `origin`. */
@@ -117,19 +118,12 @@ describe("examples/server-cloudflare", () => {
     assert.equal(net.upstream.length, 1, "no deployer check without VERIFY_DEPLOYERS");
   });
 
-  it("forwards a Request object's method, headers and body to the handler", async (t) => {
-    const { viaHandler, net } = browser(t, bindings(), [answer(STATUS.body, STATUS.status)]);
-    const [url, init] = clientRequest(STATUS.fields);
-    const response = await viaHandler(new Request(url, init));
-    assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), STATUS.body);
-    assert.equal(net.upstream[0]?.form.get("guid"), STATUS.fields.guid);
-    // A GET reaches the handler without a body and is refused there.
-    const get = await viaHandler(new Request(url, { headers: { "x-test": "1" } }), {
-      method: "GET",
-    });
+  it("refuses a GET, which carries no body", async (t) => {
+    const { viaHandler, net } = browser(t, bindings(), []);
+    const [url] = clientRequest(STATUS.fields);
+    const get = await viaHandler(url, { method: "GET", headers: { "x-test": "1" } });
     assert.equal(get.status, 405);
-    assert.equal(net.upstream.length, 1);
+    assert.equal(net.upstream.length, 0);
   });
 
   it("answers the preflight for the dapp's origin only", async () => {
@@ -205,30 +199,17 @@ describe("examples/server-cloudflare", () => {
     }
   });
 
-  it("verifyFromBrowser passes the injected fetch to verify()", async () => {
-    // Chain id 0 fails validation before any request is sent.
-    const input: VerifyInput = {
-      chainId: 0,
-      address: "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5",
-      compiler: {
-        kind: "solc",
-        version: "0.8.24+commit.e11b9ed9",
-        input: { language: "Solidity", sources: {}, settings: {} },
-      },
-      contractName: "src/ProbeDChild.sol:ProbeDChild",
-    };
-    await assert.rejects(
-      verifyFromBrowser(input),
-      (error: unknown) => error instanceof ExplorerVerifyError && error.code === "invalid-input",
+  it("verifyFromBrowser sends each Etherscan request to the Worker, with no key", async (t) => {
+    const { result, sent } = await inPage(
+      t,
+      `${DAPP}/app/`,
+      async () => await verifyFromBrowser(greeterInput()),
     );
-  });
-
-  it("sends a request to another explorer directly, not to the Worker", async (t) => {
-    const { viaHandler, net } = browser(t, bindings(), []);
-    const sourcify =
-      "https://sourcify.dev/server/v2/contract/421614/0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5";
-    await viaHandler(sourcify);
-    await viaHandler(new Request(sourcify));
-    assert.deepEqual(net.elsewhere, [sourcify, sourcify]);
+    assert.equal(result.status, "already-verified");
+    assert.equal(result.backend, "etherscan-v2");
+    assert.equal(sent.length, 1);
+    const [first = ""] = sent;
+    assert.ok(first.startsWith(`${WORKER_URL}?chainid=11155111 `), first);
+    assert.ok(!first.includes("apikey"), first);
   });
 });

@@ -17,7 +17,9 @@ Fix: call again later. If the error persists, check the explorer's status page a
 Default hint: Call again later. If the error persists, check the explorer's status page and report
 details.status and details.excerpt.
 
-Retryable: yes.
+Retryable: yes, except a 4xx refusal of your server handler that names its code, such as
+`chain-not-allowed`: it holds until you change the `createVerifyHandler` options, so it is not
+retryable and its hint says so ([API keys](../api-keys.md#a-server-adds-the-key)).
 
 Exit code: 5
 

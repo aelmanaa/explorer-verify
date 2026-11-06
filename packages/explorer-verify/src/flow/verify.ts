@@ -9,10 +9,11 @@ import type { Backend, Context, Match, PollOutcome, Target } from "../backends/b
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
-import { collisions, readApiKeys, requireKey } from "../http/api-keys.ts";
-import type { ApiKeysReader } from "../http/api-keys.ts";
+import { collisions, keyFor, readApiKeys, requireKey } from "../http/api-keys.ts";
+import type { CheckedKeys, ApiKeysReader } from "../http/api-keys.ts";
 import { MAX_TIMER_MS, platformFetch, REQUEST_TIMEOUT_MS, sleep } from "../http/fetch.ts";
 import type { Budget, HttpContext } from "../http/fetch.ts";
+import type { ResolvedHandler } from "../http/handler-url.ts";
 import { endpointSecrets } from "../http/rpc.ts";
 import type { Endpoint } from "../http/rpc.ts";
 import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-args.ts";
@@ -24,6 +25,8 @@ import {
   checkRoute,
   loadRoutingTable,
   readsTable,
+  ETHERSCAN_API_URL,
+  HANDLER_KEY,
   routeFrom,
   unsupported,
 } from "../routing/resolve.ts";
@@ -273,6 +276,13 @@ const TABLES = new WeakMap<TableLoader, RoutingTable>();
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
   readonly fetch: typeof fetch | undefined;
+  /**
+   * The caller's `handlerUrl`, unchecked: the caller's server handler, which adds the Etherscan
+   * key (decision 0046). {@link withHandler} checks it.
+   */
+  readonly handlerUrl?: unknown;
+  /** The checked handler, set by {@link withHandler}; `undefined` until then or without one. */
+  readonly handler?: ResolvedHandler | undefined;
   readonly signal: AbortSignal | undefined;
   readonly timeoutMs: number;
   readonly pollIntervalMs: number;
@@ -295,7 +305,7 @@ export interface Settings {
 }
 
 /** The options read in one pass, before the keys and `rpcUrl` are checked. */
-type ReadSettings = Omit<Settings, "apiKeys" | "keySecrets" | "rpcUrl" | "rpcSecrets">;
+type ReadSettings = Omit<Settings, "apiKeys" | "keySecrets" | "rpcUrl" | "rpcSecrets" | "handler">;
 
 /** Everything one call shares once the route is known. */
 export interface Call {
@@ -423,11 +433,12 @@ export async function runVerify(
 /** Steps 1 to 7 of {@link verify}, once the options are read. */
 async function verifyWith(
   input: VerifyInput,
-  settings: Settings,
+  read: Settings,
   dependencies: FlowDependencies,
 ): Promise<VerifyResult> {
   const checked = validateInput(input);
-  const budget = startBudget(settings);
+  const budget = startBudget(read);
+  const settings = await withHandler(read, budget);
   const route = await routeOf(checked.chainId, settings, dependencies, budget);
   return await verifyOnRoute(checked, route, settings, dependencies, budget, true);
 }
@@ -640,9 +651,19 @@ export function openContext(
   if (clashes.length > 0) {
     throw invalidOptions(clashes, secrets);
   }
-  // Before any request: a keyed backend with no key bound to its host (R-AX-7).
+  // Before any request, in every flow, a dry run included: a key bound to a route that goes to
+  // the caller's server handler would reach the handler (decision 0046).
+  const { handler } = settings;
+  const serverAddsKey = handler?.serves(route) === true;
+  if (serverAddsKey) {
+    if (keyFor({ route, apiKeys }, route.backend, route.apiBase) !== undefined) {
+      handler?.refuseKey(secrets);
+    }
+  }
+  // Before any request: a keyed backend with no key bound to its host (R-AX-7), unless the
+  // caller's server handler adds it.
   if (checkKey) {
-    requireKey({ route, apiKeys }, settings.fetch !== undefined, secrets);
+    requireKey({ route, apiKeys }, serverAddsKey, secrets);
   }
   // The one observer of this call: every request, retry and stage goes through it, so a broken
   // `onEvent` is reported once per call (decision 0010).
@@ -657,6 +678,7 @@ export function openContext(
       apiKeys,
       pollIntervalMs: settings.pollIntervalMs,
       http: httpContext(route, settings, observer, secrets, budget, random),
+      handler: serverAddsKey ? handler : undefined,
     },
     observer,
   };
@@ -679,15 +701,30 @@ export function announceRoute(call: Call, message: string): void {
   observer.emit({
     type: "verify.routed",
     backend: backend.name,
-    apiHost: new URL(ctx.route.apiBase).host,
+    apiHost: apiHostOf(ctx),
     routedBy,
     ...(skipped.length === 0 ? {} : { skipped: skipped.join(",") }),
   });
   observer.log.debug(message, {
     backend: backend.name,
     chainId: target.chainId,
-    api: ctx.route.redactedApiUrl,
+    api: ctx.handler?.url ?? ctx.route.redactedApiUrl,
   });
+}
+
+/**
+ * The host the call's requests go to: the server handler's for a route that goes through it
+ * (decision 0046), the route's API host otherwise.
+ *
+ * @param ctx - The call's context.
+ * @returns The host, as events and dry-run results name it.
+ * @example
+ * ```ts
+ * observer.emit({ type: "verify.routed", backend, apiHost: apiHostOf(ctx) });
+ * ```
+ */
+export function apiHostOf(ctx: Context): string {
+  return new URL(ctx.handler?.url ?? ctx.route.apiBase).host;
 }
 
 /**
@@ -791,6 +828,8 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
       logger,
       onEvent,
       route: own(options, "route"),
+      // Checked by withHandler(), which loads the check only when the option is set.
+      handlerUrl: own(options, "handlerUrl"),
       allowSourcifyFallback: own(options, "allowSourcifyFallback"),
       timeoutMs: duration(own(options, "timeoutMs"), DEFAULT_TIMEOUT_MS, 1, "timeoutMs", issues),
       pollIntervalMs: duration(
@@ -955,6 +994,64 @@ export function checkRouteOf(
 }
 
 /**
+ * The keys the routing table chooses a backend with. With `handlerUrl`, `etherscan-v2` counts as
+ * keyed, as with `apiKeys["etherscan-v2"]`: the server handler adds its key (decision 0046). The
+ * value marks the backend only; it is never sent, because no route that uses it gets a key from
+ * `apiKeys`.
+ *
+ * @param settings - The options from {@link settingsOf}.
+ * @returns The keys by backend, for `RouteChoice.apiKeys`.
+ * @example
+ * ```ts
+ * const route = routeFrom(1, checked, { apiKeys: choiceKeys(settings), table });
+ * ```
+ */
+export function choiceKeys(settings: Settings): CheckedKeys {
+  const keys = settings.apiKeys();
+  return settings.handler === undefined ? keys : { ...keys, "etherscan-v2": HANDLER_KEY };
+}
+
+/** The `handlerUrl` code: its check, and the refusal of a key bound to the handler's route. */
+interface HandlerCode {
+  readonly resolveHandler: (settings: Settings, etherscanApi: string) => ResolvedHandler;
+}
+
+/** Loads the `handlerUrl` code, in a chunk of its own (decision 0046). */
+const loadHandlerCode = async (): Promise<HandlerCode> => await import("../http/handler-url.ts");
+
+/** The `handlerUrl` code each loader has given, as {@link LOADED} keeps clients. */
+const HANDLER_CODE = new WeakMap<() => Promise<HandlerCode>, HandlerCode>();
+
+/**
+ * `settings` with `handlerUrl` checked, when the caller set it. The check loads with a dynamic
+ * `import()`, through {@link bounded}, so a caller who never sets `handlerUrl` never downloads it
+ * (decision 0046). Every flow calls it before it resolves the route.
+ *
+ * @param settings - The options from {@link settingsOf}.
+ * @param budget - The call's budget, from {@link startBudget}.
+ * @returns The settings, with `handler` set when `handlerUrl` is.
+ * @throws ExplorerVerifyError `invalid-input` naming `handlerUrl`; what {@link bounded} throws.
+ * @example
+ * ```ts
+ * const checked = await withHandler(settingsOf(options), budget);
+ * ```
+ */
+export async function withHandler(settings: Settings, budget: Budget): Promise<Settings> {
+  if (settings.handlerUrl === undefined) {
+    return settings;
+  }
+  const code = await bounded(
+    loadHandlerCode,
+    HANDLER_CODE,
+    "handlerUrl",
+    "etherscan-v2",
+    settings.signal,
+    budget,
+  );
+  return { ...settings, handler: code.resolveHandler(settings, ETHERSCAN_API_URL) };
+}
+
+/**
  * The routing table a checked route reads, loaded, or `undefined` for a route that `readsTable`
  * says needs none (decision 0040). A loader runs once per page or process: what
  * it gave is kept, and a load that failed is tried again by the next call. The load ends when the
@@ -1035,7 +1132,7 @@ export function routeWith(
   table: RoutingTable | undefined,
 ): Route {
   return routeFrom(chainId, checked, {
-    apiKeys: settings.apiKeys(),
+    apiKeys: choiceKeys(settings),
     allowSourcifyFallback: settings.allowSourcifyFallback === true,
     clients: clientsOf(dependencies),
     table,
@@ -1114,6 +1211,8 @@ function httpContext(
     budget,
     // Always set, so a `fetch` added to `Object.prototype` can never stand in for the default.
     fetch: settings.fetch ?? platformFetch,
+    // A route through the caller's server handler sends Etherscan requests there (decision 0046).
+    sendTo: settings.handler?.serves(route) === true ? settings.handler.sentUrl : undefined,
     signal: settings.signal,
     random,
   };

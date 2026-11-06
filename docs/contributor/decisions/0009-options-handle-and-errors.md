@@ -3,6 +3,9 @@
 Status: Accepted (2026-11-02). The brand-check point of section 3 is superseded by
 [decision 0044](0044-errors-narrow-by-code-and-carry-a-brand.md).
 
+Amended by [decision 0046](0046-handler-url-and-keyed-backend-names.md): `apiKeys` takes only the
+backends of `KeyedBackendName`, as the type `ApiKeys`.
+
 ## Context
 
 [architecture.md](../architecture.md) proposed `verify(input, options)` and

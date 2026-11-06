@@ -12,6 +12,7 @@ import {
   drive,
   fakeWallet,
   MemoryStorage,
+  ORIGIN,
   RECORDED_HANDLE,
   setGlobal,
   settle,
@@ -87,6 +88,7 @@ async function load(t: TestContext, options: PageOptions = {}): Promise<FakePage
   }
   setGlobal(t, "localStorage", storage);
   setGlobal(t, "window", { ethereum: fakeWallet().provider });
+  setGlobal(t, "location", { href: `${ORIGIN}/` });
   const getsourcecode = recorded("2026-11-04-getsourcecode-sepolia-greeter");
   const routes = dappRoutes({ apiKey: KEY, fetch: async () => answer(getsourcecode.body) });
   setGlobal(t, "fetch", options.fetch ?? browserNetwork(routes, options.sourcify).fetch);

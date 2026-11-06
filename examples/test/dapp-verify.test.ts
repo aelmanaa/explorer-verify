@@ -13,12 +13,13 @@ import type { VerifyInput } from "explorer-verify";
 import { dappRoutes } from "../dapp/server.ts";
 import { loadVerifyInput } from "../dapp/src/load-input.ts";
 import { resumeVerification } from "../dapp/src/resume.ts";
-import { verifyOnEtherscan, viaHandler } from "../dapp/src/verify-etherscan.ts";
+import { verifyOnEtherscan } from "../dapp/src/verify-etherscan.ts";
 import { PENDING_KEY, verifyOnSourcify } from "../dapp/src/verify.ts";
 import {
   ADDRESS,
   browserNetwork,
   MemoryStorage,
+  ORIGIN,
   RECORDED_HANDLE,
   setGlobal,
   settle,
@@ -56,6 +57,7 @@ function page(
       return next.clone();
     },
   });
+  setGlobal(t, "location", { href: `${ORIGIN}/` });
   const network = browserNetwork(routes, sourcify);
   setGlobal(t, "fetch", network.fetch);
   return { storage, upstream, network };
@@ -297,17 +299,22 @@ describe("examples/dapp/src/verify-etherscan.ts", () => {
     assert.deepEqual(network.sourcify, []);
   });
 
-  it("sends a Request for Etherscan to the server, and any other request as it is", async (t) => {
+  it("sends each Etherscan request to /api/verify on the page's origin, with no key", async (t) => {
+    const getsourcecode = recorded("2026-11-04-getsourcecode-sepolia-greeter");
+    page(t);
+    const loaded = await input(t);
     const seen: string[] = [];
-    setGlobal(t, "fetch", async (target: RequestInfo | URL) => {
-      seen.push(urlOf(target));
-      return new Response("ok");
+    setGlobal(t, "fetch", async (target: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(`${urlOf(target)} ${await new Response(init?.body).text()}`);
+      return answer(getsourcecode.body);
     });
-    await viaHandler(new Request(`${ETHERSCAN_API_URL}?chainid=11155111`));
-    await viaHandler("https://sourcify.dev/server/v2/contract/11155111/0x00");
-    assert.deepEqual(seen, [
-      "/api/verify?chainid=11155111",
-      "https://sourcify.dev/server/v2/contract/11155111/0x00",
-    ]);
+
+    const result = await settle(t, verifyOnEtherscan(loaded));
+
+    assert.equal(result.status, "already-verified");
+    assert.equal(seen.length, 1);
+    const [sent = ""] = seen;
+    assert.ok(sent.startsWith(`${ORIGIN}/api/verify?chainid=11155111 `), sent);
+    assert.ok(!sent.includes("apikey"), sent);
   });
 });

@@ -92,32 +92,23 @@ handler's answer, such as a 504, and not its own timeout.
 
 ## Point the client at it
 
-The browser keeps no key. It passes a `fetch` that sends each Etherscan request to your handler,
-with the same query, method and body, and leaves every other request alone. Pass it with
-`route.backend` set to `etherscan-v2`: the browser has no key, so without it the routing table
-sends the call to Sourcify. No other code changes between direct and proxied use.
+The browser keeps no key. It passes your handler's URL as `handlerUrl`. Each Etherscan request
+then goes to the handler, with the same query, method and body and no key, and every other request
+goes to its explorer unchanged. The routing table chooses as it does with an Etherscan key, so a
+chain whose row lists Etherscan first goes to the handler. No other code changes between direct and
+proxied use.
 
 <!-- no-run: it sends the requests to your own server's /api/verify route, which an offline run does not have. -->
 
 ```ts no-run
 import { verify } from "explorer-verify";
 
-const viaHandler: typeof fetch = async (input, init) => {
-  const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.origin !== "https://api.etherscan.io") {
-    return await fetch(input, init);
-  }
-  return await fetch(`/api/verify${url.search}`, init);
-};
-
-const result = await verify(input, {
-  fetch: viaHandler,
-  route: { backend: "etherscan-v2" },
-});
+const result = await verify(input, { handlerUrl: "/api/verify" });
 ```
 
-With `fetch` set, `verify()` sends the request without a key and leaves the key to the server; see
-[API keys](api-keys.md#a-missing-key). `checkStatus()` takes the same two options.
+`checkStatus()`, `dryRun()` and `linkProxy()` take the same option. An injected `fetch` alone
+does not send an Etherscan request without its key; see
+[API keys](api-keys.md#a-server-adds-the-key).
 
 ## Requests it accepts
 

@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError, checkStatus, verify } from "../../src/index.ts";
 import type { VerifyEvent, VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { jsKeys } from "../helpers/js-keys.ts";
 
 const CHAIN = 296;
 const ADDRESS = "0x80798fed44d6ec40d283bd44ddb08a6eb2d30be5";
@@ -207,7 +208,7 @@ describe("blackbox #63: key binding through verify() and checkStatus()", () => {
       verify(input(), {
         fetch: fake.fetch,
         route: { backend: "etherscan-compatible", apiUrl: API },
-        apiKeys: { "etherscan-compatible": ROUTE_KEY },
+        apiKeys: jsKeys("etherscan-compatible", ROUTE_KEY),
       }),
     );
     assert.equal(error.code, "invalid-input");

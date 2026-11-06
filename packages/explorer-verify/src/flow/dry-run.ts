@@ -10,11 +10,13 @@ import {
   DEFAULT_DEPENDENCIES,
   abortWins,
   announceRoute,
+  apiHostOf,
   openCall,
   routeOf,
   settingsOf,
   startBudget,
   withClient,
+  withHandler,
 } from "./verify.ts";
 import type { FlowDependencies } from "./verify.ts";
 
@@ -25,8 +27,8 @@ import type { FlowDependencies } from "./verify.ts";
  * 1. Validates the input and the options, and resolves the route, as `verify()` does. A bad
  *    input throws `invalid-input`, and a chain with no route throws `unsupported-chain`.
  * 2. When the route's backend needs an API key and none is set, it sends no request: the result
- *    says `lookup: "skipped"`. `verify()` would throw `missing-api-key` here. With an injected
- *    `fetch`, which may lead to a server that adds the key, it looks the contract up.
+ *    says `lookup: "skipped"`. `verify()` would throw `missing-api-key` here. With `handlerUrl`,
+ *    whose server handler adds the key, it looks the contract up.
  * 3. Otherwise it looks the contract up once and returns what it found.
  *
  * It emits `verify.validated`, `verify.routed` and `verify.lookup`, whose `match` is `skipped`
@@ -74,11 +76,12 @@ export async function runDryRun(
   options: VerifyOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<DryRunResult> {
-  const settings = settingsOf(options);
-  settings.signal?.throwIfAborted();
-  return await abortWins(settings.signal, async () => {
+  const read = settingsOf(options);
+  read.signal?.throwIfAborted();
+  return await abortWins(read.signal, async () => {
     const checked = validateInput(input);
-    const budget = startBudget(settings);
+    const budget = startBudget(read);
+    const settings = await withHandler(read, budget);
     const route = await routeOf(checked.chainId, settings, dependencies, budget);
     const target: Target = { chainId: checked.chainId, address: checked.address };
     const loaded = await withClient(route, dependencies, settings, budget);
@@ -86,12 +89,14 @@ export async function runDryRun(
     const { backend, ctx, observer } = call;
     observer.emit({ type: "verify.validated", chainId: target.chainId, address: target.address });
     announceRoute(call, `Dry run for ${target.address} on chain ${String(target.chainId)}`);
-    const apiHost = new URL(ctx.route.apiBase).host;
+    const apiHost = apiHostOf(ctx);
     const { routedBy } = route;
     const fields = { backend: backend.name, routedBy };
     const base = { status: "dry-run", backend: backend.name, apiHost } as const;
     const chosen = { routedBy };
-    if (keyMissing({ route, apiKeys: settings.apiKeys }, settings.fetch !== undefined)) {
+    if (
+      keyMissing({ route, apiKeys: settings.apiKeys }, settings.handler?.serves(route) === true)
+    ) {
       observer.emit({ type: "verify.lookup", backend: backend.name, match: "skipped" });
       observer.log.info(
         `${backend.name} needs an API key and none is set, so the dry run skipped the lookup. Nothing was submitted.`,

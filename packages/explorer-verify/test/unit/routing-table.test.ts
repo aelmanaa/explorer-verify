@@ -11,7 +11,7 @@ import type { Backend } from "../../src/backends/backend.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
 import { keyFor, requireKey } from "../../src/http/api-keys.ts";
-import type { ApiKeys } from "../../src/http/api-keys.ts";
+import type { CheckedKeys } from "../../src/http/api-keys.ts";
 import {
   ETHERSCAN_API_URL,
   SOURCIFY_API_URL,
@@ -89,7 +89,7 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
 
   it("skips a keyed backend without a key (R-RT-1)", () => {
     for (const apiKeys of [undefined, {}, { routescan: ROUTESCAN_KEY }] satisfies (
-      | ApiKeys
+      | CheckedKeys
       | undefined
     )[]) {
       const route = resolve(SEPOLIA, undefined, apiKeys === undefined ? {} : { apiKeys });
@@ -108,7 +108,7 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
     assert.equal(error.code, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2.",
+      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
     );
   });
 
@@ -373,7 +373,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
   });
 
   it("sends a key from apiKeys only to the table host of an unchanged route (R-SEC-2)", () => {
-    const apiKeys: ApiKeys = { "etherscan-v2": ETHERSCAN_KEY, routescan: ROUTESCAN_KEY };
+    const apiKeys: CheckedKeys = { "etherscan-v2": ETHERSCAN_KEY, routescan: ROUTESCAN_KEY };
     const keys = () => apiKeys;
     const ether = resolve(SEPOLIA, undefined, { apiKeys });
     assert.equal(

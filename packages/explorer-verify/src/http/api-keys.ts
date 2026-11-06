@@ -4,7 +4,7 @@
  * client sends its requests through {@link withKey}, so one rule decides where a key may go.
  * Internal: the package entry point does not export it.
  */
-import type { BackendName } from "../backend-names.ts";
+import type { BackendName, KeyedBackendName } from "../backend-names.ts";
 import { toBackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
@@ -14,13 +14,13 @@ import type { Route } from "../routing/resolve.ts";
 import type { HttpRequest } from "./fetch.ts";
 
 /** The caller's keys by backend, as `VerifyOptions.apiKeys` holds them once checked. */
-export type ApiKeys = Readonly<Partial<Record<BackendName, string>>>;
+export type CheckedKeys = Readonly<Partial<Record<BackendName, string>>>;
 
 /**
  * Returns the checked keys. A function, not the keys themselves, so `JSON.stringify` of a context
  * or of the settings never prints a key.
  */
-export type ApiKeysReader = () => ApiKeys;
+export type ApiKeysReader = () => CheckedKeys;
 
 /** The longest key accepted, in characters. */
 export const MAX_KEY_LENGTH = 1024;
@@ -35,8 +35,26 @@ export const MAX_KEY_LENGTH = 1024;
  */
 export const HOSTED_BLOCKSCOUT_HOST = "api.blockscout.com";
 
+// Each keyed backend once: a name missing here, or one that is not keyed, fails to compile.
+const KEYED: { readonly [B in KeyedBackendName]: B } = {
+  "etherscan-v2": "etherscan-v2",
+  routescan: "routescan",
+  "blockscout-hosted": "blockscout-hosted",
+};
+
+/**
+ * The backends that take a key from `VerifyOptions.apiKeys`, built from {@link KeyedBackendName}
+ * (decisions 0016, 0041 and 0046). The public type does not refer to this list.
+ *
+ * @example
+ * ```ts
+ * KEYED_BACKEND_NAMES.includes("routescan"); // true
+ * ```
+ */
+export const KEYED_BACKEND_NAMES: readonly KeyedBackendName[] = Object.values(KEYED);
+
 // Backends that take a key from `apiKeys`. Each key goes only to its backend's one API host.
-const KEY_BACKENDS: readonly BackendName[] = ["etherscan-v2", "routescan", "blockscout-hosted"];
+const KEY_BACKENDS: readonly BackendName[] = KEYED_BACKEND_NAMES;
 // Backends whose every request needs a key. Routescan has a keyless free tier; a standalone
 // explorer may or may not need one, so only its answer can tell.
 const KEY_REQUIRED: readonly BackendName[] = ["etherscan-v2", "blockscout-hosted"];
@@ -181,7 +199,7 @@ export function collisions(
 /** What {@link readApiKeys} found. */
 export interface ReadKeys {
   /** The valid keys. */
-  readonly keys: ApiKeys;
+  readonly keys: CheckedKeys;
   /** One issue per bad entry, naming `apiKeys` or `apiKeys.<backend>`. */
   readonly issues: InputIssue[];
   /** Every string value found, valid or not, for redaction. */
@@ -411,23 +429,25 @@ export function withKey(ctx: KeyContext, backend: BackendName, req: HttpRequest)
 
 /**
  * Whether the route needs a key (its backend always does, or its table entry says so), none is
- * bound to the route's host, and the caller did not inject `fetch`. {@link requireKey} throws in
- * that case; a dry run skips its lookup instead.
+ * bound to the route's host, and no server handler adds it. {@link requireKey} throws in that
+ * case; a dry run skips its lookup instead. An injected `fetch` does not count as a server that
+ * adds the key: only `VerifyOptions.handlerUrl` does (decision 0046).
  *
  * @param ctx - The route and the caller's keys.
- * @param injectedFetch - Whether the caller passed `VerifyOptions.fetch`.
+ * @param serverAddsKey - Whether the route's requests go to the caller's server handler, which
+ *   adds the key.
  * @returns `true` when a request would go out without the key it needs.
  * @example
  * ```ts
- * if (keyMissing({ route, apiKeys: settings.apiKeys }, settings.fetch !== undefined)) {
+ * if (keyMissing({ route, apiKeys: settings.apiKeys }, settings.handler?.serves(route) === true)) {
  *   // The dry run skips the lookup.
  * }
  * ```
  */
-export function keyMissing(ctx: KeyContext, injectedFetch: boolean): boolean {
+export function keyMissing(ctx: KeyContext, serverAddsKey: boolean): boolean {
   const { route } = ctx;
   return (
-    !injectedFetch &&
+    !serverAddsKey &&
     (needsKey(route.backend) || route.needsKey === true) &&
     keyFor(ctx, route.backend, route.apiBase) === undefined
   );
@@ -435,28 +455,26 @@ export function keyMissing(ctx: KeyContext, injectedFetch: boolean): boolean {
 
 /**
  * Throws `missing-api-key` before any request when the route needs a key (its backend always
- * does, or its table entry says so), none is bound to the route's host, and the caller did not
- * inject `fetch`. With an injected `fetch`, the request may reach a server that adds the key
- * (R-SRV-5), so it goes out without one and the explorer's answer decides, through
- * {@link keyErrorOf}.
+ * does, or its table entry says so), none is bound to the route's host, and the caller's server
+ * handler does not add it. An injected `fetch` does not change this (decision 0046). Only the
+ * error for `etherscan-v2` names `handlerUrl`: the server handler serves Etherscan alone.
  *
  * @param ctx - The route and the caller's keys.
- * @param injectedFetch - Whether the caller passed `VerifyOptions.fetch`.
+ * @param serverAddsKey - Whether the route's requests go to the caller's server handler.
  * @param secrets - The call's keys, removed from the error.
  * @throws ExplorerVerifyError `missing-api-key` naming the backend.
  * @example
  * ```ts
- * requireKey({ route, apiKeys: settings.apiKeys }, settings.fetch !== undefined, secrets);
- * // A proxy that adds the key is reached through an injected fetch, so the check is skipped.
+ * requireKey({ route, apiKeys: settings.apiKeys }, false, secrets);
  * ```
  */
 export function requireKey(
   ctx: KeyContext,
-  injectedFetch: boolean,
+  serverAddsKey: boolean,
   secrets: readonly string[],
 ): void {
   const { route } = ctx;
-  if (!keyMissing(ctx, injectedFetch)) {
+  if (!keyMissing(ctx, serverAddsKey)) {
     return;
   }
   const host = new URL(route.apiBase).host;
@@ -466,7 +484,7 @@ export function requireKey(
       ? "set route.apiKey"
       : route.overridden
         ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
-        : `set apiKeys.${route.backend}`;
+        : `set apiKeys.${route.backend}${route.backend === "etherscan-v2" ? ", or handlerUrl" : ""}`;
   throw newError(
     { code: "missing-api-key", backend: route.backend },
     `${route.backend} needs an API key and none is set for ${host}: ${where}.`,

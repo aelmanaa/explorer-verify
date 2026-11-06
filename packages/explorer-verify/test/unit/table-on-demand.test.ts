@@ -145,7 +145,11 @@ describe("a call whose route.apiUrl the table cannot list loads no table (decisi
         fetch: noFetch,
         backends: [
           { backend: "sourcify", apiUrl: LOCAL },
-          { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/api" },
+          {
+            backend: "etherscan-v2",
+            apiUrl: "https://proxy.example.org/api",
+            apiKey: "proxy-route-key-217",
+          },
         ],
       },
       dependencies,
@@ -382,7 +386,11 @@ describe("a table that fails to load maps as a client load failure (decision 004
         fetch: noFetch,
         backends: [
           "sourcify",
-          { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/api" },
+          {
+            backend: "etherscan-v2",
+            apiUrl: "https://proxy.example.org/api",
+            apiKey: "proxy-route-key-217",
+          },
         ],
       },
       dependencies,

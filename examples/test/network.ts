@@ -8,6 +8,11 @@ import { readFileSync } from "node:fs";
 import type { TestContext } from "node:test";
 import { inspect } from "node:util";
 
+import { validateInput } from "explorer-verify";
+import type { VerifyInput, VerifyResult } from "explorer-verify";
+
+import { ADDRESS, setGlobal, TX_HASH } from "./dapp-browser.ts";
+
 /** The console methods the handler's `logger: console` calls. */
 const LEVELS: readonly ("debug" | "info" | "warn" | "error")[] = ["debug", "info", "warn", "error"];
 
@@ -35,6 +40,20 @@ export const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
 export const CHAIN = 421614;
 /** The deployer that created the recorded contract. */
 export const DEPLOYER = "0x9d087fc03ae39b088326b67fa3c788236645b717";
+
+/**
+ * What `verify()` with `handlerUrl` sends for an Etherscan request: the same request at the
+ * handler's URL, with the query kept, through the global `fetch`. It mirrors the library's own
+ * rewrite (`sentUrl` in `packages/explorer-verify/src/http/handler-url.ts`); the
+ * `verifyFromBrowser` tests run the library's rewrite itself.
+ * @param handlerUrl The handler's URL, as passed to `verify()`.
+ * @returns A function that sends one client request, as {@link clientRequest} builds it.
+ */
+export function toHandler(
+  handlerUrl: string,
+): (url: string, init: RequestInit) => Promise<Response> {
+  return async (url, init) => await fetch(`${handlerUrl}${new URL(url).search}`, init);
+}
 
 /** A recorded Etherscan exchange: the fields the client sends and the answer. */
 export interface Recorded {
@@ -164,4 +183,39 @@ export function clientRequest(
       body: new URLSearchParams(fields).toString(),
     },
   ];
+}
+
+/** The dapp's Greeter on Sepolia, whose Etherscan lookup is recorded: an input that validates. */
+export function greeterInput(): VerifyInput {
+  const file = new URL("../dapp/public/contracts/Greeter.verify.json", import.meta.url);
+  return validateInput({
+    ...Object(JSON.parse(readFileSync(file, "utf8"))),
+    chainId: 11155111,
+    address: ADDRESS,
+    creationTxHash: TX_HASH,
+  });
+}
+
+/**
+ * Runs `call` in a page at `page`, with a global `fetch` that answers every request with the
+ * recorded Etherscan lookup of the Greeter, which is verified. Returns the result and each request
+ * as `url body`.
+ * @param t The test.
+ * @param page The page's URL, which a `handlerUrl` path resolves against.
+ * @param call The browser code under test.
+ */
+export async function inPage(
+  t: TestContext,
+  page: string,
+  call: () => Promise<VerifyResult>,
+): Promise<{ result: VerifyResult; sent: string[] }> {
+  const lookup = recorded("2026-11-04-getsourcecode-sepolia-greeter");
+  const sent: string[] = [];
+  setGlobal(t, "location", { href: page });
+  setGlobal(t, "fetch", async (target: RequestInfo | URL, init?: RequestInit) => {
+    const url = target instanceof Request ? target.url : target.toString();
+    sent.push(`${url} ${await new Response(init?.body).text()}`);
+    return answer(lookup.body);
+  });
+  return { result: await call(), sent };
 }

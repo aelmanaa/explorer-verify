@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
-import { blockscout, blockscoutHosted } from "../../src/backends/blockscout.ts";
+import { blockscout, blockscoutHosted, refusal } from "../../src/backends/blockscout.ts";
 import { blockscoutProxyLinker } from "../../src/backends/proxy-blockscout.ts";
 import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
@@ -522,12 +522,41 @@ describe("the hosted API's answers about the key and the chain (R-AX-7, decision
     assert.equal(spy.mock.callCount(), 0);
   });
 
-  it("sends the request without a key through an injected fetch, and maps the 402 to missing-api-key (R-SRV-5)", async (t) => {
+  it("throws missing-api-key before any request with an injected fetch too (decision 0046)", async (t) => {
     const r = await run(t, [hosted("lookup-no-key")]);
-    assert.equal(errorOf(r.outcome).code, "missing-api-key");
-    assert.equal(r.calls[0]?.headers.get("authorization"), null);
+    const error = errorOf(r.outcome);
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(r.calls.length, 0);
+    // handlerUrl serves Etherscan only, so the hint names the hosted key, not handlerUrl.
+    assert.doesNotMatch(`${error.message} ${error.hint}`, /handlerUrl/);
+  });
+
+  it("maps a 402 to missing-api-key without a key, to api-key-rejected with one or for a plan", async (t) => {
+    // The flows never send a keyless request to the hosted API (decision 0046), so the keyless
+    // 402 is read through refusal() directly.
+    const route = resolveRoute(SEPOLIA, { backend: "blockscout-hosted" }, { table: TABLE });
+    const noKey = hosted("lookup-no-key");
+    const text = await noKey.text();
+    const parsed: unknown = JSON.parse(text);
+    const answer = {
+      status: noKey.status,
+      text,
+      fields: new Map(typeof parsed === "object" && parsed !== null ? Object.entries(parsed) : []),
+    };
+    const keyless = refusal(
+      { route, pollIntervalMs: 1_000, http: { backend: "blockscout-hosted", secrets: [] } },
+      answer,
+      SEPOLIA,
+    );
+    assert.equal(keyless?.code, "missing-api-key");
+    const r = await run(t, [hosted("lookup-no-key")], {
+      apiKeys: { "blockscout-hosted": HEX_KEY },
+    });
+    assert.equal(errorOf(r.outcome).code, "api-key-rejected");
     t.mock.timers.reset();
-    const plan = await run(t, [hosted("lookup-plan-needed")]);
+    const plan = await run(t, [hosted("lookup-plan-needed")], {
+      apiKeys: { "blockscout-hosted": HEX_KEY },
+    });
     assert.equal(errorOf(plan.outcome).code, "api-key-rejected");
   });
 });

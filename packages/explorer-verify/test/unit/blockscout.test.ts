@@ -33,6 +33,7 @@ import type {
 } from "../../src/types.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
+import { jsKeys } from "../helpers/js-keys.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import { resolveRoute } from "../helpers/route.ts";
 import { compileStrict } from "./envelope-schema.ts";
@@ -787,7 +788,7 @@ describe("blockscout explorerUrl and route (R-FLOW-3, R-SEC-2)", () => {
     const error = await errorOf(
       runVerify(
         input(),
-        { fetch: fake.fetch, apiKeys: { blockscout: "dummy-blockscout-key-92" } },
+        { fetch: fake.fetch, apiKeys: jsKeys("blockscout", "dummy-blockscout-key-92") },
         { backends: { blockscout }, table: TABLE, random: () => 0 },
       ),
     );

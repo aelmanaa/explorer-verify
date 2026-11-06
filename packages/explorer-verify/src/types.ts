@@ -3,7 +3,7 @@
  * backend exists. Every type is experimental until 1.0: change it when an implementation shows a
  * better shape, and record the change in the decision log.
  */
-import type { BackendName } from "./backend-names.ts";
+import type { BackendName, KeyedBackendName } from "./backend-names.ts";
 import type { AnyExplorerVerifyError, ErrorJson, ExplorerVerifyError } from "./errors.ts";
 
 /** A hex string with the `0x` prefix. */
@@ -561,9 +561,39 @@ export interface VerifyOptions {
    * The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). The library
    * sends every request with `redirect: "manual"` and never follows a redirect: a redirect could
    * carry a key to another host. An injected `fetch` must keep that behaviour and must not follow
-   * redirects itself.
+   * redirects itself. An injected `fetch` does not turn off the missing-key check: to send
+   * Etherscan requests to a server that adds the key, set `handlerUrl`.
    */
   fetch?: typeof fetch;
+  /**
+   * The URL of your server handler (`createVerifyHandler` from `explorer-verify/server`), which
+   * holds the Etherscan key and adds it (R-SRV-5, decision 0046). Set it in browser code, where an
+   * Etherscan key must not be.
+   *
+   * - Each request to Etherscan's v2 API goes to this URL instead, with its query, method, headers
+   *   and body, and no key. Requests to other explorers go to them directly. Log lines, events and
+   *   errors name this URL, path included, for those requests, so it must not hold a secret.
+   * - The routing table chooses as if `apiKeys["etherscan-v2"]` were set: a chain whose row lists
+   *   Etherscan first goes to the handler, and other chains go where they would with a key. Set
+   *   `route.backend` to choose yourself.
+   * - The call needs no Etherscan key. A key bound to the route through the handler,
+   *   `apiKeys["etherscan-v2"]` or a `route.apiKey` on Etherscan's API, throws `invalid-input`:
+   *   the handler adds its own key.
+   * - Requests go through `fetch` when it is set, so a logging or retrying `fetch` still works.
+   * - A path such as `/api/verify` resolves against the page, so it works only in a browser page;
+   *   elsewhere it throws `invalid-input`. Pass an absolute `https://` URL there, or `http://` on
+   *   `localhost`, `127.0.0.1` or `[::1]`. No user name, password, query, fragment, whitespace,
+   *   control character or backslash, not Etherscan's own host, and at most 2048 characters.
+   *   `undefined` counts as absent. The check loads on demand, when a call starts.
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * const options: VerifyOptions = { handlerUrl: "/api/verify" };
+   * ```
+   */
+  handlerUrl?: string | undefined;
   /** Cancels the call. The call rejects with `signal.reason` unchanged (R-FLOW-6). */
   signal?: AbortSignal;
   /**
@@ -606,9 +636,10 @@ export interface VerifyOptions {
    * only when the call's route resolves to that backend (R-SEC-2). A route that moves `apiUrl` to
    * another host gets no key from here; pass `route.apiKey` for it.
    *
-   * - Accepted names: `etherscan-v2`, `routescan` and `blockscout-hosted`. `etherscan-compatible`
-   *   throws `invalid-input`: each standalone explorer has its own host, so its key goes in
-   *   `route.apiKey`. `sourcify` and `blockscout`, whose instances take no key, throw too.
+   * - Accepted names: `etherscan-v2`, `routescan` and `blockscout-hosted`, the
+   *   {@link KeyedBackendName} type. In JavaScript, `etherscan-compatible` throws `invalid-input`:
+   *   each standalone explorer has its own host, so its key goes in `route.apiKey`. `sourcify` and
+   *   `blockscout`, whose instances take no key, throw too.
    * - Each value is a primitive string of 8 to 1024 characters, each a letter, a digit, `.`, `_`,
    *   `~` or `-`, and not all digits. A bad value throws `invalid-input` naming
    *   `apiKeys.<backend>`, never the value. So does a key found in the contract address or the
@@ -618,12 +649,12 @@ export interface VerifyOptions {
    *   or a Symbol key is ignored. The object must be a plain object.
    * - Every key is removed from logs, events, errors and results (R-SEC-1).
    * - When the route's backend needs a key (`etherscan-v2`, `blockscout-hosted`) and none is
-   *   bound to its host, the
-   *   call throws `missing-api-key` before any request, unless `fetch` is set: an injected `fetch`
-   *   may lead to a server that adds the key, so the request goes out without one.
+   *   bound to its host, the call throws `missing-api-key` before any request, whether `fetch` is
+   *   set or not. Only `handlerUrl` sends an Etherscan request without a key, to your server
+   *   handler.
    *
-   * Etherscan's terms forbid an Etherscan key in browser code. In a browser, inject a `fetch` that
-   * targets a server that holds the key instead (R-SRV-5). Blockscout's hosted API sends no CORS
+   * Etherscan's terms forbid an Etherscan key in browser code. In a browser, set `handlerUrl` to a
+   * server handler that holds the key instead (R-SRV-5). Blockscout's hosted API sends no CORS
    * headers and the server handler does not forward Blockscout, so a browser cannot use
    * `blockscout-hosted`; use `blockscout`, an instance, which needs no key.
    *
@@ -635,7 +666,7 @@ export interface VerifyOptions {
    * const options: VerifyOptions = { apiKeys: { "etherscan-v2": etherscanKey } };
    * ```
    */
-  apiKeys?: Partial<Record<BackendName, string | undefined>>;
+  apiKeys?: ApiKeys;
   /**
    * A JSON-RPC endpoint of the contract's chain. `verify()` uses it only to derive missing
    * constructor arguments (R-IN-3): it checks `eth_chainId`, then reads the transaction that
@@ -653,6 +684,21 @@ export interface VerifyOptions {
    */
   rpcUrl?: string;
 }
+
+/**
+ * The type of `VerifyOptions.apiKeys`: one key per backend that takes one, each optional. A key
+ * that is `undefined` counts as absent.
+ *
+ * @example
+ * ```ts
+ * import type { ApiKeys } from "explorer-verify";
+ *
+ * declare const etherscanKey: string; // read on a server, never shipped to a browser
+ * const keys: ApiKeys = { "etherscan-v2": etherscanKey };
+ * ```
+ * @experimental
+ */
+export type ApiKeys = { [B in KeyedBackendName]?: string | undefined };
 
 /**
  * One backend of a `verifyEach()` call: a backend name, which the routing table resolves for the

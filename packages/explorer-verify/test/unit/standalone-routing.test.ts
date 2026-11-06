@@ -21,6 +21,7 @@ import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Hex, VerifyInput } from "../../src/types.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Call } from "../helpers/fake-fetch.ts";
+import { jsKeys } from "../helpers/js-keys.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import { resolveRoute } from "../helpers/route.ts";
 
@@ -345,18 +346,34 @@ describe("a standalone entry that needs a key (#170, decision 0039)", () => {
     assert.equal(other.needsKey, false);
   });
 
-  it("with an injected fetch, the request goes out without a key (decision 0016, R-SRV-5)", async () => {
-    // Not an Etherscan answer, so the call ends at the first request.
+  it("with an injected fetch, a keyed row still throws missing-api-key before any request (decision 0046)", async () => {
     const fake = replay(bitlayer("getsourcecode-post-refused"));
-    await rejection(
+    const error = await rejection(
       runVerify(
         input(KEYED_CHAIN),
         { fetch: fake.fetch },
         { ...DEFAULT_DEPENDENCIES, table: TABLE },
       ),
     );
-    assert.equal(fake.calls[0]?.method, "GET");
-    assert.equal(fake.calls[0]?.url.split("?")[0], KEYED_API);
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(fake.calls.length, 0);
+  });
+
+  it("handlerUrl does not cover a standalone explorer: its keyed row still needs route.apiKey (decision 0046)", async () => {
+    const fake = replay(bitlayer("getsourcecode-post-refused"));
+    const error = await rejection(
+      runVerify(
+        input(KEYED_CHAIN),
+        {
+          fetch: fake.fetch,
+          handlerUrl: "https://dapp.example/api/verify",
+          route: { backend: "etherscan-compatible" },
+        },
+        { ...DEFAULT_DEPENDENCIES, table: TABLE },
+      ),
+    );
+    assert.equal(error.code, "missing-api-key");
+    assert.equal(fake.calls.length, 0);
   });
 
   it("route.apiKey with route.backend etherscan-compatible and no apiUrl binds the key to the row's host (R-SEC-2)", async () => {
@@ -432,7 +449,7 @@ describe("a standalone entry that needs a key (#170, decision 0039)", () => {
     const error = await rejection(
       verify(input(BITLAYER), {
         fetch: fake.fetch,
-        apiKeys: { "etherscan-compatible": ROUTE_KEY },
+        apiKeys: jsKeys("etherscan-compatible", ROUTE_KEY),
       }),
     );
     assert.equal(error.code, "invalid-input");

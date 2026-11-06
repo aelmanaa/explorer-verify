@@ -226,8 +226,10 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
   ([decision 0021](decisions/0021-server-handler-forwards-a-reduced-lookup.md)).
 - **R-SRV-4** Guards: chain allowlist, request size limit, per-client rate limit hook, and an
   optional check that the address was created by an allowed deployer or factory.
-- **R-SRV-5** The client side uses the handler by injecting a `fetch` that targets it. No other
-  code path changes between direct and proxied use.
+- **R-SRV-5** The client side uses the handler by passing its URL as `VerifyOptions.handlerUrl`.
+  Each Etherscan request then goes to the handler with no key, and no other code path changes
+  between direct and proxied use. An injected `fetch` alone never turns off the missing-key check
+  ([decision 0046](decisions/0046-handler-url-and-keyed-backend-names.md)).
 
 ### Developer experience (R-DX)
 

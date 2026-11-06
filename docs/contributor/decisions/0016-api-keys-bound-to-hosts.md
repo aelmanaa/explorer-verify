@@ -3,6 +3,9 @@
 Status: Accepted (2026-11-03). Amends the `apiKeys` direction and the error code list of
 [decision 0009](0009-options-handle-and-errors.md).
 
+Amended by [decision 0046](0046-handler-url-and-keyed-backend-names.md): point 4 no longer holds; an
+injected `fetch` leaves the missing-key check on, and only `handlerUrl` turns it off for Etherscan.
+
 Research: [2026-11-03-api-key-placement.md](../research/2026-11-03-api-key-placement.md) for where
 Etherscan and Routescan read a key and what they answer;
 [2026-11-02-explorer-apis.md](../research/2026-11-02-explorer-apis.md) for the first key answers;
