@@ -447,7 +447,7 @@ console.log(result.status);
 ```
 
 Build the clients inside your tool, and do not take them from your tool's callers: a client works
-only with the copy of explorer-verify that made it. [Core entry](../reference/core.md) lists every
+only with the copy of explorer-verify that made it. A list your tool builds from its settings takes the type `ClientList<ExplorerClient>` from `explorer-verify/core`, a non-empty list. [Core entry](../reference/core.md) lists every
 client, the options and the errors.
 
 `pnpm run size` and `scripts/check-names.ts` measured these one-file bundles with esbuild 0.28.2,
@@ -455,11 +455,11 @@ minified, gzip from the zlib of Node 24.21.0, on 2026-11-06:
 
 | Bundle, one file                                          | Minified      | Gzipped      |
 | --------------------------------------------------------- | ------------- | ------------ |
-| `verify` from `explorer-verify`                           | 112,502 bytes | 32,656 bytes |
-| `verify` from `explorer-verify/core`, `sourcify()`        | 65,330 bytes  | 21,792 bytes |
-| The same with `routingTable`                              | 91,291 bytes  | 24,973 bytes |
-| `verify` from `explorer-verify/core`, `etherscanV2()`     | 77,726 bytes  | 25,837 bytes |
-| `verify` from `explorer-verify/core`, every client, table | 114,065 bytes | 31,691 bytes |
+| `verify` from `explorer-verify`                           | 112,520 bytes | 32,666 bytes |
+| `verify` from `explorer-verify/core`, `sourcify()`        | 65,572 bytes  | 21,853 bytes |
+| The same with `routingTable`                              | 91,533 bytes  | 25,033 bytes |
+| `verify` from `explorer-verify/core`, `etherscanV2()`     | 77,968 bytes  | 25,902 bytes |
+| `verify` from `explorer-verify/core`, every client, table | 114,307 bytes | 31,763 bytes |
 
 ## Test with recorded answers
 

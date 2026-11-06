@@ -496,7 +496,7 @@ Measurement:
   Rollup; an exported name with no row fails CI (decision 0042). `explorer-verify/core` takes the clients and the
   table from its caller and reaches no dynamic `import()`, so a bundle that does not split code
   holds only the clients it imports. `verify` from the core with the Sourcify client and no table,
-  as one file, stays at or below 78,396 bytes minified and 26,151 gzipped, the measured size plus
+  as one file, stays at or below 78,687 bytes minified and 26,224 gzipped, the measured size plus
   20% on 2026-11-06; CI checks the gzipped bound as `verify (core, Sourcify, one file)` (decision
   0052).
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under

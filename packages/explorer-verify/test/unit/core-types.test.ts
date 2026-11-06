@@ -11,6 +11,7 @@ import { createProject, removeProject, typeCheck } from "../helpers/skill.ts";
 const WRAPPER = `
 import { checkStatus, dryRun, linkProxy, verify, verifyEach } from "explorer-verify/core";
 import type {
+  ClientList,
   ClientOptions,
   CoreCheckStatusOptions,
   CoreDryRunOptions,
@@ -34,6 +35,10 @@ declare const handle: Handle;
 declare const target: LinkProxyTarget;
 declare const maybeTable: ShippedRoutingTable | undefined;
 declare const maybeTimeout: number | undefined;
+declare const useEtherscan: boolean;
+// A list built in code, typed as a non-empty list.
+export const fromCode: ClientList<ExplorerClient> = useEtherscan ? [sourcify(), etherscanV2()] : [sourcify()];
+export const fromCodeResult = verify(input, { clients: fromCode });
 
 const clients: readonly [ExplorerClient, ...ExplorerClient[]] = [
   sourcify(),

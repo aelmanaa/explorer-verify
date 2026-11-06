@@ -33,7 +33,7 @@ import { flowParts, linkOptions, missingHandleClient } from "./options.ts";
 import type { ClientOptions } from "./options.ts";
 import type { ExplorerClient, ProxyLinkClient } from "./parts.ts";
 
-export type { ClientOptions } from "./options.ts";
+export type { ClientList, ClientOptions } from "./options.ts";
 export type { ExplorerClient, ProxyLinkClient, ShippedRoutingTable } from "./parts.ts";
 
 /**
@@ -174,6 +174,15 @@ export async function checkStatus(
   const named = tryParseHandle(handle)?.backend;
   if (named !== undefined && dependencies.backends[named] === undefined) {
     throw missingHandleClient(named);
+  }
+  // Without a table and a route, a backend with one public host for every chain is the route,
+  // as route.backend would make it.
+  if (
+    dependencies.table === undefined &&
+    !Object.hasOwn(rest, "route") &&
+    (named === "sourcify" || named === "etherscan-v2" || named === "blockscout-hosted")
+  ) {
+    Object.defineProperty(rest, "route", { value: { backend: named }, enumerable: true });
   }
   return await runCheckStatus(handle, rest, dependencies);
 }

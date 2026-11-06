@@ -233,10 +233,10 @@ describe("explorer-verify/core reads clients and table (R-IN-6, decision 0052)",
 
   it("refuses options that are not a plain object, or hold no clients", async () => {
     const cases: [options: unknown, field: string, message: string][] = [
-      [undefined, "options", "must be a plain object with clients"],
-      ["sourcify", "options", "must be a plain object with clients"],
-      [[sourcify()], "options", "must be a plain object with clients"],
-      [null, "options", "must be a plain object with clients"],
+      [undefined, "options", "must be a plain object"],
+      ["sourcify", "options", "must be a plain object"],
+      [[sourcify()], "options", "must be a plain object"],
+      [null, "options", "must be a plain object"],
       [{}, "clients", "is required: an array of clients, such as [sourcify()]"],
       [{ clients: undefined }, "clients", "is required: an array of clients, such as [sourcify()]"],
       [{ clients: [] }, "clients", "must be a non-empty array of clients, such as [sourcify()]"],
@@ -278,6 +278,31 @@ describe("explorer-verify/core reads clients and table (R-IN-6, decision 0052)",
       },
       { field: "clients[1]", message: "must be a proxy-link client from explorer-verify/clients" },
     ]);
+  });
+
+  it("names a routing table of another copy of the package, and gives linkProxy a proxy-link hint", async () => {
+    const otherTable = Object.freeze({ kind: "routing-table", date: routingTable.date });
+    const error = await errorOf(
+      untyped(verify, input(), { clients: [sourcify()], table: otherTable }),
+    );
+    assert.deepEqual(issuesOf(error), [
+      {
+        field: "table",
+        message:
+          "is a routing table from another copy of explorer-verify: install explorer-verify once, as a peerDependency of your wrapper",
+      },
+    ]);
+    const plain = await errorOf(untyped(verify, input(), { clients: [sourcify()], table: {} }));
+    assert.equal(issuesOf(plain)[0]?.message, "must be routingTable from explorer-verify/table");
+    const link = await errorOf(
+      untyped(linkProxy, { chainId: SEPOLIA, address: GREETER }, { clients: [] }),
+    );
+    assert.match(link.hint, /such as \[sourcifyProxyLink\(\)\]/);
+    const notObject = await errorOf(untyped(linkProxy, { chainId: SEPOLIA, address: GREETER }, []));
+    assert.deepEqual(issuesOf(notObject), [
+      { field: "options", message: "must be a plain object" },
+    ]);
+    assert.match(notObject.hint, /such as \[sourcifyProxyLink\(\)\]/);
   });
 
   it("names a frozen client of another copy of the package, a hole, and unknown keys together", async () => {
@@ -471,10 +496,10 @@ describe("explorer-verify/core without table (decision 0052, R-SEC-2)", () => {
       [
         "checkStatus",
         async () =>
-          await checkStatus(
-            `ev1:sourcify:${String(SEPOLIA)}:${GREETER}:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718`,
-            { clients: CLIENTS, fetch: noRequest },
-          ),
+          await checkStatus(`ev1:blockscout:${String(SEPOLIA)}:${GREETER}:abc`, {
+            clients: CLIENTS,
+            fetch: noRequest,
+          }),
       ],
       [
         "verifyEach",
@@ -567,6 +592,47 @@ describe("explorer-verify/core without table (decision 0052, R-SEC-2)", () => {
     assert.equal(issuesOf(error)[0]?.field, "table");
   });
 
+  it("checkStatus() without a table or a route takes a fixed host from the handle's backend", async () => {
+    const answer = answering(() => recorded("sourcify", "2026-11-02-job-exact-match"));
+    const result = await checkStatus(
+      `ev1:sourcify:${String(SEPOLIA)}:${GREETER}:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718`,
+      { clients: [sourcify()], fetch: answer.fetch },
+    );
+    assert.equal(result.status, "verified");
+    assert.ok(
+      answer.urls.length > 0 && answer.urls.every((url) => url.startsWith(`${SOURCIFY_API}/`)),
+    );
+    // A route the caller set is kept: here one that needs the table.
+    const error = await errorOf(
+      checkStatus(
+        `ev1:sourcify:${String(SEPOLIA)}:${GREETER}:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718`,
+        {
+          clients: [sourcify()],
+          fetch: noRequest,
+          route: {},
+        },
+      ),
+    );
+    assert.equal(issuesOf(error)[0]?.field, "table");
+    // A handle of a backend whose host depends on the chain still needs the table.
+    const blockscoutHandle = await errorOf(
+      checkStatus(`ev1:blockscout:${String(SEPOLIA)}:${GREETER}:abc`, {
+        clients: [blockscout()],
+        fetch: noRequest,
+      }),
+    );
+    assert.equal(issuesOf(blockscoutHandle)[0]?.field, "table");
+    // With a table, the table routes as before.
+    const withTable = await errorOf(
+      checkStatus(`ev1:etherscan-v2:${String(SEPOLIA)}:${GREETER}:abc`, {
+        clients: [etherscanV2()],
+        table: routingTable,
+        fetch: noRequest,
+      }),
+    );
+    assert.equal(withTable.code, "missing-api-key");
+  });
+
   it("checkStatus() names a handle's backend that has no client in clients, before any route", async () => {
     const handle = `ev1:etherscan-v2:${String(SEPOLIA)}:${GREETER}:abc123`;
     const error = await errorOf(
@@ -631,7 +697,10 @@ describe("handlerUrl through explorer-verify/core (decisions 0046 and 0052)", ()
         },
       ),
     );
-    assert.equal(issuesOf(link)[0]?.field, "handlerUrl");
+    assert.deepEqual(issuesOf(link), [
+      { field: "handlerUrl", message: "needs the etherscanV2ProxyLink() client in clients" },
+    ]);
+    assert.equal(link.hint, "Add etherscanV2ProxyLink() to clients, or leave out handlerUrl.");
   });
 
   it("with the Etherscan v2 client, routes Etherscan requests to the handler", async () => {

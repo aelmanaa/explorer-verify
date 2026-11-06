@@ -20,6 +20,22 @@ import { clientParts, linkParts, tableRows } from "./parts.ts";
 import type { ExplorerClient, ShippedRoutingTable } from "./parts.ts";
 
 /**
+ * A non-empty list of clients, the type of `clients`. A list built in code takes this type, so
+ * TypeScript knows it holds at least one client.
+ *
+ * @example
+ * ```ts
+ * import type { ClientList, ExplorerClient } from "explorer-verify/core";
+ * import { etherscanV2 } from "explorer-verify/clients/etherscan-v2";
+ * import { sourcify } from "explorer-verify/clients/sourcify";
+ *
+ * const clients: ClientList<ExplorerClient> = useEtherscan ? [sourcify(), etherscanV2()] : [sourcify()];
+ * ```
+ * @experimental
+ */
+export type ClientList<C> = readonly [C, ...C[]];
+
+/**
  * The options `explorer-verify/core` adds to those of the default entry.
  *
  * @experimental
@@ -31,7 +47,7 @@ export interface ClientOptions<C> {
    * with no client here is never called: naming it in `route.backend` throws `invalid-input`, and
    * a chain whose listed backends all lack one throws `unsupported-chain`, both before any request.
    */
-  readonly clients: readonly [C, ...C[]];
+  readonly clients: ClientList<C>;
   /**
    * The routing table, from `explorer-verify/table`. Leave it out when every call sets
    * `route.apiUrl`, or names `sourcify`, `etherscan-v2` or `blockscout-hosted` in `route.backend`:
@@ -58,6 +74,8 @@ const OWN_KEYS: readonly string[] = Object.keys({ clients: true, table: true } s
 
 const HINT =
   "Pass clients from explorer-verify/clients, such as [sourcify()], and table from explorer-verify/table, or leave table out.";
+const LINK_HINT =
+  "Pass proxy-link clients from explorer-verify/clients, such as [sourcifyProxyLink()], and table from explorer-verify/table, or leave table out.";
 
 /** The factory of each backend's client, as `explorer-verify/clients/*` exports it. */
 const FACTORY: Readonly<Record<BackendName, string>> = {
@@ -83,9 +101,11 @@ const LINK_FACTORY: Readonly<Partial<Record<BackendName, string>>> = {
  * request. Their text lives here, so the default entry does not bundle it.
  *
  * @param rows - The table the call passed, to name every backend a chain lists.
+ * @param link - Whether the call is `linkProxy()`, whose clients are proxy-link clients.
  * @returns The errors.
  */
-function missingFor(rows: RoutingTable | undefined): Missing {
+function missingFor(rows: RoutingTable | undefined, link: boolean): Missing {
+  const handlerClient = link ? "etherscanV2ProxyLink()" : "etherscanV2()";
   return {
     client: (backend, chainId) => {
       // Stryker disable next-line OptionalChaining: equivalent. The engine asks only for a route the table chose, so rows is set.
@@ -110,8 +130,8 @@ function missingFor(rows: RoutingTable | undefined): Missing {
       ),
     handler: () =>
       invalid(
-        [{ field: "handlerUrl", message: "needs the etherscanV2() client in clients" }],
-        "Add etherscanV2() to clients, or leave out handlerUrl.",
+        [{ field: "handlerUrl", message: `needs the ${handlerClient} client in clients` }],
+        `Add ${handlerClient} to clients, or leave out handlerUrl.`,
       ),
   };
 }
@@ -171,7 +191,7 @@ function missingLinker(
  * ```
  */
 export function flowParts(options: unknown, known: readonly string[]): Split<FlowDependencies> {
-  const { rest, list, table, issues } = read(options, known);
+  const { rest, list, table, issues } = read(options, known, HINT);
   const backends: Partial<Record<BackendName, Backend>> = {};
   let derivation: DeriveLoader | undefined;
   let handler: HandlerLoader | undefined;
@@ -186,10 +206,10 @@ export function flowParts(options: unknown, known: readonly string[]): Split<Flo
     handler ??= parts.handler;
   });
   const rows = tableOf(table, issues);
-  throwIssues(issues);
+  throwIssues(issues, HINT);
   return {
     rest,
-    dependencies: { backends, table: rows, derivation, handler, missing: missingFor(rows) },
+    dependencies: { backends, table: rows, derivation, handler, missing: missingFor(rows, false) },
   };
 }
 
@@ -207,7 +227,7 @@ export function flowParts(options: unknown, known: readonly string[]): Split<Flo
  * ```
  */
 export function linkOptions(options: unknown, known: readonly string[]): Split<LinkDependencies> {
-  const { rest, list, table, issues } = read(options, known);
+  const { rest, list, table, issues } = read(options, known, LINK_HINT);
   const linkers: Partial<Record<BackendName, ProxyLinker | LinkerLoader>> = {};
   let handler: HandlerLoader | undefined;
   list.forEach((entry, index) => {
@@ -222,8 +242,8 @@ export function linkOptions(options: unknown, known: readonly string[]): Split<L
     handler ??= parts.handler;
   });
   const rows = tableOf(table, issues);
-  throwIssues(issues);
-  const missing: LinkMissing = { ...missingFor(rows), linker: missingLinker };
+  throwIssues(issues, LINK_HINT);
+  const missing: LinkMissing = { ...missingFor(rows, true), linker: missingLinker };
   return { rest, dependencies: { linkers, table: rows, handler, missing } };
 }
 
@@ -237,13 +257,17 @@ function notOurs(entry: unknown, link: boolean): string {
   }
   // A frozen object of a client's shape comes from another copy of the package, whose clients
   // this copy does not know.
-  const kind: unknown =
-    typeof entry === "object" && entry !== null && Object.isFrozen(entry)
-      ? Reflect.get(entry, "kind")
-      : undefined;
+  const kind = frozenKind(entry);
   return kind === "client" || kind === "proxy-link"
     ? "is a client from another copy of explorer-verify: install explorer-verify once, as a peerDependency of your wrapper"
     : `must be a ${link ? "proxy-link " : ""}client from explorer-verify/clients`;
+}
+
+/** The `kind` of a frozen object, as the clients and the table of any copy of the package carry. */
+function frozenKind(value: unknown): unknown {
+  return typeof value === "object" && value !== null && Object.isFrozen(value)
+    ? Reflect.get(value, "kind")
+    : undefined;
 }
 
 /** The shipped rows of `table`, or `undefined` when it is absent; an issue for anything else. */
@@ -253,7 +277,13 @@ function tableOf(table: unknown, issues: InputIssue[]): RoutingTable | undefined
   }
   const rows = tableRows(table);
   if (rows === undefined) {
-    issues.push({ field: "table", message: "must be routingTable from explorer-verify/table" });
+    issues.push({
+      field: "table",
+      message:
+        frozenKind(table) === "routing-table"
+          ? "is a routing table from another copy of explorer-verify: install explorer-verify once, as a peerDependency of your wrapper"
+          : "must be routingTable from explorer-verify/table",
+    });
   }
   return rows;
 }
@@ -267,9 +297,11 @@ function tableOf(table: unknown, issues: InputIssue[]): RoutingTable | undefined
 function read(
   options: unknown,
   known: readonly string[],
+  hint: string,
 ): { rest: object; list: readonly unknown[]; table: unknown; issues: InputIssue[] } {
   if (typeof options !== "object" || options === null || Array.isArray(options)) {
-    throw invalid([{ field: "options", message: "must be a plain object with clients" }]);
+    // The default entry's wording, so both entries say the same.
+    throw invalid([{ field: "options", message: "must be a plain object" }], hint);
   }
   let rest: object;
   let clients: unknown;
@@ -289,7 +321,7 @@ function read(
     table = Object.hasOwn(options, "table") ? Reflect.get(options, "table") : undefined;
   } catch {
     // A getter or Proxy trap threw. Its error is dropped: it may repeat a caller value.
-    throw invalid([{ field: "options", message: "could not be read" }]);
+    throw invalid([{ field: "options", message: "could not be read" }], hint);
   }
   const list: unknown[] = [];
   if (Array.isArray(clients) && clients.length > 0) {
@@ -310,9 +342,9 @@ function read(
   return { rest, list, table, issues };
 }
 
-function throwIssues(issues: InputIssue[]): void {
+function throwIssues(issues: InputIssue[], hint: string): void {
   if (issues.length > 0) {
-    throw invalid(issues);
+    throw invalid(issues, hint);
   }
 }
 

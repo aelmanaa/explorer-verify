@@ -45,10 +45,29 @@ needs a key, so without the table that early `missing-api-key` check does not ap
 explorer refuses a keyless request itself. Requests go only to the hosts of the table you pass, of
 the backends with one public host, or of your `route.apiUrl`.
 
+`checkStatus` without `table` and without `route` takes the handle's backend as `route.backend`
+when that backend has one public host: `sourcify`, `etherscan-v2` or `blockscout-hosted`. A handle
+of another backend needs the table or `route.apiUrl`.
+
 ## Clients
 
 Each client is a function that returns a new frozen object with `kind` and `backend` (or
-`backends`). Call it where you build the options.
+`backends`). Call it where you build the options. A list built in code, rather than written
+in the call, takes the type `ClientList<ExplorerClient>`, which `explorer-verify/core` exports: a
+non-empty list, as `clients` requires.
+
+<!-- no-run: `useEtherscan` stands for a setting of your tool, which the docs test does not define -->
+
+```ts no-run
+import { etherscanV2 } from "explorer-verify/clients/etherscan-v2";
+import { sourcify } from "explorer-verify/clients/sourcify";
+import type { ClientList, ExplorerClient } from "explorer-verify/core";
+
+declare const useEtherscan: boolean;
+const clients: ClientList<ExplorerClient> = useEtherscan
+  ? [sourcify(), etherscanV2()]
+  : [sourcify()];
+```
 
 | Module                                         | Clients                                                       | Brings                                               |
 | ---------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
@@ -58,7 +77,7 @@ Each client is a function that returns a new frozen object with `kind` and `back
 | `explorer-verify/clients/routescan`            | `routescan()`                                                 | The constructor argument code                        |
 | `explorer-verify/clients/blockscout`           | `blockscout()`, `blockscoutHosted()`, `blockscoutProxyLink()` | The constructor argument code                        |
 
-`handlerUrl` needs `etherscanV2()` in `clients`, since only Etherscan v2 requests go through your
+`handlerUrl` needs `etherscanV2()` in `clients`, or `etherscanV2ProxyLink()` for `linkProxy`, since only Etherscan v2 requests go through your
 server handler. Routescan has no proxy-link client.
 
 A client works only with the copy of explorer-verify that made it. A wrapper declares
@@ -69,17 +88,17 @@ its own callers.
 
 Each of these throws before any request, with a hint that names the fix.
 
-| What the call left out                                     | Error                                                   |
-| ---------------------------------------------------------- | ------------------------------------------------------- |
-| `clients`, an empty list, or an entry that is not a client | `invalid-input` naming `clients` or `clients[i]`        |
-| A client from another copy of explorer-verify              | `invalid-input` naming the entry                        |
-| A `table` that is not `routingTable`                       | `invalid-input` naming `table`                          |
-| A client for `route.backend`                               | `invalid-input` naming `route.backend`                  |
-| A client for any backend the chain's row lists             | `unsupported-chain`, naming every backend the row lists |
-| A client for the backend a handle names, in `checkStatus`  | `invalid-input` naming `clients`                        |
-| `table`, for a route that needs it                         | `invalid-input` naming `table`                          |
-| `etherscanV2()`, for a call with `handlerUrl`              | `invalid-input` naming `handlerUrl`                     |
-| The proxy-link client of the backend `linkProxy` routes to | `invalid-input` naming `clients`                        |
+| What the call left out                                                          | Error                                                   |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `clients`, an empty list, or an entry that is not a client                      | `invalid-input` naming `clients` or `clients[i]`        |
+| A client from another copy of explorer-verify                                   | `invalid-input` naming the entry                        |
+| A `table` that is not `routingTable`                                            | `invalid-input` naming `table`                          |
+| A client for `route.backend`                                                    | `invalid-input` naming `route.backend`                  |
+| A client for any backend the chain's row lists                                  | `unsupported-chain`, naming every backend the row lists |
+| A client for the backend a handle names, in `checkStatus`                       | `invalid-input` naming `clients`                        |
+| `table`, for a route that needs it                                              | `invalid-input` naming `table`                          |
+| `etherscanV2()`, or `etherscanV2ProxyLink()` for `linkProxy`, with `handlerUrl` | `invalid-input` naming `handlerUrl`                     |
+| The proxy-link client of the backend `linkProxy` routes to                      | `invalid-input` naming `clients`                        |
 
 An unknown option key is named in the same error as these. `explorer-verify` refuses `clients` and
 `table` as unknown keys, with a hint that points here.
