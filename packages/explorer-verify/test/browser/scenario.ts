@@ -10,6 +10,8 @@
 // internal and not exported, so the vectors run on its source file, bundled with the rest.
 import { checkStatus, verify } from "explorer-verify";
 import type { VerifyResult } from "explorer-verify";
+import { sourcify } from "explorer-verify/clients/sourcify";
+import { verify as coreVerify } from "explorer-verify/core";
 import { createVerifyHandler } from "explorer-verify/server";
 
 import { keccak256 } from "../../src/internal/keccak.ts";
@@ -217,9 +219,40 @@ async function tableScenario(apiUrl: string): Promise<Outcome> {
 }
 
 /**
+ * Runs `verify()` from `explorer-verify/core` with the Sourcify client and no table, in a fresh
+ * realm (decision 0052). The client is in the page's own code, so the call loads no chunk: no
+ * client's and not the routing table's.
+ *
+ * @param apiUrl - The base URL of the server that replays Sourcify's answers.
+ * @returns The outcome: already verified, with no explorer page for a server that is not Sourcify.
+ */
+async function coreScenario(apiUrl: string): Promise<Outcome> {
+  return await settle(
+    coreVerify(
+      {
+        chainId: SEPOLIA,
+        address: GREETER,
+        compiler: {
+          kind: "solc",
+          version: "0.8.24+commit.e11b9ed9",
+          input: {
+            language: "Solidity",
+            sources: { "contracts/Greeter.sol": { content: "contract Greeter {}" } },
+            settings: { optimizer: { enabled: true, runs: 200 } },
+          },
+        },
+        contractName: "contracts/Greeter.sol:Greeter",
+      },
+      { clients: [sourcify()], route: { backend: "sourcify", apiUrl }, timeoutMs: TIMEOUT_MS },
+    ),
+  );
+}
+
+/**
  * Starts the scenario the test asked for and leaves its promise on `explorerVerifySmoke`. The test
- * sets `explorerVerifySmokeConfig` first: `apiUrl`, `resume` for a resume-only load, and
- * `fromTable: true` for a load that verifies without a route.
+ * sets `explorerVerifySmokeConfig` first: `apiUrl`, `resume` for a resume-only load,
+ * `fromTable: true` for a load that verifies without a route, and `core: true` for a load that
+ * verifies through `explorer-verify/core`.
  *
  * @throws Error when the config is missing or malformed.
  */
@@ -235,10 +268,12 @@ export function start(): void {
   Reflect.set(
     globalThis,
     "explorerVerifySmoke",
-    read("fromTable") === true
-      ? tableScenario(apiUrl)
-      : typeof resume === "string"
-        ? resumeScenario(resume, apiUrl)
-        : runScenario(apiUrl),
+    read("core") === true
+      ? coreScenario(apiUrl)
+      : read("fromTable") === true
+        ? tableScenario(apiUrl)
+        : typeof resume === "string"
+          ? resumeScenario(resume, apiUrl)
+          : runScenario(apiUrl),
   );
 }

@@ -14,7 +14,7 @@ import { sourcify } from "../../src/backends/sourcify.ts";
 import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { parseHandle } from "../../src/flow/handle.ts";
-import { MAX_BACKENDS, runVerifyEach } from "../../src/flow/verify-each.ts";
+import { MAX_BACKENDS } from "../../src/flow/verify-each.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
 import { verifyEach } from "../../src/index.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
@@ -24,6 +24,7 @@ import type {
   VerifyEvent,
   VerifyInput,
 } from "../../src/types.ts";
+import { runVerifyEach } from "../helpers/defaults.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import { driveMockClock, turnUntil } from "../helpers/mock-clock.ts";
 import { validateEnvelope } from "./envelope-schema.ts";

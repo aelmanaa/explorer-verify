@@ -23,7 +23,12 @@ also carries the server handler, and scoped add-ons for Node-only code.
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
 optional features stay out of it (R-RUN-5). `explorer-verify`, `@explorer-verify/foundry` and
-`@explorer-verify/hardhat` exist today, and the core has its `/server` and `/resolve` subpaths. The other add-ons arrive in M4. `@explorer-verify/foundry`
+`@explorer-verify/hardhat` exist today, and the core has its `/server` and `/resolve` subpaths. The other add-ons arrive in M4.
+
+The core also has `explorer-verify/core`, `explorer-verify/clients/<name>` and
+`explorer-verify/table`: the flow functions, the explorer clients and the routing table, for a
+caller who passes the clients and the table instead of loading them, so that a bundle that does not
+split code holds only those ([decision 0052](decisions/0052-explicit-clients-and-table.md)). `@explorer-verify/foundry`
 depends on the core's public entry point only: it finds and reads a contract's files under `out/`
 and leaves every format check to `buildVerifyInput` (R-DX-2).
 
@@ -384,8 +389,9 @@ measures the rows as the `table` chunk, with its own ceiling, the measured size 
 
 ## Loading the clients
 
-`DEFAULT_DEPENDENCIES` in `flow/verify.ts` holds a loader per backend: a function that imports the
-client with a dynamic `import()` and a literal path, and the routing table's loader. `verify()`,
+`DEFAULT_DEPENDENCIES` in `flow/defaults.ts` holds a loader per backend: a function that imports the
+client with a dynamic `import()` and a literal path, and the routing table's loader;
+`VERIFY_DEPENDENCIES` adds the derivation's loader for `verify()` and `verifyEach()`. `verify()`,
 `checkStatus()` and `dryRun()` check the route override and start the time budget. `routeOf()`
 loads the table when the route needs it, through `bounded()` as a client, and resolves the route
 (decision 0040). Then `withClient()` loads that route's client
@@ -400,6 +406,15 @@ A bundler that splits code puts each client in its own chunk, so a page download
 its calls are routed to. `pnpm run size` measures each entry without its clients, each client
 chunk on its own under `chunks` in `size-budget.json`, and `verify` once more as one file
 ([decision 0031](decisions/0031-clients-load-on-demand-and-chunks-measured-apart.md)).
+
+The engine modules hold no dynamic `import()`: `flow/defaults.ts` and `routing/load-table.ts` are
+the only modules with one. `explorer-verify/core` (`core/index.ts`) runs the same `run*` functions
+with dependencies built from its caller's `clients` and `table` (`core/options.ts`). Each factory
+of `clients/<name>.ts` returns a frozen client whose code `core/parts.ts` keeps in a `WeakMap`: the
+backend's client, the derivation for a client that sends constructor arguments, and the
+`handlerUrl` code for Etherscan v2. A part the caller left out throws through the engine's
+`missing` dependency, whose text sits in `core/options.ts`
+([decision 0052](decisions/0052-explicit-clients-and-table.md)).
 
 ## Verification flow
 
@@ -446,9 +461,9 @@ adds the key and forwards it.
 
 ## Extension points
 
-| Extension                | How                                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, a loader in `DEFAULT_DEPENDENCIES`, a `chunks` ceiling, routing rows |
-| New chain                | A row in `routing/table.json`, or a per-call route override                                                                                      |
-| New compiler or language | A new member of the `compiler` union, and its mapping in each backend that accepts it (decision 0004)                                            |
-| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                                                                     |
+| Extension                | How                                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, a loader in `flow/defaults.ts`, a `clients/<name>.ts` module and subpath, a `chunks` ceiling, routing rows |
+| New chain                | A row in `routing/table.json`, or a per-call route override                                                                                                                            |
+| New compiler or language | A new member of the `compiler` union, and its mapping in each backend that accepts it (decision 0004)                                                                                  |
+| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                                                                                                           |

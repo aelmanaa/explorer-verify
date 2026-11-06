@@ -17,13 +17,9 @@ export type {
 export { exitCodeOf, toEnvelope } from "./envelope.ts";
 export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";
 export { formatHandle, isHandleString, parseHandle, tryParseHandle } from "./flow/handle.ts";
-export { dryRun } from "./flow/dry-run.ts";
-export { checkStatus } from "./flow/status.ts";
-export { linkProxy } from "./flow/link-proxy.ts";
-export { verify } from "./flow/verify.ts";
-export { verifyEach } from "./flow/verify-each.ts";
+export { checkStatus, dryRun, linkProxy, verify, verifyEach } from "./flow/defaults.ts";
 export { buildVerifyInput } from "./input/build.ts";
-export { routesFor, routingTableDate } from "./routing/resolve.ts";
+export { routesFor, routingTableDate } from "./routing/load-table.ts";
 export type { ChainRoutes, RoutePick, RoutesForOptions } from "./routing/resolve.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";
 export { linkLibraries } from "./input/libraries.ts";

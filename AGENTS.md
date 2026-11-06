@@ -111,25 +111,26 @@ natively. pnpm 12.16.1 (`packageManager`).
 
 ## Where things are
 
-| Path                                           | Contents                                                                                                                                                         |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/explorer-verify/src/`                | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
-| `packages/explorer-verify/src/server`          | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
-| `packages/explorer-verify/src/input/resolvers` | `explorer-verify/resolve`: `buildVerifyInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                           |
-| `packages/explorer-verify/test/unit/`          | Unit tests, `*.test.ts`                                                                                                                                          |
-| `packages/foundry/`                            | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
-| `packages/hardhat/`                            | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
-| `packages/cli/`                                | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
-| `examples/`                                    | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, and the tutorial's dapp (`dapp/`), type-checked and tested    |
-| `test/agent-eval/`                             | The agent evaluation's task set and how to run it ([README](test/agent-eval/README.md)); CI checks each task's reference command                                 |
-| `test/live/`                                   | Targets of the weekly live check (`scripts/live-check.ts`): public testnet addresses, no keys                                                                    |
-| `scripts/`                                     | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
-| `docs/user/`                                   | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
-| `llms.txt`                                     | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
-| `skills/`                                      | The agent skill; the build copies it into the package, and the tests run its examples against the build                                                          |
-| `docs/contributor/`                            | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                                                          |
-| `.github/`                                     | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                                                                     |
-| `.changeset/`                                  | Pending release notes                                                                                                                                            |
+| Path                                               | Contents                                                                                                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/explorer-verify/src/`                    | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
+| `packages/explorer-verify/src/server`              | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
+| `packages/explorer-verify/src/core`, `src/clients` | `explorer-verify/core`, `explorer-verify/clients/<name>`, `explorer-verify/table` ([docs](docs/user/reference/core.md))                                          |
+| `packages/explorer-verify/src/input/resolvers`     | `explorer-verify/resolve`: `buildVerifyInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                           |
+| `packages/explorer-verify/test/unit/`              | Unit tests, `*.test.ts`                                                                                                                                          |
+| `packages/foundry/`                                | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
+| `packages/hardhat/`                                | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |
+| `packages/cli/`                                    | `@explorer-verify/cli`, the `explorer-verify` bin (Node only, decision 0008); integration tests spawn the built bin                                              |
+| `examples/`                                        | Private workspace package, never published: the server handler in Next.js and a Cloudflare Worker, and the tutorial's dapp (`dapp/`), type-checked and tested    |
+| `test/agent-eval/`                                 | The agent evaluation's task set and how to run it ([README](test/agent-eval/README.md)); CI checks each task's reference command                                 |
+| `test/live/`                                       | Targets of the weekly live check (`scripts/live-check.ts`): public testnet addresses, no keys                                                                    |
+| `scripts/`                                         | Repository scripts run with plain `node`: hooks, type-escape, host and docs checks, test runner; tests in `scripts/test/`                                        |
+| `docs/user/`                                       | User documentation (Diátaxis layout, written as features land); the package ships it as `docs/`                                                                  |
+| `llms.txt`                                         | Index of the docs for agents (llmstxt.org); lists every user page                                                                                                |
+| `skills/`                                          | The agent skill; the build copies it into the package, and the tests run its examples against the build                                                          |
+| `docs/contributor/`                                | Requirements, architecture, roadmap, decisions, research, prior art, testing, releasing                                                                          |
+| `.github/`                                         | CI, issue and pull request templates, Dependabot, CODEOWNERS                                                                                                     |
+| `.changeset/`                                      | Pending release notes                                                                                                                                            |
 
 ## Rules for every change
 

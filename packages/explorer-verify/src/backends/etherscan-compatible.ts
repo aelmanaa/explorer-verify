@@ -68,7 +68,7 @@ function read(ctx: Context, backend: BackendName, fields: Record<string, string>
  * const match = await etherscanCompatible.lookup({ chainId: 296, address }, { route, http });
  * ```
  */
-export const etherscanCompatible: Backend = etherscanStyle({
+export const etherscanCompatible: Backend = /* @__PURE__ */ etherscanStyle({
   name: "etherscan-compatible",
   label: "Etherscan-compatible explorer",
   read,

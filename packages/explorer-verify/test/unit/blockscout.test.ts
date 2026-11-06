@@ -17,8 +17,7 @@ import {
 } from "../../src/backends/blockscout.ts";
 import { REASON_LENGTH } from "../../src/backends/common.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { validateInput } from "../../src/input/validate.ts";
 import { createObserver } from "../../src/observe.ts";
@@ -31,6 +30,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/types.ts";
+import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { jsKeys } from "../helpers/js-keys.ts";

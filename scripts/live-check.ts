@@ -27,8 +27,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { DEFAULT_DEPENDENCIES } from "../packages/explorer-verify/dist/src/flow/defaults.js";
 import {
-  DEFAULT_DEPENDENCIES,
   openCall,
   routeOf,
   settingsOf,

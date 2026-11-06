@@ -12,8 +12,7 @@ import type { Context, Target } from "../../src/backends/backend.ts";
 import { etherscan } from "../../src/backends/etherscan.ts";
 import { routescan } from "../../src/backends/routescan.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { request as send } from "../../src/http/fetch.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { validateInput } from "../../src/input/validate.ts";
@@ -26,6 +25,7 @@ import type {
   VerifyInput,
   VerifyOptions,
 } from "../../src/types.ts";
+import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

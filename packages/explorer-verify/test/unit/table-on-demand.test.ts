@@ -8,17 +8,13 @@ import type { BackendName } from "../../src/backend-names.ts";
 import type { Backend, ProxyLinker } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runDryRun } from "../../src/flow/dry-run.ts";
-import { runLinkProxy } from "../../src/flow/link-proxy.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { runVerifyEach } from "../../src/flow/verify-each.ts";
-import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
+import { loadRoutingTable } from "../../src/routing/load-table.ts";
 import {
   ETHERSCAN_API_URL,
   SOURCIFY_API_URL,
   checkRoute,
-  loadRoutingTable,
   readsTable,
   routeFrom,
   tableTarget,
@@ -26,6 +22,13 @@ import {
 import type { RoutingTable, TableLoader } from "../../src/routing/resolve.ts";
 import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { RouteOverride, VerifyInput, VerifyOptions } from "../../src/types.ts";
+import {
+  runCheckStatus,
+  runDryRun,
+  runLinkProxy,
+  runVerify,
+  runVerifyEach,
+} from "../helpers/defaults.ts";
 
 const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";

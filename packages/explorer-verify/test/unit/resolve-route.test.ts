@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "../../src/index.ts";
 import type { Hex, RouteOverride } from "../../src/index.ts";
-import { SOURCIFY_API_URL, routesFor } from "../../src/routing/resolve.ts";
+import { routesFor } from "../../src/routing/load-table.ts";
+import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { Route } from "../../src/routing/resolve.ts";
 import { resolveRoute } from "../helpers/route.ts";
 

@@ -1,6 +1,6 @@
 {
-  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030, 0031, 0032, 0033, 0034, 0036, 0038, 0040, 0044, 0046 and 0048). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client and the routing table, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decisions 0031 and 0040). A page that verifies on one backend ships an entry plus that backend's chunk, and the `table` chunk when the call reads the routing table. An entry with oneFile is measured as one file with every dynamic import inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table, so its size is the code's (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
-  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify (one file) was measured on 2026-11-05 on main 1ddf9eb plus #217 (decision 0046); the handler-url chunk on 2026-11-06 on main 411169e plus #215 (decision 0048). verify, checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63; the constructor-args chunk on 2026-11-04 on main f26cd8d plus #64 (decision 0032); verifyEach on 2026-11-04 on main deba6de plus #95 (decision 0034); linkProxy and the proxy-etherscan, proxy-blockscout and proxy-sourcify chunks on 2026-11-04 on main 2c9ad23 plus #94, and index on main 38365f3 plus #94 (decision 0033). The table chunk was measured on 2026-11-05 on main 0ee4ea4 plus #192 (decision 0040); buildVerifyInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput was measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047); createVerifyHandler keeps the ceiling of decision 0014.",
+  "$comment": "Bundle size ceilings (R-RUN-3, decisions 0008, 0014, 0023, 0024, 0026, 0027, 0030, 0031, 0032, 0033, 0034, 0036, 0038, 0040, 0044, 0046, 0048 and 0052). `pnpm run size` bundles each entry's code from the built package with esbuild (platform browser, ESM, minified), gzips it at the default level and fails above ceilingBytes. Each module an entry loads with a dynamic import(), each backend client and the routing table, is left out of the entry and measured on its own under `chunks`: that module and its imports, less every module the entry already holds, counted at its largest size over the entries (decisions 0031 and 0040). A page that verifies on one backend ships an entry plus that backend's chunk, and the `table` chunk when the call reads the routing table. An entry with oneFile is measured as one file with every dynamic import inlined, as esbuild without splitting ships it. An entry with withoutTable is measured with an empty routing table, so its size is the code's (decision 0023). measuredBytes is the size when the ceiling was set; the ceiling is that size plus 20%, rounded up (decision 0014). Raise a ceiling only in a pull request that says why, with its own decision record.",
+  "measured": "Each entry's measuredBytes is the size when its ceiling was set, with esbuild 0.28.2 and Node 24.21.0 zlib. verify (one file) was measured on 2026-11-05 on main 1ddf9eb plus #217 (decision 0046); the handler-url chunk on 2026-11-06 on main 411169e plus #215 (decision 0048); verify (core, Sourcify, one file) on 2026-11-06 on main 784792b plus #220 (decision 0052). verify, checkStatus, index and every chunk but etherscan-compatible were measured on 2026-11-04 on main ff437c9 plus #136 (decision 0031); the etherscan-compatible chunk on 2026-11-04 on main afac930 plus #63; the constructor-args chunk on 2026-11-04 on main f26cd8d plus #64 (decision 0032); verifyEach on 2026-11-04 on main deba6de plus #95 (decision 0034); linkProxy and the proxy-etherscan, proxy-blockscout and proxy-sourcify chunks on 2026-11-04 on main 2c9ad23 plus #94, and index on main 38365f3 plus #94 (decision 0033). The table chunk was measured on 2026-11-05 on main 0ee4ea4 plus #192 (decision 0040); buildVerifyInputFromBytecode on 2026-11-04 on main 22f60f4 plus #34 (decision 0026); buildVerifyInput was measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047); createVerifyHandler keeps the ceiling of decision 0014. checkStatus was measured on 2026-11-06 on main 784792b plus #220 (decision 0052).",
   "entries": [
     {
       "name": "verify",
@@ -17,10 +17,58 @@
       "oneFile": true
     },
     {
+      "name": "verify (core, Sourcify, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { verify } from \"explorer-verify/core\";\nexport { sourcify } from \"explorer-verify/clients/sourcify\";",
+      "measuredBytes": 21792,
+      "ceilingBytes": 26151,
+      "oneFile": true
+    },
+    {
+      "name": "verify (core, Etherscan v2, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { verify } from \"explorer-verify/core\";\nexport { etherscanV2 } from \"explorer-verify/clients/etherscan-v2\";",
+      "measuredBytes": 25837,
+      "ceilingBytes": 31005,
+      "oneFile": true
+    },
+    {
+      "name": "linkProxy (core, Sourcify, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { linkProxy } from \"explorer-verify/core\";\nexport { sourcifyProxyLink } from \"explorer-verify/clients/sourcify\";",
+      "measuredBytes": 19279,
+      "ceilingBytes": 23135,
+      "oneFile": true
+    },
+    {
+      "name": "linkProxy (core, Etherscan v2, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { linkProxy } from \"explorer-verify/core\";\nexport { etherscanV2ProxyLink } from \"explorer-verify/clients/etherscan-v2\";",
+      "measuredBytes": 20248,
+      "ceilingBytes": 24298,
+      "oneFile": true
+    },
+    {
+      "name": "linkProxy (core, Etherscan-compatible, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { linkProxy } from \"explorer-verify/core\";\nexport { etherscanCompatibleProxyLink } from \"explorer-verify/clients/etherscan-compatible\";",
+      "measuredBytes": 18731,
+      "ceilingBytes": 22478,
+      "oneFile": true
+    },
+    {
+      "name": "linkProxy (core, Blockscout, one file)",
+      "$comment": "Measured on 2026-11-06 on main 784792b plus #220 (decision 0052): explorer-verify/core with the named clients and no table, as one file, as esbuild without splitting and a wrapper SDK that bundles its dependencies ship it.",
+      "code": "export { linkProxy } from \"explorer-verify/core\";\nexport { blockscoutProxyLink } from \"explorer-verify/clients/blockscout\";",
+      "measuredBytes": 20458,
+      "ceilingBytes": 24550,
+      "oneFile": true
+    },
+    {
       "name": "checkStatus",
       "code": "export { checkStatus } from \"explorer-verify\";",
-      "measuredBytes": 11730,
-      "ceilingBytes": 14076
+      "measuredBytes": 14156,
+      "ceilingBytes": 16988
     },
     {
       "name": "verifyEach",

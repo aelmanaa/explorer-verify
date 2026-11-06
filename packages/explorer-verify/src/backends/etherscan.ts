@@ -422,7 +422,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
  * const match = await etherscan.lookup({ chainId: 11155111, address }, ctx);
  * ```
  */
-export const etherscan: Backend = etherscanStyle({
+export const etherscan: Backend = /* @__PURE__ */ etherscanStyle({
   name: "etherscan-v2",
   label: "Etherscan",
   read: post,

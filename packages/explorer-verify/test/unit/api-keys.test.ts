@@ -10,7 +10,7 @@ import type { BackendName } from "../../src/backend-names.ts";
 import type { Backend } from "../../src/backends/backend.ts";
 import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { openCall, settingsOf, startBudget, withHandler } from "../../src/flow/verify.ts";
 import {
   MAX_KEY_LENGTH,
@@ -29,6 +29,7 @@ import type { HttpRequest } from "../../src/http/fetch.ts";
 import { refuseHandlerKey } from "../../src/http/handler-url.ts";
 import type { Route } from "../../src/routing/resolve.ts";
 import type { RouteOverride, VerifyOptions } from "../../src/types.ts";
+import { runCheckStatus } from "../helpers/defaults.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import type { Call, Fixture } from "../helpers/fake-fetch.ts";
 import { resolveRoute } from "../helpers/route.ts";
@@ -464,7 +465,7 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
     const fake = t.mock.fn(() => Promise.reject(new Error("no request expected")));
     const read = settingsOf({ fetch: fake, handlerUrl: "https://dapp.example/api/verify" });
     const call = openCall(
-      await withHandler(read, startBudget(read)),
+      await withHandler(read, startBudget(read), DEFAULT_DEPENDENCIES.handler),
       routeOf("etherscan-v2", ETHERSCAN_API),
       target,
       { backends: { "etherscan-v2": sourcifyLike } },

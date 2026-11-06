@@ -19,6 +19,7 @@ import {
   routeKeys,
   checkApiUrl,
   readsTable,
+  servesWithoutTable,
   tableTarget,
   unsupported,
 } from "../routing/resolve.ts";
@@ -32,7 +33,6 @@ import type {
   VerifyResult,
 } from "../types.ts";
 import {
-  DEFAULT_DEPENDENCIES,
   abortWins,
   checkRouteOf,
   choiceKeys,
@@ -64,7 +64,7 @@ export const MAX_BACKENDS = 16;
  * fails to compile. `route` stays in the list so that it gets its own issue, which points at the
  * entries of `backends`.
  */
-function eachOptionKeys(): readonly string[] {
+export function eachOptionKeys(): readonly string[] {
   return Object.keys({
     fetch: true,
     handlerUrl: true,
@@ -85,67 +85,6 @@ const BACKENDS_HINT =
   'Pass backends as "all" or as an array of backend names or route overrides that name their backend, each backend and API URL once, no key in the address. Put each route in its backends entry, not in route.';
 
 /**
- * Verifies a deployed contract's source on several backends in one call (R-RT-4), and returns
- * one outcome per entry of `options.backends`, in the same order.
- *
- * 1. Validates the input and the options, reads `backends` and resolves each entry's route.
- *    Nothing is sent before all of them pass. `"all"` stands for every backend the routing table
- *    lists for the chain that this version has a client for, less a backend that needs a key when
- *    none is set, as the routing table chooses for `verify()`. Two entries that resolve to the same
- *    backend and API URL, and a key found in the address or a handle's fixed part, throw
- *    `invalid-input`. An entry is known by its position: the same backend may appear twice on two
- *    hosts. Fields of an entry other than `backend`, `apiUrl` and `apiKey` are ignored, as in `route`.
- * 2. Runs the steps of `verify()` on every backend at once, with one time budget, `timeoutMs`,
- *    shared by all of them, and the caller's `signal`. Each backend gets only its own key: a key
- *    from `apiKeys` goes only to its backend's routing-table host, and `route.apiKey` only to its
- *    entry's `apiUrl` (decision 0016).
- * 3. Maps each backend's end to an outcome: `{ backend, ok: true, result }` for `verified` or
- *    `already-verified`, `{ backend, ok: false, result }` for `failed`, and
- *    `{ backend, ok: false, error }` with the `ExplorerVerifyError` for an error. A `not-confirmed`
- *    error keeps its handle, so `checkStatus()` with that entry's route resumes that backend alone.
- *    A backend the chain's row does not list is an `unsupported-chain` outcome, and a client
- *    module that fails to load a `network` outcome with the load's error as its cause; the other
- *    backends still run. The routing table loads only when an entry needs it, mostly one without
- *    `apiUrl`, or for `"all"` (decision 0040). When it fails to load, each entry that needs it
- *    gets that outcome too, as a client's load failure; for `"all"`, the call throws the load's
- *    error.
- *
- * It emits `verify.validated` once, then each backend's events as `verify()` emits them. Every
- * event after the first carries its `backend`, so the streams interleave.
- *
- * @param input - What to verify. It is checked with `validateInput` first.
- * @param options - The options of `verify()` without `route`, and `backends`.
- * @returns One outcome per backend.
- * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6). The
- *   `verify.submitted` event of every submission made before the abort was emitted.
- * @throws ExplorerVerifyError `invalid-input` for bad input, options or `backends`, and
- *   `unsupported-chain` for `"all"` on a chain the routing table does not list. Nothing was sent.
- * @throws Any error that is not an `ExplorerVerifyError` and does not come from a client load,
- *   which only a bug can cause.
- * @example
- * ```ts
- * import { verifyEach } from "explorer-verify";
- *
- * declare const etherscanKey: string;
- *
- * const { outcomes } = await verifyEach(input, {
- *   backends: ["sourcify", "etherscan-v2"],
- *   apiKeys: { "etherscan-v2": etherscanKey },
- * });
- * for (const outcome of outcomes) {
- *   console.log(outcome.backend, "error" in outcome ? outcome.error.code : outcome.result.status);
- * }
- * ```
- * @experimental
- */
-export async function verifyEach(
-  input: VerifyInput,
-  options: VerifyEachOptions,
-): Promise<VerifyEachResult> {
-  return await runVerifyEach(input, options, DEFAULT_DEPENDENCIES);
-}
-
-/**
  * {@link verifyEach} with its dependencies passed in. Internal: the package entry point does not
  * export it.
  *
@@ -160,7 +99,7 @@ export async function verifyEach(
  */
 export async function runVerifyEach(
   input: VerifyInput,
-  options: VerifyEachOptions | undefined,
+  options: Partial<VerifyEachOptions> | undefined,
   dependencies: FlowDependencies,
 ): Promise<VerifyEachResult> {
   const read = settingsOf(options, eachOptionKeys());
@@ -170,7 +109,7 @@ export async function runVerifyEach(
     const checked = validateInput(input);
     const { chainId } = checked;
     const budget = startBudget(read);
-    const settings = await withHandler(read, budget);
+    const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
     const runs = await runsOf(chainId, entries, settings, dependencies, budget);
     // Every entry's key is a secret of every call, whether its route resolved or not, so no
     // output of one backend shows another's.
@@ -336,7 +275,13 @@ async function runsOf(
   budget: Budget,
 ): Promise<Run[]> {
   if (entries === "all") {
-    const table = await loadTable(dependencies.table, "sourcify", settings, budget);
+    const table = await loadTable(
+      dependencies.table,
+      "sourcify",
+      settings,
+      budget,
+      dependencies.missing,
+    );
     return everyListed(chainId, settings, dependencies, table).map((entry, index) => ({
       entry,
       route: routeFor(chainId, settings, entry, index, dependencies, table),
@@ -346,15 +291,32 @@ async function runsOf(
     entry,
     checked: checkEntry(chainId, settings, entry, index, dependencies),
   }));
-  const reading = checked.find((each) => readsTable(each.checked));
+  // Without a table, which only explorer-verify/core allows, only an entry without apiUrl reads
+  // one, and it throws invalid-input naming table (decision 0052).
+  const reading = checked.find(
+    (each) =>
+      readsTable(each.checked) &&
+      (dependencies.table !== undefined || !servesWithoutTable(each.checked)),
+  );
   let table: RoutingTable | undefined;
   let failure: { readonly error: unknown } | undefined;
   // Stryker disable next-line ConditionalExpression: equivalent when always true. Without an entry that reads the table, the failure of reading.checked is never used.
   if (reading !== undefined) {
     try {
-      table = await tableFor(reading.checked, dependencies.table, settings, budget);
+      table = await tableFor(
+        reading.checked,
+        dependencies.table,
+        settings,
+        budget,
+        dependencies.missing,
+      );
     } catch (error: unknown) {
-      if (settings.signal?.aborted === true) {
+      // A table the caller of explorer-verify/core left out is an error in the options, thrown
+      // before any request, not the outcome of the entries that read it (decision 0052).
+      if (
+        settings.signal?.aborted === true ||
+        (error instanceof ExplorerVerifyError && error.details.code === "invalid-input")
+      ) {
         throw error;
       }
       failure = { error };
@@ -510,11 +472,11 @@ function everyListed(
     }
   }
   if (names.length === 0) {
-    throw unsupported(
-      chainId,
-      toBackendName(row.backends[0]?.backend) ?? "sourcify",
+    const first = toBackendName(row.backends[0]?.backend) ?? "sourcify";
+    throw (
+      dependencies.missing?.client(first, chainId) ??
       // Stryker disable next-line StringLiteral: equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".
-      "client",
+      unsupported(chainId, first, "client")
     );
   }
   // As the routing table chooses for verify(): a backend that needs a key is left out without
@@ -532,7 +494,10 @@ function everyListed(
  * Reads `backends` and checks that `route` is absent. Each entry becomes a route override with its
  * backend named; `resolveRoute` checks the rest of it. Throws `invalid-input` with every issue.
  */
-function entriesOf(options: VerifyEachOptions | undefined, settings: Settings): Entry[] | "all" {
+function entriesOf(
+  options: Partial<VerifyEachOptions> | undefined,
+  settings: Settings,
+): Entry[] | "all" {
   const issues: InputIssue[] = [];
   let raw: unknown;
   try {

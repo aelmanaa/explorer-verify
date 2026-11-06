@@ -19,7 +19,7 @@ import { blockscoutProxyLinker } from "../../src/backends/proxy-blockscout.ts";
 import { compatibleProxyLinker, etherscanProxyLinker } from "../../src/backends/proxy-etherscan.ts";
 import { sourcifyProxyLinker } from "../../src/backends/proxy-sourcify.ts";
 import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
-import { DEFAULT_LINK_DEPENDENCIES, runLinkProxy } from "../../src/flow/link-proxy.ts";
+import { DEFAULT_LINK_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { LinkDependencies } from "../../src/flow/link-proxy.ts";
 import { linkProxy } from "../../src/index.ts";
 import type {
@@ -28,6 +28,7 @@ import type {
   VerifyEvent,
   VerifyOptions,
 } from "../../src/types.ts";
+import { runLinkProxy } from "../helpers/defaults.ts";
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

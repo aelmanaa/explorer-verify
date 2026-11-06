@@ -24,8 +24,8 @@ import type { Observer } from "../observe.ts";
 import {
   checkApiUrl,
   checkRoute,
-  loadRoutingTable,
   readsTable,
+  servesWithoutTable,
   ETHERSCAN_API_URL,
   HANDLER_KEY,
   routeFrom,
@@ -50,11 +50,20 @@ export const DEFAULT_POLL_INTERVAL_MS = 3_000;
 /** The shortest wait between two status polls, in milliseconds. A shorter `pollIntervalMs` is raised to it. */
 export const MIN_POLL_INTERVAL_MS = 1_000;
 
-// The keys of `VerifyOptions`, as a record so that a field added to the type and not here fails
-// to compile. `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every one of
-// them at run time, so one options object can go to each (decision 0047); their types are narrower
-// so that a misplaced key in an object literal fails to compile.
-function verifyOptionKeys(): readonly string[] {
+/**
+ * The keys of `VerifyOptions`, as a record so that a field added to the type and not here fails
+ * to compile. `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every one of
+ * them at run time, so one options object can go to each (decision 0047); their types are narrower
+ * so that a misplaced key in an object literal fails to compile. `explorer-verify/core` checks
+ * them with its own keys, so an unknown key is named with its issues (decision 0052).
+ *
+ * @returns The keys.
+ * @example
+ * ```ts
+ * verifyOptionKeys().includes("timeoutMs"); // true
+ * ```
+ */
+export function verifyOptionKeys(): readonly string[] {
   return Object.keys({
     fetch: true,
     handlerUrl: true,
@@ -92,19 +101,26 @@ export type ClientLoader = () => Promise<Backend>;
 export type Client = Backend | ClientLoader;
 
 /**
- * Loads the constructor argument derivation (R-IN-3). It sits behind a dynamic `import()`, so a
- * call that derives nothing does not load it (decisions 0031 and 0032).
+ * Loads the constructor argument derivation (R-IN-3). The default entry's sits behind a dynamic
+ * `import()`, so a call that derives nothing does not load it (decisions 0031 and 0032).
  */
 export type DeriveLoader = () => Promise<typeof WithDerivedArgs>;
 
-/** The shipped derivation, loaded with a dynamic `import()` the first time a call derives. */
-const loadDerivation: DeriveLoader = async () =>
-  (await import("../input/constructor-args.ts")).withDerivedArgs;
+/** The `handlerUrl` code: its check, and the refusal of a key bound to the handler's route. */
+export interface HandlerCode {
+  readonly resolveHandler: (settings: Settings, etherscanApi: string) => ResolvedHandler;
+}
+
+/** Loads the `handlerUrl` code. The default entry's sits in a chunk of its own (decision 0046). */
+export type HandlerLoader = () => Promise<HandlerCode>;
 
 /**
- * What the flow engine takes besides the caller's input and options. `verify()` passes the
- * defaults; the tests pass a fixed `random` for the backoff jitter, a backend table without a
- * client to reach the error for it, or a routing table with rows for clients to come.
+ * What the flow engine takes besides the caller's input and options. This module holds no dynamic
+ * `import()`, so `explorer-verify/core` bundles the engine without any client (decision 0052).
+ * The default entry passes `DEFAULT_DEPENDENCIES`, whose loaders do; `explorer-verify/core` passes
+ * the clients and the table its caller gave. The tests pass a fixed `random` for the backoff
+ * jitter, a backend table without a client to reach the error for it, or a routing table with rows
+ * for clients to come.
  */
 export interface FlowDependencies {
   /** The client of each backend, or the function that loads it. */
@@ -112,38 +128,52 @@ export interface FlowDependencies {
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
   /**
-   * The routing table, or the function that loads it. Defaults to {@link loadRoutingTable}, the
-   * shipped one; the tests pass rows for clients to come.
+   * The routing table, or the function that loads it. Absent, a route that reads the table throws
+   * `missing.table()` (decision 0052).
    */
-  readonly table?: RoutingTable | TableLoader;
-  /** Loads the constructor argument derivation. Defaults to the shipped one; tests pass others. */
-  readonly derivation?: DeriveLoader;
+  readonly table?: RoutingTable | TableLoader | undefined;
+  /** Loads the constructor argument derivation; absent, a call that must derive throws. */
+  readonly derivation?: DeriveLoader | undefined;
+  /** Loads the `handlerUrl` code; absent, a call with `handlerUrl` throws `missing.handler()`. */
+  readonly handler?: HandlerLoader | undefined;
+  /** Set by `explorer-verify/core`: the errors for what its caller left out. */
+  readonly missing?: Missing | undefined;
 }
 
 /**
- * The backend clients `verify()`, `checkStatus()` and `dryRun()` use. Each one loads through a
- * dynamic `import()` with a literal path, so a bundler that splits code puts it in a chunk of its
- * own, and a call loads only the client its route names (decision 0031).
+ * The errors for what a caller of `explorer-verify/core` left out, each thrown before any request
+ * (decision 0052). `explorer-verify/core` holds their text, so the default entry, which always
+ * has every client, the table and the `handlerUrl` code, does not bundle it. Without them, as in
+ * the default entry, the engine throws `unsupported-chain` for a backend without a client and a
+ * `TypeError` for the rest.
  */
-export const DEFAULT_DEPENDENCIES: FlowDependencies = {
-  backends: {
-    /** Loads the Sourcify client. */
-    sourcify: async () => (await import("../backends/sourcify.ts")).sourcify,
-    /** Loads the Etherscan v2 client. */
-    "etherscan-v2": async () => (await import("../backends/etherscan.ts")).etherscan,
-    /** Loads the standalone Etherscan-compatible client, which imports the Etherscan v2 client's request code. */
-    "etherscan-compatible": async () =>
-      (await import("../backends/etherscan-compatible.ts")).etherscanCompatible,
-    /** Loads the Routescan client, which imports the Etherscan v2 client's request code. */
-    routescan: async () => (await import("../backends/routescan.ts")).routescan,
-    /** Loads the Blockscout client. */
-    blockscout: async () => (await import("../backends/blockscout.ts")).blockscout,
-    /** Loads the client for Blockscout's hosted API, from the same module (decision 0041). */
-    "blockscout-hosted": async () => (await import("../backends/blockscout.ts")).blockscoutHosted,
-  },
-  /** Loads the routing table, only for a call without `route.apiUrl` (decision 0040). */
-  table: loadRoutingTable,
-};
+export interface Missing {
+  /** For a backend the routing table chose and `clients` has no client for. */
+  readonly client: (backend: BackendName, chainId: number) => ExplorerVerifyError;
+  /** For a route that reads the routing table, without `table`. */
+  readonly table: () => ExplorerVerifyError;
+  /** For `handlerUrl` without the Etherscan v2 client, which brings its code. */
+  readonly handler: () => ExplorerVerifyError;
+  /** The hint for a `route.backend` with no client in `clients`. */
+  readonly backendHint: (named: BackendName) => string;
+}
+
+/** {@link Missing} for `linkProxy()`, which also names a proxy-link client left out. */
+export interface LinkMissing extends Missing {
+  /**
+   * For a backend whose proxy-link client is not in `clients`; `undefined` for a backend that
+   * cannot link in this version, which gets the default entry's error.
+   */
+  readonly linker: (
+    backend: BackendName,
+    secrets: readonly string[],
+  ) => ExplorerVerifyError | undefined;
+}
+
+/** What the engine throws when an internal caller left out a part `missing` has no error for. */
+function notPassed(what: string): TypeError {
+  return new TypeError(`No ${what} was passed to the flow engine.`);
+}
 
 /**
  * Starts a call's time budget: `settings.timeoutMs` from now. Each call takes it before it loads
@@ -355,77 +385,6 @@ type Polled =
 type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
 
 /**
- * Verifies a deployed contract's source on the explorer the route names (R-FLOW-1 to R-FLOW-6).
- *
- * 1. Validates the input and the options, and resolves the route. Nothing is sent before both
- *    pass (R-IN-6).
- * 2. Looks the contract up. When the explorer already holds an `exact` or `partial` match, it
- *    returns `already-verified` with that match and sends no submission (R-FLOW-1).
- * 3. Submits the source. This is outward and permanent: the explorer publishes it. When the
- *    explorer answers that the contract is already verified, it returns `already-verified`.
- * 4. Polls the job every `pollIntervalMs` until it ends or `timeoutMs` is spent (R-FLOW-2). The
- *    budget covers every request, the submit and its retries included.
- * 5. Maps the outcome (R-FLOW-3, R-FLOW-4): `verified` with the match, `already-verified` when
- *    the job found the contract verified, or `failed` with the explorer's reason, only for a
- *    definitive rejection. Any other final state throws.
- * 6. When the budget runs out while the job is still pending, it looks the contract up once more,
- *    within one more `pollIntervalMs`: some explorers finish before their status endpoint says so.
- *    A match returns `verified`; otherwise it throws `not-confirmed` with the handle.
- * 7. When a poll answers that the explorer no longer knows the job, it looks the contract up once,
- *    within the same window. A match returns `verified`; otherwise it throws `job-not-found` with
- *    the handle.
- *
- * So the call ends within `timeoutMs` plus one `pollIntervalMs`.
- *
- * `already-verified` can describe a verification this call caused. When the submit got no clear
- * answer, the client looks the contract up before it submits again; if the first submit was
- * accepted and has finished, that lookup finds the contract verified.
- *
- * The handle is passed to `onEvent` in a `verify.submitted` event, and logged at `info`, as soon as
- * the explorer accepts the submission, so a call that is aborted or that crashes after that point
- * can still be resumed (R-FLOW-5).
- *
- * @param input - What to verify. It is checked with `validateInput` first.
- * @param options - Fetch, abort signal, time budget, poll interval, logger, event callback and
- *   route. Every field is optional.
- * @returns `verified` or `already-verified` with the match and, when the library knows one, the
- *   public page of the contract; or `failed` with the explorer's reason, API keys removed.
- * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
- * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
- *   chunk the page cannot fetch (decision 0031).
- * @throws ExplorerVerifyError with `invalid-input` for bad input or options; `unsupported-chain`;
- *   `timeout` when the budget runs out before the explorer accepts the submission;
- *   `not-confirmed`, with the handle, when it runs out while the job is pending;
- *   `verification-inconclusive` when the job ends without a verdict; `unknown-state` for a final
- *   state the library cannot classify; `job-not-found`, with the handle, when the explorer no
- *   longer knows the job and a lookup finds no match or fails; `in-progress`, `network`,
- *   `rate-limited` and `unexpected-response`. See the error reference for each.
- * @example
- * ```ts
- * import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
- *
- * try {
- *   const result = await verify(input, { timeoutMs: 60_000 });
- *   if (result.status === "failed") {
- *     console.error(`Rejected: ${result.reason}`);
- *   } else {
- *     console.log(`${result.status} (${result.match}) ${result.explorerUrl ?? ""}`);
- *   }
- * } catch (error) {
- *   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
- *     localStorage.setItem("pending-verification", formatHandle(error.details.handle));
- *   } else {
- *     throw error;
- *   }
- * }
- * ```
- * @experimental
- */
-export async function verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult> {
-  return await runVerify(input, options, DEFAULT_DEPENDENCIES);
-}
-
-/**
  * {@link verify} with its dependencies passed in. Internal: the package entry point does not
  * export it.
  *
@@ -459,7 +418,7 @@ async function verifyWith(
 ): Promise<VerifyResult> {
   const checked = validateInput(input);
   const budget = startBudget(read);
-  const settings = await withHandler(read, budget);
+  const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
   const route = await routeOf(checked.chainId, settings, dependencies, budget);
   return await verifyOnRoute(checked, route, settings, dependencies, budget, true);
 }
@@ -505,7 +464,7 @@ export async function verifyOnRoute(
   }
 
   const submitted = await backend.submit(
-    await withArgs(call, checked, dependencies.derivation ?? loadDerivation),
+    await withArgs(call, checked, dependencies.derivation),
     call.ctx,
   );
   if (submitted.state === "already-verified") {
@@ -532,7 +491,11 @@ export async function verifyOnRoute(
  * not load it; the load ends on abort or when the budget runs out, as a client's does (decision
  * 0031). See `withDerivedArgs` for what it logs and throws (decision 0032).
  */
-async function withArgs(call: Call, input: VerifyInput, load: DeriveLoader): Promise<VerifyInput> {
+async function withArgs(
+  call: Call,
+  input: VerifyInput,
+  load: DeriveLoader | undefined,
+): Promise<VerifyInput> {
   const { creationBytecode } = input;
   if (
     input.constructorArgs !== undefined ||
@@ -542,6 +505,10 @@ async function withArgs(call: Call, input: VerifyInput, load: DeriveLoader): Pro
     return input;
   }
   const { backend, settings, budget } = call;
+  if (load === undefined) {
+    // Each client that takes constructor arguments brings the derivation (decision 0052).
+    throw new TypeError(`The ${backend.name} client came without the constructor argument code.`);
+  }
   const derive = await bounded(
     load,
     DERIVATIONS,
@@ -966,7 +933,7 @@ function invalidOptions(
     { code: "invalid-input", issues },
     `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
-      hint: "Pass options as a plain object: timeoutMs and pollIntervalMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.",
+      hint: `Pass options as a plain object: timeoutMs and pollIntervalMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.${issues.some(({ field }) => field === "clients" || field === "table") ? " Use explorer-verify/core for clients and table." : ""}`,
       secrets,
     },
   );
@@ -1000,7 +967,7 @@ export async function routeOf(
   budget: Budget,
 ): Promise<Route> {
   const checked = checkRouteOf(chainId, settings, dependencies);
-  const table = await tableFor(checked, dependencies.table, settings, budget);
+  const table = await tableFor(checked, dependencies.table, settings, budget, dependencies.missing);
   return routeWith(chainId, checked, settings, dependencies, table);
 }
 
@@ -1022,7 +989,12 @@ export function checkRouteOf(
   settings: Settings,
   dependencies: FlowDependencies,
 ): CheckedRoute {
-  return checkRoute(chainId, settings.route, clientsOf(dependencies));
+  return checkRoute(
+    chainId,
+    settings.route,
+    clientsOf(dependencies),
+    dependencies.missing?.backendHint,
+  );
 }
 
 /**
@@ -1043,37 +1015,42 @@ export function choiceKeys(settings: Settings): CheckedKeys {
   return settings.handler === undefined ? keys : { ...keys, "etherscan-v2": HANDLER_KEY };
 }
 
-/** The `handlerUrl` code: its check, and the refusal of a key bound to the handler's route. */
-interface HandlerCode {
-  readonly resolveHandler: (settings: Settings, etherscanApi: string) => ResolvedHandler;
-}
-
-/** Loads the `handlerUrl` code, in a chunk of its own (decision 0046). */
-const loadHandlerCode = async (): Promise<HandlerCode> => await import("../http/handler-url.ts");
-
 /** The `handlerUrl` code each loader has given, as {@link LOADED} keeps clients. */
-const HANDLER_CODE = new WeakMap<() => Promise<HandlerCode>, HandlerCode>();
+const HANDLER_CODE = new WeakMap<HandlerLoader, HandlerCode>();
 
 /**
- * `settings` with `handlerUrl` checked, when the caller set it. The check loads with a dynamic
- * `import()`, through {@link bounded}, so a caller who never sets `handlerUrl` never downloads it
- * (decision 0046). Every flow calls it before it resolves the route.
+ * `settings` with `handlerUrl` checked, when the caller set it. The check loads with `load`,
+ * through {@link bounded}: the default entry's loader runs a dynamic `import()`, so a caller who
+ * never sets `handlerUrl` never downloads it (decision 0046). Every flow calls it before it
+ * resolves the route.
  *
  * @param settings - The options from {@link settingsOf}.
  * @param budget - The call's budget, from {@link startBudget}.
+ * @param load - Loads the `handlerUrl` code. Through `explorer-verify/core`, it comes with the
+ *   Etherscan v2 client, and is absent without it (decision 0052).
+ * @param missing - The errors of `explorer-verify/core`, for a `load` that is absent.
  * @returns The settings, with `handler` set when `handlerUrl` is.
- * @throws ExplorerVerifyError `invalid-input` naming `handlerUrl`; what {@link bounded} throws.
+ * @throws ExplorerVerifyError `invalid-input` naming `handlerUrl`; `missing.handler()` when
+ *   `load` is absent; what {@link bounded} throws.
  * @example
  * ```ts
- * const checked = await withHandler(settingsOf(options), budget);
+ * const checked = await withHandler(settingsOf(options), budget, DEFAULT_DEPENDENCIES.handler);
  * ```
  */
-export async function withHandler(settings: Settings, budget: Budget): Promise<Settings> {
+export async function withHandler(
+  settings: Settings,
+  budget: Budget,
+  load: HandlerLoader | undefined,
+  missing?: Missing,
+): Promise<Settings> {
   if (settings.handlerUrl === undefined) {
     return settings;
   }
+  if (load === undefined) {
+    throw missing?.handler() ?? notPassed("handlerUrl code");
+  }
   const code = await bounded(
-    loadHandlerCode,
+    load,
     HANDLER_CODE,
     "handlerUrl",
     "etherscan-v2",
@@ -1090,14 +1067,20 @@ export async function withHandler(settings: Settings, budget: Budget): Promise<S
  * caller's signal aborts, with `signal.reason`, or when the budget runs out, with `timeout`
  * naming the backend of `route.backend`, or `sourcify`, the fallback, when none is named.
  *
+ * Without a table, which only `explorer-verify/core` allows, a route with `route.apiUrl` reads
+ * none: it goes where the caller says, and gets no explorer page from a row. A route without
+ * `route.apiUrl` throws `missing.table()` (decision 0052).
+ *
  * @param checked - The checked override, from {@link checkRouteOf}.
- * @param source - The routing table, or the function that loads it; {@link loadRoutingTable}
- *   when absent.
+ * @param source - The routing table, or the function that loads it; absent through
+ *   `explorer-verify/core` without `table`.
  * @param settings - The options from {@link settingsOf}: the signal.
  * @param budget - The call's budget, from {@link startBudget}.
+ * @param missing - The errors of `explorer-verify/core`, for a `source` that is absent.
  * @returns The table, or `undefined` when the route reads none.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
- *   the budget runs out; what the loader throws, such as the error of a chunk that fails to load.
+ *   the budget runs out; `missing.table()` for a route without `route.apiUrl` and no `source`;
+ *   what the loader throws, such as the error of a chunk that fails to load.
  * @example
  * ```ts
  * const table = await tableFor(checked, DEFAULT_DEPENDENCIES.table, settings, budget);
@@ -1108,20 +1091,22 @@ export async function tableFor(
   source: RoutingTable | TableLoader | undefined,
   settings: Settings,
   budget: Budget,
+  missing?: Missing,
 ): Promise<RoutingTable | undefined> {
-  return readsTable(checked)
-    ? await loadTable(source, checked.named ?? "sourcify", settings, budget)
+  return readsTable(checked) && (source !== undefined || !servesWithoutTable(checked))
+    ? await loadTable(source, checked.named ?? "sourcify", settings, budget, missing)
     : undefined;
 }
 
 /**
  * Loads the routing table, as {@link tableFor} does, whatever the route.
  *
- * @param source - The routing table, or the function that loads it; {@link loadRoutingTable}
- *   when absent.
+ * @param source - The routing table, or the function that loads it; absent through
+ *   `explorer-verify/core` without `table`.
  * @param name - The backend a `timeout` names.
  * @param settings - The options from {@link settingsOf}: the signal.
  * @param budget - The call's budget, from {@link startBudget}.
+ * @param missing - The errors of `explorer-verify/core`, for a `source` that is absent.
  * @returns The table.
  * @throws As {@link tableFor} throws.
  * @example
@@ -1134,11 +1119,14 @@ export async function loadTable(
   name: BackendName,
   settings: Settings,
   budget: Budget,
+  missing?: Missing,
 ): Promise<RoutingTable> {
-  const table = source ?? loadRoutingTable;
-  return typeof table === "function"
-    ? await bounded(table, TABLES, "the routing table", name, settings.signal, budget)
-    : table;
+  if (source === undefined) {
+    throw missing?.table() ?? notPassed("routing table");
+  }
+  return typeof source === "function"
+    ? await bounded(source, TABLES, "the routing table", name, settings.signal, budget)
+    : source;
 }
 
 /**
@@ -1183,8 +1171,11 @@ function clientsOf(dependencies: FlowDependencies): BackendName[] {
 function backendOf(route: Route, chainId: number, dependencies: FlowDependencies): Backend {
   const backend = dependencies.backends[route.backend];
   if (backend === undefined) {
-    // Stryker disable next-line StringLiteral: equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".
-    throw unsupported(chainId, route.backend, "client");
+    throw (
+      dependencies.missing?.client(route.backend, chainId) ??
+      // Stryker disable next-line StringLiteral: equivalent. unsupported() gives the client message and hint to any reason other than "row" and "listed".
+      unsupported(chainId, route.backend, "client")
+    );
   }
   if (typeof backend === "function") {
     throw new TypeError(

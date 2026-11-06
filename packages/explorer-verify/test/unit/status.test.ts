@@ -11,8 +11,7 @@ import { sourcify } from "../../src/backends/sourcify.ts";
 import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
 import { ERROR_EXIT_CODES } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { MAX_POLL_FAILURES, runVerify } from "../../src/flow/verify.ts";
+import { MAX_POLL_FAILURES } from "../../src/flow/verify.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
 import { ExplorerVerifyError, checkStatus, formatHandle, parseHandle } from "../../src/index.ts";
 import type {
@@ -24,6 +23,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

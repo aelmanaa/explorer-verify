@@ -13,10 +13,6 @@ import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
 import { formatHandle } from "../../src/flow/format-handle.ts";
 import { parseHandle } from "../../src/flow/handle.ts";
-import { runLinkProxy } from "../../src/flow/link-proxy.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { runVerifyEach } from "../../src/flow/verify-each.ts";
-import { runVerify } from "../../src/flow/verify.ts";
 import {
   HOSTED_BLOCKSCOUT_HOST,
   keyFor,
@@ -28,6 +24,7 @@ import { validateInput } from "../../src/input/validate.ts";
 import { checkRoute, readsTable, resolveRoute } from "../../src/routing/resolve.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { Handle, RouteOverride, VerifyEvent, VerifyInput } from "../../src/types.ts";
+import { runCheckStatus, runLinkProxy, runVerify, runVerifyEach } from "../helpers/defaults.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

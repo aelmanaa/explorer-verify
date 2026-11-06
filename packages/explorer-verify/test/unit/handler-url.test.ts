@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import type { Answer } from "../../src/backends/common.ts";
 import { newError } from "../../src/error-hints.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { settingsOf, startBudget, withHandler } from "../../src/flow/verify.ts";
 import {
   checkHandlerUrl,
@@ -168,7 +169,8 @@ describe("sentUrl (R-SRV-5, R-SEC-2, decision 0046)", () => {
 
 async function resolved(handlerUrl: string): Promise<string | undefined> {
   const settings = settingsOf({ handlerUrl });
-  return (await withHandler(settings, startBudget(settings))).handler?.url;
+  return (await withHandler(settings, startBudget(settings), DEFAULT_DEPENDENCIES.handler)).handler
+    ?.url;
 }
 
 async function refused(
@@ -176,7 +178,11 @@ async function refused(
   apiKeys: VerifyOptions["apiKeys"] = {},
 ): Promise<ExplorerVerifyError> {
   const settings = settingsOf({ handlerUrl, apiKeys });
-  const outcome = await withHandler(settings, startBudget(settings)).then(
+  const outcome = await withHandler(
+    settings,
+    startBudget(settings),
+    DEFAULT_DEPENDENCIES.handler,
+  ).then(
     () => undefined,
     (error: unknown) => error,
   );
@@ -195,7 +201,7 @@ describe("settingsOf and withHandler: handlerUrl (decision 0046, R-SEC-1)", () =
     assert.equal(settingsOf(undefined).handlerUrl, undefined);
     // Without handlerUrl, withHandler loads nothing and returns the settings as they are.
     const plain = settingsOf({});
-    assert.equal(await withHandler(plain, startBudget(plain)), plain);
+    assert.equal(await withHandler(plain, startBudget(plain), DEFAULT_DEPENDENCIES.handler), plain);
   });
 
   it("refuses a value that is not a string", async () => {
@@ -205,7 +211,11 @@ describe("settingsOf and withHandler: handlerUrl (decision 0046, R-SEC-1)", () =
       assert.ok(typeof settings === "object" && settings !== null);
       const read = settingsOf({});
       const loose = { ...read, handlerUrl: Reflect.get(settings, "handlerUrl") };
-      const outcome = await withHandler(loose, startBudget(read)).then(
+      const outcome = await withHandler(
+        loose,
+        startBudget(read),
+        DEFAULT_DEPENDENCIES.handler,
+      ).then(
         () => undefined,
         (error: unknown) => error,
       );

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import type { Backend } from "../../src/backends/backend.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
+import { runCheckStatus } from "../helpers/defaults.ts";
 
 const SEPOLIA = 11155111;
 const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";

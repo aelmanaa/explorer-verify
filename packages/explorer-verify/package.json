@@ -46,6 +46,34 @@
       "types": "./dist/src/input/resolvers/bytecode.d.ts",
       "default": "./dist/src/input/resolvers/bytecode.js"
     },
+    "./core": {
+      "types": "./dist/src/core/index.d.ts",
+      "default": "./dist/src/core/index.js"
+    },
+    "./table": {
+      "types": "./dist/src/core/table.d.ts",
+      "default": "./dist/src/core/table.js"
+    },
+    "./clients/sourcify": {
+      "types": "./dist/src/clients/sourcify.d.ts",
+      "default": "./dist/src/clients/sourcify.js"
+    },
+    "./clients/etherscan-v2": {
+      "types": "./dist/src/clients/etherscan-v2.d.ts",
+      "default": "./dist/src/clients/etherscan-v2.js"
+    },
+    "./clients/etherscan-compatible": {
+      "types": "./dist/src/clients/etherscan-compatible.d.ts",
+      "default": "./dist/src/clients/etherscan-compatible.js"
+    },
+    "./clients/routescan": {
+      "types": "./dist/src/clients/routescan.d.ts",
+      "default": "./dist/src/clients/routescan.js"
+    },
+    "./clients/blockscout": {
+      "types": "./dist/src/clients/blockscout.d.ts",
+      "default": "./dist/src/clients/blockscout.js"
+    },
     "./envelope.schema.json": "./schema/envelope.schema.json",
     "./event.schema.json": "./schema/event.schema.json",
     "./input.schema.json": "./schema/input.schema.json",
