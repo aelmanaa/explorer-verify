@@ -8,7 +8,7 @@ import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import type { DetailsOf, InputIssue } from "../errors.ts";
 import { collisions, needsKey } from "../http/api-keys.ts";
 import type { Budget } from "../http/fetch.ts";
 import { validateInput } from "../input/validate.ts";
@@ -132,7 +132,9 @@ export async function runVerifyEach(
           if (route instanceof ExplorerVerifyError) {
             throw route;
           }
-          const loaded = await loadClient(route, dependencies, own, budget, everySecret);
+          // A client that fails to load is a network error, so that backend's outcome, and the
+          // other backends go on (decision 0054).
+          const loaded = await withClient(route, dependencies, own, budget);
           const result = await verifyOnRoute(checked, route, own, loaded, budget, false);
           return outcomeOf(entry.backend, result);
         } catch (error: unknown) {
@@ -163,34 +165,6 @@ function outcomeOf(backend: BackendName, result: VerifyResult): BackendOutcome {
   return result.status === "failed"
     ? { backend, ok: false, result }
     : { backend, ok: true, result };
-}
-
-/**
- * The dependencies with the route's client loaded, as `withClient` gives them. A client module
- * that fails to load, such as a chunk the page cannot fetch, becomes a `network` error with the
- * load's error as its cause, so it is that backend's outcome and the other backends go on. A
- * `timeout` passes through unchanged. An abort needs no check: the call throws the abort reason
- * once every backend has settled, whatever this outcome is.
- */
-async function loadClient(
-  route: Route,
-  dependencies: FlowDependencies,
-  settings: Settings,
-  budget: Budget,
-  secrets: readonly string[],
-): Promise<FlowDependencies> {
-  try {
-    return await withClient(route, dependencies, settings, budget);
-  } catch (error: unknown) {
-    if (error instanceof ExplorerVerifyError) {
-      throw error;
-    }
-    throw newError(
-      { code: "network", backend: route.backend, attempts: 1 },
-      `Loading the ${route.backend} client failed.`,
-      { secrets, cause: error },
-    );
-  }
 }
 
 /**
@@ -264,7 +238,7 @@ function normalised(apiUrl: string | undefined): string {
 /**
  * The runs of the call: each entry with its route. Every entry is checked before the routing table
  * loads, and the table loads only when an entry needs it (`readsTable`), or for `"all"`, which
- * reads the chain's row (decision 0040). For `"all"`, a table that fails to load throws, as in `verify()`.
+ * reads the chain's row (decision 0040). For `"all"`, a table that fails to load throws `network`, as in `verify()`.
  * For a list, it is the outcome of each entry that reads the table, as a client's load failure is.
  */
 async function runsOf(
@@ -299,7 +273,7 @@ async function runsOf(
       (dependencies.table !== undefined || !servesWithoutTable(each.checked)),
   );
   let table: RoutingTable | undefined;
-  let failure: { readonly error: unknown } | undefined;
+  let failure: TableFailure | undefined;
   // Stryker disable next-line ConditionalExpression: equivalent when always true. Without an entry that reads the table, the failure of reading.checked is never used.
   if (reading !== undefined) {
     try {
@@ -313,16 +287,18 @@ async function runsOf(
     } catch (error: unknown) {
       // A table the caller of explorer-verify/core left out is an error in the options, thrown
       // before any request, not the outcome of the entries that read it (decision 0052).
+      // Only a load that failed or ran out of time is the entries' outcome (decision 0054).
       if (
         settings.signal?.aborted === true ||
-        (error instanceof ExplorerVerifyError && error.details.code === "invalid-input")
+        !(error instanceof ExplorerVerifyError) ||
+        (error.details.code !== "timeout" && error.details.code !== "network")
       ) {
         throw error;
       }
-      failure = { error };
+      failure = { error, details: error.details };
     }
   }
-  // As loadClient's: every key of the call, every entry's included, and the RPC secrets.
+  // Every key of the call, every entry's included, and the RPC secrets.
   const secrets = [
     ...settings.keySecrets(),
     ...entries.flatMap((entry) => (entry.apiKey === undefined ? [] : [entry.apiKey])),
@@ -332,35 +308,32 @@ async function runsOf(
     entry,
     route:
       failure !== undefined && readsTable(each)
-        ? tableFailure(entry, failure.error, secrets)
+        ? tableFailure(entry, failure, secrets)
         : routeFor(chainId, settings, entry, index, dependencies, table, each),
   }));
 }
 
+/** A routing table load that failed or ran out of time, with its details narrowed. */
+interface TableFailure {
+  readonly error: ExplorerVerifyError;
+  readonly details: DetailsOf<"timeout" | "network">;
+}
+
 /**
- * The outcome of an entry that reads a routing table that failed to load, as `loadClient` maps a
- * client's: a `timeout` names the entry's backend, another `ExplorerVerifyError` stays as it is,
- * and any other error becomes `network` with it as the cause.
+ * The outcome of an entry that reads a routing table that failed to load: the `timeout` or
+ * `network` error of the load, naming the entry's backend, its cause redacted with every key of
+ * the call.
  */
 function tableFailure(
   entry: Entry,
-  error: unknown,
+  { error, details }: TableFailure,
   secrets: readonly string[],
 ): ExplorerVerifyError {
-  if (!(error instanceof ExplorerVerifyError)) {
-    return newError(
-      { code: "network", backend: entry.backend, attempts: 1 },
-      "Loading the routing table failed.",
-      { secrets, cause: error },
-    );
-  }
-  const { details } = error;
-  return details.code === "timeout"
-    ? newError({ ...details, backend: entry.backend }, error.message, {
-        // Stryker disable next-line ArrayDeclaration: equivalent. The message is the timeout's own, already redacted.
-        secrets: [],
-      })
-    : error;
+  return newError({ ...details, backend: entry.backend }, error.message, {
+    secrets,
+    cause: error.cause,
+    hint: error.hint,
+  });
 }
 
 /** `text` with `route` named after the entry, such as `backends[1].apiUrl`. */

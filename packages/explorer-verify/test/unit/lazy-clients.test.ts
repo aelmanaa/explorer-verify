@@ -166,7 +166,7 @@ describe("the shipped clients load on first use (decision 0031)", () => {
     assert.deepEqual(loaded, []);
   });
 
-  it("a client that fails to load rejects the call with the loader's error and sends nothing", async () => {
+  it("a client that fails to load rejects with network and sends nothing (decision 0054)", async () => {
     const chunkError = new TypeError("Failed to fetch dynamically imported module");
     const dependencies: FlowDependencies = {
       backends: {
@@ -176,7 +176,13 @@ describe("the shipped clients load on first use (decision 0031)", () => {
       },
       table: TABLE,
     };
-    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), chunkError);
+    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), {
+      name: "ExplorerVerifyError",
+      code: "network",
+      retryable: true,
+      message: "Loading the sourcify client failed.",
+      details: { code: "network", backend: "sourcify", attempts: 1 },
+    });
   });
 });
 
@@ -430,7 +436,9 @@ describe("a loaded client is kept (decision 0031)", () => {
       return await Promise.resolve(exactSourcify);
     };
     const dependencies: FlowDependencies = { backends: { sourcify: loader }, table: TABLE };
-    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), TypeError);
+    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), {
+      code: "network",
+    });
     const result = await runVerify(INPUT, { fetch: noFetch }, dependencies);
     assert.equal(result.status, "already-verified");
     assert.equal(loads, 2);

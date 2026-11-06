@@ -142,7 +142,7 @@ export async function runLinkProxy(
             LINKERS,
             `the ${route.backend} proxy-link code`,
             route.backend,
-            settings.signal,
+            settings,
             budget,
           )
         : load;

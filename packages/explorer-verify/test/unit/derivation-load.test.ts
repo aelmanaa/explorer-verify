@@ -208,7 +208,8 @@ describe("the derivation loads only when a call derives, and is kept (decision 0
       return await settingArgs();
     };
     const first = await outcomeOf(run(dependenciesOf(flaky)));
-    assert.ok(first instanceof TypeError);
+    assert.ok(first instanceof ExplorerVerifyError);
+    assert.equal(first.code, "network");
     const submitted: VerifyInput[] = [];
     await run(dependenciesOf(flaky, submitted));
     assert.equal(loads, 2);

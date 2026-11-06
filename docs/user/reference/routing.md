@@ -314,8 +314,9 @@ of each client.
 
 The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
 `timeout`. An abort of `signal` during the load rejects with `signal.reason`. A client that fails
-to load, such as a chunk the page cannot fetch, rejects the call with the loader's error, before
-any request to an explorer; the next call tries again. A client that loaded is kept, so later
+to load, such as a chunk the page cannot fetch, rejects the call with
+[`network`](errors/network.md#a-module-that-fails-to-load) before any request to an explorer;
+the next call tries again. A client that loaded is kept, so later
 calls on the same backend do not wait for it.
 
 ## Table chunk
@@ -340,7 +341,8 @@ same rule as `verify()`.
 The load counts against `timeoutMs` and ends on an abort, as a client's does. A load that does
 not end in time throws `timeout` naming `route.backend`, or `sourcify` when no backend is named,
 even when the table would have routed the call to another backend. A table that fails
-to load rejects the call with the loader's error; in `verifyEach()` with a list, it is the outcome
+to load rejects the call with [`network`](errors/network.md#a-module-that-fails-to-load), naming
+the same backend; in `verifyEach()` with a list, it is the outcome
 of each entry that needs the table, and the other entries run. A table that loaded is kept for
 later calls. [Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide
 lists its size.

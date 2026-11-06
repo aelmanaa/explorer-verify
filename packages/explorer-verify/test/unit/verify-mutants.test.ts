@@ -518,7 +518,7 @@ describe("bounded(): the listeners of a load (R-FLOW-6)", () => {
       new WeakMap(),
       "the test code",
       "sourcify",
-      controller.signal,
+      settingsOf({ signal: controller.signal }),
       { deadline: Date.now() + 60_000, timeoutMs: 60_000 },
     );
     assert.deepEqual(loaded, { ready: true });

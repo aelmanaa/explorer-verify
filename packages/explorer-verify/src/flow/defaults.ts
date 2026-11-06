@@ -152,10 +152,9 @@ export const DEFAULT_LINK_DEPENDENCIES: LinkDependencies = {
  * @returns `verified` or `already-verified` with the match and, when the library knows one, the
  *   public page of the contract; or `failed` with the explorer's reason, API keys removed.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
- * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
- *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for bad input or options; `unsupported-chain`;
- *   `timeout` when the budget runs out before the explorer accepts the submission;
+ *   `network` when a module of the library fails to load, such as a chunk the page cannot fetch
+ *   (decision 0054); `timeout` when the budget runs out before the explorer accepts the submission;
  *   `not-confirmed`, with the handle, when it runs out while the job is pending;
  *   `verification-inconclusive` when the job ends without a verdict; `unknown-state` for a final
  *   state the library cannot classify; `job-not-found`, with the handle, when the explorer no
@@ -205,11 +204,9 @@ export async function verify(input: VerifyInput, options?: VerifyOptions): Promi
  *   used; `rpcUrl` is sent no request.
  * @returns The backend, its API host, how it was chosen and the lookup's answer.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
- * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
- *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for bad input or options; `unsupported-chain`;
- *   and `network`, `rate-limited`, `timeout`, `unexpected-response` or a key error when the lookup
- *   fails.
+ *   `network` when a module of the library fails to load (decision 0054); and `network`,
+ *   `rate-limited`, `timeout`, `unexpected-response` or a key error when the lookup fails.
  * @example
  * ```ts
  * import { dryRun } from "explorer-verify";
@@ -249,14 +246,12 @@ export async function dryRun(input: VerifyInput, options?: DryRunOptions): Promi
  * @param options - The same options as `verify()`. Pass the same `route` the submit used.
  * @returns `verified`, `already-verified` or `failed`, as `verify()` returns them.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
- * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
- *   chunk the page cannot fetch (decision 0031).
  * @throws ExplorerVerifyError with `invalid-input` for a bad handle or options, or a handle whose
  *   backend is not the route's; `not-confirmed` with the handle when the job is still pending;
  *   `job-not-found` when the explorer no longer knows the job and the contract is not verified;
  *   `verification-inconclusive` when the job ended without a verdict (call `verify()` again);
- *   `timeout` when the client does not load within the budget; `unknown-state`, `network`,
- *   `rate-limited` and `unexpected-response`.
+ *   `timeout` when the client does not load within the budget; `network` when it fails to load
+ *   (decision 0054); `unknown-state`, `network`, `rate-limited` and `unexpected-response`.
  * @example
  * ```ts
  * import { ExplorerVerifyError, checkStatus, formatHandle, verify } from "explorer-verify";
@@ -311,8 +306,8 @@ export async function checkStatus(
  *    module that fails to load a `network` outcome with the load's error as its cause; the other
  *    backends still run. The routing table loads only when an entry needs it, mostly one without
  *    `apiUrl`, or for `"all"` (decision 0040). When it fails to load, each entry that needs it
- *    gets that outcome too, as a client's load failure; for `"all"`, the call throws the load's
- *    error.
+ *    gets that outcome too, as a client's load failure; for `"all"`, the call throws that
+ *    `network` error (decision 0054).
  *
  * It emits `verify.validated` once, then each backend's events as `verify()` emits them. Every
  * event after the first carries its `backend`, so the streams interleave.
@@ -380,12 +375,11 @@ export async function verifyEach(
  *   the explorer holds another implementation than `expectedImplementation`; or `not-linked` with
  *   the explorer's reason, API keys removed.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
- * @throws The error of the explorer's proxy-link module, unchanged, when it fails to load.
  * @throws ExplorerVerifyError with `invalid-input` for a bad target or options, or for Routescan;
  *   `proxy-link-pending` when the link is still pending when `timeoutMs` runs out (call again
  *   later); `proxy-link-unknown-state` for a link state the library cannot classify;
- *   `missing-api-key`, `unsupported-chain`, `timeout`, `network`, `rate-limited` and
- *   `unexpected-response`.
+ *   `missing-api-key`, `unsupported-chain`, `timeout`, `network` (also when the proxy-link
+ *   module fails to load, decision 0054), `rate-limited` and `unexpected-response`.
  * @example
  * ```ts
  * import { linkProxy, verify } from "explorer-verify";

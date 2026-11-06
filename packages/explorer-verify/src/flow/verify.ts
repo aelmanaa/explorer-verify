@@ -205,7 +205,8 @@ export function startBudget(settings: Settings): Budget {
  * @param budget - The call's budget, from {@link startBudget}.
  * @returns The dependencies with the route's client loaded.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
- *   the budget runs out; what the loader throws, such as the error of a chunk that fails to load.
+ *   the budget runs out; ExplorerVerifyError `network` when the loader fails, such as a chunk
+ *   that does not load (decision 0054).
  * @example
  * ```ts
  * const budget = startBudget(settings);
@@ -228,30 +229,35 @@ export async function withClient(
     LOADED,
     `the ${route.backend} client`,
     route.backend,
-    settings.signal,
+    settings,
     budget,
   );
   return { ...dependencies, backends: { ...dependencies.backends, [route.backend]: backend } };
 }
 
 /**
- * Runs `load`, and rejects first when `signal` aborts or the budget runs out. `memo` keeps what
- * each loader gave, so a later call takes it at once. `what` names the code in the `timeout`
- * message, and `name` is the backend the `timeout` details name. `linkProxy()` loads its explorer
- * code through it too.
+ * Runs `load`, and rejects first when `settings.signal` aborts or the budget runs out. `memo`
+ * keeps what each loader gave, so a later call takes it at once. `what` names the code in the
+ * error message, and `name` is the backend the error details name. `linkProxy()` loads its
+ * explorer code through it too.
+ *
+ * A load that fails, such as a chunk the page cannot fetch, rejects with `network`, retryable,
+ * with the loader's error as its cause and a hint about the files the site serves (decision 0054).
+ * No request was sent.
  *
  * @param load - Loads the module's export.
  * @param memo - What each loader gave.
  * @param what - The code, as `the sourcify client`.
  * @param name - The backend.
- * @param signal - The caller's signal.
+ * @param settings - The options from {@link settingsOf}: the signal, and the keys removed from
+ *   the cause.
  * @param budget - The call's budget.
  * @returns What `load` gives.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
- *   the budget runs out; what the loader throws.
+ *   the budget runs out; ExplorerVerifyError `network` when the load fails.
  * @example
  * ```ts
- * const linker = await bounded(load, LINKERS, "the sourcify proxy-link code", "sourcify", signal, budget);
+ * const linker = await bounded(load, LINKERS, "the sourcify proxy-link code", "sourcify", settings, budget);
  * ```
  */
 export async function bounded<T extends object>(
@@ -259,9 +265,10 @@ export async function bounded<T extends object>(
   memo: WeakMap<() => Promise<T>, T>,
   what: string,
   name: BackendName,
-  signal: AbortSignal | undefined,
+  settings: Settings,
   budget: Budget,
 ): Promise<T> {
+  const { signal } = settings;
   signal?.throwIfAborted();
   const cached = memo.get(load);
   if (cached !== undefined) {
@@ -301,7 +308,16 @@ export async function bounded<T extends object>(
         signal?.removeEventListener("abort", onAbort);
         deadline.removeEventListener("abort", onDeadline);
       });
-      load().then(resolve, reject);
+      load().then(resolve, (error: unknown) => {
+        // Every loader's failure, whatever its type: the default entry's loaders only import.
+        reject(
+          newError({ code: "network", backend: name, attempts: 1 }, `Loading ${what} failed.`, {
+            secrets: [...settings.keySecrets(), ...settings.rpcSecrets],
+            cause: error,
+            hint: LOAD_HINT,
+          }),
+        );
+      });
     });
     memo.set(load, loaded);
     return loaded;
@@ -311,6 +327,10 @@ export async function bounded<T extends object>(
     }
   }
 }
+
+/** The hint of a load that failed (decision 0054). */
+const LOAD_HINT =
+  "Check the network connection and that the site serves every file of its build, then call again.";
 
 /**
  * Each client a loader has given, by loader: a later call takes it at once, with no wait and no
@@ -514,7 +534,7 @@ async function withArgs(
     DERIVATIONS,
     "the constructor argument code",
     backend.name,
-    settings.signal,
+    settings,
     budget,
   );
   return await derive(call, input, creationBytecode);
@@ -1049,14 +1069,7 @@ export async function withHandler(
   if (load === undefined) {
     throw missing?.handler() ?? notPassed("handlerUrl code");
   }
-  const code = await bounded(
-    load,
-    HANDLER_CODE,
-    "handlerUrl",
-    "etherscan-v2",
-    settings.signal,
-    budget,
-  );
+  const code = await bounded(load, HANDLER_CODE, "handlerUrl", "etherscan-v2", settings, budget);
   return { ...settings, handler: code.resolveHandler(settings, ETHERSCAN_API_URL) };
 }
 
@@ -1080,7 +1093,7 @@ export async function withHandler(
  * @returns The table, or `undefined` when the route reads none.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
  *   the budget runs out; `missing.table()` for a route without `route.apiUrl` and no `source`;
- *   what the loader throws, such as the error of a chunk that fails to load.
+ *   ExplorerVerifyError `network` when the loader fails (decision 0054).
  * @example
  * ```ts
  * const table = await tableFor(checked, DEFAULT_DEPENDENCIES.table, settings, budget);
@@ -1125,7 +1138,7 @@ export async function loadTable(
     throw missing?.table() ?? notPassed("routing table");
   }
   return typeof source === "function"
-    ? await bounded(source, TABLES, "the routing table", name, settings.signal, budget)
+    ? await bounded(source, TABLES, "the routing table", name, settings, budget)
     : source;
 }
 
