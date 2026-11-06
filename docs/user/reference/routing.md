@@ -361,7 +361,8 @@ Each is thrown before any request, except the explorer's own answer. See
 `routesFor(chainId, { apiKeys, allowSourcifyFallback })` tells where a call would go without
 `route`, and which backends `route.backend` can name. It reads the routing table and sends no
 request; only whether `apiKeys` has a key for a backend counts, and no key is checked or sent. It
-is `@experimental`.
+is `@experimental`. Another options key, or an options value that is not a plain object, throws
+`invalid-input`, as for `verify()` ([Options of each function](verify.md#options-of-each-function)).
 
 ```ts
 import { routesFor } from "explorer-verify";

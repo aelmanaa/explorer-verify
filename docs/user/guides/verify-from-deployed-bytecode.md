@@ -96,6 +96,9 @@ keccak-256 hash.
 | `logger`              | Receives log lines, with the URLs' keys removed                                                                                       |
 | `onEvent`             | Receives a `verify.retry` event before each retry of a Sourcify request; see [Logging and events](../reference/logging-and-events.md) |
 
+A field set to `undefined` counts as absent. Any other key throws `invalid-input` before any request,
+naming the key and, when one is close, the option it may mean.
+
 `rpcUrl` and `ipfsGateway` must use `https`, or `http` on `localhost`, `127.0.0.1` or `[::1]`, with
 no user name, password or fragment. Many providers put a key in the URL path or query, so every
 path segment and query value of eight characters or more is removed from logs and errors. The host

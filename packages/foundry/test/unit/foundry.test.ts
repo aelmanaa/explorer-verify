@@ -808,6 +808,98 @@ describe("findFoundryBuild checks its options", () => {
   }
 });
 
+describe("R-IN-6: findFoundryBuild refuses unknown options", () => {
+  it("names each unknown key and the closest option, never its value", async () => {
+    const error = await rejection(
+      async () =>
+        await findFoundryBuild(
+          optionsOf({ root: ROOT, contract: "Greeter", out: "DUMMYKEY216ABCDEFGH", OutDir: "x" }),
+        ),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(error), [
+      { field: "out", message: "is not a known option; did you mean outDir?" },
+      { field: "OutDir", message: "is not a known option; did you mean outDir?" },
+    ]);
+    assert.equal(
+      error.hint,
+      "Pass only root, contract, outDir, buildInfoDir and artifact as options.",
+    );
+    assert.ok(!JSON.stringify(error).includes("DUMMYKEY216"));
+  });
+
+  it("does not repeat a key that is not a short identifier, and suggests nothing for a swap of two letters", async () => {
+    const error = await rejection(
+      async () =>
+        await findFoundryBuild(
+          optionsOf({ root: ROOT, contract: "Greeter", "a b": 1, artfiact: 1, ab: 1 }),
+        ),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(error), [
+      { field: "options", message: "is not a known option" },
+      { field: "artfiact", message: "is not a known option" },
+      { field: "ab", message: "is not a known option" },
+    ]);
+  });
+
+  it("never runs a getter on an unknown key (D1)", async () => {
+    for (const run of [findFoundryBuild, buildVerifyInputFromFoundry]) {
+      let ran = false;
+      const options = { root: ROOT, contract: "Greeter" };
+      Object.defineProperty(options, "trap", {
+        enumerable: true,
+        get: () => {
+          ran = true;
+          throw new Error("secret text");
+        },
+      });
+      const error = await rejection(async () => await run(options), "invalid-input");
+      assert.deepEqual(issuesOf(error), [{ field: "trap", message: "is not a known option" }]);
+      assert.equal(ran, false);
+      assert.ok(!JSON.stringify(error).includes("secret text"));
+    }
+  });
+
+  it("takes optional fields set to undefined as absent", async () => {
+    const build = await findFoundryBuild({
+      root: ROOT,
+      contract: "Greeter",
+      outDir: undefined,
+      buildInfoDir: undefined,
+      artifact: undefined,
+    });
+    assert.equal(build.contract.endsWith("Greeter"), true);
+  });
+
+  it("buildVerifyInputFromFoundry takes compilerVersion and sources, and names a misspelled one", async () => {
+    const error = await rejection(
+      async () =>
+        await buildVerifyInputFromFoundry(
+          optionsOf({ root: ROOT, contract: "Greeter", source: {} }),
+        ),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(error), [
+      { field: "source", message: "is not a known option; did you mean sources?" },
+    ]);
+    assert.equal(
+      error.hint,
+      "Pass only root, contract, outDir, buildInfoDir, artifact, compilerVersion and sources as options.",
+    );
+    const find = await rejection(
+      async () =>
+        await findFoundryBuild(
+          optionsOf({ root: ROOT, contract: "Greeter", compilerVersion: "x" }),
+        ),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(find), [
+      { field: "compilerVersion", message: "is not a known option" },
+    ]);
+  });
+});
+
 describe("a contract built with two compiler versions (R-DX-2)", () => {
   const CONTEXT = "lib/utils/Context.sol:Context";
 

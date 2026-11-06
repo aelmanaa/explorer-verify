@@ -18,8 +18,9 @@ import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { checkRouteKey, HOSTED_BLOCKSCOUT_HOST, needsKey } from "../http/api-keys.ts";
 import type { CheckedKeys } from "../http/api-keys.ts";
+import { ownKeys, unknownKeys } from "../internal/known-keys.ts";
 import { readChainId, readOwn } from "../internal/read-fields.ts";
-import type { Hex, RoutedBy, RouteOverride } from "../types.ts";
+import type { CallOptions, Hex, RoutedBy, RouteOverride } from "../types.ts";
 
 /**
  * One backend of a chain in the routing table: the backend's name and the little that varies per
@@ -349,7 +350,8 @@ const MAX_API_URL_LENGTH = 8192;
 const PATH = /^(?:\/[^?#]*)?$/;
 
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
-const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
+const ROUTE_HINT =
+  "Pass route as a plain object with backend, apiUrl and apiKey fields, or leave it out.";
 const API_KEY_HINT =
   "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl or with route.backend etherscan-compatible, and only for a backend that takes a key, or leave it out.";
 const API_URL_HINT =
@@ -415,13 +417,28 @@ export function tableTarget(chainId: number, entry: TableEntry): TableTarget | u
             : undefined;
 }
 
+/** The keys of a route override, in documentation order (R-IN-6). */
+export function routeKeys(): readonly string[] {
+  return Object.keys({
+    backend: true,
+    apiUrl: true,
+    apiKey: true,
+  } satisfies Record<keyof RouteOverride, true>);
+}
+
 /**
- * The two override fields, or `undefined` when `value` is not a plain object (prototype
- * `Object.prototype` or `null`) whose fields can be read. Each field is read once.
+ * The three override fields and an issue for each other own enumerable key, or `undefined` when
+ * `value` is not a plain object (prototype `Object.prototype` or `null`) whose fields can be read.
+ * Each field is read once; a getter on an unknown key never runs.
  */
-function readOverride(
-  value: unknown,
-): { backend: unknown; apiUrl: unknown; apiKey: unknown } | undefined {
+function readOverride(value: unknown):
+  | {
+      backend: unknown;
+      apiUrl: unknown;
+      apiKey: unknown;
+      unknown: readonly InputIssue[];
+    }
+  | undefined {
   if (typeof value !== "object" || value === null) {
     return undefined;
   }
@@ -436,6 +453,7 @@ function readOverride(
       readonly apiKey?: unknown;
     } = value;
     return {
+      unknown: unknownKeys(Object.keys(value), routeKeys(), "route.", "route"),
       backend: readOwn(fields, "backend"),
       apiUrl: readOwn(fields, "apiUrl"),
       apiKey: readOwn(fields, "apiKey"),
@@ -587,6 +605,10 @@ export function checkRoute(
       issues.push({ field: "route", message: "must be a plain object" });
       hint = ROUTE_HINT;
     } else {
+      if (fields.unknown.length > 0) {
+        issues.push(...fields.unknown);
+        hint = ROUTE_HINT;
+      }
       if (fields.backend !== undefined) {
         named = toBackendName(fields.backend);
         const problem =
@@ -864,6 +886,9 @@ export interface ChainRoutes {
   readonly pick: RoutePick | ExplorerVerifyError;
 }
 
+/** The options `routesFor()` reads: those of `CallOptions` that choose the route. */
+export type RoutesForOptions = Pick<CallOptions, "apiKeys" | "allowSourcifyFallback">;
+
 /**
  * Tells where a call for `chainId` would go without `route`, and which backends `route.backend`
  * can name, from the routing table shipped with this version (R-RT-1 to R-RT-3). It sends no
@@ -872,9 +897,11 @@ export interface ChainRoutes {
  *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param options - The keys the call would have, and whether a chain without a row falls back to
- *   Sourcify.
+ *   Sourcify. A field set to `undefined` counts as absent; any other key throws `invalid-input`
+ *   naming it (R-IN-6).
  * @returns The row's backends and the pick.
- * @throws ExplorerVerifyError `invalid-input` for a chain id that is not a positive safe integer.
+ * @throws ExplorerVerifyError `invalid-input` for a chain id that is not a positive safe integer,
+ *   or for options that are not a plain object or hold another key.
  * @example
  * ```ts
  * import { routesFor } from "explorer-verify";
@@ -889,12 +916,26 @@ export interface ChainRoutes {
  */
 export async function routesFor(
   chainId: number,
-  options: {
-    readonly apiKeys?: Partial<Record<BackendName, string | undefined>>;
-    readonly allowSourcifyFallback?: boolean;
-  } = {},
+  options: RoutesForOptions = {},
 ): Promise<ChainRoutes> {
   const checked = checkRoute(chainId);
+  // The keys first, so a getter on an unknown key never runs.
+  const keys = ownKeys(options);
+  const issues =
+    keys === undefined
+      ? [{ field: "options", message: "must be a plain object" }]
+      : unknownKeys(
+          keys,
+          Object.keys({ apiKeys: true, allowSourcifyFallback: true } satisfies Record<
+            keyof RoutesForOptions,
+            true
+          >),
+          "",
+          "options",
+        );
+  if (issues.length > 0) {
+    throw invalid(issues, "The options are invalid", undefined, []);
+  }
   const table = await loadRoutingTable();
   const row = table.chains.find((each) => each.chainId === chainId);
   const listed = (row?.backends ?? []).flatMap((each) => tableTarget(chainId, each)?.backend ?? []);

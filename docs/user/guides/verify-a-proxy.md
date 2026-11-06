@@ -91,7 +91,7 @@ Unknown answers are reported in one of two ways, by when they come:
 - A lookup, such as Blockscout's or Sourcify's record of the proxy, answered in a form the library
   does not know throws `unexpected-response`.
 
-`linkProxy()` takes the options of `verify()`, and also throws `invalid-input`, `missing-api-key`,
+`linkProxy()` takes the options of `verify()`; its type, `LinkProxyOptions`, leaves out `rpcUrl`, which it does not use. It also throws `invalid-input`, `missing-api-key`,
 `unsupported-chain`, `timeout`, `network`, `rate-limited` and `unexpected-response` as `verify()`
 does. It emits `verify.routed`, then one `verify.poll` for each pending status check, and
 `verify.retry` for an HTTP retry; it emits no `verify.validated` and no `verify.result`. See
@@ -140,5 +140,6 @@ Pass the same `fetch` and `route` you pass to `verify()`.
 
 ## See also
 
-- [verify()](../reference/verify.md) for the options, which `linkProxy()` shares.
+- [verify()](../reference/verify.md#options-of-each-function) for the options, which `linkProxy()`
+  shares except `rpcUrl`.
 - [Errors](../reference/errors/index.md) for every error code and exit code.

@@ -116,10 +116,13 @@ describe("blackbox #15: override accepted (R-RT-2)", () => {
     });
   }
 
-  it("ignores fields other than backend and apiUrl", () => {
+  it("refuses fields other than backend, apiUrl and apiKey (R-IN-6)", () => {
     const override = { apiUrl: "https://sourcify.example.org/server", extra: "x" };
-    const route = resolveRoute(1, override);
-    assert.equal(route.apiBase, "https://sourcify.example.org/server");
+    const error = catchError(() => resolveRoute(1, override));
+    assert.equal(error.code, "invalid-input");
+    assert.deepEqual(error.details.code === "invalid-input" ? error.details.issues : [], [
+      { field: "route.extra", message: "is not a known option" },
+    ]);
   });
 
   it("lowercases scheme and host and keeps path case, before a query", () => {

@@ -320,8 +320,8 @@ report; this section covers the setup.
 - Both commands build the package first. Some unit tests, such as
   `blackbox-34-resolve-bytecode.test.ts`, import `explorer-verify` by name, which resolves to
   `dist/`; they need the build to pass the dry run, and cannot kill a mutant in `src/`.
-- `test/unit/skill.test.ts` and `test/unit/user-docs.test.ts` are left out: they test the built
-  `dist/`, which Stryker does not mutate.
+- `test/unit/skill.test.ts`, `test/unit/user-docs.test.ts` and `test/unit/options-types.test.ts`
+  are left out: they test the built `dist/` and the helper packages, which Stryker does not mutate.
 - Stryker runs in place (`inPlace`): it instruments the mutated files in `src/` itself, keeps the
   originals in `packages/explorer-verify/.stryker-tmp/` and puts them back when the run ends, also
   on Ctrl+C. A copy of the package would break tests that read `../../../../docs/` or another

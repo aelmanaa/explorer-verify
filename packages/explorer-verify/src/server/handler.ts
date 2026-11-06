@@ -30,6 +30,7 @@ import { checkKey, keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { KeyContext } from "../http/api-keys.ts";
 import { MAX_RESPONSE_BYTES, MAX_TIMER_MS, request } from "../http/fetch.ts";
 import type { HttpContext, RetryMode } from "../http/fetch.ts";
+import { unknownKeys } from "../internal/known-keys.ts";
 import { addressDigits, readChainId, readFields, readOwn } from "../internal/read-fields.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
@@ -191,7 +192,9 @@ export type RateLimit = (request: Request) => boolean | Promise<boolean>;
 
 /**
  * Options of {@link createVerifyHandler}. Only own properties are read, each once, when the
- * handler is created; later changes to the object have no effect.
+ * handler is created; later changes to the object have no effect. An optional field set to
+ * `undefined` counts as absent. Any other key throws `invalid-input` naming it and, when one is
+ * close, the option it may mean.
  *
  * @example
  * ```ts
@@ -219,7 +222,7 @@ export interface VerifyHandlerOptions {
    * addresses; case does not matter. `contractCreator` is the sender of the creating transaction,
    * also for a contract a factory created, and listing a public factory admits anyone who uses it.
    */
-  readonly deployers?: readonly string[];
+  readonly deployers?: readonly string[] | undefined;
   /**
    * Whether the handler forwards the proxy-link actions, `verifyproxycontract` and
    * `checkproxyverification`, that `linkProxy()` sends (R-FLOW-8). Off by default: Etherscan links
@@ -227,31 +230,31 @@ export interface VerifyHandlerOptions {
    * lets whoever can reach the handler change a proxy's page under your key. With `deployers` set,
    * the deployer check runs on the proxy's `address`; `expectedimplementation` is not checked.
    */
-  readonly allowProxyLink?: boolean;
+  readonly allowProxyLink?: boolean | undefined;
   /** Called for every POST before its body is read. See {@link RateLimit}. */
-  readonly rateLimit?: RateLimit;
+  readonly rateLimit?: RateLimit | undefined;
   /**
    * The largest request body accepted, in bytes as received. A positive safe integer. Defaults to
    * {@link DEFAULT_MAX_BODY_BYTES}. A larger body gets 413 and is never parsed.
    */
-  readonly maxBodyBytes?: number;
+  readonly maxBodyBytes?: number | undefined;
   /**
    * The time limit for one handled request, from its arrival to the answer, body read and
    * upstream requests included, in milliseconds. A positive safe integer. Defaults to
    * {@link DEFAULT_HANDLER_TIMEOUT_MS}.
    */
-  readonly timeoutMs?: number;
+  readonly timeoutMs?: number | undefined;
   /**
    * The `fetch` that sends the requests to Etherscan. Defaults to `globalThis.fetch`, read when
    * each request starts.
    */
-  readonly fetch?: typeof fetch;
+  readonly fetch?: typeof fetch | undefined;
   /**
    * Receives a line for each refusal (`info`), each upstream failure (`warn`) and each internal
    * failure (`error`), in the shape of `VerifyOptions.logger` (R-DX-5). Every line is redacted of
    * the key; a logger that throws is ignored. Without it, nothing is logged.
    */
-  readonly logger?: Logger;
+  readonly logger?: Logger | undefined;
 }
 
 /**
@@ -286,6 +289,21 @@ export type HandlerRefusal =
  * @experimental
  */
 export type VerifyHandler = (request: Request) => Promise<Response>;
+
+/** The keys of {@link VerifyHandlerOptions}, in documentation order. */
+function handlerOptionKeys(): readonly string[] {
+  return Object.keys({
+    apiKey: true,
+    chains: true,
+    deployers: true,
+    allowProxyLink: true,
+    rateLimit: true,
+    maxBodyBytes: true,
+    timeoutMs: true,
+    fetch: true,
+    logger: true,
+  } satisfies Record<keyof VerifyHandlerOptions, true>);
+}
 
 /** The checked options. The key sits behind a function, so printing the settings shows none. */
 interface Settings {
@@ -1025,11 +1043,20 @@ function readOptions(options: VerifyHandlerOptions): {
   if (typeof value !== "object" || value === null) {
     throw notPlain;
   }
+  let unknown: InputIssue[];
   try {
     const prototype: unknown = Object.getPrototypeOf(value);
     if (prototype !== Object.prototype && prototype !== null) {
       throw notPlain;
     }
+    unknown = unknownKeys(Object.keys(value), handlerOptionKeys(), "", "options");
+  } catch {
+    throw notPlain;
+  }
+  if (unknown.length > 0) {
+    throw invalidOptions(unknown, []);
+  }
+  try {
     return {
       apiKey: readOwn(options, "apiKey"),
       chains: readOwn(options, "chains"),

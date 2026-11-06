@@ -13,7 +13,7 @@ to call without asking. Nothing is published to npm yet.
 <!-- fragment: signatures only; the example below runs. -->
 
 ```ts fragment
-function checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>;
+function checkStatus(handle: Handle | string, options?: CheckStatusOptions): Promise<VerifyResult>;
 function formatHandle(handle: Handle): string;
 function parseHandle(value: unknown): Handle;
 ```
@@ -91,7 +91,10 @@ The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`.
 
 ## Options
 
-The same options as [verify()](verify.md#options), with the same defaults and checks.
+The options of [verify()](verify.md#options) without `rpcUrl`, with the same defaults and checks
+(`CheckStatusOptions`). `checkStatus()` polls a job that was already submitted, so it derives no
+constructor arguments. At run time it accepts an options object built for `verify()`, `rpcUrl`
+included, and checks it. See [Options of each function](verify.md#options-of-each-function).
 
 ## Results and errors
 

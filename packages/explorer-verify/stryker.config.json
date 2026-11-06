@@ -31,7 +31,7 @@
     "src/flow/format-handle.ts"
   ],
   "tap": {
-    "testFiles": ["test/unit/!(skill|user-docs).test.ts"],
+    "testFiles": ["test/unit/!(skill|user-docs|options-types).test.ts"],
     "nodeArgs": ["--test-reporter=tap", "-r", "{{hookFile}}", "{{testFile}}"],
     "forceBail": true
   },

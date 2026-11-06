@@ -7,9 +7,13 @@ import path from "node:path";
 
 import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 
+import { ownKeys, unknownKeys } from "./known-keys.ts";
+
 /**
  * Options for {@link findHardhatBuild}. `@explorer-verify/foundry` takes the same fields, and also
- * `buildInfoDir`: Hardhat always writes build-info files inside its output folder.
+ * `buildInfoDir`: Hardhat always writes build-info files inside its output folder. An optional
+ * field set to `undefined` counts as absent. Any other key throws `invalid-input` naming it and,
+ * when one is close, the option it may mean.
  *
  * @example
  * ```ts
@@ -36,14 +40,14 @@ export interface FindBuildOptions {
    * The output folder of the build (the `paths.artifacts` setting of the Hardhat config), relative
    * to `root` or absolute. Defaults to `artifacts`.
    */
-  outDir?: string;
+  outDir?: string | undefined;
   /**
    * The contract's artifact file, relative to `root` or absolute, such as
    * `artifacts/contracts/Greeter.sol/Greeter.json`. Skips the search under `outDir`. The file must
    * be inside `outDir` and be the artifact of `contract`: named `<Name>.json`, and under the
    * contract's source path when `contract` has one.
    */
-  artifact?: string;
+  artifact?: string | undefined;
 }
 
 /**
@@ -261,8 +265,39 @@ interface CheckedOptions {
   artifact: string | undefined;
 }
 
-/** Reads the options; a wrong type gives `invalid-input` naming the option. */
-function readOptions(options: FindBuildOptions): CheckedOptions {
+/** The keys of {@link FindBuildOptions}, in documentation order. */
+function optionKeys(): readonly string[] {
+  return Object.keys({
+    root: true,
+    contract: true,
+    outDir: true,
+    artifact: true,
+  } satisfies Record<keyof FindBuildOptions, true>);
+}
+
+/**
+ * Reads the options; an unknown key or a wrong type gives `invalid-input` naming the option, never
+ * its value.
+ */
+function readOptions(options: FindBuildOptions, extra: readonly string[]): CheckedOptions {
+  if (Array.isArray(options)) {
+    throw invalid("options", "must be a plain object");
+  }
+  const known = [...optionKeys(), ...extra];
+  const keys = ownKeys(options);
+  if (keys !== undefined) {
+    const unknown = unknownKeys(keys, known, "", "options");
+    if (unknown.length > 0) {
+      throw new ExplorerVerifyError(
+        { code: "invalid-input", issues: unknown },
+        `The input is invalid: ${unknown.map((issue) => issue.field).join(", ")}.`,
+        {
+          hint: `Pass only ${known.slice(0, -1).join(", ")} and ${String(known.at(-1))} as options.`,
+          secrets: [],
+        },
+      );
+    }
+  }
   const root: unknown = ownField(options, "root");
   const contract: unknown = ownField(options, "contract");
   const outDir: unknown = ownField(options, "outDir") ?? DEFAULT_ARTIFACTS;
@@ -440,7 +475,18 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  * @experimental
  */
 export async function findHardhatBuild(options: FindBuildOptions): Promise<ProjectBuild> {
-  const checked = readOptions(options);
+  return await findBuild(options, []);
+}
+
+/**
+ * {@link findHardhatBuild} for a caller whose options also hold `extra` keys, which it accepts and
+ * does not read. Internal: the package entry point does not export it.
+ */
+export async function findBuild(
+  options: FindBuildOptions,
+  extra: readonly string[],
+): Promise<ProjectBuild> {
+  const checked = readOptions(options, extra);
   const project = new Project(checked.root, checked.outDir);
   await project.open();
   const { file: artifactFile, artifact } = await readArtifact(

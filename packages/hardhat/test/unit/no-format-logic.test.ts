@@ -9,7 +9,13 @@ import { fileURLToPath } from "node:url";
 const SRC = fileURLToPath(new URL("../../src/", import.meta.url));
 
 // Every module the package source may import.
-const ALLOWED_IMPORTS = new Set(["explorer-verify", "node:fs/promises", "node:path", "./find.ts"]);
+const ALLOWED_IMPORTS = new Set([
+  "explorer-verify",
+  "node:fs/promises",
+  "node:path",
+  "./find.ts",
+  "./known-keys.ts",
+]);
 // The only fields the helper reads from a document: the links between Hardhat's files.
 const ALLOWED_FIELDS = new Set(["buildInfoId", "buildInfo"]);
 // Fields of the compiler input, the build-info and the artifact that only the core may read.

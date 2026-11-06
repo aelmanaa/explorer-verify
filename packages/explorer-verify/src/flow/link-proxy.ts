@@ -16,7 +16,7 @@ import { addressDigits, readChainId, readFields } from "../internal/read-fields.
 import type { Observer } from "../observe.ts";
 import { checkRoute, routeFrom } from "../routing/resolve.ts";
 import type { Route, RoutingTable, TableLoader } from "../routing/resolve.ts";
-import type { Hex, LinkProxyResult, LinkProxyTarget, VerifyOptions } from "../types.ts";
+import type { Hex, LinkProxyOptions, LinkProxyResult, LinkProxyTarget } from "../types.ts";
 import {
   MAX_POLL_FAILURES,
   abortWins,
@@ -121,7 +121,7 @@ interface LinkCall {
  *
  * @param target - The proxy's chain id and address, and the implementation it should point at.
  *   Other fields are ignored.
- * @param options - The same options as `verify()`. Etherscan needs `apiKeys["etherscan-v2"]`.
+ * @param options - The options of `verify()`; `rpcUrl` is checked and not used. Etherscan needs `apiKeys["etherscan-v2"]`.
  * @returns `linked`, with the implementation and whether its source is verified; `mismatch` when
  *   the explorer holds another implementation than `expectedImplementation`; or `not-linked` with
  *   the explorer's reason, API keys removed.
@@ -155,7 +155,7 @@ interface LinkCall {
  */
 export async function linkProxy(
   target: LinkProxyTarget,
-  options?: VerifyOptions,
+  options?: LinkProxyOptions,
 ): Promise<LinkProxyResult> {
   return await runLinkProxy(target, options, DEFAULT_LINK_DEPENDENCIES);
 }
@@ -175,7 +175,7 @@ export async function linkProxy(
  */
 export async function runLinkProxy(
   value: unknown,
-  options: VerifyOptions | undefined,
+  options: LinkProxyOptions | undefined,
   dependencies: LinkDependencies,
 ): Promise<LinkProxyResult> {
   const read = settingsOf(options);

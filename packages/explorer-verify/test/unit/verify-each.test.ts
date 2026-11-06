@@ -1006,16 +1006,24 @@ describe("verifyEach(): invalid options throw invalid-input before any request (
     assert.doesNotMatch(error.hint, /\broute\./);
   });
 
-  it("never runs a getter on an unknown field of an entry, as verify() reads route", async (t) => {
-    const fake = byHost({ "sourcify.dev": [SOURCIFY_LOOKUP_EXACT] });
+  it("refuses an unknown field of an entry without running its getter (R-IN-6)", async () => {
+    const fake = byHost({});
     const entry: { backend: "sourcify"; readonly trap: never } = {
       backend: "sourcify",
       get trap(): never {
         throw new Error("secret text");
       },
     };
-    const r = await run(t, { fetch: fake.fetch, backends: [entry] });
-    assert.equal(resultOf(r).outcomes[0]?.ok, true);
+    const error = errorOf(
+      await untyped(input(), { fetch: fake.fetch, backends: [entry] }),
+      "invalid-input",
+    );
+    assert.ok(error.details.code === "invalid-input");
+    assert.deepEqual(error.details.issues, [
+      { field: "backends[0].trap", message: "is not a known option" },
+    ]);
+    assert.ok(!JSON.stringify(error.toJSON()).includes("secret text"));
+    assert.equal(fake.sent.size, 0);
   });
 
   it("refuses an entry whose backend getter throws, without its text", async () => {
@@ -1032,11 +1040,31 @@ describe("verifyEach(): invalid options throw invalid-input before any request (
     assert.ok(!JSON.stringify(error.toJSON()).includes("secret text"));
   });
 
-  it("ignores an unknown field in an entry, as resolveRoute does for route", async (t) => {
-    const fake = byHost({ "sourcify.dev": [SOURCIFY_LOOKUP_EXACT] });
-    const entry: { backend: "sourcify"; note: string } = { backend: "sourcify", note: "x" };
-    const r = await run(t, { fetch: fake.fetch, backends: [entry] });
-    assert.equal(resultOf(r).outcomes[0]?.ok, true);
+  it("refuses an unknown field in an entry with the closest name, as resolveRoute does for route", async () => {
+    const fake = byHost({});
+    const entry = { backend: "sourcify", apiurl: "https://sourcify.example.org/server" };
+    const error = errorOf(
+      await untyped(input(), { fetch: fake.fetch, backends: [entry] }),
+      "invalid-input",
+    );
+    assert.ok(error.details.code === "invalid-input");
+    assert.deepEqual(error.details.issues, [
+      { field: "backends[0].apiurl", message: "is not a known option; did you mean apiUrl?" },
+    ]);
+    assert.equal(fake.sent.size, 0);
+  });
+
+  it("refuses an unknown top-level key with the closest name before any request (R-IN-6)", async () => {
+    const fake = byHost({});
+    const error = errorOf(
+      await untyped(input(), { fetch: fake.fetch, backend: ["sourcify"] }),
+      "invalid-input",
+    );
+    assert.ok(error.details.code === "invalid-input");
+    assert.deepEqual(error.details.issues, [
+      { field: "backend", message: "is not a known option; did you mean backends?" },
+    ]);
+    assert.equal(fake.sent.size, 0);
   });
 
   it("refuses no options at all", async () => {

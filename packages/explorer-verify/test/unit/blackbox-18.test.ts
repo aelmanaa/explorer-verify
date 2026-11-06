@@ -514,7 +514,13 @@ describe("checkStatus(): outcomes", () => {
     const rec = recorder();
     const fake = fakeFetch({ status: [SERVER_500], lookup: [lookup(null)] });
     const error = await errorOf(
-      check(makeHandle(), { fetch: fake.fetch, timeoutMs: 600_000, ...FAST, ...rec }),
+      check(makeHandle(), {
+        fetch: fake.fetch,
+        timeoutMs: 600_000,
+        ...FAST,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
+      }),
     );
     assert.equal(error.code, "not-confirmed");
     assert.equal(fake.calls.filter((c) => c.step === "status").length, 3);
@@ -550,7 +556,12 @@ describe("checkStatus(): outcomes", () => {
     const fake = fakeFetch({
       status: [{ status: 429, body: { message: "slow down" } }, EXACT],
     });
-    const result = await check(makeHandle(), { fetch: fake.fetch, ...FAST, ...rec });
+    const result = await check(makeHandle(), {
+      fetch: fake.fetch,
+      ...FAST,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
+    });
     assert.equal(result.status, "verified");
     const retry = rec.events.find((e) => e.type === "verify.retry");
     assert.ok(retry !== undefined && retry.type === "verify.retry");
@@ -794,7 +805,11 @@ describe("rejections: invalid-input, nothing sent", () => {
     for (const value of untrusted) {
       const fake = fakeFetch({ status: [EXACT] });
       const rec = recorder();
-      const error = await errorOf(drive(publicCheckStatus(value, { fetch: fake.fetch, ...rec })));
+      const error = await errorOf(
+        drive(
+          publicCheckStatus(value, { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent }),
+        ),
+      );
       assert.equal(error.code, "invalid-input");
       assert.deepEqual(fake.calls, []);
       assert.deepEqual(rec.events, []);
@@ -847,7 +862,8 @@ describe("routing: the handle never chooses a host", () => {
       fetch: fake.fetch,
       route: { apiUrl: "http://127.0.0.1:8555/server" },
       ...FAST,
-      ...rec,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
     });
     assert.equal(result.status, "verified");
     assert.equal(explorerUrlOf(result), undefined);
@@ -875,7 +891,8 @@ describe("routing: the handle never chooses a host", () => {
         route: { apiUrl: `https://sourcify.example.org/server?apikey=${SECRET}` },
         timeoutMs: 3_000,
         ...FAST,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
       }),
     );
     const text = JSON.stringify([
@@ -895,7 +912,12 @@ describe("events", () => {
   it("routed, one poll per pending poll, result last; validated against the schema", async () => {
     const rec = recorder();
     const fake = fakeFetch({ status: [PENDING, PENDING, EXACT] });
-    await check(makeHandle(), { fetch: fake.fetch, ...FAST, ...rec });
+    await check(makeHandle(), {
+      fetch: fake.fetch,
+      ...FAST,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
+    });
     assert.deepEqual(types(rec.events), [
       "verify.routed",
       "verify.poll",
@@ -919,7 +941,7 @@ describe("events", () => {
     const fake = fakeFetch({
       status: [job({ completed: true, error: errorBody("no_match", "No.") })],
     });
-    await check(makeHandle(), { fetch: fake.fetch, ...rec });
+    await check(makeHandle(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent });
     assert.deepEqual(rec.events.at(-1), {
       type: "verify.result",
       backend: "sourcify",
@@ -931,7 +953,7 @@ describe("events", () => {
   it("never emits validated, lookup or submitted, even when it looks up", async () => {
     const rec = recorder();
     const fake = fakeFetch({ status: [JOB_NOT_FOUND], lookup: [lookup("exact_match")] });
-    await check(makeHandle(), { fetch: fake.fetch, ...rec });
+    await check(makeHandle(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent });
     assert.deepEqual(types(rec.events), ["verify.routed", "verify.result"]);
     assertEventsValid(rec.events);
   });
@@ -944,7 +966,15 @@ describe("events", () => {
     ]) {
       const rec = recorder();
       const fake = fakeFetch(script);
-      await errorOf(check(makeHandle(), { fetch: fake.fetch, timeoutMs: 3_000, ...FAST, ...rec }));
+      await errorOf(
+        check(makeHandle(), {
+          fetch: fake.fetch,
+          timeoutMs: 3_000,
+          ...FAST,
+          logger: rec.logger,
+          onEvent: rec.onEvent,
+        }),
+      );
       assert.ok(!types(rec.events).includes("verify.result"), JSON.stringify(types(rec.events)));
       assert.equal(rec.events[0]?.type, "verify.routed");
       assertEventsValid(rec.events);

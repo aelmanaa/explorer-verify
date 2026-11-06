@@ -100,7 +100,9 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format. Validation errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any
-  case.
+  case. Options are validated too: a key the function does not read throws `invalid-input` naming
+  the key and the closest known name, never its value, and an optional field set to `undefined`
+  counts as absent (decision 0047).
 - **R-IN-7** A format-detecting input builder takes one or more parsed JSON documents and
   optional source contents, and returns the `compiler` part of `VerifyInput` and the fully
   qualified contract name, or a typed error that names what is missing. It detects by shape, never

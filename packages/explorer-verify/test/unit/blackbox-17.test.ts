@@ -395,7 +395,8 @@ describe("verify(): already verified", () => {
       const rec = recorder();
       const result = await verify(makeInput(), {
         fetch: fake.fetch,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
         ...FAST,
       });
       assert.deepEqual(result, {
@@ -461,7 +462,8 @@ describe("verify(): already verified", () => {
     const rec = recorder();
     const result = await verify(makeInput(), {
       fetch: fake.fetch,
-      ...rec,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
       ...FAST,
     });
     assert.equal(result.status, "already-verified");
@@ -527,7 +529,8 @@ describe("verify(): a submitted job", () => {
       const rec = recorder();
       const result = await verify(makeInput(), {
         fetch: fake.fetch,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
         ...FAST,
       });
       assert.deepEqual(result, {
@@ -650,7 +653,8 @@ describe("verify(): a submitted job", () => {
     const rec = recorder();
     const result = await verify(makeInput(), {
       fetch: fake.fetch,
-      ...rec,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
       ...FAST,
     });
     assert.deepEqual(result, {
@@ -702,7 +706,9 @@ describe("verify(): a submitted job", () => {
       ],
     });
     const rec = recorder();
-    const error = await verifyError(verify(makeInput(), { fetch: fake.fetch, ...rec, ...FAST }));
+    const error = await verifyError(
+      verify(makeInput(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent, ...FAST }),
+    );
     assert.equal(error.code, "verification-inconclusive");
     assert.equal(
       error.details.code === "verification-inconclusive" ? error.details.reason : undefined,
@@ -743,7 +749,9 @@ describe("verify(): a submitted job", () => {
       ],
     });
     const rec = recorder();
-    const error = await verifyError(verify(makeInput(), { fetch: fake.fetch, ...rec, ...FAST }));
+    const error = await verifyError(
+      verify(makeInput(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent, ...FAST }),
+    );
     assert.equal(error.code, "in-progress");
     assert.equal(fake.calls.filter((c) => c.step === "submit").length, 1);
     assert.ok(!types(rec.events).includes("verify.retry"));
@@ -793,7 +801,8 @@ describe("verify(): time budget", () => {
     const error = await verifyError(
       verify(makeInput(), {
         fetch: fake.fetch,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
         timeoutMs: 100,
         pollIntervalMs: 20,
       }),
@@ -821,7 +830,8 @@ describe("verify(): time budget", () => {
     const error = await verifyError(
       verify(makeInput(), {
         fetch: fake.fetch,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
         timeoutMs: 1_500,
         pollIntervalMs: 1_000,
       }),
@@ -873,7 +883,8 @@ describe("verify(): time budget", () => {
     const rec = recorder();
     const result = await verify(makeInput(), {
       fetch: fake.fetch,
-      ...rec,
+      logger: rec.logger,
+      onEvent: rec.onEvent,
       timeoutMs: 1_500,
       pollIntervalMs: 1_000,
     });
@@ -996,7 +1007,9 @@ describe("verify(): invalid input, options and route", () => {
     it(`throws invalid-input for ${name}, sends nothing and emits no event`, async () => {
       const fake = fakeFetch({ lookup: [lookup(null)] });
       const rec = recorder();
-      const error = await verifyError(verify(value, { ...options, fetch: fake.fetch, ...rec }));
+      const error = await verifyError(
+        verify(value, { ...options, fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent }),
+      );
       assert.equal(error.code, "invalid-input");
       assert.equal(exitCodeOf(error), 2);
       assert.equal(fake.calls.length, 0);
@@ -1051,7 +1064,8 @@ describe("verify(): unsupported chain, rate limits, abort", () => {
       verify(makeInput(ADDRESS, 9429413), {
         fetch: fake.fetch,
         allowSourcifyFallback: true,
-        ...rec,
+        logger: rec.logger,
+        onEvent: rec.onEvent,
         ...FAST,
       }),
     );
@@ -1091,7 +1105,9 @@ describe("verify(): unsupported chain, rate limits, abort", () => {
     mock.timers.setTime(1_800_000_000_000);
     const fake = fakeFetch({ lookup: [{ status: 429, body: {} }] });
     const rec = recorder();
-    const pending = outcomeOf(publicVerify(makeInput(), { fetch: fake.fetch, ...rec }));
+    const pending = outcomeOf(
+      publicVerify(makeInput(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent }),
+    );
     await driveMockClock(pending, () => {
       mock.timers.runAll();
     });
@@ -1310,7 +1326,8 @@ describe("verify(): keys in the route URL", () => {
         verify(makeInput(), {
           ...options,
           fetch: fake.fetch,
-          ...rec,
+          logger: rec.logger,
+          onEvent: rec.onEvent,
           route: { apiUrl: PRIVATE_API },
         }),
       );
@@ -1353,7 +1370,7 @@ describe("verify(): log line shape", () => {
   it("passes one argument for a line with no fields", async () => {
     const fake = fakeFetch({ lookup: [lookup("exact_match")] });
     const rec = recorder();
-    await verify(makeInput(), { fetch: fake.fetch, ...rec });
+    await verify(makeInput(), { fetch: fake.fetch, logger: rec.logger, onEvent: rec.onEvent });
     for (const line of rec.lines) {
       assert.equal(line.argCount, line.fields === undefined ? 1 : 2);
     }
