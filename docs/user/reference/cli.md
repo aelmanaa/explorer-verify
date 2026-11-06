@@ -11,8 +11,8 @@ Node 22.18 and later. `verify` verifies a contract from a Foundry or Hardhat pro
 build files, and `status` resumes a submitted verification from its handle. This page describes both, and the output contract that
 every command follows.
 
-The sections from Usage to Exit codes are generated from the CLI's own help, so they match
-`explorer-verify --help` for this version.
+The sections from Usage to Chain names are generated from the CLI's own tables, so they match
+`explorer-verify --help` and the names `--chain` accepts in this version.
 
 ## Verify
 
@@ -25,6 +25,10 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
   table's pick. See [Where verify submits](#where-verify-submits).
 - The address may come first, without the word `verify`:
   `explorer-verify 0x8275… --chain 11155111 --foundry . --contract …`.
+- `--chain` (`-c`) takes the chain ID or its name, in any case: `--chain sepolia` and
+  `--chain 11155111` give the same run and the same stdout. [Chain names](#chain-names) lists the
+  names. A name the CLI does not know exits 2, and the hint names the closest one, such as
+  `Did you mean sepolia?`.
 - `--foundry <dir>` or `--hardhat <dir>` reads the build of the project in that folder, and needs
   `--contract`: `path:Name`, or a bare `Name` when one contract has that name. `.` is the current
   folder; unlike `forge verify-contract`, the CLI does not look for the Git root. The CLI finds
@@ -52,11 +56,22 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
 - `--timeout <seconds>` sets the time budget of the run, polling included; the default is 120. A
   run that ends while the job is still pending exits 4 with `not-confirmed` and the handle. Resume
   it with `status`.
+- `--poll-interval <seconds>` sets the wait between two status polls of a submitted job, at least
+  1; the default is 3. `verify` waits one interval before its first poll; `status` polls at once.
+  `status` and `--input-json` take it too.
 - `--backend` and `--api-url` pick the route, as in [API keys and route options](#api-keys-and-route-options).
   `--api-url` needs `--backend` naming the backend that serves that API.
 - `--rpc-url`, `--rpc-url-file` or `--rpc-url-stdin` gives a JSON-RPC endpoint, so `verify` can
   derive missing constructor arguments from the `--creation-tx` transaction. See
   [RPC URL](#rpc-url).
+- `--backend all` runs [`verifyEach()`](verify.md#several-backends-in-one-call) with
+  `backends: "all"`: every backend the chain's row lists that can run, in the row's order. A
+  backend that needs a key you have not set is skipped, and a warning line on stderr names it and
+  the variable, such as `--backend all skipped etherscan-v2: it needs an API key and
+  ETHERSCAN_API_KEY is not set.` It prints the same envelope as `--backend` repeated for each
+  backend that ran, and follows the same rules below. It cannot be combined with another
+  `--backend`. With `--dry-run` it exits 2, and the hint lists the backends the chain lists, so
+  you can dry run each with `--backend <name> --dry-run`.
 - `--backend` given more than once runs [`verifyEach()`](verify.md#several-backends-in-one-call):
   the run verifies on each backend at once, with one time budget, and prints one envelope whose
   `result.outcomes` holds one outcome per backend, in command-line order. Each backend uses its
@@ -70,7 +85,8 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
   read `result.outcomes` for every backend. Without `--json`, stdout has, for each backend, its
   status line, such as `verified: exact match on sourcify`, then the explorer page when the
   library knows one; for an error, `<code> on <backend>: <message>`, then `Handle: <handle>` when
-  the job is still pending. `status` takes one `--backend`.
+  the job is still pending. Each backend's error also goes to stderr, as an error line that starts
+  with the backend's name, with its hint. `status` takes one `--backend`.
 - The `verify.submitted` line on stderr carries the handle, at the default level. Keep it.
 
 A usage or input error exits 2 before any request. An issue names the option, such as `--chain` or
@@ -105,8 +121,8 @@ Name where to submit: pass --backend with one of the backends chain 11155111 lis
   `--backend auto` or `--backend sourcify`.
 - `--api-url` needs `--backend` naming the backend that serves that API, and not `auto`: the URL
   replaces the routing table. This holds for a dry run too, and for `route.apiUrl` in a request.
-- `auto` stands alone: with another `--backend`, or with `--api-key-file` or `--api-key-stdin`,
-  it exits 2, because a key needs a named backend.
+- `auto` and `all` stand alone: with another `--backend`, or with `--api-key-file` or
+  `--api-key-stdin`, they exit 2, because a key needs a named backend.
 - `--dry-run` and `status` need no target.
 
 ## Dry run
@@ -179,8 +195,9 @@ explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80cae
 ```
 
 `status <handle>` calls [`checkStatus()`](check-status.md): it polls the job from its handle and
-never submits. It takes the same `--timeout`, route options and keys as `verify`, and uses the same
-exit codes. Pass the route options the submit used: the handle never chooses the host.
+never submits. It takes the same `--timeout`, `--poll-interval`, route options and keys as `verify`, and uses the same
+exit codes. Pass the route options the submit used: the handle never chooses the host. As for
+`verify`, `--api-url` needs `--backend` naming the backend that serves that API, or the run exits 2.
 
 ## The request as JSON
 
@@ -195,7 +212,7 @@ from stdin. The package `explorer-verify` ships its JSON Schema as
 
 Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`,
 `--allow-sourcify-fallback`, `--api-key-file`, `--api-key-stdin`, `--rpc-url`, `--rpc-url-file`,
-`--rpc-url-stdin` and `--timeout` may accompany
+`--rpc-url-stdin`, `--timeout` and `--poll-interval` may accompany
 it, and no argument. Any other option exits 2: put it in the request. The route of the request
 counts as `--backend` and `--api-url`, so `--api-key-file` can send its key there. A submitting
 request needs `route.backend`: a backend name, or `"auto"` for the routing table's pick. Malformed JSON
@@ -212,12 +229,16 @@ three options.
   exits 0. It leads with examples, then lists the usage, the commands, the options, the
   environment variables and the exit codes, and links this page and `llms.txt`.
 - `explorer-verify help <command>` or `explorer-verify <command> --help` prints the help of one
-  command, its own options first.
+  command: its examples, a usage line for each way to call it, naming the arguments and options it
+  needs, and its own options. It leaves the global options, the environment variables and the
+  exit codes to `explorer-verify --help`, and says so on its last lines.
+- `explorer-verify` alone, `explorer-verify verify` alone and `explorer-verify status` alone print
+  a short help on stderr, with the usage and two examples, and exit 2.
 - With `--json`, help prints one envelope, `{ "schemaVersion": 1, "ok": true, "result": ... }`,
-  whose `result` holds the same content as the text: the topic, the usage, the examples, the
-  commands with their options, the global options, the environment variables, the exit codes and
-  the two links. The package ships its JSON Schema as `@explorer-verify/cli/help.schema.json`.
-- `explorer-verify --version` prints two lines: the version of `@explorer-verify/cli` and the
+  whose `result` holds the topic, the usage, the examples, the commands with their options, the
+  global options, the environment variables, the exit codes and the two links, for a command's
+  help too. The package ships its JSON Schema as `@explorer-verify/cli/help.schema.json`.
+- `explorer-verify --version` or `-V` prints two lines: the version of `@explorer-verify/cli` and the
   version of the `explorer-verify` core package it runs.
 - `explorer-verify --version --json` prints one envelope whose `result` holds `cli`, `core` and
   `routingTableDate`, the date of the routing table the core ships, as `YYYY-MM-DD`. The package
@@ -263,42 +284,43 @@ explorer-verify help [<command>]
 Verify a deployed contract's source. Looks it up first, and submits only when the explorer lacks it.
 
 ```text
-explorer-verify verify <address> [options]
+explorer-verify verify <address> --chain <chain> --input <file>... (--backend <name> | --dry-run) [options]
 ```
 
 Examples:
 
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --dry-run --json`: Check the Greeter of the Foundry project in this folder and look it up, without submitting: one envelope.
-- `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend sourcify`: Verify on Sourcify from the Foundry project's build; the address may come first, without verify.
+- `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc -c sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify`: Verify on Sourcify from the Foundry project's build; the address may come first, without verify, and the chain may be a name.
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend auto`: Verify where the routing table points: the first backend the chain lists that needs no key or has one.
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 --foundry . --contract src/Greeter.sol:Greeter --allow-sourcify-fallback --dry-run --json`: Check a contract on a chain that the routing table does not list, on the public Sourcify API.
 - `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input build/build-info.json --input build/Greeter.json --backend sourcify`: Verify from build files kept outside a project, such as those a package ships: repeat --input for each file.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it, with route.backend naming where to submit.
 
-| Option                          | What it does                                                                                                                                                                                                                                     |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--backend <name>`              | Where to submit: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan, or auto for the routing table's pick. Needed unless --dry-run. Give it more than once to verify on each backend in one run. Repeatable. |
-| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                                                                                        |
-| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                                                                           |
-| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                                                                   |
-| `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                                                                                                      |
-| `--foundry <dir>`               | Read the build of the Foundry project in this folder: finds the build-info and artifact of --contract. . is the current folder, not the git root that forge uses. Run forge build --build-info first.                                            |
-| `--hardhat <dir>`               | Read the build of the Hardhat 2 or Hardhat 3 project in this folder, . for the current one: finds the artifact and build-info of --contract. Compile the project first.                                                                          |
-| `--out-dir <dir>`               | With --foundry or --hardhat: the build's output folder, relative to the project folder or absolute, when the config moves it. Default out for Foundry, artifacts for Hardhat.                                                                    |
-| `--artifact <file>`             | With --foundry or --hardhat: the contract's artifact file, relative to the project folder or absolute, when the build wrote one for each compiler version or profile. For Hardhat it must be inside the output folder.                           |
-| `--contract <path:Name>`        | The contract as path:Name, such as src/Greeter.sol:Greeter, or as Name when one contract has that name. Needed with --foundry and --hardhat, and when the build files hold several.                                                              |
-| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeat it for each file. In a project, use --foundry or --hardhat instead. Repeatable.                                                                      |
-| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                                                                   |
-| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                                                                           |
-| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                                                                           |
-| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                                                                                                     |
-| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                                                                              |
-| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                                                                        |
-| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                                                                              |
-| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                                                                      |
-| `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.                                                            |
-| `--dry-run`                     | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                                                                      |
-| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                                                                          |
+| Option                          | What it does                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend <name>`              | Where to submit: etherscan-v2, etherscan-compatible, blockscout, blockscout-hosted, sourcify, routescan; auto for the routing table's pick; or all for every backend of the chain's row that can run, not with --dry-run. Needed to submit; a dry run takes one backend or none. Give it more than once to verify on each backend named in one run. Repeatable. |
+| `--api-url <url>`               | Use this explorer API URL instead of the routing table's.                                                                                                                                                                                                                                                                                                       |
+| `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                                                                                                                                                                                          |
+| `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                                                                                                                                                                                  |
+| `-c`, `--chain <chain>`         | The chain the contract is deployed on: its ID, such as 11155111, or its name, such as sepolia. The CLI reference lists the names.                                                                                                                                                                                                                               |
+| `--foundry <dir>`               | Read the build of the Foundry project in this folder: finds the build-info and artifact of --contract. . is the current folder, not the git root that forge uses. Run forge build --build-info first.                                                                                                                                                           |
+| `--hardhat <dir>`               | Read the build of the Hardhat 2 or Hardhat 3 project in this folder, . for the current one: finds the artifact and build-info of --contract. Compile the project first.                                                                                                                                                                                         |
+| `--out-dir <dir>`               | With --foundry or --hardhat: the build's output folder, relative to the project folder or absolute, when the config moves it. Default out for Foundry, artifacts for Hardhat.                                                                                                                                                                                   |
+| `--artifact <file>`             | With --foundry or --hardhat: the contract's artifact file, relative to the project folder or absolute, when the build wrote one for each compiler version or profile. For Hardhat it must be inside the output folder.                                                                                                                                          |
+| `--contract <path:Name>`        | The contract as path:Name, such as src/Greeter.sol:Greeter, or as Name when one contract has that name. Needed with --foundry and --hardhat, and when the build files hold several.                                                                                                                                                                             |
+| `-i`, `--input <file>`          | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeat it for each file. In a project, use --foundry or --hardhat instead. Repeatable.                                                                                                                                                                                     |
+| `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                                                                                                                                                                                  |
+| `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                                                                                                                                                                                          |
+| `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                                                                                                                                                                                          |
+| `--library <path:Name=address>` | The address of a linked library. Repeatable.                                                                                                                                                                                                                                                                                                                    |
+| `--timeout <seconds>`           | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                                                                                                                                                                                             |
+| `--poll-interval <seconds>`     | The wait between two status polls of a submitted job, in whole seconds, at least 1. Default 3.                                                                                                                                                                                                                                                                  |
+| `--rpc-url <url>`               | A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.                                                                                                                                                                                       |
+| `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                                                                                                                                                                                             |
+| `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                                                                                                                                                                                     |
+| `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.                                                                                                                                                                           |
+| `-n`, `--dry-run`               | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                                                                                                                                                                                     |
+| `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                                                                                                                                                                                         |
 
 ### `status`
 
@@ -311,6 +333,7 @@ explorer-verify status <handle> [options]
 Examples:
 
 - `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json`: Poll the job of a handle until it ends or the time budget runs out.
+- `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --timeout 600 --poll-interval 30`: Wait up to 10 minutes for a slow explorer, polling every 30 seconds.
 
 | Option                      | What it does                                                                                                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -319,6 +342,7 @@ Examples:
 | `--api-key-file <path>`     | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                |
 | `--api-key-stdin`           | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                        |
 | `--timeout <seconds>`       | The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.                                                   |
+| `--poll-interval <seconds>` | The wait between two status polls of a submitted job, in whole seconds, at least 1. Default 3.                                                                                        |
 | `--allow-sourcify-fallback` | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify. |
 | `--input-json <file>`       | Read the whole status request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                               |
 
@@ -327,7 +351,7 @@ Examples:
 | Option                  | What it does                                                                |
 | ----------------------- | --------------------------------------------------------------------------- |
 | `-h`, `--help`          | Print the help of the command, or of the CLI, on stdout.                    |
-| `--version`             | Print the CLI and core versions; with --json, the routing table's date too. |
+| `-V`, `--version`       | Print the CLI and core versions; with --json, the routing table's date too. |
 | `--json`                | Print one JSON envelope on stdout.                                          |
 | `-q`, `--quiet`         | Show only errors on stderr.                                                 |
 | `--verbose`             | Show debug lines on stderr.                                                 |
@@ -341,7 +365,7 @@ Examples:
 | `EXPLORER_VERIFY_LOG` | The stderr log level when no flag sets one: debug, info, warn, error, off.                |
 | `NO_COLOR`            | Any value but empty turns colour off under --color auto.                                  |
 | `TERM`                | dumb turns colour and the spinner off under --color auto.                                 |
-| `CI`                  | Any value but empty turns the spinner and the pager off.                                  |
+| `CI`                  | Any value but empty turns the spinner off.                                                |
 | `ETHERSCAN_API_KEY`   | The API key of etherscan-v2, sent only to api.etherscan.io. Empty counts as unset.        |
 | `ROUTESCAN_API_KEY`   | The API key of routescan, sent only to api.routescan.io. Empty counts as unset.           |
 | `BLOCKSCOUT_API_KEY`  | The API key of blockscout-hosted, sent only to api.blockscout.com. Empty counts as unset. |
@@ -361,17 +385,88 @@ Examples:
 
 [Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.
 
+## Chain names
+
+`--chain` takes these names, in any case, as well as any chain ID.
+
+| Name                 | Chain ID |
+| -------------------- | -------- |
+| `mainnet`            | 1        |
+| `ethereum`           | 1        |
+| `sepolia`            | 11155111 |
+| `holesky`            | 17000    |
+| `hoodi`              | 560048   |
+| `optimism`           | 10       |
+| `optimism-sepolia`   | 11155420 |
+| `op`                 | 10       |
+| `op-sepolia`         | 11155420 |
+| `arbitrum`           | 42161    |
+| `arbitrum-nova`      | 42170    |
+| `arbitrum-sepolia`   | 421614   |
+| `base`               | 8453     |
+| `base-sepolia`       | 84532    |
+| `polygon`            | 137      |
+| `polygon-amoy`       | 80002    |
+| `amoy`               | 80002    |
+| `polygon-zkevm`      | 1101     |
+| `bsc`                | 56       |
+| `bsc-testnet`        | 97       |
+| `bnb`                | 56       |
+| `gnosis`             | 100      |
+| `chiado`             | 10200    |
+| `gnosis-chiado`      | 10200    |
+| `avalanche`          | 43114    |
+| `fuji`               | 43113    |
+| `avalanche-fuji`     | 43113    |
+| `linea`              | 59144    |
+| `linea-sepolia`      | 59141    |
+| `scroll`             | 534352   |
+| `scroll-sepolia`     | 534351   |
+| `zksync`             | 324      |
+| `zksync-sepolia`     | 300      |
+| `blast`              | 81457    |
+| `mantle`             | 5000     |
+| `mantle-sepolia`     | 5003     |
+| `celo`               | 42220    |
+| `mode`               | 34443    |
+| `zora`               | 7777777  |
+| `fraxtal`            | 252      |
+| `worldchain`         | 480      |
+| `worldchain-sepolia` | 4801     |
+| `unichain`           | 130      |
+| `unichain-sepolia`   | 1301     |
+| `ink`                | 57073    |
+| `ink-sepolia`        | 763373   |
+| `sonic`              | 146      |
+| `berachain`          | 80094    |
+| `cronos`             | 25       |
+| `metis`              | 1088     |
+| `sei`                | 1329     |
+| `abstract`           | 2741     |
+| `taiko`              | 167000   |
+| `apechain`           | 33139    |
+| `lisk`               | 1135     |
+
 <!-- End of the generated part. -->
 
 ## Reading the command line
 
-`-v` is not bound, because it can mean verbose or version. `--quiet` with `--verbose` is a usage
-error. An option that takes one value keeps the last one when it is repeated. The CLI never
-prompts and never reads stdin unless a flag asks it to.
+Short forms: `-h` (`--help`), `-V` (`--version`), `-q` (`--quiet`), and for `verify`, `-c`
+(`--chain`), `-i` (`--input`) and `-n` (`--dry-run`). A short option takes its value as the next
+argument, `-c sepolia`, or attached, `-csepolia`; `-c=sepolia` reads the value `=sepolia`. `-v` is
+not bound, because it can mean verbose or version. `--quiet` with `--verbose` is a usage error. An option that takes one value,
+such as `--chain`, `--contract` or `--compiler-version`, exits 2 when it is given twice, `-c` and
+`--chain` together included: the CLI never picks one silently. The CLI never prompts and never
+reads stdin unless a flag asks it to.
 
 A usage error names the CLI's own options, such as `--color`, or the position of an argument,
-such as `argument 3`. It never repeats what you typed, because a mistyped option or value can be
-an API key. It lists at most 20 problems and counts the rest.
+such as `argument 3`. An unknown option of `--` and up to 32 lowercase letters and `-` is named
+as typed when it is close to one of the CLI's names, as `--colour` is to `--color`: such a typo
+is unlikely to be an API key. Any other unknown argument is named by its position, and no value
+is ever repeated, because a mistyped option or value can be a key. After the command and its
+first argument, the argument that follows an unknown option counts as that option's value, so
+`--colour never` reports the option and no extra argument. A command the CLI does not know is the only problem reported: the options
+after it are not checked. A usage error lists at most 20 problems and counts the rest.
 
 When a command or an option is mistyped, the hint of the usage error names the single closest
 command or option by edit distance, such as `Did you mean --color?`. A name is close when at most
@@ -525,6 +620,11 @@ decides what appears:
 | Default     | `info`  | Errors, warnings, info logs, `verify.retry`, `verify.submitted` and `verify.result`     |
 | `--verbose` | `debug` | Adds `verify.validated`, `verify.routed`, `verify.lookup`, `verify.poll` and debug logs |
 
+In text, each fact prints once: the library's `info` log lines that repeat the
+`verify.submitted` and `verify.result` events, and a dry run's lookup line, which the routed line
+and stdout state, show only at the `debug` level (`--verbose`). With `--log-format json`, every
+line stays at `info`.
+
 `verify.routed` shows at `info` when the routing table chose the backend: with `--backend auto`,
 and in a dry run without `--backend`. Its line says how the backend was chosen and which backends
 were skipped for lack of a key.
@@ -556,7 +656,7 @@ object, so a field named `fields` appears as `fields.fields`. Read only the line
 `{`: Node can write other text to stderr. Text lines and messages are for people and may change in
 any release.
 
-## Colour, spinners and pagers
+## Colour and spinners
 
 Each stream is decided on its own:
 
@@ -564,8 +664,10 @@ Each stream is decided on its own:
 - With `--color=auto`, a non-empty `NO_COLOR` or `TERM=dumb` turns colour off. Otherwise each
   stream is coloured only when it is a terminal. `--color=always` wins over `NO_COLOR`.
 - A spinner runs only when stderr is a terminal, `CI` is unset or empty, `TERM` is not `dumb`,
-  `--log-format` is `text` and the level shows more than errors.
-- A pager runs only when stdout is a terminal and `CI` is unset or empty.
+  `--log-format` is `text` and the level shows more than errors. It shows the stage of the last
+  event, such as `Waiting for sourcify: pending, poll 3`, and the whole seconds since the run
+  started, at any level.
+- The CLI has no pager.
 
 ## Cancel and unexpected errors
 

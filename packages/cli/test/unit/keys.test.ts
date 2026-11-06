@@ -457,7 +457,7 @@ describe("readRouteOptions: --backend and --api-url (R-RT-2)", () => {
     assert.equal(read.issues[0]?.field, "--backend");
     assert.match(
       read.issues[0]?.message ?? "",
-      /^must be one of etherscan-v2, .*, or auto for verify$/,
+      /^must be one of etherscan-v2, .*, or auto or all for verify$/,
     );
     assert.ok(!JSON.stringify(read).includes(FLAG_KEY));
   });

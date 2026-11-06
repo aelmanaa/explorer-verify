@@ -18,13 +18,11 @@ export interface OptionSpec {
   type: "string" | "boolean";
   /** A one-letter alias, such as `q` for `--quiet`. */
   short?: string;
-  /** Whether the option may repeat; its values then form a list. */
-  multiple?: boolean;
   /**
-   * Whether giving the option twice is an issue, instead of keeping the last value: for an option
-   * whose repeat a caller could read as a request for more, such as `--backend`.
+   * Whether the option may repeat; its values then form a list. A string option that does not
+   * repeat is an issue when it is given twice, so `--chain 1 --chain 10` never keeps one silently.
    */
-  once?: boolean;
+  multiple?: boolean;
   /** The placeholder of a string option's value in the help text, such as `<mode>`. */
   value?: string;
   /** One line for the help text. */
@@ -59,7 +57,8 @@ export function commandOptions(command: CommandSpec): OptionSpecs {
 
 /**
  * The options every command accepts, in help order (R-AX-5, R-AX-6, R-AX-11, R-AX-14, R-AX-15).
- * `-v` is not bound, because it can mean verbose or version.
+ * `-v` is not bound, because it can mean verbose or version; `-V` is the version, as in cargo and
+ * forge.
  */
 export const GLOBAL_OPTIONS: OptionSpecs = {
   help: {
@@ -69,6 +68,7 @@ export const GLOBAL_OPTIONS: OptionSpecs = {
   },
   version: {
     type: "boolean",
+    short: "V",
     description: "Print the CLI and core versions; with --json, the routing table's date too.",
   },
   json: { type: "boolean", description: "Print one JSON envelope on stdout." },
@@ -88,8 +88,16 @@ export const HELP_WORD = "help";
 /** The command a contract address as the first argument runs (R-DX-1). */
 const ADDRESS_COMMAND = "verify";
 
-/** The issue message of an option with `once` given twice. */
+/** The issue message of a string option that does not repeat, given twice. */
 const ONCE_MESSAGE = "can be given only once";
+
+/**
+ * The shape of an unknown option that an issue may name: `--` and at most 32 lowercase letters and
+ * `-`, as the CLI's own names are. It is named only when it is also close to one of the CLI's
+ * names, as a typo such as `--colour` is, so a key of that shape is not echoed (R-AX-9). Any other
+ * unknown argument is named by its position.
+ */
+const NAMEABLE = /^--[a-z][a-z-]{0,31}$/;
 
 /** A contract address: `0x` and 40 hex digits. */
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -131,6 +139,8 @@ type Token =
       /** The value, or `undefined` when none was given or the next argument was not one. */
       value: string | undefined;
       inline: boolean;
+      /** The option as typed, without an inline value, such as `--dry-run` or `-n`. */
+      raw: string;
       /** The position of the argument, from 1. */
       position: number;
     }
@@ -183,12 +193,20 @@ function tokenize(
         known.get(token.name)?.type === "string" &&
         looksLikeOption(value)
       ) {
-        result.push({ kind: "option", name: token.name, value: undefined, inline, position });
+        const raw = token.rawName;
+        result.push({ kind: "option", name: token.name, value: undefined, inline, raw, position });
         start = position;
         restart = true;
         break;
       }
-      result.push({ kind: "option", name: token.name, value, inline, position });
+      result.push({
+        kind: "option",
+        name: token.name,
+        value,
+        inline,
+        raw: token.rawName,
+        position,
+      });
     }
   }
   return result;
@@ -235,8 +253,16 @@ export function readArguments(
   const tokens = tokenize(argv, config, known);
 
   const positionals: string[] = [];
+  // An option no command knows takes the argument right after it, when a positional came before
+  // it, so `verify <address> --colour never` reports the option and no extra argument. Before the
+  // first positional, the next argument may be the command, so it stays.
+  let swallow = false;
   for (const token of tokens) {
-    if (token.kind === "positional") {
+    if (token.kind === "option") {
+      swallow = positionals.length > 0 && !known.has(token.name) && token.value === undefined;
+    } else if (swallow) {
+      swallow = false;
+    } else {
       positionals.push(token.value);
     }
   }
@@ -291,7 +317,12 @@ export function readArguments(
         if (found !== undefined && known.has(token.name)) {
           issues.push({ field: `--${token.name}`, message: `is not an option of ${found.name}` });
         } else {
-          issues.push({ field: `argument ${String(token.position)}`, message: "is not an option" });
+          // The option is named only when it is close to one of the CLI's names, as a typo is.
+          const near =
+            known.has(token.name) || closest(token.name, [...known.keys()]) !== undefined;
+          const nameable = NAMEABLE.test(token.raw) && near;
+          const field = nameable ? token.raw : `argument ${String(token.position)}`;
+          issues.push({ field, message: "is not an option" });
           // An option of a command that was not named is valid, so nothing is suggested for it.
           // Only the first suggestion is kept, so later options are not compared.
           if (optionSuggestion === undefined && !known.has(token.name)) {
@@ -324,7 +355,7 @@ export function readArguments(
       list.push(value);
       lists.set(token.name, list);
       values.set(token.name, list);
-    } else if (spec.once === true && values.has(token.name)) {
+    } else if (values.has(token.name)) {
       issues.push({ field: label, message: ONCE_MESSAGE });
     } else {
       values.set(token.name, value);
@@ -335,6 +366,13 @@ export function readArguments(
   // Help and the version need no command; an unknown one is still an issue.
   const needsCommand = !helpWord && !asked.has("help") && !asked.has("version");
   let commandSuggestion: string | undefined;
+  if (found === undefined && first !== undefined) {
+    // An unknown command: its options stay unknown until it is fixed, so the issues keep only a
+    // refused key option, then the command, not one issue per option after it.
+    const kept = issues.filter(({ field }) => REFUSED_KEY_OPTIONS.includes(field.slice(2)));
+    issues.splice(0, issues.length, ...kept);
+    optionSuggestion = undefined;
+  }
   if (found === undefined && (first !== undefined || needsCommand)) {
     issues.push({
       field: "command",

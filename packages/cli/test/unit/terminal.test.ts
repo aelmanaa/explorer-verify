@@ -1,4 +1,4 @@
-// Colour, spinner and pager per stream (R-AX-6).
+// Colour and spinner per stream (R-AX-6). The CLI has no pager.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -19,12 +19,11 @@ function policy(changes: Partial<TerminalInputs>) {
 }
 
 describe("terminalPolicy (R-AX-6)", () => {
-  it("colours, spins and pages on two terminals by default", () => {
+  it("colours and spins on two terminals by default, and has no pager", () => {
     assert.deepEqual(policy({}), {
       colorStdout: true,
       colorStderr: true,
       spinner: true,
-      pager: true,
     });
   });
 
@@ -32,7 +31,6 @@ describe("terminalPolicy (R-AX-6)", () => {
     const piped = policy({ stdoutIsTerminal: false });
     assert.equal(piped.colorStdout, false);
     assert.equal(piped.colorStderr, true);
-    assert.equal(piped.pager, false);
     const redirected = policy({ stderrIsTerminal: false });
     assert.equal(redirected.colorStdout, true);
     assert.equal(redirected.colorStderr, false);
@@ -62,13 +60,11 @@ describe("terminalPolicy (R-AX-6)", () => {
     assert.equal(never.colorStderr, false);
   });
 
-  it("shows no spinner and no pager when CI is set, and both when CI is empty", () => {
+  it("shows no spinner when CI is set, and one when CI is empty", () => {
     const ci = policy({ env: { CI: "true" } });
     assert.equal(ci.spinner, false);
-    assert.equal(ci.pager, false);
     const empty = policy({ env: { CI: "" } });
     assert.equal(empty.spinner, true);
-    assert.equal(empty.pager, true);
   });
 
   it("shows no spinner with TERM=dumb, which cannot redraw a line", () => {

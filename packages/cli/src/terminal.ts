@@ -1,5 +1,6 @@
 /**
- * What each stream may show (R-AX-6): colour per stream, spinners on stderr, a pager on stdout.
+ * What each stream may show (R-AX-6): colour per stream and spinners on stderr. The CLI has no
+ * pager: its longest output, the help, fits a screen or two.
  * Each decision reads only its own stream's terminal state, `--color`, `NO_COLOR`, `TERM`, `CI`,
  * the log format and the log level. The CLI never prompts.
  */
@@ -22,8 +23,6 @@ export interface TerminalPolicy {
   colorStderr: boolean;
   /** A spinner and line redraws on stderr. */
   spinner: boolean;
-  /** A pager for long stdout output, such as help text. */
-  pager: boolean;
 }
 
 /** The inputs of {@link terminalPolicy}. */
@@ -51,7 +50,6 @@ function isSet(env: Environment, name: string): boolean {
  * - A spinner runs only when stderr is a terminal, `CI` is unset or empty, `TERM` is not `dumb`
  *   (it cannot redraw a line), the log format is `text`, and the level shows more than errors (so
  *   not with `--quiet`).
- * - A pager runs only when stdout is a terminal and `CI` is unset or empty.
  *
  * @param inputs - The flag values, the environment and each stream's terminal state.
  * @returns What each stream may show.
@@ -73,7 +71,6 @@ export function terminalPolicy(inputs: TerminalInputs): TerminalPolicy {
       inputs.logFormat === "text" &&
       inputs.level !== "error" &&
       inputs.level !== "off",
-    pager: inputs.stdoutIsTerminal && !ci,
   };
 }
 

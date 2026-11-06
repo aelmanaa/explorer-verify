@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import type { ErrorJson, VerifyEvent } from "explorer-verify";
 
 import type { LogLevel } from "../../src/log-level.ts";
-import { createStderr, eventMessage, jsonLine } from "../../src/stderr.ts";
+import { createStderr, eventMessage, jsonLine, repeats, stageText } from "../../src/stderr.ts";
 import type { StderrOptions } from "../../src/stderr.ts";
 import { jsonLines } from "../helpers/fake-io.ts";
 
@@ -238,10 +238,76 @@ describe("text lines", () => {
   });
 });
 
+describe("one line per fact in text at info (R-AX-14, #225)", () => {
+  const SUBMITTED = EVENTS[4];
+  const RESULT = EVENTS[6];
+  assert.ok(SUBMITTED !== undefined && RESULT !== undefined);
+  // The library's own wording, as flow/verify.ts and flow/dry-run.ts write it.
+  const ACCEPTED = `sourcify accepted the submission. Resume it with this handle: ${HANDLE}`;
+  const DRY_RUN = "Dry run: sourcify holds no match, so a verification would submit the source.";
+
+  it("shows the event, and the core's info line that repeats it only at debug", () => {
+    for (const level of ["info", "debug"] as const) {
+      const { stderr, text } = writer({ format: "text", level });
+      stderr.onEvent(SUBMITTED);
+      // A line of another backend in between changes nothing: the match reads each line alone.
+      stderr.logger.info("routescan accepted the submission. Resume it with this handle: h", {
+        backend: "routescan",
+        handle: "h",
+      });
+      stderr.logger.info(ACCEPTED, { backend: "sourcify", handle: HANDLE });
+      stderr.onEvent(RESULT);
+      stderr.logger.info("Result: verified (exact) on sourcify", {
+        backend: "sourcify",
+        status: "verified",
+      });
+      stderr.logger.info(DRY_RUN, { backend: "sourcify", routedBy: "table" });
+      const lines = text().trimEnd().split("\n");
+      if (level === "info") {
+        assert.deepEqual(lines, [
+          `Submitted to sourcify. Handle: ${HANDLE}`,
+          "Result from sourcify: verified, exact match.",
+        ]);
+      } else {
+        assert.equal(lines.length, 6);
+        assert.match(lines[1] ?? "", /^debug: routescan accepted the submission\./);
+        assert.match(lines[2] ?? "", /^debug: sourcify accepted the submission\./);
+        assert.match(lines[4] ?? "", /^debug: Result: verified/);
+        assert.match(lines[5] ?? "", /^debug: Dry run: /);
+      }
+    }
+  });
+
+  it("keeps a line without the marker's field, at any other level, and any other info line", () => {
+    const { stderr, text } = writer({ format: "text" });
+    stderr.logger.info(ACCEPTED, { backend: "sourcify" });
+    stderr.logger.info("Result: something", {});
+    stderr.logger.info(DRY_RUN);
+    stderr.logger.warn("Result: a warning", { status: "x" });
+    stderr.logger.info("Derived the constructor arguments", { backend: "sourcify" });
+    assert.equal(text().trimEnd().split("\n").length, 5);
+    assert.equal(repeats(ACCEPTED, { handle: HANDLE }), true);
+    assert.equal(repeats("Other", { handle: HANDLE }), false);
+  });
+
+  it("keeps both lines with --log-format json", () => {
+    const { stderr, text } = writer({ format: "json" });
+    stderr.onEvent(SUBMITTED);
+    stderr.logger.info(ACCEPTED, { backend: "sourcify", handle: HANDLE });
+    assert.deepEqual(
+      jsonLines(text()).map((line) => [line["type"], line["level"]]),
+      [
+        ["verify.submitted", "info"],
+        ["log", "info"],
+      ],
+    );
+  });
+});
+
 describe("spinner (R-AX-6)", () => {
   it("draws frames, clears its line before each log line, and clears it when stopped", (t) => {
     t.mock.timers.enable({ apis: ["setInterval"] });
-    const { stderr, text } = writer({ format: "text", spinner: true });
+    const { stderr, text } = writer({ format: "text", spinner: true, now: () => 0 });
     stderr.startSpinner("Working");
     stderr.startSpinner("Ignored");
     t.mock.timers.tick(100);
@@ -251,7 +317,40 @@ describe("spinner (R-AX-6)", () => {
     t.mock.timers.tick(1000);
     assert.equal(
       text(),
-      "\r\u001B[2K| Working\r\u001B[2K/ Working\r\u001B[2Kline\n\r\u001B[2K- Working\r\u001B[2K",
+      "\r\u001B[2K| Working (0 s)\r\u001B[2K/ Working (0 s)\r\u001B[2Kline\n\r\u001B[2K- Working (0 s)\r\u001B[2K",
+    );
+  });
+
+  it("shows the stage of the last event and the whole seconds since the start (#225)", (t) => {
+    t.mock.timers.enable({ apis: ["setInterval", "Date"], now: 5_000 });
+    const { stderr, text } = writer({ format: "text", spinner: true, level: "error" });
+    stderr.startSpinner("Running verify");
+    t.mock.timers.tick(1_900);
+    // The event's line is hidden at error, but the spinner still shows its stage.
+    stderr.onEvent({ type: "verify.poll", backend: "sourcify", attempt: 3, state: "pending" });
+    t.mock.timers.tick(100);
+    stderr.stopSpinner();
+    const frames = text()
+      .split("\r\u001B[2K")
+      .filter((frame) => frame !== "");
+    assert.equal(frames[0], "| Running verify (0 s)");
+    assert.equal(frames.at(-2)?.slice(2), "Running verify (1 s)");
+    assert.equal(frames.at(-1)?.slice(2), "Waiting for sourcify: pending, poll 3 (2 s)");
+  });
+
+  it("gives every event type a stage", () => {
+    assert.deepEqual(
+      EVENTS.map((event) => stageText(event)),
+      [
+        "Checked the input",
+        "Routed to sourcify",
+        "Looked the contract up on sourcify",
+        "Retrying sourcify after network",
+        "Submitted to sourcify, waiting for the result",
+        "Waiting for sourcify: pending, poll 1",
+        "Result from sourcify: verified",
+        "Result from sourcify: failed",
+      ],
     );
   });
 

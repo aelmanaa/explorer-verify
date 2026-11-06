@@ -10,12 +10,13 @@ import {
   buildVerifyInput,
   dryRun,
   toBackendName,
+  routesFor,
   validateInput,
   verify,
   verifyEach,
 } from "explorer-verify";
 import type {
-  CallOptions,
+  CheckStatusOptions,
   InputIssue,
   VerifyEvent,
   VerifyInput,
@@ -23,6 +24,7 @@ import type {
 } from "explorer-verify";
 
 import type { OptionSpec, OptionSpecs, OptionValue } from "./arguments.ts";
+import { chainIdOf } from "./chains.ts";
 import { listOption, stringOption, usageError } from "./command.ts";
 import type {
   Command,
@@ -35,7 +37,7 @@ import { PROJECT_OPTIONS, inputFromProject, projectOf } from "./project.ts";
 import { FOLDER_MESSAGE, readJsonFile, readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
 import { RPC_URL_OPTIONS, readRpcUrl } from "./rpc-url.ts";
-import { AUTO, refusal } from "./target.ts";
+import { ALL, AUTO, allDryRunRefusal, refusal, skippedByAll } from "./target.ts";
 import type { Target } from "./target.ts";
 
 /** The longest `--timeout` in seconds: the longest timer Node runs, 2^31 - 1 ms. */
@@ -49,12 +51,19 @@ export const TIMEOUT_OPTION: OptionSpec = {
     "The time budget of the whole run, polling included, in whole seconds. Default 120. A run that ends pending exits 4 with the handle.",
 };
 
+/** `--poll-interval`, shared by `verify` and `status`. */
+export const POLL_INTERVAL_OPTION: OptionSpec = {
+  type: "string",
+  value: "<seconds>",
+  description:
+    "The wait between two status polls of a submitted job, in whole seconds, at least 1. Default 3.",
+};
+
 /** `--input-json`, shared by `verify` and `status`. */
 export function inputJsonOption(command: string): OptionSpec {
   return {
     type: "string",
     value: "<file>",
-    once: true,
     description: `Read the whole ${command} request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.`,
   };
 }
@@ -67,12 +76,12 @@ export const FALLBACK_OPTION: OptionSpec = {
 };
 
 /**
- * Whether `--backend <name>` names a backend the Sourcify fallback never reaches. `auto` goes with
- * the fallback: on a chain without a row, the routing table's pick is then Sourcify. A name that
- * is no backend is left to the route check, which names it.
+ * Whether `--backend <name>` names a backend the Sourcify fallback never reaches. `auto` and `all`
+ * go with the fallback: on a chain without a row, the routing table's picks are then Sourcify. A
+ * name that is no backend is left to the route check, which names it.
  */
 function fallbackNeverReaches(name: string): boolean {
-  return name !== AUTO && (toBackendName(name) ?? "sourcify") !== "sourcify";
+  return name !== AUTO && name !== ALL && (toBackendName(name) ?? "sourcify") !== "sourcify";
 }
 
 /**
@@ -124,14 +133,38 @@ export function timeoutOf(
   values: ReadonlyMap<string, OptionValue>,
   issues: InputIssue[],
 ): number | undefined {
-  const value = stringOption(values, "timeout");
+  return millisecondsOf(values, "timeout", issues);
+}
+
+/**
+ * The wait between two polls of `--poll-interval` in milliseconds, `undefined` when it is absent,
+ * or an issue.
+ *
+ * @param values - The checked option values.
+ * @param issues - Receives the issue.
+ * @returns The wait.
+ */
+export function pollIntervalOf(
+  values: ReadonlyMap<string, OptionValue>,
+  issues: InputIssue[],
+): number | undefined {
+  return millisecondsOf(values, "poll-interval", issues);
+}
+
+/** A whole number of seconds from 1 to the longest timer, in milliseconds, or an issue. */
+function millisecondsOf(
+  values: ReadonlyMap<string, OptionValue>,
+  name: string,
+  issues: InputIssue[],
+): number | undefined {
+  const value = stringOption(values, name);
   if (value === undefined) {
     return undefined;
   }
   const seconds = /^[1-9]\d{0,6}$/.test(value) ? Number(value) : Number.NaN;
   if (!(seconds <= MAX_TIMEOUT_SECONDS)) {
     issues.push({
-      field: "--timeout",
+      field: `--${name}`,
       message: `must be a whole number of seconds from 1 to ${String(MAX_TIMEOUT_SECONDS)}`,
     });
     return undefined;
@@ -139,17 +172,25 @@ export function timeoutOf(
   return seconds * 1000;
 }
 
+/** The time settings of a run: `--timeout` and `--poll-interval`, each when given. */
+export interface Timing {
+  readonly timeoutMs: number | undefined;
+  readonly pollIntervalMs: number | undefined;
+}
+
 /**
  * The options of a library call: the context's signal, logger, event writer, route and keys, the
- * Sourcify fallback of `--allow-sourcify-fallback`, and the time budget when one was given.
+ * Sourcify fallback of `--allow-sourcify-fallback`, and the time budget and the poll interval when
+ * given.
  *
  * @param context - The command's context.
- * @param timeoutMs - The time budget, if any.
+ * @param timing - The time budget and the poll interval, each if given.
  * @returns The options.
  */
-export function callOptions(context: CommandContext, timeoutMs: number | undefined): CallOptions {
+export function callOptions(context: CommandContext, timing: Timing): CheckStatusOptions {
   const { signal, logger, onEvent } = context;
   const { apiKeys, route } = context.routeOptions();
+  const { timeoutMs, pollIntervalMs } = timing;
   return {
     signal,
     logger,
@@ -160,6 +201,7 @@ export function callOptions(context: CommandContext, timeoutMs: number | undefin
       ? { allowSourcifyFallback: true }
       : {}),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),
   };
 }
 
@@ -188,22 +230,27 @@ const REQUEST_FIELD_NAMES: ReadonlyMap<string, string> = new Map([
   ["--api-url", "route.apiUrl"],
 ]);
 
-/** A chain id: a positive whole number with no leading zero. */
-const CHAIN_ID = /^[1-9]\d{0,15}$/;
-
-/** The chain id of `--chain`, or an issue. */
-function chainOf(values: ReadonlyMap<string, OptionValue>, issues: InputIssue[]): number {
+/** The chain id of `--chain`, or an issue and the closest chain name. */
+function chainOf(
+  values: ReadonlyMap<string, OptionValue>,
+  issues: InputIssue[],
+): { readonly chainId: number; readonly suggestion?: string } {
   const value = stringOption(values, "chain");
   if (value === undefined) {
-    issues.push({ field: "--chain", message: "is needed: the chain ID, such as 11155111" });
-    return 0;
+    issues.push({
+      field: "--chain",
+      message: "is needed: the chain ID or name, such as 11155111 or sepolia",
+    });
+    return { chainId: 0 };
   }
-  const chainId = CHAIN_ID.test(value) ? Number(value) : 0;
-  if (!Number.isSafeInteger(chainId) || chainId === 0) {
-    issues.push({ field: "--chain", message: "must be a positive whole number" });
-    return 0;
+  const read = chainIdOf(value);
+  if ("chainId" in read) {
+    return read;
   }
-  return chainId;
+  issues.push(read.issue);
+  return read.suggestion === undefined
+    ? { chainId: 0 }
+    : { chainId: 0, suggestion: read.suggestion };
 }
 
 /** The library addresses of `--library path:Name=address`, by name, or issues. */
@@ -326,7 +373,7 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   if (address === undefined) {
     issues.push({ field: "verify", message: "needs the contract address" });
   }
-  const chainId = chainOf(values, issues);
+  const chain = chainOf(values, issues);
   const project = projectOf(values, issues);
   const paths = listOption(values, "input");
   const projectGiven = values.has("foundry") || values.has("hardhat");
@@ -339,7 +386,7 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   }
   const libraries = librariesOf(values, issues);
   if (issues.length > 0) {
-    throw usageError(issues);
+    throw usageError(issues, chain.suggestion);
   }
   const contract = stringOption(values, "contract");
   const compilerVersion = stringOption(values, "compiler-version");
@@ -354,7 +401,7 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
   const creationTxHash = stringOption(values, "creation-tx");
   try {
     return validateInput({
-      chainId,
+      chainId: chain.chainId,
       address,
       ...built,
       ...(constructorArgs === undefined ? {} : { constructorArgs }),
@@ -372,26 +419,26 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
  */
 interface SendSettings {
   readonly dry: boolean;
-  readonly timeoutMs: number | undefined;
+  readonly timing: Timing;
   readonly rpcUrl: string | undefined;
   readonly target: Target;
   readonly field: string;
 }
 
 /**
- * Calls `verify()`, `dryRun()` for a dry run, or `verifyEach()` when `--backend` is repeated, with
- * the input and the context's options.
+ * Calls `verify()`, `dryRun()` for a dry run, or `verifyEach()` when `--backend` is repeated or
+ * `all`, with the input and the context's options.
  */
 async function send(
   context: CommandContext,
   input: VerifyInput,
   settings: SendSettings,
 ): Promise<CommandResult> {
-  const { dry, timeoutMs, rpcUrl, target } = settings;
+  const { dry, timing, rpcUrl, target } = settings;
   // When the routing table chooses the backend, the routed line says which one and why, at info.
   const tableChooses = target === AUTO || target === undefined;
   const options: VerifyOptions = {
-    ...callOptions(context, timeoutMs),
+    ...callOptions(context, timing),
     ...(rpcUrl === undefined ? {} : { rpcUrl }),
     ...(tableChooses
       ? {
@@ -402,6 +449,19 @@ async function send(
       : {}),
   };
   const { backends } = context.routeOptions();
+  if (target === ALL) {
+    if (dry) {
+      throw await allDryRunRefusal(input, settings.field);
+    }
+    const result = await verifyEach(input, { ...options, backends: ALL });
+    // The library leaves out a backend that needs a key it lacks; the caller learns which (#225).
+    const { listed } = await routesFor(input.chainId, {});
+    const ran = result.outcomes.map((outcome) => outcome.backend);
+    for (const line of skippedByAll(listed, ran)) {
+      context.logger.warn(line);
+    }
+    return result;
+  }
   if (backends !== undefined) {
     return await verifyEach(input, { ...options, backends });
   }
@@ -412,13 +472,20 @@ async function send(
   return dry ? await dryRun(input, options) : await verify(input, options);
 }
 
+/** What `auto` and `all` let the routing table do, for an issue that combines one of them. */
+const TABLE_WORDS: Readonly<Record<typeof AUTO | typeof ALL, string>> = {
+  auto: "auto lets the routing table pick one",
+  all: "all verifies on every backend the routing table lists for the chain",
+};
+
 /**
- * The target of a run (R-AX-8, R-AX-9): `auto`, `named` for `--backend` naming backends, or
- * `undefined` when none is given. `auto` is removed from the values, so the routing table picks
- * the backend. `auto` stands alone: with another `--backend`, with `--api-url` or with a key flag it
- * is an issue, because none of them can say which backend they are for. `--api-url` needs
- * `--backend` naming the backend that serves that API (#225). `fieldNames` gives the request field
- * of each option that `--input-json` filled.
+ * The target of a run (R-AX-8, R-AX-9, R-RT-4): `auto`, `all`, `named` for `--backend` naming
+ * backends, or `undefined` when none is given. `auto` and `all` are removed from the values, so
+ * the routing table picks the backends. Each stands alone: with another `--backend`, with
+ * `--api-url` or with a key flag it is an issue, because none of them can say which backend they
+ * are for. `all` with `--dry-run` is refused once the chain is known. `--api-url` needs `--backend`
+ * naming the backend that serves that API. `fieldNames` gives the request field of each option that
+ * `--input-json` filled.
  */
 function targetOf(
   values: ReadonlyMap<string, OptionValue>,
@@ -428,36 +495,36 @@ function targetOf(
   const backend = values.get("backend");
   const names = typeof backend === "string" ? [backend] : listOption(values, "backend");
   const issues: InputIssue[] = [];
-  const auto = names.includes(AUTO);
-  if (values.has("api-url") && (names.length === 0 || auto)) {
+  const table = names.find((each) => each === AUTO || each === ALL);
+  if (values.has("api-url") && (names.length === 0 || table !== undefined)) {
     issues.push({
       field: name("--api-url"),
-      message: `needs ${name("--backend")} naming the backend that serves this API${auto ? ", not auto: the URL replaces the routing table" : ""}`,
+      message: `needs ${name("--backend")} naming the backend that serves this API${table === undefined ? "" : `, not ${table}: the URL replaces the routing table`}`,
     });
   }
-  if (auto && names.length > 1) {
+  if (table !== undefined && names.length > 1) {
     issues.push({
       field: name("--backend"),
-      message: "cannot combine auto with another backend: auto lets the routing table pick one",
+      message: `cannot combine ${table} with another backend: ${TABLE_WORDS[table]}`,
     });
   }
   for (const option of ["--api-key-file", "--api-key-stdin"]) {
-    if (auto && values.has(option.slice(2))) {
+    if (table !== undefined && values.has(option.slice(2))) {
       issues.push({
         field: option,
-        message: `cannot be used with ${name("--backend")} auto: name the backend the key is for`,
+        message: `cannot be used with ${name("--backend")} ${table}: name the backend the key is for`,
       });
     }
   }
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  if (!auto) {
+  if (table === undefined) {
     return { values, target: names.length > 0 ? "named" : undefined };
   }
   const without = new Map(values);
   without.delete("backend");
-  return { values: without, target: AUTO };
+  return { values: without, target: table };
 }
 
 /**
@@ -467,7 +534,10 @@ function targetOf(
 async function prepare(context: PrepareContext): Promise<Prepared> {
   const { values } = context;
   const issues: InputIssue[] = [];
-  const timeoutMs = timeoutOf(values, issues);
+  const timing: Timing = {
+    timeoutMs: timeoutOf(values, issues),
+    pollIntervalMs: pollIntervalOf(values, issues),
+  };
   const rpc = await readRpcUrl(context);
   if (rpc.issues !== undefined) {
     throw usageError([...issues, ...rpc.issues]);
@@ -482,7 +552,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  const sent = { dry, timeoutMs, rpcUrl: rpc.rpcUrl };
+  const sent = { dry, timing, rpcUrl: rpc.rpcUrl };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
     checkFallback(values, new Map());
@@ -516,12 +586,14 @@ const OPTIONS: OptionSpecs = {
     type: "string",
     value: "<name>",
     multiple: true,
-    description: `Where to submit: ${BACKEND_NAMES.join(", ")}, or auto for the routing table's pick. Needed unless --dry-run. Give it more than once to verify on each backend in one run.`,
+    description: `Where to submit: ${BACKEND_NAMES.join(", ")}; auto for the routing table's pick; or all for every backend of the chain's row that can run, not with --dry-run. Needed to submit; a dry run takes one backend or none. Give it more than once to verify on each backend named in one run.`,
   },
   chain: {
     type: "string",
-    value: "<id>",
-    description: "The chain ID the contract is deployed on, such as 11155111.",
+    short: "c",
+    value: "<chain>",
+    description:
+      "The chain the contract is deployed on: its ID, such as 11155111, or its name, such as sepolia. The CLI reference lists the names.",
   },
   ...PROJECT_OPTIONS,
   contract: {
@@ -532,6 +604,7 @@ const OPTIONS: OptionSpecs = {
   },
   input: {
     type: "string",
+    short: "i",
     value: "<file>",
     multiple: true,
     description:
@@ -559,10 +632,12 @@ const OPTIONS: OptionSpecs = {
     description: "The address of a linked library.",
   },
   timeout: TIMEOUT_OPTION,
+  "poll-interval": POLL_INTERVAL_OPTION,
   ...RPC_URL_OPTIONS,
   "allow-sourcify-fallback": FALLBACK_OPTION,
   "dry-run": {
     type: "boolean",
+    short: "n",
     description:
       "Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.",
   },
@@ -575,7 +650,11 @@ export const VERIFY: Command = {
   routed: true,
   summary:
     "Verify a deployed contract's source. Looks it up first, and submits only when the explorer lacks it.",
-  usage: "<address>",
+  usage: "<address> --chain <chain> --input <file>... (--backend <name> | --dry-run)",
+  moreUsage: [
+    "<address> --chain <chain> (--foundry <dir> | --hardhat <dir>) --contract <path:Name> (--backend <name> | --dry-run)",
+    "--input-json <file>",
+  ],
   examples: [
     {
       args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY} --dry-run --json`,
@@ -583,9 +662,9 @@ export const VERIFY: Command = {
         "Check the Greeter of the Foundry project in this folder and look it up, without submitting: one envelope.",
     },
     {
-      args: `${ADDRESS} --chain 11155111 ${FOUNDRY} --backend sourcify`,
+      args: `${ADDRESS} -c sepolia ${FOUNDRY} --backend sourcify`,
       description:
-        "Verify on Sourcify from the Foundry project's build; the address may come first, without verify.",
+        "Verify on Sourcify from the Foundry project's build; the address may come first, without verify, and the chain may be a name.",
     },
     {
       args: `verify ${ADDRESS} --chain 11155111 ${FOUNDRY} --backend auto`,

@@ -185,16 +185,21 @@ describe(
         assert.equal(result.stderr, "");
         const sections = result.stdout.split("\n").filter((line) => /^[A-Z][a-z ]+:$/.test(line));
         assert.equal(sections[0], "Examples:", "examples lead");
-        for (const section of [
-          "Usage:",
-          "Global options:",
-          "Environment variables:",
-          "Exit codes:",
-        ]) {
-          assert.ok(sections.includes(section), section);
+        // A command's help leaves the global sections to the CLI's own help, and points to it (#225).
+        const global = ["Global options:", "Environment variables:", "Exit codes:"];
+        const topic = args.includes("status");
+        for (const section of ["Usage:", ...global]) {
+          assert.equal(sections.includes(section), section === "Usage:" || !topic, section);
         }
         assert.match(result.stdout, /^Docs: https:\/\/\S+\/reference\/cli$/m);
-        assert.match(result.stdout, /^Docs index for agents: https:\/\/\S+\/llms\.txt$/m);
+        if (topic) {
+          assert.match(
+            result.stdout,
+            /^Global options, environment variables and exit codes: explorer-verify --help$/m,
+          );
+        } else {
+          assert.match(result.stdout, /^Docs index for agents: https:\/\/\S+\/llms\.txt$/m);
+        }
         assert.ok(!result.stdout.includes(ESC));
       });
     }
@@ -229,6 +234,14 @@ describe(
           assert.ok(at >= 0 && at < examplesEnd, "example before usage");
           assert.ok(plain.includes(text(record(example)["description"])));
         }
+        for (const usage of list(json["usage"])) {
+          assert.ok(plain.includes(`\n  ${text(usage)}\n`), text(usage));
+        }
+        if (args.length > 0) {
+          // A command's text help leaves the global sections to the CLI's own help (#225).
+          assert.ok(plain.includes(text(json["docsUrl"])));
+          continue;
+        }
         for (const option of list(json["globalOptions"])) {
           assert.ok(plain.includes(text(record(option)["description"])));
         }
@@ -246,14 +259,16 @@ describe(
 );
 
 describe("blackbox #103: --version", { concurrency: true }, () => {
-  it("--version prints the CLI and core versions on two lines", TIMEOUT, async () => {
-    const result = await runBin(["--version"]);
-    assert.equal(result.code, 0);
-    assert.equal(result.stderr, "");
-    assert.equal(
-      result.stdout,
-      `@explorer-verify/cli ${PACKAGE_VERSIONS.cli}\nexplorer-verify ${PACKAGE_VERSIONS.core}\n`,
-    );
+  it("--version and -V print the CLI and core versions on two lines", TIMEOUT, async () => {
+    for (const flag of ["--version", "-V"]) {
+      const result = await runBin([flag]);
+      assert.equal(result.code, 0);
+      assert.equal(result.stderr, "");
+      assert.equal(
+        result.stdout,
+        `@explorer-verify/cli ${PACKAGE_VERSIONS.cli}\nexplorer-verify ${PACKAGE_VERSIONS.core}\n`,
+      );
+    }
   });
 
   it("--version --json: valid envelope, versions, routing table date", TIMEOUT, async () => {
@@ -576,3 +591,18 @@ describe(
     });
   },
 );
+
+describe("blackbox #103: a bare command line (R-AX-11, #225)", { concurrency: true }, () => {
+  for (const args of [[], ["verify"]]) {
+    const label = ["explorer-verify", ...args].join(" ");
+    it(`${label}: the short help on stderr, exit 2`, TIMEOUT, async () => {
+      const result = await runBin(args);
+      assert.equal(result.code, 2);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /^Usage:$/m);
+      assert.match(result.stderr, /^Examples:$/m);
+      assert.match(result.stderr, /^Every option: explorer-verify /m);
+      assert.ok(!result.stderr.includes(ESC));
+    });
+  }
+});

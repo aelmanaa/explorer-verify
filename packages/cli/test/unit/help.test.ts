@@ -1,5 +1,5 @@
-// The help of the CLI and of each command (R-AX-11): examples first, then the usage, the options,
-// the environment variables, the exit codes and the two links. The text, the envelope and the
+// The help of the CLI and of each command (R-AX-11): examples first, then the usage and the options;
+// the CLI's own help adds the environment variables, the exit codes and the two links. The text, the envelope and the
 // reference all come from one HelpResult.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -10,12 +10,15 @@ import { readArguments } from "../../src/arguments.ts";
 import type { Command } from "../../src/command.ts";
 import { COMMANDS } from "../../src/commands.ts";
 import {
+  commandHelp,
   DOCS_URL,
   ENVIRONMENT,
   EXIT_CODES,
   helpResult,
   helpText,
   LLMS_URL,
+  shortHelpText,
+  usageLines,
 } from "../../src/help.ts";
 import { LOG_VARIABLE } from "../../src/log-level.ts";
 import { helpProblems } from "../helpers/schema.ts";
@@ -56,21 +59,39 @@ const ALL: readonly Command[] = [...new Set([...COMMANDS, ...TABLE])];
 
 describe("help: every command's help (R-AX-11)", () => {
   for (const command of ALL) {
-    it(`${command.name}: leads with an example, and lists the variables, the exit codes and the links`, () => {
+    it(`${command.name}: leads with an example, and points to the CLI's help for the global sections (#225)`, () => {
       const text = helpText(helpResult(ALL, command));
       const lines = text.split("\n");
       assert.equal(lines[2], "Examples:");
       assert.ok(command.examples.length > 0);
       assert.equal(lines[3], `  explorer-verify ${command.examples[0].args}`);
-      for (const variable of ENVIRONMENT) {
-        assert.match(text, new RegExp(`^  ${variable.name} `, "m"));
-      }
-      for (const exit of EXIT_CODES) {
-        assert.match(text, new RegExp(`^  ${String(exit.code)} +\\S`, "m"));
-      }
-      assert.ok(text.includes(DOCS_URL) && text.includes(LLMS_URL));
       assert.ok(text.indexOf("Examples:") < text.indexOf("Usage:"));
-      assert.ok(text.indexOf("Usage:") < text.indexOf("Global options:"));
+      for (const heading of ["Global options:", "Environment variables:", "Exit codes:"]) {
+        assert.doesNotMatch(text, new RegExp(`^${heading}`, "m"));
+      }
+      assert.ok(
+        text.endsWith(
+          `Global options, environment variables and exit codes: explorer-verify --help\nDocs: ${DOCS_URL}\n`,
+        ),
+      );
+      // The envelope keeps every section, for a program that reads one topic only.
+      const result = helpResult(ALL, command);
+      assert.equal(result.environment, ENVIRONMENT);
+      assert.equal(result.exitCodes, EXIT_CODES);
+      assert.equal(result.llmsUrl, LLMS_URL);
+    });
+
+    it(`${command.name}: the short help has the usage and two examples, and names the full help (R-AX-11)`, () => {
+      const text = shortHelpText(helpResult(ALL, command));
+      const lines = text.split("\n");
+      assert.equal(lines[2], "Usage:");
+      assert.ok(text.includes(`  explorer-verify ${command.examples[0].args}\n`));
+      const shown = command.examples.slice(0, 2).length;
+      assert.equal(
+        lines.filter((line) => line.startsWith("  explorer-verify ")).length,
+        usageLines(command).length + shown,
+      );
+      assert.ok(text.endsWith(`Every option: explorer-verify help ${command.name}\n`));
     });
 
     it(`${command.name}: every example is a valid command line of that command`, () => {
@@ -88,19 +109,67 @@ describe("help: every command's help (R-AX-11)", () => {
     });
   }
 
-  it("lists a command's own options before the global ones, with placeholders", () => {
+  it("lists a command's own options, with placeholders", () => {
     const text = helpText(helpResult(TABLE, TABLE[0]));
     assert.ok(text.startsWith("explorer-verify verify: Verify a contract.\n"));
     assert.match(text, /^Usage:\n {2}explorer-verify verify <input> \[options\]\n/m);
     assert.match(text, /^ {2}--dry-run {7}Send nothing\.$/m);
     assert.match(text, /^ {2}--file <value> {2}A file\. Repeatable\.$/m);
-    assert.ok(text.indexOf("Options:") < text.indexOf("Global options:"));
+    assert.ok(text.indexOf("Options:") < text.indexOf("Global options, environment"));
   });
 
   it("leaves the Options heading out for a command with none of its own", () => {
     const text = helpText(helpResult(TABLE, TABLE[1]));
     assert.doesNotMatch(text, /^Options:/m);
-    assert.match(text, /^Global options:/m);
+  });
+
+  it("gives verify a usage line for each way to call it, naming what it needs (#225)", () => {
+    const verify = COMMANDS.find(({ name }) => name === "verify");
+    assert.ok(verify !== undefined);
+    assert.deepEqual(helpResult(COMMANDS, verify).usage, [
+      "explorer-verify verify <address> --chain <chain> --input <file>... (--backend <name> | --dry-run) [options]",
+      "explorer-verify verify <address> --chain <chain> (--foundry <dir> | --hardhat <dir>) --contract <path:Name> (--backend <name> | --dry-run) [options]",
+      "explorer-verify verify --input-json <file> [options]",
+    ]);
+    // The command's own entry keeps the first line, as help.schema.json has one per command.
+    assert.equal(commandHelp(verify).usage, helpResult(COMMANDS, verify).usage[0]);
+    const text = helpText(helpResult(COMMANDS, verify));
+    assert.match(text, /^ {2}-c, --chain <chain> +The chain/m);
+    assert.match(text, /^ {2}-i, --input <file> +A build file/m);
+    assert.match(text, /^ {2}-n, --dry-run +Check the input/m);
+    assert.match(text, /^ {2}--poll-interval <seconds> +The wait between two status polls/m);
+  });
+
+  it("keeps help verify to 50 lines at most, down from 64 (#225)", () => {
+    const verify = COMMANDS.find(({ name }) => name === "verify");
+    assert.ok(verify !== undefined);
+    const lines = helpText(helpResult(COMMANDS, verify)).split("\n").length - 1;
+    assert.ok(lines <= 50, `${String(lines)} lines`);
+  });
+});
+
+describe("help: the short help of a bare command line (R-AX-11)", () => {
+  it("shows each public command's first example, not the help and version ones", () => {
+    const text = shortHelpText(helpResult(TABLE));
+    assert.equal(
+      text,
+      [
+        "explorer-verify: Verify the source of deployed smart contracts on block explorers.",
+        "",
+        "Usage:",
+        "  explorer-verify <command> [options]",
+        "  explorer-verify help [<command>]",
+        "",
+        "Examples:",
+        "  explorer-verify verify input.json --dry-run",
+        "      Check the input and send nothing.",
+        "  explorer-verify status ev1:x --json",
+        "      Ask once.",
+        "",
+        "Every option: explorer-verify --help",
+        "",
+      ].join("\n"),
+    );
   });
 });
 

@@ -340,8 +340,10 @@ The `@explorer-verify/cli` package adds the `explorer-verify` command. It is not
   above.
 - The `verify.submitted` line on stderr carries the handle. Store it at once, as in step 2.
 - A mistyped command or option exits 2 with `invalid-input`, and the hint names the closest
-  command or option. Read the hint, fix the command line, and run it once more. The error never
-  repeats what was typed, because a mistyped value can be a key.
+  command or option. Read the hint, fix the command line, and run it once more. The error names a
+  mistyped long option close to one of its names, such as `--colour`, and never repeats a value or any
+  other argument, because a mistyped value can be a key. An option that takes one value, such as
+  `--chain` or `--contract`, exits 2 when it is given twice.
 
 This command line mistypes `--color`:
 
@@ -353,7 +355,7 @@ explorer-verify --version --json --colour=never
 It prints:
 
 ```text
-{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: argument 3 is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"argument 3","message":"is not an option"}]}}}
+{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --colour is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"--colour","message":"is not an option"}]}}}
 ```
 
 Before a real `verify`, run the same command line with `--dry-run`. It validates the input,
@@ -385,8 +387,12 @@ Without `--backend`, the dry run shows the routing table's pick, the first backe
 row that works with the keys set, so with ETHERSCAN_API_KEY set the same command line may go to
 Etherscan instead. Read `backend` and `routedBy` in the result.
 
+`--chain` takes the chain ID or its name, such as `sepolia`; the CLI reference lists the names.
+
 `verify` without `--dry-run` needs a target: `--backend <name>`, or `--backend auto` for the
-routing table's pick. Without one it exits 2 with `invalid-input` and submits nothing; the hint
+routing table's pick. `--backend all` verifies on every backend of the chain's row that can run, in one
+run, like a repeated `--backend`, and names on stderr each backend it skipped for lack of a key;
+pass it only when the person asks for every explorer. Without a target it exits 2 with `invalid-input` and submits nothing; the hint
 names the backends the chain lists and what `auto` would pick. When the person names an explorer,
 pass its backend, such as `--backend etherscan-v2` for Etherscan, or `route.backend` in the
 library, where `verify()` still submits to the table's pick without it. Pass `--backend auto` only
@@ -418,7 +424,7 @@ Keys on the command line:
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
   optional `route` of `backend` and `apiUrl`; a real run needs `route.backend`, a name or
   `"auto"`. It holds no key. Only the output, log, `--dry-run`,
-  `--timeout` and key flags may go with it, not `--foundry` or `--hardhat`.
+  `--timeout`, `--poll-interval` and key flags may go with it, not `--foundry` or `--hardhat`.
 - A run that ends pending exits 4 with the handle in the error. Resume with
   `explorer-verify status <handle>`, never with a new `verify`. With `--json`, its envelope
   also holds `nextCommand`, that `status` command as an argument array: run it as it is. It never

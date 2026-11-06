@@ -93,8 +93,13 @@ export interface Prepared {
 interface CommandFields extends CommandSpec {
   /** One line for the help text. */
   readonly summary: string;
-  /** The positionals of the usage line, such as `<handle>`. Empty when it takes none. */
+  /**
+   * The usage line after the command name, without `[options]`: the positionals and the options
+   * the command needs, such as `<handle>`. Empty when it needs none.
+   */
   readonly usage: string;
+  /** More usage lines, for each other way to call the command, such as with `--input-json`. */
+  readonly moreUsage?: readonly string[];
   /** At least one example. The help text shows them first (R-AX-11), and the tests run them. */
   readonly examples: readonly [Example, ...Example[]];
   /** The most positionals the command accepts after its name. */

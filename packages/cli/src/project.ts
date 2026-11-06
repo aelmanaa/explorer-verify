@@ -36,28 +36,24 @@ export const PROJECT_OPTIONS: OptionSpecs = {
   foundry: {
     type: "string",
     value: "<dir>",
-    once: true,
     description:
       "Read the build of the Foundry project in this folder: finds the build-info and artifact of --contract. . is the current folder, not the git root that forge uses. Run forge build --build-info first.",
   },
   hardhat: {
     type: "string",
     value: "<dir>",
-    once: true,
     description:
       "Read the build of the Hardhat 2 or Hardhat 3 project in this folder, . for the current one: finds the artifact and build-info of --contract. Compile the project first.",
   },
   "out-dir": {
     type: "string",
     value: "<dir>",
-    once: true,
     description:
       "With --foundry or --hardhat: the build's output folder, relative to the project folder or absolute, when the config moves it. Default out for Foundry, artifacts for Hardhat.",
   },
   artifact: {
     type: "string",
     value: "<file>",
-    once: true,
     description:
       "With --foundry or --hardhat: the contract's artifact file, relative to the project folder or absolute, when the build wrote one for each compiler version or profile. For Hardhat it must be inside the output folder.",
   },

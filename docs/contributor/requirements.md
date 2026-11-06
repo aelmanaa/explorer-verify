@@ -357,16 +357,16 @@ CLI:
   handle. It never submits and never holds a key, an RPC URL or a file path.
 
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
-  colour, spinners and pagers per stream, from that stream's own terminal state:
+  colour and spinners per stream, from that stream's own terminal state:
   - `--color=always` colours both streams; `--color=never` colours neither.
   - Otherwise (`--color=auto`, the default), a non-empty `NO_COLOR` or `TERM=dumb` turns colour
     off on both streams, and each stream is coloured only when it is a terminal.
   - Spinners and line redraws appear only when stderr is a terminal, `CI` is unset or empty,
     `TERM` is not `dumb`, `--log-format` is `text` and the level shows more than errors (not `--quiet`, and not
     `error` or `off` from `EXPLORER_VERIFY_LOG`).
-  - A pager runs only when stdout is a terminal and `CI` is unset or empty.
+  - The spinner shows the stage of the last event and the seconds since the run started.
 
-  The CLI never prompts.
+  The CLI has no pager and never prompts (decision 0056).
 
 - **R-AX-7** Documented exit codes separate the cases an agent acts on differently:
 
@@ -398,7 +398,7 @@ CLI:
   before any request, with or without a terminal, `CI` or `--json`; the hint lists the backends of
   the chain's row, says what `auto` would pick and why, and suggests `--dry-run`, and never holds a
   key. `--allow-sourcify-fallback` is not a target. `--api-url` needs `--backend` naming a backend,
-  not `auto`, in a dry run too. `auto` with another `--backend` exits 2. `--dry-run` and `status`
+  not `auto`, in a dry run and in `status` too (decision 0056). `auto` with another `--backend` exits 2. `--dry-run` and `status`
   need no target (decision 0043).
 - **R-AX-9** Keys come from environment variables, `--api-key-file` or `--api-key-stdin`, never from
   a flag value. `--api-key-stdin` reads the key from stdin and trims one trailing newline. It
@@ -431,9 +431,17 @@ CLI:
   environment variables and commands; no CLI hint contains `()`, `details.`, `options.`, `apiKeys`
   or `route.`. Each error page states it on a "From the CLI" line (decision 0049).
 - **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
-  the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
+  the docs and `llms.txt`. A command's help gives a usage line for each way to call it, naming the
+  arguments and options it needs, and points to `--help` for the global options, the environment
+  variables and the exit codes; its `--json` envelope still holds them. A bare `explorer-verify`,
+  or a command that needs arguments typed alone, prints a short help with at least two examples on
+  stderr and exits 2. `--version --json` prints the version and the routing-table date
+  (decision 0056).
 - **R-AX-12** The same input gives the same stdout: stable key order, no timestamps unless
   requested. The rule covers stdout only; stderr progress and logs (R-AX-14) are not covered.
+  `--chain` takes a chain ID or one of the CLI's chain names, and a name gives the same stdout as
+  its ID. An option that takes one value exits 2 when it is given twice, so no run depends on
+  which value the CLI kept (decision 0056).
 - **R-AX-14** Progress goes to stderr, never to stdout. By default it is human-readable lines.
   With `--log-format json` each stderr line is one JSON object with `schemaVersion`, `level`,
   `message` and `type`: an R-DX-6 event type with that event's fields, or `log` with the logger's
@@ -441,7 +449,8 @@ CLI:
   name goes under a nested `fields` object, so a field named `fields` appears as
   `fields.fields`. `schemaVersion` is the same as the envelope's (R-AX-5). A reader
   parses the lines that start with `{`. The `verify.submitted` line, with the handle, prints at
-  level `info` or more verbose (R-AX-15).
+  level `info` or more verbose (R-AX-15). In text, each event prints one line: a library `info`
+  log that repeats the event just before it prints at `debug`. `--log-format json` keeps both.
 - **R-AX-15** A log level chooses what reaches stderr. `-q`/`--quiet` sets `error`, the default is
   `info`, and `--verbose` sets `debug`:
 

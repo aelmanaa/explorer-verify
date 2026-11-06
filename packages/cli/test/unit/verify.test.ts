@@ -434,7 +434,7 @@ describe("verify: usage errors name options, never values (R-AX-5, R-AX-9)", () 
       const message = usage(
         await run(t, ["verify", ADDRESS, "--chain", chain, ...FOUNDRY, "--json"]),
       );
-      assert.match(message, /--chain must be a positive whole number/, chain);
+      assert.match(message, /--chain must be a chain ID, such as 11155111, or a chain name/, chain);
     }
     for (const timeout of ["0", "1.5", "2147484", "x"]) {
       const message = usage(
