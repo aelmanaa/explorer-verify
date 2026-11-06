@@ -80,8 +80,22 @@ describe("readArguments: commands and options", () => {
     assert.deepEqual(args.issues, []);
   });
 
-  it("keeps the last value of an option that does not repeat", () => {
-    assert.equal(read(["alpha", "--name", "a", "--name", "b"]).values.get("name"), "b");
+  it("refuses a second value of a string option that does not repeat, keeping the first (#221)", () => {
+    const args = read(["alpha", "--name", "a", "--name=b", "--color", "never", "--color", "auto"]);
+    assert.equal(args.values.get("name"), "a");
+    assert.equal(args.values.get("color"), "never");
+    assert.deepEqual(args.issues, [
+      { field: "--name", message: "can be given only once" },
+      { field: "--color", message: "can be given only once" },
+    ]);
+    // Neither repeated value is echoed (R-AX-9).
+    assert.ok(!JSON.stringify(args.issues).includes("auto"));
+  });
+
+  it("accepts a repeated boolean flag and a repeated list option", () => {
+    const args = read(["alpha", "-f", "--fast", "--file", "a", "--file", "b"]);
+    assert.deepEqual(args.issues, []);
+    assert.deepEqual(args.values.get("file"), ["a", "b"]);
   });
 
   it("accepts -, a negative number, and an inline value that starts with -", () => {
@@ -96,10 +110,51 @@ describe("readArguments: commands and options", () => {
     ]);
   });
 
-  it("names an unknown option by its position, never by its spelling", () => {
-    assert.deepEqual(read(["alpha", "--nope", "-z"]).issues, [
+  it("names an unknown long option of lowercase words close to a CLI name, and any other by its position (#225)", () => {
+    assert.deepEqual(
+      read(["alpha", "--nmae=x", "-z", "--colr=x", "--Colr", "--col_r", "--c0lor", "--x", "--nope"])
+        .issues,
+      [
+        { field: "--nmae", message: "is not an option" },
+        { field: "argument 3", message: "is not an option" },
+        { field: "--colr", message: "is not an option" },
+        { field: "argument 5", message: "is not an option" },
+        { field: "argument 6", message: "is not an option" },
+        { field: "argument 7", message: "is not an option" },
+        { field: "argument 8", message: "is not an option" },
+        { field: "argument 9", message: "is not an option" },
+      ],
+    );
+    // A lowercase token far from every option could be a key: the position stands for it.
+    const far = "--qwertyuiopasdfghjkl";
+    const args = read(["alpha", far]);
+    assert.deepEqual(args.issues, [{ field: "argument 2", message: "is not an option" }]);
+    assert.ok(!JSON.stringify(args.issues).includes("qwerty"));
+    // Past 32 letters, the name could be anything.
+    assert.deepEqual(read(["alpha", `--${"a".repeat(33)}`]).issues, [
       { field: "argument 2", message: "is not an option" },
-      { field: "argument 3", message: "is not an option" },
+    ]);
+  });
+
+  it("takes the argument after an unknown option as its value, once a positional came first", () => {
+    const after = read(["alpha", "x", "--colour", "never"]);
+    assert.deepEqual(after.positionals, ["x"]);
+    assert.deepEqual(after.issues, [{ field: "--colour", message: "is not an option" }]);
+    // Before the first positional, the next argument may be the command, so it stays.
+    const before = read(["--colour", "alpha"]);
+    assert.equal(before.command, "alpha");
+  });
+
+  it("reports only an unknown command, not the options after it (#225)", () => {
+    const args = read(["gamma", "--nope", "--name", "x", "-z", "--other", "y"]);
+    assert.deepEqual(args.issues, [
+      { field: "command", message: "is not known; give one of alpha, beta" },
+    ]);
+    assert.equal(args.suggestion, undefined);
+    // A refused key option stays, so the caller learns that key flags are refused.
+    assert.deepEqual(read(["gamma", "--api-key", DUMMY_KEY]).issues, [
+      { field: "--api-key", message: REFUSED_KEY_MESSAGE },
+      { field: "command", message: "is not known; give one of alpha, beta" },
     ]);
   });
 
@@ -132,7 +187,7 @@ describe("readArguments: commands and options", () => {
   it("refuses a command option when no command is known", () => {
     // `--other` takes a value in some command, so it takes `x`, and no command is left.
     assert.deepEqual(read(["--other", "x"]).issues, [
-      { field: "argument 1", message: "is not an option" },
+      { field: "--other", message: "is not an option" },
       { field: "command", message: "is missing; give one of alpha, beta" },
     ]);
   });
@@ -251,6 +306,37 @@ describe("readArguments: help and version (R-AX-11)", () => {
       { field: "command", message: "is not known; give one of alpha, beta" },
     ]);
   });
+
+  it("reads -V as --version (#225)", () => {
+    const args = read(["-V"]);
+    assert.equal(args.values.get("version"), true);
+    assert.deepEqual(args.issues, []);
+  });
+});
+
+describe("readArguments: the short flags of verify (#225)", () => {
+  it("reads -c, -i and -n as --chain, --input and --dry-run, alone, grouped or with a joined value", () => {
+    const args = readArguments(
+      ["verify", "0xabc", "-c", "sepolia", "-i", "a.json", "-ib.json", "-nq"],
+      COMMANDS,
+    );
+    assert.deepEqual(args.issues, []);
+    assert.equal(args.values.get("chain"), "sepolia");
+    assert.deepEqual(args.values.get("input"), ["a.json", "b.json"]);
+    assert.equal(args.values.get("dry-run"), true);
+    assert.equal(args.values.get("quiet"), true);
+  });
+
+  it("refuses -c and --chain together, as a repeat (#221)", () => {
+    const args = readArguments(["verify", "0xabc", "-c", "1", "--chain", "10"], COMMANDS);
+    assert.deepEqual(args.issues, [{ field: "--chain", message: "can be given only once" }]);
+  });
+
+  it("refuses verify's short flags in status, naming the long option", () => {
+    assert.deepEqual(readArguments(["status", "ev1:x", "-n"], COMMANDS).issues, [
+      { field: "--dry-run", message: "is not an option of status" },
+    ]);
+  });
 });
 
 describe("readArguments: suggestions (R-AX-10)", () => {
@@ -278,7 +364,7 @@ describe("readArguments: suggestions (R-AX-10)", () => {
   it("suggests the closest option: --dryrun gives --dry-run", () => {
     const args = readArguments(["verify", "--dryrun"], table);
     assert.equal(args.suggestion, "--dry-run");
-    assert.deepEqual(args.issues, [{ field: "argument 2", message: "is not an option" }]);
+    assert.deepEqual(args.issues, [{ field: "--dryrun", message: "is not an option" }]);
     assert.equal(readArguments(["verify", "--jsno"], table).suggestion, "--json");
     assert.equal(readArguments(["--colour=never", "verify"], table).suggestion, "--color");
   });
@@ -308,7 +394,7 @@ describe("readArguments: suggestions (R-AX-10)", () => {
     const args = readArguments(["--dry-run"], table);
     assert.equal(args.suggestion, undefined);
     assert.deepEqual(args.issues, [
-      { field: "argument 1", message: "is not an option" },
+      { field: "--dry-run", message: "is not an option" },
       { field: "command", message: "is missing; give one of verify, status" },
     ]);
   });

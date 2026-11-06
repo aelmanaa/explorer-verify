@@ -64,6 +64,14 @@ const FOUNDRY = [
 ];
 /** A verify run without a target: a dry run, or a run that names its backends itself. */
 const BASE = ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY];
+/** {@link BASE} with the short flags and the chain's name (#225). */
+const SHORT = [
+  "verify",
+  ADDRESS,
+  "-c",
+  "sepolia",
+  ...FOUNDRY.map((arg) => (arg === "--input" ? "-i" : arg)),
+];
 /** A submitting verify run on Sourcify (#212). */
 const VERIFY = [...BASE, "--backend", "sourcify"];
 const ETHERSCAN = ["--backend", "etherscan-v2"];
@@ -242,7 +250,39 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         args: ["verify", ADDRESS, "--chain", "999999", ...FOUNDRY, FALLBACK, "--dry-run"],
         result: { backend: "sourcify", lookup: "exact" },
       },
+      {
+        // #225: -c with a chain name, -i and -n give the same dry run as the long flags.
+        kind: "dry-run",
+        args: [...SHORT, "-n"],
+        scenario: "new",
+        result: { backend: "sourcify", lookup: "none" },
+        twice: true,
+      },
       { kind: "failed", args: VERIFY, scenario: "rejected", twice: true },
+      {
+        // #225: a chain name the CLI does not know.
+        kind: "invalid-input",
+        args: ["verify", ADDRESS, "--chain", "sepolai", ...FOUNDRY, "--dry-run"],
+        noRequests: true,
+      },
+      {
+        // #221: an option that takes one value, given twice.
+        kind: "invalid-input",
+        args: [...VERIFY, "--contract", "src/Greeter.sol:Greeter", "--contract", "Greeter"],
+        noRequests: true,
+      },
+      {
+        // #225: --api-url without --backend, in a dry run too.
+        kind: "invalid-input",
+        args: [...BASE, "--api-url", "https://my.blockscout.example/api", "--dry-run"],
+        noRequests: true,
+      },
+      {
+        // #225: --poll-interval below 1 second.
+        kind: "invalid-input",
+        args: [...VERIFY, "--poll-interval", "0"],
+        noRequests: true,
+      },
       {
         kind: "invalid-input",
         args: ["verify", ADDRESS, "--chain", "0", ...FOUNDRY],
@@ -333,6 +373,19 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         scenario: "pending",
         handle: true,
         twice: true,
+      },
+      {
+        // #225: --poll-interval sets the wait between two polls.
+        kind: "not-confirmed",
+        args: ["status", SOURCIFY_HANDLE, "--timeout", "3", "--poll-interval", "1"],
+        scenario: "pending",
+        handle: true,
+      },
+      {
+        // #225: --backend all is for verify; status resumes one backend.
+        kind: "invalid-input",
+        args: ["status", SOURCIFY_HANDLE, "--backend", "all"],
+        noRequests: true,
       },
       {
         kind: "verification-inconclusive",
@@ -736,31 +789,35 @@ describe("CLI contract: each command on the built bin", { concurrency: true }, (
         assert.equal(help["llmsUrl"], LLMS_URL);
       });
 
-      it("--help: examples first, then the variables, exit codes and links", TIMEOUT, async () => {
-        const result = await run([command.name, "--help"]);
-        assert.equal(result.code, 0);
-        assert.equal(result.stderr, "");
-        const text = result.stdout;
-        const start = text.indexOf("\nExamples:\n");
-        const usage = text.indexOf("\nUsage:\n");
-        assert.ok(start !== -1 && start < usage, "examples not first");
-        const section = text.slice(start, usage);
-        assert.equal(
-          section.split("\n").filter((line) => line.startsWith("  explorer-verify ")).length,
-          declared.length,
-          "examples",
-        );
-        for (const example of declared) {
-          assert.ok(section.includes(`\n  ${example}\n`), example);
-        }
-        for (const name of VARIABLES) {
-          assert.match(text, new RegExp(`\\n  ${name} `), name);
-        }
-        for (const code of EXIT_CODES) {
-          assert.match(text, new RegExp(`\\n  ${String(code)} `), String(code));
-        }
-        assert.ok(text.includes(DOCS_URL) && text.includes(LLMS_URL), "no docs links");
-      });
+      it(
+        "--help: examples first, then a pointer to the global sections (#225)",
+        TIMEOUT,
+        async () => {
+          const result = await run([command.name, "--help"]);
+          assert.equal(result.code, 0);
+          assert.equal(result.stderr, "");
+          const text = result.stdout;
+          const start = text.indexOf("\nExamples:\n");
+          const usage = text.indexOf("\nUsage:\n");
+          assert.ok(start !== -1 && start < usage, "examples not first");
+          const section = text.slice(start, usage);
+          assert.equal(
+            section.split("\n").filter((line) => line.startsWith("  explorer-verify ")).length,
+            declared.length,
+            "examples",
+          );
+          for (const example of declared) {
+            assert.ok(section.includes(`\n  ${example}\n`), example);
+          }
+          // The environment and the exit codes are in the CLI's own help, and in this envelope.
+          assert.doesNotMatch(text, /\nEnvironment variables:\n|\nExit codes:\n/);
+          assert.ok(
+            text.endsWith(
+              `\nGlobal options, environment variables and exit codes: explorer-verify --help\nDocs: ${DOCS_URL}\n`,
+            ),
+          );
+        },
+      );
     });
   }
 });
@@ -793,6 +850,26 @@ describe("CLI contract: verify with --backend repeated (R-RT-4, R-AX-5, R-AX-7)"
         ],
       );
       assert.equal(fieldsOf(outcomes[1]?.["error"])["code"], "missing-api-key");
+    },
+  );
+
+  it(
+    "--backend all runs the row's backends that can run, and names the one it skipped (#225)",
+    TIMEOUT,
+    async () => {
+      // Polygon's row lists etherscan-v2 and sourcify; with no Etherscan key, only sourcify runs.
+      const args = ["verify", ADDRESS, "-c", "polygon", ...FOUNDRY, "--backend", "all", "--json"];
+      const result = await run(args);
+      assert.equal(result.code, 0, result.stderr);
+      const outcomes = outcomesOf(result, "verify, all backends");
+      assert.deepEqual(
+        outcomes.map((outcome) => [outcome["backend"], outcome["ok"]]),
+        [["sourcify", true]],
+      );
+      assert.match(
+        result.stderr,
+        /--backend all skipped etherscan-v2: it needs an API key and ETHERSCAN_API_KEY is not set\./,
+      );
     },
   );
 

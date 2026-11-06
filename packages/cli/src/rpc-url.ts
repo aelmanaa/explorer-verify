@@ -47,14 +47,12 @@ export const RPC_URL_OPTIONS: OptionSpecs = {
   "rpc-url": {
     type: "string",
     value: "<url>",
-    once: true,
     description:
       "A JSON-RPC endpoint of the chain, to derive the constructor arguments with --creation-tx. Refused when a part can hold a key; use --rpc-url-file or --rpc-url-stdin then.",
   },
   "rpc-url-file": {
     type: "string",
     value: "<path>",
-    once: true,
     description:
       "Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.",
   },

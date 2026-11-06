@@ -118,6 +118,67 @@ export function eventMessage(event: VerifyEvent): string {
   return message;
 }
 
+/**
+ * The spinner's text for the stage an event starts, such as `Waiting for sourcify: pending, poll 3`.
+ * The spinner shows it whatever the level, so a run at `info` still shows each poll.
+ *
+ * @param event - The event.
+ * @returns The text.
+ */
+export function stageText(event: VerifyEvent): string {
+  let stage: string;
+  switch (event.type) {
+    case "verify.validated":
+      stage = "Checked the input";
+      break;
+    case "verify.routed":
+      stage = `Routed to ${event.backend}`;
+      break;
+    case "verify.lookup":
+      stage = `Looked the contract up on ${event.backend}`;
+      break;
+    case "verify.submitted":
+      stage = `Submitted to ${event.backend}, waiting for the result`;
+      break;
+    case "verify.poll":
+      stage = `Waiting for ${event.backend}: ${event.state}, poll ${String(event.attempt)}`;
+      break;
+    case "verify.retry":
+      stage = `Retrying ${event.backend} after ${event.reason}`;
+      break;
+    case "verify.result":
+      stage = `Result from ${event.backend}: ${event.status}`;
+      break;
+  }
+  return stage;
+}
+
+/**
+ * The library's `info` lines that repeat what the CLI already prints, each known by a fixed part
+ * of its message and a field it always sets: the `verify.submitted` and `verify.result` events'
+ * lines, and the dry run's lookup line, which the `verify.routed` line and stdout state.
+ */
+const REPEATED_LINES: readonly { readonly marker: RegExp; readonly field: string }[] = [
+  { marker: / accepted the submission\. Resume it with this handle: /, field: "handle" },
+  { marker: /^Result: /, field: "status" },
+  { marker: /^Dry run: /, field: "routedBy" },
+];
+
+/**
+ * Whether a library log line repeats an event or the result. A text run at `info` shows the
+ * event's line only, and the log line at `debug` (R-AX-14). The match reads the message and the
+ * fields, never the order of the lines, so a line from another backend in between changes nothing.
+ *
+ * @param message - The log line's message.
+ * @param fields - The log line's fields.
+ * @returns Whether the line repeats one the CLI prints.
+ */
+export function repeats(message: string, fields: LogFields | undefined): boolean {
+  return REPEATED_LINES.some(
+    ({ marker, field }) => marker.test(message) && fields?.[field] !== undefined,
+  );
+}
+
 /** A field value in a text line: bare when it has no space, quote or `=`, else as JSON. */
 function textValue(value: LogValue): string {
   if (typeof value === "string") {
@@ -167,6 +228,8 @@ export interface StderrOptions {
   color: boolean;
   /** Whether the spinner may run. */
   spinner: boolean;
+  /** The clock of the spinner's elapsed time, in milliseconds. `Date.now` by default. */
+  now?: () => number;
 }
 
 /** The stderr writer of one run. */
@@ -194,9 +257,11 @@ export interface Stderr {
 export function createStderr(options: StderrOptions): Stderr {
   const { stream, level, format } = options;
   const paint = painter(options.color);
+  const now = options.now ?? Date.now;
   let timer: ReturnType<typeof setInterval> | undefined;
   let frame = 0;
   let label = "";
+  let started = 0;
 
   // stderr is diagnostic: a stream that throws must not cost the run its stdout or exit code.
   const write = (text: string): void => {
@@ -208,7 +273,8 @@ export function createStderr(options: StderrOptions): Stderr {
   };
 
   const drawFrame = (): void => {
-    write(`${CLEAR_LINE}${FRAMES[frame % FRAMES.length] ?? ""} ${label}`);
+    const seconds = Math.max(0, Math.floor((now() - started) / 1000));
+    write(`${CLEAR_LINE}${FRAMES[frame % FRAMES.length] ?? ""} ${label} (${String(seconds)} s)`);
     frame += 1;
   };
 
@@ -241,6 +307,7 @@ export function createStderr(options: StderrOptions): Stderr {
   };
 
   const onEvent = (event: VerifyEvent, given?: LineLevel): void => {
+    label = stageText(event);
     const lineLevel = given ?? EVENT_LEVELS[event.type];
     if (!shows(lineLevel, level)) {
       return;
@@ -302,19 +369,25 @@ export function createStderr(options: StderrOptions): Stderr {
     writeLine(lines.join("\n"));
   };
 
+  // A logger line: an `info` line that repeats an event or the result drops to `debug` in text.
+  const logged = (lineLevel: LineLevel, message: string, fields?: LogFields): void => {
+    const repeated = lineLevel === "info" && format === "text" && repeats(message, fields);
+    log(repeated ? "debug" : lineLevel, message, fields);
+  };
+
   return {
     logger: {
       debug: (message, fields) => {
-        log("debug", message, fields);
+        logged("debug", message, fields);
       },
       info: (message, fields) => {
-        log("info", message, fields);
+        logged("info", message, fields);
       },
       warn: (message, fields) => {
-        log("warn", message, fields);
+        logged("warn", message, fields);
       },
       error: (message, fields) => {
-        log("error", message, fields);
+        logged("error", message, fields);
       },
     },
     onEvent,
@@ -325,6 +398,7 @@ export function createStderr(options: StderrOptions): Stderr {
         return;
       }
       label = text;
+      started = now();
       timer = setInterval(drawFrame, FRAME_MS);
       timer.unref();
       drawFrame();

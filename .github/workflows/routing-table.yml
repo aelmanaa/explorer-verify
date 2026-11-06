@@ -4,6 +4,8 @@ name: Routing table
 # two explorer lists and Blockscout's chain registry once a week. All of them answer without a key. When they differ from the table, the workflow opens one issue
 # that names each chain and the list it changed in, or updates the open one; when no difference
 # remains, it closes that issue. A pull request changes the table; this workflow never does.
+# A pull request that drops a chain the CLI names in packages/cli/src/chains.ts removes the name
+# there too: a CLI test fails until it does.
 #
 # A second job watches for signs that Blockscout's per-instance API is going away
 # (scripts/blockscout-deprecation.ts, #198).

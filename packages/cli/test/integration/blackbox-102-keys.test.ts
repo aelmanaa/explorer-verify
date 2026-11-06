@@ -358,7 +358,12 @@ describe("blackbox #102: --api-key-file edge cases", CONCURRENT, () => {
     for (const [index, result] of results.entries()) {
       const label = (cases[index] ?? []).join(" ");
       assert.equal(result.code, 2, `${label}: ${result.stdout}`);
-      assert.match(result.stdout, /--api-key-file (needs|cannot be used)/, label);
+      // status with --api-url alone exits 2 before the key is read, as verify does (#225).
+      assert.match(
+        result.stdout,
+        /--api-key-file (needs|cannot be used)|--api-url needs --backend/,
+        label,
+      );
       assertNoKey(result, label);
     }
   });

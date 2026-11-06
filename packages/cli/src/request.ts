@@ -36,6 +36,7 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "rpc-url-file",
   "rpc-url-stdin",
   "timeout",
+  "poll-interval",
 ];
 
 /** A JSON value read from a file or stdin, or the issue that stopped it. */

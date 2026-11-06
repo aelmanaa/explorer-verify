@@ -5,6 +5,7 @@
  * differs. The tables are padded the way the formatter pads them, so a formatted page still
  * matches.
  */
+import { CHAIN_NAMES } from "./chains.ts";
 import type { Command } from "./command.ts";
 import { commandHelp, helpResult, optionLabel } from "./help.ts";
 import type { CommandHelp, OptionHelp } from "./help.ts";
@@ -125,6 +126,15 @@ export function referenceBlock(commands: readonly Command[]): string {
     ),
     "",
     "[Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.",
+    "",
+    "## Chain names",
+    "",
+    "`--chain` takes these names, in any case, as well as any chain ID.",
+    "",
+    ...table(
+      ["Name", "Chain ID"],
+      [...CHAIN_NAMES].map(([name, chainId]) => [`\`${name}\``, String(chainId)]),
+    ),
     "",
     END_MARKER,
   );

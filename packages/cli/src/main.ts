@@ -22,7 +22,7 @@ import type { Arguments, OptionValue } from "./arguments.ts";
 import { stringOption, usageError } from "./command.ts";
 import type { Command, CommandContext, CommandResult, RunCommand } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
-import { helpResult, helpText } from "./help.ts";
+import { helpResult, helpText, shortHelpText } from "./help.ts";
 import { hasOwnHint } from "./hints.ts";
 import { keyVariableValues, readRouteOptions, scrubbing, withoutKeyVariables } from "./keys.ts";
 import type { InputStream, RouteOptions } from "./keys.ts";
@@ -332,6 +332,13 @@ function finish(
         });
       }
     }
+  } else if ("outcomes" in envelope.result) {
+    // A run on several backends: each backend's error goes to stderr too, with its hint (#225).
+    for (const each of envelope.result.outcomes) {
+      if ("error" in each) {
+        stderr.error({ ...each.error, message: `${each.backend}: ${each.error.message}` });
+      }
+    }
   }
   if (text !== "") {
     io.stdout.write(text);
@@ -390,6 +397,20 @@ async function runCli(
             : `takes at most ${String(command.maxPositionals)} argument${command.maxPositionals === 1 ? "" : "s"}`,
       },
     );
+  }
+  // A bare `explorer-verify`, or a command that needs arguments with nothing after it, is someone
+  // finding their way: the short help goes to stderr, and the exit code stays 2, as for any usage
+  // error (R-AX-11).
+  const bare =
+    io.argv.length === 0 ||
+    (command !== undefined &&
+      io.argv.length === 1 &&
+      io.argv[0] === command.name &&
+      command.usage !== "");
+  if (bare) {
+    state.fixed = true;
+    io.stderr.write(shortHelpText(helpResult(commands, command)));
+    return ERROR_EXIT_CODES["invalid-input"];
   }
   const version = args.values.get("version") === true;
   if (state.received === undefined && issues.length === 0 && (args.help || version)) {

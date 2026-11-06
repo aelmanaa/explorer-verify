@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { CHAIN_NAMES } from "../../src/chains.ts";
 import type { Command } from "../../src/command.ts";
 import { COMMANDS } from "../../src/commands.ts";
+import { helpResult, helpText } from "../../src/help.ts";
 import { END_MARKER, referenceBlock, replaceBlock, START_MARKER } from "../../src/reference.ts";
 import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
@@ -75,6 +77,18 @@ describe("CLI reference (R-AX-2)", () => {
     assert.doesNotMatch(block, /Hidden commands/);
     assert.doesNotMatch(block, /no public commands yet/);
     assert.match(block, /^\| `--file <value>` \| A file\. Repeatable\. \|$/m);
+  });
+
+  it("says so when no command is public, in the reference and in the help", () => {
+    assert.match(referenceBlock([]), /^This version has no public commands yet\.$/m);
+    assert.match(helpText(helpResult([])), /^ {2}This version has no public commands yet\.$/m);
+  });
+
+  it("lists every chain name --chain takes, with its ID (#225)", () => {
+    const block = referenceBlock(COMMANDS);
+    for (const [name, chainId] of CHAIN_NAMES) {
+      assert.match(block, new RegExp(`^\\| \`${name}\` +\\| ${String(chainId)} +\\|$`, "m"), name);
+    }
   });
 
   it("replaces only the part between the markers", () => {

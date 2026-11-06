@@ -43,7 +43,6 @@ export const ROUTE_OPTIONS: OptionSpecs = {
   backend: {
     type: "string",
     value: "<name>",
-    once: true,
     description: `Use this backend instead of the routing table's: ${BACKEND_NAMES.join(", ")}.`,
   },
   "api-url": {
@@ -451,7 +450,7 @@ export async function readRouteOptions(sources: RouteSources): Promise<ReadRoute
     if (backend === undefined) {
       issues.push({
         field: "--backend",
-        message: `must be one of ${BACKEND_NAMES.join(", ")}, or auto for verify`,
+        message: `must be one of ${BACKEND_NAMES.join(", ")}, or auto or all for verify`,
       });
     } else {
       route.backend = backend;

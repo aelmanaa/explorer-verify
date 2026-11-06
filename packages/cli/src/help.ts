@@ -38,7 +38,7 @@ export const ENVIRONMENT: readonly VariableHelp[] = [
   },
   { name: "NO_COLOR", description: "Any value but empty turns colour off under --color auto." },
   { name: "TERM", description: "dumb turns colour and the spinner off under --color auto." },
-  { name: "CI", description: "Any value but empty turns the spinner and the pager off." },
+  { name: "CI", description: "Any value but empty turns the spinner off." },
   ...KEY_VARIABLES.map(({ name, backend, host }) => ({
     name,
     description: `The API key of ${backend}, sent only to ${host}. Empty counts as unset.`,
@@ -155,14 +155,29 @@ function exampleHelp(example: Example): ExampleHelp {
  * @returns Its summary, usage, examples and options.
  */
 export function commandHelp(command: Command): CommandHelp {
-  const positionals = command.usage === "" ? "" : ` ${command.usage}`;
   return {
     name: command.name,
     summary: command.summary,
-    usage: `${PROGRAM} ${command.name}${positionals} [options]`,
+    usage: usageLine(command, command.usage),
     examples: command.examples.map(exampleHelp),
     options: optionsHelp(commandOptions(command)),
   };
+}
+
+/**
+ * The usage lines of a command, one for each way to call it, each ending in `[options]`. They name
+ * the arguments and options the command needs (R-AX-11).
+ *
+ * @param command - The command.
+ * @returns The lines, starting with `explorer-verify`.
+ */
+export function usageLines(command: Command): string[] {
+  return [command.usage, ...(command.moreUsage ?? [])].map((usage) => usageLine(command, usage));
+}
+
+/** One usage line of a command, from the text after its name. */
+function usageLine(command: Command, usage: string): string {
+  return `${PROGRAM} ${command.name}${usage === "" ? "" : ` ${usage}`} [options]`;
 }
 
 /**
@@ -185,7 +200,7 @@ export function helpResult(commands: readonly Command[], topic?: Command): HelpR
     return {
       topic: topic.name,
       summary: topic.summary,
-      usage: [help.usage],
+      usage: usageLines(topic),
       examples: help.examples,
       commands: [help],
       ...shared,
@@ -255,6 +270,12 @@ export function helpText(help: HelpResult): string {
         lines.push("Options:", ...optionLines(command.options), "");
       }
     }
+    // The global sections are the same for every command: the CLI's own help lists them.
+    lines.push(
+      `Global options, environment variables and exit codes: ${PROGRAM} --help`,
+      `Docs: ${help.docsUrl}`,
+    );
+    return `${lines.join("\n")}\n`;
   }
   lines.push("Global options:", ...optionLines(help.globalOptions), "");
   lines.push(
@@ -268,5 +289,32 @@ export function helpText(help: HelpResult): string {
     "",
   );
   lines.push(`Docs: ${help.docsUrl}`, `Docs index for agents: ${help.llmsUrl}`);
+  return `${lines.join("\n")}\n`;
+}
+
+/** How many examples the short help shows. */
+const SHORT_EXAMPLES = 2;
+
+/**
+ * The short help that a bare `explorer-verify`, or a command typed with nothing after it, prints
+ * on stderr before it exits 2 (R-AX-11): the usage, two examples, and where the full help is.
+ *
+ * @param help - The help of the CLI or of the command.
+ * @returns The text.
+ */
+export function shortHelpText(help: HelpResult): string {
+  const name = help.topic === null ? PROGRAM : `${PROGRAM} ${help.topic}`;
+  // The CLI's own short help shows each command's first example, not the help and version ones.
+  const examples =
+    help.topic === null
+      ? help.commands.flatMap((command) => command.examples.slice(0, 1))
+      : help.examples;
+  const lines = [`${name}: ${help.summary}`, "", "Usage:", ...help.usage.map((u) => `  ${u}`)];
+  lines.push("", "Examples:");
+  for (const example of examples.slice(0, SHORT_EXAMPLES)) {
+    lines.push(`  ${example.command}`, `      ${example.description}`);
+  }
+  const full = help.topic === null ? `${PROGRAM} --help` : `${PROGRAM} ${HELP_WORD} ${help.topic}`;
+  lines.push("", `Every option: ${full}`);
   return `${lines.join("\n")}\n`;
 }

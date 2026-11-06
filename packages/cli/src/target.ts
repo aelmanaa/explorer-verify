@@ -17,8 +17,11 @@ import { KEY_VARIABLES } from "./keys.ts";
 /** The `--backend` value that lets the routing table pick the backend. */
 export const AUTO = "auto";
 
-/** What the caller named: `auto`, one or more backends, or nothing. */
-export type Target = typeof AUTO | "named" | undefined;
+/** The `--backend` value that verifies on every backend the chain's row lists (R-RT-4). */
+export const ALL = "all";
+
+/** What the caller named: `auto`, `all`, one or more backends, or nothing. */
+export type Target = typeof AUTO | typeof ALL | "named" | undefined;
 
 /** The environment variable of Blockscout's hosted API key, `BLOCKSCOUT_API_KEY`. */
 const HOSTED_KEY = KEY_VARIABLES.filter(({ backend }) => backend === "blockscout-hosted")
@@ -109,4 +112,58 @@ export async function refusal(
       secrets: [],
     }),
   );
+}
+
+/**
+ * The `invalid-input` error of `--dry-run` with `--backend all`: a dry run checks one backend. The
+ * hint names the backends the chain lists, so the caller can dry run each one. When the routing
+ * table cannot be read, the hint names the options only.
+ *
+ * @param input - The checked input.
+ * @param field - `--backend`, or `route.backend` for `--input-json`.
+ * @param query - Reads the routes; the tests pass their own.
+ * @returns The error to throw.
+ */
+export async function allDryRunRefusal(
+  input: VerifyInput,
+  field: string,
+  query: typeof routesFor = routesFor,
+): Promise<ExplorerVerifyError> {
+  const chain = `chain ${String(input.chainId)}`;
+  let text: string;
+  try {
+    const { listed: backends } = await query(input.chainId, {});
+    text =
+      backends.length === 0
+        ? `The routing table has no row for ${chain}.`
+        : `${chain} lists ${backends.join(", ")}: dry run each with ${field} <name> --dry-run.`;
+  } catch {
+    text = `Dry run each backend with ${field} <name> --dry-run.`;
+  }
+  const base = usageError([
+    {
+      field: "--dry-run",
+      message: `cannot be combined with ${field} all: a dry run checks one backend`,
+    },
+  ]);
+  return ownHint(new ExplorerVerifyError(base.details, base.message, { hint: text, secrets: [] }));
+}
+
+/**
+ * The lines that name each backend of the chain's row that `--backend all` left out: the library
+ * leaves out a backend that needs an API key when none is set for it (R-RT-4). Each line names the
+ * key's environment variable when the CLI reads one.
+ *
+ * @param row - The backends the chain's row lists.
+ * @param ran - The backends of the run's outcomes.
+ * @returns One line per backend left out, in the row's order.
+ */
+export function skippedByAll(row: readonly string[], ran: readonly string[]): string[] {
+  return row
+    .filter((backend) => !ran.includes(backend))
+    .map((backend) => {
+      const variable = KEY_VARIABLES.find((each) => each.backend === backend)?.name;
+      const why = variable === undefined ? "no API key is set for it" : `${variable} is not set`;
+      return `--backend all skipped ${backend}: it needs an API key and ${why}.`;
+    });
 }
