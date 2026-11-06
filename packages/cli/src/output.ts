@@ -7,11 +7,11 @@
 import type {
   BackendOutcome,
   DryRunResult,
-  Envelope,
   RoutedBy,
   ErrorJson,
   VerifyResult,
 } from "explorer-verify";
+import type { Envelope } from "explorer-verify/envelope";
 
 import { cliErrorJson, nextCommand, visible } from "./hints.ts";
 import type { HintContext } from "./hints.ts";

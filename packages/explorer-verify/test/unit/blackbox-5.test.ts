@@ -4,21 +4,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  ERROR_CODES,
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  exitCodeOf,
-  toEnvelope,
-} from "../../src/index.ts";
-import type {
-  Envelope,
-  ErrorCode,
-  ErrorDetails,
-  ExitCode,
-  Handle,
-  VerifyResult,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import type { Envelope, ExitCode } from "../../src/envelope.ts";
+import { ERROR_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import type { ErrorCode, ErrorDetails, Handle, VerifyResult } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 import { validateEnvelope } from "./envelope-schema.ts";
 

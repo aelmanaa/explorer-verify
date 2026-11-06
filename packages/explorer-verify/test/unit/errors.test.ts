@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import type { ExitCode } from "../../src/envelope.ts";
 import { newError } from "../../src/error-hints.ts";
-import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import { ERROR_CODES, ExplorerVerifyError } from "../../src/index.ts";
 import type {
   ErrorCode,
   ErrorDetails,
   ErrorJson,
-  ExitCode,
   ExplorerVerifyErrorOptions,
   Handle,
 } from "../../src/index.ts";

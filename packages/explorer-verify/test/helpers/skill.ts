@@ -215,16 +215,31 @@ export function checkApiNames(
 }
 
 /**
- * A module that compiles only when each name is a type the package exports, and each member path
- * names a field of `VerifyResult` (for `result.`) or `ExplorerVerifyError` (for `error.`). A path
- * on a union is valid when some member of the union has the field.
+ * The entries whose names the skill may use: the main entry, and `explorer-verify/envelope`, where
+ * `toEnvelope()`, `exitCodeOf()` and their types live (decision 0055).
+ */
+export const SKILL_ENTRIES: readonly string[] = ["explorer-verify", "explorer-verify/envelope"];
+
+/**
+ * The module that {@link typeNamesModule} reads the types from: every type of
+ * {@link SKILL_ENTRIES}. Write it into the project next to that module.
+ */
+export const API_SURFACE: Readonly<Record<string, string>> = {
+  "api-surface.ts": SKILL_ENTRIES.map((entry) => `export type * from "${entry}";\n`).join(""),
+};
+
+/**
+ * A module that compiles only when each name is a type the package exports from one of
+ * {@link SKILL_ENTRIES}, and each member path names a field of `VerifyResult` (for `result.`) or
+ * `ExplorerVerifyError` (for `error.`). A path on a union is valid when some member of the union
+ * has the field. Write {@link API_SURFACE} into the same project.
  */
 export function typeNamesModule(
   typeNames: readonly string[],
   paths: readonly string[] = [],
 ): string {
   const lines = [
-    `import type * as api from "explorer-verify";`,
+    `import type * as api from "./api-surface.js";`,
     // Every key of every member of a union, and the type of a key on the members that have it.
     "type Keys<T> = T extends unknown ? keyof T : never;",
     "type At<T, K extends PropertyKey> = T extends unknown ? (K extends keyof T ? T[K] : never) : never;",
@@ -350,11 +365,14 @@ export function typeCheck(dir: string, files: Readonly<Record<string, string>>):
     .filter((line) => line.trim() !== "");
 }
 
-/** The file URL that `import "explorer-verify"` resolves to from the project, as Node sees it. */
-export function resolveInProject(dir: string): string {
+/**
+ * The file URL that `import "explorer-verify"`, or another of its entries, resolves to from the
+ * project, as Node sees it.
+ */
+export function resolveInProject(dir: string, specifier = "explorer-verify"): string {
   const run = spawnSync(
     process.execPath,
-    ["--input-type=module", "-e", 'console.log(import.meta.resolve("explorer-verify"))'],
+    ["--input-type=module", "-e", `console.log(import.meta.resolve(${JSON.stringify(specifier)}))`],
     { cwd: dir, encoding: "utf8" },
   );
   return run.stdout.trim();

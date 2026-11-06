@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { toEnvelope } from "../../src/envelope.ts";
 import {
   buildVerifyInput,
   checkStatus,
@@ -12,7 +13,6 @@ import {
   ExplorerVerifyError,
   linkProxy,
   routesFor,
-  toEnvelope,
   verify,
   verifyEach,
 } from "../../src/index.ts";

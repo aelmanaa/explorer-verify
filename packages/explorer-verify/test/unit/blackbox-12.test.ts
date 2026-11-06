@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
-import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ERROR_CODES, ExplorerVerifyError } from "../../src/index.ts";
 import type { ErrorCode, ErrorDetails, Handle } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 

@@ -218,7 +218,7 @@ is not `not-confirmed`, needs a person: log the handle, the code and the hint.
 | [`job-not-found`](../reference/errors/job-not-found.md)                         | The explorer forgot the job and the contract is not verified. Log it for a person; do not resubmit automatically |
 
 [Errors](../reference/errors/index.md) lists every code and its exit code. The `toEnvelope()` and
-`exitCodeOf()` functions turn an outcome into the CLI's JSON envelope and exit code
+`exitCodeOf()` functions of `explorer-verify/envelope` turn an outcome into the CLI's JSON envelope and exit code
 ([JSON output](../reference/json-output.md)); pass your keys in `secrets` when you log the envelope.
 
 ## Deno and Bun

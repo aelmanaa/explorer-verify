@@ -8,13 +8,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
-import {
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  buildVerifyInput,
-  exitCodeOf,
-  validateInput,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES, exitCodeOf } from "../../src/envelope.ts";
+import { ExplorerVerifyError, buildVerifyInput, validateInput } from "../../src/index.ts";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 

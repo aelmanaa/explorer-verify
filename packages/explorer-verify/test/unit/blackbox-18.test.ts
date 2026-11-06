@@ -10,14 +10,13 @@ import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import type { VerifyOutcome } from "../../src/envelope.ts";
 import {
-  ERROR_EXIT_CODES,
   ExplorerVerifyError,
   checkStatus as publicCheckStatus,
-  exitCodeOf,
   formatHandle,
   parseHandle,
-  toEnvelope,
   verify as publicVerify,
 } from "../../src/index.ts";
 import type {
@@ -28,7 +27,6 @@ import type {
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
-  VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";

@@ -8,8 +8,8 @@ import type { TestContext } from "node:test";
 
 import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
-import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
-import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
 import {
   DEFAULT_POLL_INTERVAL_MS,

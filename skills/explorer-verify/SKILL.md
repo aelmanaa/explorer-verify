@@ -36,19 +36,19 @@ that contract on that chain.
 
 These calls never submit. Run them without asking:
 
-| Call                 | What it does                                                        |
-| -------------------- | ------------------------------------------------------------------- |
-| `buildVerifyInput()` | Builds the compiler input and contract name from parsed build files |
-| `validateInput()`    | Checks an input locally and lists every problem. Sends nothing      |
-| `dryRun()`           | Looks the contract up and says whether `verify()` would submit      |
-| `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing             |
-| `checkStatus()`      | Asks the explorer about a submission it already has. Never submits  |
-| `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                  |
-| `tryParseHandle()`   | As `parseHandle()`, but returns `undefined` instead of throwing     |
-| `isHandleString()`   | Tells whether a string is a valid one-line handle. Sends nothing    |
-| `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                 |
-| `toEnvelope()`       | Turns a result or an error into the JSON envelope. Sends nothing    |
-| `exitCodeOf()`       | Gives the exit code of a result or an error. Sends nothing          |
+| Call                 | What it does                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `buildVerifyInput()` | Builds the compiler input and contract name from parsed build files                           |
+| `validateInput()`    | Checks an input locally and lists every problem. Sends nothing                                |
+| `dryRun()`           | Looks the contract up and says whether `verify()` would submit                                |
+| `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing                                       |
+| `checkStatus()`      | Asks the explorer about a submission it already has. Never submits                            |
+| `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                                            |
+| `tryParseHandle()`   | As `parseHandle()`, but returns `undefined` instead of throwing                               |
+| `isHandleString()`   | Tells whether a string is a valid one-line handle. Sends nothing                              |
+| `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                                           |
+| `toEnvelope()`       | Turns a result or an error into the JSON envelope (`explorer-verify/envelope`). Sends nothing |
+| `exitCodeOf()`       | Gives the exit code of a result or an error (`explorer-verify/envelope`). Sends nothing       |
 
 The [agent page](../../docs/user/guides/using-from-an-agent.md#safe-steps) lists every call and
 command as safe or outward.
@@ -132,13 +132,13 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import {
   checkStatus,
   ExplorerVerifyError,
-  exitCodeOf,
   formatHandle,
   parseHandle,
   validateInput,
   verify,
 } from "explorer-verify";
 import type { VerifyOptions, VerifyResult } from "explorer-verify";
+import { exitCodeOf } from "explorer-verify/envelope";
 
 const HANDLE_FILE = "verification-handle.txt";
 
@@ -240,21 +240,17 @@ state always throws; it never comes back as a result.
   instead of parsing the message.
 
 To report the outcome as data, turn it into the versioned JSON envelope with `toEnvelope()` and
-take the exit code from `exitCodeOf()`. `VerifyOutcome` is a result or an error. This example also
+take the exit code from `exitCodeOf()`, both from `explorer-verify/envelope`. `VerifyOutcome` is a
+result or an error. This example also
 passes its own `fetch`, which logs each request without its query string. In a script that may run
 again, add the handle check from step 2.
 
 ```ts
 import { readFile } from "node:fs/promises";
 
-import {
-  ExplorerVerifyError,
-  exitCodeOf,
-  toEnvelope,
-  validateInput,
-  verify,
-} from "explorer-verify";
-import type { VerifyOutcome } from "explorer-verify";
+import { ExplorerVerifyError, validateInput, verify } from "explorer-verify";
+import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
+import type { VerifyOutcome } from "explorer-verify/envelope";
 
 // Logs the method, host and path of each request, never the query string, where keys go.
 // It passes `init` through unchanged, so the library's `redirect: "manual"` still applies.
@@ -287,7 +283,8 @@ An error gives an envelope with `ok: false` and an `error` object. This input ha
 so `validateInput()` throws before anything is sent:
 
 ```ts
-import { ExplorerVerifyError, exitCodeOf, toEnvelope, validateInput } from "explorer-verify";
+import { ExplorerVerifyError, validateInput } from "explorer-verify";
+import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
 
 try {
   validateInput({ chainId: 11155111, address: "0x1234" });

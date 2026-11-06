@@ -1,13 +1,13 @@
 /**
  * The machine contract for an outcome (R-AX-5, R-AX-7): the exit code of a result or an error,
  * and the versioned JSON envelope the CLI prints on stdout. The server handler and the CLI both
- * use these, so they cannot disagree. `schema/envelope.schema.json` describes the envelope.
+ * use these, so they cannot disagree. `schema/envelope.schema.json` describes the envelope. The
+ * `explorer-verify/envelope` entry exports them (decision 0055).
  */
 import { toBackendName } from "./backend-names.ts";
 import { newError } from "./error-hints.ts";
 import {
   ERROR_CODES,
-  ERROR_EXIT_CODES,
   ExplorerVerifyError,
   detailsFromJson,
   docsUrlOf,
@@ -18,7 +18,6 @@ import type {
   ErrorCode,
   ErrorJson,
   ErrorJsonFields,
-  ExitCode,
   InputIssue,
 } from "./errors.ts";
 import { JOB_ID } from "./flow/check-handle.ts";
@@ -30,13 +29,71 @@ import { REDACTED, redact, redactExcerpt } from "./redact.ts";
 import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } from "./types.ts";
 
 /**
+ * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
+ * 4 still pending, 5 network or explorer unavailable, 6 unknown state or internal error,
+ * 130 cancelled.
+ *
+ * @example
+ * ```ts
+ * import type { ExitCode } from "explorer-verify/envelope";
+ *
+ * const cancelled: ExitCode = 130;
+ * ```
+ * @experimental
+ */
+export type ExitCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 130;
+
+/**
+ * The CLI exit code for each error code (R-AX-7). Every code maps to exactly one exit code.
+ *
+ * @example
+ * ```ts
+ * import { ERROR_EXIT_CODES } from "explorer-verify/envelope";
+ * import { ExplorerVerifyError } from "explorer-verify/errors";
+ *
+ * function exitCode(error: unknown): number {
+ *   return error instanceof ExplorerVerifyError ? ERROR_EXIT_CODES[error.code] : 1;
+ * }
+ * ```
+ * @experimental
+ */
+export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
+  "invalid-input": 2,
+  "not-confirmed": 4,
+  "unsupported-chain": 2,
+  network: 5,
+  "rate-limited": 5,
+  timeout: 5,
+  "unexpected-response": 5,
+  "in-progress": 5,
+  "unknown-state": 6,
+  "job-not-found": 6,
+  cancelled: 130,
+  "incomplete-input": 2,
+  "insufficient-artifact": 2,
+  "unsupported-compiler": 2,
+  "verification-inconclusive": 4,
+  "source-mismatch": 2,
+  "missing-api-key": 3,
+  "api-key-rejected": 3,
+  "quota-exceeded": 3,
+  "internal-error": 6,
+  "no-metadata-hash": 2,
+  "metadata-unavailable": 5,
+  "constructor-args-unavailable": 2,
+  "proxy-link-pending": 4,
+  "proxy-link-unknown-state": 6,
+  "handler-refused": 2,
+};
+
+/**
  * What a `verify()` or `checkStatus()` call ends with: the result it returned or the error it
  * threw.
  *
  * @example
  * ```ts
  * import { ExplorerVerifyError } from "explorer-verify";
- * import type { VerifyOutcome } from "explorer-verify";
+ * import type { VerifyOutcome } from "explorer-verify/envelope";
  *
  * async function outcomeOf(run: () => Promise<VerifyResult>): Promise<VerifyOutcome> {
  *   try {
@@ -61,7 +118,7 @@ export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
  *
  * @example
  * ```ts
- * import type { Envelope } from "explorer-verify";
+ * import type { Envelope } from "explorer-verify/envelope";
  *
  * function summary(envelope: Envelope): string {
  *   if ("error" in envelope) {
@@ -119,7 +176,7 @@ export type Envelope =
  *
  * @example
  * ```ts
- * import type { EnvelopeOptions } from "explorer-verify";
+ * import type { EnvelopeOptions } from "explorer-verify/envelope";
  *
  * const options: EnvelopeOptions = { secrets: [apiKey] };
  * ```
@@ -682,7 +739,8 @@ function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
  *   bypassed the types can pass.
  * @example
  * ```ts
- * import { ExplorerVerifyError, exitCodeOf } from "explorer-verify";
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import { exitCodeOf } from "explorer-verify/envelope";
  *
  * try {
  *   const result = await verify(input);
@@ -736,7 +794,8 @@ export function exitCodeOf(
  *   `{ secrets?: string[] }`, which only code that bypassed the types can pass.
  * @example
  * ```ts
- * import { ExplorerVerifyError, toEnvelope } from "explorer-verify";
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import { toEnvelope } from "explorer-verify/envelope";
  *
  * try {
  *   const result = await verify(input);

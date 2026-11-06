@@ -4,7 +4,7 @@
  * {@link HelpResult} feeds the text on stdout, the `--json` envelope and the generated CLI
  * reference, so the three never disagree (R-AX-2).
  */
-import type { ExitCode } from "explorer-verify";
+import type { ExitCode } from "explorer-verify/envelope";
 
 import { commandOptions, GLOBAL_OPTIONS, HELP_WORD } from "./arguments.ts";
 import type { OptionSpec, OptionSpecs } from "./arguments.ts";

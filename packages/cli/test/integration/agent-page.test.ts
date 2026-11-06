@@ -105,8 +105,8 @@ const outward = named(tableColumn(section(PAGE, "Submit is permanent"), 0));
 const safe = named(tableColumn(section(PAGE, "Safe steps"), 1));
 
 describe("the agent page's lists (R-AX-3)", () => {
-  it("reads the entry points from the exports maps: the core's ten and one per helper", () => {
-    assert.equal(ENTRY_POINTS.length, 12);
+  it("reads the entry points from the exports maps: the core's fourteen and one per helper", () => {
+    assert.equal(ENTRY_POINTS.length, 16);
     assert.ok(
       ENTRY_POINTS.some((url) => url.endsWith("/explorer-verify/dist/src/server/handler.js")),
     );

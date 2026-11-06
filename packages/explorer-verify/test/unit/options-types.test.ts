@@ -8,14 +8,13 @@ import { createProject, removeProject, typeCheck } from "../helpers/skill.ts";
 
 /** A consumer that forwards `T | undefined` into every optional input field. It must compile. */
 const FORWARDS = `
-import { buildVerifyInput, checkStatus, dryRun, linkProxy, toEnvelope, verify, verifyEach } from "explorer-verify";
+import { buildVerifyInput, checkStatus, dryRun, linkProxy, verify, verifyEach } from "explorer-verify";
 import type {
   BackendName,
   BuildVerifyInputOptions,
   CallOptions,
   CheckStatusOptions,
   DryRunOptions,
-  EnvelopeOptions,
   Handle,
   Hex,
   LinkProxyOptions,
@@ -27,6 +26,8 @@ import type {
   VerifyInput,
   VerifyOptions,
 } from "explorer-verify";
+import { toEnvelope } from "explorer-verify/envelope";
+import type { EnvelopeOptions } from "explorer-verify/envelope";
 import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
 import type { BuildFromBytecodeOptions } from "explorer-verify/resolve";
 import { createVerifyHandler } from "explorer-verify/server";

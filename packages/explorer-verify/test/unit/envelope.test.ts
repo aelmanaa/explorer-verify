@@ -2,24 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import {
-  BACKEND_NAMES,
-  ERROR_CODES,
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  exitCodeOf,
-  toEnvelope,
-} from "../../src/index.ts";
-import type {
-  Envelope,
-  EnvelopeOptions,
-  ErrorCode,
-  ErrorDetails,
-  ExitCode,
-  Handle,
-  VerifyOutcome,
-  VerifyResult,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import type { Envelope, EnvelopeOptions, ExitCode, VerifyOutcome } from "../../src/envelope.ts";
+import { BACKEND_NAMES, ERROR_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import type { ErrorCode, ErrorDetails, Handle, VerifyResult } from "../../src/index.ts";
 import { compileStrict, envelopeSchema, objectOf, validateEnvelope } from "./envelope-schema.ts";
 
 // A fake key. Never a real one (R-SEC-1). It is 33 characters, so only the `secrets` option or a

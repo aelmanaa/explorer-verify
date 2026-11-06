@@ -363,7 +363,8 @@ success, and say so in your docs. See [Match types](../explanation/match-types.m
 Every failure is an `ExplorerVerifyError`, except an abort. Switch on `error.code`, not on the
 message. `error.hint` says what to do next, `error.retryable` whether trying again may work, and
 `error.toJSON().handle` holds the handle in its one-line form when the code carries one. The CLI
-exit code comes from `ERROR_EXIT_CODES`; use it when your tool is a CLI too.
+exit code comes from `ERROR_EXIT_CODES` in `explorer-verify/envelope`; use it when your tool is a
+CLI too.
 
 After `timeout`, `network` or `verification-inconclusive`, a new `verify()` call is safe: it looks
 the contract up first and submits only when the explorer holds no match. After `not-confirmed`,
@@ -416,7 +417,8 @@ Declare `explorer-verify` as a peer dependency of your tool, so your users insta
 ship ES modules without bundling it. Your users' bundler then sees the library's own entry. Vite,
 Rollup and webpack split each explorer client and the routing table into chunks of their own, and
 a call loads only what its route needs ([client chunks](../reference/routing.md#client-chunks)).
-You need to do nothing else.
+Re-export names from their smallest entry, as [Re-export from the smallest entry](#re-export-from-the-smallest-entry)
+shows.
 
 When your tool bundles its dependencies into one file, every dynamic `import()` in the default
 entry is inlined. So are bundles from esbuild without `splitting`, from Wrangler, and from CommonJS
@@ -460,6 +462,28 @@ minified, gzip from the zlib of Node 24.21.0, on 2026-11-06:
 | The same with `routingTable`                              | 91,533 bytes  | 25,033 bytes |
 | `verify` from `explorer-verify/core`, `etherscanV2()`     | 77,968 bytes  | 25,902 bytes |
 | `verify` from `explorer-verify/core`, every client, table | 114,307 bytes | 31,763 bytes |
+
+### Re-export from the smallest entry
+
+When your tool re-exports names of explorer-verify, re-export each one from its smallest entry:
+
+| Names                                                                   | Entry                      |
+| ----------------------------------------------------------------------- | -------------------------- |
+| `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS` and the error types | `explorer-verify/errors`   |
+| `formatHandle`, `parseHandle`, `tryParseHandle`, `isHandleString`       | `explorer-verify/handle`   |
+| `BACKEND_NAMES`, `toBackendName`                                        | `explorer-verify/backends` |
+| `toEnvelope`, `exitCodeOf`, `ERROR_EXIT_CODES`, for a CLI               | `explorer-verify/envelope` |
+
+These entries never reach the verification code. A user of your tool who imports only an error
+code or a handle function then gets one file. Under esbuild with `splitting: true`, the same
+name from `explorer-verify` also brings the default entry's shared chunk and its client chunks into
+the build. Keep `explorer-verify` external, as above, so your users' bundler sees these entries:
+
+```ts
+export { ERROR_CODES, ExplorerVerifyError } from "explorer-verify/errors";
+export { formatHandle, parseHandle } from "explorer-verify/handle";
+export { verify } from "explorer-verify";
+```
 
 ## Test with recorded answers
 

@@ -37,7 +37,7 @@
     },
     {
       "file": "src/errors.ts",
-      "measured": 100.0,
+      "measured": 99.57,
       "floor": 99
     },
     {
@@ -107,7 +107,7 @@
     },
     {
       "file": "src/envelope.ts",
-      "measured": 97.87,
+      "measured": 96.75,
       "floor": 96
     },
     {

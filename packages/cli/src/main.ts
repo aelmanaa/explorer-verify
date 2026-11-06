@@ -7,15 +7,10 @@
  */
 import { homedir } from "node:os";
 
-import {
-  ERROR_EXIT_CODES,
-  ERROR_HINTS,
-  ExplorerVerifyError,
-  exitCodeOf,
-  parseHandle,
-  toEnvelope,
-} from "explorer-verify";
-import type { ExitCode, Handle, InputIssue } from "explorer-verify";
+import { ERROR_HINTS, ExplorerVerifyError, parseHandle } from "explorer-verify";
+import type { Handle, InputIssue } from "explorer-verify";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "explorer-verify/envelope";
+import type { ExitCode } from "explorer-verify/envelope";
 
 import { readArguments } from "./arguments.ts";
 import type { Arguments, OptionValue } from "./arguments.ts";

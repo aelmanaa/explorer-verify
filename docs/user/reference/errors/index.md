@@ -26,6 +26,10 @@ one-line form when there is one, and `details`, redacted, with each handle in it
 never prints `cause`, the stack or an API key. Its type, `ErrorJson`, is a union keyed by `code`, so
 checking `code` narrows `details` there too.
 
+`ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS` and the error types are also exported from
+`explorer-verify/errors`. Code that only checks or maps errors imports them from there: that entry
+never reaches the verification code, so any bundler emits one file for it.
+
 ```ts
 import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
 
@@ -153,7 +157,8 @@ Redaction does not cover these cases. Keep such values out of errors:
 
 ## Exit codes
 
-The CLI exits with one code per outcome. `ERROR_EXIT_CODES` maps each error code to its exit code.
+The CLI exits with one code per outcome. `ERROR_EXIT_CODES`, from `explorer-verify/envelope`, maps
+each error code to its exit code.
 
 | Exit code | Meaning                                                                                                                                                          | Error codes                                                                                                                                                                                                                           |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

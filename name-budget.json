@@ -1,6 +1,6 @@
 {
   "$comment": "Per-name size ceilings (R-RUN-3, decisions 0014 and 0042). `pnpm run size` runs scripts/check-names.ts, which lists the value exports of every code entry in each package's package.json `exports` from the built package and bundles each name three ways: esbuild with splitting, esbuild as one file, and Rollup with each chunk minified by esbuild, as Vite builds. Each mode records the initial load (the entry file and the files it imports statically, minified, and each gzipped on its own at level 6) and the number of JavaScript files emitted. ceilingBytes is gzipBytes plus 20%, rounded up, and applies to the gzipped initial load. An exported name with no row fails, and so does a row whose name is gone; `node scripts/check-names.ts name-budget.json --add-missing` adds a row for each new name and never changes one that exists. `packages` gives each package's bundler platform; a Node package keeps its dependencies and peer dependencies external. `light` lists subpaths whose names must emit at most maxFiles files under esbuild splitting, and names that must stay under maxMinBytes minified in every mode; while a subpath is missing from `exports` the rule is pending and does not fail. `model` lists names reported beside the size-budget.json model; those lines never fail. Raise a ceiling only in a pull request that says why (decision 0008).",
-  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047). The isHandleString and tryParseHandle rows were measured on 2026-11-06 on main 919359e plus #218 (decision 0050). The toEnvelope and exitCodeOf rows were measured on 2026-11-06 on main f7c12bf plus #214 (decision 0049), when toEnvelope began to rebuild error details.",
+  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047). The isHandleString and tryParseHandle rows were measured on 2026-11-06 on main 919359e plus #218 (decision 0050). The explorer-verify/handle, /errors, /backends and /envelope rows were measured on 2026-11-06 on main a8f5f1b plus #219 (decision 0055).",
   "packages": {
     "explorer-verify": "browser",
     "@explorer-verify/hardhat": "node",
@@ -8,7 +8,12 @@
   },
   "light": {
     "issue": "#219",
-    "subpaths": ["explorer-verify/handle", "explorer-verify/errors", "explorer-verify/backends"],
+    "subpaths": [
+      "explorer-verify/handle",
+      "explorer-verify/errors",
+      "explorer-verify/backends",
+      "explorer-verify/envelope"
+    ],
     "maxFiles": 1,
     "smallNames": ["formatHandle", "ERROR_CODES", "BACKEND_NAMES"],
     "maxMinBytes": 1024
@@ -78,28 +83,6 @@
         "gzipBytes": 317,
         "files": 1,
         "ceilingBytes": 381
-      }
-    },
-    {
-      "entry": "explorer-verify",
-      "name": "ERROR_EXIT_CODES",
-      "esbuildSplit": {
-        "minBytes": 13236,
-        "gzipBytes": 4913,
-        "files": 20,
-        "ceilingBytes": 5896
-      },
-      "esbuildOneFile": {
-        "minBytes": 661,
-        "gzipBytes": 431,
-        "files": 1,
-        "ceilingBytes": 518
-      },
-      "rollup": {
-        "minBytes": 558,
-        "gzipBytes": 355,
-        "files": 1,
-        "ceilingBytes": 426
       }
     },
     {
@@ -188,28 +171,6 @@
         "gzipBytes": 16708,
         "files": 9,
         "ceilingBytes": 20050
-      }
-    },
-    {
-      "entry": "explorer-verify",
-      "name": "exitCodeOf",
-      "esbuildSplit": {
-        "minBytes": 24705,
-        "gzipBytes": 8648,
-        "files": 21,
-        "ceilingBytes": 10378
-      },
-      "esbuildOneFile": {
-        "minBytes": 24728,
-        "gzipBytes": 8295,
-        "files": 1,
-        "ceilingBytes": 9954
-      },
-      "rollup": {
-        "minBytes": 24531,
-        "gzipBytes": 8090,
-        "files": 1,
-        "ceilingBytes": 9708
       }
     },
     {
@@ -342,28 +303,6 @@
         "gzipBytes": 145,
         "files": 1,
         "ceilingBytes": 174
-      }
-    },
-    {
-      "entry": "explorer-verify",
-      "name": "toEnvelope",
-      "esbuildSplit": {
-        "minBytes": 26178,
-        "gzipBytes": 9165,
-        "files": 21,
-        "ceilingBytes": 10998
-      },
-      "esbuildOneFile": {
-        "minBytes": 26203,
-        "gzipBytes": 8760,
-        "files": 1,
-        "ceilingBytes": 10512
-      },
-      "rollup": {
-        "minBytes": 26048,
-        "gzipBytes": 8551,
-        "files": 1,
-        "ceilingBytes": 10262
       }
     },
     {
@@ -1068,6 +1007,270 @@
         "gzipBytes": 12053,
         "files": 1,
         "ceilingBytes": 14464
+      }
+    },
+    {
+      "entry": "explorer-verify/handle",
+      "name": "formatHandle",
+      "esbuildSplit": {
+        "minBytes": 114,
+        "gzipBytes": 115,
+        "files": 1,
+        "ceilingBytes": 138
+      },
+      "esbuildOneFile": {
+        "minBytes": 114,
+        "gzipBytes": 115,
+        "files": 1,
+        "ceilingBytes": 138
+      },
+      "rollup": {
+        "minBytes": 114,
+        "gzipBytes": 113,
+        "files": 1,
+        "ceilingBytes": 136
+      }
+    },
+    {
+      "entry": "explorer-verify/handle",
+      "name": "isHandleString",
+      "esbuildSplit": {
+        "minBytes": 2127,
+        "gzipBytes": 1023,
+        "files": 1,
+        "ceilingBytes": 1228
+      },
+      "esbuildOneFile": {
+        "minBytes": 2127,
+        "gzipBytes": 1023,
+        "files": 1,
+        "ceilingBytes": 1228
+      },
+      "rollup": {
+        "minBytes": 2147,
+        "gzipBytes": 1027,
+        "files": 1,
+        "ceilingBytes": 1233
+      }
+    },
+    {
+      "entry": "explorer-verify/handle",
+      "name": "parseHandle",
+      "esbuildSplit": {
+        "minBytes": 15680,
+        "gzipBytes": 5926,
+        "files": 1,
+        "ceilingBytes": 7112
+      },
+      "esbuildOneFile": {
+        "minBytes": 15680,
+        "gzipBytes": 5926,
+        "files": 1,
+        "ceilingBytes": 7112
+      },
+      "rollup": {
+        "minBytes": 15762,
+        "gzipBytes": 5930,
+        "files": 1,
+        "ceilingBytes": 7116
+      }
+    },
+    {
+      "entry": "explorer-verify/handle",
+      "name": "tryParseHandle",
+      "esbuildSplit": {
+        "minBytes": 2072,
+        "gzipBytes": 1017,
+        "files": 1,
+        "ceilingBytes": 1221
+      },
+      "esbuildOneFile": {
+        "minBytes": 2072,
+        "gzipBytes": 1017,
+        "files": 1,
+        "ceilingBytes": 1221
+      },
+      "rollup": {
+        "minBytes": 2092,
+        "gzipBytes": 1020,
+        "files": 1,
+        "ceilingBytes": 1224
+      }
+    },
+    {
+      "entry": "explorer-verify/errors",
+      "name": "ERROR_CODES",
+      "esbuildSplit": {
+        "minBytes": 523,
+        "gzipBytes": 326,
+        "files": 1,
+        "ceilingBytes": 392
+      },
+      "esbuildOneFile": {
+        "minBytes": 523,
+        "gzipBytes": 326,
+        "files": 1,
+        "ceilingBytes": 392
+      },
+      "rollup": {
+        "minBytes": 525,
+        "gzipBytes": 329,
+        "files": 1,
+        "ceilingBytes": 395
+      }
+    },
+    {
+      "entry": "explorer-verify/errors",
+      "name": "ERROR_HINTS",
+      "esbuildSplit": {
+        "minBytes": 3489,
+        "gzipBytes": 1492,
+        "files": 1,
+        "ceilingBytes": 1791
+      },
+      "esbuildOneFile": {
+        "minBytes": 3489,
+        "gzipBytes": 1492,
+        "files": 1,
+        "ceilingBytes": 1791
+      },
+      "rollup": {
+        "minBytes": 3491,
+        "gzipBytes": 1493,
+        "files": 1,
+        "ceilingBytes": 1792
+      }
+    },
+    {
+      "entry": "explorer-verify/errors",
+      "name": "ExplorerVerifyError",
+      "esbuildSplit": {
+        "minBytes": 10082,
+        "gzipBytes": 3856,
+        "files": 1,
+        "ceilingBytes": 4628
+      },
+      "esbuildOneFile": {
+        "minBytes": 10082,
+        "gzipBytes": 3856,
+        "files": 1,
+        "ceilingBytes": 4628
+      },
+      "rollup": {
+        "minBytes": 10140,
+        "gzipBytes": 3849,
+        "files": 1,
+        "ceilingBytes": 4619
+      }
+    },
+    {
+      "entry": "explorer-verify/backends",
+      "name": "BACKEND_NAMES",
+      "esbuildSplit": {
+        "minBytes": 130,
+        "gzipBytes": 128,
+        "files": 1,
+        "ceilingBytes": 154
+      },
+      "esbuildOneFile": {
+        "minBytes": 130,
+        "gzipBytes": 128,
+        "files": 1,
+        "ceilingBytes": 154
+      },
+      "rollup": {
+        "minBytes": 132,
+        "gzipBytes": 130,
+        "files": 1,
+        "ceilingBytes": 156
+      }
+    },
+    {
+      "entry": "explorer-verify/backends",
+      "name": "toBackendName",
+      "esbuildSplit": {
+        "minBytes": 168,
+        "gzipBytes": 151,
+        "files": 1,
+        "ceilingBytes": 182
+      },
+      "esbuildOneFile": {
+        "minBytes": 168,
+        "gzipBytes": 151,
+        "files": 1,
+        "ceilingBytes": 182
+      },
+      "rollup": {
+        "minBytes": 170,
+        "gzipBytes": 151,
+        "files": 1,
+        "ceilingBytes": 182
+      }
+    },
+    {
+      "entry": "explorer-verify/envelope",
+      "name": "ERROR_EXIT_CODES",
+      "esbuildSplit": {
+        "minBytes": 576,
+        "gzipBytes": 365,
+        "files": 1,
+        "ceilingBytes": 438
+      },
+      "esbuildOneFile": {
+        "minBytes": 576,
+        "gzipBytes": 365,
+        "files": 1,
+        "ceilingBytes": 438
+      },
+      "rollup": {
+        "minBytes": 578,
+        "gzipBytes": 366,
+        "files": 1,
+        "ceilingBytes": 440
+      }
+    },
+    {
+      "entry": "explorer-verify/envelope",
+      "name": "exitCodeOf",
+      "esbuildSplit": {
+        "minBytes": 24501,
+        "gzipBytes": 8131,
+        "files": 1,
+        "ceilingBytes": 9758
+      },
+      "esbuildOneFile": {
+        "minBytes": 24501,
+        "gzipBytes": 8131,
+        "files": 1,
+        "ceilingBytes": 9758
+      },
+      "rollup": {
+        "minBytes": 24642,
+        "gzipBytes": 8130,
+        "files": 1,
+        "ceilingBytes": 9756
+      }
+    },
+    {
+      "entry": "explorer-verify/envelope",
+      "name": "toEnvelope",
+      "esbuildSplit": {
+        "minBytes": 25974,
+        "gzipBytes": 8584,
+        "files": 1,
+        "ceilingBytes": 10301
+      },
+      "esbuildOneFile": {
+        "minBytes": 25974,
+        "gzipBytes": 8584,
+        "files": 1,
+        "ceilingBytes": 10301
+      },
+      "rollup": {
+        "minBytes": 26159,
+        "gzipBytes": 8587,
+        "files": 1,
+        "ceilingBytes": 10305
       }
     }
   ]

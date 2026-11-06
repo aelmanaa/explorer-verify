@@ -116,6 +116,7 @@ natively. pnpm 12.16.1 (`packageManager`).
 | `packages/explorer-verify/src/`                    | The core package. Runtime-neutral: no Node built-ins (lint rule and a build without Node types enforce it)                                                       |
 | `packages/explorer-verify/src/server`              | `explorer-verify/server`: `createVerifyHandler` ([docs](docs/user/reference/server-handler.md))                                                                  |
 | `packages/explorer-verify/src/core`, `src/clients` | `explorer-verify/core`, `explorer-verify/clients/<name>`, `explorer-verify/table` ([docs](docs/user/reference/core.md))                                          |
+| `packages/explorer-verify/src/entries`             | `explorer-verify/handle`, `/errors`, `/backends` and `/envelope`: small entries that never reach the flow (decision 0055)                                        |
 | `packages/explorer-verify/src/input/resolvers`     | `explorer-verify/resolve`: `buildVerifyInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                           |
 | `packages/explorer-verify/test/unit/`              | Unit tests, `*.test.ts`                                                                                                                                          |
 | `packages/foundry/`                                | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |

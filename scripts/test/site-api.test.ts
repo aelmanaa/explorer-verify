@@ -95,6 +95,10 @@ describe("apiEntryPoints on this repository", () => {
       apiEntryPoints(repository).map(({ name, source }) => [name, source]),
       [
         ["explorer-verify", "packages/explorer-verify/src/index.ts"],
+        ["explorer-verify/handle", "packages/explorer-verify/src/entries/handle.ts"],
+        ["explorer-verify/errors", "packages/explorer-verify/src/entries/errors.ts"],
+        ["explorer-verify/backends", "packages/explorer-verify/src/entries/backends.ts"],
+        ["explorer-verify/envelope", "packages/explorer-verify/src/entries/envelope.ts"],
         ["explorer-verify/server", "packages/explorer-verify/src/server/handler.ts"],
         ["explorer-verify/resolve", "packages/explorer-verify/src/input/resolvers/bytecode.ts"],
         ["explorer-verify/core", "packages/explorer-verify/src/core/index.ts"],

@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ExplorerVerifyError, toEnvelope } from "explorer-verify";
+import { ExplorerVerifyError } from "explorer-verify";
+import { toEnvelope } from "explorer-verify/envelope";
 
 import { stdoutText } from "../../src/output.ts";
 

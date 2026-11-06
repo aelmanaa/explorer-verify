@@ -9,8 +9,10 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { toEnvelope } from "../../src/envelope.ts";
+import type { VerifyOutcome } from "../../src/envelope.ts";
 import { newError } from "../../src/error-hints.ts";
-import { ERROR_CODES, ERROR_HINTS, ExplorerVerifyError, toEnvelope } from "../../src/index.ts";
+import { ERROR_CODES, ERROR_HINTS, ExplorerVerifyError } from "../../src/index.ts";
 import type {
   AnyExplorerVerifyError,
   BackendOutcome,
@@ -19,7 +21,6 @@ import type {
   ErrorDetails,
   Handle,
   VerifyEachResult,
-  VerifyOutcome,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";
 import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";

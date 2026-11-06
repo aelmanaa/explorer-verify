@@ -6,7 +6,8 @@ import { describe, it } from "node:test";
 
 import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
-import { ExplorerVerifyError, dryRun, exitCodeOf, toEnvelope } from "../../src/index.ts";
+import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import { ExplorerVerifyError, dryRun } from "../../src/index.ts";
 import type { DryRunResult, VerifyEvent, VerifyInput } from "../../src/index.ts";
 import { runDryRun } from "../helpers/defaults.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";

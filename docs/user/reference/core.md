@@ -29,6 +29,29 @@ const result = await verify(input, {
 console.log(result.status, result.backend);
 ```
 
+Take the error class, the error codes, the handle functions and the backend names from
+`explorer-verify/errors`, `explorer-verify/handle` and `explorer-verify/backends`. Like the core,
+these entries reach no dynamic `import()`. The same names from `explorer-verify` also work in a
+one-file bundle, but under esbuild with `splitting: true` they bring the default entry's shared
+chunk and its client chunks into the build.
+
+```ts
+import { sourcify } from "explorer-verify/clients/sourcify";
+import { verify } from "explorer-verify/core";
+import { ExplorerVerifyError } from "explorer-verify/errors";
+import { formatHandle } from "explorer-verify/handle";
+
+try {
+  await verify(input, { clients: [sourcify()], route: { backend: "sourcify" } });
+} catch (error) {
+  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    console.log(formatHandle(error.details.handle));
+  } else {
+    throw error;
+  }
+}
+```
+
 ## Options
 
 Each function takes the options of the same function in `explorer-verify`

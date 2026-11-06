@@ -13,6 +13,7 @@
         "src/input/resolvers/bytecode.ts",
         "src/core/index.ts",
         "src/core/table.ts",
+        "src/entries/*.ts",
         "src/clients/{sourcify,etherscan-v2,etherscan-compatible,routescan,blockscout}.ts",
         "test/**/*.test.ts",
         "test/browser/entry.ts",

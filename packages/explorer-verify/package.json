@@ -38,6 +38,22 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./handle": {
+      "types": "./dist/src/entries/handle.d.ts",
+      "default": "./dist/src/entries/handle.js"
+    },
+    "./errors": {
+      "types": "./dist/src/entries/errors.d.ts",
+      "default": "./dist/src/entries/errors.js"
+    },
+    "./backends": {
+      "types": "./dist/src/entries/backends.d.ts",
+      "default": "./dist/src/entries/backends.js"
+    },
+    "./envelope": {
+      "types": "./dist/src/entries/envelope.d.ts",
+      "default": "./dist/src/entries/envelope.js"
+    },
     "./server": {
       "types": "./dist/src/server/handler.d.ts",
       "default": "./dist/src/server/handler.js"

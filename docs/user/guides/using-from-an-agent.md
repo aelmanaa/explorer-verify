@@ -62,7 +62,8 @@ These calls and commands never submit. Run them without asking.
 `buildVerifyInputFromFoundry()` and `findFoundryBuild()` come from `@explorer-verify/foundry`,
 `buildVerifyInputFromHardhat()` and `findHardhatBuild()` from `@explorer-verify/hardhat`,
 `buildVerifyInputFromBytecode()` from `explorer-verify/resolve` and `createVerifyHandler()` from
-`explorer-verify/server`, and the clients from `explorer-verify/clients/<name>`. `explorer-verify/core` has the same `verify()`, `dryRun()`, `checkStatus()`, `verifyEach()` and `linkProxy()`, which take the clients ([Core entry](../reference/core.md)). The rest come from `explorer-verify`.
+`explorer-verify/server`, `toEnvelope()` and `exitCodeOf()` from `explorer-verify/envelope`, and
+the clients from `explorer-verify/clients/<name>`. `explorer-verify/core` has the same `verify()`, `dryRun()`, `checkStatus()`, `verifyEach()` and `linkProxy()`, which take the clients ([Core entry](../reference/core.md)). The rest come from `explorer-verify`.
 
 ### Dry run before you submit
 

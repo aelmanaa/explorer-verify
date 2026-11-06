@@ -231,6 +231,22 @@ needs them. A page that always passes `route.apiUrl` never downloads them, unles
 about that URL, such as its explorer page
 ([table chunk](../reference/routing.md#table-chunk)).
 
+### A page that only reads a handle or an error
+
+A page that stores or checks a handle, or maps an error code, without verifying, imports from the
+small entries: `explorer-verify/handle`, `explorer-verify/errors` and `explorer-verify/backends`.
+They never reach the verification code. Under esbuild with `splitting: true`, the same names from
+`explorer-verify` bring the default entry's shared chunk and every client chunk into the build.
+`scripts/check-names.ts` measured, with esbuild 0.28.2 and Rollup 4.67.4, gzip from the zlib of
+Node 24.21.0, on 2026-11-06:
+
+| Import                                       | esbuild, splitting              | Rollup             |
+| -------------------------------------------- | ------------------------------- | ------------------ |
+| `formatHandle` from `explorer-verify`        | 13,884 bytes minified, 21 files | 114 bytes minified |
+| `formatHandle` from `explorer-verify/handle` | 114 bytes minified, 1 file      | 114 bytes minified |
+| `ERROR_CODES` from `explorer-verify`         | 14,382 bytes minified, 21 files | 525 bytes minified |
+| `ERROR_CODES` from `explorer-verify/errors`  | 523 bytes minified, 1 file      | 525 bytes minified |
+
 ### Measured in the repository
 
 `pnpm run size` bundles each entry point from the built package with esbuild 0.28.2 for the

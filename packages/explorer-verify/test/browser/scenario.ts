@@ -10,8 +10,12 @@
 // internal and not exported, so the vectors run on its source file, bundled with the rest.
 import { checkStatus, verify } from "explorer-verify";
 import type { VerifyResult } from "explorer-verify";
+import { BACKEND_NAMES, toBackendName } from "explorer-verify/backends";
 import { sourcify } from "explorer-verify/clients/sourcify";
 import { verify as coreVerify } from "explorer-verify/core";
+import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
+import { ERROR_CODES, ExplorerVerifyError } from "explorer-verify/errors";
+import { formatHandle, isHandleString, parseHandle, tryParseHandle } from "explorer-verify/handle";
 import { createVerifyHandler } from "explorer-verify/server";
 
 import { keccak256 } from "../../src/internal/keccak.ts";
@@ -49,6 +53,28 @@ interface ScenarioResult {
   readonly otherCheckStatus: Outcome;
   /** The server handler, run in this realm against an in-page fake Etherscan (R-SRV-1). */
   readonly handler: HandlerResult;
+  /** The handle, errors, backends and envelope subpaths, run on the handle and the result. */
+  readonly subpaths: SubpathResult | undefined;
+}
+
+/** What the names of the four subpaths of decision 0055 give in this realm. */
+interface SubpathResult {
+  /** `formatHandle(parseHandle(handle))`. */
+  readonly roundTrip: string;
+  readonly isHandleString: boolean;
+  /** Whether `tryParseHandle` gives `undefined` for a value that is not a handle. */
+  readonly tryParseBad: boolean;
+  /** The `code` of the error `parseHandle` throws, when it is an `ExplorerVerifyError`. */
+  readonly parseBadCode: string | undefined;
+  /** Whether `ERROR_CODES` lists `network`. */
+  readonly listsNetwork: boolean;
+  /** `toBackendName("sourcify")`. */
+  readonly backend: string | undefined;
+  /** Whether `BACKEND_NAMES` lists `sourcify`. */
+  readonly listsSourcify: boolean;
+  /** `exitCodeOf` and the envelope's `ok` for the result of `verify()`. */
+  readonly exitCode: number;
+  readonly envelopeOk: boolean;
 }
 
 /** What the server handler answered, and what it sent to the fake Etherscan. */
@@ -105,6 +131,34 @@ async function runHandler(): Promise<HandlerResult> {
 
 function bytesOf(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16));
+}
+
+/**
+ * Runs the names of `explorer-verify/handle`, `/errors`, `/backends` and `/envelope` on the
+ * submitted handle and the result of `verify()` (decision 0055).
+ *
+ * @param handle - The one-line handle the run submitted.
+ * @param result - What `verify()` returned.
+ * @returns What each name gave.
+ */
+function runSubpaths(handle: string, result: VerifyResult): SubpathResult {
+  let parseBadCode: string | undefined;
+  try {
+    parseHandle("ev1:nowhere");
+  } catch (error) {
+    parseBadCode = error instanceof ExplorerVerifyError ? error.code : undefined;
+  }
+  return {
+    roundTrip: formatHandle(parseHandle(handle)),
+    isHandleString: isHandleString(handle),
+    tryParseBad: tryParseHandle("ev1:nowhere") === undefined,
+    parseBadCode,
+    listsNetwork: ERROR_CODES.includes("network"),
+    backend: toBackendName("sourcify"),
+    listsSourcify: BACKEND_NAMES.includes("sourcify"),
+    exitCode: exitCodeOf(result),
+    envelopeOk: toEnvelope(result).ok,
+  };
 }
 
 async function settle(call: Promise<VerifyResult>): Promise<Outcome> {
@@ -166,6 +220,8 @@ async function runScenario(apiUrl: string): Promise<ScenarioResult> {
     checkStatus: handle === undefined ? undefined : await settle(checkStatus(handle, options)),
     otherCheckStatus: await settle(checkStatus(OTHER_HANDLE, options)),
     handler: await runHandler(),
+    subpaths:
+      handle === undefined || !verified.ok ? undefined : runSubpaths(handle, verified.result),
   };
 }
 

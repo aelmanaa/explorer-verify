@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  API_SURFACE,
   apiNames,
   checkApiNames,
   codeBlocks,
@@ -20,6 +21,7 @@ import {
   removeProject,
   resolveInProject,
   runExample,
+  SKILL_ENTRIES,
   SKILL_FILE,
   tsc,
   typeCheck,
@@ -29,17 +31,21 @@ import {
 
 const skill = readFileSync(SKILL_FILE, "utf8");
 
-// The runtime exports as a user gets them: what `import "explorer-verify"` resolves to from a
-// project that installed the package.
-const resolved = ((): string => {
+// The runtime exports as a user gets them: what `import "explorer-verify"` and the other entries
+// the skill uses resolve to from a project that installed the package.
+const [resolved = "", ...others] = ((): string[] => {
   const dir = createProject();
   try {
-    return resolveInProject(dir);
+    return SKILL_ENTRIES.map((entry) => resolveInProject(dir, entry));
   } finally {
     removeProject(dir);
   }
 })();
-const api: Record<string, unknown> = await import(resolved);
+const api: Record<string, unknown> = {};
+for (const url of [resolved, ...others]) {
+  const module: unknown = await import(url);
+  Object.assign(api, module);
+}
 const exitCodes: Record<string, unknown> = Object(api.ERROR_EXIT_CODES);
 
 const HANDLE_FILE = "verification-handle.txt";
@@ -209,6 +215,7 @@ describe("the shipped skill (R-AX-4)", () => {
     const dir = createProject();
     try {
       const files: Record<string, string> = {
+        ...API_SURFACE,
         "api-names.ts": typeNamesModule(typeNames, paths),
       };
       examples(skill).forEach((example, index) => {
@@ -339,6 +346,7 @@ describe("the skill checks catch a stale skill", () => {
     const dir = createProject();
     try {
       const diagnostics = typeCheck(dir, {
+        ...API_SURFACE,
         "api-names.ts": typeNamesModule(typeNames, [
           "result.status",
           "error.details.issues",

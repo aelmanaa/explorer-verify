@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inspect } from "node:util";
 
-import { buildVerifyInput, ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/index.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { buildVerifyInput, ExplorerVerifyError } from "../../src/index.ts";
 
 const FIXTURES = new URL("../fixtures/build-formats/", import.meta.url);
 // A local path as foundry-zksync writes it in `input.zksolc_path`; it must never reach an error.

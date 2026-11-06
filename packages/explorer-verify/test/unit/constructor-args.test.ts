@@ -11,13 +11,8 @@ import { blockscout } from "../../src/backends/blockscout.ts";
 import { etherscanCompatible } from "../../src/backends/etherscan-compatible.ts";
 import { etherscan } from "../../src/backends/etherscan.ts";
 import { routescan } from "../../src/backends/routescan.ts";
-import {
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  buildVerifyInput,
-  validateInput,
-  verify,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ExplorerVerifyError, buildVerifyInput, validateInput, verify } from "../../src/index.ts";
 import type {
   Hex,
   LogFields,

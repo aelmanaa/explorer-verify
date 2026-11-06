@@ -91,6 +91,22 @@ The handle is invalid: handle. It must be a handle object or its one-line form e
 
 Messages never repeat a value.
 
+These four functions and the `Handle` and `HandleString` types are also exported from
+`explorer-verify/handle`. A page that only stores or checks a handle imports them from there: that
+entry never reaches the verification code, so any bundler emits one file for it, with or without
+code splitting. `formatHandle` is about 100 bytes minified, and `tryParseHandle` and
+`isHandleString` about 2 KB each. `parseHandle` also loads the error class and its hints, about
+15.7 KB, so a page that only checks a stored value uses `tryParseHandle` or `isHandleString`.
+
+```ts
+import { formatHandle, tryParseHandle } from "explorer-verify/handle";
+
+const handle = tryParseHandle(localStorage.getItem("pending-verification"));
+if (handle !== undefined) {
+  console.log(formatHandle(handle));
+}
+```
+
 ## What it does
 
 1. Reads the options as `verify()` does, then reads the handle with `parseHandle`. A problem
