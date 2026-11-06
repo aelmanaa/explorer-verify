@@ -363,11 +363,14 @@ key. Run it without asking. Read the `lookup` field of its result:
 - `skipped`: the backend needs an API key and none is set, so no request was sent. Do not run
   `verify`: it would exit 3 with `missing-api-key`. Ask the person to set the key.
 
-These examples run in a Foundry project, where `forge build --build-info` wrote the two files:
+These examples run in a Foundry project after `forge build --build-info`. `--foundry .` with
+`--contract path:Name` finds the contract's build files under `out/`, whatever the build-info's
+hash name; `--hardhat .` does the same in a Hardhat project. Pass `--input <file>`, once for each
+file, only for build files outside a project:
 
 ```sh
 # exit code 0
-explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --dry-run --json
 ```
 
 It prints:
@@ -393,7 +396,7 @@ the lookup:
 
 ```sh
 # exit code 0
-explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
 ```
 
 It prints:
@@ -413,7 +416,7 @@ Keys on the command line:
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
   optional `route` of `backend` and `apiUrl`; a real run needs `route.backend`, a name or
   `"auto"`. It holds no key. Only the output, log, `--dry-run`,
-  `--timeout` and key flags may go with it.
+  `--timeout` and key flags may go with it, not `--foundry` or `--hardhat`.
 - A run that ends pending exits 4 with the handle in the error. Resume with
   `explorer-verify status <handle>`, never with a new `verify`.
 

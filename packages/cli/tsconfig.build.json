@@ -8,6 +8,10 @@
     // The CLI runs on Node only (decision 0008), so it has Node types and may import Node built-ins.
     "types": ["node"]
   },
-  "references": [{ "path": "../explorer-verify/tsconfig.build.json" }],
+  "references": [
+    { "path": "../explorer-verify/tsconfig.build.json" },
+    { "path": "../foundry/tsconfig.build.json" },
+    { "path": "../hardhat/tsconfig.build.json" }
+  ],
   "include": ["src"]
 }

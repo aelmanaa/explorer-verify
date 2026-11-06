@@ -57,6 +57,21 @@ src/Greeter.sol:Greeter 0.8.24+commit.e11b9ed9
 or the address comes from untyped data, such as parsed JSON or command-line arguments, check the
 whole input with `validateInput` before you pass it to `verify`.
 
+## From the command line
+
+The `explorer-verify` command calls this helper when you pass `--foundry` with the project folder
+and `--contract`. In the project root, after `forge build --build-info`:
+
+```bash
+explorer-verify verify 0x5FbDB2315678afecb367f032d93F642f64180aa3 --chain 11155111 \
+  --foundry . --contract src/Greeter.sol:Greeter --dry-run --json
+```
+
+You do not name the build-info file. `--out-dir` and `--artifact` set the `outDir` and `artifact`
+options below; the command has no flag for `buildInfoDir`. To submit, drop `--dry-run` and add
+`--backend <name>`, or `--backend auto` for the routing table's pick. The
+[CLI reference](../reference/cli.md#verify) lists every option.
+
 ## Options
 
 | Option            | Default               | Meaning                                                                                                                             |

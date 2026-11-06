@@ -85,7 +85,6 @@ const TUTORIAL = "tutorials/deploy-and-verify-from-a-dapp.md";
 const BROWSER = "guides/verify-from-a-browser.md";
 const NODE = "guides/verify-from-node.md";
 const EDGE = "guides/verify-from-an-edge-function.md";
-const CI = "guides/verify-from-ci-with-the-cli.md";
 const WRAPPER = "guides/wrap-explorer-verify-in-your-tool.md";
 /** The key variables every run starts with: empty, which the examples read as unset. */
 const NO_KEYS: Readonly<Record<string, string>> = { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" };
@@ -454,17 +453,6 @@ const RUNS: readonly DocRun[] = [
       "success (exact) on sourcify",
       "",
     ].join("\n"),
-  },
-  {
-    page: CI,
-    example: 0,
-    what: "the CI script writes verify-input.json from a Foundry build",
-    setup: "foundry",
-    env: {
-      CHAIN_ID: "11155111",
-      CONTRACT_ADDRESS: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
-    },
-    files: ["verify-input.json"],
   },
 ];
 

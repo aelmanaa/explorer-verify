@@ -7,8 +7,8 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: people, CI jobs and agents that run the `explorer-verify` command.
 
 The command ships in the `@explorer-verify/cli` package, which is not published yet. It runs on
-Node 22.18 and later. `verify` verifies a contract from its build files, and `status` resumes a
-submitted verification from its handle. This page describes both, and the output contract that
+Node 22.18 and later. `verify` verifies a contract from a Foundry or Hardhat project or from its
+build files, and `status` resumes a submitted verification from its handle. This page describes both, and the output contract that
 every command follows.
 
 The sections from Usage to Exit codes are generated from the CLI's own help, so they match
@@ -18,14 +18,29 @@ The sections from Usage to Exit codes are generated from the CLI's own help, so 
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 \
-  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --backend sourcify --json
+  --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --json
 ```
 
 - `verify` submits only where you say: `--backend <name>`, or `--backend auto` for the routing
   table's pick. See [Where verify submits](#where-verify-submits).
 - The address may come first, without the word `verify`:
-  `explorer-verify 0x8275… --chain 11155111 --input …`.
-- `--input` repeats. Each file is read as JSON and passed to
+  `explorer-verify 0x8275… --chain 11155111 --foundry . --contract …`.
+- `--foundry <dir>` or `--hardhat <dir>` reads the build of the project in that folder, and needs
+  `--contract`: `path:Name`, or a bare `Name` when one contract has that name. `.` is the current
+  folder; unlike `forge verify-contract`, the CLI does not look for the Git root. The CLI finds
+  the contract's artifact and the build-info file that lists it, whatever its hash name, with
+  [`buildVerifyInputFromFoundry`](../guides/verify-from-a-foundry-project.md) or
+  [`buildVerifyInputFromHardhat`](../guides/verify-from-a-hardhat-project.md). Build first:
+  `forge build --build-info`, `npx hardhat build` (Hardhat 3) or `npx hardhat compile` (Hardhat 2).
+  `--out-dir <dir>` names the build's output folder when the config moves it, and
+  `--artifact <file>` names the artifact when Foundry wrote one for each compiler version or
+  profile. Both are relative to the project folder, or absolute; for Hardhat, the artifact must be
+  inside the output folder. `--compiler-version` is passed on. A project option with `--input` or
+  `--input-json` exits 2. An error of the helper names these options, and may list the project's
+  file names, such as the artifacts that match a contract name; a file outside the project folder
+  is shown with its absolute path.
+- `--input` repeats, once for each file: build files outside a project, such as those a package
+  ships. An `--input` that names a folder exits 2 and names `--foundry` and `--hardhat`. Each file is read as JSON and passed to
   [`buildVerifyInput()`](../guides/verify-a-contract-from-an-npm-package.md), which works out what it is: a
   build-info, an artifact, Solidity metadata or a Standard JSON input. Pass the build-info and the
   contract's artifact for Foundry (`forge build --build-info`) and Hardhat. A bare Standard JSON
@@ -59,7 +74,9 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
 - The `verify.submitted` line on stderr carries the handle, at the default level. Keep it.
 
 A usage or input error exits 2 before any request. An issue names the option, such as `--chain` or
-`--input[2]` for the second `--input`, and never repeats a path or a value.
+`--input[2]` for the second `--input`, and never repeats a path or a value. A shell glob such as
+`--input out/build-info/*.json` that expands to two files leaves the second as an extra argument:
+the run exits 2 with `--input takes one file; repeat --input for each`.
 
 ## Where verify submits
 
@@ -109,7 +126,7 @@ request.
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 \
-  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --foundry . --contract src/Greeter.sol:Greeter \
   --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
 ```
 
@@ -136,7 +153,7 @@ public Sourcify API, and the result links the Sourcify contract page.
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 \
-  --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --foundry . --contract src/Greeter.sol:Greeter \
   --allow-sourcify-fallback --dry-run --json
 ```
 
@@ -231,7 +248,7 @@ explorer-verify help [<command>]
 
 - `explorer-verify --version --json`: Print the CLI and core versions and the routing table's date as one envelope.
 - `explorer-verify help --json`: List the commands, options, environment variables and exit codes as one envelope.
-- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json`: Check a Foundry build and look the contract up, without submitting: one envelope.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --dry-run --json`: Check the Greeter of the Foundry project in this folder and look it up, without submitting: one envelope.
 - `explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json`: Poll the job of a handle until it ends or the time budget runs out.
 
 ## Commands
@@ -251,10 +268,11 @@ explorer-verify verify <address> [options]
 
 Examples:
 
-- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --dry-run --json`: Check a Foundry build and look the contract up, without submitting: one envelope.
-- `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --backend sourcify`: Verify on Sourcify from a Foundry build-info and artifact; the address may come first, without verify.
-- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --backend auto`: Verify where the routing table points: the first backend the chain lists that needs no key or has one.
-- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json --allow-sourcify-fallback --dry-run --json`: Check a contract on a chain that the routing table does not list, on the public Sourcify API.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --dry-run --json`: Check the Greeter of the Foundry project in this folder and look it up, without submitting: one envelope.
+- `explorer-verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend sourcify`: Verify on Sourcify from the Foundry project's build; the address may come first, without verify.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend auto`: Verify where the routing table points: the first backend the chain lists that needs no key or has one.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 999999 --foundry . --contract src/Greeter.sol:Greeter --allow-sourcify-fallback --dry-run --json`: Check a contract on a chain that the routing table does not list, on the public Sourcify API.
+- `explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --input build/build-info.json --input build/Greeter.json --backend sourcify`: Verify from build files kept outside a project, such as those a package ships: repeat --input for each file.
 - `explorer-verify verify --input-json verify-input.json --json`: Verify the request in a JSON file, as validateInput() returns it, with route.backend naming where to submit.
 
 | Option                          | What it does                                                                                                                                                                                                                                     |
@@ -264,8 +282,12 @@ Examples:
 | `--api-key-file <path>`         | Read one API key from this regular file. Needs --backend, or --api-url with --backend.                                                                                                                                                           |
 | `--api-key-stdin`               | Read one API key piped on stdin. Needs --backend, or --api-url with --backend.                                                                                                                                                                   |
 | `--chain <id>`                  | The chain ID the contract is deployed on, such as 11155111.                                                                                                                                                                                      |
-| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeatable.                                                                                                                                                 |
-| `--contract <path:Name>`        | The contract, such as src/Greeter.sol:Greeter, when the files hold several.                                                                                                                                                                      |
+| `--foundry <dir>`               | Read the build of the Foundry project in this folder: finds the build-info and artifact of --contract. . is the current folder, not the git root that forge uses. Run forge build --build-info first.                                            |
+| `--hardhat <dir>`               | Read the build of the Hardhat 2 or Hardhat 3 project in this folder, . for the current one: finds the artifact and build-info of --contract. Compile the project first.                                                                          |
+| `--out-dir <dir>`               | With --foundry or --hardhat: the build's output folder, relative to the project folder or absolute, when the config moves it. Default out for Foundry, artifacts for Hardhat.                                                                    |
+| `--artifact <file>`             | With --foundry or --hardhat: the contract's artifact file, relative to the project folder or absolute, when the build wrote one for each compiler version or profile. For Hardhat it must be inside the output folder.                           |
+| `--contract <path:Name>`        | The contract as path:Name, such as src/Greeter.sol:Greeter, or as Name when one contract has that name. Needed with --foundry and --hardhat, and when the build files hold several.                                                              |
+| `--input <file>`                | A build file: a build-info, an artifact, Solidity metadata or a Standard JSON input. Repeat it for each file. In a project, use --foundry or --hardhat instead. Repeatable.                                                                      |
 | `--compiler-version <version>`  | The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.                                                                                                                                                                   |
 | `--constructor-args <hex>`      | The ABI-encoded constructor arguments, 0x first, without the selector.                                                                                                                                                                           |
 | `--creation-tx <hash>`          | The hash of the transaction that created the contract.                                                                                                                                                                                           |
@@ -464,7 +486,7 @@ Providers often put a key in the URL's path or query, so the CLI treats the URL 
 
 ```sh
 printf '%s\n' "$SEPOLIA_RPC_URL" | explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
-  --chain 11155111 --input out/build-info/greeter.json --input out/Greeter.sol/Greeter.json \
+  --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --creation-tx 0x<hash> --rpc-url-stdin --backend auto --json
 ```
 

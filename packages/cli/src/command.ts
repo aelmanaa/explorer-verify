@@ -98,6 +98,11 @@ interface CommandFields extends CommandSpec {
   readonly examples: readonly [Example, ...Example[]];
   /** The most positionals the command accepts after its name. */
   readonly maxPositionals: number;
+  /**
+   * The issue of more positionals than {@link maxPositionals}, when the command can say more than
+   * the default one, or `undefined` for the default.
+   */
+  readonly extraArguments?: (values: ReadonlyMap<string, OptionValue>) => InputIssue | undefined;
 }
 
 /**
@@ -115,8 +120,8 @@ export type Command = CommandFields &
       }
   );
 
-/** The hint of a usage error. */
-const USAGE_HINT =
+/** The hint of a usage error, and of an `invalid-input` error with the library's generic hint. */
+export const USAGE_HINT: string =
   "Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.";
 
 /** The most issues a usage error lists; the message counts the rest. */

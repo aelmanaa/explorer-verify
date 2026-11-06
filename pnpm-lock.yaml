@@ -331,6 +331,12 @@ importers:
 
   packages/cli:
     dependencies:
+      '@explorer-verify/foundry':
+        specifier: workspace:*
+        version: link:../foundry
+      '@explorer-verify/hardhat':
+        specifier: workspace:*
+        version: link:../hardhat
       explorer-verify:
         specifier: workspace:*
         version: link:../explorer-verify

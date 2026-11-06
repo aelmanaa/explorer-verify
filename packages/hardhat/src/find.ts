@@ -159,8 +159,16 @@ class Project {
   }
 
   /** `file` relative to the root, with `/` as the separator. */
-  show(file: string): string {
+  relative(file: string): string {
     return path.relative(this.root, file).split(path.sep).join("/");
+  }
+
+  /**
+   * `file` as an error names it: relative to the root when it is inside, else the absolute path,
+   * so a file outside the project is not shown as a path that starts with `..`.
+   */
+  show(file: string): string {
+    return isInside(this.root, file) ? this.relative(file) : file.split(path.sep).join("/");
   }
 
   /** `invalid-input` for a file or folder that exists but cannot be read, with the cause kept. */
@@ -510,7 +518,7 @@ export async function findBuild(
       contract,
       documents: [artifact, input, output],
       sources: {},
-      files: [artifactFile, inputFile, outputFile].map((file) => project.show(file)),
+      files: [artifactFile, inputFile, outputFile].map((file) => project.relative(file)),
     };
   }
   const debugFile = artifactFile.replace(/\.json$/, ".dbg.json");
@@ -533,6 +541,6 @@ export async function findBuild(
     contract,
     documents: [artifact, input],
     sources: {},
-    files: [artifactFile, inputFile].map((file) => project.show(file)),
+    files: [artifactFile, inputFile].map((file) => project.relative(file)),
   };
 }
