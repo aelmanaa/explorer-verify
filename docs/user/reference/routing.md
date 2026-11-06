@@ -286,10 +286,11 @@ it goes to `https://api.blockscout.com/<chainId>/api` for any chain, with the ke
 ## Keys and hosts
 
 A key from `apiKeys` goes only to the host the routing table lists for the route's backend and
-chain, over `https:` on the default port, and only when the route comes from the table. A route
-whose `apiUrl` you set gets no key from `apiKeys`, even when it names the table's own host: pass
-`route.apiKey` for it. The `missing-api-key` message for such a route names the backend's API
-host, such as `api.etherscan.io`, where a key from `apiKeys` would go. [API keys](api-keys.md) has the full rule.
+chain, over `https:` on the default port, and only when the route comes from the table. One
+exception: an `etherscan-v2` route whose `apiUrl` is Etherscan's own API, `https://api.etherscan.io`,
+takes `apiKeys["etherscan-v2"]`, because the key still goes only to that host. Any other route
+whose `apiUrl` you set gets no key from `apiKeys`: pass `route.apiKey` for it.
+[API keys](api-keys.md#etherscans-own-api-as-routeapiurl) has the full rule.
 
 ## Resuming
 

@@ -523,8 +523,10 @@ export interface RouteOverride {
    * path. Any other value throws `invalid-input` naming `route.apiUrl`, without repeating the
    * value. It works for any chain, including one the routing table does not list. Without
    * `backend`, the backend is `sourcify`. A URL other than the routing table's for the backend
-   * and chain means results carry no `explorerUrl`. No key from `apiKeys` is ever sent to a
-   * `route.apiUrl`, even one that names the routing table's own URL; pass `route.apiKey` for it.
+   * and chain means results carry no `explorerUrl`. A `route.apiUrl` gets no key from `apiKeys`,
+   * except Etherscan's own API for `etherscan-v2`: a URL whose origin is
+   * `https://api.etherscan.io`, in any letter case, with or without `:443` or a trailing dot on
+   * the host, takes `apiKeys["etherscan-v2"]`. Pass `route.apiKey` for any other `apiUrl`.
    */
   apiUrl?: string | undefined;
   /**

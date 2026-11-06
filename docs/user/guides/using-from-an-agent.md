@@ -137,7 +137,8 @@ optionally. Blockscout's hosted API, `--backend blockscout-hosted`, needs `BLOCK
 - The command reads `ETHERSCAN_API_KEY`, `ROUTESCAN_API_KEY` and `BLOCKSCOUT_API_KEY` from the
   environment, or one key
   from `--api-key-file <path>` or `--api-key-stdin` with `--backend`. A variable is sent only to
-  its routing-table host, so with `--api-url` give the key with one of the two flags.
+  its routing-table host. With `--api-url` on another host, give the key with one of the two
+  flags. `ETHERSCAN_API_KEY` also goes with `--api-url https://api.etherscan.io/v2/api`.
   [CLI: API keys and route options](../reference/cli.md#api-keys-and-route-options) has the rules.
 - The library takes keys in `apiKeys`, by backend name, and a standalone explorer's key in
   `route.apiKey`. Each key goes only to its backend's host. [API keys](../reference/api-keys.md)

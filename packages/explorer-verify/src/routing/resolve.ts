@@ -187,9 +187,10 @@ export interface Route {
   /**
    * The host of the routing table's API URL for this backend and chain, or `undefined` when the
    * table lists none. A key from `apiKeys` goes only to this host, and only when the route is not
-   * overridden (R-SEC-2, decision 0016). A route with `route.apiUrl` gets no key from `apiKeys`,
-   * so for it this is only the host an error hint names: the backend's one API host, for
-   * `sourcify`, `etherscan-v2` and `routescan`, and `undefined` for the others (decision 0040).
+   * overridden (R-SEC-2, decision 0016), or is an `etherscan-v2` route whose `route.apiUrl` is on
+   * this host (decision 0053). For a route with `route.apiUrl` it is the backend's one API host,
+   * for `sourcify`, `etherscan-v2`, `routescan` and `blockscout-hosted`, and `undefined` for the
+   * others (decision 0040).
    */
   readonly tableHost: string | undefined;
   /**
@@ -815,7 +816,7 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
     backend = named ?? "sourcify";
     routedBy = "api-url";
     entry = [...listed, ...fallback].find((each) => each.backend === backend);
-    // No key from apiKeys goes to this route: the host only names, in a hint, where one would go.
+    // Only an etherscan-v2 route on this host takes a key from apiKeys (decision 0053).
     tableHost = fixedHost(backend);
   }
 

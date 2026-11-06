@@ -37,7 +37,8 @@ standalone explorer's key never comes from `apiKeys`.
 
 `VerifyOptions.apiKeys` holds one key per backend name. Each key goes where this table says, for a
 chain whose routing table row lists that backend. A chain whose row lists no Etherscan entry, or a
-route whose `apiUrl` you set, gets no key from `apiKeys`.
+route whose `apiUrl` you set, gets no key from `apiKeys`, with one exception:
+[Etherscan's own API as `route.apiUrl`](#etherscans-own-api-as-routeapiurl).
 
 Its type accepts only `etherscan-v2`, `routescan` and `blockscout-hosted`, exported as
 `KeyedBackendName`, so `apiKeys: { sourcify: "..." }` does not compile. From JavaScript, the other
@@ -70,6 +71,29 @@ A key goes with a request only when all of these hold:
 - The request goes to `https://` and the backend's host in the table above, on the default port.
   A `route.apiUrl` on another host gets no key from `apiKeys`, so configuration that moves the API
   to another server cannot take the key with it.
+
+### Etherscan's own API as `route.apiUrl`
+
+A route with `backend: "etherscan-v2"` and an `apiUrl` on Etherscan's own API takes
+`apiKeys["etherscan-v2"]`, as a route from the routing table does. The key still goes only to
+`api.etherscan.io`. The library compares the origin of `apiUrl` with `https://api.etherscan.io`
+after it lower-cases the host and removes a trailing dot on the host and the default port `:443`.
+Trailing slashes on the path are removed too. These values all take the key:
+
+```text
+https://api.etherscan.io/v2/api
+https://api.etherscan.io/v2/api/
+https://API.ETHERSCAN.IO/v2/api
+https://api.etherscan.io:443/v2/api
+```
+
+Any other host gets no key from `apiKeys`, such as `https://api.etherscan.io.example.org/v2/api`
+or `https://api.etherscan.io:8443/v2/api`. Without `route.apiKey`, that call throws
+[`missing-api-key`](errors/missing-api-key.md) before any request. `routescan` and
+`blockscout-hosted` routes with `apiUrl` take no key from `apiKeys`, even on their own host: pass
+`route.apiKey` for them. With `handlerUrl`, a route on Etherscan's own API goes to your server
+handler, and a key in `apiKeys` or `route.apiKey` for it throws `invalid-input`
+([A server adds the key](#a-server-adds-the-key)).
 
 Each value must be a string of 8 to 1024 characters, each a letter, a digit, `.`, `_`, `~` or
 `-`. Etherscan keys are letters and digits, and UUID-style keys fit. A value of other characters,
@@ -130,7 +154,9 @@ standalone explorer needs one, and no key is bound to its host, the call throws
 [`missing-api-key`](errors/missing-api-key.md) before any request. No standalone entry in this
 release needs a key. The routing table skips
 Etherscan for a call without its key, so this happens when `route.backend` names `etherscan-v2`, or
-when `route.apiUrl` points it at a server without `route.apiKey`.
+when `route.apiUrl` points it at another server without `route.apiKey`. The message says which
+option to set. For an `apiUrl` on another host it says that `apiKeys.etherscan-v2` goes only to
+Etherscan's own API and asks for `route.apiKey`.
 
 An injected `fetch` does not change this: a `fetch` for logging, retries, tests or a proxy still
 gets `missing-api-key` before any request. Only `handlerUrl` sends an Etherscan request without a

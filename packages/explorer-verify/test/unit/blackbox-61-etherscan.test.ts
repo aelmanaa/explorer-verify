@@ -1102,10 +1102,13 @@ describe("blackbox #61: abort and timeout mid-poll (R-FLOW-6)", () => {
 });
 
 describe("blackbox #61: key binding (api-keys.md)", () => {
-  it("apiKeys etherscan-v2 is not sent to a route.apiUrl; with fetch injected the call still throws missing-api-key before any request (decision 0046)", async () => {
+  it("apiKeys etherscan-v2 is not sent to a route.apiUrl on another host; with fetch injected the call still throws missing-api-key before any request (decision 0046, #244)", async () => {
     const run = setup(
       { getsourcecode: [notok("Missing/Invalid API Key")] },
-      { route: { backend: "etherscan-v2", apiUrl: API }, apiKeys: { "etherscan-v2": KEY } },
+      {
+        route: { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/v2/api" },
+        apiKeys: { "etherscan-v2": KEY },
+      },
     );
     const error = await errorOf(verify(makeInput(), run.options));
     assert.equal(error.details.code, "missing-api-key");
