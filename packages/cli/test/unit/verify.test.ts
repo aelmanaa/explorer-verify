@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import type { TestContext } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { main } from "../../src/main.ts";
 import { JOB, fakeExplorer } from "../helpers/fake-explorer.ts";
@@ -23,6 +24,9 @@ const PAGE = `https://repo.sourcify.dev/11155111/${ADDRESS}`;
 const ETHERSCAN = ["--backend", "etherscan-v2", "--api-url", "https://api.etherscan.io/v2/api"];
 const SOURCIFY = ["--backend", "sourcify"];
 const AUTO = ["--backend", "auto"];
+const HARDHAT_3 = fileURLToPath(
+  new URL("../../../hardhat/test/fixtures/hardhat-3.21.2/", import.meta.url),
+);
 const BUILDS = new URL("../../../explorer-verify/test/fixtures/build-formats/", import.meta.url);
 const FOUNDRY = [
   "--input",
@@ -261,6 +265,155 @@ describe("verify from build files (R-DX-1)", () => {
     // The envelope has no details; the message names the field.
     assert.match(String(error["message"]), /: input\.zksolc_version\.$/);
     assert.match(String(error["hint"]), /zksolc \(EraVM\)/);
+    assert.equal(result.seen.length, 0);
+  });
+});
+
+/** Runs `verify` on `source`, by default the Foundry fixture's files, with the `--library` values. */
+function withLibraries(
+  t: TestContext,
+  libraries: readonly string[],
+  source: readonly string[] = FOUNDRY,
+): Promise<Run> {
+  return run(
+    t,
+    [
+      "verify",
+      ADDRESS,
+      "--chain",
+      "11155111",
+      ...source,
+      ...libraries.flatMap((library) => ["--library", library]),
+      ...SOURCIFY,
+      "--json",
+    ],
+    "new",
+  );
+}
+
+describe("verify --library with --input, --foundry and --hardhat (R-IN-4, R-DX-3, R-AX-5, #241)", () => {
+  const LIBRARY = "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c";
+  const OTHER = "0x1111111111111111111111111111111111111111";
+  const UNKNOWN =
+    "--library[1] must name a library in a source file of the build as path:Name before the =, with the source path the build uses, such as src/Lib.sol:Lib, or project/contracts/Lib.sol:Lib for Hardhat 3";
+
+  const FOUNDRY_PROJECT = ["--foundry", PROJECT, "--contract", "src/Greeter.sol:Greeter"];
+  const HARDHAT_PROJECT = ["--hardhat", HARDHAT_3, "--contract", "contracts/Greeter.sol:Greeter"];
+
+  it("links a library in --foundry and --hardhat project mode", async (t) => {
+    for (const [project, library] of [
+      [FOUNDRY_PROJECT, "src/Base.sol:Base"],
+      [HARDHAT_PROJECT, "project/contracts/Tally.sol:Tally"],
+    ] as const) {
+      const result = await withLibraries(t, [`${library}=${LIBRARY}`], project);
+      assert.equal(result.code, 0, result.stdout);
+      assert.equal(part(result, "result")["status"], "verified");
+    }
+  });
+
+  it("refuses an unknown library and a bad address in project mode, naming --library", async (t) => {
+    for (const project of [FOUNDRY_PROJECT, HARDHAT_PROJECT]) {
+      const unknown = await withLibraries(t, [`src/X.sol:X=${LIBRARY}`], project);
+      assert.equal(usage(unknown), `The command line is invalid: ${UNKNOWN}.`);
+      assert.match(String(part(unknown, "error")["hint"]), /run the command again/);
+      assert.equal(unknown.seen.length, 0);
+    }
+    const bad = await withLibraries(t, ["project/contracts/Tally.sol:Tally=0x12"], HARDHAT_PROJECT);
+    assert.equal(usage(bad), `The command line is invalid: --library[1] ${BAD_ADDRESS}.`);
+  });
+  const BAD_ADDRESS =
+    "must give the library's address after the =, as 0x followed by 40 hex digits";
+
+  it("links one library given in lower case", async (t) => {
+    const result = await withLibraries(t, [`src/Base.sol:Base=${LIBRARY}`]);
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(part(result, "result")["status"], "verified");
+    assert.equal(submits(result), 1);
+  });
+
+  it("links two libraries", async (t) => {
+    const result = await withLibraries(t, [
+      `src/Base.sol:Base=${LIBRARY.toUpperCase().replace("0X", "0x")}`,
+      `src/Greeter.sol:Helper=${OTHER}`,
+    ]);
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(part(result, "result")["status"], "verified");
+  });
+
+  it("refuses a library outside the build's sources, naming --library and what to pass", async (t) => {
+    const result = await withLibraries(t, [`src/X.sol:X=${LIBRARY}`]);
+    const message = usage(result);
+    assert.equal(message, `The command line is invalid: ${UNKNOWN}.`);
+    assert.doesNotMatch(message, /libraries\.1/);
+    assert.doesNotMatch(message, /src\/X\.sol/);
+    assert.match(String(part(result, "error")["hint"]), /run the command again/);
+    assert.equal(result.seen.length, 0);
+  });
+
+  it("refuses a bad address, naming the position of the --library", async (t) => {
+    const result = await withLibraries(t, [
+      `src/Base.sol:Base=${LIBRARY}`,
+      "src/Greeter.sol:Helper=0x12",
+    ]);
+    assert.equal(usage(result), `The command line is invalid: --library[2] ${BAD_ADDRESS}.`);
+    assert.equal(result.seen.length, 0);
+  });
+
+  it("lists the other fields the input check refuses next to the --library", async (t) => {
+    const message = usage(
+      await run(t, [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        ...FOUNDRY,
+        "--constructor-args",
+        "0x1",
+        "--library",
+        "src/Base.sol:Base=0x12",
+        "--json",
+      ]),
+    );
+    assert.equal(
+      message,
+      `The command line is invalid: constructorArgs must be 0x followed by an even number of hex digits; --library[1] ${BAD_ADDRESS}.`,
+    );
+  });
+
+  it("keeps the input check's words for a conflict with settings.libraries", async (t) => {
+    const message = usage(
+      await run(t, [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        "--input",
+        build("solc-0.8.24-library/input.json"),
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--compiler-version",
+        "0.8.24+commit.e11b9ed9",
+        "--library",
+        `src/Tally.sol:Tally=${OTHER}`,
+        "--json",
+      ]),
+    );
+    assert.equal(
+      message,
+      "The command line is invalid: --library[1] conflicts with compiler.input.settings.libraries.",
+    );
+  });
+
+  it("with --input-json, names libraries.1 and gives the input check's hint", async (t) => {
+    const path = file(
+      "library-request.json",
+      JSON.stringify({ ...REQUEST, libraries: { "src/X.sol:X": LIBRARY } }),
+    );
+    const result = await run(t, ["verify", "--input-json", path, "--json"]);
+    assert.equal(result.code, 2, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["message"], "The input is invalid: libraries.1.");
+    assert.match(String(error["hint"]), /path of a file in compiler\.input\.sources/);
     assert.equal(result.seen.length, 0);
   });
 });

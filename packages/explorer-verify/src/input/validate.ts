@@ -32,6 +32,10 @@ const SHORT_VERSION_HINT =
 const PLATFORM_HINT =
   "Remove the platform suffix after the commit hash from compiler.version, such as .Linux.g++.";
 const KIND_HINT = 'Set compiler.kind to "solc", the only supported compiler kind.';
+const LIBRARY_KEY_HINT =
+  "Key each entry of libraries by the path of a file in compiler.input.sources, a colon and the library's name, such as src/Lib.sol:Lib.";
+const LIBRARY_ADDRESS_HINT =
+  "Give each library address as 0x followed by 40 hex digits, the address the library is deployed at.";
 
 /**
  * A deep copy of `value` through JSON, so the result shares no object with the caller. Each getter
@@ -378,6 +382,12 @@ function checkContractName(
   return value;
 }
 
+/** What is wrong with one library entry, and the hint that says what to pass instead. */
+interface LibraryProblem {
+  readonly message: string;
+  readonly hint: string;
+}
+
 /**
  * The address of one library entry in lower case, or what is wrong with the entry. `linked` is
  * `settings.libraries` of the input, when it is an object. A value it already holds for the same
@@ -389,8 +399,11 @@ function checkLibrary(
   address: unknown,
   paths: ReadonlySet<string> | undefined,
   linked: Map<string, unknown> | undefined,
-): { address: Hex } | string {
-  const key = "must be keyed by path:Name of compiler.input.sources";
+): { address: Hex } | LibraryProblem {
+  const key = {
+    message: "must be keyed by path:Name of compiler.input.sources",
+    hint: LIBRARY_KEY_HINT,
+  };
   const colon = name.lastIndexOf(":");
   const path = name.slice(0, colon);
   const library = name.slice(colon + 1);
@@ -398,19 +411,22 @@ function checkLibrary(
     return key;
   }
   if (isLocalPath(path)) {
-    return "must not be keyed by a local path";
+    return { message: "must not be keyed by a local path", hint: LIBRARY_KEY_HINT };
   }
   if (paths?.has(path) === false) {
     return key;
   }
   const digits = addressDigits(address);
   if (digits === undefined) {
-    return "must be 0x followed by 40 hex digits";
+    return { message: "must be 0x followed by 40 hex digits", hint: LIBRARY_ADDRESS_HINT };
   }
   const lower: Hex = `0x${digits.toLowerCase()}`;
   const same = readFields(linked?.get(path))?.get(library);
   if (same !== undefined && (typeof same !== "string" || same.toLowerCase() !== lower)) {
-    return "conflicts with compiler.input.settings.libraries";
+    return {
+      message: "conflicts with compiler.input.settings.libraries",
+      hint: "Give each library the address compiler.input.settings.libraries holds for it, or remove the entry there.",
+    };
   }
   return { address: lower };
 }
@@ -438,10 +454,10 @@ function checkLibraries(
   for (const [name, address] of entries) {
     position++;
     const checked = checkLibrary(name, address, paths, readFields(input?.settings["libraries"]));
-    if (typeof checked === "string") {
-      problems.add(`libraries.${String(position)}`, checked);
-    } else {
+    if ("address" in checked) {
       good.push([name, checked.address]);
+    } else {
+      problems.add(`libraries.${String(position)}`, checked.message, checked.hint);
     }
   }
   // Object.fromEntries defines each key as an own property, so a key named __proto__ stays a key.

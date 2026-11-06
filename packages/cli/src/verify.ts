@@ -288,6 +288,47 @@ function extraArgumentsIssue(values: ReadonlyMap<string, OptionValue>): InputIss
     : undefined;
 }
 
+/** The core's issue field for a library, `libraries.<n>`, counted from 1. */
+const LIBRARY_FIELD = /^libraries\.(\d+)$/;
+
+/** The CLI's words for the core's library issues: why the value is invalid and what to pass. */
+const LIBRARY_MESSAGES: ReadonlyMap<string, string> = new Map([
+  [
+    "must be keyed by path:Name of compiler.input.sources",
+    "must name a library in a source file of the build as path:Name before the =, with the source path the build uses, such as src/Lib.sol:Lib, or project/contracts/Lib.sol:Lib for Hardhat 3",
+  ],
+  [
+    "must be 0x followed by 40 hex digits",
+    "must give the library's address after the =, as 0x followed by 40 hex digits",
+  ],
+]);
+
+/**
+ * The core's `invalid-input` error for the input of the flags, as a usage error that names
+ * `--library[n]` for each `libraries.<n>` issue. The `--library` values reach the core in the order
+ * given, so position n of the core is the n-th `--library`. Any other error comes back as it is.
+ */
+function libraryUsageError(error: unknown): unknown {
+  if (!(error instanceof ExplorerVerifyError) || error.details.code !== "invalid-input") {
+    return error;
+  }
+  const { issues } = error.details;
+  if (!issues.some((issue) => LIBRARY_FIELD.test(issue.field))) {
+    return error;
+  }
+  return usageError(
+    issues.map((issue) => {
+      const position = LIBRARY_FIELD.exec(issue.field)?.[1];
+      return position === undefined
+        ? issue
+        : {
+            field: `--library[${position}]`,
+            message: LIBRARY_MESSAGES.get(issue.message) ?? issue.message,
+          };
+    }),
+  );
+}
+
 /** Reads every `--input` file, in order, or throws with an issue for each that fails. */
 async function documentsOf(paths: readonly string[]): Promise<unknown[]> {
   const documents: unknown[] = [];
@@ -344,14 +385,18 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
       : await inputFromProject(project);
   const constructorArgs = stringOption(values, "constructor-args");
   const creationTxHash = stringOption(values, "creation-tx");
-  return validateInput({
-    chainId,
-    address,
-    ...built,
-    ...(constructorArgs === undefined ? {} : { constructorArgs }),
-    ...(creationTxHash === undefined ? {} : { creationTxHash }),
-    ...(libraries === undefined ? {} : { libraries }),
-  });
+  try {
+    return validateInput({
+      chainId,
+      address,
+      ...built,
+      ...(constructorArgs === undefined ? {} : { constructorArgs }),
+      ...(creationTxHash === undefined ? {} : { creationTxHash }),
+      ...(libraries === undefined ? {} : { libraries }),
+    });
+  } catch (error) {
+    throw libraryUsageError(error);
+  }
 }
 
 /**
