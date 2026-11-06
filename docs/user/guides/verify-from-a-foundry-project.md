@@ -71,6 +71,9 @@ whole input with `validateInput` before you pass it to `verify`.
 
 `@explorer-verify/hardhat` takes the same options, except `buildInfoDir`.
 
+A field set to `undefined` counts as absent. Any other key throws `invalid-input` before any file is read,
+naming the key and, when one is close, the option it may mean.
+
 The path in `contract` is the source path relative to the root, as Foundry writes it in the
 metadata. A leading `./` and backslashes are accepted.
 

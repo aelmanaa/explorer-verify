@@ -18,6 +18,7 @@ import { endpointSecrets } from "../http/rpc.ts";
 import type { Endpoint } from "../http/rpc.ts";
 import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-args.ts";
 import { validateInput } from "../input/validate.ts";
+import { unknownKeys } from "../internal/known-keys.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
 import {
@@ -48,6 +49,26 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
 export const DEFAULT_POLL_INTERVAL_MS = 3_000;
 /** The shortest wait between two status polls, in milliseconds. A shorter `pollIntervalMs` is raised to it. */
 export const MIN_POLL_INTERVAL_MS = 1_000;
+
+// The keys of `VerifyOptions`, as a record so that a field added to the type and not here fails
+// to compile. `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every one of
+// them at run time, so one options object can go to each (decision 0047); their types are narrower
+// so that a misplaced key in an object literal fails to compile.
+function verifyOptionKeys(): readonly string[] {
+  return Object.keys({
+    fetch: true,
+    handlerUrl: true,
+    signal: true,
+    timeoutMs: true,
+    pollIntervalMs: true,
+    logger: true,
+    onEvent: true,
+    route: true,
+    allowSourcifyFallback: true,
+    apiKeys: true,
+    rpcUrl: true,
+  } satisfies Record<keyof VerifyOptions, true>);
+}
 /**
  * How many status polls in a row may fail with `network`, `rate-limited` or
  * `unexpected-response` before the call stops polling and ends with `not-confirmed`.
@@ -782,6 +803,9 @@ export async function settle(
  * Reads each option once, applies the defaults and checks every option but `route`, which
  * `resolveRoute` checks. Only own properties are read, each once, so a polluted `Object.prototype`
  * cannot add an option, and a getter or Proxy that throws gives `invalid-input` without its text.
+ * An own enumerable key outside `known` is an issue that names the key and the closest known
+ * name, never its value (R-IN-6). An option set to `undefined`
+ * counts as absent.
  *
  * - `timeoutMs` must be a positive finite number; one above {@link MAX_TIMER_MS} is clamped to it,
  *   because a longer `setTimeout` fires at once.
@@ -789,7 +813,10 @@ export async function settle(
  *   {@link MIN_POLL_INTERVAL_MS} and {@link MAX_TIMER_MS}.
  * - `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object.
  */
-export function settingsOf(options: VerifyOptions | undefined): Settings {
+export function settingsOf(
+  options: VerifyOptions | undefined,
+  known: readonly string[] = verifyOptionKeys(),
+): Settings {
   if (options === undefined) {
     return {
       fetch: undefined,
@@ -811,11 +838,16 @@ export function settingsOf(options: VerifyOptions | undefined): Settings {
   if (typeof raw !== "object" || raw === null) {
     throw invalidOptions([{ field: "options", message: "must be an object" }]);
   }
+  if (Array.isArray(raw)) {
+    throw invalidOptions([{ field: "options", message: "must be a plain object" }]);
+  }
   let read: ReadSettings;
   let rawKeys: unknown;
   let rawRpcUrl: unknown;
   const issues: InputIssue[] = [];
   try {
+    // Keys first: a getter on an unknown key never runs, since Object.keys reads no value.
+    issues.push(...unknownKeys(Object.keys(options), known, "", "options"));
     const signal = own(options, "signal");
     const fetchOption = own(options, "fetch");
     // The only place the caller's logger is read. createObserver wraps it with the redacting

@@ -5,7 +5,7 @@
 import { buildVerifyInput } from "explorer-verify";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "explorer-verify";
 
-import { findHardhatBuild } from "./find.ts";
+import { findBuild } from "./find.ts";
 import type { FindBuildOptions } from "./find.ts";
 
 export { findHardhatBuild } from "./find.ts";
@@ -63,7 +63,12 @@ export type BuildFromProjectOptions = FindBuildOptions & Omit<BuildVerifyInputOp
 export async function buildVerifyInputFromHardhat(
   options: BuildFromProjectOptions,
 ): Promise<BuiltVerifyInput> {
-  const build = await findHardhatBuild(options);
+  // The keys of buildVerifyInput are the only ones beyond those of findHardhatBuild.
+  const extra = Object.keys({
+    compilerVersion: true,
+    sources: true,
+  } satisfies Record<Exclude<keyof BuildFromProjectOptions, keyof FindBuildOptions>, true>);
+  const build = await findBuild(options, extra);
   const { compilerVersion, sources } = options;
   return buildVerifyInput(build.documents, {
     ...(compilerVersion === undefined ? {} : { compilerVersion }),

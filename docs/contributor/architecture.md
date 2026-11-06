@@ -126,17 +126,22 @@ Decided in [decision 0009](decisions/0009-options-handle-and-errors.md); the log
 amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-default.md).
 
 - `verify(input: VerifyInput, options?: VerifyOptions): Promise<VerifyResult>` and
-  `checkStatus(handle: Handle | string, options?: VerifyOptions): Promise<VerifyResult>`.
-- `dryRun(input: VerifyInput, options?: VerifyOptions): Promise<DryRunResult>` validates, routes and
+  `checkStatus(handle: Handle | string, options?: CheckStatusOptions): Promise<VerifyResult>`.
+- `dryRun(input: VerifyInput, options?: DryRunOptions): Promise<DryRunResult>` validates, routes and
   looks the contract up, then stops before the submit (R-AX-8,
   [decision 0029](decisions/0029-dry-run-in-the-core.md)). It needs no key: where `verify()` would
   throw `missing-api-key`, it sends nothing and returns `lookup: "skipped"`.
 - `verifyEach(input: VerifyInput, options: VerifyEachOptions): Promise<VerifyEachResult>` runs the
   steps of `verify()` on several backends in parallel, with one budget, and returns one outcome per
   backend (R-RT-4, [decision 0034](decisions/0034-verify-each-for-several-backends.md)).
-- `VerifyOptions` carries `fetch`, `signal`, `timeoutMs` (budget for the whole call),
-  `pollIntervalMs`, `logger`, `onEvent`, `route` and `apiKeys`, keyed by backend name (decision
-  0016). Every field is optional. M2 adds `rpcUrl`.
+- `CallOptions` carries `fetch`, `handlerUrl`, `signal`, `timeoutMs` (budget for the whole call), `logger`,
+  `onEvent`, `route`, `allowSourcifyFallback` and `apiKeys`, keyed by backend name (decision 0016).
+  Each function's options type extends it with the fields that function reads: `VerifyOptions`
+  adds `pollIntervalMs` and `rpcUrl`, `DryRunOptions` adds `rpcUrl`, `CheckStatusOptions` and
+  `LinkProxyOptions` add `pollIntervalMs`. Every field is optional and takes `undefined` as
+  absent. At run time the four functions other than `verifyEach` accept every `VerifyOptions`
+  key, so one options object serves all of them; any other key throws `invalid-input` naming it,
+  with the known name it may mean (R-IN-6, [decision 0047](decisions/0047-strict-options.md)).
 - `Handle` is `{ version: 1, backend, chainId, address, jobId }`: plain JSON with no URL.
   `checkStatus` resolves the API from `backend`, `chainId` and the `route` option, never from the
   handle. `parseHandle` reads a handle from untrusted input and rejects unknown fields.

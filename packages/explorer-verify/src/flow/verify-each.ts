@@ -12,9 +12,16 @@ import type { InputIssue } from "../errors.ts";
 import { collisions, needsKey } from "../http/api-keys.ts";
 import type { Budget } from "../http/fetch.ts";
 import { validateInput } from "../input/validate.ts";
+import { unknownKeys } from "../internal/known-keys.ts";
 import { readOwn } from "../internal/read-fields.ts";
 import { createObserver } from "../observe.ts";
-import { checkApiUrl, readsTable, tableTarget, unsupported } from "../routing/resolve.ts";
+import {
+  routeKeys,
+  checkApiUrl,
+  readsTable,
+  tableTarget,
+  unsupported,
+} from "../routing/resolve.ts";
 import type { CheckedRoute, Route, RoutingTable } from "../routing/resolve.ts";
 import type {
   BackendEntry,
@@ -51,6 +58,28 @@ interface Run {
 
 /** The most entries `backends` may hold. */
 export const MAX_BACKENDS = 16;
+
+/**
+ * The keys of `VerifyEachOptions`, as a record so that a field added to the type and not here
+ * fails to compile. `route` stays in the list so that it gets its own issue, which points at the
+ * entries of `backends`.
+ */
+function eachOptionKeys(): readonly string[] {
+  return Object.keys({
+    fetch: true,
+    handlerUrl: true,
+    signal: true,
+    timeoutMs: true,
+    pollIntervalMs: true,
+    logger: true,
+    onEvent: true,
+    route: true,
+    allowSourcifyFallback: true,
+    apiKeys: true,
+    rpcUrl: true,
+    backends: true,
+  } satisfies Record<keyof VerifyEachOptions | "route", true>);
+}
 
 const BACKENDS_HINT =
   'Pass backends as "all" or as an array of backend names or route overrides that name their backend, each backend and API URL once, no key in the address. Put each route in its backends entry, not in route.';
@@ -134,7 +163,7 @@ export async function runVerifyEach(
   options: VerifyEachOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<VerifyEachResult> {
-  const read = settingsOf(options);
+  const read = settingsOf(options, eachOptionKeys());
   const entries = entriesOf(options, read);
   read.signal?.throwIfAborted();
   return await abortWins(read.signal, async () => {
@@ -570,11 +599,12 @@ function entryOf(item: unknown, field: string, issues: InputIssue[]): Entry | un
     }
     return { backend };
   }
-  const fields = readEntry(item);
+  const fields = readEntry(item, field);
   if (typeof fields === "string") {
     issues.push({ field, message: fields });
     return undefined;
   }
+  issues.push(...fields.unknown);
   const backend = toBackendName(fields.backend);
   if (backend === undefined) {
     issues.push({ field: `${field}.backend`, message: "must name a known backend" });
@@ -594,11 +624,15 @@ function entryOf(item: unknown, field: string, issues: InputIssue[]): Entry | un
 
 /**
  * The three fields of an object entry, each an own property read once, as `resolveRoute` reads
- * `route`; or the issue message. Only a plain object (prototype `Object.prototype` or `null`) is
- * read, and no other field is touched, so a getter on an unknown field never runs. A getter or
- * Proxy trap that throws gives an issue without its text.
+ * `route`, and an issue for each other own enumerable key; or the issue message. Only a plain
+ * object (prototype `Object.prototype` or `null`) is read, and no other field is touched, so a
+ * getter on an unknown field never runs. A getter or Proxy trap that throws gives an issue
+ * without its text.
  */
-function readEntry(item: unknown): { backend: unknown; apiUrl: unknown; apiKey: unknown } | string {
+function readEntry(
+  item: unknown,
+  field: string,
+): { backend: unknown; apiUrl: unknown; apiKey: unknown; unknown: readonly InputIssue[] } | string {
   if (typeof item !== "object" || item === null) {
     return "must be a backend name or a plain object whose backend names a known backend";
   }
@@ -613,6 +647,7 @@ function readEntry(item: unknown): { backend: unknown; apiUrl: unknown; apiKey: 
       readonly apiKey?: unknown;
     } = item;
     return {
+      unknown: unknownKeys(Object.keys(item), routeKeys(), `${field}.`, field),
       backend: readOwn(fields, "backend"),
       apiUrl: readOwn(fields, "apiUrl"),
       apiKey: readOwn(fields, "apiKey"),

@@ -5,7 +5,7 @@
 import type { Target } from "../backends/backend.ts";
 import { keyMissing } from "../http/api-keys.ts";
 import { validateInput } from "../input/validate.ts";
-import type { DryRunResult, VerifyInput, VerifyOptions } from "../types.ts";
+import type { DryRunOptions, DryRunResult, VerifyInput } from "../types.ts";
 import {
   DEFAULT_DEPENDENCIES,
   abortWins,
@@ -35,7 +35,8 @@ import type { FlowDependencies } from "./verify.ts";
  * when no request was sent. It emits no `verify.submitted` and no `verify.result`.
  *
  * @param input - What `verify()` would verify. It is checked with `validateInput` first.
- * @param options - The same options as `verify()`. `pollIntervalMs` is not used.
+ * @param options - The options of `verify()`. `pollIntervalMs` and `rpcUrl` are checked and not
+ *   used; `rpcUrl` is sent no request.
  * @returns The backend, its API host, how it was chosen and the lookup's answer.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
  * @throws The error of the explorer client module, unchanged, when it fails to load, such as a
@@ -54,7 +55,7 @@ import type { FlowDependencies } from "./verify.ts";
  * ```
  * @experimental
  */
-export async function dryRun(input: VerifyInput, options?: VerifyOptions): Promise<DryRunResult> {
+export async function dryRun(input: VerifyInput, options?: DryRunOptions): Promise<DryRunResult> {
   return await runDryRun(input, options, DEFAULT_DEPENDENCIES);
 }
 
@@ -73,7 +74,7 @@ export async function dryRun(input: VerifyInput, options?: VerifyOptions): Promi
  */
 export async function runDryRun(
   input: VerifyInput,
-  options: VerifyOptions | undefined,
+  options: DryRunOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<DryRunResult> {
   const read = settingsOf(options);

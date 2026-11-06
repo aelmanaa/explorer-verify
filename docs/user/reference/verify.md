@@ -141,7 +141,8 @@ set, the input already holds the addresses: submit it as it is.
 
 ## Options
 
-Every field is optional.
+Every field is optional. A field set to `undefined` counts as absent, so you can pass a value that
+may be `undefined`, such as `rpcUrl: process.env.RPC_URL`, without a conditional spread.
 
 | Option                  | Default              | What it does                                                                                                                                                                           |
 | ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -165,6 +166,54 @@ A `pollIntervalMs` below 1000 is raised to 1000.
 `apiKeys` a plain object of key strings by backend name. Only the
 options object's own properties are read, each once. A value of the wrong kind, or a property that
 cannot be read, throws `invalid-input` before any request.
+
+### Options of each function
+
+Each function has its own options type, which lists only the options it reads, so TypeScript
+refuses a misplaced option in an object literal. All of them share `CallOptions`: `fetch`,
+`handlerUrl`, `signal`, `timeoutMs`, `logger`, `onEvent`, `route`, `allowSourcifyFallback` and `apiKeys`.
+
+| Function        | Options type         | Options besides `CallOptions`                             |
+| --------------- | -------------------- | --------------------------------------------------------- |
+| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `rpcUrl`                                |
+| `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked and sent no request                     |
+| `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                                          |
+| `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`, the wait between two checks of the link |
+| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `rpcUrl`, `backends`; no `route`        |
+
+At run time, `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every key of
+`VerifyOptions`, so one options object built for `verify()` can go to each of them. A key they
+ignore, such as `rpcUrl` for `checkStatus()`, is still checked. `verifyEach()` accepts those keys
+and `backends`.
+
+Any other key throws `invalid-input` before any request. The issue names the key and, when one
+matches it ignoring case or by prefix, the option it may mean. The error never repeats the key's
+value, and does not repeat a key longer than 32 characters or with 8 or more digits.
+
+```ts
+import { ExplorerVerifyError, verify } from "explorer-verify";
+
+try {
+  // A JavaScript caller, or options read from JSON, can pass a key the type does not have.
+  await verify(input, JSON.parse('{ "timeout": 5 }'));
+} catch (error) {
+  if (error instanceof ExplorerVerifyError && error.details.code === "invalid-input") {
+    for (const issue of error.details.issues) {
+      console.log(`${issue.field}: ${issue.message}`);
+    }
+  }
+}
+```
+
+```text
+timeout: is not a known option; did you mean timeoutMs?
+```
+
+The same rule holds for the keys of `route` and of each `backends` entry of `verifyEach()`, which
+are `backend`, `apiUrl` and `apiKey`, and for the options of `buildVerifyInput()`,
+`buildVerifyInputFromBytecode()`, `toEnvelope()`, `createVerifyHandler()` and `routesFor()`. A key that is not a
+short identifier is not repeated: its issue names the options object instead. Symbol keys and
+non-enumerable properties are ignored, and a getter on an unknown key never runs.
 
 The library sends every request with `redirect: "manual"` and never follows a redirect, because a
 redirect could carry a key to another host. A `fetch` you pass must keep that behaviour: it must not
@@ -249,8 +298,10 @@ every cause, it is a redacted copy: a plain `Error` with the original `name`
 ## Dry run
 
 `dryRun(input, options)` runs the steps of `verify()` that send no submission, and says what
-`verify()` would do. It takes the same input and options. It validates the input, resolves the
-route, looks the contract up once, and stops. It never submits.
+`verify()` would do. It takes the same input and options. Its type, `DryRunOptions`, leaves out
+`pollIntervalMs`, which a dry run does not use. It checks `rpcUrl` as `verify()` does and sends it
+no request. It validates the input, resolves the route, looks the contract up once, and stops. It never
+submits.
 
 ```ts
 import { dryRun } from "explorer-verify";
@@ -320,8 +371,9 @@ It prints one line per backend, such as `sourcify verified` and `etherscan-v2 al
 
 - `backends` is an array of 1 to 16 entries, or `"all"`. An entry is a backend name, which the
   routing table resolves for the chain, or a route override that names its backend, such as
-  `{ backend: "etherscan-compatible", apiUrl, apiKey }` for a standalone explorer. Other fields of
-  an entry are ignored, as they are in `route`. A top-level `route` throws `invalid-input`.
+  `{ backend: "etherscan-compatible", apiUrl, apiKey }` for a standalone explorer. Any other field
+  of an entry throws `invalid-input` naming it, as it does in `route`. A top-level `route` throws
+  `invalid-input`.
 - `"all"` stands for every backend the routing table lists for the chain that this version has a
   client for, less a backend that needs a key when none is set in `apiKeys`, as the routing table
   chooses for `verify()`. With `handlerUrl`, `etherscan-v2` counts as keyed, so it stays, and its

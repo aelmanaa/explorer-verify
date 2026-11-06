@@ -9,9 +9,13 @@ import path from "node:path";
 import { buildVerifyInput, ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "explorer-verify";
 
+import { ownKeys, unknownKeys } from "./known-keys.ts";
+
 /**
  * Options for {@link findFoundryBuild}. `@explorer-verify/hardhat` takes the same fields, except
- * `buildInfoDir`: Hardhat always writes build-info files inside its output directory.
+ * `buildInfoDir`: Hardhat always writes build-info files inside its output directory. An optional
+ * field set to `undefined` counts as absent. Any other key throws `invalid-input` naming it and,
+ * when one is close, the option it may mean.
  *
  * @example
  * ```ts
@@ -39,18 +43,18 @@ export interface FindBuildOptions {
    * The output directory of the build (the `out` setting of `foundry.toml`), relative to `root` or
    * absolute. Default: `out`.
    */
-  outDir?: string;
+  outDir?: string | undefined;
   /**
    * The build-info directory, relative to `root` or absolute. Default: `build-info` inside
    * `outDir`. When set, it must be a directory.
    */
-  buildInfoDir?: string;
+  buildInfoDir?: string | undefined;
   /**
    * The contract's artifact file, relative to `root` or absolute, such as
    * `out/Context.sol/Context.0.8.20.json`. Skips the search under `outDir`. Use it when Foundry
    * built the contract with several compiler versions or profiles and wrote one artifact for each.
    */
-  artifact?: string;
+  artifact?: string | undefined;
 }
 
 /**
@@ -276,11 +280,52 @@ async function listFiles(root: string, dir: string, skip: string, depth = 0): Pr
   return files.toSorted();
 }
 
-function readOptions(options: FindBuildOptions): Options {
-  const fields = fieldsOf(options);
-  if (fields === undefined) {
+/** The keys of {@link FindBuildOptions}, in documentation order. */
+function findKeys(): readonly string[] {
+  return Object.keys({
+    root: true,
+    contract: true,
+    outDir: true,
+    buildInfoDir: true,
+    artifact: true,
+  } satisfies Record<keyof FindBuildOptions, true>);
+}
+
+/** The keys of {@link BuildFromProjectOptions}, in documentation order. */
+function buildKeys(): readonly string[] {
+  return Object.keys({
+    root: true,
+    contract: true,
+    outDir: true,
+    buildInfoDir: true,
+    artifact: true,
+    compilerVersion: true,
+    sources: true,
+  } satisfies Record<keyof BuildFromProjectOptions, true>);
+}
+
+/**
+ * Reads the options. A key outside `known` throws `invalid-input` naming it, never its value
+ * (R-IN-6).
+ */
+function readOptions(options: FindBuildOptions, known: readonly string[]): Options {
+  // The keys first, so a getter on an unknown key never runs (R-IN-6).
+  const keys = ownKeys(options);
+  if (keys === undefined) {
     throw invalid("options", "must be an object");
   }
+  const unknown = unknownKeys(keys, known, "", "options");
+  if (unknown.length > 0) {
+    throw new ExplorerVerifyError(
+      { code: "invalid-input", issues: unknown },
+      `The input is invalid: ${unknown.map((issue) => issue.field).join(", ")}.`,
+      {
+        hint: `Pass only ${known.slice(0, -1).join(", ")} and ${String(known.at(-1))} as options.`,
+        secrets: [],
+      },
+    );
+  }
+  const fields = new Map<string, unknown>(Object.entries(options));
   const rootOption = fields.get("root");
   if (typeof rootOption !== "string" || rootOption.trim() === "") {
     throw invalid("root", "must be the project root as a non-empty string");
@@ -647,7 +692,11 @@ async function readSources(
  * @experimental
  */
 export async function findFoundryBuild(options: FindBuildOptions): Promise<ProjectBuild> {
-  const checked = readOptions(options);
+  return await findBuild(readOptions(options, findKeys()));
+}
+
+/** {@link findFoundryBuild} on checked options. */
+async function findBuild(checked: Options): Promise<ProjectBuild> {
   const { root, spec, out } = checked;
   if (!(await isDirectory(root))) {
     throw invalid("root", "is not a directory");
@@ -712,7 +761,7 @@ export async function findFoundryBuild(options: FindBuildOptions): Promise<Proje
 export async function buildVerifyInputFromFoundry(
   options: BuildFromProjectOptions,
 ): Promise<BuiltVerifyInput> {
-  const build = await findFoundryBuild(options);
+  const build = await findBuild(readOptions(options, buildKeys()));
   const { compilerVersion, sources } = options;
   // With no source read, the caller's sources go to the core as they are, so the core checks them.
   const merged =

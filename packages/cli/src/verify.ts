@@ -13,7 +13,13 @@ import {
   verify,
   verifyEach,
 } from "explorer-verify";
-import type { InputIssue, VerifyEvent, VerifyInput, VerifyOptions } from "explorer-verify";
+import type {
+  CallOptions,
+  InputIssue,
+  VerifyEvent,
+  VerifyInput,
+  VerifyOptions,
+} from "explorer-verify";
 
 import type { OptionSpec, OptionSpecs, OptionValue } from "./arguments.ts";
 import { listOption, stringOption, usageError } from "./command.ts";
@@ -172,7 +178,7 @@ export function timeoutOf(
  * @param timeoutMs - The time budget, if any.
  * @returns The options.
  */
-export function callOptions(context: CommandContext, timeoutMs: number | undefined): VerifyOptions {
+export function callOptions(context: CommandContext, timeoutMs: number | undefined): CallOptions {
   const { signal, logger, onEvent } = context;
   const { apiKeys, route } = context.routeOptions();
   return {

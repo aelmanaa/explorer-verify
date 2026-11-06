@@ -360,12 +360,18 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/verify.md",
     example: 3,
+    what: "an unknown option throws invalid-input before any request (R-IN-6)",
+    fixtures: [],
+  },
+  {
+    page: "reference/verify.md",
+    example: 4,
     what: "dryRun() finds the contract verified and submits nothing",
     fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/verify.md",
-    example: 5,
+    example: 6,
     what: "keep the handle from verify.submitted",
     fixtures: [
       "2026-11-02-lookup-not-verified",

@@ -23,6 +23,7 @@ import {
 } from "../../http/rpc.ts";
 import type { Endpoint } from "../../http/rpc.ts";
 import { keccak256 } from "../../internal/keccak.ts";
+import { unknownKeys } from "../../internal/known-keys.ts";
 import { addressDigits, readChainId, readFields, readOwn } from "../../internal/read-fields.ts";
 import { createObserver } from "../../observe.ts";
 import type { Observer } from "../../observe.ts";
@@ -58,7 +59,9 @@ export interface BytecodeTarget {
 }
 
 /**
- * Options for {@link buildVerifyInputFromBytecode}. Pass `bytecode` or `rpcUrl`, not both.
+ * Options for {@link buildVerifyInputFromBytecode}. Pass `bytecode` or `rpcUrl`, not both. A field
+ * set to `undefined` counts as absent. Any other key throws `invalid-input` naming it and, when one
+ * is close, the option it may mean.
  *
  * @example
  * ```ts
@@ -77,20 +80,20 @@ export interface BuildFromBytecodeOptions {
    * The deployed runtime bytecode, `0x` and hex digits, when you already have it. At most
    * 65536 bytes.
    */
-  bytecode?: string;
+  bytecode?: string | undefined;
   /**
    * A JSON-RPC endpoint of the contract's chain. The resolver checks `eth_chainId`, then reads the
    * bytecode with `eth_getCode` at `latest`. An absolute `https` URL, or `http` on `localhost`,
    * `127.0.0.1` or `[::1]`. Its path segments and query values of 8 or more characters are
    * redacted from logs and errors; the host name is not, so never put a key in it.
    */
-  rpcUrl?: string;
+  rpcUrl?: string | undefined;
   /**
    * An IPFS path gateway, such as your own node's `http://127.0.0.1:8080`. The resolver requests
    * `<gateway>/ipfs/<CID>` for the metadata and for each source it lists, and keeps the gateway's
    * query string. Same URL and redaction rules as `rpcUrl`. There is no default gateway.
    */
-  ipfsGateway?: string;
+  ipfsGateway?: string | undefined;
   /**
    * Whether to look for a verified copy on Sourcify at the same address, on any chain. Defaults to
    * `true`. A copy is used only when its metadata hashes to the bytecode's IPFS hash; for a Swarm
@@ -98,31 +101,31 @@ export interface BuildFromBytecodeOptions {
    * same as `VerifyOptions.allowSourcifyFallback`, which routes a chain the routing table does
    * not list to Sourcify.
    */
-  allowSourcifyLookup?: boolean;
+  allowSourcifyLookup?: boolean | undefined;
   /**
    * Source contents by path, as the metadata lists the paths, for sources no other source has.
    * Each must hash to the metadata's `keccak256` for its path.
    */
-  sources?: Readonly<Record<string, string>>;
+  sources?: Readonly<Record<string, string>> | undefined;
   /** The `fetch` every request goes through. Defaults to `globalThis.fetch`. */
-  fetch?: typeof fetch;
+  fetch?: typeof fetch | undefined;
   /** Cancels the call. The call rejects with `signal.reason` unchanged. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   /** Time budget for the whole call, in milliseconds. Defaults to 120000. */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /**
    * Receives log lines with secrets removed. Nothing is logged when it is absent. Every request
    * is logged with its retries. Lines for requests to `rpcUrl` and `ipfsGateway` carry a `label`
    * field, `rpc` or `ipfs`, and no backend name.
    */
-  logger?: Logger;
+  logger?: Logger | undefined;
   /**
    * Receives events with secrets removed, as `VerifyOptions.onEvent` does (R-DX-6). The resolver
    * emits `verify.retry` before each retry of a request to Sourcify. Requests to `rpcUrl` and
    * `ipfsGateway` emit no event; their retries are logged. An exception it throws, or a rejection
    * of a promise it returns, is logged once at `warn` and does not change the outcome.
    */
-  onEvent?: (event: VerifyEvent) => void | Promise<void>;
+  onEvent?: ((event: VerifyEvent) => void | Promise<void>) | undefined;
 }
 
 /** The default time budget, as for `verify()`. */
@@ -223,10 +226,29 @@ function readSources(value: unknown, issues: InputIssue[]): Record<string, strin
   return sources;
 }
 
-/** Each option, read once as an own property; `undefined` when absent. */
+/**
+ * Each option, read once as an own property, `undefined` when absent; and an issue for each
+ * unknown key.
+ */
 type ReadOptions = {
   readonly [K in keyof BuildFromBytecodeOptions]-?: BuildFromBytecodeOptions[K] | undefined;
-};
+} & { readonly unknown: readonly InputIssue[] };
+
+/** The keys of {@link BuildFromBytecodeOptions}, in documentation order. */
+function resolveOptionKeys(): readonly string[] {
+  return Object.keys({
+    bytecode: true,
+    rpcUrl: true,
+    ipfsGateway: true,
+    allowSourcifyLookup: true,
+    sources: true,
+    fetch: true,
+    signal: true,
+    timeoutMs: true,
+    logger: true,
+    onEvent: true,
+  } satisfies Record<keyof BuildFromBytecodeOptions, true>);
+}
 
 /**
  * The options, each read once as an own property, or `undefined` when `options` is not an object
@@ -239,6 +261,7 @@ function readOptions(options: BuildFromBytecodeOptions | undefined): ReadOptions
   }
   try {
     return {
+      unknown: unknownKeys(Object.keys(options), resolveOptionKeys(), "", "options"),
       bytecode: readOwn(options, "bytecode"),
       rpcUrl: readOwn(options, "rpcUrl"),
       ipfsGateway: readOwn(options, "ipfsGateway"),
@@ -310,10 +333,14 @@ function readSettings(
   if (digits === undefined) {
     issues.push({ field: "address", message: "must be 0x followed by 40 hex digits" });
   }
+  if (Array.isArray(options)) {
+    throw invalid([...issues, { field: "options", message: "must be a plain object" }], []);
+  }
   const read = readOptions(options);
   if (read === undefined) {
     throw invalid([...issues, { field: "options", message: "must be a readable object" }], []);
   }
+  issues.push(...read.unknown);
   const rawBytecode: unknown = read.bytecode;
   const bytecode = bytecodeBytes(rawBytecode);
   if (rawBytecode !== undefined && bytecode === undefined) {

@@ -515,6 +515,97 @@ describe("R-DX-2: options", () => {
   }
 });
 
+describe("R-IN-6: unknown options", () => {
+  it("names an unknown key and the closest option, never its value", async () => {
+    const error = await rejection(
+      findHardhatBuild(
+        optionsOf({
+          root: HARDHAT_3,
+          contract: "Greeter",
+          artifacts: "DUMMYKEY216ABCDEFGH",
+          out: 1,
+        }),
+      ),
+    );
+    assert.equal(error.code, "invalid-input");
+    assert.deepEqual(error.details.code === "invalid-input" && error.details.issues, [
+      { field: "artifacts", message: "is not a known option; did you mean artifact?" },
+      { field: "out", message: "is not a known option; did you mean outDir?" },
+    ]);
+    assert.equal(error.hint, "Pass only root, contract, outDir and artifact as options.");
+    assert.ok(!JSON.stringify(error).includes("DUMMYKEY216"));
+  });
+
+  it("does not repeat a key that is not a short identifier", async () => {
+    const error = await rejection(
+      findHardhatBuild(optionsOf({ root: HARDHAT_3, contract: "Greeter", "a b": 1 })),
+    );
+    assert.deepEqual(issue(error), {
+      field: "options",
+      message: "is not a known option",
+    });
+  });
+
+  it("refuses an array as the options (D2)", async () => {
+    for (const run of [findHardhatBuild, buildVerifyInputFromHardhat]) {
+      const error = await rejection(
+        run(optionsOf(Object.assign([], { root: HARDHAT_3, contract: "Greeter" }))),
+      );
+      assert.deepEqual(issue(error), { field: "options", message: "must be a plain object" });
+    }
+  });
+
+  it("takes outDir and artifact set to undefined as absent", async () => {
+    const build = await findHardhatBuild({
+      root: HARDHAT_3,
+      contract: "Greeter",
+      outDir: undefined,
+      artifact: undefined,
+    });
+    assert.equal(build.documents.length, 3);
+  });
+
+  it("buildVerifyInputFromHardhat takes compilerVersion and sources, and names a misspelled one", async () => {
+    const built = await buildVerifyInputFromHardhat({
+      root: HARDHAT_3,
+      contract: "Greeter",
+      compilerVersion: undefined,
+      sources: undefined,
+    });
+    assert.match(built.contractName, /Greeter$/);
+    const error = await rejection(
+      buildVerifyInputFromHardhat(
+        optionsOf({ root: HARDHAT_3, contract: "Greeter", compilerversion: "0.8.24" }),
+      ),
+    );
+    assert.deepEqual(issue(error), {
+      field: "compilerversion",
+      message: "is not a known option; did you mean compilerVersion?",
+    });
+    assert.equal(
+      error.hint,
+      "Pass only root, contract, outDir, artifact, compilerVersion and sources as options.",
+    );
+    const find = await rejection(
+      findHardhatBuild(optionsOf({ root: HARDHAT_3, contract: "Greeter", sources: {} })),
+    );
+    assert.deepEqual(issue(find), { field: "sources", message: "is not a known option" });
+  });
+
+  it("matches ignoring case or by prefix, and not a swap of two letters", async () => {
+    const error = await rejection(
+      findHardhatBuild(
+        optionsOf({ root: HARDHAT_3, contract: "Greeter", ROOT: 1, contarct: 1, ab: 1 }),
+      ),
+    );
+    assert.deepEqual(error.details.code === "invalid-input" && error.details.issues, [
+      { field: "ROOT", message: "is not a known option; did you mean root?" },
+      { field: "contarct", message: "is not a known option" },
+      { field: "ab", message: "is not a known option" },
+    ]);
+  });
+});
+
 /** `value` typed as the options without a cast, as a JavaScript caller passes it. */
 function optionsOf(value: unknown): FindBuildOptions {
   const box: { options: FindBuildOptions } = { options: { root: "", contract: "" } };

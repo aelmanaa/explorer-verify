@@ -9,6 +9,7 @@ import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts"
 import type { AnyExplorerVerifyError, ErrorJson, ExitCode, InputIssue } from "./errors.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { JOB_ID } from "./flow/handle.ts";
+import { ownKeys, unknownKeys } from "./internal/known-keys.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
 import { REDACTED, redact } from "./redact.ts";
 import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } from "./types.ts";
@@ -113,8 +114,9 @@ export interface EnvelopeOptions {
   /**
    * Key values to remove from every string in the envelope, such as the call's API key. Key-like
    * URL and form parameters, bearer tokens and bare Etherscan-style keys are removed without it.
+   * `undefined` counts as absent. Any other key of the options throws `invalid-input`.
    */
-  secrets?: readonly string[];
+  secrets?: readonly string[] | undefined;
 }
 
 /** Every result status: those of `VerifyResult` and `dry-run`. */
@@ -305,7 +307,14 @@ function secretsOf(options: unknown): readonly string[] {
     // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
     return [];
   }
-  const fields = readFields(options);
+  // The keys first, so a getter on an unknown key never runs (R-IN-6).
+  const keys = ownKeys(options);
+  const unknown = unknownKeys(keys ?? [], ["secrets"], "", "options");
+  if (unknown.length > 0) {
+    const names = unknown.map((issue) => issue.field).join(", ");
+    throw invalid(unknown, `The options are invalid: ${names}.`, BAD_OPTIONS_HINT);
+  }
+  const fields = keys === undefined ? undefined : readFields(options);
   if (fields === undefined) {
     throw invalid(
       [{ field: "options", message: "must be an object" }],

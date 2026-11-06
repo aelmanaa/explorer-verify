@@ -5,6 +5,7 @@ import { newError } from "../error-hints.ts";
  */
 import { ExplorerVerifyError } from "../errors.ts";
 import type { DetailsOf, InputIssue } from "../errors.ts";
+import { ownKeys, unknownKeys } from "../internal/known-keys.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { Hex, VerifyInput } from "../types.ts";
 import {
@@ -19,7 +20,9 @@ import { isLocalPath } from "./paths.ts";
 import { isCreationBytecode, validateInput } from "./validate.ts";
 
 /**
- * Options for {@link buildVerifyInput}. Every field is optional.
+ * Options for {@link buildVerifyInput}. Every field is optional, and a field set to `undefined`
+ * counts as absent. Any other key throws `invalid-input` naming it and, when one is close, the
+ * option it may mean.
  *
  * @example
  * ```ts
@@ -37,19 +40,19 @@ export interface BuildVerifyInputOptions {
    * The contract to verify: `path:Name`, or a bare `Name` that matches exactly one contract in the
    * documents. Required when the documents name no single contract.
    */
-  contract?: string;
+  contract?: string | undefined;
   /**
    * The full compiler version, such as `0.8.24+commit.e11b9ed9`. Used only when the documents hold
    * no full version; when they do, it must be the same version.
    */
-  compilerVersion?: string;
+  compilerVersion?: string | undefined;
   /**
    * Source contents by source path, as the Solidity metadata lists the paths, such as
    * `{ "src/Greeter.sol": "// SPDX-License-Identifier: MIT\n..." }`. Used only when the input is
    * rebuilt from metadata, for each source whose content the metadata does not embed. Each content
    * must hash to the metadata's `keccak256` for that path.
    */
-  sources?: Readonly<Record<string, string>>;
+  sources?: Readonly<Record<string, string>> | undefined;
 }
 
 /**
@@ -855,12 +858,33 @@ interface ReadOptions {
   sources: Map<string, string>;
 }
 
-/** The options, checked; unknown fields are ignored. */
+const BUILD_OPTIONS_HINT = "Pass only contract, compilerVersion and sources as options.";
+
+/** The keys of {@link BuildVerifyInputOptions}, in documentation order. */
+function buildOptionKeys(): readonly string[] {
+  return Object.keys({
+    contract: true,
+    compilerVersion: true,
+    sources: true,
+  } satisfies Record<keyof BuildVerifyInputOptions, true>);
+}
+
+/** The options, checked. An unknown key throws `invalid-input` naming it (R-IN-6). */
 function readOptions(options: unknown): ReadOptions {
   if (options === undefined) {
     return { sources: new Map() };
   }
-  const fields = readFields(options);
+  // The keys first, so a getter on an unknown key never runs (R-IN-6).
+  const keys = ownKeys(options);
+  const unknown = unknownKeys(keys ?? [], buildOptionKeys(), "", "options");
+  if (unknown.length > 0) {
+    throw newError(
+      { code: "invalid-input", issues: unknown },
+      `The input is invalid: ${unknown.map((issue) => issue.field).join(", ")}.`,
+      { hint: BUILD_OPTIONS_HINT, secrets: [] },
+    );
+  }
+  const fields = keys === undefined ? undefined : readFields(options);
   if (fields === undefined) {
     throw invalid("options", "must be an object");
   }

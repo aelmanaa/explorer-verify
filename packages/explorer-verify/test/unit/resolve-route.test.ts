@@ -13,7 +13,8 @@ const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]
 const DEFAULT_HINT = "Fix the fields listed in details.issues, then call again.";
 const BACKEND_HINT = "Leave out route.backend, or name one of: sourcify.";
 const NO_CLIENT = "has no client in this version";
-const ROUTE_HINT = "Pass route as a plain object with backend and apiUrl fields, or leave it out.";
+const ROUTE_HINT =
+  "Pass route as a plain object with backend, apiUrl and apiKey fields, or leave it out.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 const ENDPOINT = "/v2/verify/1/0xabc";
@@ -162,11 +163,22 @@ describe("resolveRoute: default route (R-RT-2, R-RT-3)", () => {
     }
   });
 
-  it("ignores fields a route override does not have, and does not copy them", () => {
-    const route = resolveRoute(1, routeOf({ token: DUMMY_KEY }));
-    assert.ok(!JSON.stringify(route).includes(DUMMY_KEY));
-    assert.equal(route.apiKey(), undefined);
-    assert.equal(route.apiBase, SOURCIFY_API_URL);
+  it("refuses a field a route override does not have, and never repeats its value (R-IN-6, R-SEC-1)", () => {
+    let caught: unknown;
+    try {
+      resolveRoute(1, routeOf({ token: DUMMY_KEY, apiurl: "https://sourcify.example.org" }));
+    } catch (error) {
+      caught = error;
+    }
+    assert.ok(caught instanceof ExplorerVerifyError);
+    assert.equal(caught.code, "invalid-input");
+    assert.deepEqual(caught.details.code === "invalid-input" ? caught.details.issues : [], [
+      { field: "route.token", message: "is not a known option" },
+      { field: "route.apiurl", message: "is not a known option; did you mean apiUrl?" },
+    ]);
+    assert.equal(caught.hint, ROUTE_HINT);
+    assert.ok(!JSON.stringify(caught).includes(DUMMY_KEY));
+    assert.ok(!caught.message.includes(DUMMY_KEY));
   });
 });
 

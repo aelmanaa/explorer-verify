@@ -24,7 +24,7 @@ export { verify } from "./flow/verify.ts";
 export { verifyEach } from "./flow/verify-each.ts";
 export { buildVerifyInput } from "./input/build.ts";
 export { routesFor, routingTableDate } from "./routing/resolve.ts";
-export type { ChainRoutes, RoutePick } from "./routing/resolve.ts";
+export type { ChainRoutes, RoutePick, RoutesForOptions } from "./routing/resolve.ts";
 export type { BuildVerifyInputOptions, BuiltVerifyInput } from "./input/build.ts";
 export { linkLibraries } from "./input/libraries.ts";
 export { validateInput } from "./input/validate.ts";
@@ -32,9 +32,13 @@ export type {
   ApiKeys,
   BackendEntry,
   BackendOutcome,
+  CallOptions,
+  CheckStatusOptions,
+  DryRunOptions,
   DryRunResult,
   Handle,
   Hex,
+  LinkProxyOptions,
   LinkProxyResult,
   LinkProxyTarget,
   LogFields,

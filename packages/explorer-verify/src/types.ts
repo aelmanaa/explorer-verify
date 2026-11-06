@@ -32,7 +32,8 @@ export interface SolidityStandardJsonInput {
 
 /**
  * What to verify. `compiler` is a discriminated union so other languages (Vyper and others) can
- * be added as new members without changing existing callers (decision 0004).
+ * be added as new members without changing existing callers (decision 0004). An optional field
+ * set to `undefined` counts as absent.
  *
  * @experimental
  */
@@ -57,12 +58,12 @@ export interface VerifyInput {
    * `verify()` derives them from the creation code for a backend that takes them, if
    * `creationBytecode` is set (R-IN-3). When set, they win: nothing is derived.
    */
-  constructorArgs?: Hex;
+  constructorArgs?: Hex | undefined;
   /**
    * The creation transaction hash. Lets backends that support it attempt a creation match, and
    * with `VerifyOptions.rpcUrl` it is where `verify()` reads the creation code.
    */
-  creationTxHash?: Hex;
+  creationTxHash?: Hex | undefined;
   /**
    * The compiled creation bytecode, the compiler's `evm.bytecode.object` with or without `0x`,
    * library placeholders (`__$`, 34 hex digits, `$__`) included. `verify()` uses it only to
@@ -70,7 +71,7 @@ export interface VerifyInput {
    * (R-IN-3). It is never sent to an explorer. `buildVerifyInput` fills it when the documents
    * hold it.
    */
-  creationBytecode?: Hex;
+  creationBytecode?: Hex | undefined;
   /**
    * Library link addresses, keyed by the library's fully qualified name, as
    * `{ "src/MathLib.sol:MathLib": "0x…" }` (R-IN-4). `verify()` checks them and sends
@@ -80,7 +81,7 @@ export interface VerifyInput {
    * Call `linkLibraries` to merge them into `settings.libraries` for an explorer that needs them
    * there.
    */
-  libraries?: Record<string, Hex>;
+  libraries?: Record<string, Hex> | undefined;
 }
 
 /**
@@ -161,7 +162,7 @@ export interface LinkProxyTarget {
    * one it was deployed with if it was upgraded since. When set, any other implementation the
    * explorer reports gives `mismatch`. Etherscan also receives it as `expectedimplementation`.
    */
-  expectedImplementation?: Hex;
+  expectedImplementation?: Hex | undefined;
 }
 
 /**
@@ -492,7 +493,8 @@ export type VerifyEvent =
 /**
  * Overrides the route for one call: which backend to use and where its API lives, for example a
  * self-hosted Sourcify server or a local fake in tests. Hosts come only from here or from the
- * routing table, never from a {@link Handle} (R-SEC-2).
+ * routing table, never from a {@link Handle} (R-SEC-2). A field set to `undefined` counts as
+ * absent; a key other than these three throws `invalid-input` naming `route.<key>`.
  *
  * @example
  * ```ts
@@ -512,7 +514,7 @@ export interface RouteOverride {
    * `BACKEND_NAMES`, or a backend this version has no client for, throws `invalid-input` naming
    * `route.backend`.
    */
-  backend?: BackendName;
+  backend?: BackendName | undefined;
   /**
    * The API base URL. It must be a string of at most 8192 characters: an absolute `https:` URL,
    * or an `http:` URL whose host is exactly `localhost`, `127.0.0.1` or `[::1]`, with no user
@@ -524,7 +526,7 @@ export interface RouteOverride {
    * and chain means results carry no `explorerUrl`. No key from `apiKeys` is ever sent to a
    * `route.apiUrl`, even one that names the routing table's own URL; pass `route.apiKey` for it.
    */
-  apiUrl?: string;
+  apiUrl?: string | undefined;
   /**
    * The API key for this route's explorer, bound to the route's API host: it is sent only to that
    * host, and only for requests of the route's backend (R-SEC-2). Use it for an explorer on its
@@ -536,27 +538,32 @@ export interface RouteOverride {
    * value apply. A backend that takes no key, such as `sourcify`, throws `invalid-input` naming
    * `route.apiKey`.
    */
-  apiKey?: string;
+  apiKey?: string | undefined;
 }
 
 /**
- * Options for `verify()` and `checkStatus()`. Every field is optional. A later release adds fields
- * without changing these, so existing callers keep working (decision 0009).
+ * The options every call to an explorer takes: `verify()`, `dryRun()`, `checkStatus()`,
+ * `linkProxy()` and `verifyEach()`. Each function has its own options type that extends this one
+ * with the fields it reads, so a misplaced key in an object literal fails to compile (decision
+ * 0047). At run time, `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every
+ * key of `VerifyOptions`, so one options object can go to each.
+ *
+ * Every field is optional, and a field set to `undefined` counts as absent, so a value that may be
+ * `undefined` can be passed straight through. Any other key throws `invalid-input` before any
+ * request: the issue names the key and, when one matches it ignoring case or by prefix, the option
+ * it may mean, such as `timeoutMs` for `timeout`. It never repeats the key's value. A later
+ * release adds fields without changing these, so existing callers keep working (decision 0009).
  *
  * @example
  * ```ts
- * import type { VerifyOptions } from "explorer-verify";
+ * import type { CallOptions } from "explorer-verify";
  *
  * const controller = new AbortController();
- * const options: VerifyOptions = {
- *   signal: controller.signal,
- *   timeoutMs: 60_000,
- *   pollIntervalMs: 5_000,
- * };
+ * const options: CallOptions = { signal: controller.signal, timeoutMs: 60_000 };
  * ```
  * @experimental
  */
-export interface VerifyOptions {
+export interface CallOptions {
   /**
    * The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). The library
    * sends every request with `redirect: "manual"` and never follows a redirect: a redirect could
@@ -564,7 +571,7 @@ export interface VerifyOptions {
    * redirects itself. An injected `fetch` does not turn off the missing-key check: to send
    * Etherscan requests to a server that adds the key, set `handlerUrl`.
    */
-  fetch?: typeof fetch;
+  fetch?: typeof fetch | undefined;
   /**
    * The URL of your server handler (`createVerifyHandler` from `explorer-verify/server`), which
    * holds the Etherscan key and adds it (R-SRV-5, decision 0046). Set it in browser code, where an
@@ -595,27 +602,25 @@ export interface VerifyOptions {
    */
   handlerUrl?: string | undefined;
   /** Cancels the call. The call rejects with `signal.reason` unchanged (R-FLOW-6). */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   /**
    * Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. A
    * positive number; a value above 2147483647 is lowered to it.
    */
-  timeoutMs?: number;
-  /**
-   * Wait between two status polls, in milliseconds. Defaults to 3000. A positive number; a value
-   * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
-   */
-  pollIntervalMs?: number;
+  timeoutMs?: number | undefined;
   /** Receives log lines with keys removed. Nothing is logged when it is absent (R-DX-5). */
-  logger?: Logger;
+  logger?: Logger | undefined;
   /**
    * Receives the stage events, with keys removed (R-DX-6). Nothing is emitted when it is absent.
    * An exception it throws, or a rejection of a promise it returns, is logged once at `warn` and
    * does not change the outcome. A returned promise is not awaited.
    */
-  onEvent?: (event: VerifyEvent) => void | Promise<void>;
-  /** Overrides the routing table for this call. */
-  route?: RouteOverride;
+  onEvent?: ((event: VerifyEvent) => void | Promise<void>) | undefined;
+  /**
+   * Overrides the routing table for this call. A key other than `backend`, `apiUrl` and `apiKey`
+   * throws `invalid-input` naming `route.<key>`.
+   */
+  route?: RouteOverride | undefined;
   /**
    * Lets a chain that the routing table does not list resolve to the public Sourcify API (R-RT-3).
    * Defaults to `false`: such a chain throws `unsupported-chain`, whose hint names this option and
@@ -628,7 +633,7 @@ export interface VerifyOptions {
    * const options: VerifyOptions = { allowSourcifyFallback: true };
    * ```
    */
-  allowSourcifyFallback?: boolean;
+  allowSourcifyFallback?: boolean | undefined;
   /**
    * API keys by backend name (decision 0009, amended by 0016 and 0041). A key is sent only to its
    * backend's one API host, `api.etherscan.io` for `etherscan-v2`, `api.routescan.io` for
@@ -666,7 +671,33 @@ export interface VerifyOptions {
    * const options: VerifyOptions = { apiKeys: { "etherscan-v2": etherscanKey } };
    * ```
    */
-  apiKeys?: ApiKeys;
+  apiKeys?: ApiKeys | undefined;
+}
+
+/**
+ * Options for `verify()`: the {@link CallOptions}, plus the poll interval and the JSON-RPC
+ * endpoint that `verify()` derives missing constructor arguments from. Any other key throws
+ * `invalid-input` naming it.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyOptions } from "explorer-verify";
+ *
+ * const controller = new AbortController();
+ * const options: VerifyOptions = {
+ *   signal: controller.signal,
+ *   timeoutMs: 60_000,
+ *   pollIntervalMs: 5_000,
+ * };
+ * ```
+ * @experimental
+ */
+export interface VerifyOptions extends CallOptions {
+  /**
+   * Wait between two status polls, in milliseconds. Defaults to 3000. A positive number; a value
+   * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
+   */
+  pollIntervalMs?: number | undefined;
   /**
    * A JSON-RPC endpoint of the contract's chain. `verify()` uses it only to derive missing
    * constructor arguments (R-IN-3): it checks `eth_chainId`, then reads the transaction that
@@ -682,7 +713,72 @@ export interface VerifyOptions {
    * const options: VerifyOptions = { rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com" };
    * ```
    */
-  rpcUrl?: string;
+  rpcUrl?: string | undefined;
+}
+
+/**
+ * Options for `dryRun()`: the {@link CallOptions}, plus `rpcUrl`, which it checks as `verify()`
+ * does without sending it a request. A dry run polls nothing, so the type leaves out
+ * `pollIntervalMs`; at run time `dryRun()` accepts and checks it, so an object built for
+ * `verify()` works.
+ *
+ * @example
+ * ```ts
+ * import type { DryRunOptions } from "explorer-verify";
+ *
+ * const options: DryRunOptions = { timeoutMs: 30_000 };
+ * ```
+ * @experimental
+ */
+export interface DryRunOptions extends CallOptions {
+  /**
+   * The JSON-RPC endpoint a `verify()` call would derive constructor arguments from. `dryRun()`
+   * checks it with the rules of `VerifyOptions.rpcUrl` and redacts it the same way, and sends it
+   * no request.
+   */
+  rpcUrl?: string | undefined;
+}
+
+/**
+ * Options for `checkStatus()`: the {@link CallOptions}, plus `pollIntervalMs`. It polls a job
+ * that was already submitted, so the type leaves out `rpcUrl`; at run time `checkStatus()` accepts
+ * and checks it, so an object built for `verify()` works.
+ *
+ * @example
+ * ```ts
+ * import type { CheckStatusOptions } from "explorer-verify";
+ *
+ * const options: CheckStatusOptions = { timeoutMs: 60_000, pollIntervalMs: 5_000 };
+ * ```
+ * @experimental
+ */
+export interface CheckStatusOptions extends CallOptions {
+  /**
+   * Wait between two status polls, in milliseconds. Defaults to 3000. A positive number; a value
+   * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
+   */
+  pollIntervalMs?: number | undefined;
+}
+
+/**
+ * Options for `linkProxy()`: the {@link CallOptions}, plus `pollIntervalMs`, the wait between two
+ * checks of the link. The type leaves out `rpcUrl`; at run time `linkProxy()` accepts and checks
+ * it, so an object built for `verify()` works.
+ *
+ * @example
+ * ```ts
+ * import type { LinkProxyOptions } from "explorer-verify";
+ *
+ * const options: LinkProxyOptions = { timeoutMs: 60_000, pollIntervalMs: 5_000 };
+ * ```
+ * @experimental
+ */
+export interface LinkProxyOptions extends CallOptions {
+  /**
+   * Wait between two checks of the link, in milliseconds. Defaults to 3000. A positive number; a
+   * value below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
+   */
+  pollIntervalMs?: number | undefined;
 }
 
 /**
@@ -725,7 +821,9 @@ export type BackendEntry =
 
 /**
  * Options for `verifyEach()`: those of `verify()` without `route`, plus `backends`. Each entry of
- * `backends` carries its own route, so a top-level `route` throws `invalid-input`.
+ * `backends` carries its own route, so a top-level `route` throws `invalid-input`. Any other key
+ * that is not listed here throws `invalid-input` naming it, and so does a key of an entry object
+ * other than `backend`, `apiUrl` and `apiKey`.
  *
  * @example
  * ```ts

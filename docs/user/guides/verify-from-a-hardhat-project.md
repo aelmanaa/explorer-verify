@@ -85,6 +85,9 @@ only a partial match.
 
 `@explorer-verify/foundry` takes the same options, and also `buildInfoDir`.
 
+A field set to `undefined` counts as absent. Any other key throws `invalid-input` before any file is read,
+naming the key and, when one is close, the option it may mean.
+
 `path` is the source path that Hardhat uses for the artifact folder, such as
 `contracts/Greeter.sol`, on both versions. On Hardhat 3 the returned name uses the input source
 name, which adds `project/` in front. You can pass that name back as `contract`: when no artifact

@@ -84,7 +84,10 @@ Cloudflare Worker.
 | `logger`         | No       | `{ debug, info, warn, error }`, as `VerifyOptions.logger` takes it. Gets each refusal at `info`, each upstream failure at `warn` and each internal failure at `error`, with the key redacted                  |
 
 A bad option throws [`invalid-input`](errors/invalid-input.md) when the handler is created. The
-issues name the option and never repeat its value. The options are read once: later changes to the
+issues name the option and never repeat its value. A key the table does not list throws too, with
+the option it may mean when one matches it ignoring case or by prefix, such as `deployers` for
+`deployer`. An optional field
+set to `undefined` counts as absent. The options are read once: later changes to the
 object, or to the `chains` and `deployers` arrays, have no effect.
 
 The default `timeoutMs` is below the client's 30-second limit per request, so the browser gets the

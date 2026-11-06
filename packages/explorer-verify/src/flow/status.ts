@@ -6,7 +6,7 @@
 import type { Target } from "../backends/backend.ts";
 import { newError } from "../error-hints.ts";
 import type { Route } from "../routing/resolve.ts";
-import type { Handle, VerifyOptions, VerifyResult } from "../types.ts";
+import type { CheckStatusOptions, Handle, VerifyResult } from "../types.ts";
 import { parseHandle } from "./handle.ts";
 import {
   DEFAULT_DEPENDENCIES,
@@ -80,7 +80,7 @@ import type { FlowDependencies } from "./verify.ts";
  */
 export async function checkStatus(
   handle: Handle | string,
-  options?: VerifyOptions,
+  options?: CheckStatusOptions,
 ): Promise<VerifyResult> {
   return await runCheckStatus(handle, options, DEFAULT_DEPENDENCIES);
 }
@@ -100,7 +100,7 @@ export async function checkStatus(
  */
 export async function runCheckStatus(
   value: unknown,
-  options: VerifyOptions | undefined,
+  options: CheckStatusOptions | undefined,
   dependencies: FlowDependencies,
 ): Promise<VerifyResult> {
   const read = settingsOf(options);
