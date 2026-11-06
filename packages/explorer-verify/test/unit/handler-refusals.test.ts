@@ -223,7 +223,7 @@ describe("each guard of createVerifyHandler that holds until its options change 
     ],
   ];
   for (const [code, status, tamper] of mismatch) {
-    it(`${code}: ${String(status)}, with the code's default hint`, async () => {
+    it(`${code}: ${String(status)}, with a hint to check handlerUrl and the version`, async () => {
       const net = throughHandler({}, tamper);
       const error = await rejection(verify(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
       assert.ok(
@@ -233,7 +233,10 @@ describe("each guard of createVerifyHandler that holds until its options change 
       assert.equal(error.retryable, false);
       assert.equal(error.details.handlerCode, code);
       assert.equal(error.details.status, status);
-      assert.equal(error.hint, ERROR_HINTS["handler-refused"]);
+      assert.equal(
+        error.hint,
+        "Check that handlerUrl points at createVerifyHandler, on the same explorer-verify version.",
+      );
       assert.equal(net.sent(), 1, "not retried");
     });
   }
@@ -332,6 +335,12 @@ describe("the handler's transient refusals stay retryable (R-SRV-4, decision 004
     assert.equal(error.retryable, true);
     assert.equal(error.details.status, 503);
     assert.equal(error.details.retryAfterMs, 5_000);
+    assert.equal(
+      error.details.attempts,
+      net.sent(),
+      "the attempts of the HTTP layer are kept (R1)",
+    );
+    assert.equal(error.details.attempts, 5);
     assert.match(error.message, /answered the lookup with address-not-indexed \(status 503\)/);
     assert.equal(error.hint, ERROR_HINTS["unexpected-response"]);
     assert.ok(net.sent() > 1, "retried");

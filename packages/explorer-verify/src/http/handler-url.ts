@@ -105,7 +105,12 @@ function mapped(
   const option = OPTIONS.get(code);
   const options = {
     secrets,
-    hint: option === undefined ? "" : `Change the ${option} option of createVerifyHandler.`,
+    hint:
+      option !== undefined
+        ? `Change the ${option} option of createVerifyHandler.`
+        : kind === "handler-refused"
+          ? "Check that handlerUrl points at createVerifyHandler, on the same explorer-verify version."
+          : "",
     ...("cause" in seen ? { cause: seen.cause } : {}),
   };
   if (kind === "handler-refused") {
@@ -116,7 +121,8 @@ function mapped(
   }
   if (kind === "unexpected-response") {
     const wait = retryAfterMs === undefined ? {} : { retryAfterMs };
-    return newError({ code: kind, backend, status, excerpt, ...wait }, message, options);
+    const tries = seen.attempts === undefined ? {} : { attempts: seen.attempts };
+    return newError({ code: kind, backend, status, excerpt, ...wait, ...tries }, message, options);
   }
   return undefined;
 }
