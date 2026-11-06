@@ -1268,11 +1268,13 @@ async function pollUntilDone(call: Call, handle: Handle, firstWaitMs: number): P
   let cause: ExplorerVerifyError | undefined;
   let wait = firstWaitMs;
   for (;;) {
-    // A wait never passes the deadline. When the deadline has passed, it waits no time and the
-    // check below ends polling.
-    await sleep(Math.max(0, Math.min(wait, deadline - Date.now())), settings.signal);
+    // A wait never passes the deadline. A wait cut to the deadline ends polling when it ends:
+    // timers and `Date.now()` use different clocks, so an on-time timer can read 1 ms early.
+    const remaining = deadline - Date.now();
+    const clamped = wait >= remaining;
+    await sleep(Math.max(0, Math.min(wait, remaining)), settings.signal);
     wait = settings.pollIntervalMs;
-    if (deadline - Date.now() <= 0) {
+    if (clamped || deadline - Date.now() <= 0) {
       return { kind: "stopped", why: "budget", cause };
     }
     attempt += 1;
