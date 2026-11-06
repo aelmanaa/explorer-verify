@@ -12,7 +12,7 @@ import type { TestContext } from "node:test";
 import { routesFor } from "explorer-verify";
 import type { VerifyInput } from "explorer-verify";
 
-import { CHAIN_NAMES, chainIdOf, closestChain } from "../../src/chains.ts";
+import { CHAIN_NAMES, chainIdOf } from "../../src/chains.ts";
 import { main } from "../../src/main.ts";
 import { allDryRunRefusal, skippedByAll } from "../../src/target.ts";
 import { fakeExplorer } from "../helpers/fake-explorer.ts";
@@ -159,28 +159,32 @@ describe("--chain takes a chain name (R-AX-12, #225)", () => {
     }
   });
 
-  it("suggests only a name that keeps one half of the typed name: never another chain's network", () => {
-    assert.equal(closestChain("op-sepolia"), undefined);
-    assert.equal(suggest("ob-sepolia"), undefined);
-    assert.equal(suggest("opp-sepolia"), undefined);
-    assert.notEqual(suggest("op-sepolai"), "ink-sepolia");
-    assert.equal(suggest("op-sepolai"), "op-sepolia");
-    assert.equal(suggest("base-sepolai"), "base-sepolia");
-    assert.equal(suggest("optimsm-sepolia"), "optimism-sepolia");
-    assert.equal(suggest("sepolai"), "sepolia");
-    assert.equal(suggest("baes-sepolai"), undefined);
-    for (const [name] of CHAIN_NAMES) {
-      const suggestion = closestChain(name);
-      // A known name is resolved before any suggestion; if one is asked for, it keeps a half.
-      if (suggestion !== undefined) {
-        const [head, ...rest] = name.split("-");
-        const [otherHead, ...otherRest] = suggestion.split("-");
-        assert.ok(
-          head === otherHead || rest.join("-") === otherRest.join("-"),
-          `${name} -> ${suggestion}`,
-        );
-      }
+  it("suggests the name with the same form without case, - or _, else the closest one sharing its start", () => {
+    for (const [typed, expected] of [
+      ["opsepolia", "op-sepolia"],
+      ["op_sepolia", "op-sepolia"],
+      ["base_sepolia", "base-sepolia"],
+      ["basesepolia", "base-sepolia"],
+      ["polygonamoy", "polygon-amoy"],
+      ["arbitrumsepolia", "arbitrum-sepolia"],
+      ["ARBITRUM_SEPOLIA", "arbitrum-sepolia"],
+      ["optimism_sepolia", "optimism-sepolia"],
+      ["bsc_testnet", "bsc-testnet"],
+      ["zk-sync", "zksync"],
+      ["op-sepolai", "op-sepolia"],
+      ["base-sepolai", "base-sepolia"],
+      ["optimsm-sepolia", "optimism-sepolia"],
+      ["sepolai", "sepolia"],
+      ["ob-sepolia", undefined],
+      ["opp-sepolia", "op-sepolia"],
+      ["xsepolia", undefined],
+      ["zzzzzzzz", undefined],
+    ] as const) {
+      assert.equal(suggest(typed), expected, typed);
     }
+    // A suggestion never drops the start of the typed name: opsepolia is not Ethereum's Sepolia.
+    assert.notEqual(suggest("opsepolia"), "sepolia");
+    assert.notEqual(suggest("op-sepolai"), "ink-sepolia");
   });
 });
 

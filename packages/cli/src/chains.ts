@@ -108,42 +108,42 @@ export function chainIdOf(value: string): ChainRead {
   return suggestion === undefined ? { issue } : { issue, suggestion };
 }
 
-/** A name split at its first `-`: the chain, such as `base`, and the network, such as `sepolia`. */
-function parts(name: string): {
-  readonly name: string;
-  readonly head: string;
-  readonly rest: string;
-} {
-  const at = name.indexOf("-");
-  return at === -1
-    ? { name, head: name, rest: "" }
-    : { name, head: name.slice(0, at), rest: name.slice(at + 1) };
+/** A name without case, `-`, `_` or spaces, so `op_sepolia`, `opsepolia` and `op-sepolia` match. */
+function normal(name: string): string {
+  return name.toLowerCase().replaceAll(/[-_\s]/g, "");
 }
 
+/** The most two normal forms may differ in length for a suggestion. */
+const MAX_LENGTH_GAP = 2;
+
 /**
- * The closest chain name to a mistyped one, or `undefined`. A suggestion keeps one half of the
- * typed name exactly, so it never moves to another network of another chain: `base-sepolai` gives
- * `base-sepolia` and `optimsm-sepolia` gives `optimism-sepolia`, but a typo in both halves gives
- * nothing. A name without `-` is compared with the names without `-`.
+ * The closest chain name to a mistyped one, or `undefined`. Both sides are compared without case,
+ * `-`, `_` or spaces: a name with the same normal form wins, such as `op-sepolia` for `opsepolia`
+ * or `base-sepolia` for `base_sepolia`. Otherwise the closest normal form by edit distance wins,
+ * among the names whose normal form starts with the same two characters and differs in length by
+ * at most 2, so a suggestion never drops the start of the typed name, as `sepolia` for
+ * `opsepolia` would.
  *
- * @param name - The typed name, in lower case.
+ * @param name - The typed name.
  * @returns One of {@link CHAIN_NAMES}, or `undefined`.
  */
 export function closestChain(name: string): string | undefined {
-  const typed = parts(name);
-  const names = [...CHAIN_NAMES.keys()].map(parts);
-  const sameRest = names.filter(({ rest }) => rest === typed.rest);
-  const head = closest(
-    typed.head,
-    sameRest.map((each) => each.head),
-  );
-  if (head !== undefined) {
-    return sameRest.find((each) => each.head === head)?.name;
+  const typed = normal(name);
+  const names = [...CHAIN_NAMES.keys()];
+  const same = names.find((each) => normal(each) === typed);
+  if (same !== undefined) {
+    return same;
   }
-  const sameHead = names.filter((each) => each.head === typed.head && each.rest !== "");
-  const rest = closest(
-    typed.rest,
-    sameHead.map((each) => each.rest),
+  const near = names.filter((each) => {
+    const form = normal(each);
+    return (
+      form.slice(0, 2) === typed.slice(0, 2) &&
+      Math.abs(form.length - typed.length) <= MAX_LENGTH_GAP
+    );
+  });
+  const form = closest(
+    typed,
+    near.map((each) => normal(each)),
   );
-  return sameHead.find((each) => each.rest === rest)?.name;
+  return near.find((each) => normal(each) === form);
 }

@@ -28,7 +28,9 @@ explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 111551
 - `--chain` (`-c`) takes the chain ID or its name, in any case: `--chain sepolia` and
   `--chain 11155111` give the same run and the same stdout. [Chain names](#chain-names) lists the
   names. A name the CLI does not know exits 2, and the hint names the closest one, such as
-  `Did you mean sepolia?`.
+  `Did you mean sepolia?`. The hint compares names without case, `-`, `_` or spaces, and only
+  suggests a name that starts with the same two characters and differs in length by at most two,
+  so `opsepolia` suggests `op-sepolia`, never `sepolia`.
 - `--foundry <dir>` or `--hardhat <dir>` reads the build of the project in that folder, and needs
   `--contract`: `path:Name`, or a bare `Name` when one contract has that name. `.` is the current
   folder; unlike `forge verify-contract`, the CLI does not look for the Git root. The CLI finds
