@@ -885,9 +885,11 @@ describe("buildVerifyInputFromBytecode: an IPFS gateway (R-IN-5, R-SEC-2)", () =
 });
 
 describe("buildVerifyInputFromBytecode: bounded work on large answers (R-FLOW-6)", () => {
-  // Block coverage (c8 sets NODE_V8_COVERAGE) slows hashing many times over, so the time bound
-  // runs only in the plain test runs, as in keccak.test.ts.
-  const timed = process.env["NODE_V8_COVERAGE"] === undefined;
+  // Block coverage (c8 sets NODE_V8_COVERAGE) and mutation testing (Stryker's instrumented code
+  // sets globalThis.__stryker__) slow hashing many times over, so the time bound runs only in the
+  // plain test runs, as in keccak.test.ts.
+  const timed =
+    process.env["NODE_V8_COVERAGE"] === undefined && !Reflect.has(globalThis, "__stryker__");
   it(
     "hashes 4 MiB of metadata in well under the default budget, best of three runs",
     {

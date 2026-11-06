@@ -129,6 +129,36 @@
       "file": "src/flow/format-handle.ts",
       "measured": 100.0,
       "maxUndetected": 1
+    },
+    {
+      "file": "src/input/validate.ts",
+      "measured": 99.14,
+      "floor": 97
+    },
+    {
+      "file": "src/input/constructor-args.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
+      "file": "src/input/build.ts",
+      "measured": 98.62,
+      "floor": 97
+    },
+    {
+      "file": "src/input/metadata.ts",
+      "measured": 98.24,
+      "floor": 97
+    },
+    {
+      "file": "src/input/libraries.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
+      "file": "src/input/paths.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
     }
   ]
 }

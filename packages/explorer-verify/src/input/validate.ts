@@ -44,6 +44,7 @@ const KIND_HINT = 'Set compiler.kind to "solc", the only supported compiler kind
  * runtime's stack size.
  */
 function copyJson(value: unknown): { value: unknown } | "not-json" | "too-deep" {
+  // The replacer stops the copy by throwing an error without a message: only `tooDeep` is read.
   // The depth of each object or array the copy has entered. The root's holder is not in the map.
   const depths = new Map<unknown, number>();
   let tooDeep = false;
@@ -53,17 +54,17 @@ function copyJson(value: unknown): { value: unknown } | "not-json" | "too-deep" 
       typeof current === "symbol" ||
       (typeof current === "number" && !Number.isFinite(current))
     ) {
-      throw new TypeError("not JSON data");
+      throw new TypeError();
     }
     if (typeof current === "object" && current !== null) {
       const parent = depths.get(this) ?? 0;
       if (parent >= MAX_DEPTH) {
         tooDeep = true;
-        throw new RangeError("nested too deeply");
+        throw new RangeError();
       }
       const prototype: unknown = Object.getPrototypeOf(current);
       if (prototype !== Object.prototype && prototype !== Array.prototype && prototype !== null) {
-        throw new TypeError("not JSON data");
+        throw new TypeError();
       }
       depths.set(current, parent + 1);
     }
@@ -86,8 +87,8 @@ function isSafePath(path: string): boolean {
   if (path.length > MAX_PATH || FORMAT_CHARACTER.test(path)) {
     return false;
   }
-  for (let index = 0; index < path.length; index++) {
-    const code = path.charCodeAt(index);
+  for (const character of path) {
+    const code = character.charCodeAt(0);
     if (code < 0x20 || code === 0x7f) {
       return false;
     }
@@ -208,7 +209,12 @@ function checkSources(
     if (!isSafePath(path)) {
       badPaths.push(position);
     }
-    const copy = typeof entry === "object" && entry !== null ? copyJson(entry) : { value: entry };
+    // Only an object can hold a content. copyJson reads null as no fields, as it is.
+    if (typeof entry !== "object") {
+      noContent.push(position);
+      continue;
+    }
+    const copy = copyJson(entry);
     if (copy === "not-json") {
       unreadable.push(position);
       continue;
@@ -217,9 +223,9 @@ function checkSources(
       tooDeep.push(position);
       continue;
     }
-    const fields = readFields(copy.value);
-    const content = fields?.get("content");
-    if (fields === undefined || typeof content !== "string") {
+    const fields = readFields(copy.value) ?? new Map<string, unknown>();
+    const content = fields.get("content");
+    if (typeof content !== "string") {
       noContent.push(position);
     } else {
       good.push([path, { ...Object.fromEntries(fields), content }]);
@@ -242,7 +248,8 @@ function checkSources(
 
 function checkSettings(value: unknown, problems: Problems): Record<string, unknown> | undefined {
   const field = "compiler.input.settings";
-  if (typeof value !== "object" || value === null) {
+  // null passes here and fails as an object below.
+  if (typeof value !== "object") {
     return problems.add(field, "must be an object");
   }
   const copy = copyJson(value);
@@ -298,8 +305,8 @@ function checkExtraFields(
 
 /** A checked value, `undefined` when invalid, and the source paths when the sources were read. */
 interface WithPaths<T> {
-  value: T | undefined;
-  paths: ReadonlySet<string> | undefined;
+  value?: T | undefined;
+  paths?: ReadonlySet<string> | undefined;
 }
 
 /** The Standard JSON input, deep-copied with every field kept. */
@@ -310,7 +317,7 @@ function checkStandardJson(
   const fields = readFields(value);
   if (fields === undefined) {
     problems.add("compiler.input", "must be the Standard JSON input object");
-    return { value: undefined, paths: undefined };
+    return {};
   }
   const extras = checkExtraFields(fields, problems);
   const language = checkLanguage(fields.get("language"), problems);
@@ -324,7 +331,7 @@ function checkStandardJson(
     sources === undefined ||
     settings === undefined
   ) {
-    return { value: undefined, paths };
+    return { paths };
   }
   return { value: { language, sources, settings, ...Object.fromEntries(extras) }, paths };
 }
@@ -333,13 +340,13 @@ function checkCompiler(value: unknown, problems: Problems): WithPaths<VerifyInpu
   const fields = readFields(value);
   if (fields === undefined) {
     problems.add("compiler", "must be an object with kind, version and input");
-    return { value: undefined, paths: undefined };
+    return {};
   }
   const kind = checkKind(fields.get("kind"), problems);
   const version = checkVersion(fields.get("version"), problems);
   const { value: input, paths } = checkStandardJson(fields.get("input"), problems);
   if (kind === undefined || version === undefined || input === undefined) {
-    return { value: undefined, paths };
+    return { paths };
   }
   return { value: { kind, version, input }, paths };
 }
@@ -349,12 +356,13 @@ function checkContractName(
   paths: ReadonlySet<string> | undefined,
   problems: Problems,
 ): string | undefined {
-  const colon = typeof value === "string" ? value.lastIndexOf(":") : -1;
-  if (typeof value !== "string" || colon < 1 || !IDENTIFIER.test(value.slice(colon + 1))) {
-    return problems.add(
-      "contractName",
-      "must be path:Name, with a Solidity identifier after the last colon",
-    );
+  const format = "must be path:Name, with a Solidity identifier after the last colon";
+  if (typeof value !== "string") {
+    return problems.add("contractName", format);
+  }
+  const colon = value.lastIndexOf(":");
+  if (colon < 1 || !IDENTIFIER.test(value.slice(colon + 1))) {
+    return problems.add("contractName", format);
   }
   const path = value.slice(0, colon);
   if (!isSafePath(path)) {
@@ -484,6 +492,7 @@ function checkCreationBytecode(value: unknown, problems: Problems): { value?: He
       "must be hex bytes and __$...$__ library placeholders, 1 to 65536 bytes",
     );
   }
+  // Stryker disable next-line Regex: equivalent. The pattern above allows 0x only at the start.
   return { value: `0x${value.replace(/^0x/, "").toLowerCase()}` };
 }
 
@@ -578,8 +587,8 @@ export function validateInput(input: unknown): VerifyInput {
   const creationBytecode = checkCreationBytecode(fields.get("creationBytecode"), problems);
   const libraries = checkLibraries(fields.get("libraries"), compiler?.input, paths, problems);
 
+  // Every check that adds an issue returns undefined, so these checks cover every issue.
   if (
-    problems.issues.length > 0 ||
     libraries === undefined ||
     chainId === undefined ||
     address === undefined ||
@@ -589,6 +598,12 @@ export function validateInput(input: unknown): VerifyInput {
     creationTxHash === undefined ||
     creationBytecode === undefined
   ) {
+    throw invalid(problems);
+  }
+  // Defence in depth: a later check that adds an issue but forgets to return undefined still
+  // fails the input.
+  // Stryker disable next-line ConditionalExpression,BlockStatement: equivalent. Every check that adds an issue also returns undefined, which the check above catches.
+  if (problems.issues.length > 0) {
     throw invalid(problems);
   }
   const result: VerifyInput = { chainId, address, compiler, contractName };
@@ -610,12 +625,10 @@ export function validateInput(input: unknown): VerifyInput {
 function invalid({ issues, hints }: Problems): ExplorerVerifyError {
   const fields = issues.map((issue) => issue.field).join(", ");
   const [hint] = hints;
-  const options =
-    hint === undefined
-      ? { secrets: [] }
-      : {
-          hint: issues.length > 1 ? `${hint} Then fix the other fields in details.issues.` : hint,
-          secrets: [],
-        };
-  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, options);
+  const more = issues.length > 1 ? " Then fix the other fields in details.issues." : "";
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, {
+    ...(hint === undefined ? {} : { hint: `${hint}${more}` }),
+    // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issues name only fields, never the text Stryker puts here.
+    secrets: [],
+  });
 }
