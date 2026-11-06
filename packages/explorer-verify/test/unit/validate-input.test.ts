@@ -1230,3 +1230,95 @@ describe("validateInput rejects values JSON would drop or change (R-IN-6)", () =
     );
   });
 });
+
+describe("rule: each libraries entry says why it is invalid and what to pass (R-IN-4, R-DX-3, #241)", () => {
+  const LIBRARY = "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c";
+  const KEY_HINT =
+    "Key each entry of libraries by the path of a file in compiler.input.sources, a colon and the library's name, such as src/Lib.sol:Lib.";
+  const ADDRESS_HINT =
+    "Give each library address as 0x followed by 40 hex digits, the address the library is deployed at.";
+
+  it("accepts one library and returns its address in lower case", () => {
+    const validated = validateInput({
+      ...input(),
+      libraries: { "src/lib/Math.sol:Math": LIBRARY },
+    });
+    assert.deepEqual(validated.libraries, { "src/lib/Math.sol:Math": LIBRARY.toLowerCase() });
+  });
+
+  it("accepts two libraries, in the order given", () => {
+    const validated = validateInput({
+      ...input(),
+      libraries: { "src/lib/Math.sol:Math": LIBRARY, "src/Token.sol:Helper": ADDRESS },
+    });
+    assert.deepEqual(validated.libraries, {
+      "src/lib/Math.sol:Math": LIBRARY.toLowerCase(),
+      "src/Token.sol:Helper": ADDRESS.toLowerCase(),
+    });
+  });
+
+  it("refuses a library outside the sources with a hint naming the key to pass", () => {
+    const error = assertIssue(
+      { ...input(), libraries: { "src/X.sol:X": LIBRARY } },
+      "libraries.1",
+      "must be keyed by path:Name of compiler.input.sources",
+    );
+    assert.equal(error.hint, KEY_HINT);
+    assert.equal(error.message, "The input is invalid: libraries.1.");
+    assertNotShown(error, "src/X.sol");
+  });
+
+  it("refuses a key without a library name, and one with a local path, with the key hint", () => {
+    for (const name of ["src/Token.sol", "/home/user/src/Token.sol:Token"]) {
+      const error = rejection({ ...input(), libraries: { [name]: LIBRARY } });
+      assert.equal(error.hint, KEY_HINT, name);
+    }
+  });
+
+  it("refuses a bad address with a hint naming the address to pass", () => {
+    const error = assertIssue(
+      { ...input(), libraries: { "src/lib/Math.sol:Math": "0x12" } },
+      "libraries.1",
+      "must be 0x followed by 40 hex digits",
+    );
+    assert.equal(error.hint, ADDRESS_HINT);
+  });
+
+  it("names the position of each bad entry and gives the first one's hint", () => {
+    const error = assertRejected(
+      {
+        ...input(),
+        libraries: {
+          "src/lib/Math.sol:Math": LIBRARY,
+          "src/Token.sol:Helper": "0x12",
+          "src/X.sol:X": LIBRARY,
+        },
+      },
+      ["libraries.2", "libraries.3"],
+    );
+    assert.equal(error.hint, `${ADDRESS_HINT} Then fix the other fields in details.issues.`);
+  });
+
+  it("refuses an address that conflicts with settings.libraries, with a hint", () => {
+    const base = input();
+    const error = assertIssue(
+      {
+        ...base,
+        compiler: {
+          ...base.compiler,
+          input: {
+            ...base.compiler.input,
+            settings: { libraries: { "src/lib/Math.sol": { Math: ADDRESS } } },
+          },
+        },
+        libraries: { "src/lib/Math.sol:Math": LIBRARY },
+      },
+      "libraries.1",
+      "conflicts with compiler.input.settings.libraries",
+    );
+    assert.equal(
+      error.hint,
+      "Give each library the address compiler.input.settings.libraries holds for it, or remove the entry there.",
+    );
+  });
+});
