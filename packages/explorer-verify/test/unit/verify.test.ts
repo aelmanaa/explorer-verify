@@ -171,6 +171,8 @@ interface RunOptions {
   readonly dependencies?: FlowDependencies;
   /** Called after each round of timers, with the events and requests so far. */
   readonly onRound?: (events: readonly VerifyEvent[], sent: readonly Sent[]) => void;
+  /** Called right after each round of timers runs, before the call's code goes on. */
+  readonly afterTimers?: () => void;
 }
 
 interface Run {
@@ -220,6 +222,7 @@ async function run(t: TestContext, steps: readonly Step[], use: RunOptions = {})
     tracked,
     () => {
       t.mock.timers.runAll();
+      use.afterTimers?.();
     },
     {
       onTurn: () => {
@@ -701,6 +704,62 @@ describe("verify(): time budget (R-FLOW-2, R-FLOW-4, R-FLOW-5)", () => {
     assert.equal(r.sent.length, 6);
     assert.equal(r.elapsed, 10_000);
     assert.ok(!types(r.events).includes("verify.result"));
+  });
+
+  it("stops at the deadline when Date.now() reads 1 ms behind an on-time timer (R-FLOW-2, R-FLOW-4)", async (t) => {
+    // Timers and Date.now() use different clocks. The second wait is cut to the deadline; when its
+    // timer fires on time, Date.now() reads 1 ms early. Polling must stop there, with no extra poll.
+    const deadline = 10_000;
+    const r = await run(
+      t,
+      [
+        fixture("lookup-not-verified"),
+        fixture("submit-accepted"),
+        ...pending(1),
+        fixture("lookup-not-verified"),
+      ],
+      {
+        options: { timeoutMs: deadline, pollIntervalMs: 5_000 },
+        afterTimers: () => {
+          if (Date.now() === deadline) {
+            t.mock.timers.setTime(deadline - 1);
+          }
+        },
+      },
+    );
+    errorOf(r.outcome, "not-confirmed");
+    // One poll at 5 s, then the last lookup.
+    assert.equal(r.sent.length, 4);
+    assert.equal(r.events.filter((event) => event.type === "verify.poll").length, 1);
+    assert.equal(r.elapsed, deadline - 1);
+  });
+
+  it("stops with no poll when a wait that ends before the deadline fires at it (R-FLOW-2, R-FLOW-4)", async (t) => {
+    // The wait from 3 s to 6 s is not cut to the deadline. A busy event loop fires its timer late,
+    // when Date.now() reads the deadline. Polling stops there, before a poll request.
+    const deadline = 10_000;
+    const r = await run(
+      t,
+      [
+        fixture("lookup-not-verified"),
+        fixture("submit-accepted"),
+        ...pending(1),
+        fixture("lookup-not-verified"),
+      ],
+      {
+        options: { timeoutMs: deadline, pollIntervalMs: 3_000 },
+        afterTimers: () => {
+          if (Date.now() === 6_000) {
+            t.mock.timers.setTime(deadline);
+          }
+        },
+      },
+    );
+    const error = errorOf(r.outcome, "not-confirmed");
+    assert.equal(error.cause, undefined);
+    assert.equal(r.sent.length, 4);
+    assert.equal(r.events.filter((event) => event.type === "verify.poll").length, 1);
+    assert.equal(r.elapsed, deadline);
   });
 
   it("turns a lagging job into verified with the last lookup (R-FLOW-2)", async (t) => {
