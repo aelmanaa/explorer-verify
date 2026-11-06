@@ -15,7 +15,7 @@ import { inspect } from "node:util";
 import type { Context, Target } from "../../src/backends/backend.ts";
 import { etherscanCompatible } from "../../src/backends/etherscan-compatible.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { DEFAULT_DEPENDENCIES } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { checkStatus, verify } from "../../src/index.ts";
 import { validateInput } from "../../src/input/validate.ts";

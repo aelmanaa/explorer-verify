@@ -16,7 +16,6 @@ import {
   DEFAULT_TIMEOUT_MS,
   MAX_POLL_FAILURES,
   MIN_POLL_INTERVAL_MS,
-  runVerify,
 } from "../../src/flow/verify.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
 import { MAX_TIMER_MS, REQUEST_TIMEOUT_MS, request as send, sleep } from "../../src/http/fetch.ts";
@@ -31,6 +30,7 @@ import type {
   VerifyResult,
 } from "../../src/index.ts";
 import { ROUTING_TABLE } from "../../src/routing/table.ts";
+import { runVerify } from "../helpers/defaults.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

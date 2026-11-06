@@ -483,7 +483,7 @@ Measurement:
 - **R-RUN-1** The core runs unchanged in current browsers, Node 22.18 and later, Deno, Bun and edge
   runtimes. It uses only web-platform globals (`fetch`, `URL`, `AbortSignal`, `TextEncoder`,
   `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`), a build without Node types and
-  the browser smoke test.
+  the browser smoke test, which runs the default entry and `explorer-verify/core`.
 - **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
 - **R-RUN-3** Bundle budget for `import { verify } from "explorer-verify"` in a browser build:
   minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI.
@@ -493,7 +493,12 @@ Measurement:
   and 0040). The entries are measured without the clients and the table, and each client chunk and
   the `table` chunk has its own ceiling under `chunks`. Every exported name of every package has
   a row in `name-budget.json`, with a ceiling for esbuild with splitting, esbuild as one file and
-  Rollup; an exported name with no row fails CI (decision 0042).
+  Rollup; an exported name with no row fails CI (decision 0042). `explorer-verify/core` takes the clients and the
+  table from its caller and reaches no dynamic `import()`, so a bundle that does not split code
+  holds only the clients it imports. `verify` from the core with the Sourcify client and no table,
+  as one file, stays at or below 78,687 bytes minified and 26,224 gzipped, the measured size plus
+  20% on 2026-11-06; CI checks the gzipped bound as `verify (core, Sourcify, one file)` (decision
+  0052).
 - **R-RUN-4** The core has no runtime dependencies. Third-party code is vendored under
   `src/internal/vendor/` with its licence notice, counted in the budget, and recorded in a decision.
 - **R-RUN-5** Optional features (the server handler, input resolvers) are separate entry points or

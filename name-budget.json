@@ -717,6 +717,358 @@
         "files": 1,
         "ceilingBytes": 1224
       }
+    },
+    {
+      "entry": "explorer-verify/core",
+      "name": "checkStatus",
+      "esbuildSplit": {
+        "minBytes": 43057,
+        "gzipBytes": 14591,
+        "files": 1,
+        "ceilingBytes": 17510
+      },
+      "esbuildOneFile": {
+        "minBytes": 43057,
+        "gzipBytes": 14591,
+        "files": 1,
+        "ceilingBytes": 17510
+      },
+      "rollup": {
+        "minBytes": 43267,
+        "gzipBytes": 14602,
+        "files": 1,
+        "ceilingBytes": 17523
+      }
+    },
+    {
+      "entry": "explorer-verify/core",
+      "name": "dryRun",
+      "esbuildSplit": {
+        "minBytes": 44890,
+        "gzipBytes": 15277,
+        "files": 1,
+        "ceilingBytes": 18333
+      },
+      "esbuildOneFile": {
+        "minBytes": 44890,
+        "gzipBytes": 15277,
+        "files": 1,
+        "ceilingBytes": 18333
+      },
+      "rollup": {
+        "minBytes": 45148,
+        "gzipBytes": 15285,
+        "files": 1,
+        "ceilingBytes": 18342
+      }
+    },
+    {
+      "entry": "explorer-verify/core",
+      "name": "linkProxy",
+      "esbuildSplit": {
+        "minBytes": 40472,
+        "gzipBytes": 13654,
+        "files": 1,
+        "ceilingBytes": 16385
+      },
+      "esbuildOneFile": {
+        "minBytes": 40472,
+        "gzipBytes": 13654,
+        "files": 1,
+        "ceilingBytes": 16385
+      },
+      "rollup": {
+        "minBytes": 40655,
+        "gzipBytes": 13661,
+        "files": 1,
+        "ceilingBytes": 16394
+      }
+    },
+    {
+      "entry": "explorer-verify/core",
+      "name": "verify",
+      "esbuildSplit": {
+        "minBytes": 49603,
+        "gzipBytes": 16680,
+        "files": 1,
+        "ceilingBytes": 20016
+      },
+      "esbuildOneFile": {
+        "minBytes": 49603,
+        "gzipBytes": 16680,
+        "files": 1,
+        "ceilingBytes": 20016
+      },
+      "rollup": {
+        "minBytes": 49904,
+        "gzipBytes": 16698,
+        "files": 1,
+        "ceilingBytes": 20038
+      }
+    },
+    {
+      "entry": "explorer-verify/core",
+      "name": "verifyEach",
+      "esbuildSplit": {
+        "minBytes": 55380,
+        "gzipBytes": 18347,
+        "files": 1,
+        "ceilingBytes": 22017
+      },
+      "esbuildOneFile": {
+        "minBytes": 55380,
+        "gzipBytes": 18347,
+        "files": 1,
+        "ceilingBytes": 22017
+      },
+      "rollup": {
+        "minBytes": 55702,
+        "gzipBytes": 18373,
+        "files": 1,
+        "ceilingBytes": 22048
+      }
+    },
+    {
+      "entry": "explorer-verify/table",
+      "name": "routingTable",
+      "esbuildSplit": {
+        "minBytes": 25979,
+        "gzipBytes": 3124,
+        "files": 1,
+        "ceilingBytes": 3749
+      },
+      "esbuildOneFile": {
+        "minBytes": 25979,
+        "gzipBytes": 3124,
+        "files": 1,
+        "ceilingBytes": 3749
+      },
+      "rollup": {
+        "minBytes": 25981,
+        "gzipBytes": 3122,
+        "files": 1,
+        "ceilingBytes": 3747
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/sourcify",
+      "name": "sourcify",
+      "esbuildSplit": {
+        "minBytes": 28476,
+        "gzipBytes": 10247,
+        "files": 1,
+        "ceilingBytes": 12297
+      },
+      "esbuildOneFile": {
+        "minBytes": 28476,
+        "gzipBytes": 10247,
+        "files": 1,
+        "ceilingBytes": 12297
+      },
+      "rollup": {
+        "minBytes": 28665,
+        "gzipBytes": 10268,
+        "files": 1,
+        "ceilingBytes": 12322
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/sourcify",
+      "name": "sourcifyProxyLink",
+      "esbuildSplit": {
+        "minBytes": 30070,
+        "gzipBytes": 10720,
+        "files": 1,
+        "ceilingBytes": 12864
+      },
+      "esbuildOneFile": {
+        "minBytes": 30070,
+        "gzipBytes": 10720,
+        "files": 1,
+        "ceilingBytes": 12864
+      },
+      "rollup": {
+        "minBytes": 30275,
+        "gzipBytes": 10729,
+        "files": 1,
+        "ceilingBytes": 12875
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/etherscan-v2",
+      "name": "etherscanV2",
+      "esbuildSplit": {
+        "minBytes": 44569,
+        "gzipBytes": 15474,
+        "files": 1,
+        "ceilingBytes": 18569
+      },
+      "esbuildOneFile": {
+        "minBytes": 44569,
+        "gzipBytes": 15474,
+        "files": 1,
+        "ceilingBytes": 18569
+      },
+      "rollup": {
+        "minBytes": 44731,
+        "gzipBytes": 15440,
+        "files": 1,
+        "ceilingBytes": 18528
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/etherscan-v2",
+      "name": "etherscanV2ProxyLink",
+      "esbuildSplit": {
+        "minBytes": 44578,
+        "gzipBytes": 15477,
+        "files": 1,
+        "ceilingBytes": 18573
+      },
+      "esbuildOneFile": {
+        "minBytes": 44578,
+        "gzipBytes": 15477,
+        "files": 1,
+        "ceilingBytes": 18573
+      },
+      "rollup": {
+        "minBytes": 44746,
+        "gzipBytes": 15442,
+        "files": 1,
+        "ceilingBytes": 18531
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/etherscan-compatible",
+      "name": "etherscanCompatible",
+      "esbuildSplit": {
+        "minBytes": 36524,
+        "gzipBytes": 12976,
+        "files": 1,
+        "ceilingBytes": 15572
+      },
+      "esbuildOneFile": {
+        "minBytes": 36524,
+        "gzipBytes": 12976,
+        "files": 1,
+        "ceilingBytes": 15572
+      },
+      "rollup": {
+        "minBytes": 36673,
+        "gzipBytes": 12949,
+        "files": 1,
+        "ceilingBytes": 15539
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/etherscan-compatible",
+      "name": "etherscanCompatibleProxyLink",
+      "esbuildSplit": {
+        "minBytes": 28542,
+        "gzipBytes": 10422,
+        "files": 1,
+        "ceilingBytes": 12507
+      },
+      "esbuildOneFile": {
+        "minBytes": 28542,
+        "gzipBytes": 10422,
+        "files": 1,
+        "ceilingBytes": 12507
+      },
+      "rollup": {
+        "minBytes": 28590,
+        "gzipBytes": 10377,
+        "files": 1,
+        "ceilingBytes": 12453
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/routescan",
+      "name": "routescan",
+      "esbuildSplit": {
+        "minBytes": 36621,
+        "gzipBytes": 13032,
+        "files": 1,
+        "ceilingBytes": 15639
+      },
+      "esbuildOneFile": {
+        "minBytes": 36621,
+        "gzipBytes": 13032,
+        "files": 1,
+        "ceilingBytes": 15639
+      },
+      "rollup": {
+        "minBytes": 36770,
+        "gzipBytes": 13007,
+        "files": 1,
+        "ceilingBytes": 15609
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/blockscout",
+      "name": "blockscout",
+      "esbuildSplit": {
+        "minBytes": 34736,
+        "gzipBytes": 12461,
+        "files": 1,
+        "ceilingBytes": 14954
+      },
+      "esbuildOneFile": {
+        "minBytes": 34736,
+        "gzipBytes": 12461,
+        "files": 1,
+        "ceilingBytes": 14954
+      },
+      "rollup": {
+        "minBytes": 34866,
+        "gzipBytes": 12438,
+        "files": 1,
+        "ceilingBytes": 14926
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/blockscout",
+      "name": "blockscoutHosted",
+      "esbuildSplit": {
+        "minBytes": 34735,
+        "gzipBytes": 12468,
+        "files": 1,
+        "ceilingBytes": 14962
+      },
+      "esbuildOneFile": {
+        "minBytes": 34735,
+        "gzipBytes": 12468,
+        "files": 1,
+        "ceilingBytes": 14962
+      },
+      "rollup": {
+        "minBytes": 34861,
+        "gzipBytes": 12440,
+        "files": 1,
+        "ceilingBytes": 14928
+      }
+    },
+    {
+      "entry": "explorer-verify/clients/blockscout",
+      "name": "blockscoutProxyLink",
+      "esbuildSplit": {
+        "minBytes": 34002,
+        "gzipBytes": 12077,
+        "files": 1,
+        "ceilingBytes": 14493
+      },
+      "esbuildOneFile": {
+        "minBytes": 34002,
+        "gzipBytes": 12077,
+        "files": 1,
+        "ceilingBytes": 14493
+      },
+      "rollup": {
+        "minBytes": 34128,
+        "gzipBytes": 12053,
+        "files": 1,
+        "ceilingBytes": 14464
+      }
     }
   ]
 }

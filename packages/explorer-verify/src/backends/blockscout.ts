@@ -93,7 +93,7 @@ const UNKNOWN_UID = "Unknown UID";
  * const match = await blockscout.lookup({ chainId: 84532, address }, ctx);
  * ```
  */
-export const blockscout: Backend = client("blockscout");
+export const blockscout: Backend = /* @__PURE__ */ client("blockscout");
 
 /**
  * The client for Blockscout's hosted API, `https://api.blockscout.com/<chainId>/api`: the
@@ -110,7 +110,7 @@ export const blockscout: Backend = client("blockscout");
  * const match = await blockscoutHosted.lookup({ chainId: 11155111, address }, ctx);
  * ```
  */
-export const blockscoutHosted: Backend = client(HOSTED);
+export const blockscoutHosted: Backend = /* @__PURE__ */ client(HOSTED);
 
 /** The client of one Blockscout backend. Only the hosted one reads key answers. */
 function client(name: Name): Backend {

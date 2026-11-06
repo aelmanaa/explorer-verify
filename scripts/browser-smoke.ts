@@ -10,7 +10,9 @@
 //    requests to the replay server are cross-origin, as in a dapp. Every run routes to Sourcify, so
 //    Chromium must load the Sourcify client's chunk and no other client's chunk. The full run and
 //    the resume pass the replay server as `route.apiUrl` and must not load the routing table's
-//    chunk; a third load verifies without a route and must load it (decision 0040).
+//    chunk; a third load verifies without a route and must load it (decision 0040). A fourth load
+//    verifies through `explorer-verify/core` with the Sourcify client it imports, and must load no
+//    chunk at all (decision 0052).
 // 4. Each run must give the keccak-256 vector digests, then `verified` with `exact` from
 //    `verify()` and from `checkStatus()` on two handles. A fresh load then resumes the first
 //    handle with `checkStatus()` alone, and another runs `verify()` without a route, which the
@@ -68,6 +70,13 @@ const RUN_EXCHANGES = [
 const RESUME_EXCHANGES = ["2026-11-02-job-exact-match"];
 // verify() without a route in a fresh realm: the lookup finds the Greeter verified.
 const TABLE_EXCHANGES = ["2026-11-02-lookup-exact-match"];
+// verify() from explorer-verify/core in a fresh realm: the same lookup.
+const CORE_EXCHANGES = ["2026-11-02-lookup-exact-match"];
+// What verify() from explorer-verify/core returns: the replay server is not Sourcify, so no page.
+const FROM_CORE = {
+  ok: true,
+  result: { status: "already-verified", backend: "sourcify", match: "exact" },
+};
 // The handle of the recorded submit, for the Greeter of test/browser/scenario.ts.
 const HANDLE =
   "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
@@ -89,10 +98,14 @@ const FROM_TABLE = {
 interface Load {
   readonly resume?: string;
   readonly fromTable?: boolean;
+  readonly core?: boolean;
 }
 
 /** The dynamically loaded modules a load must load, and no others, with a label for messages. */
 function chunksOf(mode: Load): { readonly label: string; readonly modules: readonly string[] } {
+  if (mode.core === true) {
+    return { label: `explorer-verify/core with the ${ROUTED_CLIENT} client`, modules: [] };
+  }
   return mode.fromTable === true
     ? {
         label: `a ${ROUTED_CLIENT} route from the routing table`,
@@ -649,6 +662,11 @@ assert.deepEqual(
   FROM_TABLE,
   "the Node run without a route",
 );
+assert.deepEqual(
+  await runInNode(bundle, CORE_EXCHANGES, { core: true }),
+  FROM_CORE,
+  "the Node run through explorer-verify/core",
+);
 const browser = await chromium.launch({
   ...(executablePath === undefined ? {} : { executablePath }),
   // No host but 127.0.0.1 resolves, so nothing reaches the network even if a check misses it.
@@ -666,6 +684,11 @@ try {
     FROM_TABLE,
     "the Chromium run without a route",
   );
+  assert.deepEqual(
+    await runInChromium(browser, bundle, CORE_EXCHANGES, { core: true }),
+    FROM_CORE,
+    "the Chromium run through explorer-verify/core",
+  );
 } finally {
   await browser.close();
 }
@@ -682,5 +705,6 @@ process.stdout.write(
   "browser smoke: Node and Chromium ran the same bundle and agree: the keccak-256 vectors match; " +
     `Chromium loaded the ${ROUTED_CLIENT} client chunk and no other, and the ${TABLE_CHUNK} chunk ` +
     "only without a route; verify() and checkStatus() returned verified with exact, also after a " +
-    "fresh load, and verify() without a route already-verified with the row's page\n",
+    "fresh load, and verify() without a route already-verified with the row's page; " +
+    "verify() from explorer-verify/core with the Sourcify client loaded no chunk\n",
 );

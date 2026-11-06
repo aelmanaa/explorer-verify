@@ -5,13 +5,13 @@ import { describe, it } from "node:test";
 
 import type { BackendName } from "../../src/backend-names.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { keyFor } from "../../src/http/api-keys.ts";
 import type { CheckedKeys } from "../../src/http/api-keys.ts";
 import { SOURCIFY_API_URL } from "../../src/routing/resolve.ts";
 import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
+import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { resolveRoute } from "../helpers/route.ts";
 import { apiUrlProblems, tableProblems } from "../helpers/routing-table.ts";
 

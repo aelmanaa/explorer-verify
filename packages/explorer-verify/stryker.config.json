@@ -35,10 +35,15 @@
     "src/input/metadata.ts",
     "src/input/libraries.ts",
     "src/input/paths.ts",
-    "src/flow/check-handle.ts"
+    "src/flow/check-handle.ts",
+    "src/core/options.ts",
+    "src/core/parts.ts",
+    "src/flow/defaults.ts",
+    "src/routing/load-table.ts",
+    "src/clients/*.ts"
   ],
   "tap": {
-    "testFiles": ["test/unit/!(skill|user-docs|options-types).test.ts"],
+    "testFiles": ["test/unit/!(skill|user-docs|options-types|core-types).test.ts"],
     "nodeArgs": ["--test-reporter=tap", "-r", "{{hookFile}}", "{{testFile}}"],
     "forceBail": true
   },

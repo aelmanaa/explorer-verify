@@ -13,8 +13,6 @@ import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import { runVerify } from "../../src/flow/verify.ts";
 import { REQUEST_TIMEOUT_MS } from "../../src/http/fetch.ts";
 import type {
   Handle,
@@ -25,6 +23,7 @@ import type {
   VerifyResult,
 } from "../../src/index.ts";
 import { ROUTING_TABLE } from "../../src/routing/table.ts";
+import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture } from "../helpers/fake-fetch.ts";
 import { compileStrict, validateEnvelope } from "./envelope-schema.ts";

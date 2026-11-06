@@ -217,7 +217,9 @@ What reaches the page depends on your bundler:
 - Vite, Rollup and webpack write each client as a chunk of its own by default. The page fetches a
   client's chunk on the first call routed to it.
 - esbuild does the same with `splitting: true` and `format: "esm"`. Without splitting, every client
-  stays in the one output file, and the page downloads all five with the entry.
+  stays in the one output file, and the page downloads all five with the entry. To ship one client
+  in one file, import `verify` from `explorer-verify/core` and pass that client
+  ([ship only the clients your tool uses](wrap-explorer-verify-in-your-tool.md#ship-only-the-clients-your-tool-uses)).
 
 The `import("explorer-verify")` in the example above still matters: it keeps the entry itself out
 of the first page load. The client chunks keep the clients the page never calls out of every load.

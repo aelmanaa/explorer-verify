@@ -184,7 +184,10 @@ function refusal(ctx: Context, result: string): LinkVerdict | undefined {
  * const step = await etherscanProxyLinker.request({ chainId: 11155111, address }, ctx);
  * ```
  */
-export const etherscanProxyLinker: ProxyLinker = etherscanLinker("etherscan-v2", "Etherscan");
+export const etherscanProxyLinker: ProxyLinker = /* @__PURE__ */ etherscanLinker(
+  "etherscan-v2",
+  "Etherscan",
+);
 
 /**
  * The proxy-link code of a standalone Etherscan-compatible explorer, at the route's `apiUrl`.
@@ -194,7 +197,7 @@ export const etherscanProxyLinker: ProxyLinker = etherscanLinker("etherscan-v2",
  * const step = await compatibleProxyLinker.request({ chainId: 296, address }, ctx);
  * ```
  */
-export const compatibleProxyLinker: ProxyLinker = etherscanLinker(
+export const compatibleProxyLinker: ProxyLinker = /* @__PURE__ */ etherscanLinker(
   "etherscan-compatible",
   "Etherscan-compatible explorer",
 );

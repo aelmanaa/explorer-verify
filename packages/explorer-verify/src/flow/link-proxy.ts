@@ -16,7 +16,7 @@ import { addressDigits, readChainId, readFields } from "../internal/read-fields.
 import type { Observer } from "../observe.ts";
 import { checkRoute, routeFrom } from "../routing/resolve.ts";
 import type { Route, RoutingTable, TableLoader } from "../routing/resolve.ts";
-import type { Hex, LinkProxyOptions, LinkProxyResult, LinkProxyTarget } from "../types.ts";
+import type { Hex, LinkProxyOptions, LinkProxyResult } from "../types.ts";
 import {
   MAX_POLL_FAILURES,
   abortWins,
@@ -29,14 +29,16 @@ import {
   choiceKeys,
   withHandler,
 } from "./verify.ts";
-import type { Settings } from "./verify.ts";
+import type { HandlerLoader, LinkMissing, Settings } from "./verify.ts";
 
 /** Loads one explorer's proxy-link code. */
-type LinkerLoader = () => Promise<ProxyLinker>;
+export type LinkerLoader = () => Promise<ProxyLinker>;
 
 /**
- * What `linkProxy()` takes besides the caller's target and options. The tests pass linkers of
- * their own, a fixed `random` for the backoff jitter, or a routing table.
+ * What `linkProxy()` takes besides the caller's target and options. The default entry passes
+ * `DEFAULT_LINK_DEPENDENCIES`; `explorer-verify/core` passes the proxy-link clients and the table
+ * its caller gave (decision 0052). The tests pass linkers of their own, a fixed `random` for the
+ * backoff jitter, or a routing table.
  */
 export interface LinkDependencies {
   /** The proxy-link code of each backend that has one, loaded or the function that loads it. */
@@ -44,34 +46,15 @@ export interface LinkDependencies {
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
   /**
-   * The routing table, or the function that loads it. Defaults to the shipped one, loaded only
-   * for a call without `route.apiUrl` (decision 0040).
+   * The routing table, or the function that loads it, read only for a call without
+   * `route.apiUrl` (decision 0040). Absent, such a call throws `invalid-input` naming `table`.
    */
-  readonly table?: RoutingTable | TableLoader;
+  readonly table?: RoutingTable | TableLoader | undefined;
+  /** Loads the `handlerUrl` code; absent, a call with `handlerUrl` throws `invalid-input`. */
+  readonly handler?: HandlerLoader | undefined;
+  /** Set by `explorer-verify/core`: the errors for what its caller left out. */
+  readonly missing?: LinkMissing | undefined;
 }
-
-/**
- * The proxy-link code `linkProxy()` uses. Each one loads through a dynamic `import()` with a
- * literal path, so a bundler that splits code puts it in a chunk of its own. Routescan has none
- * yet: what its `verifyproxycontract` does is not known.
- */
-export const DEFAULT_LINK_DEPENDENCIES: LinkDependencies = {
-  linkers: {
-    /** Loads the Etherscan v2 proxy-link code. */
-    "etherscan-v2": async () =>
-      (await import("../backends/proxy-etherscan.ts")).etherscanProxyLinker,
-    /** Loads the standalone Etherscan-compatible proxy-link code. */
-    "etherscan-compatible": async () =>
-      (await import("../backends/proxy-etherscan.ts")).compatibleProxyLinker,
-    /** Loads the Blockscout proxy-link code. */
-    blockscout: async () => (await import("../backends/proxy-blockscout.ts")).blockscoutProxyLinker,
-    /** The same code links on Blockscout's hosted API (decision 0041). */
-    "blockscout-hosted": async () =>
-      (await import("../backends/proxy-blockscout.ts")).blockscoutProxyLinker,
-    /** Loads the Sourcify proxy-link code. */
-    sourcify: async () => (await import("../backends/proxy-sourcify.ts")).sourcifyProxyLinker,
-  },
-};
 
 /** The proxy-link code each loader has given, by loader. */
 const LINKERS = new WeakMap<LinkerLoader, ProxyLinker>();
@@ -93,71 +76,6 @@ interface LinkCall {
   readonly observer: Observer;
   readonly settings: Settings;
   readonly budget: Budget;
-}
-
-/**
- * Links a verified proxy to its implementation on the explorer the route names, so the explorer
- * shows the implementation's functions on the proxy's page (R-FLOW-8). It verifies nothing
- * itself. Run the steps in this order: verify the implementation, verify the proxy, then link.
- *
- * - Etherscan v2 and a standalone Etherscan-compatible explorer: sends `verifyproxycontract`, with
- *   `expectedimplementation` when set, then checks `checkproxyverification` every
- *   `pollIntervalMs`. This changes the proxy's page on the explorer.
- * - Blockscout: sends `verifyproxycontract`, which asks the instance to read the implementation
- *   again, then checks `checkproxyverification`, then looks the implementation up. Right after
- *   `verify()` it refuses a request within a short interval; the call then waits that interval
- *   once, when it fits `timeoutMs`, and otherwise reads the implementation Blockscout holds.
- * - Sourcify: sends nothing that changes Sourcify. One lookup reads the implementation Sourcify
- *   recorded when it verified the proxy, and one more says whether the implementation is verified.
- * - Routescan: throws `invalid-input` on `route.backend` and sends nothing.
- *
- * Linking again is safe: a call never undoes a link. The call ends within `timeoutMs` plus one
- * request. It emits `verify.routed`, then `verify.poll` for each pending check, and HTTP retries as
- * `verify.retry`; no `verify.validated` and no `verify.result`.
- *
- * A request answered in a form the library does not know throws `unexpected-response`: nothing
- * started. A status check answered with a text it does not know, or an implementation that is not
- * one address, throws `proxy-link-unknown-state`: the explorer may have changed the proxy's page.
- *
- * @param target - The proxy's chain id and address, and the implementation it should point at.
- *   Other fields are ignored.
- * @param options - The options of `verify()`; `rpcUrl` is checked and not used. Etherscan needs `apiKeys["etherscan-v2"]`.
- * @returns `linked`, with the implementation and whether its source is verified; `mismatch` when
- *   the explorer holds another implementation than `expectedImplementation`; or `not-linked` with
- *   the explorer's reason, API keys removed.
- * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
- * @throws The error of the explorer's proxy-link module, unchanged, when it fails to load.
- * @throws ExplorerVerifyError with `invalid-input` for a bad target or options, or for Routescan;
- *   `proxy-link-pending` when the link is still pending when `timeoutMs` runs out (call again
- *   later); `proxy-link-unknown-state` for a link state the library cannot classify;
- *   `missing-api-key`, `unsupported-chain`, `timeout`, `network`, `rate-limited` and
- *   `unexpected-response`.
- * @example
- * ```ts
- * import { linkProxy, verify } from "explorer-verify";
- *
- * const options = { apiKeys: { "etherscan-v2": apiKey } };
- * await verify(implementationInput, options); // 1. the implementation
- * await verify(proxyInput, options); // 2. the proxy
- * const result = await linkProxy(
- *   { chainId: proxyInput.chainId, address: proxyInput.address, expectedImplementation: implementationInput.address },
- *   options,
- * ); // 3. the link
- * if (result.status === "linked") {
- *   console.log(`linked to ${result.implementation}`);
- * } else if (result.status === "mismatch") {
- *   console.error(`the proxy points at ${result.implementation ?? "another implementation"}`);
- * } else {
- *   console.error(`not linked: ${result.reason}`);
- * }
- * ```
- * @experimental
- */
-export async function linkProxy(
-  target: LinkProxyTarget,
-  options?: LinkProxyOptions,
-): Promise<LinkProxyResult> {
-  return await runLinkProxy(target, options, DEFAULT_LINK_DEPENDENCIES);
 }
 
 /**
@@ -186,15 +104,21 @@ export async function runLinkProxy(
   const named = readFields(read.route)?.get("backend");
   const chosen = BACKEND_NAMES.find((name) => name === named);
   if (chosen !== undefined && dependencies.linkers[chosen] === undefined) {
-    throw cannotLink(chosen, read);
+    throw dependencies.missing?.linker(chosen, read.keySecrets()) ?? cannotLink(chosen, read);
   }
   const checked = checkRoute(target.chainId, read.route, BACKEND_NAMES);
   // The routing table and the linker load inside abortWins, as in verify(): an abort during a
   // load rejects with signal.reason. Most routes with route.apiUrl load no table (decision 0040).
   return await abortWins(read.signal, async () => {
     const budget = startBudget(read);
-    const settings = await withHandler(read, budget);
-    const table = await tableFor(checked, dependencies.table, settings, budget);
+    const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
+    const table = await tableFor(
+      checked,
+      dependencies.table,
+      settings,
+      budget,
+      dependencies.missing,
+    );
     const route = routeFrom(target.chainId, checked, {
       apiKeys: choiceKeys(settings),
       allowSourcifyFallback: settings.allowSourcifyFallback === true,
@@ -205,7 +129,11 @@ export async function runLinkProxy(
     // A standalone entry of the routing table is not linked: Bitlayer refuses the POSTs a link
     // sends, and no standalone explorer's proxy answers were probed (decision 0039).
     if (load === undefined || (route.backend === "etherscan-compatible" && !route.overridden)) {
-      throw cannotLink(route.backend, settings);
+      throw (
+        (load === undefined
+          ? dependencies.missing?.linker(route.backend, settings.keySecrets())
+          : undefined) ?? cannotLink(route.backend, settings)
+      );
     }
     const linker =
       typeof load === "function"
@@ -242,7 +170,9 @@ export async function runLinkProxy(
 
 /**
  * `invalid-input` on `route.backend` for a backend this version cannot link a proxy on, or for an
- * `etherscan-compatible` route from the routing table rather than `route.apiUrl`.
+ * `etherscan-compatible` route from the routing table rather than `route.apiUrl`. Through
+ * `explorer-verify/core`, a backend that has proxy-link code but whose client the caller left out
+ * of `clients` gets `LinkMissing.linker` instead (decision 0052).
  */
 function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyError {
   return newError(

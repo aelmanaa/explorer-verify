@@ -7,10 +7,12 @@
  * The table holds only what varies per chain. {@link tableTarget} derives each backend's API URL
  * and explorer page from fixed templates, in one place (decision 0024).
  *
- * This module does not import the table. Its rows sit in `routing/table.ts`, which
- * {@link loadRoutingTable} loads with a dynamic `import()`, so a bundler that splits code puts them
- * in a chunk of their own. {@link readsTable} tells which routes need it: a call whose
- * `route.apiUrl` cannot be a URL the table lists does not load it (decision 0040).
+ * This module does not import the table, and holds no dynamic `import()`. Its rows sit in
+ * `routing/table.ts`, which the default entry loads with a dynamic `import()`, through
+ * `loadRoutingTable` in `routing/load-table.ts`, so a bundler that splits code puts them in a chunk
+ * of their own; `explorer-verify/core` takes them from its caller (decision 0052).
+ * {@link readsTable} tells which routes need it: a call whose `route.apiUrl` cannot be a URL the
+ * table lists does not load it (decision 0040).
  */
 import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
@@ -133,39 +135,6 @@ export interface TableTarget {
 
 /** Loads the routing table. The shipped one sits behind a dynamic `import()` (decision 0040). */
 export type TableLoader = () => Promise<RoutingTable>;
-
-/**
- * Loads the routing table shipped with this version, `routing/table.ts`, with a dynamic
- * `import()`. A bundler that splits code puts the rows in a chunk of their own, which a page
- * downloads only when a call reads the table (decision 0040).
- *
- * @returns The table.
- * @example
- * ```ts
- * const table = await loadRoutingTable();
- * table.chains.length; // 325
- * ```
- */
-export const loadRoutingTable: TableLoader = async () => (await import("./table.ts")).ROUTING_TABLE;
-
-/**
- * The date of the routing table shipped with this version: when its rows were last checked
- * against their sources, as `YYYY-MM-DD` (R-RT-1). The CLI prints it with `--version --json`
- * (R-AX-11). It loads the table, which sits in a chunk of its own (decision 0040), so it returns
- * a promise.
- *
- * @returns The date.
- *
- * @example
- * ```ts
- * import { routingTableDate } from "explorer-verify";
- *
- * await routingTableDate(); // "YYYY-MM-DD"
- * ```
- */
-export async function routingTableDate(): Promise<string> {
-  return (await loadRoutingTable()).checked;
-}
 
 /**
  * Where one call sends its requests, and where a person sees the verified contract.
@@ -576,6 +545,8 @@ export function resolveRoute(
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
  * @param clients - The backends this version has a client for; absent accepts every name.
+ * @param passed - Set by `explorer-verify/core`, whose `clients` are the caller's: the hint for a
+ *   `route.backend` the caller left out of them (decision 0052).
  * @returns The checked override. `target` is `undefined` when the route reads the routing table.
  * @throws ExplorerVerifyError with code `invalid-input`, as {@link resolveRoute} describes.
  * @example
@@ -587,6 +558,7 @@ export function checkRoute(
   chainId: number,
   override?: RouteOverride,
   clients?: readonly BackendName[],
+  passed?: (named: BackendName) => string,
 ): CheckedRoute {
   const issues: InputIssue[] = [];
   let hint: string | undefined;
@@ -615,11 +587,15 @@ export function checkRoute(
           named === undefined
             ? "must name a known backend"
             : clients?.includes(named) === false
-              ? "has no client in this version"
+              ? passed === undefined
+                ? "has no client in this version"
+                : "has no client in clients"
               : undefined;
         if (problem !== undefined) {
           issues.push({ field: "route.backend", message: problem });
-          hint = `Leave out route.backend, or name one of: ${(clients ?? BACKEND_NAMES).join(", ")}.`;
+          hint =
+            (named === undefined ? undefined : passed?.(named)) ??
+            `Leave out route.backend, or name one of: ${(clients ?? BACKEND_NAMES).join(", ")}.`;
         }
       }
       if (fields.apiUrl !== undefined) {
@@ -668,6 +644,29 @@ export function checkRoute(
 }
 
 /**
+ * Whether a checked route resolves without the routing table: it has `route.apiUrl`, or names a
+ * backend with one public host for every chain (Sourcify, Etherscan v2, Blockscout's hosted API).
+ * Only `explorer-verify/core` routes without a table; such a route then reads no row, so it has no
+ * explorer page from one (decision 0052).
+ *
+ * @param checked - The checked override, from {@link checkRoute}.
+ * @returns `true` when the route needs no table.
+ * @example
+ * ```ts
+ * servesWithoutTable(checkRoute(1, { backend: "sourcify" })); // true
+ * ```
+ */
+export function servesWithoutTable(checked: CheckedRoute): boolean {
+  const { named, target } = checked;
+  return (
+    target !== undefined ||
+    named === "sourcify" ||
+    named === "etherscan-v2" ||
+    named === "blockscout-hosted"
+  );
+}
+
+/**
  * Whether a checked route needs the routing table (decision 0040). A route without `route.apiUrl`
  * does. A route with it needs the table only for what the row says about its own API URL, the
  * explorer page and `needsKey`, and only for a backend whose row decides them:
@@ -713,7 +712,7 @@ export function readsTable(checked: CheckedRoute): boolean {
  *   when the route reads the table and `choice.table` is absent.
  * @example
  * ```ts
- * const route = routeFrom(11155111, checkRoute(11155111), { table: await loadRoutingTable() });
+ * const route = routeFrom(11155111, checkRoute(11155111), { table: ROUTING_TABLE });
  * ```
  */
 export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteChoice): Route {
@@ -721,7 +720,14 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
   const targets = (entries: readonly TableEntry[]): TableTarget[] =>
     entries.flatMap((each) => tableTarget(chainId, each) ?? []);
   const { table } = choice;
-  const row = table?.chains.find((each) => each.chainId === chainId);
+  // Without a table, which only explorer-verify/core allows, a backend with one public host for
+  // every chain stands for its own row; the host is the library's, not the caller's (decision 0052).
+  const row =
+    table === undefined
+      ? named === "sourcify" || named === "etherscan-v2"
+        ? { chainId, backends: [{ backend: named }] }
+        : undefined
+      : table.chains.find((each) => each.chainId === chainId);
   // Stryker disable next-line ArrayDeclaration: equivalent. tableTarget routes no entry that is not an object with a backend.
   const listed = targets(row?.backends ?? []);
   // The Sourcify fallback: for a chain with no row, or a route.apiUrl without a row entry.
@@ -766,7 +772,7 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
       explorerUrl: listed.find((each) => each.backend === "blockscout")?.explorerUrl,
     };
   } else if (target === undefined) {
-    if (table === undefined) {
+    if (row === undefined && table === undefined) {
       throw new TypeError(
         "The routing table is not loaded: pass choice.table for a route without route.apiUrl.",
       );
@@ -872,7 +878,7 @@ export interface RoutePick {
 }
 
 /**
- * What {@link routesFor} finds for a chain.
+ * What `routesFor()` finds for a chain.
  *
  * @experimental
  */
@@ -890,33 +896,23 @@ export interface ChainRoutes {
 export type RoutesForOptions = Pick<CallOptions, "apiKeys" | "allowSourcifyFallback">;
 
 /**
- * Tells where a call for `chainId` would go without `route`, and which backends `route.backend`
- * can name, from the routing table shipped with this version (R-RT-1 to R-RT-3). It sends no
- * request and reads no key: only whether `apiKeys` has a key for a backend counts. Use it to show
- * a person the choice before a submit.
+ * `routesFor()` with the table loader passed in: the default entry passes the shipped one.
+ * Internal: the package entry point exports `routesFor`.
  *
- * @param chainId - The EVM chain id, a positive safe integer.
- * @param options - The keys the call would have, and whether a chain without a row falls back to
- *   Sourcify. A field set to `undefined` counts as absent; any other key throws `invalid-input`
- *   naming it (R-IN-6).
+ * @param chainId - The EVM chain id.
+ * @param options - As `routesFor` takes them.
+ * @param load - Loads the routing table, once the options pass.
  * @returns The row's backends and the pick.
- * @throws ExplorerVerifyError `invalid-input` for a chain id that is not a positive safe integer,
- *   or for options that are not a plain object or hold another key.
+ * @throws As `routesFor` throws.
  * @example
  * ```ts
- * import { routesFor } from "explorer-verify";
- *
- * const { listed, pick } = await routesFor(11155111);
- * listed; // ["etherscan-v2", "sourcify", "blockscout", "routescan"]
- * if (!(pick instanceof Error)) {
- *   pick.backend; // "sourcify": etherscan-v2 is skipped without a key
- * }
+ * const routes = await routesWith(11155111, {}, loadRoutingTable);
  * ```
- * @experimental
  */
-export async function routesFor(
+export async function routesWith(
   chainId: number,
-  options: RoutesForOptions = {},
+  options: RoutesForOptions,
+  load: TableLoader,
 ): Promise<ChainRoutes> {
   const checked = checkRoute(chainId);
   // The keys first, so a getter on an unknown key never runs.
@@ -936,7 +932,7 @@ export async function routesFor(
   if (issues.length > 0) {
     throw invalid(issues, "The options are invalid", undefined, []);
   }
-  const table = await loadRoutingTable();
+  const table = await load();
   const row = table.chains.find((each) => each.chainId === chainId);
   const listed = (row?.backends ?? []).flatMap((each) => tableTarget(chainId, each)?.backend ?? []);
   const apiKeys: CheckedKeys = Object.fromEntries(
@@ -957,7 +953,8 @@ export async function routesFor(
 /**
  * `unsupported-chain` for a chain the routing table does not route: no row (`row`), a row that
  * does not list the backend the caller named (`listed`), or a row whose chosen backend has no
- * client in this version (`client`). The flow engine throws the last one when it opens the call.
+ * client in this version (`client`). The flow engine throws the last one when it opens the call;
+ * through `explorer-verify/core`, it throws the error of `Missing.client` instead (decision 0052).
  *
  * @param chainId - The chain of the call.
  * @param backend - The backend named or chosen; `sourcify`, the fallback, for a missing row.

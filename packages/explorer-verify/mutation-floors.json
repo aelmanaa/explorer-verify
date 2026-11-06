@@ -164,6 +164,61 @@
       "file": "src/input/paths.ts",
       "measured": 100.0,
       "maxUndetected": 1
+    },
+    {
+      "file": "src/core/options.ts",
+      "measured": 100.0,
+      "floor": 98
+    },
+    {
+      "file": "src/core/parts.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/flow/defaults.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/routing/load-table.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/blockscout.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/derivation.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/etherscan-compatible.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/etherscan-v2.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/handler.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/routescan.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/clients/sourcify.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
     }
   ]
 }

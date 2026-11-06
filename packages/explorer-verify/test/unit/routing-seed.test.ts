@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { DEFAULT_DEPENDENCIES } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { keyFor } from "../../src/http/api-keys.ts";
 import { ETHERSCAN_API_URL, SOURCIFY_API_URL, tableTarget } from "../../src/routing/resolve.ts";
 import type { TableEntry } from "../../src/routing/resolve.ts";

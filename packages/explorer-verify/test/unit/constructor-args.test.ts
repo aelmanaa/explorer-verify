@@ -11,7 +11,6 @@ import { blockscout } from "../../src/backends/blockscout.ts";
 import { etherscanCompatible } from "../../src/backends/etherscan-compatible.ts";
 import { etherscan } from "../../src/backends/etherscan.ts";
 import { routescan } from "../../src/backends/routescan.ts";
-import { runVerify } from "../../src/flow/verify.ts";
 import {
   ERROR_EXIT_CODES,
   ExplorerVerifyError,
@@ -30,6 +29,7 @@ import type {
 } from "../../src/index.ts";
 import { withDerivedArgs } from "../../src/input/constructor-args.ts";
 import { createObserver } from "../../src/observe.ts";
+import { runVerify } from "../helpers/defaults.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import { driveMockClock, turnUntil } from "../helpers/mock-clock.ts";
 import { resolveRoute } from "../helpers/route.ts";

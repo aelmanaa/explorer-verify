@@ -306,6 +306,9 @@ route resolves to, with a dynamic `import()`, after the input and the options pa
 Vite, Rollup and webpack put each client in a chunk of its own by default, so a page that only
 verifies on Sourcify does not download the other clients. esbuild does the same with
 `--splitting --format=esm`; without `--splitting`, every client is in the one output file.
+`explorer-verify/core` takes the clients and the table from the caller instead, with no dynamic
+`import()`, so a one-file bundle holds only the clients it imports
+([ship only the clients your tool uses](../guides/wrap-explorer-verify-in-your-tool.md#ship-only-the-clients-your-tool-uses)).
 [Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide lists the size
 of each client.
 

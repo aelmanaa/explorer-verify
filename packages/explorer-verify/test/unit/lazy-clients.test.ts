@@ -13,21 +13,13 @@ import { etherscan } from "../../src/backends/etherscan.ts";
 import { routescan } from "../../src/backends/routescan.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runDryRun } from "../../src/flow/dry-run.ts";
-import { runCheckStatus } from "../../src/flow/status.ts";
-import {
-  DEFAULT_DEPENDENCIES,
-  openCall,
-  routeOf,
-  runVerify,
-  settingsOf,
-  startBudget,
-  withClient,
-} from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
+import { openCall, routeOf, settingsOf, startBudget, withClient } from "../../src/flow/verify.ts";
 import type { Client, FlowDependencies } from "../../src/flow/verify.ts";
 import { MAX_TIMER_MS } from "../../src/http/fetch.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { runCheckStatus, runDryRun, runVerify } from "../helpers/defaults.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
 const SEPOLIA = 11155111;

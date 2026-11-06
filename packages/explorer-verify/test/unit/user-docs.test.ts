@@ -435,6 +435,27 @@ const RUNS: readonly DocRun[] = [
     fixtures: [...VERIFIED, ...VERIFIED],
   },
   {
+    page: "reference/core.md",
+    example: 0,
+    what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "already-verified sourcify\n",
+  },
+  {
+    page: WRAPPER,
+    example: 1,
+    what: "explorer-verify/core with the Sourcify client and the table: already verified",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "already-verified sourcify\n",
+  },
+  {
+    page: WRAPPER,
+    example: 2,
+    what: "explorer-verify/core with route.apiUrl and no table: already verified",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "already-verified\n",
+  },
+  {
     page: WRAPPER,
     example: 0,
     what: "both calls map an already-verified result and submit nothing",

@@ -8,10 +8,11 @@ import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { InputIssue } from "../../src/errors.ts";
-import { MAX_BACKENDS, runVerifyEach } from "../../src/flow/verify-each.ts";
+import { MAX_BACKENDS } from "../../src/flow/verify-each.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import type { VerifyInput } from "../../src/types.ts";
+import { runVerifyEach } from "../helpers/defaults.ts";
 import { keptAlive } from "../helpers/kept-alive.ts";
 
 const SEPOLIA = 11155111;

@@ -46,7 +46,9 @@ npm install explorer-verify
 Wrangler bundles the Worker with esbuild, which reads the library's JSON routing table, and it
 bundles a dynamic `import()` into the Worker's one file unless you configure extra modules
 ([Bundling](https://developers.cloudflare.com/workers/wrangler/bundling/), read on 2026-11-04,
-page updated 2026-11-02).
+page updated 2026-11-02). To keep the clients the Worker never calls out of that file, import from
+`explorer-verify/core` and pass the clients it uses
+([ship only the clients your tool uses](wrap-explorer-verify-in-your-tool.md#ship-only-the-clients-your-tool-uses)).
 
 Store the Etherscan key and the token your own backend sends as Worker secrets. Wrangler prompts
 for each value, so neither appears in the command:

@@ -408,6 +408,59 @@ the example's choice, from `KIND` above.
 code columns of this table against the library, so the table changes when a release adds a code.
 The [error reference](../reference/errors/index.md) has a page per code with the cause and the fix.
 
+## Ship only the clients your tool uses
+
+How much of explorer-verify reaches your users depends on how your tool is built.
+
+Declare `explorer-verify` as a peer dependency of your tool, so your users install one copy, and
+ship ES modules without bundling it. Your users' bundler then sees the library's own entry. Vite,
+Rollup and webpack split each explorer client and the routing table into chunks of their own, and
+a call loads only what its route needs ([client chunks](../reference/routing.md#client-chunks)).
+You need to do nothing else.
+
+When your tool bundles its dependencies into one file, every dynamic `import()` in the default
+entry is inlined. So are bundles from esbuild without `splitting`, from Wrangler, and from CommonJS
+output. `verify()` from `explorer-verify` then carries all five clients and the routing table,
+whatever your tool calls, and your users cannot split them again. In that case, import the flow
+functions from `explorer-verify/core` and pass the clients your tool uses:
+
+```ts
+import { sourcify } from "explorer-verify/clients/sourcify";
+import { verify } from "explorer-verify/core";
+import { routingTable } from "explorer-verify/table";
+
+// The routing table chooses among the clients passed: Sourcify here.
+const result = await verify(input, { clients: [sourcify()], table: routingTable });
+console.log(result.status, result.backend);
+```
+
+A tool that always names its explorer can leave the table out, and the rows are then not bundled.
+Sourcify, Etherscan v2 and Blockscout's hosted API have one public host for every chain, so
+`route.backend` is enough; any other backend needs `route.apiUrl`:
+
+```ts
+import { sourcify } from "explorer-verify/clients/sourcify";
+import { verify } from "explorer-verify/core";
+
+const result = await verify(input, { clients: [sourcify()], route: { backend: "sourcify" } });
+console.log(result.status);
+```
+
+Build the clients inside your tool, and do not take them from your tool's callers: a client works
+only with the copy of explorer-verify that made it. A list your tool builds from its settings takes the type `ClientList<ExplorerClient>` from `explorer-verify/core`, a non-empty list. [Core entry](../reference/core.md) lists every
+client, the options and the errors.
+
+`pnpm run size` and `scripts/check-names.ts` measured these one-file bundles with esbuild 0.28.2,
+minified, gzip from the zlib of Node 24.21.0, on 2026-11-06:
+
+| Bundle, one file                                          | Minified      | Gzipped      |
+| --------------------------------------------------------- | ------------- | ------------ |
+| `verify` from `explorer-verify`                           | 112,520 bytes | 32,666 bytes |
+| `verify` from `explorer-verify/core`, `sourcify()`        | 65,572 bytes  | 21,853 bytes |
+| The same with `routingTable`                              | 91,533 bytes  | 25,033 bytes |
+| `verify` from `explorer-verify/core`, `etherscanV2()`     | 77,968 bytes  | 25,902 bytes |
+| `verify` from `explorer-verify/core`, every client, table | 114,307 bytes | 31,763 bytes |
+
 ## Test with recorded answers
 
 In your tool's tests, replay explorer answers through an injected `fetch`, so the tests need no

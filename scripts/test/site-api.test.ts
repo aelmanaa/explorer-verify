@@ -97,6 +97,22 @@ describe("apiEntryPoints on this repository", () => {
         ["explorer-verify", "packages/explorer-verify/src/index.ts"],
         ["explorer-verify/server", "packages/explorer-verify/src/server/handler.ts"],
         ["explorer-verify/resolve", "packages/explorer-verify/src/input/resolvers/bytecode.ts"],
+        ["explorer-verify/core", "packages/explorer-verify/src/core/index.ts"],
+        ["explorer-verify/table", "packages/explorer-verify/src/core/table.ts"],
+        ["explorer-verify/clients/sourcify", "packages/explorer-verify/src/clients/sourcify.ts"],
+        [
+          "explorer-verify/clients/etherscan-v2",
+          "packages/explorer-verify/src/clients/etherscan-v2.ts",
+        ],
+        [
+          "explorer-verify/clients/etherscan-compatible",
+          "packages/explorer-verify/src/clients/etherscan-compatible.ts",
+        ],
+        ["explorer-verify/clients/routescan", "packages/explorer-verify/src/clients/routescan.ts"],
+        [
+          "explorer-verify/clients/blockscout",
+          "packages/explorer-verify/src/clients/blockscout.ts",
+        ],
         ["@explorer-verify/foundry", "packages/foundry/src/index.ts"],
         ["@explorer-verify/hardhat", "packages/hardhat/src/index.ts"],
       ],

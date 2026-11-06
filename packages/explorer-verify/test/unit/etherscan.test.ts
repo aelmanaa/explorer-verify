@@ -11,7 +11,6 @@ import type { Context, Target } from "../../src/backends/backend.ts";
 import { REASON_LENGTH } from "../../src/backends/common.ts";
 import { MAX_NOT_INDEXED_TRIES, etherscan } from "../../src/backends/etherscan.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runVerify } from "../../src/flow/verify.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { checkStatus } from "../../src/index.ts";
 import { validateInput } from "../../src/input/validate.ts";
@@ -25,6 +24,7 @@ import type {
   VerifyInput,
   VerifyResult,
 } from "../../src/types.ts";
+import { runVerify } from "../helpers/defaults.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";

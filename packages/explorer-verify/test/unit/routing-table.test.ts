@@ -9,18 +9,15 @@ import { describe, it } from "node:test";
 import type { BackendName } from "../../src/backend-names.ts";
 import type { Backend } from "../../src/backends/backend.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { DEFAULT_DEPENDENCIES, runVerify } from "../../src/flow/verify.ts";
+import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import { keyFor, requireKey } from "../../src/http/api-keys.ts";
 import type { CheckedKeys } from "../../src/http/api-keys.ts";
-import {
-  ETHERSCAN_API_URL,
-  SOURCIFY_API_URL,
-  routingTableDate,
-  tableTarget,
-} from "../../src/routing/resolve.ts";
+import { routingTableDate } from "../../src/routing/load-table.ts";
+import { ETHERSCAN_API_URL, SOURCIFY_API_URL, tableTarget } from "../../src/routing/resolve.ts";
 import type { RouteChoice, RoutingTable, TableEntry, TableRow } from "../../src/routing/resolve.ts";
 import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Hex, RouteOverride, VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { runVerify } from "../helpers/defaults.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
 import { resolveRoute } from "../helpers/route.ts";
 import { apiUrlProblems, explorerUrlProblems, tableProblems } from "../helpers/routing-table.ts";

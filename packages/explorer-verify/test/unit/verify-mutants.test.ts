@@ -15,13 +15,13 @@ import {
   checkRouteOf,
   openCall,
   routeWith,
-  runVerify,
   settingsOf,
   settle,
 } from "../../src/flow/verify.ts";
 import type { Call, FlowDependencies } from "../../src/flow/verify.ts";
 import { ROUTING_TABLE } from "../../src/routing/table.ts";
 import type { Handle, LogFields, Logger, VerifyInput, VerifyOptions } from "../../src/types.ts";
+import { runVerify } from "../helpers/defaults.ts";
 
 const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";

@@ -7,9 +7,9 @@ import type { TestContext } from "node:test";
 
 import type { LinkStep, LinkVerdict, ProxyLinker } from "../../src/backends/backend.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
-import { runLinkProxy } from "../../src/flow/link-proxy.ts";
 import type { LinkDependencies } from "../../src/flow/link-proxy.ts";
 import type { Hex, VerifyOptions } from "../../src/types.ts";
+import { runLinkProxy } from "../helpers/defaults.ts";
 import { keptAlive } from "../helpers/kept-alive.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 

@@ -79,7 +79,7 @@ function unique(ctx: Context, backend: BackendName, fields: Record<string, strin
  * const match = await routescan.lookup({ chainId: 43113, address }, { route, http });
  * ```
  */
-export const routescan: Backend = etherscanStyle({
+export const routescan: Backend = /* @__PURE__ */ etherscanStyle({
   name: "routescan",
   label: "Routescan",
   read: unique,
