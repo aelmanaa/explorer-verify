@@ -176,9 +176,11 @@ With `handlerUrl` set:
   adds its own key.
 - A route whose `apiUrl` is on another host keeps that host and its own key rules.
 - Requests go through `fetch` when you set it.
-- A refusal from the handler, such as `chain-not-allowed`, throws `unexpected-response` whose
-  message names the handler's code. A 4xx refusal is not retryable, and its hint points at your
-  `createVerifyHandler` options; a 5xx answer stays retryable.
+- A refusal from the handler maps to an error code by its `code` and status, as
+  [the server handler reference](server-handler.md#how-the-client-reads-a-refusal) lists. A
+  refusal such as `chain-not-allowed` throws `handler-refused`, which is not retryable and whose
+  hint names the `createVerifyHandler` option to change. Any other 4xx answer of the handler but a
+  408 or a 429 is not retryable either; a 5xx answer stays retryable.
 - A path such as `/api/verify` resolves against the page, so it works only in a browser page; in
   Node, a path throws `invalid-input` naming `handlerUrl`. Elsewhere, pass an absolute URL that
   starts with `https://`, or `http://` on `localhost`, `127.0.0.1` or `[::1]`. The value has no

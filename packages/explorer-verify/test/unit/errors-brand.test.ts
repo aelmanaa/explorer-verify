@@ -86,6 +86,7 @@ function summary(error: unknown): string {
     case "constructor-args-unavailable":
     case "proxy-link-pending":
     case "proxy-link-unknown-state":
+    case "handler-refused":
       break;
   }
   return error.code;

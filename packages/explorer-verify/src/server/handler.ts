@@ -38,6 +38,7 @@ import { redact } from "../redact.ts";
 import { ETHERSCAN_API_URL } from "../routing/resolve.ts";
 import type { Route } from "../routing/resolve.ts";
 import type { Logger } from "../types.ts";
+import type { HandlerRefusal } from "./refusals.ts";
 
 /**
  * The default limit for one request body, in bytes as received: 8 MiB.
@@ -257,30 +258,7 @@ export interface VerifyHandlerOptions {
   readonly logger?: Logger | undefined;
 }
 
-/**
- * The stable code of a refusal. Every refusal body is
- * `{ "status": "0", "message": "NOTOK", "result": "<sentence>", "code": "<code>" }`: the shape of
- * an Etherscan error, plus `code`. The sentence may change in any release; the code does not. An
- * answer without `code` is Etherscan's own.
- *
- * @experimental
- */
-export type HandlerRefusal =
-  | "method-not-allowed"
-  | "unsupported-media-type"
-  | "body-too-large"
-  | "request-timeout"
-  | "bad-request"
-  | "forbidden-field"
-  | "action-not-allowed"
-  | "chain-not-allowed"
-  | "address-not-allowed"
-  | "address-not-indexed"
-  | "rate-limited"
-  | "upstream-rate-limited"
-  | "upstream-timeout"
-  | "upstream-error"
-  | "internal-error";
+export type { HandlerRefusal } from "./refusals.ts";
 
 /**
  * The function {@link createVerifyHandler} returns: a standard `Request` to `Response` function.

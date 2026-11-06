@@ -43,7 +43,9 @@ export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
   try {
     response = await request(ctx.http, req);
   } catch (error: unknown) {
-    throw ctx.handler === undefined ? error : ctx.handler.annotate(error, ctx.http.secrets);
+    throw ctx.handler === undefined
+      ? error
+      : ctx.handler.annotate(error, ctx.http.secrets, req.body);
   }
   const text = await response.text();
   let parsed: unknown;
@@ -310,10 +312,10 @@ export function unexpected(
   answer: Answer,
   what: string,
   whole = false,
-): ExplorerVerifyError<"unexpected-response"> {
-  // Through the caller's server handler, the answer is the handler's (decision 0046).
+): AnyExplorerVerifyError {
+  // Through the caller's server handler, the answer is the handler's (decisions 0046 and 0048).
   if (!whole && ctx.handler !== undefined) {
-    return ctx.handler.unexpected(backend, answer, what, ctx.http.secrets);
+    return ctx.handler.answerError(backend, answer, what, ctx.http.secrets);
   }
   return newError(
     { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },

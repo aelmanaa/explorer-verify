@@ -8,8 +8,10 @@ import type { BackendName } from "../backend-names.ts";
 import type { Answer } from "../backends/common.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
-import type { InputIssue } from "../errors.ts";
+import type { AnyExplorerVerifyError, InputIssue } from "../errors.ts";
+import { readFields } from "../internal/read-fields.ts";
 import type { Route } from "../routing/resolve.ts";
+import { HANDLER_REFUSALS } from "../server/refusals.ts";
 import type { ApiKeysReader } from "./api-keys.ts";
 
 /** The longest `handlerUrl` accepted, in characters. */
@@ -23,7 +25,7 @@ const SHAPE = "must be a path such as /api/verify, or a URL that starts with htt
 
 /**
  * The checked handler of a call: its absolute URL, the refusal of a key bound to it, and the
- * wording of the errors of its answers. It lives in this chunk, so a caller who never sets
+ * errors of its answers, mapped by the handler's refusal code (decision 0048). It lives in this chunk, so a caller who never sets
  * `handlerUrl` does not download it.
  */
 export interface ResolvedHandler {
@@ -35,61 +37,135 @@ export interface ResolvedHandler {
   readonly sentUrl: (url: string) => string;
   /** Throws `invalid-input`: a key is bound to a route through the handler. */
   readonly refuseKey: (secrets: readonly string[]) => never;
-  /** The `unexpected-response` of an answer of the handler that the client does not read. */
-  readonly unexpected: (
+  /** The error of an answer of the handler that the client does not read; see {@link answerError}. */
+  readonly answerError: (
     backend: BackendName,
     answer: Answer,
     what: string,
     secrets: readonly string[],
-  ) => ExplorerVerifyError<"unexpected-response">;
-  /** `error` with the handler's refusal code in its message, when its excerpt holds one. */
-  readonly annotate: (error: unknown, secrets: readonly string[]) => unknown;
+  ) => AnyExplorerVerifyError;
+  /** `error` mapped by the handler's refusal code in its excerpt; see {@link annotate}. */
+  readonly annotate: (error: unknown, secrets: readonly string[], body?: unknown) => unknown;
 }
 
-// A refusal code of `createVerifyHandler`, such as `chain-not-allowed`.
+// A code field of the handler's shape, such as `chain-not-allowed`.
 const CODE = /^[a-z][a-z-]{0,39}$/;
-const CODE_IN_TEXT = /"code":"([a-z][a-z-]{0,39})"/;
+// The client error code and the status of each refusal code of `createVerifyHandler`.
+const MAPPED = new Map(Object.entries(HANDLER_REFUSALS));
+// The createVerifyHandler option that each refusal names. Other codes keep the default hint.
+const OPTIONS = new Map([
+  ["chain-not-allowed", "chains"],
+  ["address-not-allowed", "deployers"],
+  ["action-not-allowed", "allowProxyLink"],
+  ["body-too-large", "maxBodyBytes"],
+]);
+// What a request through the handler is, by its action, in messages.
+const WHAT = new Map([
+  ["verifysourcecode", "the submit"],
+  ["getsourcecode", "the lookup"],
+  ["checkverifystatus", "the job status request"],
+]);
 const CONFIG_HINT =
-  "Your server handler refused the request: check its createVerifyHandler options, such as chains and deployers.";
+  "Your server handler refused the request: check that handlerUrl points at it, and its createVerifyHandler options.";
+
+/** What an error of the handler keeps from its answer. */
+interface Seen {
+  readonly backend: BackendName;
+  readonly status: number;
+  readonly excerpt: string;
+  readonly retryAfterMs?: number | undefined;
+  readonly attempts?: number | undefined;
+  readonly secrets: readonly string[];
+  readonly cause?: unknown;
+}
+
+/** The handler's `code` field of a JSON body, when it has the handler's shape. */
+function codeOf(fields: Map<string, unknown> | undefined): string | undefined {
+  const code = fields?.get("code");
+  return typeof code === "string" && CODE.test(code) ? code : undefined;
+}
 
 /**
- * The `unexpected-response` of an answer of the handler. A 4xx refusal with the handler's `code`
- * holds until the handler's options change, so it is not retryable; a 408 and a 429 may pass
- * later, and a 5xx stays retryable.
+ * The error for a refusal code of `createVerifyHandler` that came with the status the handler
+ * sends for it (decision 0048), or `undefined` for anything else. A 429 never gets here: the
+ * HTTP layer throws `rate-limited` for it.
  */
-function unexpected(
+function mapped(
+  code: string | undefined,
+  what: string,
+  seen: Seen,
+): AnyExplorerVerifyError | undefined {
+  const entry = code === undefined ? undefined : MAPPED.get(code);
+  const { backend, status, excerpt, retryAfterMs, secrets } = seen;
+  if (code === undefined || entry?.[1] !== status) {
+    return undefined;
+  }
+  const kind = entry[0];
+  const message = `Your server handler answered ${what} with ${code} (status ${String(status)}).`;
+  const option = OPTIONS.get(code);
+  const options = {
+    secrets,
+    hint: option === undefined ? "" : `Change the ${option} option of createVerifyHandler.`,
+    ...("cause" in seen ? { cause: seen.cause } : {}),
+  };
+  if (kind === "handler-refused") {
+    return newError({ code: kind, backend, status, handlerCode: code, excerpt }, message, options);
+  }
+  if (kind === "network") {
+    return newError({ code: kind, backend, attempts: seen.attempts ?? 1 }, message, options);
+  }
+  if (kind === "unexpected-response") {
+    const wait = retryAfterMs === undefined ? {} : { retryAfterMs };
+    return newError({ code: kind, backend, status, excerpt, ...wait }, message, options);
+  }
+  return undefined;
+}
+
+/**
+ * The error of an answer of the handler that the client does not read. A refusal code of
+ * `createVerifyHandler` with its status maps to its error code (decision 0048). Any other answer
+ * is `unexpected-response`, and its message names no code: a 4xx other than a 408 or a 429, with
+ * or without a code, holds until something changes, so it is not retryable; a 408, a 429 and a
+ * 5xx stay retryable.
+ */
+function answerError(
   backend: BackendName,
   answer: Answer,
   what: string,
   secrets: readonly string[],
-): ExplorerVerifyError<"unexpected-response"> {
-  const raw = answer.fields?.get("code");
-  const code = typeof raw === "string" && CODE.test(raw) ? raw : undefined;
-  const { status } = answer;
-  const config =
-    code !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+): AnyExplorerVerifyError {
+  const { status, text } = answer;
+  const known = mapped(codeOf(answer.fields), what, { backend, status, excerpt: text, secrets });
+  if (known !== undefined) {
+    return known;
+  }
+  const config = status >= 400 && status < 500 && status !== 408 && status !== 429;
   return newError(
-    { code: "unexpected-response", backend, status, excerpt: answer.text },
-    code === undefined
-      ? `Your server handler gave an answer to ${what} that this client does not recognise (status ${String(status)}).`
-      : `Your server handler refused ${what} with ${code} (status ${String(status)}).`,
+    { code: "unexpected-response", backend, status, excerpt: text },
+    `Your server handler gave an answer to ${what} that this client does not recognise (status ${String(status)}).`,
     { secrets, ...(config ? { retryable: false, hint: CONFIG_HINT } : {}) },
   );
 }
 
-/** `error` with the handler's refusal code, such as `upstream-error` on a 502, in its message. */
-function annotate(error: unknown, secrets: readonly string[]): unknown {
+/**
+ * `error` mapped by the handler's refusal code in its excerpt, such as `network` for an
+ * `upstream-error` still answered after the retries. The code is read from the excerpt as JSON,
+ * so a cut excerpt or a code inside another field maps nothing, and `error` is returned as it is.
+ */
+function annotate(error: unknown, secrets: readonly string[], body?: unknown): unknown {
   if (!ExplorerVerifyError.is(error, "unexpected-response")) {
     return error;
   }
-  const code = CODE_IN_TEXT.exec(error.details.excerpt)?.[1];
-  return code === undefined
-    ? error
-    : newError(error.details, `${error.message} The handler's code: ${code}.`, {
-        hint: error.hint,
-        secrets,
-        cause: error.cause,
-      });
+  const { details } = error;
+  let fields: Map<string, unknown> | undefined;
+  try {
+    fields = readFields(JSON.parse(details.excerpt));
+  } catch {
+    fields = undefined;
+  }
+  const action = body instanceof URLSearchParams ? body.get("action") : null;
+  const what = (action === null ? undefined : WHAT.get(action)) ?? "the request";
+  return mapped(codeOf(fields), what, { ...details, secrets, cause: error }) ?? error;
 }
 
 /** Whether `value` holds a C0 control, DEL, whitespace or a backslash. */
@@ -257,7 +333,7 @@ export function resolveHandler(
     serves: (route) => throughHandler(route, url, etherscan),
     sentUrl: (request) => sentUrl(request, url, etherscan),
     refuseKey: refuseHandlerKey,
-    unexpected,
+    answerError,
     annotate,
   };
 }

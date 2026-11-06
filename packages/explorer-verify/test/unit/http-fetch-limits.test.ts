@@ -369,6 +369,7 @@ describe("request: Retry-After bounds (R-FLOW-6)", () => {
       status: 503,
       excerpt: "down",
       retryAfterMs: 60_000,
+      attempts: 1,
     });
     assert.equal(calls.length, 1);
   });

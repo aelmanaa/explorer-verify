@@ -965,6 +965,7 @@ function giveUp(
         backend: call.backend,
         status: failure.status,
         excerpt: failure.body,
+        attempts,
       };
       // Stryker disable next-line ConditionalExpression: equivalent when always true. The error copies its details and leaves out a retryAfterMs that is undefined.
       if (failure.retryAfterMs !== undefined) {

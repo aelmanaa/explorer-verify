@@ -153,6 +153,7 @@ const KIND: Readonly<Record<ErrorCode, DeployKitErrorKind>> = {
   "constructor-args-unavailable": "config",
   "proxy-link-pending": "pending",
   "proxy-link-unknown-state": "needs-review",
+  "handler-refused": "config",
 };
 
 function toInput(params: VerifyContractParams): VerifyInput {
@@ -400,6 +401,7 @@ the example's choice, from `KIND` above.
 | [`constructor-args-unavailable`](../reference/errors/constructor-args-unavailable.md) | no        | 2         | `config`       | The creation code shows another build; pass the deployed build or the arguments            |
 | [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)                     | yes       | 4         | `pending`      | The explorer is still linking the proxy; call `linkProxy()` again later. There is no token |
 | [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md)         | no        | 6         | `needs-review` | Check the proxy's page on the explorer; there is no token                                  |
+| [`handler-refused`](../reference/errors/handler-refused.md)                           | no        | 2         | `config`       | Your server handler refused the request; change the option the hint names                  |
 
 `verify()`, `checkStatus()` and `linkProxy()` throw some of these codes. `buildVerifyInput`,
 `buildVerifyInputFromBytecode` and the CLI throw the others. A test checks the code, retryable and exit

@@ -4,7 +4,9 @@
 // a refusal of the handler names its code.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { TestContext } from "node:test";
 
+import { ERROR_HINTS } from "../../src/error-hints.ts";
 import {
   ExplorerVerifyError,
   checkStatus,
@@ -13,7 +15,7 @@ import {
   verify,
   verifyEach,
 } from "../../src/index.ts";
-import type { VerifyEvent, VerifyInput } from "../../src/index.ts";
+import type { Logger, VerifyEvent, VerifyInput } from "../../src/index.ts";
 import { loadFixture, responseOf } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 
@@ -213,15 +215,37 @@ function handlerAnswer(status: number, body: unknown): () => Response {
     });
 }
 
+// A dummy value of the client's bare-key redaction shape: 34 uppercase letters and digits.
+const KEY_SHAPED = "QWERTYUIOPASDFGHJKLZXCVBNM12345678";
+
+/** A dry run whose every answer is `body` with `status`, on the mock clock: its error and URLs. */
+async function retried(
+  t: TestContext,
+  status: number,
+  body: unknown,
+  logger?: Logger,
+): Promise<{ error: ExplorerVerifyError; urls: string[] }> {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const net = recorder(handlerAnswer(status, body));
+  const call = dryRun(input(), {
+    fetch: net.fetch,
+    handlerUrl: HANDLER,
+    ...(logger === undefined ? {} : { logger }),
+  });
+  await driveMockClock(call, () => {
+    t.mock.timers.runAll();
+  });
+  return { error: await rejection(call), urls: net.urls };
+}
+
 function refusalOf(code: string): unknown {
   return { status: "0", message: "NOTOK", result: "Refused.", code };
 }
 
-describe("a refusal of the server handler names its code (decision 0046)", () => {
+describe("a refusal of the server handler maps to its error code (decisions 0046 and 0048)", () => {
   for (const [code, status] of [
     ["chain-not-allowed", 403],
     ["address-not-allowed", 403],
-    ["address-not-indexed", 404],
     ["action-not-allowed", 403],
     ["forbidden-field", 400],
     ["body-too-large", 413],
@@ -229,54 +253,144 @@ describe("a refusal of the server handler names its code (decision 0046)", () =>
     ["unsupported-media-type", 415],
     ["bad-request", 400],
   ] as const) {
-    it(`a ${String(status)} ${code} is not retryable and points at the handler's options (R1)`, async () => {
+    it(`a ${String(status)} ${code} is handler-refused, not retryable, and points at the handler (R-SRV-4)`, async () => {
       const net = recorder(handlerAnswer(status, refusalOf(code)));
       const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
-      assert.equal(error.code, "unexpected-response");
+      assert.ok(ExplorerVerifyError.is(error, "handler-refused"), error.message);
+      assert.equal(error.details.handlerCode, code);
+      assert.equal(error.details.status, status);
       assert.equal(error.retryable, false);
       assert.equal(error.toJSON().retryable, false);
       assert.match(
         error.message,
-        new RegExp(`Your server handler refused the lookup with ${code}`),
+        new RegExp(
+          `^Your server handler answered the lookup with ${code} \\(status ${String(status)}\\)\\.$`,
+        ),
       );
-      assert.doesNotMatch(error.message, /Etherscan/);
-      assert.match(error.hint, /createVerifyHandler options/);
+      assert.match(error.hint, /createVerifyHandler/);
       assert.deepEqual(net.urls, [`${HANDLER}?chainid=${String(SEPOLIA)}`]);
     });
   }
 
-  it("a 500 internal-error stays retryable and names the code", async () => {
+  it("a 500 internal-error stays a retryable unexpected-response and names the code", async () => {
     const net = recorder(handlerAnswer(500, refusalOf("internal-error")));
     const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
-    assert.equal(error.retryable, true);
-    assert.match(error.message, /refused the lookup with internal-error \(status 500\)/);
-    assert.doesNotMatch(error.hint, /createVerifyHandler/);
-  });
-
-  it("a 502 upstream-error stays retryable, after the retries, and names the code", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
-    const net = recorder(handlerAnswer(502, refusalOf("upstream-error")));
-    const call = dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER });
-    await driveMockClock(call, () => {
-      t.mock.timers.runAll();
-    });
-    const error = await rejection(call);
     assert.equal(error.code, "unexpected-response");
     assert.equal(error.retryable, true);
-    assert.match(
+    assert.match(error.message, /answered the lookup with internal-error \(status 500\)/);
+    assert.equal(error.hint, ERROR_HINTS["unexpected-response"]);
+  });
+
+  it("a 502 upstream-error is network after the retries, with the attempts and the action", async (t) => {
+    const net = await retried(t, 502, refusalOf("upstream-error"));
+    const { error } = net;
+    assert.ok(ExplorerVerifyError.is(error, "network"), error.message);
+    assert.equal(error.retryable, true);
+    assert.equal(error.details.attempts, net.urls.length);
+    assert.equal(
       error.message,
-      /^POST https:\/\/dapp\.example\/api\/verify\?REDACTED answered 502 after .* The handler's code: upstream-error\.$/,
+      "Your server handler answered the lookup with upstream-error (status 502).",
     );
     assert.ok(net.urls.length > 1, "retried");
   });
 
-  it("an answer it does not recognise names the server handler, not Etherscan (item 1)", async () => {
-    const net = recorder(handlerAnswer(418, { hello: "world" }));
+  it("maps a code only with the status the handler sends for it (status gate)", async (t) => {
+    // A 502 whose body holds a configuration code: still unexpected-response, retryable.
+    const { error } = await retried(t, 502, refusalOf("chain-not-allowed"));
+    assert.equal(error.code, "unexpected-response");
+    assert.equal(error.retryable, true);
+    assert.doesNotMatch(error.message, /chain-not-allowed/);
+  });
+
+  it("does not map a 200 that carries a refusal code", async () => {
+    const net = recorder(handlerAnswer(200, refusalOf("chain-not-allowed")));
     const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
     assert.equal(error.code, "unexpected-response");
+    assert.equal(error.retryable, true);
+    assert.doesNotMatch(error.message, /chain-not-allowed/);
+  });
+
+  for (const [name, body] of [
+    ["a code inside another field", { result: { code: "upstream-error" } }],
+    ["a code before a cut", { code: "upstream-error", result: "x".repeat(400) }],
+    ["a code past 300 characters", { result: "x".repeat(400), code: "upstream-error" }],
+  ] as const) {
+    it(`reads no code from ${name} of a thrown answer`, async (t) => {
+      const { error } = await retried(t, 502, body);
+      assert.equal(error.code, "unexpected-response");
+      assert.equal(error.retryable, true);
+      assert.doesNotMatch(error.message, /upstream-error/);
+    });
+  }
+
+  it("a 503 with an unknown code keeps unexpected-response, after the retries, without the code", async (t) => {
+    const { error } = await retried(t, 503, refusalOf("brand-new-code"));
+    assert.equal(error.code, "unexpected-response");
+    assert.equal(error.retryable, true);
+    assert.doesNotMatch(error.message, /brand-new-code/);
+  });
+
+  it("a 403 with an unknown code keeps unexpected-response, never echoes the code, and is not retryable", async () => {
+    // A letters-only value of a code's shape may be a secret (black-box D1).
+    const net = recorder(handlerAnswer(403, refusalOf("deadbeefcafe")));
+    const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
+    assert.equal(error.code, "unexpected-response");
+    assert.equal(error.retryable, false);
     assert.match(error.message, /^Your server handler gave an answer to the lookup/);
+    assert.ok(
+      !JSON.stringify([error.message, error.hint, error.toJSON()]).includes("deadbeefcafe"),
+    );
+    assert.match(error.hint, /createVerifyHandler options/);
+  });
+
+  it("a 4xx answer without a code from a third-party proxy, such as a 404 page, is not retryable", async () => {
+    for (const answer of [
+      handlerAnswer(418, { hello: "world" }),
+      () => new Response("<html>Not Found</html>", { status: 404 }),
+    ]) {
+      const net = recorder(answer);
+      const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
+      assert.equal(error.code, "unexpected-response");
+      assert.match(error.message, /^Your server handler gave an answer to the lookup/);
+      assert.equal(error.retryable, false);
+      assert.match(error.hint, /handlerUrl points at it/);
+    }
+  });
+
+  it("a 408 answer without a code stays retryable", async () => {
+    const net = recorder(handlerAnswer(408, { hello: "world" }));
+    const error = await rejection(dryRun(input(), { fetch: net.fetch, handlerUrl: HANDLER }));
+    assert.equal(error.code, "unexpected-response");
     assert.equal(error.retryable, true);
   });
+
+  for (const [path, status, code] of [
+    ["the answer", 403, "chain-not-allowed"],
+    ["the thrown error", 502, "upstream-error"],
+  ] as const) {
+    it(`never shows a key-shaped value that the handler echoes, through ${path} (R-SEC-1)`, async (t) => {
+      const body = { status: "0", message: "NOTOK", result: `Bad key ${KEY_SHAPED}`, code };
+      const lines: string[] = [];
+      const record = (message: string, fields?: unknown): void => {
+        lines.push(`${message} ${JSON.stringify(fields)}`);
+      };
+      const { error } = await retried(t, status, body, {
+        debug: record,
+        info: record,
+        warn: record,
+        error: record,
+      });
+      assert.equal(error.code, status === 403 ? "handler-refused" : "network");
+      const shown = JSON.stringify([
+        error.message,
+        error.hint,
+        error.details,
+        error.toJSON(),
+        lines,
+      ]);
+      assert.ok(!shown.includes(KEY_SHAPED), shown);
+    });
+  }
 
   it("without handlerUrl, an answer with a code field is Etherscan's own", async () => {
     const answer = handlerAnswer(403, refusalOf("chain-not-allowed"));

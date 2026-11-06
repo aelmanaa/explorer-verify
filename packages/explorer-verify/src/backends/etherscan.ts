@@ -13,7 +13,7 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
-import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
+import type { AnyExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
@@ -355,7 +355,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
     answer: Answer,
     what: string,
     whole = false,
-  ): ExplorerVerifyError<"unexpected-response"> {
+  ): AnyExplorerVerifyError {
     return unexpectedAnswer(ctx, name, label, answer, what, whole);
   }
 

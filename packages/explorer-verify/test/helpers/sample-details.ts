@@ -67,4 +67,12 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "etherscan-v2",
     excerpt: "Error!",
   },
+  "handler-refused": {
+    code: "handler-refused",
+    backend: "etherscan-v2",
+    status: 403,
+    handlerCode: "chain-not-allowed",
+    excerpt:
+      '{"status":"0","message":"NOTOK","result":"This chain is not served here.","code":"chain-not-allowed"}',
+  },
 };

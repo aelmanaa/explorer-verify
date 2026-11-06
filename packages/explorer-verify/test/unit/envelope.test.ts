@@ -163,6 +163,13 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "etherscan-v2",
     excerpt: LEAKY_URL,
   },
+  "handler-refused": {
+    code: "handler-refused",
+    backend: "etherscan-v2",
+    status: 403,
+    handlerCode: "chain-not-allowed",
+    excerpt: LEAKY_URL,
+  },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

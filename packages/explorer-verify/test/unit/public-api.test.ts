@@ -137,6 +137,7 @@ describe("public entry point", () => {
       "constructor-args-unavailable",
       "proxy-link-pending",
       "proxy-link-unknown-state",
+      "handler-refused",
     ]);
   });
 

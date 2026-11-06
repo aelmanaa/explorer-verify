@@ -1,0 +1,7 @@
+---
+"explorer-verify": minor
+---
+
+Breaking: with `handlerUrl` set, a refusal of your server handler now throws an error code for its `code` and status instead of `unexpected-response`. `chain-not-allowed`, `address-not-allowed`, `action-not-allowed`, `forbidden-field`, `body-too-large`, `bad-request`, `method-not-allowed` and `unsupported-media-type` throw the new `handler-refused`: not retryable, exit code 2, with the handler's code in `details.handlerCode`. Its hint names the `createVerifyHandler` option to change for `chains`, `deployers`, `allowProxyLink` and `maxBodyBytes`. `request-timeout`, `upstream-timeout` and `upstream-error` throw a retryable `network`. `address-not-indexed` and `internal-error` stay `unexpected-response`, and so does an answer with no `code`, an unknown code or a code with another status; its message no longer repeats such a code. A 4xx answer of the handler other than 408 and 429 is no longer retryable, with or without a `code`. An `unexpected-response` thrown after retries now has `details.attempts`. Issue: https://github.com/aelmanaa/explorer-verify/issues/215
+
+What should I do? If you check `error.code === "unexpected-response"` to detect a refusal of your server handler, check `handler-refused` and read `details.handlerCode` instead. Code that retries on `retryable` needs no change. Code that maps exit codes treats exit code 2 from a call through the handler as a refusal to fix, not to retry.

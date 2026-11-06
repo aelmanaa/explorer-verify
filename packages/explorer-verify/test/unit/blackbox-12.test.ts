@@ -54,6 +54,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "constructor-args-unavailable": { retryable: false, exit: 2, hasHandle: false },
   "proxy-link-pending": { retryable: true, exit: 4, hasHandle: false },
   "proxy-link-unknown-state": { retryable: false, exit: 6, hasHandle: false },
+  "handler-refused": { retryable: false, exit: 2, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -114,6 +115,13 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
     "proxy-link-unknown-state": {
       code: "proxy-link-unknown-state",
       backend: "blockscout",
+      excerpt: text,
+    },
+    "handler-refused": {
+      code: "handler-refused",
+      backend: "etherscan-v2",
+      status: 403,
+      handlerCode: text,
       excerpt: text,
     },
   };

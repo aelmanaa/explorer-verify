@@ -8,7 +8,8 @@ Cause: the answer did not come from the explorer's API, or not in its format, af
 status, an HTML page, a wrong content type, a redirect or a body that is too large or cannot be
 read. `details.status` holds the status and `details.excerpt` the first 300 characters of the
 body, redacted. `details.retryAfterMs` holds the wait the backend asked for, when its last answer
-had a `Retry-After` header. A status or body that the backend's client does not recognise ends here
+had a `Retry-After` header, and `details.attempts` the number of requests tried, when the error
+came after retries. A status or body that the backend's client does not recognise ends here
 too, such as Sourcify's `400 invalid_parameter`, or an answer about another contract.
 
 Fix: call again later. If the error persists, check the explorer's status page and report
@@ -17,9 +18,16 @@ Fix: call again later. If the error persists, check the explorer's status page a
 Default hint: Call again later. If the error persists, check the explorer's status page and report
 details.status and details.excerpt.
 
-Retryable: yes, except a 4xx refusal of your server handler that names its code, such as
-`chain-not-allowed`: it holds until you change the `createVerifyHandler` options, so it is not
-retryable and its hint says so ([API keys](../api-keys.md#a-server-adds-the-key)).
+Through your server handler (`handlerUrl`), a refusal with a known code and its status throws its
+own error, such as [`handler-refused`](handler-refused.md) for a 403 `chain-not-allowed`. This code
+remains for an answer with no code, an unknown code or another status, which the message does not
+repeat, for the handler's `address-not-indexed` and `internal-error`, and for a redirect or an
+unreadable body
+([how the client reads a refusal](../server-handler.md#how-the-client-reads-a-refusal)).
+
+Retryable: yes, except a 4xx answer of your server handler other than 408 and 429, with or without
+a code: it holds until something changes, so it is not retryable and its hint says to check
+`handlerUrl` and the `createVerifyHandler` options.
 
 Exit code: 5
 

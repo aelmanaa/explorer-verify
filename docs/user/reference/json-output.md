@@ -208,6 +208,7 @@ covers results and errors.
 | `source-mismatch`              | Error  | `false` | 2         |
 | `no-metadata-hash`             | Error  | `false` | 2         |
 | `constructor-args-unavailable` | Error  | `false` | 2         |
+| `handler-refused`              | Error  | `false` | 2         |
 | `missing-api-key`              | Error  | `false` | 3         |
 | `api-key-rejected`             | Error  | `false` | 3         |
 | `quota-exceeded`               | Error  | `false` | 3         |

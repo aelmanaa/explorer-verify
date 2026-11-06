@@ -50,6 +50,7 @@ export const ERROR_CODES = [
   "constructor-args-unavailable",
   "proxy-link-pending",
   "proxy-link-unknown-state",
+  "handler-refused",
 ] as const;
 
 /**
@@ -200,6 +201,8 @@ export type ErrorDetails =
       excerpt: string;
       /** How long the backend asked to wait, when it sent `Retry-After` with its last answer. */
       retryAfterMs?: number;
+      /** How many requests were tried, when the HTTP layer gave up after retries. */
+      attempts?: number;
     }
   | {
       /** The backend is already verifying this contract from another submission. */
@@ -383,6 +386,27 @@ export type ErrorDetails =
       backend: BackendName;
       /** The start of the explorer's answer, redacted, at most 300 characters. */
       excerpt: string;
+    }
+  | {
+      /**
+       * The caller's server handler, `createVerifyHandler`, refused the request with a code that
+       * holds until its options or the request change, such as `chain-not-allowed`. The request
+       * did not reach the explorer (decision 0048).
+       */
+      code: "handler-refused";
+      /** The backend whose requests go through the handler. */
+      backend: BackendName;
+      /** The HTTP status of the refusal, such as 403. */
+      status: number;
+      /**
+       * The handler's refusal code: `chain-not-allowed`, `address-not-allowed`,
+       * `action-not-allowed`, `forbidden-field`, `body-too-large`, `bad-request`,
+       * `method-not-allowed` or `unsupported-media-type`. Empty when the value is not of that
+       * shape.
+       */
+      handlerCode: string;
+      /** The start of the handler's answer, redacted, at most 300 characters. */
+      excerpt: string;
     };
 
 /**
@@ -507,6 +531,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "constructor-args-unavailable": 2,
   "proxy-link-pending": 4,
   "proxy-link-unknown-state": 6,
+  "handler-refused": 2,
 };
 
 /**
@@ -618,6 +643,8 @@ const OMITTED_CAUSE = "[cause omitted]";
 // A backend name outside BACKEND_NAMES, which only code that bypasses the types can pass, becomes
 // this name, so `details.backend` and a handle's backend stay within `BackendName`.
 const UNKNOWN_BACKEND: BackendName = "etherscan-compatible";
+// The shape of a refusal code of `createVerifyHandler`, such as `chain-not-allowed`.
+const HANDLER_CODE = /^[a-z][a-z-]{0,39}$/;
 // A source-mismatch hash: `0x` and 64 lowercase hex digits.
 const HASH = /^0x[0-9a-f]{64}$/;
 
@@ -683,12 +710,13 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
   "unexpected-response": (details, secrets) => {
     const copy: DetailsOf<"unexpected-response"> = {
       code: "unexpected-response",
-      backend: backendOf(details.backend),
-      status: numberOf(details.status),
-      excerpt: excerptOf(details.excerpt, secrets),
+      ...answerOf(details, secrets),
     };
     if (details.retryAfterMs !== undefined) {
       copy.retryAfterMs = numberOf(details.retryAfterMs);
+    }
+    if (details.attempts !== undefined) {
+      copy.attempts = numberOf(details.attempts);
     }
     return copy;
   },
@@ -779,7 +807,27 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
     backend: backendOf(details.backend),
     excerpt: excerptOf(details.excerpt, secrets),
   }),
+  "handler-refused": (details, secrets) => {
+    const handlerCode = text(details.handlerCode, secrets);
+    return {
+      code: "handler-refused",
+      ...answerOf(details, secrets),
+      handlerCode: HANDLER_CODE.test(handlerCode) ? handlerCode : "",
+    };
+  },
 };
+
+/** The backend, status and excerpt of an answer, checked and redacted. */
+function answerOf(
+  details: { readonly backend: unknown; readonly status: unknown; readonly excerpt: unknown },
+  secrets: readonly string[],
+): { backend: BackendName; status: number; excerpt: string } {
+  return {
+    backend: backendOf(details.backend),
+    status: numberOf(details.status),
+    excerpt: excerptOf(details.excerpt, secrets),
+  };
+}
 
 /** The redacted copy of `details`, built by its code's redactor. */
 function redactDetails<C extends ErrorCode>(

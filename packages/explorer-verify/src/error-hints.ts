@@ -70,6 +70,8 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
     "Call linkProxy() again later: the explorer had not finished linking the proxy. A new call is safe.",
   "proxy-link-unknown-state":
     "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
+  "handler-refused":
+    "Do not retry. Fix the createVerifyHandler option or the request that details.handlerCode names.",
 };
 
 /**
