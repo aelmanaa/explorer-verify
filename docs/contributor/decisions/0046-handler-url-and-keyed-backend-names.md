@@ -100,12 +100,14 @@ message of the error for `etherscan-v2` names `handlerUrl`: the handler serves E
 
 ### 3. `apiKeys` takes only keyed backends
 
-`KeyedBackendName` is `"etherscan-v2" | "routescan" | "blockscout-hosted"`, built from one tuple
-in `backend-names.ts` that the key module also reads. `apiKeys` is of the exported type `ApiKeys`,
+`KeyedBackendName` is `"etherscan-v2" | "routescan" | "blockscout-hosted"`, a union in
+`backend-names.ts`. The key module's list is built from a record keyed by that union, so a name
+missing from the record fails to compile, and the public type does not refer to an internal
+value, which the docs site would have to show. `apiKeys` is of the exported type `ApiKeys`,
 `{ [B in KeyedBackendName]?: string | undefined }`. For the type, a later keyed backend is one more
-tuple entry; its client, host and docs are work of their own, as the hosted Blockscout API of
-[#229](https://github.com/aelmanaa/explorer-verify/pull/229) was. The run-time check of other
-names stays for JavaScript callers. The CLI's key variables use the same type.
+union member and one record entry; its client, host and docs are work of their own, as the hosted
+Blockscout API of [#229](https://github.com/aelmanaa/explorer-verify/pull/229) was. The run-time
+check of other names stays for JavaScript callers. The CLI's key variables use the same type.
 
 ### 4. No exported `handlerFetch`
 

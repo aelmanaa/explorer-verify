@@ -4,8 +4,8 @@
  * client sends its requests through {@link withKey}, so one rule decides where a key may go.
  * Internal: the package entry point does not export it.
  */
-import type { BackendName } from "../backend-names.ts";
-import { KEYED_BACKEND_NAMES, toBackendName } from "../backend-names.ts";
+import type { BackendName, KeyedBackendName } from "../backend-names.ts";
+import { toBackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { readFields, readOwn } from "../internal/read-fields.ts";
@@ -34,6 +34,24 @@ export const MAX_KEY_LENGTH = 1024;
  * ```
  */
 export const HOSTED_BLOCKSCOUT_HOST = "api.blockscout.com";
+
+// Each keyed backend once: a name missing here, or one that is not keyed, fails to compile.
+const KEYED: { readonly [B in KeyedBackendName]: B } = {
+  "etherscan-v2": "etherscan-v2",
+  routescan: "routescan",
+  "blockscout-hosted": "blockscout-hosted",
+};
+
+/**
+ * The backends that take a key from `VerifyOptions.apiKeys`, built from {@link KeyedBackendName}
+ * (decisions 0016, 0041 and 0046). The public type does not refer to this list.
+ *
+ * @example
+ * ```ts
+ * KEYED_BACKEND_NAMES.includes("routescan"); // true
+ * ```
+ */
+export const KEYED_BACKEND_NAMES: readonly KeyedBackendName[] = Object.values(KEYED);
 
 // Backends that take a key from `apiKeys`. Each key goes only to its backend's one API host.
 const KEY_BACKENDS: readonly BackendName[] = KEYED_BACKEND_NAMES;

@@ -33,13 +33,6 @@ export function toBackendName(value: unknown): BackendName | undefined {
 }
 
 /**
- * The backends that take a key from `VerifyOptions.apiKeys`. Each key goes only to its backend's
- * one API host (decisions 0016 and 0041). Internal: the entry point exports only
- * {@link KeyedBackendName}.
- */
-export const KEYED_BACKEND_NAMES = ["etherscan-v2", "routescan", "blockscout-hosted"] as const;
-
-/**
  * A backend that takes a key from `VerifyOptions.apiKeys`: `etherscan-v2`, `routescan` or
  * `blockscout-hosted`. The other backends take no key there: `sourcify` and `blockscout` take
  * none, and a standalone explorer (`etherscan-compatible`) takes its key as `route.apiKey`, next to
@@ -53,4 +46,7 @@ export const KEYED_BACKEND_NAMES = ["etherscan-v2", "routescan", "blockscout-hos
  * ```
  * @experimental
  */
-export type KeyedBackendName = (typeof KEYED_BACKEND_NAMES)[number];
+export type KeyedBackendName = Extract<
+  BackendName,
+  "etherscan-v2" | "routescan" | "blockscout-hosted"
+>;

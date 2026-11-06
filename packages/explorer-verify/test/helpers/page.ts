@@ -3,7 +3,7 @@
 import type { TestContext } from "node:test";
 
 /** The page URL the helper sets by default. */
-export const PAGE_URL = "https://dapp.example/app/";
+const PAGE_URL = "https://dapp.example/app/";
 
 /**
  * Sets `globalThis.location` to a page at `href` until the test ends.

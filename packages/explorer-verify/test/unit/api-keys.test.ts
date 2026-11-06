@@ -17,6 +17,7 @@ import {
   checkKey,
   keyErrorOf,
   keyFor,
+  KEYED_BACKEND_NAMES,
   readApiKeys,
   requireKey,
   checkRouteKey,
@@ -722,6 +723,7 @@ describe("apiKeys and route.apiKey: options validation (R-SEC-1, R-IN-6)", () =>
   });
 
   it("accepts a blockscout-hosted key, a KeyedBackendName (decisions 0041 and 0046)", () => {
+    assert.deepEqual(KEYED_BACKEND_NAMES, ["etherscan-v2", "routescan", "blockscout-hosted"]);
     const hosted = "blockscout-hosted-dummy-key-217";
     // Compiles only because `blockscout-hosted` is a KeyedBackendName.
     const options: VerifyOptions = { apiKeys: { "blockscout-hosted": hosted } };

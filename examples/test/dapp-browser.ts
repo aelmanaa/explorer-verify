@@ -13,8 +13,8 @@ export const ORIGIN = "https://dapp.example";
 // The page's work must not wait on real I/O while a test drives the mock clock: a slow read
 // would let the clock run ahead and spend the call's budget. So the build files are read here,
 // once, and served from memory (the server's tests read them through the routes), and the
-// explorer clients and the routing table that verify() loads with import() are loaded here, so its
-// import() takes them from the module cache.
+// explorer clients, the routing table and the handlerUrl code that verify() loads with import()
+// are loaded here, so its import() takes them from the module cache.
 const PAGE_FILES: ReadonlyMap<string, string> = new Map(
   ["Greeter.deploy.json", "Greeter.verify.json"].map((name) => [
     `/contracts/${name}`,
@@ -25,6 +25,7 @@ const library = import.meta.resolve("explorer-verify");
 for (const chunk of [
   "backends/sourcify.js",
   "backends/etherscan.js",
+  "http/handler-url.js",
   "input/constructor-args.js",
   "routing/table.js",
 ]) {
