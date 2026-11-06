@@ -99,6 +99,36 @@
       "file": "src/backends/blockscout.ts",
       "measured": 100.0,
       "floor": 99
+    },
+    {
+      "file": "src/server/handler.ts",
+      "measured": 98.15,
+      "floor": 94
+    },
+    {
+      "file": "src/envelope.ts",
+      "measured": 97.87,
+      "floor": 96
+    },
+    {
+      "file": "src/http/rpc.ts",
+      "measured": 98.08,
+      "floor": 97
+    },
+    {
+      "file": "src/flow/dry-run.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/flow/handle.ts",
+      "measured": 96.88,
+      "floor": 95
+    },
+    {
+      "file": "src/flow/format-handle.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
     }
   ]
 }

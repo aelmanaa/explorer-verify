@@ -22,7 +22,13 @@
     "src/backends/etherscan.ts",
     "src/backends/etherscan-compatible.ts",
     "src/backends/routescan.ts",
-    "src/backends/blockscout.ts"
+    "src/backends/blockscout.ts",
+    "src/server/handler.ts",
+    "src/envelope.ts",
+    "src/http/rpc.ts",
+    "src/flow/dry-run.ts",
+    "src/flow/handle.ts",
+    "src/flow/format-handle.ts"
   ],
   "tap": {
     "testFiles": ["test/unit/!(skill|user-docs).test.ts"],

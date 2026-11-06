@@ -147,16 +147,19 @@ const DECIMAL = /^[1-9][0-9]*$/;
  */
 function strictHandle(value: unknown): { prefix: string; jobId: string } | undefined {
   const handle = splitHandle(value);
-  const [, backend = "", chainId = "", address = "", jobId = ""] =
-    typeof value === "string" ? value.split(":") : [];
+  if (handle === undefined) {
+    return undefined;
+  }
+  // The prefix is `ev1:<backend>:<chainId>:<address>:`. The job id charset has no `:`, so a valid
+  // job id is the fifth field.
+  const [, backend, chainId, address] = handle.prefix.split(":");
+  const { jobId } = handle;
   const valid =
-    handle !== undefined &&
     toBackendName(backend) !== undefined &&
-    DECIMAL.test(chainId) &&
+    DECIMAL.test(String(chainId)) &&
     readChainId(Number(chainId)) !== undefined &&
     addressDigits(address) !== undefined &&
-    (JOB_ID.test(jobId) || jobId === REDACTED) &&
-    handle.jobId === jobId;
+    (JOB_ID.test(jobId) || jobId === REDACTED);
   return valid ? handle : undefined;
 }
 
@@ -186,6 +189,7 @@ class Problems {
 /** An `invalid-input` error for a value outside the types. It never repeats a value. */
 function invalid(issues: InputIssue[], message = NOT_AN_OUTCOME, hint = NOT_AN_OUTCOME_HINT) {
   return newError({ code: "invalid-input", issues }, message, {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. The message and the issues name only fields, never Stryker's placeholder text.
     secrets: [],
     hint,
   });
@@ -278,6 +282,7 @@ function stringsOf(value: unknown): string[] | undefined {
       return undefined;
     }
     const items: readonly unknown[] = value;
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
     const strings: string[] = [];
     for (const item of items) {
       if (typeof item !== "string") {
@@ -297,6 +302,7 @@ function stringsOf(value: unknown): string[] | undefined {
  */
 function secretsOf(options: unknown): readonly string[] {
   if (options === undefined) {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
     return [];
   }
   const fields = readFields(options);
@@ -309,6 +315,7 @@ function secretsOf(options: unknown): readonly string[] {
   }
   const secrets = fields.get("secrets");
   if (secrets === undefined) {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
     return [];
   }
   const copy = stringsOf(secrets);
@@ -335,9 +342,8 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
   const status =
     statusOf(fields.get("status")) ??
     problems.add("outcome.status", "must be verified, already-verified, failed or dry-run");
-  const backendValue = stringOf(fields.get("backend"));
   const backend =
-    (backendValue === undefined ? undefined : toBackendName(backendValue)) ??
+    toBackendName(fields.get("backend")) ??
     problems.add("outcome.backend", "must be one of BACKEND_NAMES");
   if (status === "failed") {
     const reason =
@@ -388,7 +394,11 @@ function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean 
     const name: unknown = Reflect.get(outcome, "name");
     const toJSON: unknown = Reflect.get(outcome, "toJSON");
     if ((branded || name === ERROR_NAME) && typeof toJSON === "function") {
-      return { read: (): unknown => Reflect.apply(toJSON, outcome, []), foreign: true };
+      return {
+        // Stryker disable next-line ArrayDeclaration: untestable sentinel. The mutant passes Stryker's placeholder text to toJSON(), which takes no argument.
+        read: (): unknown => Reflect.apply(toJSON, outcome, []),
+        foreign: true,
+      };
     }
     // A branded value claims to be an error: refuse it as one, so the message names its toJSON().
     return branded ? { read: (): unknown => undefined, foreign: true } : undefined;
@@ -504,16 +514,11 @@ function handlesOf(
   const copies: NonNullable<ErrorJson["handles"]> = [];
   for (const item of items) {
     const fields = readFields(item);
-    const backendValue = stringOf(fields?.get("backend"));
-    const backend = backendValue === undefined ? undefined : toBackendName(backendValue);
+    const backend = toBackendName(fields?.get("backend"));
     const line = fields?.get("handle");
     const split = foreign ? strictHandle(line) : splitHandle(line);
-    if (
-      backend === undefined ||
-      split === undefined ||
-      typeof line !== "string" ||
-      line.split(":")[1] !== backend
-    ) {
+    // The second field of the prefix names the handle's backend.
+    if (backend === undefined || split === undefined || split.prefix.split(":")[1] !== backend) {
       return undefined;
     }
     copies.push({ backend, handle: redactSplitHandle(split, secrets) });
@@ -566,11 +571,11 @@ function copyBackendOutcome(
   field: string,
   secrets: readonly string[],
 ): BackendOutcome<ErrorJson> {
-  const fields = readFields(item);
-  const backendValue = stringOf(fields?.get("backend"));
-  const backend = backendValue === undefined ? undefined : toBackendName(backendValue);
-  const ok = fields?.get("ok");
-  if (fields === undefined || backend === undefined || typeof ok !== "boolean") {
+  // A value that is not an object has no fields, so it has no backend.
+  const fields = readFields(item) ?? new Map<string, unknown>();
+  const backend = toBackendName(fields.get("backend"));
+  const ok = fields.get("ok");
+  if (backend === undefined || typeof ok !== "boolean") {
     throw invalid([{ field, message: "must be an object with a known backend and a boolean ok" }]);
   }
   const errorValue = fields.get("error");
@@ -658,6 +663,7 @@ export function exitCodeOf(
     | VerifyEachResult<ExplorerVerifyError>
     | VerifyEachResult<ErrorJson>,
 ): ExitCode {
+  // Stryker disable next-line ArrayDeclaration: untestable sentinel. The exit code reads no string, so a secret of Stryker's placeholder text changes nothing.
   const read = readOutcome(outcome, []);
   if ("each" in read) {
     return eachExitCode(read.each);
