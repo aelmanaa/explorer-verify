@@ -537,6 +537,17 @@ its value; the warning follows the level like any other warning, so `--quiet` hi
 The `verify.submitted` line carries the handle. Keep it: a run that times out or is cancelled can
 be resumed with it.
 
+The error of a run is a block of lines: the message and the code, then the issues of
+`invalid-input` that the message does not already state and the candidates of `incomplete-input`,
+then the hint, the docs page, the handle and, when one command resumes the run as it is, a
+`next:` line with it, each word that a shell would read otherwise in single quotes. A control
+character in any value shows as `\uXXXX`, so text from an explorer or a build file cannot start
+another line or move the cursor. The hint names the CLI's flags and environment variables, not the library's options, and
+each error page gives it on its "From the CLI" line. With `--json`, the envelope holds the same
+hint, the error's `details`, and `nextCommand`; see
+[JSON output](json-output.md#from-the-cli). A JSON log line of the error holds the next command in
+its `nextCommand` field, as one string.
+
 With `--log-format json`, each stderr line is one JSON object whose first keys are
 `schemaVersion`, `level`, `message` and `type`. `type` is an event type, such as
 `verify.submitted`, followed by the event's fields, or `log`, followed by the logger's fields. A

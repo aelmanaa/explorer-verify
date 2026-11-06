@@ -62,7 +62,7 @@ function rejection(value: unknown): ExplorerVerifyError {
   return assert.fail("validateInput accepted the value");
 }
 
-function issuesOf(value: unknown): InputIssue[] {
+function issuesOf(value: unknown): readonly InputIssue[] {
   const error = rejection(value);
   if (error.details.code !== "invalid-input") {
     return assert.fail("details do not match the code");

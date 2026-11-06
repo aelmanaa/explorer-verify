@@ -5,11 +5,12 @@
  * given (decision 0051). Its errors name the library's options, such as `outDir`; the CLI renames
  * them to its own flags.
  */
-import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
+import { ExplorerVerifyError } from "explorer-verify";
 import type { BuiltVerifyInput, InputIssue } from "explorer-verify";
 
 import type { OptionSpecs, OptionValue } from "./arguments.ts";
-import { USAGE_HINT, stringOption } from "./command.ts";
+import { stringOption } from "./command.ts";
+import { inCliWords } from "./hints.ts";
 
 /** The build tools project mode reads. */
 type BuildTool = "foundry" | "hardhat";
@@ -137,43 +138,12 @@ export function projectOf(
 const DEFAULT_OUT: Readonly<Record<BuildTool, string>> = { foundry: "out", hardhat: "artifacts" };
 
 /**
- * The helpers' hints in the CLI's words: its flags in place of the library's option names, and no
- * `details` field, which the envelope does not carry. A test feeds every hint of both helpers
- * through these and checks that no library word is left.
- */
-const HINT_WORDS: readonly (readonly [RegExp, string])[] = [
-  [/\b(?:options\.)?outDir\b/g, "--out-dir"],
-  [/\boptions\.contract\b/g, "--contract"],
-  [/\b([Pp]ass) contract as\b/g, "$1 --contract as"],
-  [/\b([Pp]ass) artifact with\b/g, "$1 --artifact with"],
-  [/\bunder root\b/g, "under the project folder"],
-  [/\bproject root\b/g, "project folder"],
-  [/\bone entry of details\.candidates\b/g, "one of the paths listed"],
-  [/\blisted in details\.candidates\b/g, "listed"],
-  [/\bwhat details\.field names\b/g, "what the message names"],
-  [/\bcall again\b/g, "run the command again"],
-];
-
-/**
- * A helper's hint in the CLI's words. The library's generic `invalid-input` hint, which names
- * `details.issues`, becomes the CLI's usage hint.
- *
- * @param hint - The helper's hint.
- * @returns The hint with the CLI's flags.
- */
-export function cliHintOf(hint: string): string {
-  if (hint === ERROR_HINTS["invalid-input"]) {
-    return USAGE_HINT;
-  }
-  return HINT_WORDS.reduce((text, [word, flag]) => text.replace(word, flag), hint);
-}
-
-/**
- * The error of a helper in the CLI's words: its hint through {@link cliHintOf}, and the issues of
- * `invalid-input` renamed to the CLI's flags and listed in the message, because the envelope has
- * no `details`. A default output folder the caller did not name is reported on the project flag.
- * The candidates of `incomplete-input` join its message. Anything that is not an
- * `ExplorerVerifyError` is returned as it is.
+ * The error of a helper with the CLI's flags in its `invalid-input` issues: each field the helper
+ * names, such as `contract`, becomes the flag that sets it, such as `--contract`, and a default
+ * output folder the caller did not name is reported on the project flag. The envelope carries
+ * the issues in `details`, and the stderr error block lists them. The hint is left to the CLI's
+ * hint layer (`hints.ts`), which rewrites every error's hint in one place. Any other error is
+ * returned as it is.
  *
  * @param error - What the helper threw.
  * @param request - The project request: the build tool and the options given.
@@ -183,25 +153,24 @@ export function withCliFlags(error: unknown, request: ProjectRequest): unknown {
   if (!(error instanceof ExplorerVerifyError)) {
     return error;
   }
+  // The message in the CLI's words too, with the same table as the hints, when every library
+  // word in it has a CLI form.
+  const message = inCliWords(error.message) ?? error.message;
+  const options = { hint: error.hint, cause: error, secrets: [] };
+  if (error.details.code !== "invalid-input") {
+    return message === error.message
+      ? error
+      : new ExplorerVerifyError(error.details, message, options);
+  }
   const { tool } = request;
   const flag = `--${tool}`;
-  const hint = cliHintOf(error.hint);
-  const { details } = error;
-  if (details.code !== "invalid-input") {
-    const candidates = details.code === "incomplete-input" ? details.candidates : [];
-    const message =
-      candidates.length === 0
-        ? error.message
-        : `${error.message.replace(/\.$/, "")}: ${candidates.join(", ")}.`;
-    return new ExplorerVerifyError(details, message, { hint, cause: error, secrets: [] });
-  }
   const names = new Map([
     ["root", flag],
     ["contract", "--contract"],
     ["artifact", "--artifact"],
     ["compilerVersion", "--compiler-version"],
   ]);
-  const issues = details.issues.map((issue): InputIssue => {
+  const issues = error.details.issues.map((issue): InputIssue => {
     if (issue.field !== "outDir") {
       return { ...issue, field: names.get(issue.field) ?? issue.field };
     }
@@ -212,13 +181,7 @@ export function withCliFlags(error: unknown, request: ProjectRequest): unknown {
         }
       : { ...issue, field: "--out-dir" };
   });
-  // The envelope carries no details, so the message lists each issue, as a usage error does.
-  const list = issues.map((issue) => `${issue.field} ${issue.message}`).join("; ");
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues },
-    `The input is invalid: ${list.replace(/\.$/, "")}.`,
-    { hint, cause: error, secrets: [] },
-  );
+  return new ExplorerVerifyError({ code: "invalid-input", issues }, message, options);
 }
 
 /**

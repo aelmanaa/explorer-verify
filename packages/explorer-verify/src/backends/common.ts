@@ -11,6 +11,7 @@ import type { AnyExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/check-handle.ts";
 import { request, sleep } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
+import { budgetText } from "../internal/duration.ts";
 import { readFields } from "../internal/read-fields.ts";
 import type { Handle } from "../types.ts";
 import type { Backend, Context, Match, ResolvedInput, SubmitOutcome, Target } from "./backend.ts";
@@ -229,7 +230,7 @@ export async function waitToResubmit(
   if (budget !== undefined && now + delayMs >= budget.deadline) {
     throw newError(
       { code: "timeout", backend, timeoutMs: budget.timeoutMs },
-      `${what} after ${tries}, within the ${String(budget.timeoutMs)} ms budget.`,
+      `${what} after ${tries}, within the ${budgetText(budget.timeoutMs)} budget.`,
       { hint, secrets },
     );
   }

@@ -113,39 +113,6 @@ export function checkFallback(
   }
 }
 
-/** The library's hint for a chain without a row, which names the library's options. */
-const ROW_HINT = "Set allowSourcifyFallback: true, or set route.apiUrl and route.backend.";
-
-/** The same hint, with the CLI's options. */
-const CLI_ROW_HINT =
-  "Pass --allow-sourcify-fallback to verify on the public Sourcify API, or pass --api-url with --backend.";
-
-/**
- * Awaits a library call. The `unsupported-chain` error of a chain without a row gets the hint
- * that names the CLI's options instead of the library's.
- *
- * @param call - The library call.
- * @returns What the call returns.
- * @throws What the call throws, with that one hint replaced.
- */
-export async function withCliHint<T>(call: Promise<T>): Promise<T> {
-  try {
-    return await call;
-  } catch (error) {
-    if (
-      error instanceof ExplorerVerifyError &&
-      error.code === "unsupported-chain" &&
-      error.hint === ROW_HINT
-    ) {
-      throw new ExplorerVerifyError(error.details, error.message, {
-        hint: CLI_ROW_HINT,
-        secrets: [],
-      });
-    }
-    throw error;
-  }
-}
-
 /**
  * The time budget of `--timeout` in milliseconds, `undefined` when it is absent, or an issue.
  *
@@ -442,9 +409,7 @@ async function send(
     // A submit publishes source and cannot be undone, so the caller names where it goes.
     throw await refusal(input, options, settings.field);
   }
-  return dry
-    ? await withCliHint(dryRun(input, options))
-    : await withCliHint(verify(input, options));
+  return dry ? await dryRun(input, options) : await verify(input, options);
 }
 
 /**

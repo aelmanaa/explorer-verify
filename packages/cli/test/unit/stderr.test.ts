@@ -30,6 +30,7 @@ const ERROR: ErrorJson = {
   docsUrl: "https://example.org/not-confirmed",
   retryable: true,
   handle: HANDLE,
+  details: { code: "not-confirmed", handle: HANDLE },
 };
 
 function writer(options: Partial<StderrOptions> = {}) {

@@ -266,6 +266,20 @@ describe("toEnvelope says what is wrong with a verifyEach() result (R-AX-5, R-RT
       { field: "outcome.handle", message: "must be a handle in its one-line form" },
     ]);
   });
+
+  it("refuses a chain id above 2^53 in a foreign handle", () => {
+    const handle = `ev1:sourcify:9007199254740993:${ADDRESS}:job`;
+    assert.deepEqual(issuesOf(new OtherCopyError({ ...ERROR_JSON, handle })), [
+      { field: "outcome.handle", message: "must be a handle in its one-line form" },
+    ]);
+  });
+
+  it("names only the bad handles, not the details, when both are wrong (decision 0049)", () => {
+    const { details: _left, ...without } = ERROR_JSON;
+    assert.deepEqual(issuesOf(new OtherCopyError({ ...without, handles: "x" })), [
+      { field: "outcome.handles", message: "must be a list of backends and one-line handles" },
+    ]);
+  });
 });
 
 describe("toEnvelope checks its options (R-AX-9)", () => {

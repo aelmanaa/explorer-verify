@@ -17,6 +17,9 @@ Fix: check the network connection and the explorer's status page, then call agai
 
 Default hint: Check the network connection and the explorer's status page, then call again.
 
+From the CLI: Check the network connection and the explorer's status page, then run the command
+again.
+
 Retryable: yes.
 
 Exit code: 5

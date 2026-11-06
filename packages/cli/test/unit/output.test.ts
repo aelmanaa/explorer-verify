@@ -59,7 +59,7 @@ describe("stdoutText of a dry run (R-AX-8)", () => {
     apiHost: "sourcify.dev",
     lookup: "none",
   } as const;
-  const tail = ": no match, so verify would submit. Nothing was submitted.\n";
+  const tail = ": no match, so a run without --dry-run would submit. Nothing was submitted.\n";
 
   it("says how the backend was chosen, and says nothing for a backend the caller named", () => {
     const cases = [

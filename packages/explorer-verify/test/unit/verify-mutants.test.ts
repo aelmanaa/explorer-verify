@@ -349,7 +349,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
     const error = errorOf(await onClock(t, settle(call, HANDLE, 0)), "not-confirmed");
     assert.equal(
       error.message,
-      `${NOT_CONFIRMED} the 60000 ms budget ran out before the job ended, and a last lookup failed.`,
+      `${NOT_CONFIRMED} the 60 s budget ran out before the job ended, and a last lookup failed.`,
     );
     // The poll's timeout error is the cause, not the lookup's network error.
     assert.ok(error.cause instanceof Error);
@@ -370,7 +370,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
     const error = errorOf(await onClock(t, settle(call, HANDLE, 0)), "not-confirmed");
     assert.equal(
       error.message,
-      `${NOT_CONFIRMED} the 2000 ms budget ran out before the job ended, and a last lookup found no match.`,
+      `${NOT_CONFIRMED} the 2 s budget ran out before the job ended, and a last lookup found no match.`,
     );
     assert.equal(Object.hasOwn(error, "cause"), false);
     assert.deepEqual(

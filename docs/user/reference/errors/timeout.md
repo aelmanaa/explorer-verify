@@ -12,6 +12,9 @@ may report the contract as verified or in progress.
 
 Default hint: Call again, or raise timeoutMs. The explorer had not accepted the submission yet.
 
+From the CLI: Run the command again, or raise --timeout. The explorer had not accepted the
+submission, so nothing is pending.
+
 Retryable: yes.
 
 Exit code: 5

@@ -106,7 +106,7 @@ function optionsOf(value: unknown): FindBuildOptions {
   return box.options;
 }
 
-function issuesOf(error: ExplorerVerifyError): { field: string; message: string }[] {
+function issuesOf(error: ExplorerVerifyError): readonly { field: string; message: string }[] {
   return error.details.code === "invalid-input" ? error.details.issues : [];
 }
 

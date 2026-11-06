@@ -1034,6 +1034,7 @@ describe("envelope and exit codes", () => {
         docsUrl: docsUrlOf("not-confirmed"),
         retryable: true,
         handle: DOC_LINE,
+        details: { code: "not-confirmed", handle: DOC_LINE },
       },
     });
   });

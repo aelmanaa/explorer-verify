@@ -12,6 +12,10 @@ Fix: store `details.handle` and pass it to `checkStatus()` later to continue pol
 
 Default hint: Call checkStatus with details.handle later to continue polling.
 
+From the CLI: The explorer is still verifying. Run explorer-verify status
+`ev1:sourcify:11155111:0x<address>:<job>` later to continue polling, or raise --timeout. Running
+verify again would submit again.
+
 Retryable: yes, with `checkStatus(details.handle)`. Do not call `verify()` again: it would submit
 the contract again.
 

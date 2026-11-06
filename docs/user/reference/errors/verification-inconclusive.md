@@ -18,6 +18,9 @@ job.
 Default hint: Wait a minute, then call verify() again: it looks the contract up first and submits
 only when the contract is not verified.
 
+From the CLI: Wait a minute, then run verify again: it looks the contract up first and submits only
+when the contract is not verified.
+
 Retryable: yes, with a new `verify()`.
 
 Exit code: 4

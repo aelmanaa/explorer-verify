@@ -638,11 +638,18 @@ export function validateInput(input: unknown): VerifyInput {
   return result;
 }
 
+/**
+ * The `invalid-input` error of the problems found. The message names the first issue in full and
+ * the fields of the others, so a reader can fix the first without opening `details.issues`. An
+ * issue never repeats a value, so the message holds none.
+ */
 function invalid({ issues, hints }: Problems): ExplorerVerifyError {
-  const fields = issues.map((issue) => issue.field).join(", ");
+  const [first, ...others] = issues;
+  const head = first === undefined ? "" : `${first.field} ${first.message}`;
+  const rest = others.length === 0 ? "" : `; also ${others.map((issue) => issue.field).join(", ")}`;
   const [hint] = hints;
   const more = issues.length > 1 ? " Then fix the other fields in details.issues." : "";
-  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, {
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${head}${rest}.`, {
     ...(hint === undefined ? {} : { hint: `${hint}${more}` }),
     // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issues name only fields, never the text Stryker puts here.
     secrets: [],

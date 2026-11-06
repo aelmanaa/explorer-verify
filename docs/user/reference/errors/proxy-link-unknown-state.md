@@ -21,6 +21,9 @@ it shows, then report `details.excerpt` in an issue.
 Default hint: Do not retry automatically. Check the proxy's page on the explorer and report
 details.excerpt.
 
+From the CLI: Do not retry automatically. Check the proxy's page on the explorer, and report the
+excerpt that --json prints.
+
 Retryable: no.
 
 Exit code: 6

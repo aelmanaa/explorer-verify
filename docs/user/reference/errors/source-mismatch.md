@@ -18,6 +18,9 @@ as the metadata.
 Default hint: Pass the source file named in details.path exactly as it was compiled, byte for byte,
 line endings included.
 
+From the CLI: Pass the source file `<path>` exactly as it was compiled, byte for byte, line endings
+included, or pass the build-info of the same build with --input.
+
 Retryable: no. Nothing was sent to an explorer.
 
 Exit code: 2

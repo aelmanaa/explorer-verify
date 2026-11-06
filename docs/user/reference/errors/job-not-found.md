@@ -15,6 +15,9 @@ not verified, and then the hint says to call `verify()` again, or when the looku
 Default hint: Do not retry automatically. Check the contract on the explorer; if it is not verified,
 call verify() again.
 
+From the CLI: Do not retry automatically. Check the contract on the explorer; if it is not verified,
+run verify again.
+
 Retryable: no. Checking the same handle again fails the same way.
 
 Exit code: 6

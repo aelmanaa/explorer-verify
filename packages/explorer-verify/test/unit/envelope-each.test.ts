@@ -294,7 +294,10 @@ describe("the handles of a cancelled run on several backends (R-AX-5)", () => {
       const error = untypedExit(foreignCancelled(handles));
       assert.ok(error instanceof ExplorerVerifyError);
       assert.ok(error.details.code === "invalid-input");
-      assert.ok(error.details.issues.some((issue) => issue.field === "outcome.handles"));
+      assert.deepEqual(
+        error.details.issues.map((issue) => issue.field),
+        ["outcome.handles"],
+      );
     });
   }
 

@@ -424,7 +424,7 @@ describe("checkStatus(): time budget (R-FLOW-2, R-FLOW-4, R-FLOW-5)", () => {
     assert.deepEqual(error.details, { code: "not-confirmed", handle });
     assert.equal(error.toJSON().handle, formatHandle(handle));
     assert.equal(error.retryable, true);
-    assert.ok(error.message.includes("the 10000 ms budget ran out"));
+    assert.ok(error.message.includes("the 10 s budget ran out"));
     assertErrorEnvelope(error, 4);
     // Polls at 0, 3, 6 and 9 s; the budget ends at 10 s; one last lookup.
     assert.deepEqual(

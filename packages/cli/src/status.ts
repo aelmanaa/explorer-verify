@@ -17,7 +17,6 @@ import {
   checkFallback,
   inputJsonOption,
   timeoutOf,
-  withCliHint,
 } from "./verify.ts";
 
 /** The status request of `--input-json`. A test checks it against `input.schema.json`. */
@@ -62,7 +61,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   return {
     values: runValues,
     fieldNames,
-    run: async (run) => await withCliHint(checkStatus(line, callOptions(run, timeoutMs))),
+    run: async (run) => await checkStatus(line, callOptions(run, timeoutMs)),
   };
 }
 

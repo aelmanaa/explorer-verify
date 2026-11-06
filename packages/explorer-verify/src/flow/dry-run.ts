@@ -69,8 +69,8 @@ export async function runDryRun(
     observer.emit({ type: "verify.lookup", backend: backend.name, match: found ?? "none" });
     observer.log.info(
       found === undefined
-        ? `Dry run: ${backend.name} holds no match, so verify() would submit. Nothing was submitted.`
-        : `Dry run: ${backend.name} already holds the contract (${found} match), so verify() would not submit.`,
+        ? `Dry run: ${backend.name} holds no match, so a verification would submit the source. Nothing was submitted.`
+        : `Dry run: ${backend.name} already holds the contract (${found} match), so a verification would not submit.`,
       fields,
     );
     if (found === undefined) {

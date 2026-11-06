@@ -123,9 +123,10 @@ describe("tryParseHandle (R-FLOW-5, #218)", () => {
     }
   });
 
-  it("gives each error its own copy of the shape issue", () => {
+  it("gives each error its own copy of the shape issue, frozen with its details", () => {
     const first = shapeIssue();
-    first.message = "changed";
+    assert.ok(Object.isFrozen(first));
+    assert.notEqual(shapeIssue(), first);
     assert.equal(shapeIssue().message.startsWith("must be a handle object"), true);
   });
 

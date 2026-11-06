@@ -337,9 +337,9 @@ describe("a refusal of the server handler maps to its error code (decisions 0046
     assert.equal(error.code, "unexpected-response");
     assert.equal(error.retryable, false);
     assert.match(error.message, /^Your server handler gave an answer to the lookup/);
-    assert.ok(
-      !JSON.stringify([error.message, error.hint, error.toJSON()]).includes("deadbeefcafe"),
-    );
+    // The message and the hint never repeat it (decision 0048). The excerpt is the caller's own
+    // handler body, kept as it is in details (decision 0049).
+    assert.ok(!JSON.stringify([error.message, error.hint]).includes("deadbeefcafe"));
     assert.match(error.hint, /createVerifyHandler options/);
   });
 

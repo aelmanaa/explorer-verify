@@ -109,7 +109,9 @@ describe("bin: verify from a project (R-DX-1, R-DX-2)", { concurrency: true }, (
     assert.equal(result.code, 2);
     const error = part(result.stdout, "error");
     assert.equal(error["code"], "invalid-input");
-    assert.match(String(error["message"]), /^The input is invalid: --contract /);
+    // The issues carry the CLI's flags in details (decision 0049); the hint is in its words.
+    const details: unknown = error["details"];
+    assert.match(JSON.stringify(details), /"field":"--contract"/);
     assert.match(String(error["hint"]), /--out-dir/);
   });
 

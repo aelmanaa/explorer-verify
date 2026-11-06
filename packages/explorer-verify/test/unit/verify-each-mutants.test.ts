@@ -78,7 +78,11 @@ function entries(count: number): unknown[] {
 }
 
 /** The invalid-input error of `outcome`, with its message, hint and every issue. */
-function invalid(outcome: unknown): { message: string; hint: string; issues: InputIssue[] } {
+function invalid(outcome: unknown): {
+  message: string;
+  hint: string;
+  issues: readonly InputIssue[];
+} {
   assert.ok(
     outcome instanceof ExplorerVerifyError,
     `expected an error, got ${JSON.stringify(outcome)}`,

@@ -21,8 +21,10 @@ code's data. Each error has:
 | `cause`     | A redacted copy of the underlying error. `toJSON()` and `JSON.stringify` leave it out |
 
 `Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`.
-`JSON.stringify(error)` prints `code`, `message`, `hint`, `docsUrl`, `retryable` and, when there is
-one, the handle in its one-line form. It never prints `cause`, the stack or an API key.
+`JSON.stringify(error)` prints `code`, `message`, `hint`, `docsUrl`, `retryable`, the handle in its
+one-line form when there is one, and `details`, redacted, with each handle in its one-line form. It
+never prints `cause`, the stack or an API key. Its type, `ErrorJson`, is a union keyed by `code`, so
+checking `code` narrows `details` there too.
 
 ```ts
 import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
@@ -90,6 +92,25 @@ const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper f
 });
 ```
 
+### From the CLI
+
+The CLI prints the same codes, with a hint in its own words: flags, environment variables and
+commands instead of the library's options. Each code's page gives that hint on its "From the CLI"
+line. Under the error line, it lists the issues of `invalid-input` that the message does not
+already state, and the candidates or missing sources of `incomplete-input`. For example, with a
+build-info that holds two contracts and no `--contract`:
+
+```console
+error: The documents hold 2 contracts and none was chosen. (incomplete-input)
+  candidates: src/Base.sol:Base, src/Greeter.sol:Greeter
+  hint: Pass --contract with one of: src/Base.sol:Base, src/Greeter.sol:Greeter.
+  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input
+```
+
+For `not-confirmed`, and for `cancelled` with one handle, a `next:` line gives the command that
+resumes the job, and `--json` puts it in `nextCommand`.
+[JSON output](../json-output.md#from-the-cli) describes both.
+
 ## API keys in errors
 
 The error removes API keys before it stores anything. The message, the hint, every string in
@@ -111,6 +132,11 @@ The error removes API keys before it stores anything. The message, the hint, eve
 The error builds `details` again from the fields its code declares, so an extra field never
 reaches the error. A `details.backend` outside the list of backends reads `unknown`. That happens
 only when code bypassed the types.
+
+The details are frozen. An optional number that is not finite, such as a `retryAfterMs` of `NaN`,
+is left out. A required number, such as the `status` of `unexpected-response`, is kept as it is:
+an error built by code that bypassed the types with `NaN` or `Infinity` there is refused by
+`toEnvelope()` and `exitCodeOf()` with `invalid-input`, because JSON has no such number.
 
 The `cause` is a copy of the underlying error. It is a plain `Error` with the original name. Its
 message, stack, `code`, `errno` and `syscall`, a one-line summary of an `AggregateError`'s errors,

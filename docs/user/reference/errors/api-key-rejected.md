@@ -24,6 +24,9 @@ Fix: check the key on the explorer's account page, then pass a valid key in `api
 Default hint: Check the key on the explorer's account page: it may be mistyped, revoked or issued
 by another explorer. Pass a valid key, then call again.
 
+From the CLI: etherscan-v2 refused the key. Check the key in ETHERSCAN_API_KEY on the explorer's
+account page: it may be mistyped, revoked or issued by another explorer.
+
 Retryable: no.
 
 Exit code: 3

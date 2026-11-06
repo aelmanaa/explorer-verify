@@ -115,7 +115,7 @@ describe("dryRun (R-AX-8)", () => {
     });
     assert.ok(
       lines.includes(
-        "Dry run: sourcify already holds the contract (exact match), so verify() would not submit.",
+        "Dry run: sourcify already holds the contract (exact match), so a verification would not submit.",
       ),
     );
   });

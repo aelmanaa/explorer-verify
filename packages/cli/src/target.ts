@@ -11,6 +11,7 @@ import { ExplorerVerifyError, routesFor } from "explorer-verify";
 import type { ChainRoutes, RoutePick, VerifyInput, VerifyOptions } from "explorer-verify";
 
 import { usageError } from "./command.ts";
+import { ownHint } from "./hints.ts";
 import { KEY_VARIABLES } from "./keys.ts";
 
 /** The `--backend` value that lets the routing table pick the backend. */
@@ -102,8 +103,10 @@ export async function refusal(
         "is needed to submit: a submit publishes the source and cannot be undone, so name the backend, or auto for the routing table's pick",
     },
   ]);
-  return new ExplorerVerifyError(base.details, base.message, {
-    hint: `${text} Add --dry-run to see the target without submitting.`,
-    secrets: [],
-  });
+  return ownHint(
+    new ExplorerVerifyError(base.details, base.message, {
+      hint: `${text} Add --dry-run to see the target without submitting.`,
+      secrets: [],
+    }),
+  );
 }

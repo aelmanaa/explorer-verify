@@ -145,7 +145,7 @@ export type ErrorDetails =
       /** The input failed validation, or a handle did not parse. */
       code: "invalid-input";
       /** Every problem found, in field order. */
-      issues: InputIssue[];
+      issues: readonly InputIssue[];
     }
   | {
       /** The time budget ran out while the explorer was still verifying. */
@@ -253,7 +253,7 @@ export type ErrorDetails =
        * 1000; the message gives the full count.
        * Empty for the other fields.
        */
-      candidates: string[];
+      candidates: readonly string[];
     }
   | {
       /**
@@ -350,7 +350,7 @@ export type ErrorDetails =
        */
       hash: string;
       /** Each source tried, in order. */
-      attempts: MetadataAttempt[];
+      attempts: readonly MetadataAttempt[];
     }
   | {
       /**
@@ -535,23 +535,93 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
 };
 
 /**
- * What `ExplorerVerifyError.toJSON()` returns: the `error` object of the CLI's JSON output, field
- * for field (R-AX-5). It never holds a `cause`, a stack or an API key.
+ * The `details` of an error in its JSON form (R-AX-5): the same fields as {@link ErrorDetails},
+ * except that each handle is in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
+ * Checking `details.code`, or the `code` of the {@link ErrorJson} that holds it, narrows it.
  *
  * @example
  * ```ts
- * import { ExplorerVerifyError } from "explorer-verify";
- * import type { ErrorJson } from "explorer-verify";
+ * import type { ErrorDetailsJson } from "explorer-verify";
  *
- * function envelope(error: ExplorerVerifyError): { schemaVersion: 1; ok: false; error: ErrorJson } {
- *   return { schemaVersion: 1, ok: false, error: error.toJSON() };
+ * function candidates(details: ErrorDetailsJson): string[] {
+ *   return details.code === "incomplete-input" ? details.candidates : [];
  * }
  * ```
  * @experimental
  */
-export interface ErrorJson {
-  /** The stable error code. */
-  code: ErrorCode;
+export type ErrorDetailsJson =
+  | Exclude<
+      ErrorDetails,
+      {
+        /** The codes whose details hold a handle. */
+        code: "not-confirmed" | "job-not-found" | "unknown-state" | "cancelled";
+      }
+    >
+  | {
+      /** The time budget ran out while the explorer was still verifying. */
+      code: "not-confirmed";
+      /** The handle in its one-line form. Pass it to `checkStatus()` or `explorer-verify status`. */
+      handle: HandleString;
+    }
+  | {
+      /** The explorer no longer knows the job id in the handle. */
+      code: "job-not-found";
+      /** The handle in its one-line form. */
+      handle: HandleString;
+    }
+  | {
+      /** The explorer reported a final state the library cannot classify. */
+      code: "unknown-state";
+      /** The handle in its one-line form. */
+      handle: HandleString;
+      /** The start of the explorer's answer, redacted, at most 300 characters. */
+      excerpt: string;
+    }
+  | {
+      /** The run was cancelled. */
+      code: "cancelled";
+      /** The handle in its one-line form, when the explorer accepted the submission. */
+      handle?: HandleString;
+      /** A run on several backends: each running job's handle, in its one-line form. */
+      handles?: readonly HandleString[];
+    };
+
+/**
+ * The JSON form of the `details` of an error with code `C`: its member of {@link ErrorDetailsJson}.
+ *
+ * @template C - One error code, or a union of codes.
+ * @example
+ * ```ts
+ * import type { DetailsJsonOf } from "explorer-verify";
+ *
+ * function resume(details: DetailsJsonOf<"not-confirmed">): string[] {
+ *   return ["explorer-verify", "status", details.handle];
+ * }
+ * ```
+ * @experimental
+ */
+export type DetailsJsonOf<C extends ErrorCode> = Extract<
+  ErrorDetailsJson,
+  {
+    /** The member's code. */
+    code: C;
+  }
+>;
+
+/**
+ * The fields every {@link ErrorJson} has besides `code` and `details`.
+ *
+ * @example
+ * ```ts
+ * import type { ErrorJsonFields } from "explorer-verify";
+ *
+ * function line(error: ErrorJsonFields): string {
+ *   return `${error.message} ${error.hint}`;
+ * }
+ * ```
+ * @experimental
+ */
+export interface ErrorJsonFields {
   /** What went wrong. */
   message: string;
   /** What to do next. */
@@ -560,8 +630,8 @@ export interface ErrorJson {
   docsUrl: string;
   /**
    * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
-   * again means `checkStatus(details.handle)`, not a new `verify()`. For
-   * `verification-inconclusive`, it means a new `verify()`, which looks the contract up first.
+   * again means `checkStatus(handle)`, not a new `verify()`. For `verification-inconclusive`, it
+   * means a new `verify()`, which looks the contract up first.
    */
   retryable: boolean;
   /** The handle in its one-line form, when the error carries one. */
@@ -577,6 +647,40 @@ export interface ErrorJson {
     handle: HandleString;
   }[];
 }
+
+/**
+ * What `ExplorerVerifyError.toJSON()` returns: the `error` object of the CLI's JSON output, field
+ * for field (R-AX-5). It holds the code's `details`, redacted, with each handle in its one-line
+ * form. It never holds a `cause`, a stack or an API key. It is a union keyed by `code`, so checking
+ * `code` narrows `details`, as on the error itself.
+ *
+ * @template C - The codes. Defaults to every code.
+ * @example
+ * ```ts
+ * import { ExplorerVerifyError } from "explorer-verify";
+ * import type { ErrorJson } from "explorer-verify";
+ *
+ * function envelope(error: ExplorerVerifyError): { schemaVersion: 1; ok: false; error: ErrorJson } {
+ *   return { schemaVersion: 1, ok: false, error: error.toJSON() };
+ * }
+ *
+ * function issues(json: ErrorJson): string[] {
+ *   return json.code === "invalid-input"
+ *     ? json.details.issues.map((issue) => `${issue.field} ${issue.message}`)
+ *     : [];
+ * }
+ * ```
+ * @experimental
+ */
+export type ErrorJson<C extends ErrorCode = ErrorCode> = {
+  [K in C]: {
+    /** The stable error code, equal to `details.code`. */
+    code: K;
+  } & ErrorJsonFields & {
+      /** The code's data, redacted, with each handle in its one-line form. */
+      details: DetailsJsonOf<K>;
+    };
+}[C];
 
 /**
  * Options for {@link ExplorerVerifyError}. `secrets` is required, so code that builds an error
@@ -628,7 +732,7 @@ export interface ExplorerVerifyErrorOptions {
  * The site build test checks that each URL maps to a page in the build output, and the deploy
  * checks that each one returns 200.
  */
-function docsUrlOf(code: ErrorCode): string {
+export function docsUrlOf(code: ErrorCode): string {
   return `https://aelmanaa.github.io/explorer-verify/reference/errors/${code}`;
 }
 
@@ -712,11 +816,13 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
       code: "unexpected-response",
       ...answerOf(details, secrets),
     };
-    if (details.retryAfterMs !== undefined) {
-      copy.retryAfterMs = numberOf(details.retryAfterMs);
+    const retryAfterMs = finiteOf(details.retryAfterMs);
+    if (retryAfterMs !== undefined) {
+      copy.retryAfterMs = retryAfterMs;
     }
-    if (details.attempts !== undefined) {
-      copy.attempts = numberOf(details.attempts);
+    const attempts = finiteOf(details.attempts);
+    if (attempts !== undefined) {
+      copy.attempts = attempts;
     }
     return copy;
   },
@@ -735,11 +841,13 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
       code: "rate-limited",
       backend: backendOf(details.backend),
     };
-    if (details.retryAfterMs !== undefined) {
-      copy.retryAfterMs = numberOf(details.retryAfterMs);
+    const retryAfterMs = finiteOf(details.retryAfterMs);
+    if (retryAfterMs !== undefined) {
+      copy.retryAfterMs = retryAfterMs;
     }
-    if (details.attempts !== undefined) {
-      copy.attempts = numberOf(details.attempts);
+    const attempts = finiteOf(details.attempts);
+    if (attempts !== undefined) {
+      copy.attempts = attempts;
     }
     return copy;
   },
@@ -860,9 +968,9 @@ function copyAttempt(attempt: unknown): MetadataAttempt {
       "timeout",
     ]),
   };
-  const status = fields?.get("status");
+  const status = finiteOf(fields?.get("status"));
   if (status !== undefined) {
-    copy.status = numberOf(status);
+    copy.status = status;
   }
   return copy;
 }
@@ -884,6 +992,24 @@ function hashOf(value: unknown): Hex {
 /** A redacted excerpt of an explorer's answer, at most 300 characters. */
 function excerptOf(value: unknown, secrets: readonly string[]): string {
   return redactExcerpt(stringOf(value), secrets, EXCERPT_LENGTH);
+}
+
+/** `value` and every object and array inside it, frozen. */
+function frozen<T>(value: T): T {
+  // Stryker disable next-line ConditionalExpression: equivalent. The redactors never put null in details.
+  if (typeof value === "object" && value !== null) {
+    for (const inner of Object.values(value)) {
+      frozen(inner);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/** A finite number, or `undefined` for anything else, such as `NaN`, `Infinity` or `"12"`. */
+function finiteOf(value: unknown): number | undefined {
+  // Stryker disable next-line ConditionalExpression: equivalent. Number.isFinite is false for anything that is not a number.
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 /** A number, or `NaN` for anything else. */
@@ -916,6 +1042,264 @@ function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
     address: `0x${digits ?? text(stringOf(handle.address).slice(2), secrets)}`,
     jobId: redactJobId(stringOf(handle.jobId), secrets),
   };
+}
+
+/**
+ * An error object in the key order of the envelope schema: `code`, `message`, `hint`, `docsUrl`,
+ * `retryable`, `handle`, `handles`, then `details`. Internal: `toJSON()` and `toEnvelope` share it.
+ *
+ * @param code - The error code.
+ * @param fields - The other fields.
+ * @param details - The code's details in their JSON form.
+ * @returns The error object.
+ */
+export function errorJsonOf<C extends ErrorCode>(
+  code: C,
+  fields: ErrorJsonFields,
+  details: DetailsJsonOf<C>,
+): ErrorJson<C> {
+  const { message, hint, docsUrl, retryable, handle, handles } = fields;
+  return {
+    code,
+    message,
+    hint,
+    docsUrl,
+    retryable,
+    ...(handle === undefined ? {} : { handle }),
+    ...(handles === undefined ? {} : { handles }),
+    details,
+  };
+}
+
+/** Reads one field of a details object in its JSON form. */
+type ReadField = (name: string) => unknown;
+
+/**
+ * What the rebuild knows besides the details: the handles the error object carries at its top level,
+ * already checked and redacted, and whether another copy or a server built it.
+ */
+interface TopHandles {
+  /**
+   * Whether the error object comes from another copy of the package or a server, so its strings
+   * and lists are cut. This copy's own errors keep their full details, so `toJSON()` equals the
+   * envelope (R-AX-5).
+   */
+  readonly foreign?: boolean;
+  /** The one-line handle, when the error object has one. */
+  readonly handle: HandleString | undefined;
+  /** The one-line handles of a cancelled run on several backends. */
+  readonly handles: readonly HandleString[] | undefined;
+}
+
+/** Builds one code's details from their JSON form; `undefined` when a needed handle is missing. */
+type FromJson<C extends ErrorCode> = (
+  read: ReadField,
+  secrets: readonly string[],
+  top: TopHandles,
+) => DetailsJsonOf<C> | undefined;
+
+// The most items of a list the rebuild keeps from a foreign error: issues, candidates, attempts.
+const MAX_ITEMS = 50;
+// The longest string the rebuild keeps from a foreign error, other than an excerpt.
+const MAX_TEXT = 1_000;
+// A metadata hash: `ipfs:` and a CID, or `bzzr0:` or `bzzr1:` and 64 hex digits. Anything else,
+// the empty hash of an unread bytecode included, becomes empty.
+const METADATA_HASH = /^(ipfs:[1-9A-HJ-NP-Za-km-z]{1,100}|bzzr[01]:[0-9a-f]{64})$/;
+
+/** The items of an array, the first {@link MAX_ITEMS} of a foreign one, or none for anything else. */
+function itemsOf(value: unknown, top: TopHandles): readonly unknown[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const items: readonly unknown[] = value;
+  return top.foreign === true ? items.slice(0, MAX_ITEMS) : [...items];
+}
+
+/**
+ * A string, redacted, and cut to {@link MAX_TEXT} characters when it is foreign; `""` for anything
+ * else.
+ */
+function capped(value: unknown, secrets: readonly string[], top: TopHandles): string {
+  return top.foreign === true
+    ? redactExcerpt(stringOf(value), secrets, MAX_TEXT)
+    : text(value, secrets);
+}
+
+/**
+ * For each code, a function that builds its details from their JSON form, as another copy of the
+ * package or a server handler sent them: field by field from the fields its code declares, every
+ * string redacted, every excerpt cut to 300 characters, and a value of the wrong type replaced, as
+ * the redactors do. For a foreign error object, every other string is cut to 1,000 characters and
+ * every list to 50 items. A required number that is not finite
+ * gives `undefined`, so the error object is refused; an optional one is left out. A handle is
+ * never read from the details: it is the error object's own top-level handle, which the caller has
+ * already checked.
+ */
+const FROM_JSON: { readonly [C in ErrorCode]: FromJson<C> } = {
+  "invalid-input": (read, secrets, top) => ({
+    code: "invalid-input",
+    issues: itemsOf(read("issues"), top).map((issue) => {
+      const fields = readFields(issue);
+      return {
+        field: capped(fields?.get("field"), secrets, top),
+        message: capped(fields?.get("message"), secrets, top),
+      };
+    }),
+  }),
+  "not-confirmed": (_read, _secrets, { handle }) =>
+    handle === undefined ? undefined : { code: "not-confirmed", handle },
+  "job-not-found": (_read, _secrets, { handle }) =>
+    handle === undefined ? undefined : { code: "job-not-found", handle },
+  "unknown-state": (read, secrets, { handle }) =>
+    handle === undefined
+      ? undefined
+      : { code: "unknown-state", handle, excerpt: excerptOf(read("excerpt"), secrets) },
+  cancelled: (_read, _secrets, { handle, handles }) => ({
+    code: "cancelled",
+    ...(handle === undefined ? {} : { handle }),
+    ...(handles === undefined ? {} : { handles: [...handles] }),
+  }),
+  "unexpected-response": (read, secrets) => {
+    const status = finiteOf(read("status"));
+    const retryAfterMs = finiteOf(read("retryAfterMs"));
+    const attempts = finiteOf(read("attempts"));
+    return status === undefined
+      ? undefined
+      : {
+          code: "unexpected-response",
+          backend: backendOf(read("backend")),
+          status,
+          excerpt: excerptOf(read("excerpt"), secrets),
+          ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+          ...(attempts === undefined ? {} : { attempts }),
+        };
+  },
+  "unsupported-chain": (read) => {
+    const chainId = finiteOf(read("chainId"));
+    return chainId === undefined
+      ? undefined
+      : { code: "unsupported-chain", chainId, backend: backendOf(read("backend")) };
+  },
+  network: (read) => {
+    const attempts = finiteOf(read("attempts"));
+    return attempts === undefined
+      ? undefined
+      : { code: "network", backend: backendOf(read("backend")), attempts };
+  },
+  "rate-limited": (read) => {
+    const retryAfterMs = finiteOf(read("retryAfterMs"));
+    const attempts = finiteOf(read("attempts"));
+    return {
+      code: "rate-limited",
+      backend: backendOf(read("backend")),
+      ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+      ...(attempts === undefined ? {} : { attempts }),
+    };
+  },
+  timeout: (read) => {
+    const timeoutMs = finiteOf(read("timeoutMs"));
+    return timeoutMs === undefined
+      ? undefined
+      : { code: "timeout", backend: backendOf(read("backend")), timeoutMs };
+  },
+  "in-progress": (read) => ({ code: "in-progress", backend: backendOf(read("backend")) }),
+  "incomplete-input": (read, secrets, top) => ({
+    code: "incomplete-input",
+    field: oneOf(read("field"), ["input", "compilerVersion", "contract", "sources"]),
+    candidates: itemsOf(read("candidates"), top).map((candidate) =>
+      capped(candidate, secrets, top),
+    ),
+  }),
+  "insufficient-artifact": () => ({ code: "insufficient-artifact", field: "input" }),
+  "unsupported-compiler": (read, secrets, top) => ({
+    code: "unsupported-compiler",
+    field: capped(read("field"), secrets, top),
+  }),
+  "verification-inconclusive": (read, secrets) => ({
+    code: "verification-inconclusive",
+    backend: backendOf(read("backend")),
+    reason: excerptOf(read("reason"), secrets),
+  }),
+  "source-mismatch": (read, secrets, top) => ({
+    code: "source-mismatch",
+    path: capped(read("path"), secrets, top),
+    expected: hashOf(read("expected")),
+    actual: hashOf(read("actual")),
+  }),
+  "missing-api-key": (read) => ({ code: "missing-api-key", backend: backendOf(read("backend")) }),
+  "api-key-rejected": (read) => ({ code: "api-key-rejected", backend: backendOf(read("backend")) }),
+  "quota-exceeded": (read) => ({ code: "quota-exceeded", backend: backendOf(read("backend")) }),
+  "internal-error": () => ({ code: "internal-error" }),
+  "no-metadata-hash": (read) => ({
+    code: "no-metadata-hash",
+    found: oneOf(read("found"), ["no-metadata", "no-code", "version-only"]),
+  }),
+  "metadata-unavailable": (read, _secrets, top) => {
+    const hash = stringOf(read("hash"));
+    return {
+      code: "metadata-unavailable",
+      hash: METADATA_HASH.test(hash) ? hash : "",
+      attempts: itemsOf(read("attempts"), top).map(copyAttempt),
+    };
+  },
+  "constructor-args-unavailable": (read) => ({
+    code: "constructor-args-unavailable",
+    reason: oneOf(read("reason"), ["prefix-mismatch", "bad-length"]),
+  }),
+  "proxy-link-pending": (read) => ({
+    code: "proxy-link-pending",
+    backend: backendOf(read("backend")),
+  }),
+  "proxy-link-unknown-state": (read, secrets) => ({
+    code: "proxy-link-unknown-state",
+    backend: backendOf(read("backend")),
+    excerpt: excerptOf(read("excerpt"), secrets),
+  }),
+  "handler-refused": (read, secrets) => {
+    const status = finiteOf(read("status"));
+    const handlerCode = text(read("handlerCode"), secrets);
+    return status === undefined
+      ? undefined
+      : {
+          code: "handler-refused",
+          backend: backendOf(read("backend")),
+          status,
+          excerpt: excerptOf(read("excerpt"), secrets),
+          handlerCode: HANDLER_CODE.test(handlerCode) ? handlerCode : "",
+        };
+  },
+};
+
+/**
+ * The details of an error object in their JSON form, checked and rebuilt for its code. Internal:
+ * `toEnvelope` uses it on an error object it did not build, such as one from another copy of the
+ * package or a server handler's answer.
+ *
+ * @param code - The error object's code, already checked.
+ * @param value - The error object's `details`.
+ * @param secrets - Key values to remove.
+ * @param top - The error object's top-level handles, already checked and redacted.
+ * @returns The details, or `undefined` when `value` is not an object with that code, when the code
+ *   needs a handle and the error object has none, or when reading `value` throws.
+ */
+export function detailsFromJson<C extends ErrorCode>(
+  code: C,
+  value: unknown,
+  secrets: readonly string[],
+  top: TopHandles,
+): DetailsJsonOf<C> | undefined {
+  let copy: DetailsJsonOf<C> | undefined;
+  try {
+    const fields = readFields(value);
+    // Stryker disable next-line OptionalChaining: equivalent. Without fields, get throws and the catch leaves copy undefined.
+    if (fields?.get("code") === code) {
+      const fromJson: FromJson<C> = FROM_JSON[code];
+      copy = fromJson((name) => fields.get(name), secrets, top);
+    }
+  } catch {
+    // A hostile array or object in the details: refuse them as a whole, so copy stays undefined.
+  }
+  return copy;
 }
 
 /** A cause copy: a plain `Error` with the redacted fields that help debugging. */
@@ -1049,7 +1433,8 @@ const BRAND: unique symbol = Symbol.for("explorer-verify.error");
  *
  * The constructor removes API keys from the message, the hint, every string in `details` and the
  * cause, so nothing the error holds can print a key (R-SEC-1). `JSON.stringify(error)` calls
- * {@link ExplorerVerifyError.toJSON}, which also leaves out `cause`, the stack and `details`.
+ * {@link ExplorerVerifyError.toJSON}, which leaves out `cause` and the stack and keeps the
+ * redacted `details`, each handle in its one-line form.
  * `Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`. The brand is a
  * symbol key, so `structuredClone(error)` and `postMessage` drop it, and the copy is not recognised;
  * send `error.toJSON()` across instead.
@@ -1131,7 +1516,8 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
     this.code = code;
     this.hint = redact(hint, options.secrets);
     this.retryable = options.retryable ?? RETRYABLE.includes(code);
-    this.details = redactDetails(code, details, options.secrets);
+    // Frozen, with every nested array and object, so a later edit cannot change what toJSON() prints.
+    this.details = frozen(redactDetails(code, details, options.secrets));
     this.docsUrl = docsUrl;
     // The brand is a symbol key that is not enumerable, so `Object.keys(error)`, a spread and
     // `JSON.stringify` leave it out.
@@ -1190,7 +1576,9 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
       // An own property only, so a brand set on Object.prototype does not brand every object.
       return (
         typeof value === "object" &&
+        // Stryker disable next-line ConditionalExpression: equivalent. For null, getOwnPropertyDescriptor throws and the catch returns false.
         value !== null &&
+        // Stryker disable next-line OptionalChaining: equivalent. Without a descriptor, reading value throws and the catch returns false.
         Object.getOwnPropertyDescriptor(value, BRAND)?.value === true &&
         (code === undefined || Reflect.get(value, "code") === code)
       );
@@ -1243,7 +1631,8 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
   /**
    * The error as plain data for logs and the CLI's JSON output (R-AX-5).
    *
-   * @returns The code, message, hint, docs URL, retry flag and, when there is one, the handle.
+   * @returns The code, message, hint, docs URL, retry flag, the handle when there is one, and the
+   *   redacted details, each handle in its one-line form.
    * @example
    * ```ts
    * console.error(JSON.stringify(error)); // calls toJSON()
@@ -1251,23 +1640,34 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
    */
   toJSON(): ErrorJson {
     const details: ErrorDetails = this.details;
-    const json: ErrorJson = {
-      code: this.code,
+    const handle = "handle" in details ? details.handle : undefined;
+    const line = handle === undefined ? undefined : formatHandle(handle);
+    const handles = "handles" in details ? details.handles : undefined;
+    const lines = handles?.map(formatHandle);
+    const fields: ErrorJsonFields = {
       message: this.message,
       hint: this.hint,
       docsUrl: this.docsUrl,
       retryable: this.retryable,
+      ...(line === undefined ? {} : { handle: line }),
+      ...(handles === undefined
+        ? {}
+        : {
+            handles: handles.map((each) => ({ backend: each.backend, handle: formatHandle(each) })),
+          }),
     };
-    const handle = "handle" in details ? details.handle : undefined;
-    if (handle !== undefined) {
-      json.handle = formatHandle(handle);
+    // The details again, with each handle on one line, built from the lines above.
+    let json: ErrorDetailsJson;
+    if (details.code === "cancelled") {
+      json = {
+        code: details.code,
+        ...(line === undefined ? {} : { handle: line }),
+        ...(lines === undefined ? {} : { handles: lines }),
+      };
+    } else {
+      json =
+        "handle" in details ? { ...details, handle: formatHandle(details.handle) } : { ...details };
     }
-    if (details.code === "cancelled" && details.handles !== undefined) {
-      json.handles = details.handles.map((each) => ({
-        backend: each.backend,
-        handle: formatHandle(each),
-      }));
-    }
-    return json;
+    return errorJsonOf<ErrorCode>(this.code, fields, json);
   }
 }

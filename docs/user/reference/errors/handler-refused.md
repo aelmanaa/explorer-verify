@@ -31,6 +31,9 @@ again. For the first four codes, the error's hint names the option.
 Default hint: Do not retry. Fix the createVerifyHandler option or the request that
 details.handlerCode names.
 
+From the CLI: The server handler refused the request with `<handler code>`. Do not retry: change the
+handler's createVerifyHandler options for it, redeploy the handler, then run the command again.
+
 Retryable: no. The refusal holds until the handler's options or the request change. Nothing was
 submitted to an explorer.
 

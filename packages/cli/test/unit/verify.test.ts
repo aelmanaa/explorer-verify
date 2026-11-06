@@ -412,7 +412,10 @@ describe("verify --library with --input, --foundry and --hardhat (R-IN-4, R-DX-3
     const result = await run(t, ["verify", "--input-json", path, "--json"]);
     assert.equal(result.code, 2, result.stdout);
     const error = part(result, "error");
-    assert.equal(error["message"], "The input is invalid: libraries.1.");
+    assert.equal(
+      error["message"],
+      "The input is invalid: libraries.1 must be keyed by path:Name of compiler.input.sources.",
+    );
     assert.match(String(error["hint"]), /path of a file in compiler\.input\.sources/);
     assert.equal(result.seen.length, 0);
   });
@@ -650,12 +653,12 @@ describe("--dry-run (R-AX-8)", () => {
     const none = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run"], "new");
     assert.equal(
       none.stdout,
-      "dry run on sourcify at sourcify.dev, the routing table's pick: no match, so verify would submit. Nothing was submitted.\n",
+      "dry run on sourcify at sourcify.dev, the routing table's pick: no match, so a run without --dry-run would submit. Nothing was submitted.\n",
     );
     const found = await run(t, [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run"]);
     assert.equal(
       found.stdout,
-      `dry run on sourcify at sourcify.dev, the routing table's pick: exact match already, so verify would not submit.\n${PAGE}\n`,
+      `dry run on sourcify at sourcify.dev, the routing table's pick: exact match already, so a run without --dry-run would not submit.\n${PAGE}\n`,
     );
     const skipped = await run(t, [
       ADDRESS,

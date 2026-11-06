@@ -17,6 +17,9 @@ proxy.
 Default hint: Call linkProxy() again later: the explorer had not finished linking the proxy. A new
 call is safe.
 
+From the CLI: The explorer had not finished linking the proxy. Link it again later; a new request is
+safe.
+
 Retryable: yes. Call `linkProxy()` again.
 
 Exit code: 4

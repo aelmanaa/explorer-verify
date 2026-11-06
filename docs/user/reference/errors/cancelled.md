@@ -18,6 +18,9 @@ handle with `explorer-verify status <handle>` (from the `status` command on, #10
 Default hint: The run was cancelled. If error.handle or error.handles is set, resume each handle
 with explorer-verify status instead of submitting again.
 
+From the CLI: Resume the accepted submission with explorer-verify status
+`ev1:sourcify:11155111:0x<address>:<job>` instead of submitting again.
+
 Retryable: no.
 
 Exit code: 130

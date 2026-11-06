@@ -235,7 +235,9 @@ state always throws; it never comes back as a result.
   `error.retryable` says whether trying again may succeed, and `error.docsUrl` links the code's own
   page in the docs.
   Append `.md` to `error.docsUrl` to fetch that page as Markdown.
-  `ERROR_CODES` lists every code.
+  `ERROR_CODES` lists every code. `error.toJSON()` and the envelope keep `details`, redacted, with
+  each handle in its one-line form: read `error.details.issues` or `error.details.candidates` there
+  instead of parsing the message.
 
 To report the outcome as data, turn it into the versioned JSON envelope with `toEnvelope()` and
 take the exit code from `exitCodeOf()`. `VerifyOutcome` is a result or an error. This example also
@@ -351,7 +353,7 @@ explorer-verify --version --json --colour=never
 It prints:
 
 ```text
-{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: argument 3 is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
+{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: argument 3 is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"argument 3","message":"is not an option"}]}}}
 ```
 
 Before a real `verify`, run the same command line with `--dry-run`. It validates the input,
@@ -418,7 +420,12 @@ Keys on the command line:
   `"auto"`. It holds no key. Only the output, log, `--dry-run`,
   `--timeout` and key flags may go with it, not `--foundry` or `--hardhat`.
 - A run that ends pending exits 4 with the handle in the error. Resume with
-  `explorer-verify status <handle>`, never with a new `verify`.
+  `explorer-verify status <handle>`, never with a new `verify`. With `--json`, its envelope
+  also holds `nextCommand`, that `status` command as an argument array: run it as it is. It never
+  submits.
+- The CLI's hints name its flags and environment variables, such as the Etherscan key variable
+  and `--api-key-file` for `missing-api-key`, and `--contract` with the candidate names for
+  `incomplete-input`. Follow the hint.
 
 ## When to stop
 

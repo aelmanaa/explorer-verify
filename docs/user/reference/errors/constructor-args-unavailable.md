@@ -25,6 +25,9 @@ or pass `constructorArgs`, the ABI-encoded arguments without a selector, such as
 
 Default hint: Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.
 
+From the CLI: Pass --constructor-args with the ABI-encoded arguments, or check the --input files
+against the deployed build.
+
 Retryable: no. Nothing was submitted to an explorer.
 
 Exit code: 2
