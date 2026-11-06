@@ -89,25 +89,22 @@ export function parseMetadata(value: unknown): SolidityMetadata | undefined {
   const language = fields?.get("language");
   const version = readFields(fields?.get("compiler"))?.get("version");
   const settings = readFields(fields?.get("settings"));
-  const target = readFields(settings?.get("compilationTarget"));
   const sourceFields = readFields(fields?.get("sources"));
-  if (
-    typeof language !== "string" ||
-    typeof version !== "string" ||
-    settings === undefined ||
-    target === undefined ||
-    sourceFields === undefined
-  ) {
+  if (typeof language !== "string" || typeof version !== "string" || settings === undefined) {
+    return undefined;
+  }
+  const target = readFields(settings.get("compilationTarget"));
+  if (target === undefined || sourceFields === undefined) {
     return undefined;
   }
   const sources: MetadataSource[] = [];
   for (const [path, entry] of sourceFields) {
-    const source = readFields(entry);
-    const hash = source?.get("keccak256");
+    const source = readFields(entry) ?? new Map<string, unknown>();
+    const hash = source.get("keccak256");
     if (typeof hash !== "string") {
       return undefined;
     }
-    const content = source?.get("content");
+    const content = source.get("content");
     sources.push({
       path,
       keccak256: hash.toLowerCase(),
@@ -133,9 +130,12 @@ export function sourceFingerprint(metadata: SolidityMetadata): string {
 
 function invalid(field: string, message: string): ExplorerVerifyError {
   const issues: InputIssue[] = [{ field, message }];
-  return newError({ code: "invalid-input", issues }, `The input is invalid: ${field}.`, {
-    secrets: [],
-  });
+  return newError(
+    { code: "invalid-input", issues },
+    `The input is invalid: ${field}.`,
+    // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message and the issue name only a field, never a key.
+    { secrets: [] },
+  );
 }
 
 /**
@@ -173,15 +173,11 @@ function recordsInliner(version: string): boolean {
  * optimizer is enabled, so `enabled` takes its value and the key is dropped.
  */
 function rebuildOptimizer(value: unknown, version: string): unknown {
-  const optimizer = readFields(value);
-  const details = readFields(optimizer?.get("details"));
-  const inliner = details?.get("inliner");
-  if (
-    optimizer === undefined ||
-    details === undefined ||
-    inliner === undefined ||
-    !recordsInliner(version)
-  ) {
+  // A value that is not an object has no details, and no inliner.
+  const optimizer = readFields(value) ?? new Map<string, unknown>();
+  const details = readFields(optimizer.get("details")) ?? new Map<string, unknown>();
+  const inliner = details.get("inliner");
+  if (inliner === undefined || !recordsInliner(version)) {
     return value;
   }
   details.delete("inliner");

@@ -153,6 +153,11 @@ class Findings {
   readonly bytecodes = new Map<string, Set<string>>();
 }
 
+/** The fields of `value`, or none when it is not an object. */
+function fieldsOf(value: unknown): Map<string, unknown> {
+  return readFields(value) ?? new Map<string, unknown>();
+}
+
 /**
  * Records the creation bytecode of `name`: a string, or an object with an `object` string, as
  * Foundry writes it. Anything that is not bytecode `validateInput` accepts is ignored.
@@ -163,22 +168,11 @@ function readBytecode(name: string, value: unknown, findings: Findings): void {
     return;
   }
   // `isCreationBytecode` refuses an empty value, such as the `0x` of an abstract contract.
+  // Stryker disable next-line MethodExpression,Regex: equivalent. Only one case for every value matters, and validateInput lowers it; the pattern allows 0x only at the start.
   const digits = code.replace(/^0x/, "").toLowerCase();
   const found = findings.bytecodes.get(name) ?? new Set<string>();
   found.add(digits);
   findings.bytecodes.set(name, found);
-}
-
-/** The `path:Name` entries of a metadata value's `settings.compilationTarget`. */
-function targetsOf(value: unknown): string[] {
-  const settings = readFields(readMetadata(value)?.get("settings"));
-  const names: string[] = [];
-  for (const [path, name] of readFields(settings?.get("compilationTarget")) ?? []) {
-    if (typeof name === "string") {
-      names.push(`${path}:${name}`);
-    }
-  }
-  return names;
 }
 
 /** `"positions 1, 3"` or `"position 2"`, at most {@link MAX_POSITIONS} listed. */
@@ -213,9 +207,15 @@ function readBuildId(value: unknown, findings: Findings): void {
 
 /**
  * Records the version of one metadata value. With `target`, for metadata on its own or in an
- * artifact, also records its compilation target and keeps it for a rebuild when it is complete.
+ * artifact, also records its compilation target and keeps it for a rebuild when it is complete;
+ * `bytecode`, the artifact's, is recorded as the target's creation bytecode.
  */
-function readMetadataFacts(value: unknown, findings: Findings, target: boolean): void {
+function readMetadataFacts(
+  value: unknown,
+  findings: Findings,
+  target: boolean,
+  bytecode?: unknown,
+): void {
   const metadata = readMetadata(value);
   if (metadata === undefined) {
     return;
@@ -232,19 +232,18 @@ function readMetadataFacts(value: unknown, findings: Findings, target: boolean):
     return;
   }
   const settings = readFields(metadata.get("settings"));
-  const compilationTarget = readFields(settings?.get("compilationTarget"));
-  for (const [path, name] of compilationTarget ?? []) {
+  for (const [path, name] of fieldsOf(settings?.get("compilationTarget"))) {
     if (typeof name === "string") {
       findings.identities.add(`${path}:${name}`);
+      readBytecode(`${path}:${name}`, bytecode, findings);
     }
   }
 }
 
 /** Lists the contracts of a build-info output and reads the version from their metadata. */
 function readOutput(value: unknown, findings: Findings): void {
-  const contracts = readFields(readFields(value)?.get("contracts"));
-  for (const [path, byName] of contracts ?? []) {
-    for (const [name, entry] of readFields(byName) ?? []) {
+  for (const [path, byName] of fieldsOf(readFields(value)?.get("contracts"))) {
+    for (const [name, entry] of fieldsOf(byName)) {
       findings.listed.add(`${path}:${name}`);
       const fields = readFields(entry);
       readMetadataFacts(fields?.get("metadata"), findings, false);
@@ -272,7 +271,7 @@ function readBuildInfo(
       findings.shortVersion = true;
     }
   }
-  for (const [user, inputName] of readFields(fields.get("userSourceNameMap")) ?? []) {
+  for (const [user, inputName] of fieldsOf(fields.get("userSourceNameMap"))) {
     if (typeof inputName === "string") {
       findings.userSourceNames.set(user, inputName);
     }
@@ -327,8 +326,8 @@ function zksolcField(fields: Map<string, unknown>): string | undefined {
   if (own !== undefined) {
     return `metadata.${own}`;
   }
-  for (const [, byName] of readFields(output?.get("contracts")) ?? []) {
-    for (const [, entry] of readFields(byName) ?? []) {
+  for (const [, byName] of fieldsOf(output?.get("contracts"))) {
+    for (const [, entry] of fieldsOf(byName)) {
       const found = zksolcMetadataField(readFields(entry)?.get("metadata"));
       if (found !== undefined) {
         return `metadata.${found}`;
@@ -389,10 +388,7 @@ function classify(document: unknown, position: number, findings: Findings): void
     // string is read first.
     const raw = fields.get("rawMetadata");
     const metadata = readMetadata(raw) === undefined ? fields.get("metadata") : raw;
-    readMetadataFacts(metadata, findings, true);
-    for (const target of targetsOf(metadata)) {
-      readBytecode(target, fields.get("bytecode"), findings);
-    }
+    readMetadataFacts(metadata, findings, true, fields.get("bytecode"));
   } else if (fields.has("abi") && fields.has("bytecode")) {
     readArtifact(fields, findings);
   } else {
@@ -402,11 +398,12 @@ function classify(document: unknown, position: number, findings: Findings): void
 
 function invalid(field: string, message: string, hint?: string): ExplorerVerifyError {
   const issues: InputIssue[] = [{ field, message }];
-  return newError(
-    { code: "invalid-input", issues },
-    `The input is invalid: ${field}.`,
-    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
-  );
+  return newError({ code: "invalid-input", issues }, `The input is invalid: ${field}.`, {
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
+    ...(hint === undefined ? {} : { hint }),
+    // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issue name only a field, never a key.
+    secrets: [],
+  });
 }
 
 function incomplete(
@@ -431,7 +428,12 @@ function unsupportedCompiler(field: string, hint?: string): ExplorerVerifyError 
   return newError(
     { code: "unsupported-compiler", field },
     `The documents come from a compiler other than solc: ${field}.`,
-    hint === undefined ? { secrets: [] } : { hint, secrets: [] },
+    {
+      // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
+      ...(hint === undefined ? {} : { hint }),
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message names only a field, never a key.
+      secrets: [],
+    },
   );
 }
 
@@ -441,7 +443,8 @@ function unsupportedCompiler(field: string, hint?: string): ExplorerVerifyError 
  */
 function canonical(value: unknown, depth: number): string {
   if (depth > MAX_DEPTH) {
-    throw new RangeError("nested too deeply");
+    // The caller reads any throw as "not JSON data", so the error needs no message.
+    throw new RangeError();
   }
   if (Array.isArray(value)) {
     return `[${value.map((item: unknown) => canonical(item, depth + 1)).join(",")}]`;
@@ -451,7 +454,13 @@ function canonical(value: unknown, depth: number): string {
     return JSON.stringify(value);
   }
   const keys = [...fields.keys()].toSorted();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(fields.get(key), depth + 1)}`).join(",")}}`;
+  const entries = keys.map(
+    (key) => `${JSON.stringify(key)}:${canonical(fields.get(key), depth + 1)}`,
+  );
+  return `{${entries.join(
+    // Stryker disable next-line StringLiteral: equivalent. Each entry starts with a quoted key and ends with a whole JSON value, so the entries split one way without the comma.
+    ",",
+  )}}`;
 }
 
 /** Metadata documents that target one contract: the first one found and any others. */
@@ -594,33 +603,31 @@ function pickInput(
     throw newError(
       { code: "insufficient-artifact", field: "input" },
       "The documents hold no compiler input or settings: only ABI and bytecode.",
+      // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message is fixed text.
       { secrets: [] },
     );
   }
   throw incomplete("input", "The documents hold no compiler input.", OUTPUT_ONLY_HINT);
 }
 
-/** Throws when any of `paths` is a local path, naming `field` and the positions, never a path. */
-function rejectLocalPaths(paths: readonly unknown[], field: string): void {
-  const local: number[] = [];
-  paths.forEach((path, index) => {
-    if (typeof path === "string" && isLocalPath(path)) {
-      local.push(index + 1);
-    }
-  });
-  if (local.length > 0) {
-    throw invalid(field, `has a local path at ${positions(local)}`, ABSOLUTE_HINT);
+/** Throws when any entry of `local` is true, naming `field` and the positions, never a path. */
+function rejectLocal(local: readonly boolean[], field: string): void {
+  const at = local.flatMap((isLocal, index) => (isLocal ? [index + 1] : []));
+  if (at.length > 0) {
+    throw invalid(field, `has a local path at ${positions(at)}`, ABSOLUTE_HINT);
   }
 }
 
 /** Every part of a remapping `context:prefix=target` that names a path, and the whole left side. */
 function remappingParts(remapping: unknown): string[] {
   if (typeof remapping !== "string") {
+    // Stryker disable next-line ArrayDeclaration: equivalent. The caller only asks whether a part is a local path, and Stryker's text is not one.
     return [];
   }
   const equals = remapping.indexOf("=");
   const left = equals === -1 ? remapping : remapping.slice(0, equals);
-  const target = equals === -1 ? "" : remapping.slice(equals + 1);
+  // Without =, this is the whole remapping, which is also the left side.
+  const target = remapping.slice(equals + 1);
   const colon = left.indexOf(":");
   return colon === -1
     ? [left, target]
@@ -633,6 +640,7 @@ function remappingParts(remapping: unknown): string[] {
  */
 function readList(value: unknown, field: string): unknown[] {
   try {
+    // Stryker disable next-line ArrayDeclaration: equivalent. The caller only asks whether an entry holds a local path, and Stryker's text does not.
     return Array.isArray(value) ? Array.from<unknown>(value) : [];
   } catch {
     throw invalid(field, "could not be read as an array");
@@ -644,17 +652,16 @@ function readList(value: unknown, field: string): unknown[] {
  * that is a local path, so no path on the build machine is published.
  */
 function checkRelativePaths(sources: Map<string, unknown>, settings: unknown): void {
-  rejectLocalPaths([...sources.keys()], "compiler.input.sources");
+  rejectLocal([...sources.keys()].map(isLocalPath), "compiler.input.sources");
   const fields = readFields(settings);
   const list = readList(fields?.get("remappings"), "compiler.input.settings.remappings");
-  const local = list.map((remapping) => remappingParts(remapping).some(isLocalPath));
-  rejectLocalPaths(
-    local.map((isLocal) => (isLocal ? "/" : "")),
+  rejectLocal(
+    list.map((remapping) => remappingParts(remapping).some(isLocalPath)),
     "compiler.input.settings.remappings",
   );
   for (const name of ["libraries", "outputSelection"]) {
-    rejectLocalPaths(
-      [...(readFields(fields?.get(name))?.keys() ?? [])],
+    rejectLocal(
+      [...fieldsOf(fields?.get(name)).keys()].map(isLocalPath),
       `compiler.input.settings.${name}`,
     );
   }
@@ -903,8 +910,9 @@ function readOptions(options: unknown): ReadOptions {
 /** `value` as JSON text, to spot a document passed twice; `undefined` when it cannot be. */
 function serialise(value: unknown): string | undefined {
   try {
-    const text: unknown = JSON.stringify(value);
-    return typeof text === "string" ? text : undefined;
+    // JSON.stringify gives undefined for undefined, a function or a symbol.
+    const text: string | undefined = JSON.stringify(value);
+    return text;
   } catch {
     return undefined;
   }
@@ -1028,10 +1036,10 @@ export function buildVerifyInput(
   const seen = new Set<string>();
   list.forEach((document, index) => {
     const key = serialise(document);
-    if (key !== undefined && seen.has(key)) {
-      return;
-    }
     if (key !== undefined) {
+      if (seen.has(key)) {
+        return;
+      }
       seen.add(key);
     }
     classify(document, index + 1, findings);
@@ -1087,7 +1095,8 @@ export function buildVerifyInput(
     address: PLACEHOLDER_ADDRESS,
     compiler: { kind: "solc", version, input: { language, sources, settings } },
     contractName,
-    ...(creationBytecode === undefined ? {} : { creationBytecode }),
+    // validateInput reads an undefined creationBytecode as an absent one.
+    creationBytecode,
   });
   const built: BuiltVerifyInput = {
     compiler: checked.compiler,

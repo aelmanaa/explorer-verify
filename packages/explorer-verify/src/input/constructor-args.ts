@@ -146,10 +146,11 @@ export async function withDerivedArgs(
     observer,
     secrets,
     maxResponseBytes: RPC_BODY_BYTES,
-    ...(budget === undefined ? {} : { budget }),
-    ...(fetch === undefined ? {} : { fetch }),
-    ...(signal === undefined ? {} : { signal }),
-    ...(random === undefined ? {} : { random }),
+    // request() reads an undefined field as an absent one.
+    signal,
+    random,
+    budget,
+    fetch,
   };
   // The explorer source needs a key bound to the route: a keyless request may reach a server
   // handler, which does not forward it.
@@ -279,7 +280,7 @@ async function readCreation(
       : readFields(await rpcCall(rpc, "eth_getTransactionByHash", [txHash]));
   const to = tx?.get("to");
   const data = tx?.get("input");
-  if (tx === undefined || typeof data !== "string" || !HEX.test(data)) {
+  if (typeof data !== "string" || !HEX.test(data)) {
     log.warn("rpcUrl: no usable creation transaction", {});
     return undefined;
   }
@@ -320,6 +321,7 @@ async function rpcCall(
       throw newError(
         error.details,
         `The time budget ran out while reading the creation transaction from rpcUrl (${method}).`,
+        // Stryker disable next-line ObjectLiteral: equivalent. The details come redacted from the first error, and the message names only the method.
         { secrets: http.secrets },
       );
     }
@@ -352,6 +354,7 @@ function mismatch(reason: Mismatch, input: VerifyInput): ExplorerVerifyError {
     reason === "prefix-mismatch"
       ? `The creation code of ${input.address} does not start with creationBytecode: the input differs from the deployed build.`
       : `What follows creationBytecode in the creation code of ${input.address} is not whole 32-byte words.`,
+    // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message holds only the address, never a key.
     { secrets: [] },
   );
 }

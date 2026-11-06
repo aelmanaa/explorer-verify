@@ -96,7 +96,10 @@ export function linkLibraries(input: VerifyInput): VerifyInput {
 /** An `invalid-input` error listing `issues`, which name fields and never repeat a value. */
 function invalid(issues: InputIssue[]): ExplorerVerifyError {
   const fields = issues.map((issue) => issue.field).join(", ");
-  return newError({ code: "invalid-input", issues }, `The input is invalid: ${fields}.`, {
-    secrets: [],
-  });
+  return newError(
+    { code: "invalid-input", issues },
+    `The input is invalid: ${fields}.`,
+    // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message and the issues name only fields, never a key.
+    { secrets: [] },
+  );
 }

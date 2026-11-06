@@ -28,7 +28,13 @@
     "src/http/rpc.ts",
     "src/flow/dry-run.ts",
     "src/flow/handle.ts",
-    "src/flow/format-handle.ts"
+    "src/flow/format-handle.ts",
+    "src/input/validate.ts",
+    "src/input/constructor-args.ts",
+    "src/input/build.ts",
+    "src/input/metadata.ts",
+    "src/input/libraries.ts",
+    "src/input/paths.ts"
   ],
   "tap": {
     "testFiles": ["test/unit/!(skill|user-docs|options-types).test.ts"],

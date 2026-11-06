@@ -130,7 +130,7 @@ export interface HttpContext {
    * Any other `fetch` may send the request to another URL on purpose, such as a server handler,
    * so its response URL is not checked; its redirects are still refused (decision 0035).
    */
-  readonly fetch?: typeof fetch;
+  readonly fetch?: typeof fetch | undefined;
   /** The caller's signal. On abort, every request and wait stops and rejects with its reason. */
   readonly signal?: AbortSignal | undefined;
   /**
@@ -155,7 +155,7 @@ export interface HttpContext {
    */
   readonly maxResponseBytes?: number;
   /** The call's time budget. Without it, only the per-request timeout applies. */
-  readonly budget?: Budget;
+  readonly budget?: Budget | undefined;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. Tests fix it. */
   readonly random?: (() => number) | undefined;
   /**
