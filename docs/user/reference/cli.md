@@ -138,10 +138,10 @@ The routing table's pick depends on the keys: it is the first backend of the cha
 works with the keys set, so the same dry run, or `--backend auto`, can go to Etherscan with
 `ETHERSCAN_API_KEY` set and to Sourcify without it. The dry run's `backend` says which. For a chain whose row has no
 Etherscan entry, Etherscan is reached only with
-`--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. Its key then goes in with
-`--api-key-file` or `--api-key-stdin`: `ETHERSCAN_API_KEY` is sent only to the routing table's
-host, so with `--api-url` it is not used, and `verify` exits 3 with `missing-api-key` before any
-request.
+`--backend etherscan-v2 --api-url https://api.etherscan.io/v2/api`. `ETHERSCAN_API_KEY` goes with
+that URL, because it is Etherscan's own API. With `--api-url` on any other host it is not used:
+give the key with `--api-key-file` or `--api-key-stdin`, or `verify` exits 3 with
+`missing-api-key` before any request.
 
 ## Chains the routing table does not list
 

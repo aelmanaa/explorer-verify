@@ -323,11 +323,13 @@ export interface KeyContext {
  * - `backend`, the backend the request is for, equals the route's backend. For a status poll it is
  *   the handle's backend, so a handle that names another backend never gets a key.
  * - `url` has the origin of the route's API base, so a request never carries a key off the route.
- * - The key is `route.apiKey`, which is bound to the route's host; or it is `apiKeys[backend]`,
- *   the route is not `overridden`, and `url` is `https://` on the route's `tableHost`, the host the
- *   routing table lists for the backend and chain (`api.blockscout.com` for `blockscout-hosted`),
- *   on the default port. A route whose `apiUrl` the caller set gets no key from `apiKeys`, whatever
- *   its host.
+ * - The key is `route.apiKey`, which is bound to the route's host; or it is `apiKeys[backend]`
+ *   and `url` is `https://` on the route's `tableHost`, the host the routing table lists for the
+ *   backend and chain (`api.blockscout.com` for `blockscout-hosted`), on the default port, with a
+ *   trailing dot on the host ignored. The route must not be `overridden`, except for
+ *   `etherscan-v2`: a `route.apiUrl` on Etherscan's own API host takes `apiKeys["etherscan-v2"]`,
+ *   because the key still goes only to that host (decision 0053). Any other route whose `apiUrl`
+ *   the caller set gets no key from `apiKeys`.
  *
  * @param ctx - The route and the caller's keys.
  * @param backend - The backend the request is for.
@@ -353,10 +355,22 @@ export function keyFor(ctx: KeyContext, backend: BackendName, url: string): stri
     return routeKey;
   }
   const key = ctx.apiKeys === undefined ? undefined : readOwn(ctx.apiKeys(), backend);
+  return onTableHost(route, origin) ? key : undefined;
+}
+
+/**
+ * Whether `origin`, the origin of a request on `route`, may carry a key from `apiKeys`: it is
+ * `https://` on the route's `tableHost` on the default port, a trailing dot on the host ignored,
+ * and the route is the table's, or an `etherscan-v2` route whose `apiUrl` is Etherscan's own API
+ * (decision 0053). `URL` has already lower-cased the host and dropped `:443`.
+ */
+function onTableHost(route: Route, origin: string): boolean {
   const { overridden, tableHost } = route;
-  return !overridden && tableHost !== undefined && origin === `https://${tableHost}`
-    ? key
-    : undefined;
+  return (
+    (!overridden || route.backend === "etherscan-v2") &&
+    tableHost !== undefined &&
+    origin.replace(/\.+$/, "") === `https://${tableHost}`
+  );
 }
 
 /** The origin of `url`, or `undefined` when it does not parse. */
@@ -477,17 +491,23 @@ export function requireKey(
   if (!keyMissing(ctx, serverAddsKey)) {
     return;
   }
-  const host = new URL(route.apiBase).host;
+  const { backend, overridden } = route;
+  const url = new URL(route.apiBase);
+  const { host } = url;
   // `apiKeys` never holds a standalone explorer's key (decision 0016), so only route.apiKey helps.
+  // A route.apiUrl on Etherscan's own API takes apiKeys, as a table route does (decision 0053).
+  // For any other route.apiUrl, the message does not give the host it is on as the reason.
   const where =
-    route.backend === "etherscan-compatible"
+    backend === "etherscan-compatible"
       ? "set route.apiKey"
-      : route.overridden
-        ? `apiKeys.${route.backend} is sent only to ${route.tableHost ?? "the routing table's host"}; set route.apiKey for ${host}`
-        : `set apiKeys.${route.backend}${route.backend === "etherscan-v2" ? ", or handlerUrl" : ""}`;
+      : !overridden || onTableHost(route, url.origin)
+        ? `set apiKeys.${backend}${backend === "etherscan-v2" && !overridden ? ", or handlerUrl" : ""}`
+        : backend === "etherscan-v2"
+          ? "apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl"
+          : `a route with route.apiUrl takes no key from apiKeys.${backend}; set route.apiKey`;
   throw newError(
-    { code: "missing-api-key", backend: route.backend },
-    `${route.backend} needs an API key and none is set for ${host}: ${where}.`,
+    { code: "missing-api-key", backend },
+    `${backend} needs an API key and none is set for ${host}: ${where}.`,
     { secrets },
   );
 }

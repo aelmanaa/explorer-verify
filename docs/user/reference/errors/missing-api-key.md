@@ -12,9 +12,9 @@ code:
 
 - Before any request: the backend is `etherscan-v2` or `blockscout-hosted`, no key is bound to the
   route's API host, and `handlerUrl` does not send the route to your server handler. An injected `fetch` does not change
-  this. A key in `apiKeys["etherscan-v2"]` is sent only to `api.etherscan.io`, and
-  only for a route the routing table chose: a route with `apiUrl` set, even to `api.etherscan.io`,
-  gets no key from `apiKeys`. Pass `route.apiKey` for it.
+  this. A key in `apiKeys["etherscan-v2"]` is sent only to `api.etherscan.io`: for a route the
+  routing table chose, or for a route whose `apiUrl` is on `https://api.etherscan.io`. A route
+  with `apiUrl` on another host gets no key from `apiKeys`. Pass `route.apiKey` for it.
 - After a request: the explorer answered that the key is missing, as Etherscan's
   `Missing/Invalid API Key`. Etherscan gives this answer for no key, and for a key sent where it
   does not read one, such as a request header. With `handlerUrl`, this answer means your server

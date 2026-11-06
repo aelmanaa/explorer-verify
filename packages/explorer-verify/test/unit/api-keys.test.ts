@@ -168,9 +168,9 @@ describe("keyFor: the one attachment rule (R-SEC-2)", () => {
     ] as const) {
       assert.equal(keyFor(keyed(routeOf("etherscan-v2", apiBase)), "etherscan-v2", url), undefined);
     }
-    // The same host, but from the caller's route.apiUrl: no key from apiKeys (#59).
+    // The same host from the caller's route.apiUrl: Etherscan's own API takes apiKeys (#244).
     const named = keyed({ ...routeOf("etherscan-v2", ETHERSCAN_API), overridden: true });
-    assert.equal(keyFor(named, "etherscan-v2", ETHERSCAN_URL), undefined);
+    assert.equal(keyFor(named, "etherscan-v2", ETHERSCAN_URL), ETHERSCAN_KEY);
   });
 
   it("does not attach a key to an overridden apiUrl on another host (R-SEC-2)", async () => {
@@ -430,8 +430,10 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
       requireKey(keyed(route), false, [ETHERSCAN_KEY]);
     });
     assertKeyError(error, "missing-api-key");
-    assert.match(error.message, /apiKeys\.etherscan-v2 is sent only to api\.etherscan\.io/);
-    assert.match(error.message, /set route\.apiKey for proxy\.example\.org/);
+    assert.equal(
+      error.message,
+      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
+    );
   });
 
   it("opens the call when the key is bound to the route's host (R-SEC-2)", () => {
@@ -594,6 +596,173 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
       { code: "job-not-found" },
     );
     assert.deepEqual(seen, [KEYS]);
+  });
+});
+
+describe("route.apiUrl on Etherscan's own API takes apiKeys (#244, R-SEC-2, decision 0053)", () => {
+  const SEPOLIA = 11155111;
+  const sourcifyLike: Backend = {
+    name: "etherscan-v2",
+    lookup: () => Promise.reject(new Error("no request expected")),
+    submit: () => Promise.reject(new Error("no request expected")),
+    poll: () => Promise.reject(new Error("no request expected")),
+    explorerUrl: () => undefined,
+  };
+  const target = { chainId: SEPOLIA, address: ADDRESS } as const;
+  const HOSTED_KEYS = { "blockscout-hosted": "blockscout-dummy-key-244a" };
+  const named = (apiUrl: string): Route =>
+    resolveRoute(SEPOLIA, { backend: "etherscan-v2", apiUrl }, { apiKeys: KEYS });
+
+  it("sends apiKeys.etherscan-v2 to the exact URL, a trailing slash, upper case, :443 and a trailing dot", async () => {
+    for (const apiUrl of [
+      ETHERSCAN_API,
+      `${ETHERSCAN_API}/`,
+      "HTTPS://API.ETHERSCAN.IO/v2/api",
+      "https://Api.Etherscan.Io/v2/api",
+      "https://api.etherscan.io:443/v2/api",
+      "https://api.etherscan.io./v2/api",
+      // Every trailing dot is removed, as the handlerUrl check removes them.
+      "https://api.etherscan.io../v2/api",
+    ]) {
+      const route = named(apiUrl);
+      assert.equal(route.overridden, true, apiUrl);
+      const ctx = keyed(route);
+      const url = route.requestUrl("");
+      assert.equal(keyFor(ctx, "etherscan-v2", url), ETHERSCAN_KEY, apiUrl);
+      requireKey(ctx, false, [ETHERSCAN_KEY]);
+      const req = withKey(ctx, "etherscan-v2", {
+        ...etherscanForm({ action: "getsourcecode" }),
+        url,
+      });
+      const { call } = await sendTo(
+        "etherscan-v2",
+        req,
+        etherscan("getsourcecode-form-post-key-in-body"),
+      );
+      assert.equal(new URL(call.url).hostname.replace(/\.+$/, ""), "api.etherscan.io", apiUrl);
+      assert.equal(new URLSearchParams(call.body).get("apikey"), ETHERSCAN_KEY, apiUrl);
+      assert.ok(!call.url.includes(ETHERSCAN_KEY), apiUrl);
+    }
+  });
+
+  it("refuses a look-alike host or another port, sends no key, and names no host as the reason", async () => {
+    for (const apiUrl of [
+      "https://api.etherscan.io.evil.example/v2/api",
+      "https://api-etherscan.io/v2/api",
+      "https://etherscan.io/v2/api",
+      "https://evil.example/api.etherscan.io/v2/api",
+      "https://api.etherscan.io:8443/v2/api",
+    ]) {
+      const route = named(apiUrl);
+      const ctx = keyed(route);
+      const url = route.requestUrl("");
+      assert.equal(keyFor(ctx, "etherscan-v2", url), undefined, apiUrl);
+      const req = { ...etherscanForm({ action: "getsourcecode" }), url };
+      assert.equal(withKey(ctx, "etherscan-v2", req), req, apiUrl);
+      const { call } = await sendTo("etherscan-v2", req, etherscan("getsourcecode-no-key"));
+      assert.ok(!everythingSent(call).includes(ETHERSCAN_KEY), apiUrl);
+      const error = thrown(() => {
+        requireKey(ctx, false, [ETHERSCAN_KEY]);
+      });
+      assertKeyError(error, "missing-api-key");
+      const host = new URL(apiUrl).host;
+      assert.equal(
+        error.message,
+        `etherscan-v2 needs an API key and none is set for ${host}: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.`,
+        apiUrl,
+      );
+    }
+  });
+
+  it("asks for apiKeys.etherscan-v2, not handlerUrl, when Etherscan's own apiUrl has no key (R-DX-3)", () => {
+    const route = resolveRoute(SEPOLIA, {
+      backend: "etherscan-v2",
+      apiUrl: `${ETHERSCAN_API}/`,
+    });
+    const error = thrown(() => {
+      requireKey({ route }, false, []);
+    });
+    assertKeyError(error, "missing-api-key");
+    assert.equal(
+      error.message,
+      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2.",
+    );
+  });
+
+  it("keeps route.apiKey first on Etherscan's own apiUrl", () => {
+    const route = resolveRoute(SEPOLIA, {
+      backend: "etherscan-v2",
+      apiUrl: ETHERSCAN_API,
+      apiKey: STANDALONE_KEY,
+    });
+    assert.equal(keyFor(keyed(route), "etherscan-v2", route.requestUrl("")), STANDALONE_KEY);
+  });
+
+  it("gives other keyed backends no apiKeys key on their own host with route.apiUrl", () => {
+    const routescan = resolveRoute(43113, {
+      backend: "routescan",
+      apiUrl: ROUTESCAN_API,
+    });
+    assert.equal(keyFor(keyed(routescan), "routescan", routescan.requestUrl("")), undefined);
+    const hosted = resolveRoute(SEPOLIA, {
+      backend: "blockscout-hosted",
+      apiUrl: `https://api.blockscout.com/${String(SEPOLIA)}/api`,
+    });
+    assert.equal(
+      keyFor(keyed(hosted, HOSTED_KEYS), "blockscout-hosted", hosted.apiBase),
+      undefined,
+    );
+    const error = thrown(() => {
+      requireKey(keyed(hosted, HOSTED_KEYS), false, []);
+    });
+    // The message does not give the host it names as the reason the key is not sent.
+    assert.equal(
+      error.message,
+      "blockscout-hosted needs an API key and none is set for api.blockscout.com: a route with route.apiUrl takes no key from apiKeys.blockscout-hosted; set route.apiKey.",
+    );
+  });
+
+  it("sends Etherscan's own apiUrl through handlerUrl with no key, and still refuses a key next to it (R-SRV-5, decision 0046)", async (t) => {
+    const fake = t.mock.fn(() => Promise.reject(new Error("no request expected")));
+    const read = settingsOf({
+      fetch: fake,
+      handlerUrl: "https://dapp.example/api/verify",
+    });
+    const settings = await withHandler(read, startBudget(read), DEFAULT_DEPENDENCIES.handler);
+    const route = resolveRoute(SEPOLIA, {
+      backend: "etherscan-v2",
+      apiUrl: ETHERSCAN_API,
+    });
+    assert.equal(settings.handler?.serves(route), true);
+    const call = openCall(settings, route, target, {
+      backends: { "etherscan-v2": sourcifyLike },
+    });
+    assert.equal(call.ctx.handler, settings.handler);
+    assert.equal(keyFor(call.ctx, "etherscan-v2", route.requestUrl("")), undefined);
+    assert.equal(fake.mock.callCount(), 0);
+
+    // apiKeys["etherscan-v2"] next to handlerUrl is refused, as before.
+    const both = settingsOf({
+      apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
+      handlerUrl: "https://dapp.example/api/verify",
+      route: { backend: "etherscan-v2", apiUrl: ETHERSCAN_API },
+    });
+    await assert.rejects(withHandler(both, startBudget(both), DEFAULT_DEPENDENCIES.handler), {
+      code: "invalid-input",
+    });
+    // So is route.apiKey on Etherscan's own apiUrl.
+    const bound = resolveRoute(SEPOLIA, {
+      backend: "etherscan-v2",
+      apiUrl: ETHERSCAN_API,
+      apiKey: STANDALONE_KEY,
+    });
+    const error = thrown(() =>
+      openCall(settings, bound, target, {
+        backends: { "etherscan-v2": sourcifyLike },
+      }),
+    );
+    assert.equal(error.code, "invalid-input");
+    assert.ok(!JSON.stringify(error.toJSON()).includes(STANDALONE_KEY));
   });
 });
 

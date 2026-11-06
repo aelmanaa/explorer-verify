@@ -136,10 +136,16 @@ const SOME_MODES: readonly (readonly string[])[] = [
 const LEAK = `boom ${KEY.toUpperCase()} boom`;
 const OUTCOMES: readonly { args: readonly string[]; bug?: string; code: number }[] = [
   { args: [], code: 0 },
-  // ETHERSCAN_API_KEY goes only to the routing table's host, so with --api-url it is not used.
+  // ETHERSCAN_API_KEY goes only to Etherscan's own API, so with --api-url on another host it is
+  // not used (#244).
   {
-    args: ["--backend", "etherscan-v2", "--api-url", "https://api.etherscan.io/v2/api"],
+    args: ["--backend", "etherscan-v2", "--api-url", "https://proxy.example.org/v2/api"],
     code: 3,
+  },
+  // Etherscan's own API given as --api-url takes ETHERSCAN_API_KEY (#244).
+  {
+    args: ["--backend", "etherscan-v2", "--api-url", "https://API.etherscan.io:443/v2/api/"],
+    code: 0,
   },
   { args: [], bug: LEAK, code: 6 },
 ];

@@ -335,19 +335,14 @@ describe("#122 a chain without an Etherscan entry", () => {
   });
 });
 
-describe("#122 route.apiUrl overrides keep the 0016/0023 key rules", () => {
-  it("apiUrl = the table's own Etherscan URL, apiKeys and a proxy fetch: missing-api-key, nothing sent", async () => {
-    const f = fake();
-    const error = await errorOf(
-      verify(makeInput(FREE), {
-        fetch: f.fetch,
-        apiKeys: { "etherscan-v2": KEY },
-        route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
-      }),
-    );
-    assert.equal(error.code, "missing-api-key");
-    assert.equal(f.calls.length, 0);
-    assert.ok(!inspect(error).includes(KEY));
+describe("#122 route.apiUrl overrides keep the 0016/0023/0053 key rules", () => {
+  it("apiUrl = the table's own Etherscan URL, apiKeys and a proxy fetch: the key goes to api.etherscan.io (#244)", async () => {
+    const { result, calls } = await run(FREE, {
+      apiKeys: { "etherscan-v2": KEY },
+      route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
+    });
+    assert.equal(result.backend, "etherscan-v2");
+    assertEtherscanCalls(calls, FREE, KEY);
   });
 
   it("apiUrl = the table's own Etherscan URL through handlerUrl: no key sent, explorerUrl kept", async () => {
@@ -364,13 +359,13 @@ describe("#122 route.apiUrl overrides keep the 0016/0023 key rules", () => {
     );
   });
 
-  it("apiUrl = the table URL, apiKeys only, no fetch: missing-api-key, nothing sent", async () => {
+  it("apiUrl on a look-alike host, apiKeys only, no fetch: missing-api-key, nothing sent (#244)", async () => {
     const f = fake();
     mock.method(globalThis, "fetch", f.fetch);
     const error = await errorOf(
       verify(makeInput(FREE), {
         apiKeys: { "etherscan-v2": KEY },
-        route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" },
+        route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io.example.org/v2/api" },
       }),
     );
     assert.equal(error.code, "missing-api-key");

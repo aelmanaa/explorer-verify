@@ -382,19 +382,26 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
       keyFor({ route: routescan, apiKeys: keys }, "routescan", routescan.requestUrl("")),
       ROUTESCAN_KEY,
     );
-    // The caller's apiUrl, even on the table's own host, gets no key from apiKeys.
-    for (const apiUrl of [ETHERSCAN_API, "https://proxy.example.org/api"]) {
-      const route = resolve(SEPOLIA, { backend: "etherscan-v2", apiUrl }, { apiKeys });
-      assert.equal(
-        keyFor({ route, apiKeys: keys }, "etherscan-v2", route.requestUrl("")),
-        undefined,
-      );
-      const error = thrown(() => {
-        requireKey({ route, apiKeys: keys }, false, []);
-      });
-      assert.equal(error.code, "missing-api-key");
-      assert.match(error.message, /apiKeys\.etherscan-v2 is sent only to api\.etherscan\.io/);
-    }
+    // The caller's apiUrl on Etherscan's own API takes the key (#244); on another host it does not.
+    const own = resolve(SEPOLIA, { backend: "etherscan-v2", apiUrl: ETHERSCAN_API }, { apiKeys });
+    assert.equal(
+      keyFor({ route: own, apiKeys: keys }, "etherscan-v2", own.requestUrl("")),
+      ETHERSCAN_KEY,
+    );
+    const moved = resolve(
+      SEPOLIA,
+      { backend: "etherscan-v2", apiUrl: "https://proxy.example.org/api" },
+      { apiKeys },
+    );
+    assert.equal(
+      keyFor({ route: moved, apiKeys: keys }, "etherscan-v2", moved.requestUrl("")),
+      undefined,
+    );
+    const error = thrown(() => {
+      requireKey({ route: moved, apiKeys: keys }, false, []);
+    });
+    assert.equal(error.code, "missing-api-key");
+    assert.match(error.message, /apiKeys\.etherscan-v2 goes only to Etherscan's own API/);
     // A Sourcify route never gets a key.
     const sourcify = resolve(SEPOLIA, undefined, {});
     assert.equal(
@@ -421,7 +428,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
     assert.ok(!JSON.stringify([error.message, error.toJSON()]).includes(ROUTE_KEY));
   });
 
-  it("names the backend's API host in the missing-key message when the table lists none (decision 0040)", () => {
+  it("says where apiKeys goes in the missing-key message when the table lists none (decision 0040, #244)", () => {
     const route = resolve(999_999, {
       backend: "etherscan-v2",
       apiUrl: "https://proxy.example.org/api",
@@ -431,7 +438,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
     });
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 is sent only to api.etherscan.io; set route.apiKey for proxy.example.org.",
+      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
     );
   });
 });
