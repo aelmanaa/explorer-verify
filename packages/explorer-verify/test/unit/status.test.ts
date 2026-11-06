@@ -273,6 +273,23 @@ describe("checkStatus(): resume a job (R-FLOW-5)", () => {
     assert.equal(r.elapsed, 0);
   });
 
+  it("resumes the same job from the handle object and from formatHandle's line (R-FLOW-5, #218)", async (t) => {
+    const forms: unknown[] = [handleOf(), formatHandle(handleOf())];
+    for (const form of forms) {
+      const r = await run(t, form, [...pending(1), fixture("job-exact-match")]);
+      assertResult(
+        r.outcome,
+        { status: "verified", backend: "sourcify", match: "exact", explorerUrl: GREETER_PAGE },
+        0,
+      );
+      assert.deepEqual(
+        r.sent.map((s) => `${s.method} ${s.url}`),
+        [`GET ${POLL_URL}`, `GET ${POLL_URL}`],
+      );
+      t.mock.timers.reset();
+    }
+  });
+
   it("uses the address in lower case for the lookup and the page (R-FLOW-3)", async (t) => {
     const r = await run(
       t,

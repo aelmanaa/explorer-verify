@@ -14,7 +14,7 @@
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { AnyExplorerVerifyError } from "../errors.ts";
-import { JOB_ID } from "../flow/handle.ts";
+import { JOB_ID } from "../flow/check-handle.ts";
 import { keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";

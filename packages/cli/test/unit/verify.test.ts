@@ -759,7 +759,7 @@ describe("--input-json (R-AX-16)", () => {
     );
   });
 
-  it("reads a status request, and refuses one without a string handle", async (t) => {
+  it("reads a status request, and refuses one without a one-line handle (#218)", async (t) => {
     const ok = await run(
       t,
       ["status", "--input-json", file("status.json", JSON.stringify({ handle: HANDLE })), "--json"],
@@ -767,17 +767,27 @@ describe("--input-json (R-AX-16)", () => {
     );
     assert.equal(ok.code, 0, ok.stdout);
     assert.equal(part(ok, "result")["status"], "verified");
-    assert.match(
-      usage(
-        await run(t, [
-          "status",
-          "--input-json",
-          file("status-bad.json", JSON.stringify({ handle: 5 })),
-          "--json",
-        ]),
-      ),
-      /handle must be the handle in its one-line form/,
-    );
+    const object = {
+      version: 1,
+      backend: "sourcify",
+      chainId: 11155111,
+      address: ADDRESS,
+      jobId: JOB,
+    };
+    // A number, the handle object and its JSON text: only the one-line string is read.
+    for (const handle of [5, object, JSON.stringify(object)]) {
+      assert.match(
+        usage(
+          await run(t, [
+            "status",
+            "--input-json",
+            file("status-bad.json", JSON.stringify({ handle })),
+            "--json",
+          ]),
+        ),
+        /handle must be the handle in its one-line form ev1:<backend>:<chainId>:<address>:<jobId>/,
+      );
+    }
     assert.match(
       usage(await run(t, ["status", HANDLE, "--input-json", REQUEST_FILE, "--json"])),
       /status takes no arguments with --input-json/,

@@ -407,13 +407,21 @@ describe("redactEvent (R-SEC-1, R-DX-6)", () => {
         handle: `ev1:etherscan-v2:1:${ADDRESS}:job-[redacted]`,
       },
     );
-    // Text that is not a one-line handle is redacted whole.
-    assert.deepEqual(
-      redactEvent({ type: "verify.submitted", backend: "sourcify", handle: `x ${DUMMY_KEY}` }, [
-        DUMMY_KEY,
-      ]),
-      { type: "verify.submitted", backend: "sourcify", handle: "x [redacted]" },
-    );
+    // Text that is not a one-line handle, which only untyped code passes, is redacted whole and
+    // kept in the shape of HandleString.
+    for (const text of [`x ${DUMMY_KEY}`, `ev1:sourcify:1:${ADDRESS}`]) {
+      assert.deepEqual(
+        Reflect.apply(redactEvent, undefined, [
+          { type: "verify.submitted", backend: "sourcify", handle: text },
+          [DUMMY_KEY],
+        ]),
+        {
+          type: "verify.submitted",
+          backend: "sourcify",
+          handle: `ev1:sourcify:0:0x:${text.replace(DUMMY_KEY, "[redacted]")}`,
+        },
+      );
+    }
   });
 
   it("returns a new object each time", () => {

@@ -173,7 +173,8 @@ from stdin. The package `explorer-verify` ships its JSON Schema as
 
 - For `verify`: a `VerifyInput`, as `validateInput()` returns it, with an optional
   `route: { "backend", "apiUrl" }`.
-- For `status`: `{ "handle": "ev1:…" }`, with an optional `route`.
+- For `status`: `{ "handle": "ev1:…" }`, with an optional `route`. `handle` takes the one-line form
+  only; the handle object and its JSON text are refused with exit code 2.
 
 Only `--json`, `--log-format`, `--quiet`, `--verbose`, `--color`, `--dry-run`,
 `--allow-sourcify-fallback`, `--api-key-file`, `--api-key-stdin`, `--rpc-url`, `--rpc-url-file`,

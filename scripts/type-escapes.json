@@ -6,6 +6,12 @@
       "rule": "type-predicate",
       "count": 3,
       "reason": "The two overloads of ExplorerVerifyError.is and ExplorerVerifyError[Symbol.hasInstance] check a Symbol.for brand, so they hold for an error from another copy of the package, and narrow the value to one class type per code, so a check of error.code narrows details. TypeScript narrows a value only through a predicate. Decision 0044."
+    },
+    {
+      "file": "packages/explorer-verify/src/flow/check-handle.ts",
+      "rule": "type-predicate",
+      "count": 1,
+      "reason": "isHandleString narrows a string to HandleString, the template literal type of the one-line handle form. TypeScript narrows a value to a template literal type only through a predicate. It holds: isHandleString is true only for a string parseHandle accepts, and parseHandle reads a string only as the one-line form. Decision 0050."
     }
   ]
 }

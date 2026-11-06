@@ -1166,7 +1166,7 @@ describe("doc examples", () => {
     assert.equal(fake.calls.filter((c) => c.step === "submit").length, 1, "one submit in all");
   });
 
-  it("verify.md and errors/index.md store JSON.stringify(handle); check(JSON.parse(...)) resumes", async () => {
+  it("verify.md and errors/index.md store formatHandle(handle); check(stored) resumes (#218)", async () => {
     const localStorage = stubStorage();
     let phase: "first" | "later" = "first";
     const fake = fakeFetch((step) => {
@@ -1182,28 +1182,27 @@ describe("doc examples", () => {
       await runVerify(makeInput(), { fetch: fake.fetch, timeoutMs: 60_000 });
     } catch (error) {
       if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
-        localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+        localStorage.setItem("pending-verification", formatHandle(error.details.handle));
       } else {
         throw error;
       }
     }
     phase = "later";
-    const stored: unknown = JSON.parse(localStorage.getItem("pending-verification") ?? "null");
+    const stored = localStorage.getItem("pending-verification") ?? "";
     const result = await check(parseHandle(stored), { fetch: fake.fetch });
     assert.equal(result.status, "verified");
   });
 
-  it("parseHandle TSDoc @example reads either stored form", () => {
-    for (const value of [DOC_LINE, JSON.stringify(makeHandle())]) {
+  it("parseHandle TSDoc @example reads the one-line form (#218)", () => {
+    for (const value of [DOC_LINE]) {
       const localStorage = stubStorage();
       localStorage.setItem("pending-verification", value);
-      // --- copied from the parseHandle TSDoc; JSON.parse typed as unknown for the lint rules.
+      // --- copied from the parseHandle TSDoc.
       const stored = localStorage.getItem("pending-verification");
       if (stored !== null) {
-        const parsed: unknown = stored.startsWith("ev1:") ? stored : JSON.parse(stored);
-        const h = parseHandle(parsed);
+        const handle = parseHandle(stored);
         // ---
-        assert.deepEqual(h, makeHandle());
+        assert.deepEqual(handle, makeHandle());
       }
     }
   });

@@ -44,7 +44,8 @@ Planned layout of `packages/explorer-verify/src/`:
 | `routing/table.json`, `routing/resolve.ts` | Chain id to backend, API URL and explorer URL (R-RT)                                                                         |
 | `backends/<name>.ts`                       | One client per backend, all with the `Backend` interface below (`sourcify.ts`, `etherscan.ts` exist)                         |
 | `flow/verify.ts`                           | `verify()`: validate, route, check, submit, poll, map the result (R-FLOW)                                                    |
-| `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle` from `flow/format-handle.ts` (exists)                          |
+| `flow/handle.ts`                           | `parseHandle` of both handle forms; re-exports `formatHandle`, `tryParseHandle` and `isHandleString` (exists)                |
+| `flow/check-handle.ts`                     | The handle checks, `tryParseHandle` and `isHandleString`, with no error code, so they stay small (decision 0050) (exists)    |
 | `flow/status.ts`                           | `checkStatus(handle)` for resumed polling, on the poll helpers of `flow/verify.ts` (R-FLOW-5) (exists)                       |
 | `flow/dry-run.ts`                          | `dryRun()`: the steps of `verify()` before the submit, on its helpers (R-AX-8, decision 0029) (exists)                       |
 | `flow/verify-each.ts`                      | `verifyEach()`: the steps of `verify()` on several backends at once (R-RT-4, decision 0034) (exists)                         |

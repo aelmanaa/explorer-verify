@@ -13,6 +13,7 @@ import type {
   ErrorDetails,
   ErrorJson,
   Handle,
+  HandleString,
   Logger,
   RouteOverride,
   VerifyOptions,
@@ -71,7 +72,7 @@ const errorJsonKeys: Equals<
   keyof ErrorJson,
   "code" | "message" | "hint" | "docsUrl" | "retryable" | "handle" | "handles"
 > = true;
-const errorJsonHandleIsString: Equals<ErrorJson["handle"], string | undefined> = true;
+const errorJsonHandleIsLine: Equals<ErrorJson["handle"], HandleString | undefined> = true;
 const toJsonReturns: Equals<ReturnType<ExplorerVerifyError["toJSON"]>, ErrorJson> = true;
 const detailsCodes: Equals<ErrorDetails["code"], ErrorCode> = true;
 const consoleIsLogger: typeof console extends Logger ? true : false = true;
@@ -169,7 +170,7 @@ describe("blackbox #11: type-level contract (compiles only when true)", () => {
       routeKeys,
       handleKeys,
       errorJsonKeys,
-      errorJsonHandleIsString,
+      errorJsonHandleIsLine,
       toJsonReturns,
       detailsCodes,
       consoleIsLogger,

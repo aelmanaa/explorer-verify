@@ -46,6 +46,27 @@ describe("splitHandle finds the job id of a one-line handle (R-SEC-1)", () => {
     assert.equal(splitHandle(undefined), undefined);
     assert.equal(splitHandle(1), undefined);
   });
+
+  it("gives nothing for a prefix outside the HandleString shape (#218)", () => {
+    for (const prefix of [
+      `ev1:nope:11155111:${ADDRESS}:`,
+      `ev1::11155111:${ADDRESS}:`,
+      `ev1:etherscan-v2:011155111:${ADDRESS}:`,
+      `ev1:etherscan-v2:1e3:${ADDRESS}:`,
+      `ev1:etherscan-v2::${ADDRESS}:`,
+      `ev1:etherscan-v2:x:${ADDRESS}:`,
+      `ev1:etherscan-v2:11155111:${ADDRESS.slice(2)}:`,
+      `ev1:etherscan-v2:11155111:0X${ADDRESS.slice(2)}:`,
+    ]) {
+      assert.equal(splitHandle(`${prefix}job`), undefined, prefix);
+    }
+  });
+
+  it("keeps any text after 0x and any number JavaScript writes back the same (#218)", () => {
+    for (const prefix of ["ev1:sourcify:1:0x:", "ev1:sourcify:-1:0xzz:", "ev1:sourcify:NaN:0x?:"]) {
+      assert.deepEqual(splitHandle(`${prefix}job`), { prefix, jobId: "job" });
+    }
+  });
 });
 
 describe("redactHandleLine redacts only the job id of a handle (R-SEC-1)", () => {

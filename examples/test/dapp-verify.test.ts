@@ -264,9 +264,22 @@ describe("examples/dapp/src/resume.ts", () => {
     assert.equal(storage.getItem(PENDING_KEY), RECORDED_HANDLE);
   });
 
-  it("forgets a handle that cannot be resumed, and throws", async (t) => {
+  it("removes a saved value that is not a handle, without a request (#218)", async (t) => {
     const { storage } = page(t);
     storage.setItem(PENDING_KEY, "not a handle");
+    const lines: string[] = [];
+    await settle(
+      t,
+      resumeVerification((line) => lines.push(line)),
+    );
+    assert.deepEqual(lines, ["The saved handle is not valid. It was removed."]);
+    assert.equal(storage.getItem(PENDING_KEY), null);
+  });
+
+  it("forgets a handle that cannot be resumed, and throws", async (t) => {
+    const { storage } = page(t);
+    // A valid handle of a backend the chain does not route to: checkStatus refuses it.
+    storage.setItem(PENDING_KEY, RECORDED_HANDLE.replace("ev1:sourcify:", "ev1:etherscan-v2:"));
     await assert.rejects(
       settle(
         t,

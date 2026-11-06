@@ -46,8 +46,15 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
     handle = request.fields.get("handle");
     runValues = request.values;
     fieldNames = request.fieldNames;
-    if (typeof handle !== "string") {
-      throw usageError([{ field: "handle", message: "must be the handle in its one-line form" }]);
+    // The handle object and its JSON text are refused, as input.schema.json refuses them.
+    if (typeof handle !== "string" || !handle.startsWith("ev1:")) {
+      throw usageError([
+        {
+          field: "handle",
+          message:
+            "must be the handle in its one-line form ev1:<backend>:<chainId>:<address>:<jobId>",
+        },
+      ]);
     }
   }
   checkFallback(runValues, fieldNames);

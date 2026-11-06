@@ -441,7 +441,7 @@ export type VerifyEvent =
       /** The backend that accepted the submission. */
       readonly backend: BackendName;
       /** The handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. */
-      readonly handle: string;
+      readonly handle: HandleString;
     }
   | {
       /** The event type. */
@@ -923,10 +923,12 @@ export interface VerifyEachResult<
  *
  * It carries no URL. When polling resumes, the library resolves the API from `backend`, `chainId`
  * and the caller's `route` option, so a handle read from untrusted storage cannot choose where
- * requests go (R-SEC-2). Read a stored handle back with `parseHandle`.
+ * requests go (R-SEC-2). Store it in its one-line form with `formatHandle`, and read it back with
+ * `parseHandle`, `tryParseHandle` or `checkStatus`.
  *
  * @example
  * ```ts
+ * import { formatHandle } from "explorer-verify";
  * import type { Handle } from "explorer-verify";
  *
  * const handle: Handle = {
@@ -936,7 +938,7 @@ export interface VerifyEachResult<
  *   address: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
  *   jobId: "550e8400-e29b-41d4-a716-446655440000",
  * };
- * localStorage.setItem("pending-verification", JSON.stringify(handle));
+ * localStorage.setItem("pending-verification", formatHandle(handle));
  * ```
  * @experimental
  */
@@ -952,3 +954,20 @@ export interface Handle {
   /** The backend's job id: Sourcify's `verificationId` or Etherscan's `guid`. */
   jobId: string;
 }
+
+/**
+ * A handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`: the form to store
+ * (R-FLOW-5). `formatHandle` writes it, the `verify.submitted` event and an error's `toJSON()`
+ * carry it, and `isHandle` checks a string for it. The type checks the shape of each part, not
+ * its value: `parseHandle` checks the value.
+ *
+ * @example
+ * ```ts
+ * import type { HandleString } from "explorer-verify";
+ *
+ * const line: HandleString =
+ *   "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000";
+ * ```
+ * @experimental
+ */
+export type HandleString = `ev1:${BackendName}:${number}:${Hex}:${string}`;

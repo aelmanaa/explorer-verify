@@ -122,11 +122,16 @@
     },
     {
       "file": "src/flow/handle.ts",
-      "measured": 96.88,
-      "floor": 95
+      "measured": 100.0,
+      "maxUndetected": 1
     },
     {
       "file": "src/flow/format-handle.ts",
+      "measured": 97.73,
+      "maxUndetected": 1
+    },
+    {
+      "file": "src/flow/check-handle.ts",
       "measured": 100.0,
       "maxUndetected": 1
     },

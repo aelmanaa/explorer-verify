@@ -14,6 +14,8 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   ExplorerVerifyError,
   exitCodeOf,
+  formatHandle,
+  parseHandle,
   toEnvelope,
   verify as publicVerify,
 } from "../../src/index.ts";
@@ -1421,7 +1423,7 @@ async function verifyMdExample(
     }
   } catch (error) {
     if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
-      localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+      localStorage.setItem("pending-verification", formatHandle(error.details.handle));
     } else {
       throw error;
     }
@@ -1477,8 +1479,10 @@ describe("verify(): doc examples", () => {
       mock.timers.runAll();
     });
     assert.deepEqual(out.out, []);
-    const stored: unknown = JSON.parse(store.items.get("pending-verification") ?? "null");
-    assert.deepEqual(stored, {
+    // The one-line form (#218), which checkStatus and parseHandle read back.
+    const stored = store.items.get("pending-verification") ?? "";
+    assert.equal(stored, `ev1:sourcify:${String(CHAIN_ID)}:${ADDRESS.toLowerCase()}:${JOB_ID}`);
+    assert.deepEqual(parseHandle(stored), {
       version: 1,
       backend: "sourcify",
       chainId: CHAIN_ID,
@@ -1636,7 +1640,7 @@ describe("verify(): doc examples", () => {
         });
       } catch (error) {
         if (error instanceof ExplorerVerifyError && error.details.code === "not-confirmed") {
-          localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+          localStorage.setItem("pending-verification", formatHandle(error.details.handle));
         }
         throw error;
       }
