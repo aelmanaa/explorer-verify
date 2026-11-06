@@ -111,9 +111,10 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "quota-exceeded": () => ({ code: "quota-exceeded", backend: "etherscan-v2" }),
   "internal-error": () => ({ code: "internal-error" }),
   "no-metadata-hash": () => ({ code: "no-metadata-hash", found: "no-code" }),
-  "metadata-unavailable": (text) => ({
+  "metadata-unavailable": () => ({
     code: "metadata-unavailable",
-    hash: `ipfs:${text}`,
+    // A real CID: toEnvelope keeps a hash only in the shape of one.
+    hash: "ipfs:QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb",
     attempts: [{ source: "rpc", outcome: "unavailable" }],
   }),
   "constructor-args-unavailable": () => ({
@@ -293,6 +294,7 @@ describe("black box #5: errors", () => {
         "docsUrl",
         "retryable",
         ...(hasHandle ? ["handle"] : []),
+        "details",
       ];
       assert.deepEqual(Object.keys(json), keys);
       if (hasHandle) assert.equal(json.handle, HANDLE_STRING);
@@ -310,6 +312,7 @@ describe("black box #5: errors", () => {
       "hint",
       "docsUrl",
       "retryable",
+      "details",
     ]);
     assert.equal(exitCodeOf(error), 130);
     assertValid(envelope);
@@ -346,15 +349,16 @@ describe("black box #5: errors", () => {
     }
   });
 
-  it("the envelope holds no cause, stack or details", () => {
+  it("the envelope holds no cause or stack, and keeps the details", () => {
     const error = new ExplorerVerifyError(detailsFor("network", ""), "m", {
       secrets: [],
       cause: new Error("inner cause text"),
     });
     const text = JSON.stringify(toEnvelope(error));
-    for (const word of ["cause", "stack", "details", "inner cause text", "attempts"]) {
+    for (const word of ["cause", "stack", "inner cause text"]) {
       assert.ok(!text.includes(word), word);
     }
+    assert.ok(text.includes('"details":{"code":"network"'));
   });
 });
 

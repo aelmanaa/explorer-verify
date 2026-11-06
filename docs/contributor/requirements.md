@@ -325,7 +325,7 @@ CLI:
   - `{ "schemaVersion": 1, "ok": false, "result": ... }` for a `failed` result (no `error`)
   - `{ "schemaVersion": 1, "ok": ..., "result": { "outcomes": [...] } }` for several backends (R-RT-4),
     whose `ok` is true only when every outcome's `ok` is true
-  - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"? } }`
+  - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"?, "details" } }`
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
   `status`, `result` is a `VerifyResult`, for `verify --dry-run` a `DryRunResult` with `routedBy`
@@ -349,6 +349,12 @@ CLI:
   "This is a bug in explorer-verify. Report it with the command you ran, without your API key."
   The CLI package issue (#98) adds `internal-error` to `ERROR_CODES` and to the errors page. stderr may
   also carry a one-line human summary.
+
+  `error.details` holds the error's `details`, redacted, with each handle in its one-line form;
+  `details.code` equals `code`, and the error object's type is a union keyed by `code` (decision
+  0049). The CLI's error envelope also holds `nextCommand`, an argv array, when one command resumes
+  the run: `explorer-verify status <handle>` for `not-confirmed` and for `cancelled` with one
+  handle. It never submits and never holds a key, an RPC URL or a file path.
 
 - **R-AX-6** stdout carries only the result, and progress and logs go to stderr. The CLI decides
   colour, spinners and pagers per stream, from that stream's own terminal state:
@@ -421,7 +427,9 @@ CLI:
   (decision 0015). A code that was ever released keeps its page. When a release removes a code, its
   page stays, says "Removed in X.Y.Z" and links the replacement's page. A version is promoted to npm
   `latest` only after its docs URLs resolve. An unknown command or flag suggests the single
-  closest match.
+  closest match. The CLI prints a hint of its own for every code, in terms of its flags,
+  environment variables and commands; no CLI hint contains `()`, `details.`, `options.`, `apiKeys`
+  or `route.`. Each error page states it on a "From the CLI" line (decision 0049).
 - **R-AX-11** `--help` leads with examples, lists the environment variables and exit codes, and links
   the docs and `llms.txt`. `--version --json` prints the version and the routing-table date.
 - **R-AX-12** The same input gives the same stdout: stable key order, no timestamps unless
@@ -509,6 +517,10 @@ Measurement:
 - **R-SEC-1** API keys never appear in logs, errors, results or thrown messages. Redaction is
   tested. A handle's job id is exempt from the bare-key shape rule, so a valid job id resumes; it
   is redacted only where it equals a configured key or holds a key-like parameter.
+  An error's details reach its JSON form (decision 0049). The input builders know no key, so an
+  error they throw is redacted by the shape rules only; the CLI's scrub and
+  `toEnvelope(outcome, { secrets })` remove the keys the caller knows. A key nobody passes, in a
+  path or a file name, is caught only by the shape rules.
 - **R-SEC-2** The library calls only hosts from the routing table or the caller's configuration.
   It never follows a redirect.
   A handle never carries a host; the library resolves hosts from the routing table or the caller's

@@ -5,14 +5,28 @@
  */
 import { toBackendName } from "./backend-names.ts";
 import { newError } from "./error-hints.ts";
-import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
-import type { AnyExplorerVerifyError, ErrorJson, ExitCode, InputIssue } from "./errors.ts";
+import {
+  ERROR_CODES,
+  ERROR_EXIT_CODES,
+  ExplorerVerifyError,
+  detailsFromJson,
+  docsUrlOf,
+  errorJsonOf,
+} from "./errors.ts";
+import type {
+  AnyExplorerVerifyError,
+  ErrorCode,
+  ErrorJson,
+  ErrorJsonFields,
+  ExitCode,
+  InputIssue,
+} from "./errors.ts";
 import { JOB_ID } from "./flow/check-handle.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import type { SplitHandle } from "./flow/format-handle.ts";
 import { ownKeys, unknownKeys } from "./internal/known-keys.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
-import { REDACTED, redact } from "./redact.ts";
+import { REDACTED, redact, redactExcerpt } from "./redact.ts";
 import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } from "./types.ts";
 
 /**
@@ -136,11 +150,11 @@ const RESULT_EXIT_CODES: Readonly<Record<Status, ExitCode>> = {
 
 const MATCHES = ["exact", "partial"] as const;
 
+// The longest message or hint kept from an error object that another copy or a server built.
+const MAX_TEXT = 2_000;
+
 // The name every copy of the package gives its error class.
 const ERROR_NAME = "ExplorerVerifyError";
-
-/** A chain id in decimal digits, with no leading zero. */
-const DECIMAL = /^[1-9][0-9]*$/;
 
 /**
  * {@link splitHandle} for a handle from another copy of the package, whose `toJSON()` this copy
@@ -153,13 +167,12 @@ function strictHandle(value: unknown): SplitHandle | undefined {
   if (handle === undefined) {
     return undefined;
   }
-  // The prefix is `ev1:<backend>:<chainId>:<address>:`. The job id charset has no `:`, so a valid
-  // job id is the fifth field.
-  const [, backend, chainId, address] = handle.prefix.split(":");
+  // The prefix is `ev1:<backend>:<chainId>:<address>:`, with a known backend and a chain id in
+  // decimal digits, as splitHandle checks. The job id charset has no `:`, so a valid job id is the
+  // fifth field.
+  const [, , chainId, address] = handle.prefix.split(":");
   const { jobId } = handle;
   const valid =
-    toBackendName(backend) !== undefined &&
-    DECIMAL.test(String(chainId)) &&
     readChainId(Number(chainId)) !== undefined &&
     addressDigits(address) !== undefined &&
     (JOB_ID.test(jobId) || jobId === REDACTED);
@@ -484,20 +497,37 @@ function copyError(
   ) {
     throw invalid(problems.issues);
   }
-  const json: ErrorJson = {
-    code,
-    message: redact(message, secrets),
-    hint: redact(hint, secrets),
-    docsUrl,
+  const line = handle === undefined ? undefined : redactSplitHandle(handle, secrets);
+  // The details take their handles from the checked top-level fields, never from the details.
+  const details = detailsFromJson(code, fields.get("details"), secrets, {
+    handle: line,
+    handles: handles?.map((each) => each.handle),
+    foreign,
+  });
+  if (details === undefined) {
+    throw invalid([
+      {
+        field: "outcome.details",
+        message:
+          "must be an object with the error's code and finite numbers, and the error must have a handle when its code needs one",
+      },
+    ]);
+  }
+  const json: ErrorJsonFields = {
+    // A foreign message or hint is cut; this copy's own keep their full text.
+    message: foreign ? redactExcerpt(message, secrets, MAX_TEXT) : redact(message, secrets),
+    hint: foreign ? redactExcerpt(hint, secrets, MAX_TEXT) : redact(hint, secrets),
+    // Rebuilt from the code: a URL from another copy or a server is never passed on.
+    docsUrl: docsUrlOf(code),
     retryable,
   };
-  if (handle !== undefined) {
-    json.handle = redactSplitHandle(handle, secrets);
+  if (line !== undefined) {
+    json.handle = line;
   }
   if (handles !== undefined) {
     json.handles = handles;
   }
-  return json;
+  return errorJsonOf<ErrorCode>(code, json, details);
 }
 
 /**

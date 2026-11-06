@@ -931,6 +931,11 @@ describe("verify(): time budget", () => {
           retryable: true,
           handle:
             "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
+          details: {
+            code: "not-confirmed",
+            handle:
+              "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
+          },
         },
       },
     );

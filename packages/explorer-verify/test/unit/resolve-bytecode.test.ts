@@ -1318,7 +1318,7 @@ describe("the details of no-metadata-hash and metadata-unavailable (R-SEC-1)", (
       code: "metadata-unavailable",
       hash: "ipfs:[redacted]",
       attempts: [
-        { source: "rpc", outcome: "unavailable", status: Number.NaN },
+        { source: "rpc", outcome: "unavailable" },
         { source: "rpc", outcome: "hash-mismatch" },
         { source: "rpc", outcome: "unavailable" },
       ],

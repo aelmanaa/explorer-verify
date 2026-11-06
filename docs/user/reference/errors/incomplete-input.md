@@ -30,6 +30,8 @@ path in `details.candidates` as a key of `options.sources`, with the file's cont
 Default hint: Add what details.field names: a build-info with its input, the full compiler version,
 the contract as path:Name, or the source files listed in details.candidates.
 
+From the CLI: Pass --contract with one of: `<names>`.
+
 Retryable: no. Nothing was sent to an explorer.
 
 Exit code: 2

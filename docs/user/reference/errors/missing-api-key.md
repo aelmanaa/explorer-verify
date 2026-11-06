@@ -31,6 +31,9 @@ for an explorer on its own host. For `etherscan-v2` in a browser, set `handlerUr
 Default hint: Pass the key in apiKeys under the backend named in details.backend, or as
 route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.
 
+From the CLI: etherscan-v2 needs an API key: set ETHERSCAN_API_KEY, or pass --api-key-file `<path>`
+or --api-key-stdin with --backend etherscan-v2. --backend sourcify needs no key.
+
 Retryable: no.
 
 Exit code: 3

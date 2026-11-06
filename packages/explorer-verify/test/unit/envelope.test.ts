@@ -267,7 +267,13 @@ describe("toEnvelope (R-AX-5)", () => {
     for (const code of ERROR_CODES) {
       const error = errorFor(code);
       const value = envelope(error);
-      assert.deepEqual(value, { schemaVersion: 1, ok: false, error: error.toJSON() }, code);
+      const json = error.toJSON();
+      // toEnvelope keeps a metadata hash only in the shape of one; the sample's is a URL.
+      const expected =
+        json.code === "metadata-unavailable"
+          ? { ...json, details: { ...json.details, hash: "" } }
+          : json;
+      assert.deepEqual(value, { schemaVersion: 1, ok: false, error: expected }, code);
       assert.ok(!("result" in value), code);
     }
   });
@@ -342,7 +348,7 @@ describe("toEnvelope output is deterministic (R-AX-12)", () => {
     );
   });
 
-  it("orders error keys as code, message, hint, docsUrl, retryable, handle", () => {
+  it("orders error keys as code, message, hint, docsUrl, retryable, handle, details", () => {
     const value = envelope(errorFor("job-not-found"));
     assert.ok("error" in value);
     assert.deepEqual(Object.keys(value), ["schemaVersion", "ok", "error"]);
@@ -353,6 +359,7 @@ describe("toEnvelope output is deterministic (R-AX-12)", () => {
       "docsUrl",
       "retryable",
       "handle",
+      "details",
     ]);
   });
 });

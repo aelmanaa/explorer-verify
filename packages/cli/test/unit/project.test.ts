@@ -13,9 +13,9 @@ import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 import type { InputIssue } from "explorer-verify";
 
 import type { OptionValue } from "../../src/arguments.ts";
-import { USAGE_HINT } from "../../src/command.ts";
+import { inCliWords } from "../../src/hints.ts";
 import { main } from "../../src/main.ts";
-import { cliHintOf, projectOf, withCliFlags } from "../../src/project.ts";
+import { projectOf, withCliFlags } from "../../src/project.ts";
 import type { ProjectRequest } from "../../src/project.ts";
 import { fakeExplorer } from "../helpers/fake-explorer.ts";
 import type { Seen } from "../helpers/fake-explorer.ts";
@@ -78,6 +78,16 @@ function part(result: Run, name: "result" | "error"): Record<string, unknown> {
   const value = envelope[name];
   assert.ok(typeof value === "object" && value !== null, result.stdout);
   return Object.fromEntries(Object.entries(value));
+}
+
+/** The field of the first issue of an `invalid-input` envelope, and its message. */
+function firstIssue(result: Run): string {
+  const details: unknown = part(result, "error")["details"];
+  const issues: unknown =
+    typeof details === "object" && details !== null ? Reflect.get(details, "issues") : undefined;
+  const first: unknown = Array.isArray(issues) ? issues[0] : undefined;
+  assert.ok(typeof first === "object" && first !== null, result.stdout);
+  return `${String(Reflect.get(first, "field"))} ${String(Reflect.get(first, "message"))}`;
 }
 
 /** The verify command line of a dry run on Sourcify, with `extra` after the address and chain. */
@@ -173,12 +183,18 @@ function hintsOf(file: string): string[] {
 }
 
 describe("withCliFlags: the helpers' errors in the CLI's words", () => {
-  it("returns anything but an ExplorerVerifyError as it is", () => {
+  it("returns anything but an ExplorerVerifyError, and one with nothing to rewrite, as it is", () => {
     const error = new Error("plain");
     assert.equal(withCliFlags(error, requestOf("foundry")), error);
+    const other = new ExplorerVerifyError(
+      { code: "incomplete-input", field: "contract", candidates: ["a.sol:A", "b.sol:A"] },
+      "The contract name matches 2 artifacts.",
+      { hint: "Pass options.contract as path:Name.", secrets: [] },
+    );
+    assert.equal(withCliFlags(other, requestOf("hardhat")), other);
   });
 
-  it("leaves no library name in any hint of either helper (guard)", () => {
+  it("leaves no library name in any hint of either helper, through the CLI's hint layer (guard)", () => {
     const hints = [
       ...hintsOf("foundry/src/foundry.ts"),
       ...hintsOf("hardhat/src/find.ts"),
@@ -188,17 +204,52 @@ describe("withCliFlags: the helpers' errors in the CLI's words", () => {
     // Both helpers hold several hints; a parse that finds few means the pattern broke.
     assert.ok(hints.length >= 10, String(hints.length));
     for (const hint of hints) {
-      const shown = cliHintOf(hint);
-      assert.doesNotMatch(
-        shown,
-        /outDir|buildInfoDir|options\.\w|details\.|\broot\b|call again/,
-        `${hint}\n-> ${shown}`,
-      );
+      // `undefined` means a word with no CLI form is left: the code's CLI hint replaces it.
+      const shown = inCliWords(hint);
+      if (shown !== undefined) {
+        assert.doesNotMatch(
+          shown,
+          /outDir|buildInfoDir|options\.\w|details\.|\broot\b|call again/,
+          `${hint}\n-> ${shown}`,
+        );
+      }
     }
-    assert.equal(cliHintOf(ERROR_HINTS["invalid-input"]), USAGE_HINT);
+    assert.equal(inCliWords(ERROR_HINTS["invalid-input"]), undefined);
+    assert.equal(
+      inCliWords(
+        "Pass options.outDir, or pass artifact with a file, or Pass contract as path:Name; files under root.",
+      ),
+      "Pass --out-dir, or pass --artifact with a file, or Pass --contract as path:Name; files under the project folder.",
+    );
+    assert.equal(
+      inCliWords("Run forge build --build-info, then call again."),
+      "Run forge build --build-info, then run the command again.",
+    );
   });
 
-  it("renames the issues of invalid-input, lists them in the message and keeps a cause", () => {
+  it("rewrites the helper's message with the same table as the hints, when it can", () => {
+    const original = new ExplorerVerifyError(
+      { code: "incomplete-input", field: "contract", candidates: ["a.sol:A"] },
+      "No artifact under outDir matches contract; call again with one.",
+      { hint: "h", secrets: [] },
+    );
+    const error = withCliFlags(original, requestOf("foundry"));
+    assert.ok(error instanceof ExplorerVerifyError);
+    assert.equal(
+      error.message,
+      "No artifact under --out-dir matches contract; run the command again with one.",
+    );
+    assert.deepEqual(error.details, original.details);
+    const kept = new ExplorerVerifyError(
+      { code: "incomplete-input", field: "sources", candidates: [] },
+      "The documents and options.sources lack 2 files.",
+      { hint: "h", secrets: [] },
+    );
+    assert.equal(withCliFlags(kept, requestOf("foundry")), kept);
+  });
+
+  it("renames the issues of invalid-input, rewrites the message and keeps the hint and a cause", () => {
+    const hint = "Pass options.outDir.";
     const original = new ExplorerVerifyError(
       {
         code: "invalid-input",
@@ -208,22 +259,16 @@ describe("withCliFlags: the helpers' errors in the CLI's words", () => {
           { field: "artifacts/x.json", message: "cannot be read." },
         ],
       },
-      "The input is invalid: root.",
-      {
-        hint: "Pass options.outDir, or pass artifact with a file, or Pass contract as path:Name; files under root.",
-        secrets: [],
-      },
+      "The input is invalid: root is not a directory; also outDir, artifacts/x.json.",
+      { hint, secrets: [] },
     );
     const error = withCliFlags(original, requestOf("hardhat", "build"));
     assert.ok(error instanceof ExplorerVerifyError);
     assert.equal(
       error.message,
-      "The input is invalid: --hardhat is not a directory; --out-dir is not a directory; artifacts/x.json cannot be read.",
+      "The input is invalid: root is not a directory; also --out-dir, artifacts/x.json.",
     );
-    assert.equal(
-      error.hint,
-      "Pass --out-dir, or pass --artifact with a file, or Pass --contract as path:Name; files under the project folder.",
-    );
+    assert.equal(error.hint, hint);
     assert.ok(error.cause instanceof Error);
     assert.deepEqual(error.details, {
       code: "invalid-input",
@@ -242,42 +287,22 @@ describe("withCliFlags: the helpers' errors in the CLI's words", () => {
     ] as const) {
       const original = new ExplorerVerifyError(
         { code: "invalid-input", issues: [{ field: "outDir", message: "is not a directory" }] },
-        "The input is invalid: outDir.",
+        "The input is invalid: outDir is not a directory.",
         { hint: ERROR_HINTS["invalid-input"], secrets: [] },
       );
       const error = withCliFlags(original, requestOf(tool));
       assert.ok(error instanceof ExplorerVerifyError);
-      assert.equal(
-        error.message,
-        `The input is invalid: --${tool} has no ${folder} folder: build the project, or pass --out-dir.`,
-      );
-      assert.equal(error.hint, USAGE_HINT);
+      assert.deepEqual(error.details, {
+        code: "invalid-input",
+        issues: [
+          {
+            field: `--${tool}`,
+            message: `has no ${folder} folder: build the project, or pass --out-dir`,
+          },
+        ],
+      });
+      assert.equal(error.hint, ERROR_HINTS["invalid-input"]);
     }
-  });
-
-  it("keeps the details of another code, adds its candidates and renames its hint", () => {
-    const original = new ExplorerVerifyError(
-      { code: "incomplete-input", field: "contract", candidates: ["a.sol:A", "b.sol:A"] },
-      "The contract name matches 2 artifacts.",
-      {
-        hint: "Pass options.contract as path:Name, or a Name of one entry of details.candidates.",
-        secrets: [],
-      },
-    );
-    const error = withCliFlags(original, requestOf("hardhat"));
-    assert.ok(error instanceof ExplorerVerifyError);
-    assert.equal(error.message, "The contract name matches 2 artifacts: a.sol:A, b.sol:A.");
-    assert.equal(error.hint, "Pass --contract as path:Name, or a Name of one of the paths listed.");
-    assert.deepEqual(error.details, original.details);
-    const bare = new ExplorerVerifyError(
-      { code: "insufficient-artifact", field: "input" },
-      "No metadata.",
-      { hint: "Run forge build --build-info, then call again.", secrets: [] },
-    );
-    const plain = withCliFlags(bare, requestOf("foundry"));
-    assert.ok(plain instanceof ExplorerVerifyError);
-    assert.equal(plain.message, "No metadata.");
-    assert.equal(plain.hint, "Run forge build --build-info, then run the command again.");
   });
 });
 
@@ -311,7 +336,7 @@ describe("verify --foundry and --hardhat (R-DX-1, R-DX-2)", () => {
     assert.equal(result.code, 2);
     const error = part(result, "error");
     assert.equal(error["code"], "invalid-input");
-    assert.match(String(error["message"]), /^The input is invalid: --out-dir /);
+    assert.match(firstIssue(result), /^--out-dir /);
     assert.match(String(error["hint"]), /pass --out-dir with/);
     assert.deepEqual(result.seen, []);
   });
@@ -319,7 +344,7 @@ describe("verify --foundry and --hardhat (R-DX-1, R-DX-2)", () => {
   it("names --contract when the project has no such contract", async (t) => {
     const result = await run(t, dryRun(["--hardhat", HARDHAT_3, "--contract", "Missing"]));
     assert.equal(result.code, 2);
-    assert.match(String(part(result, "error")["message"]), /^The input is invalid: --contract /);
+    assert.match(firstIssue(result), /^--contract /);
   });
 
   it("refuses --foundry with --input-json (R-AX-16)", async (t) => {
@@ -409,11 +434,8 @@ describe("verify --foundry and --hardhat (R-DX-1, R-DX-2)", () => {
     const result = await run(t, dryRun(["--hardhat", FOUNDRY, "--contract", "Greeter"]));
     assert.equal(result.code, 2);
     const error = part(result, "error");
-    assert.match(
-      String(error["message"]),
-      /^The input is invalid: --hardhat has no artifacts folder/,
-    );
-    assert.doesNotMatch(String(error["message"]), /--out-dir names/);
+    assert.equal(error["code"], "invalid-input");
+    assert.match(firstIssue(result), /^--hardhat has no artifacts folder/);
   });
 
   it("finds a unique bare contract name in a project", async (t) => {

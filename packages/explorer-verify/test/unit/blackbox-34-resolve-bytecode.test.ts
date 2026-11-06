@@ -1637,8 +1637,9 @@ describe("#34 feeding verify()", () => {
     assert.ok("error" in eb && eb.error.docsUrl.endsWith("/reference/errors/metadata-unavailable"));
     assert.ok("error" in ea && ea.error.hint.startsWith("Build the input from the build files"));
     assert.ok("error" in eb && eb.error.hint.startsWith("Read details.attempts"));
-    // json-output.md: the envelope never holds details.
-    assert.ok("error" in eb && !("details" in eb.error));
+    // json-output.md: the envelope holds the details, redacted.
+    assert.ok("error" in eb);
+    assert.deepEqual(eb.error.details, { code: "metadata-unavailable", hash: "", attempts: [] });
   });
 
   it("TSDoc @examples import the resolver and its types from explorer-verify/resolve", async () => {

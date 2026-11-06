@@ -107,7 +107,7 @@ describe("main: one envelope per exit code (R-AX-5, R-AX-7)", () => {
     );
     assert.equal(
       Reflect.get(error, "hint"),
-      "Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.",
+      "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
     );
   });
 
@@ -261,6 +261,7 @@ describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
       hint: "This is a bug in explorer-verify. Report it with the command you ran, without your API key.",
       docsUrl: "https://aelmanaa.github.io/explorer-verify/reference/errors/internal-error",
       retryable: false,
+      details: { code: "internal-error" },
     });
   });
 
@@ -476,7 +477,7 @@ describe("a cancelled run on several backends keeps every running job (R-AX-5, R
       { backend: "sourcify", handle: HANDLE },
       { backend: "etherscan-v2", handle: OTHER },
     ]);
-    assert.match(String(error["hint"]), /error\.handles/);
+    assert.match(String(error["hint"]), /Resume each handle listed with explorer-verify status/);
   });
 
   it("prints each running job's handle in the stderr error block and in the JSON error line", async () => {

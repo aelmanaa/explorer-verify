@@ -15,14 +15,15 @@ import {
   parseHandle,
   toEnvelope,
 } from "explorer-verify";
-import type { Envelope, ExitCode, Handle, InputIssue } from "explorer-verify";
+import type { ExitCode, Handle, InputIssue } from "explorer-verify";
 
 import { readArguments } from "./arguments.ts";
 import type { Arguments, OptionValue } from "./arguments.ts";
-import { USAGE_HINT, stringOption, usageError } from "./command.ts";
+import { stringOption, usageError } from "./command.ts";
 import type { Command, CommandContext, CommandResult, RunCommand } from "./command.ts";
 import { COMMANDS } from "./commands.ts";
 import { helpResult, helpText } from "./help.ts";
+import { hasOwnHint } from "./hints.ts";
 import { keyVariableValues, readRouteOptions, scrubbing, withoutKeyVariables } from "./keys.ts";
 import type { InputStream, RouteOptions } from "./keys.ts";
 import {
@@ -33,7 +34,7 @@ import {
   LOG_VARIABLE,
 } from "./log-level.ts";
 import type { LogFormat } from "./log-level.ts";
-import { infoText, stdoutText } from "./output.ts";
+import { cliEnvelope, infoText, stdoutText } from "./output.ts";
 import { createStderr } from "./stderr.ts";
 import type { OutputStream, Stderr } from "./stderr.ts";
 import { COLOR_MODES, terminalPolicy } from "./terminal.ts";
@@ -58,6 +59,9 @@ export interface Io {
   /** Calls `listener` on SIGINT and SIGTERM, and returns a function that stops it. */
   readonly onSignal: (listener: (signal: SignalName) => void) => () => void;
 }
+
+/** The options that give a key from a file or stdin, which a next command would not repeat. */
+const KEY_FLAGS = ["api-key-file", "api-key-stdin"];
 
 /** The longest part of an unexpected exception's message that `internal-error` keeps. */
 const MESSAGE_LENGTH = 500;
@@ -296,30 +300,30 @@ async function runCommand(
   }
 }
 
-/**
- * The envelope with the CLI's usage hint in place of the library's generic `invalid-input` hint,
- * which names `details`, a field the envelope does not carry.
- */
-function withUsageHint(envelope: Envelope): Envelope {
-  return "error" in envelope && envelope.error.hint === ERROR_HINTS["invalid-input"]
-    ? { ...envelope, error: { ...envelope.error, hint: USAGE_HINT } }
-    : envelope;
-}
-
 /** Writes the outcome: stdout from its envelope, its error line on stderr; returns its exit code. */
 function finish(
   outcome: Outcome,
   io: Io,
   stderr: Stderr,
-  options: { json: boolean; color: boolean },
+  options: {
+    json: boolean;
+    color: boolean;
+    keyFlag: boolean;
+    secrets: readonly string[];
+  },
 ): ExitCode {
-  // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8).
-  const envelope = withUsageHint(toEnvelope(outcome));
+  // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8). The
+  // CLI's hints and next command replace the library's words (R-AX-10).
+  const envelope = cliEnvelope(toEnvelope(outcome, { secrets: options.secrets }), {
+    own: hasOwnHint(outcome),
+    keyFlag: options.keyFlag,
+    json: options.json,
+  });
   const code = exitCodeOf(outcome);
   const text = stdoutText(envelope, options.json, options.color);
   // The stderr writer never throws, so stdout is written whatever stderr does.
   if ("error" in envelope) {
-    stderr.error(envelope.error);
+    stderr.error(envelope.error, envelope.nextCommand);
     if (outcome instanceof ExplorerVerifyError && outcome.code === "internal-error") {
       const { cause } = outcome;
       if (cause instanceof Error && cause.stack !== undefined) {
@@ -410,7 +414,12 @@ async function runCli(
   // so the envelope is always written.
   state.fixed = true;
   const final = state.received === undefined ? outcome : cancelledError(state.received, state);
-  return finish(final, io, stderr, { json: args.json, color: policy.colorStdout });
+  return finish(final, io, stderr, {
+    json: args.json,
+    color: policy.colorStdout,
+    keyFlag: KEY_FLAGS.some((flag) => args.values.has(flag)),
+    secrets: state.secrets,
+  });
 }
 
 /**
@@ -477,7 +486,12 @@ function failSafe(error: unknown, io: Io, json: boolean, secrets: readonly strin
     spinner: false,
   });
   try {
-    return finish(internalError(error, secrets), io, stderr, { json, color: false });
+    return finish(internalError(error, secrets), io, stderr, {
+      json,
+      color: false,
+      keyFlag: false,
+      secrets,
+    });
   } catch {
     // stdout refused the output too; the exit code is all that is left.
     return ERROR_EXIT_CODES["internal-error"];

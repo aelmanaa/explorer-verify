@@ -18,6 +18,9 @@ Fix: call again later. If the error persists, check the explorer's status page a
 Default hint: Call again later. If the error persists, check the explorer's status page and report
 details.status and details.excerpt.
 
+From the CLI: Run the command again later. If it persists, check the explorer's status page and
+report the status and excerpt that --json prints.
+
 Through your server handler (`handlerUrl`), a refusal with a known code and its status throws its
 own error, such as [`handler-refused`](handler-refused.md) for a 403 `chain-not-allowed`. This code
 remains for an answer with no code, an unknown code or another status, which the message does not

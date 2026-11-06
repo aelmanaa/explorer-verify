@@ -91,7 +91,7 @@ function rejection(value: unknown): ExplorerVerifyError {
 }
 
 /** The issues of an invalid-input error. */
-function issuesOf(error: ExplorerVerifyError): InputIssue[] {
+function issuesOf(error: ExplorerVerifyError): readonly InputIssue[] {
   if (error.details.code !== "invalid-input") {
     return assert.fail("details do not match the code");
   }
@@ -544,7 +544,10 @@ describe("validateInput collects every problem (R-IN-6)", () => {
       { ...withCompiler({ version: "latest" }), chainId: 0, address: "0x1234" },
       ["chainId", "address", "compiler.version"],
     );
-    assert.equal(error.message, "The input is invalid: chainId, address, compiler.version.");
+    assert.equal(
+      error.message,
+      "The input is invalid: chainId must be a positive integer; also address, compiler.version.",
+    );
     assert.deepEqual(issuesOf(error), [
       { field: "chainId", message: MESSAGES.chainId },
       { field: "address", message: MESSAGES.address },
@@ -597,7 +600,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
     });
     assert.equal(error.hint, ERROR_HINTS["invalid-input"]);
     assert.equal(error.docsUrl, reference.docsUrl);
-    assert.equal(error.message, "The input is invalid: chainId.");
+    assert.equal(error.message, "The input is invalid: chainId must be a positive integer.");
   });
 });
 
@@ -1264,7 +1267,10 @@ describe("rule: each libraries entry says why it is invalid and what to pass (R-
       "must be keyed by path:Name of compiler.input.sources",
     );
     assert.equal(error.hint, KEY_HINT);
-    assert.equal(error.message, "The input is invalid: libraries.1.");
+    assert.equal(
+      error.message,
+      "The input is invalid: libraries.1 must be keyed by path:Name of compiler.input.sources.",
+    );
     assertNotShown(error, "src/X.sol");
   });
 

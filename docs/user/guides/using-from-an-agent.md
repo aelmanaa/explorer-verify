@@ -158,7 +158,7 @@ explorer-verify verify --input-json verify-input.json --api-key --json
 ```
 
 ```text
-{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --api-key is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin.","hint":"Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false}}
+{"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --api-key is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin.","hint":"Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"--api-key","message":"is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin"}]}}}
 ```
 
 Errors, events, log lines, results and the command's output replace keys with `[redacted]`; see

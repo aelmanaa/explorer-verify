@@ -122,7 +122,8 @@ type ErrorDetails =
   string form. This matches the `error` object of the CLI's JSON envelope in R-AX-5 field for field.
   R-AX-5 gains `retryable` in the same change, so an agent can decide whether to retry without
   mapping codes itself. `toJSON()` never includes `cause`, the stack or `details`, so
-  `JSON.stringify(error)` is safe to print.
+  `JSON.stringify(error)` is safe to print. ([Decision 0049](0049-error-details-in-json-and-cli-hints.md)
+  adds the redacted `details`.)
 - `retryable` for `not-confirmed` means trying `checkStatus(details.handle)` again. A new
   `verify()` would submit the contract again.
 - Abort is not a catalogue error. The call rejects with `signal.reason` unchanged (see decision 1).

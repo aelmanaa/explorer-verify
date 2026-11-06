@@ -15,8 +15,8 @@ import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 const REPOSITORY = new URL("../../../../", import.meta.url);
 const PAGES = new URL("docs/user/reference/errors/", REPOSITORY);
 const RELEASED = new URL("../../released-error-codes.json", import.meta.url);
-// The labelled lines of a code page, in the order they appear.
-const LABELS = ["Cause:", "Fix:", "Default hint:", "Retryable:", "Exit code:"];
+// The labelled lines of a code page, in the order they appear. The CLI tests check "From the CLI:".
+const LABELS = ["Cause:", "Fix:", "Default hint:", "From the CLI:", "Retryable:", "Exit code:"];
 
 const codes: readonly string[] = ERROR_CODES;
 

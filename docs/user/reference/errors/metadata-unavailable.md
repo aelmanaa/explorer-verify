@@ -26,6 +26,8 @@ gateway, the metadata is not pinned where the gateway can find it. For `hash-mis
 Default hint: Read details.attempts. Call again later, or pass an ipfsGateway that holds the
 metadata.
 
+From the CLI: Run the command again later. --json lists each source tried and what it answered.
+
 Retryable: yes. A gateway or endpoint that failed may answer later. Nothing was sent to an
 explorer.
 

@@ -216,7 +216,9 @@ describe("blackbox #12: catalogue", () => {
         const json = error.toJSON();
         const keys = ["code", "message", "hint", "docsUrl", "retryable"];
         if (want.hasHandle) keys.push("handle");
+        keys.push("details");
         assert.deepEqual(Object.keys(json), keys);
+        assert.equal(json.details.code, code);
         assert.equal(json.code, code);
         assert.equal(json.message, error.message);
         assert.equal(json.hint, error.hint);
@@ -226,7 +228,7 @@ describe("blackbox #12: catalogue", () => {
         assert.equal(JSON.stringify(error), JSON.stringify(json));
       });
 
-      it("toJSON has no cause, stack or details even when a cause is given", () => {
+      it("toJSON has no cause or stack even when a cause is given, and keeps the details", () => {
         const withCause = new ExplorerVerifyError(detailsFor(code, "plain"), "failed", {
           secrets: [],
           cause: new Error("inner"),
@@ -235,7 +237,7 @@ describe("blackbox #12: catalogue", () => {
         assert.ok(typeof parsed === "object" && parsed !== null);
         assert.ok(!("cause" in parsed));
         assert.ok(!("stack" in parsed));
-        assert.ok(!("details" in parsed));
+        assert.ok("details" in parsed);
         assert.ok(!("name" in parsed));
       });
 

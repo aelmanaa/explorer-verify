@@ -15,6 +15,7 @@ import type {
   VerifyEvent,
 } from "explorer-verify";
 
+import { detailLines, shellLine, visible } from "./hints.ts";
 import { shows } from "./log-level.ts";
 import type { LineLevel, LogFormat, LogLevel } from "./log-level.ts";
 import { painter } from "./terminal.ts";
@@ -176,8 +177,8 @@ export interface Stderr {
   readonly onEvent: (event: VerifyEvent, level?: LineLevel) => void;
   /** Writes one log line, when its level is shown. */
   log: (level: LineLevel, message: string, fields?: LogFields) => void;
-  /** Writes the error of the run at level `error`. */
-  error: (error: ErrorJson) => void;
+  /** Writes the error of the run at level `error`, with the next command when there is one. */
+  error: (error: ErrorJson, next?: readonly string[]) => void;
   /** Starts the spinner, when the terminal rules allow it. */
   startSpinner: (label: string) => void;
   /** Stops the spinner and clears its line. */
@@ -254,7 +255,7 @@ export function createStderr(options: StderrOptions): Stderr {
     }
   };
 
-  const error = (json: ErrorJson): void => {
+  const error = (json: ErrorJson, next?: readonly string[]): void => {
     if (!shows("error", level)) {
       return;
     }
@@ -273,20 +274,30 @@ export function createStderr(options: StderrOptions): Stderr {
     if (handles.length > 0) {
       fields["handles"] = handles.join(", ");
     }
+    // The next command as one line, each word quoted for a shell when it needs it.
+    const command = next === undefined ? undefined : shellLine(next);
+    if (command !== undefined) {
+      fields["nextCommand"] = command;
+    }
     if (format === "json") {
       writeLine(jsonLine("error", json.message, "log", fields));
       return;
     }
+    // The issues and candidates a person needs to fix the input; other details stay in --json.
     const lines = [
-      `${paint("red", "error:")} ${json.message} (${json.code})`,
-      `  hint: ${json.hint}`,
+      `${paint("red", "error:")} ${visible(json.message)} (${json.code})`,
+      ...detailLines(json).map((line) => `  ${visible(line)}`),
+      `  hint: ${visible(json.hint)}`,
       `  docs: ${json.docsUrl}`,
     ];
     if (json.handle !== undefined) {
-      lines.push(`  handle: ${json.handle}`);
+      lines.push(`  handle: ${visible(json.handle)}`);
     }
     for (const line of handles) {
-      lines.push(`  handle: ${line}`);
+      lines.push(`  handle: ${visible(line)}`);
+    }
+    if (command !== undefined) {
+      lines.push(`  next: ${command}`);
     }
     writeLine(lines.join("\n"));
   };

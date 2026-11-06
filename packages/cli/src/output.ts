@@ -13,6 +13,8 @@ import type {
   VerifyResult,
 } from "explorer-verify";
 
+import { cliErrorJson, nextCommand, visible } from "./hints.ts";
+import type { HintContext } from "./hints.ts";
 import { painter } from "./terminal.ts";
 
 /** Why a dry run's backend was chosen, after its host. A backend the caller named needs no word. */
@@ -31,10 +33,53 @@ function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): st
     return `${head}lookup skipped, because ${result.backend} needs an API key and none is set. Nothing was submitted.\n`;
   }
   if (result.lookup === "none") {
-    return `${head}no match, so verify would submit. Nothing was submitted.\n`;
+    return `${head}no match, so a run without --dry-run would submit. Nothing was submitted.\n`;
   }
-  const line = `${head}${result.lookup} match already, so verify would not submit.\n`;
+  const line = `${head}${result.lookup} match already, so a run without --dry-run would not submit.\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
+}
+
+/**
+ * The envelope the CLI prints: the library's, with the CLI's hint in each error, and, for an
+ * error, `nextCommand` when one command resumes the run (R-AX-5, R-AX-10).
+ */
+export type CliEnvelope =
+  | Exclude<Envelope, { readonly error: ErrorJson }>
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `false`: the run failed. */
+      ok: false;
+      /** The error, with the CLI's hint. */
+      error: ErrorJson;
+      /** The command to run next, as an argv array, when one exists. */
+      nextCommand?: string[];
+    };
+
+/**
+ * The envelope the CLI prints for an outcome's envelope: each error's hint in the CLI's words, and
+ * `nextCommand` for an error that one command resumes. The order of keys is kept, and
+ * `nextCommand` comes last.
+ *
+ * @param envelope - The library's envelope.
+ * @param context - Whether the CLI built the error, where the run read its key, and whether it prints JSON.
+ * @returns The envelope to print.
+ */
+export function cliEnvelope(envelope: Envelope, context: HintContext): CliEnvelope {
+  if ("error" in envelope) {
+    const error = cliErrorJson(envelope.error, context);
+    const next = nextCommand(error, context);
+    return { ...envelope, error, ...(next === undefined ? {} : { nextCommand: next }) };
+  }
+  if (!("outcomes" in envelope.result)) {
+    return envelope;
+  }
+  const outcomes = envelope.result.outcomes.map((outcome) =>
+    "error" in outcome
+      ? { ...outcome, error: cliErrorJson(outcome.error, { ...context, own: false }) }
+      : outcome,
+  );
+  return { ...envelope, result: { ...envelope.result, outcomes } };
 }
 
 /**
@@ -45,7 +90,7 @@ function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): st
  * @param color - Whether stdout is coloured.
  * @returns The text, ending in a newline, or an empty string for an error without `--json`.
  */
-export function stdoutText(envelope: Envelope, json: boolean, color: boolean): string {
+export function stdoutText(envelope: CliEnvelope, json: boolean, color: boolean): string {
   if (json) {
     return `${JSON.stringify(envelope)}\n`;
   }
@@ -69,7 +114,7 @@ function resultText(
     return dryRunText(result, paint);
   }
   if (result.status === "failed") {
-    return `${paint("red", "failed")} on ${result.backend}: ${result.reason}\n`;
+    return `${paint("red", "failed")} on ${result.backend}: ${visible(result.reason)}\n`;
   }
   const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
@@ -87,7 +132,7 @@ function outcomeText(
     return resultText(outcome.result, paint);
   }
   const { error } = outcome;
-  const line = `${paint("red", error.code)} on ${outcome.backend}: ${error.message}\n`;
+  const line = `${paint("red", error.code)} on ${outcome.backend}: ${visible(error.message)}\n`;
   return error.handle === undefined ? line : `${line}Handle: ${error.handle}\n`;
 }
 

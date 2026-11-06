@@ -14,6 +14,9 @@ Fix: wait for the explorer to finish that verification, then call again.
 Default hint: Wait for the explorer to finish its current verification of this contract, then call
 again.
 
+From the CLI: Wait for the explorer to finish its current verification of this contract, then run
+the command again.
+
 Retryable: yes.
 
 Exit code: 5

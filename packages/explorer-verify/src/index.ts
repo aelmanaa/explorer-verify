@@ -5,10 +5,13 @@ export { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts"
 export type {
   AnyExplorerVerifyError,
   DetailsByCode,
+  DetailsJsonOf,
   DetailsOf,
   ErrorCode,
   ErrorDetails,
+  ErrorDetailsJson,
   ErrorJson,
+  ErrorJsonFields,
   ExitCode,
   ExplorerVerifyErrorOptions,
   InputIssue,

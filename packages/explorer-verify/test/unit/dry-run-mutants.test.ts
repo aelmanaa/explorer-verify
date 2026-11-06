@@ -88,7 +88,7 @@ describe("dryRun logs what verify() would do (R-AX-8, R-DX-5)", () => {
     const lines = await infoLines(keyed(undefined), KEYED);
     assert.deepEqual(lines.at(-1), {
       message:
-        "Dry run: etherscan-v2 holds no match, so verify() would submit. Nothing was submitted.",
+        "Dry run: etherscan-v2 holds no match, so a verification would submit the source. Nothing was submitted.",
       fields: { backend: "etherscan-v2", routedBy: "api-url" },
     });
   });
@@ -97,7 +97,7 @@ describe("dryRun logs what verify() would do (R-AX-8, R-DX-5)", () => {
     const lines = await infoLines(keyed("partial"), KEYED);
     assert.deepEqual(lines.at(-1), {
       message:
-        "Dry run: etherscan-v2 already holds the contract (partial match), so verify() would not submit.",
+        "Dry run: etherscan-v2 already holds the contract (partial match), so a verification would not submit.",
       fields: { backend: "etherscan-v2", routedBy: "api-url" },
     });
   });

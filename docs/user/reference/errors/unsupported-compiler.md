@@ -24,6 +24,9 @@ needs the ZKsync verification tooling for now.
 Default hint: Only Solidity compiled with solc is supported. Verify this contract with its
 compiler's own tooling.
 
+From the CLI: Only Solidity compiled with solc is supported. Verify this contract with its
+compiler's own tooling.
+
 For a zksolc field, the hint says instead that zksolc (EraVM) builds are not supported and that a
 contract compiled with plain solc verifies with the solc build-info.
 

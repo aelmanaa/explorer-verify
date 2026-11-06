@@ -831,7 +831,7 @@ describe("verify(): time budget (R-FLOW-2, R-FLOW-4, R-FLOW-5)", () => {
       options: { timeoutMs: 2 ** 40, pollIntervalMs: 2 ** 40 },
     });
     const error = errorOf(r.outcome, "not-confirmed");
-    assert.ok(error.message.includes(`${String(MAX_TIMER_MS)} ms`), error.message);
+    assert.ok(error.message.includes(`${String(MAX_TIMER_MS / 1_000)} s`), error.message);
     assert.ok(r.elapsed >= MAX_TIMER_MS);
   });
 });
@@ -1357,7 +1357,7 @@ describe("verify(): status polls that fail (R-FLOW-4, R-FLOW-5)", () => {
       { options: { timeoutMs: 2_500, pollIntervalMs: 1_000 } },
     );
     const error = errorOf(r.outcome, "not-confirmed");
-    assert.ok(error.message.includes("2500 ms budget"), error.message);
+    assert.ok(error.message.includes("2.5 s budget"), error.message);
     assert.equal(
       error.cause instanceof Error && Reflect.get(error.cause, "code"),
       "unexpected-response",
@@ -1423,7 +1423,7 @@ describe("verify(): status polls that fail (R-FLOW-4, R-FLOW-5)", () => {
     assert.ok(!(error.cause instanceof ExplorerVerifyError));
     assert.equal(error.cause.name, "ExplorerVerifyError");
     assert.equal(Reflect.get(error.cause, "code"), "timeout");
-    assert.ok(error.cause.message.includes("did not finish within the 5000 ms budget"));
+    assert.ok(error.cause.message.includes("did not finish within the 5 s budget"));
   });
 });
 
@@ -1801,7 +1801,7 @@ describe("killers", () => {
     const error = errorOf(r.outcome, "not-confirmed");
     assert.equal(r.events.filter((event) => event.type === "verify.poll").length, 39);
     assert.equal(r.elapsed, 120_000);
-    assert.ok(error.message.includes("120000 ms"), error.message);
+    assert.ok(error.message.includes("120 s"), error.message);
   });
 
   it("K4b uses the same defaults when options are left out entirely", async (t) => {
@@ -1872,7 +1872,7 @@ describe("killers", () => {
       { options: { timeoutMs: 10_000, pollIntervalMs: 3_000 } },
     );
     const error = errorOf(r.outcome, "not-confirmed");
-    assert.ok(error.message.includes("10000 ms budget"), error.message);
+    assert.ok(error.message.includes("10 s budget"), error.message);
   });
 
   it("K8 uses the job's own match for already-verified, with no extra lookup", async (t) => {

@@ -15,6 +15,8 @@ Foundry or Hardhat helper. For `no-code`, check the chain ID, the address and th
 
 Default hint: Build the input from the build files with buildVerifyInput instead.
 
+From the CLI: Pass the build files with --input instead.
+
 Retryable: no. Nothing was sent to an explorer.
 
 Exit code: 2

@@ -37,14 +37,16 @@ and `hardhat verify` read the project themselves.
   loads each with a dynamic `import()` only when its option is given. The core package gains no
   dependency (R-RUN-1).
 - A helper's error names the library's options, such as `outDir` or `options.contract`, and
-  `details` fields. The CLI rewrites the issue fields of `invalid-input` and the hint of any code
-  to its own flags, and lists the issues in the message, because the envelope has no `details`;
-  the candidates of `incomplete-input` join its message. Its `details.field` keeps the library's
-  name, because its values are a closed set. A test feeds every hint of both helpers through the
-  rewrite and fails on a library name left in it. An `outDir` issue when `--out-dir` was not
+  `details` fields. The CLI rewrites the issue fields of `invalid-input` to its own flags. The
+  envelope carries the issues and the candidates in `details`, and the stderr error block lists
+  them ([decision 0049](0049-error-details-in-json-and-cli-hints.md), which replaced the first
+  form: the issues listed in the message and the candidates joined to it). The hint goes through
+  the CLI's one hint layer, which rewrites the library's words. Its `details.field` keeps the
+  library's name, because its values are a closed set. A test feeds every hint of both helpers
+  through the rewrite and fails on a library name left in it. An `outDir` issue when `--out-dir` was not
   given names the project flag and the default folder, `out` or `artifacts`.
-- Any `invalid-input` envelope that carries the library's generic hint, which names
-  `details.issues`, gets the CLI's usage hint.
+- Any envelope that carries the library's default hint gets the CLI's hint for its code
+  (decision 0049).
 - A helper's message may list file names under the project folder, such as the artifacts that
   match a contract name. These are names the helper found, not values the user typed, so the CLI
   rule that an issue never repeats a typed path or value still holds.

@@ -146,7 +146,7 @@ function rejectionOf(value: unknown): ExplorerVerifyError {
   return caught;
 }
 
-function issuesOf(error: ExplorerVerifyError): InputIssue[] {
+function issuesOf(error: ExplorerVerifyError): readonly InputIssue[] {
   assert.equal(error.code, "invalid-input");
   assert.equal(error.details.code, "invalid-input");
   if (error.details.code !== "invalid-input") return [];

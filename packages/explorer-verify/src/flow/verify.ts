@@ -18,6 +18,7 @@ import { endpointSecrets } from "../http/rpc.ts";
 import type { Endpoint } from "../http/rpc.ts";
 import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-args.ts";
 import { validateInput } from "../input/validate.ts";
+import { budgetText } from "../internal/duration.ts";
 import { unknownKeys } from "../internal/known-keys.ts";
 import { createObserver } from "../observe.ts";
 import type { Observer } from "../observe.ts";
@@ -296,7 +297,7 @@ export async function bounded<T extends object>(
         reject(
           newError(
             { code: "timeout", backend: name, timeoutMs: budget.timeoutMs },
-            `Loading ${what} did not finish within the ${String(budget.timeoutMs)} ms budget.`,
+            `Loading ${what} did not finish within the ${budgetText(budget.timeoutMs)} budget.`,
             // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message holds only the code's name and the budget, never a key.
             { secrets: [] },
           ),
@@ -1464,7 +1465,7 @@ function notConfirmed(
   const { backend, settings, ctx } = call;
   const reason =
     why === "budget"
-      ? `the ${String(settings.timeoutMs)} ms budget ran out`
+      ? `the ${budgetText(settings.timeoutMs)} budget ran out`
       : `${String(MAX_POLL_FAILURES)} status polls in a row failed`;
   const message = `The verification of job ${handle.jobId} on ${backend.name} is not confirmed: ${reason} before the job ended, and a last lookup ${lookup}.`;
   return newError(

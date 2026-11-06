@@ -17,6 +17,9 @@ in an issue.
 Default hint: Do not retry automatically. Check the contract on the explorer and report
 details.excerpt.
 
+From the CLI: Do not retry automatically. Check the contract on the explorer, and report the excerpt
+that --json prints.
+
 Retryable: no.
 
 Exit code: 6

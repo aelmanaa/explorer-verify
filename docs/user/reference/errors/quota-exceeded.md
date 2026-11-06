@@ -18,6 +18,9 @@ Fix: call again after the explorer resets the limit, or use a key on a plan with
 Default hint: The key's daily limit is spent. Call again after the explorer resets the limit, or
 use a key on a plan with a higher limit.
 
+From the CLI: The key's daily limit is spent. Run the command again after the explorer resets the
+limit, or use a key on a plan with a higher limit.
+
 Retryable: no.
 
 Exit code: 3

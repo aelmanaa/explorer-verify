@@ -580,10 +580,7 @@ describe("blockscout submit: the empty answer right after a deployment (R-FLOW-7
     const s = setup([EMPTY()], { budgetMs: 4_000, pollIntervalMs: 5_000 });
     const error = await errorOf(drive(t, blockscout.submit(input(), s.ctx)));
     assert.deepEqual(error.details, { code: "timeout", backend: "blockscout", timeoutMs: 4_000 });
-    assert.equal(
-      error.message,
-      "Blockscout gave no job id after 1 submit, within the 4000 ms budget.",
-    );
+    assert.equal(error.message, "Blockscout gave no job id after 1 submit, within the 4 s budget.");
   });
 
   it("rejects with the signal's reason when aborted during the wait, with no further lookup or submit (R-FLOW-6)", async (t) => {

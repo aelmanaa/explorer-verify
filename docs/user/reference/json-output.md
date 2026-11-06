@@ -68,7 +68,11 @@ The envelope has one of three forms, a fourth for a dry run and a fifth for
     "hint": "Call checkStatus with details.handle later to continue polling.",
     "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
     "retryable": true,
-    "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000"
+    "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
+    "details": {
+      "code": "not-confirmed",
+      "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000"
+    }
   }
 }
 ```
@@ -79,9 +83,14 @@ The rules:
   and no `error`.
 - `result` is a `VerifyResult` with only the fields its status declares. `explorerUrl` is absent
   when the library knows no public page for the contract.
-- `error` is the error's `toJSON()`: `code`, `message`, `hint`, `docsUrl`, `retryable` and, when the
-  error carries one, `handle` in its one-line form. It never holds `cause`, the stack or `details`.
+- `error` is the error's `toJSON()`: `code`, `message`, `hint`, `docsUrl`, `retryable`, `handle` in
+  its one-line form when the error carries one, and `details`. It never holds `cause` or the stack.
   `docsUrl` is the code's own page. [Errors](errors/index.md) lists every code.
+- `details` holds the same fields as the error's `details` in the library, redacted, with each
+  handle in its one-line form. `details.code` equals `code`, so checking `code` tells you which
+  fields `details` has: `issues` for `invalid-input`, `candidates` for `incomplete-input`,
+  `retryAfterMs` for `rate-limited`, `status` and `excerpt` for `unexpected-response`. Each code's
+  page lists its fields, and the JSON Schema checks them.
 - A `cancelled` error of a CLI run on several backends also holds `handles`: one
   `{ "backend", "handle" }` for each backend that accepted a submission and had not ended before
   the cancel, in `--backend` order. `handle` is then set only when exactly one backend submitted.
@@ -175,6 +184,63 @@ returns a valid error object with a code this copy knows. Its fields are checked
 any other error's. Its handle must have a known backend, a chain ID in decimal digits, `0x` and 40
 hex digits, and a job id of letters, digits, `_` and `-` (or `[redacted]`); any other handle gives
 `invalid-input`.
+
+An error object read this way, from another copy or from a server handler's answer, must hold
+`details` with its own `code`. The details are rebuilt from the fields its code declares: every
+string redacted again and cut to 1,000 characters, every excerpt to 300 and every list to 50
+items, a metadata hash kept only in the shape of one, and a handle taken from the checked
+`handle` or `handles`. An optional number that is not finite is left out; a required one gives
+`invalid-input`, so the JSON never holds `null` for a number. The message and the hint are cut to
+2,000 characters, and `docsUrl` is rebuilt from the code. An error object without `details`, or a
+`not-confirmed`, `job-not-found` or `unknown-state` error without `handle`, gives
+`invalid-input`.
+
+### From the CLI
+
+The CLI prints the same envelope with two changes for an error:
+
+- `error.hint` names the CLI's flags, environment variables and commands, not the library's
+  options. For example, `missing-api-key` on Etherscan says to set `ETHERSCAN_API_KEY` or pass
+  `--api-key-file`. Each error page gives its CLI hint.
+- `nextCommand`, after `error`, is the command that resumes the run as it is, as an argument
+  array: for `not-confirmed`, and for `cancelled` with one handle. It runs `explorer-verify status`
+  with the handle, which never submits, and adds `--json` when the run had it. It holds no key, RPC
+  URL or file path. It is left out when the command would need more than that: a handle that does
+  not parse, such as one whose job id was redacted; a handle of `etherscan-compatible`, which needs
+  the API URL; and a run that read its key from `--api-key-file` or `--api-key-stdin`, whose hint
+  then says to add the same key flag.
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "error": {
+    "code": "not-confirmed",
+    "message": "...",
+    "hint": "The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000 later to continue polling, or raise --timeout. Running verify again would submit again.",
+    "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
+    "retryable": true,
+    "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
+    "details": {
+      "code": "not-confirmed",
+      "handle": "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000"
+    }
+  },
+  "nextCommand": [
+    "explorer-verify",
+    "status",
+    "ev1:sourcify:11155111:0x5fbdb2315678afecb367f032d93f642f64180aa3:550e8400-e29b-41d4-a716-446655440000",
+    "--json"
+  ]
+}
+```
+
+Without `--json`, stderr shows the same hint, and the next command on a `next:` line, each word
+that a shell would read otherwise in single quotes. A control character in any value shows as
+`\uXXXX`. An
+`invalid-input` error lists each issue the message does not already state on an `issue:` line, and
+`incomplete-input` lists the candidate contracts or the missing sources. The other details are in
+`--json` only.
 
 ## JSON Schema
 

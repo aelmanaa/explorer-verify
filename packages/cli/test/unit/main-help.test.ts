@@ -168,7 +168,7 @@ describe("main: suggestions (R-AX-10)", () => {
     assert.equal(Reflect.get(error, "code"), "invalid-input");
     assert.equal(
       Reflect.get(error, "hint"),
-      "Did you mean verify? Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.",
+      "Did you mean verify? Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
     );
     assert.match(result.stderr, /hint: Did you mean verify\?/);
   });

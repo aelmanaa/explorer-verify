@@ -14,6 +14,7 @@ import type {
 } from "explorer-verify";
 
 import type { CommandSpec, OptionValue } from "./arguments.ts";
+import { ownHint } from "./hints.ts";
 import type { InputStream, RouteOptions } from "./keys.ts";
 import type { LineLevel } from "./log-level.ts";
 import type { Environment } from "./terminal.ts";
@@ -121,17 +122,18 @@ export type Command = CommandFields &
   );
 
 /** The hint of a usage error, and of an `invalid-input` error with the library's generic hint. */
-export const USAGE_HINT: string =
-  "Fix the arguments the message names, then run the command again. explorer-verify --help lists the commands and options.";
+const USAGE_HINT: string =
+  "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.";
 
 /** The most issues a usage error lists; the message counts the rest. */
 const MAX_ISSUES = 20;
 
 /**
  * The `invalid-input` error of a command line (R-AX-5): exit code 2. The message lists the first
- * {@link MAX_ISSUES} issues, because the envelope has no `details`, and counts the rest. Issues
- * name options, never their values. A suggestion, one of the CLI's own names, leads the hint
- * (R-AX-10).
+ * {@link MAX_ISSUES} issues, so the error line alone says what to fix, and counts the rest; the
+ * envelope also holds them in `details.issues`. Issues name options, never their values. A
+ * suggestion, one of the CLI's own names, leads the hint (R-AX-10). The CLI keeps this hint.
+ *
  *
  * @param issues - The problems found.
  * @param suggestion - The closest name to a mistyped command or option, such as `--dry-run`.
@@ -145,13 +147,15 @@ export function usageError(
   const left = issues.length - shown.length;
   const list = shown.map((issue) => `${issue.field} ${issue.message}`).join("; ");
   const more = left > 0 ? `; and ${String(left)} more` : "";
-  return new ExplorerVerifyError(
-    { code: "invalid-input", issues: shown },
-    `The command line is invalid: ${list}${more}.`,
-    {
-      secrets: [],
-      hint: suggestion === undefined ? USAGE_HINT : `Did you mean ${suggestion}? ${USAGE_HINT}`,
-    },
+  return ownHint(
+    new ExplorerVerifyError(
+      { code: "invalid-input", issues: shown },
+      `The command line is invalid: ${list}${more}.`,
+      {
+        secrets: [],
+        hint: suggestion === undefined ? USAGE_HINT : `Did you mean ${suggestion}? ${USAGE_HINT}`,
+      },
+    ),
   );
 }
 

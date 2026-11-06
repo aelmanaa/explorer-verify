@@ -339,12 +339,10 @@ describe("ExplorerVerifyError", () => {
   });
 
   it("copies details, so a later change to the input does not change the error", () => {
-    const details: ErrorDetails = {
-      code: "invalid-input",
-      issues: [{ field: "chainId", message: "must be a positive integer" }],
-    };
+    const issues = [{ field: "chainId", message: "must be a positive integer" }];
+    const details: ErrorDetails = { code: "invalid-input", issues };
     const error = newError(details, "message", { secrets: [] });
-    details.issues.push({ field: "address", message: "late" });
+    issues.push({ field: "address", message: "late" });
     assert.ok(error.details.code === "invalid-input");
     assert.equal(error.details.issues.length, 1);
   });
@@ -526,10 +524,21 @@ describe("ExplorerVerifyError.toJSON", () => {
       hint: "Fix the fields listed in details.issues, then call again.",
       docsUrl: docsUrlOf("invalid-input"),
       retryable: false,
+      details: {
+        code: "invalid-input",
+        issues: [{ field: "chainId", message: "must be a positive integer" }],
+      },
     };
     const json = invalidInput().toJSON();
     assert.deepEqual(json, expected);
-    assert.deepEqual(Object.keys(json), ["code", "message", "hint", "docsUrl", "retryable"]);
+    assert.deepEqual(Object.keys(json), [
+      "code",
+      "message",
+      "hint",
+      "docsUrl",
+      "retryable",
+      "details",
+    ]);
   });
 
   it("adds the handle in its one-line form for not-confirmed (R-AX-5, R-FLOW-5)", () => {
@@ -541,6 +550,7 @@ describe("ExplorerVerifyError.toJSON", () => {
       "docsUrl",
       "retryable",
       "handle",
+      "details",
     ]);
     assert.equal(
       json.handle,
@@ -553,7 +563,10 @@ describe("ExplorerVerifyError.toJSON", () => {
     it(`${code}: has the R-AX-5 fields${carries ? " and the handle string" : " and no handle"} (R-AX-5)`, () => {
       const json = newError(SAMPLE_DETAILS[code], "m", { secrets: [] }).toJSON();
       const keys = ["code", "message", "hint", "docsUrl", "retryable"];
-      assert.deepEqual(Object.keys(json), carries ? [...keys, "handle"] : keys);
+      assert.deepEqual(
+        Object.keys(json),
+        carries ? [...keys, "handle", "details"] : [...keys, "details"],
+      );
       if (carries) {
         assert.equal(
           json.handle,
@@ -563,12 +576,12 @@ describe("ExplorerVerifyError.toJSON", () => {
     });
   }
 
-  it("leaves out cause, stack and details, so JSON.stringify is safe to print (R-SEC-1, R-AX-9)", () => {
+  it("leaves out cause and stack, so JSON.stringify is safe to print (R-SEC-1, R-AX-9)", () => {
     const error = notConfirmed();
     const parsed: unknown = JSON.parse(JSON.stringify(error));
     assert.deepEqual(parsed, error.toJSON());
     const keys = Object.keys(error.toJSON());
-    for (const left of ["cause", "stack", "details", "name"]) {
+    for (const left of ["cause", "stack", "name"]) {
       assert.ok(!keys.includes(left), `toJSON() holds ${left}`);
     }
     assert.ok(!JSON.stringify(error).includes("timed out"), "the cause reached the JSON");
@@ -1109,13 +1122,16 @@ describe("cancelled (R-AX-7)", () => {
   it("has no handle in details or toJSON when the cancel came before a submission was accepted (R-AX-5)", () => {
     const error = newError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
     assert.deepEqual(error.details, { code: "cancelled" });
-    assert.deepEqual(Object.keys(error.toJSON()), [
+    const json = error.toJSON();
+    assert.deepEqual(Object.keys(json), [
       "code",
       "message",
       "hint",
       "docsUrl",
       "retryable",
+      "details",
     ]);
+    assert.deepEqual(json.details, { code: "cancelled" });
   });
 
   it("carries the handle, redacted, when a submission was accepted before the cancel (R-AX-5)", () => {

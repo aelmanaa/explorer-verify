@@ -348,7 +348,7 @@ describe("--dry-run needs no target and says where it would submit (R-AX-8)", ()
     const text = await run(t, [...BARE, "--dry-run", "--backend", "sourcify"]);
     assert.equal(
       text.stdout,
-      "dry run on sourcify at sourcify.dev: no match, so verify would submit. Nothing was submitted.\n",
+      "dry run on sourcify at sourcify.dev: no match, so a run without --dry-run would submit. Nothing was submitted.\n",
     );
     const fallback = await run(t, [...UNLISTED, FALLBACK, "--dry-run"]);
     assert.match(fallback.stdout, /^dry run on sourcify at sourcify\.dev, the Sourcify fallback:/);

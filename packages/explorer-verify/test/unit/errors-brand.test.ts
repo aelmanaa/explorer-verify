@@ -325,7 +325,14 @@ describe("ExplorerVerifyError.is and instanceof (R-DX-3, decision 0044)", () => 
     assert.deepEqual(Object.getOwnPropertySymbols(Object.assign({}, error)), []);
     const parsed: unknown = JSON.parse(JSON.stringify(error));
     assert.ok(typeof parsed === "object" && parsed !== null);
-    assert.deepEqual(Object.keys(parsed), ["code", "message", "hint", "docsUrl", "retryable"]);
+    assert.deepEqual(Object.keys(parsed), [
+      "code",
+      "message",
+      "hint",
+      "docsUrl",
+      "retryable",
+      "details",
+    ]);
   });
 
   it("recognises an error built by a second copy of the package, with is() and instanceof", async () => {
@@ -400,17 +407,19 @@ describe("ExplorerVerifyError hint and JSON form (R-DX-3, R-AX-5)", () => {
     assert.ok(!error.hint.includes(key));
   });
 
-  it("pins the toJSON() form: code, message, hint, docsUrl, retryable, then handle", () => {
+  it("pins the toJSON() form: code, message, hint, docsUrl, retryable, handle, then details", () => {
     const error = newError({ code: "not-confirmed", handle: HANDLE }, "Still verifying.", {
       secrets: [],
     });
+    const line = `ev1:sourcify:11155111:${HANDLE.address}:${HANDLE.jobId}`;
     assert.deepEqual(error.toJSON(), {
       code: "not-confirmed",
       message: "Still verifying.",
       hint: ERROR_HINTS["not-confirmed"],
       docsUrl: docsUrlOf("not-confirmed"),
       retryable: true,
-      handle: `ev1:sourcify:11155111:${HANDLE.address}:${HANDLE.jobId}`,
+      handle: line,
+      details: { code: "not-confirmed", handle: line },
     });
   });
 });

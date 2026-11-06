@@ -15,6 +15,9 @@ message. Leave out your API key.
 Default hint: This is a bug in explorer-verify. Report it with the command you ran, without your
 API key.
 
+From the CLI: This is a bug in explorer-verify. Report it with the command you ran, without your API
+key.
+
 Retryable: no.
 
 Exit code: 6

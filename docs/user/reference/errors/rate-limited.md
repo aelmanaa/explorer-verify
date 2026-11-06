@@ -16,6 +16,8 @@ request rate if this happens often.
 
 Default hint: Wait details.retryAfterMs, or a few seconds when it is not set, then call again.
 
+From the CLI: The explorer limited the requests. Wait a few seconds, then run the command again.
+
 Retryable: yes.
 
 Exit code: 5

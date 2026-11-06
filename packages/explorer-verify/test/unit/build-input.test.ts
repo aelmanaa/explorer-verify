@@ -150,7 +150,7 @@ function assertFails(
   return error;
 }
 
-function candidatesOf(error: ExplorerVerifyError): string[] {
+function candidatesOf(error: ExplorerVerifyError): readonly string[] {
   assert.ok(error.details.code === "incomplete-input");
   return error.details.candidates;
 }

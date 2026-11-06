@@ -16,6 +16,7 @@
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ErrorDetails, ExplorerVerifyError } from "../errors.ts";
+import { budgetText } from "../internal/duration.ts";
 import { readOwn } from "../internal/read-fields.ts";
 import { SILENT_OBSERVER } from "../observe.ts";
 import type { Observer } from "../observe.ts";
@@ -986,7 +987,7 @@ function giveUp(
 function timeoutError(call: Call, target: string, timeoutMs: number): ExplorerVerifyError {
   return newError(
     { code: "timeout", backend: call.backend, timeoutMs },
-    `${target} did not finish within the ${String(timeoutMs)} ms budget.`,
+    `${target} did not finish within the ${budgetText(timeoutMs)} budget.`,
     { secrets: call.secrets },
   );
 }

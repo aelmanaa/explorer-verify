@@ -101,11 +101,14 @@ describe("bin: signals during a poll (R-AX-7)", { concurrency: true }, () => {
       assert.deepEqual(envelope["error"], {
         code: "cancelled",
         message: `The run was cancelled by ${signal}.`,
-        hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
+        hint: `Resume the accepted submission with explorer-verify status ${HANDLE} instead of submitting again.`,
         docsUrl: "https://aelmanaa.github.io/explorer-verify/reference/errors/cancelled",
         retryable: false,
         handle: HANDLE,
+        details: { code: "cancelled", handle: HANDLE },
       });
+      // The next command resumes the job and never submits.
+      assert.deepEqual(envelope["nextCommand"], ["explorer-verify", "status", HANDLE, "--json"]);
     });
   }
 

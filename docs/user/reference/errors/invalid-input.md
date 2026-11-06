@@ -22,6 +22,9 @@ returned it.
 
 Default hint: Fix the fields listed in details.issues, then call again.
 
+From the CLI: Fix what the message names, and each issue listed under it, then run the command
+again. explorer-verify --help lists every option.
+
 Retryable: no. Nothing was sent to an explorer.
 
 Exit code: 2
