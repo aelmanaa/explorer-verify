@@ -116,6 +116,13 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     backend: "etherscan-v2",
     excerpt: `Error! ${DUMMY_KEY}`,
   },
+  "handler-refused": {
+    code: "handler-refused",
+    backend: "etherscan-v2",
+    status: 403,
+    handlerCode: `chain-not-allowed ${DUMMY_KEY}`,
+    excerpt: `Refused. ${DUMMY_KEY}`,
+  },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -244,6 +251,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
     retryable: false,
     exitCode: 6,
+  },
+  "handler-refused": {
+    hint: "Do not retry. Fix the createVerifyHandler option or the request that details.handlerCode names.",
+    retryable: false,
+    exitCode: 2,
   },
 };
 
@@ -382,7 +394,31 @@ describe("ExplorerVerifyError", () => {
       case "constructor-args-unavailable":
       case "proxy-link-pending":
       case "proxy-link-unknown-state":
+      case "handler-refused":
         assert.fail(`unexpected code ${details.code}`);
+    }
+  });
+
+  it("keeps a handler-refused handlerCode only in the shape of a refusal code (R-SEC-1)", () => {
+    const error = newError(LEAKY_DETAILS["handler-refused"], "m", { secrets: [DUMMY_KEY] });
+    assert.ok(ExplorerVerifyError.is(error, "handler-refused"));
+    assert.equal(error.details.handlerCode, "");
+    for (const [value, kept] of [
+      ["chain-not-allowed", "chain-not-allowed"],
+      ["Chain-Not-Allowed", ""],
+      ["x".repeat(41), ""],
+      [7, ""],
+    ] as const) {
+      const details: ErrorDetails = {
+        code: "handler-refused",
+        backend: "etherscan-v2",
+        status: 403,
+        handlerCode: "",
+        excerpt: "",
+      };
+      Reflect.set(details, "handlerCode", value);
+      const copy = newError(details, "m", { secrets: [] }).details;
+      assert.equal(copy.code === "handler-refused" ? copy.handlerCode : undefined, kept);
     }
   });
 

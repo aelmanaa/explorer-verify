@@ -388,9 +388,9 @@ routed to Etherscan with no key throws `missing-api-key` before any request. Pas
 
 The handler's answer comes from the handler's URL, not from `api.etherscan.io`. `verify()` reads it
 as Etherscan's answer, because `handlerUrl` chose that URL. A redirect from the handler still ends
-the call with `unexpected-response`. So does a refusal of the handler, such as
-`chain-not-allowed`, and its message names that code. Log lines, events and errors name the
-handler's URL for these requests.
+the call with `unexpected-response`. A refusal of the handler, such as `chain-not-allowed`, ends it
+with [`handler-refused`](../reference/errors/handler-refused.md), whose hint names the option to
+change. Log lines, events and errors name the handler's URL for these requests.
 
 For the Next.js route, the handler URL is the path `/api/verify`:
 

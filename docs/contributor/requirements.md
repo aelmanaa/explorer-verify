@@ -231,7 +231,10 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
 - **R-SRV-5** The client side uses the handler by passing its URL as `VerifyOptions.handlerUrl`.
   Each Etherscan request then goes to the handler with no key, and no other code path changes
   between direct and proxied use. An injected `fetch` alone never turns off the missing-key check
-  ([decision 0046](decisions/0046-handler-url-and-keyed-backend-names.md)).
+  ([decision 0046](decisions/0046-handler-url-and-keyed-backend-names.md)). Each refusal code of
+  the handler maps to one error code; a refusal that holds until the handler's options change is
+  `handler-refused`, not retryable
+  ([decision 0048](decisions/0048-handler-refusals-map-to-error-codes.md)).
 
 ### Developer experience (R-DX)
 
@@ -362,7 +365,7 @@ CLI:
   | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | 0    | `verified` or `already-verified`                                                                                                                                                                                                                                                                        |
   | 1    | `failed`: the explorer definitively rejected the submission                                                                                                                                                                                                                                             |
-  | 2    | Usage or input error, including a chain the backend does not support; nothing was submitted for verification                                                                                                                                                                                            |
+  | 2    | Usage or input error, including a chain the backend does not support; nothing was submitted for verification. `handler-refused`: the caller's server handler refused the request until its options change                                                                                               |
   | 3    | Missing, invalid or under-privileged API key                                                                                                                                                                                                                                                            |
   | 4    | No verdict yet. `not-confirmed`: still pending at the time budget; the output carries the handle. `verification-inconclusive`: the job ended without a verdict; no handle, call `verify()` again (decision 0011). `proxy-link-pending`: a proxy link still pending; no handle, call `linkProxy()` again |
   | 5    | Network or explorer unavailable after retries                                                                                                                                                                                                                                                           |

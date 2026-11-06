@@ -53,6 +53,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "constructor-args-unavailable": { exit: 2, retryable: false },
   "proxy-link-pending": { exit: 4, retryable: true },
   "proxy-link-unknown-state": { exit: 6, retryable: false },
+  "handler-refused": { exit: 2, retryable: false },
 };
 
 const HANDLE: Handle = {
@@ -123,6 +124,13 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
   "proxy-link-unknown-state": (text) => ({
     code: "proxy-link-unknown-state",
     backend: "sourcify",
+    excerpt: text,
+  }),
+  "handler-refused": (text) => ({
+    code: "handler-refused",
+    backend: "etherscan-v2",
+    status: 403,
+    handlerCode: text,
     excerpt: text,
   }),
 };

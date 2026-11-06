@@ -16,7 +16,7 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
-import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
+import type { AnyExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/handle.ts";
 import { keyFor, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
@@ -462,6 +462,6 @@ function unexpected(
   answer: Answer,
   what: string,
   whole = false,
-): ExplorerVerifyError<"unexpected-response"> {
+): AnyExplorerVerifyError {
   return unexpectedAnswer(ctx, name, LABEL, answer, what, whole);
 }

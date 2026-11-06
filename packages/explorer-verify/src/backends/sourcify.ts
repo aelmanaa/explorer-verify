@@ -353,20 +353,12 @@ function contractPath(kind: "contract" | "verify", target: Target): string {
 }
 
 /** `unexpected-response` for an answer to `what`, such as `the lookup`, that the client does not know. */
-function unrecognised(
-  ctx: Context,
-  answer: Answer,
-  what: string,
-): ExplorerVerifyError<"unexpected-response"> {
+function unrecognised(ctx: Context, answer: Answer, what: string): AnyExplorerVerifyError {
   return unexpectedAnswer(ctx, NAME, LABEL, answer, what);
 }
 
 /** `unexpected-response` whose whole message is `message`. */
-function unexpected(
-  ctx: Context,
-  answer: Answer,
-  message: string,
-): ExplorerVerifyError<"unexpected-response"> {
+function unexpected(ctx: Context, answer: Answer, message: string): AnyExplorerVerifyError {
   return unexpectedAnswer(ctx, NAME, LABEL, answer, message, true);
 }
 

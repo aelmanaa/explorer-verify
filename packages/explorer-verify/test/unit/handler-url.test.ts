@@ -4,9 +4,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import type { Answer } from "../../src/backends/common.ts";
+import { newError } from "../../src/error-hints.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { settingsOf, startBudget, withHandler } from "../../src/flow/verify.ts";
-import { checkHandlerUrl, sentUrl, throughHandler } from "../../src/http/handler-url.ts";
+import {
+  checkHandlerUrl,
+  resolveHandler,
+  sentUrl,
+  throughHandler,
+} from "../../src/http/handler-url.ts";
 import type { VerifyOptions } from "../../src/types.ts";
 import { onPage } from "../helpers/page.ts";
 import { resolveRoute } from "../helpers/route.ts";
@@ -248,5 +255,95 @@ describe("settingsOf and withHandler: handlerUrl (decision 0046, R-SEC-1)", () =
   it("keeps a Routescan key next to handlerUrl: the handler serves Etherscan only", () => {
     const settings = settingsOf({ handlerUrl: HANDLER, apiKeys: { routescan: ROUTESCAN_KEY } });
     assert.deepEqual(settings.apiKeys(), { routescan: ROUTESCAN_KEY });
+  });
+});
+
+/** A refusal body of the handler with `code`. */
+function refusal(code: string): string {
+  return JSON.stringify({ status: "0", message: "NOTOK", result: "Refused.", code });
+}
+
+/** The `unexpected-response` the HTTP layer throws after its retries, with `attempts` when set. */
+function thrown(excerpt: string, attempts?: number): ExplorerVerifyError {
+  return newError(
+    {
+      code: "unexpected-response",
+      backend: "etherscan-v2",
+      status: 502,
+      excerpt,
+      ...(attempts === undefined ? {} : { attempts }),
+    },
+    "m",
+    { secrets: [] },
+  );
+}
+
+/** An answer of the handler that carries `code`. */
+function answer(status: number, code: string): Answer {
+  return { status, text: refusal(code), fields: new Map(Object.entries({ code })) };
+}
+
+describe("the errors of the handler's answers (decision 0048)", () => {
+  const handler = resolveHandler(
+    { handlerUrl: HANDLER, apiKeys: () => ({}), keySecrets: () => [] },
+    ETHERSCAN,
+  );
+
+  it("leaves a rate-limited code to the HTTP layer, which throws for a 429 before reading it", () => {
+    const error = handler.answerError(
+      "etherscan-v2",
+      answer(429, "rate-limited"),
+      "the lookup",
+      [],
+    );
+    assert.equal(error.code, "unexpected-response");
+    assert.equal(error.retryable, true);
+    assert.doesNotMatch(error.message, /rate-limited/);
+  });
+
+  it("takes the attempts from the thrown error's details, or 1 when it has none", () => {
+    for (const attempts of [3, undefined]) {
+      const error = handler.annotate(thrown(refusal("upstream-error"), attempts), []);
+      assert.ok(ExplorerVerifyError.is(error, "network"));
+      assert.equal(error.details.attempts, attempts ?? 1);
+      assert.ok(error.cause instanceof Error);
+    }
+  });
+
+  it("names the action of the request body in the message, or the request", () => {
+    for (const [body, what] of [
+      [new URLSearchParams({ action: "verifysourcecode" }), "the submit"],
+      [new URLSearchParams({ action: "checkverifystatus" }), "the job status request"],
+      [new URLSearchParams({ action: "verifyproxycontract" }), "the request"],
+      [new URLSearchParams(), "the request"],
+      ["action=getsourcecode", "the request"],
+    ] as const) {
+      const error = handler.annotate(thrown(refusal("upstream-error")), [], body);
+      assert.ok(error instanceof Error);
+      assert.match(error.message, new RegExp(`answered ${what} with upstream-error`));
+    }
+  });
+
+  it("leaves an error alone when it is not unexpected-response, or its excerpt holds no code", () => {
+    const network = newError({ code: "network", backend: "etherscan-v2", attempts: 5 }, "m", {
+      secrets: [],
+    });
+    assert.equal(handler.annotate(network, []), network);
+    const plain = thrown("<html>");
+    assert.equal(handler.annotate(plain, []), plain);
+    const notOurs = new Error("x");
+    assert.equal(handler.annotate(notOurs, []), notOurs);
+  });
+
+  it("ignores a code field that is not of the handler's shape", () => {
+    const error = handler.answerError(
+      "etherscan-v2",
+      { status: 403, text: "{}", fields: new Map(Object.entries({ code: "Chain-Not-Allowed" })) },
+      "the lookup",
+      [],
+    );
+    assert.equal(error.code, "unexpected-response");
+    assert.match(error.message, /gave an answer to the lookup that this client does not recognise/);
+    assert.equal(error.retryable, false);
   });
 });
