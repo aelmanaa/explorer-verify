@@ -8,7 +8,7 @@ import type { BackendName } from "./backend-names.ts";
 import { formatHandle } from "./flow/format-handle.ts";
 import { addressDigits, readFields } from "./internal/read-fields.ts";
 import { redact, redactExcerpt, redactJobId } from "./redact.ts";
-import type { Handle, Hex } from "./types.ts";
+import type { Handle, HandleString, Hex } from "./types.ts";
 
 /**
  * Every error code the library throws. A code never changes meaning once released; new codes are
@@ -128,13 +128,13 @@ export interface MetadataAttempt {
  *
  * @example
  * ```ts
- * import { ExplorerVerifyError } from "explorer-verify";
+ * import { ExplorerVerifyError, formatHandle } from "explorer-verify";
  *
  * try {
  *   await verify(input);
  * } catch (error) {
  *   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
- *     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+ *     localStorage.setItem("pending-verification", formatHandle(error.details.handle));
  *   }
  * }
  * ```
@@ -565,7 +565,7 @@ export interface ErrorJson {
    */
   retryable: boolean;
   /** The handle in its one-line form, when the error carries one. */
-  handle?: string;
+  handle?: HandleString;
   /**
    * `cancelled` only: each backend of a run on several backends that accepted a submission and had
    * not ended when the run was cancelled, with its handle in the one-line form. Resume each one.
@@ -574,7 +574,7 @@ export interface ErrorJson {
     /** The backend that accepted the submission. */
     backend: BackendName;
     /** Its handle in the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. */
-    handle: string;
+    handle: HandleString;
   }[];
 }
 
@@ -1057,13 +1057,13 @@ const BRAND: unique symbol = Symbol.for("explorer-verify.error");
  * @template C - The error's code. Defaults to every code.
  * @example
  * ```ts
- * import { ExplorerVerifyError, verify } from "explorer-verify";
+ * import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
  *
  * try {
  *   await verify(input);
  * } catch (error) {
  *   if (ExplorerVerifyError.is(error, "not-confirmed")) {
- *     localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+ *     localStorage.setItem("pending-verification", formatHandle(error.details.handle));
  *   } else if (error instanceof ExplorerVerifyError) {
  *     switch (error.code) {
  *       case "rate-limited":

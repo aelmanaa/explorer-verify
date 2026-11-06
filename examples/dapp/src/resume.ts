@@ -1,4 +1,4 @@
-import { ExplorerVerifyError, checkStatus } from "explorer-verify";
+import { ExplorerVerifyError, checkStatus, tryParseHandle } from "explorer-verify";
 
 const PENDING_KEY = "greeter-verification";
 
@@ -8,9 +8,16 @@ export async function resumeVerification(show: (line: string) => void): Promise<
   if (stored === null) {
     return;
   }
+  // A value that is not a handle, such as one another version of the page wrote, is dropped.
+  const handle = tryParseHandle(stored);
+  if (handle === undefined) {
+    localStorage.removeItem(PENDING_KEY);
+    show("The saved handle is not valid. It was removed.");
+    return;
+  }
   show(`Resuming ${stored}`);
   try {
-    const result = await checkStatus(stored, { timeoutMs: 60_000 });
+    const result = await checkStatus(handle, { timeoutMs: 60_000 });
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {

@@ -44,6 +44,8 @@ These calls never submit. Run them without asking:
 | `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing             |
 | `checkStatus()`      | Asks the explorer about a submission it already has. Never submits  |
 | `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                  |
+| `tryParseHandle()`   | As `parseHandle()`, but returns `undefined` instead of throwing     |
+| `isHandleString()`   | Tells whether a string is a valid one-line handle. Sends nothing    |
 | `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                 |
 | `toEnvelope()`       | Turns a result or an error into the JSON envelope. Sends nothing    |
 | `exitCodeOf()`       | Gives the exit code of a result or an error. Sends nothing          |
@@ -210,9 +212,8 @@ The handle is plain data with no URL and no key. It holds no spaces or shell cha
 ## 3. Resume with checkStatus()
 
 `checkStatus()` polls the job from a handle and never submits. The script above calls it when a
-handle is stored: after a `not-confirmed` error, an abort or a restart. `parseHandle()` reads
-either form of the handle, the one-line string or the object, and throws `invalid-input` for
-anything else. The handle never chooses the host: pass the same `route` option the submit used, if
+handle is stored: after a `not-confirmed` error, an abort or a restart. Store the one-line form.
+`parseHandle()` reads it or the handle object, and throws `invalid-input` for anything else. The handle never chooses the host: pass the same `route` option the submit used, if
 any.
 
 - `not-confirmed` again: the job is still running. Keep the handle and try later.

@@ -7,8 +7,9 @@ import { toBackendName } from "./backend-names.ts";
 import { newError } from "./error-hints.ts";
 import { ERROR_CODES, ERROR_EXIT_CODES, ExplorerVerifyError } from "./errors.ts";
 import type { AnyExplorerVerifyError, ErrorJson, ExitCode, InputIssue } from "./errors.ts";
+import { JOB_ID } from "./flow/check-handle.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
-import { JOB_ID } from "./flow/handle.ts";
+import type { SplitHandle } from "./flow/format-handle.ts";
 import { ownKeys, unknownKeys } from "./internal/known-keys.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
 import { REDACTED, redact } from "./redact.ts";
@@ -147,7 +148,7 @@ const DECIMAL = /^[1-9][0-9]*$/;
  * redacted: a known backend, a positive safe integer chain id, `0x` and 40 hex digits, and a job id
  * of the handle charset or the literal `[redacted]`.
  */
-function strictHandle(value: unknown): { prefix: string; jobId: string } | undefined {
+function strictHandle(value: unknown): SplitHandle | undefined {
   const handle = splitHandle(value);
   if (handle === undefined) {
     return undefined;

@@ -431,7 +431,7 @@ this module as `src/resume.ts`, and call `resumeVerification(show)` from `src/ma
 loads. As in step 4, the last line runs it once on its own:
 
 ```ts
-import { ExplorerVerifyError, checkStatus } from "explorer-verify";
+import { ExplorerVerifyError, checkStatus, tryParseHandle } from "explorer-verify";
 
 const PENDING_KEY = "greeter-verification";
 
@@ -441,9 +441,16 @@ export async function resumeVerification(show: (line: string) => void): Promise<
   if (stored === null) {
     return;
   }
+  // A value that is not a handle, such as one another version of the page wrote, is dropped.
+  const handle = tryParseHandle(stored);
+  if (handle === undefined) {
+    localStorage.removeItem(PENDING_KEY);
+    show("The saved handle is not valid. It was removed.");
+    return;
+  }
   show(`Resuming ${stored}`);
   try {
-    const result = await checkStatus(stored, { timeoutMs: 60_000 });
+    const result = await checkStatus(handle, { timeoutMs: 60_000 });
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {
@@ -466,8 +473,9 @@ Resuming ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbf
 verified
 ```
 
-`checkStatus()` takes the handle as stored and resolves the route from its chain; the handle never
-chooses a host. See [checkStatus()](../reference/check-status.md).
+`tryParseHandle()` checks the stored value without throwing, so a value that is not a handle is
+removed. `checkStatus()` resolves the route from the handle's chain; the handle never chooses a
+host. See [checkStatus()](../reference/check-status.md).
 
 ## Step 6: Read the result
 

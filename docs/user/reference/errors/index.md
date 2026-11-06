@@ -25,13 +25,13 @@ code's data. Each error has:
 one, the handle in its one-line form. It never prints `cause`, the stack or an API key.
 
 ```ts
-import { ExplorerVerifyError, verify } from "explorer-verify";
+import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
 
 try {
   await verify(input);
 } catch (error) {
   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-    localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+    localStorage.setItem("pending-verification", formatHandle(error.details.handle));
   }
   throw error;
 }

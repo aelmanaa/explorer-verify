@@ -25,7 +25,7 @@ import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
-import { JOB_ID } from "../flow/handle.ts";
+import { JOB_ID } from "../flow/check-handle.ts";
 import { checkKey, keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { KeyContext } from "../http/api-keys.ts";
 import { MAX_RESPONSE_BYTES, MAX_TIMER_MS, request } from "../http/fetch.ts";

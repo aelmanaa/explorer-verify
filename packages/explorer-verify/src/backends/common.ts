@@ -8,7 +8,7 @@ import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { AnyExplorerVerifyError } from "../errors.ts";
-import { JOB_ID } from "../flow/handle.ts";
+import { JOB_ID } from "../flow/check-handle.ts";
 import { request, sleep } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";

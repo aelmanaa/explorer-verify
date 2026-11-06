@@ -356,11 +356,16 @@ describe("main: internal-error (R-AX-5, R-SEC-1)", () => {
   });
 });
 
-/** A command that announces a submission with `handle`, then waits for the abort. */
+/**
+ * A command that announces a submission with `handle`, then waits for the abort. The event goes
+ * through `Reflect.apply`, so a test can pass text that is not a handle, as untyped code can.
+ */
 function waiting(handle: string | undefined): Command[] {
   return table(async (context) => {
     if (handle !== undefined) {
-      context.onEvent({ type: "verify.submitted", backend: "sourcify", handle });
+      Reflect.apply(context.onEvent, undefined, [
+        { type: "verify.submitted", backend: "sourcify", handle },
+      ]);
     }
     return await new Promise<VerifyResult>((_resolve, reject) => {
       context.signal.addEventListener("abort", () => {

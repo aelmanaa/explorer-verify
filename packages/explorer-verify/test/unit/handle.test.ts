@@ -268,13 +268,14 @@ describe("parseHandle errors", () => {
     assert.equal(error.message, "The handle is invalid: chainId.");
     assert.equal(
       error.hint,
-      "Pass the handle exactly as verify() or a not-confirmed error returned it.",
+      "Pass the handle object or its one-line form, as verify() or a not-confirmed error returned it.",
     );
   });
 
-  it("for a value of neither form name both forms (R-DX-3)", () => {
-    for (const value of ["x", 1, null]) {
-      assert.deepEqual(rejection(value).details, {
+  it("for a value of neither form name both forms, in the message too (R-DX-3, #218)", () => {
+    for (const value of ["x", "garbage", 1, null, "{x"]) {
+      const error = rejection(value);
+      assert.deepEqual(error.details, {
         code: "invalid-input",
         issues: [
           {
@@ -284,7 +285,16 @@ describe("parseHandle errors", () => {
           },
         ],
       });
+      assert.equal(
+        error.message,
+        "The handle is invalid: handle. It must be a handle object or its one-line form ev1:<backend>:<chainId>:<address>:<jobId>.",
+      );
     }
+  });
+
+  it("name the forms only for a value of no form, not for a bad field (R-DX-3, #218)", () => {
+    assert.equal(rejection({ ...handle(), url: "u" }).message, "The handle is invalid: handle.");
+    assert.equal(rejection({ ...handle(), jobId: "" }).message, "The handle is invalid: jobId.");
   });
 });
 

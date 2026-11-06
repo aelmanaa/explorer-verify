@@ -17,7 +17,8 @@ target: a submit needs `--backend <name>` or `--backend auto` (`route.backend` w
 lists and what `auto` would pick. Run with `--dry-run` to see the target without submitting.
 
 Fix: correct each field listed in `details.issues` (`field` and `message`), then call again. For a
-handle, pass it exactly as `verify()` or a `not-confirmed` error returned it.
+handle, pass the handle object or its one-line form, as `verify()` or a `not-confirmed` error
+returned it.
 
 Default hint: Fix the fields listed in details.issues, then call again.
 

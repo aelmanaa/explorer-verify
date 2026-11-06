@@ -1,6 +1,6 @@
 {
   "$comment": "Per-name size ceilings (R-RUN-3, decisions 0014 and 0042). `pnpm run size` runs scripts/check-names.ts, which lists the value exports of every code entry in each package's package.json `exports` from the built package and bundles each name three ways: esbuild with splitting, esbuild as one file, and Rollup with each chunk minified by esbuild, as Vite builds. Each mode records the initial load (the entry file and the files it imports statically, minified, and each gzipped on its own at level 6) and the number of JavaScript files emitted. ceilingBytes is gzipBytes plus 20%, rounded up, and applies to the gzipped initial load. An exported name with no row fails, and so does a row whose name is gone; `node scripts/check-names.ts name-budget.json --add-missing` adds a row for each new name and never changes one that exists. `packages` gives each package's bundler platform; a Node package keeps its dependencies and peer dependencies external. `light` lists subpaths whose names must emit at most maxFiles files under esbuild splitting, and names that must stay under maxMinBytes minified in every mode; while a subpath is missing from `exports` the rule is pending and does not fail. `model` lists names reported beside the size-budget.json model; those lines never fail. Raise a ceiling only in a pull request that says why (decision 0008).",
-  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047).",
+  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047). The isHandleString and tryParseHandle rows were measured on 2026-11-06 on main 919359e plus #218 (decision 0050).",
   "packages": {
     "explorer-verify": "browser",
     "@explorer-verify/hardhat": "node",
@@ -672,6 +672,50 @@
         "gzipBytes": 6440,
         "files": 2,
         "ceilingBytes": 7728
+      }
+    },
+    {
+      "entry": "explorer-verify",
+      "name": "isHandleString",
+      "esbuildSplit": {
+        "minBytes": 14774,
+        "gzipBytes": 5893,
+        "files": 21,
+        "ceilingBytes": 7072
+      },
+      "esbuildOneFile": {
+        "minBytes": 2278,
+        "gzipBytes": 1112,
+        "files": 1,
+        "ceilingBytes": 1335
+      },
+      "rollup": {
+        "minBytes": 2147,
+        "gzipBytes": 1027,
+        "files": 1,
+        "ceilingBytes": 1233
+      }
+    },
+    {
+      "entry": "explorer-verify",
+      "name": "tryParseHandle",
+      "esbuildSplit": {
+        "minBytes": 14719,
+        "gzipBytes": 5882,
+        "files": 21,
+        "ceilingBytes": 7059
+      },
+      "esbuildOneFile": {
+        "minBytes": 2223,
+        "gzipBytes": 1104,
+        "files": 1,
+        "ceilingBytes": 1325
+      },
+      "rollup": {
+        "minBytes": 2092,
+        "gzipBytes": 1020,
+        "files": 1,
+        "ceilingBytes": 1224
       }
     }
   ]

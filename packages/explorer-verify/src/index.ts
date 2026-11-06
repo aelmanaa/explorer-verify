@@ -16,7 +16,7 @@ export type {
 } from "./errors.ts";
 export { exitCodeOf, toEnvelope } from "./envelope.ts";
 export type { Envelope, EnvelopeOptions, VerifyOutcome } from "./envelope.ts";
-export { formatHandle, parseHandle } from "./flow/handle.ts";
+export { formatHandle, isHandleString, parseHandle, tryParseHandle } from "./flow/handle.ts";
 export { dryRun } from "./flow/dry-run.ts";
 export { checkStatus } from "./flow/status.ts";
 export { linkProxy } from "./flow/link-proxy.ts";
@@ -37,6 +37,7 @@ export type {
   DryRunOptions,
   DryRunResult,
   Handle,
+  HandleString,
   Hex,
   LinkProxyOptions,
   LinkProxyResult,

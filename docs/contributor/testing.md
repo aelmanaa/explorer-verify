@@ -489,8 +489,9 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/envelope.ts`                      | The JSON envelope and exit codes, and their checks (R-AX-5, R-AX-7, R-SEC-1)               | 97.87 | 97.87       | 96           |
 | `src/http/rpc.ts`                      | The JSON-RPC request and answer, and the `rpcUrl` parts redacted (R-SEC-1)                 | 98.08 | 98.08       | 97           |
 | `src/flow/dry-run.ts`                  | `dryRun()` (R-AX-8)                                                                        | 100   | 100         | 1 undetected |
-| `src/flow/handle.ts`                   | `parseHandle()` (R-FLOW-5, R-SEC-2)                                                        | 96.88 | 96.88       | 95           |
-| `src/flow/format-handle.ts`            | The one-line handle and its redaction (R-FLOW-5, R-SEC-1)                                  | 100   | 100         | 1 undetected |
+| `src/flow/handle.ts`                   | `parseHandle()`, which throws (R-FLOW-5, R-SEC-2)                                          | 100   | 100         | 1 undetected |
+| `src/flow/format-handle.ts`            | The one-line handle and its redaction (R-FLOW-5, R-SEC-1)                                  | 97.73 | 97.73       | 1 undetected |
+| `src/flow/check-handle.ts`             | The handle checks, `tryParseHandle()` and `isHandleString()` (R-FLOW-5, R-SEC-2)           | 100   | 100         | 1 undetected |
 | `src/input/validate.ts`                | `validateInput()`: every rule an input passes before a request (R-IN-1, R-IN-6)            | 99.14 | 98.85       | 97           |
 | `src/input/constructor-args.ts`        | Constructor arguments derived from the creation code (R-IN-3)                              | 100   | 100         | 99           |
 | `src/input/build.ts`                   | `buildVerifyInput()`: document shapes, local paths, version and contract (R-IN-7)          | 98.62 | 98.62       | 97           |
@@ -763,7 +764,6 @@ or cannot reach them:
 | `src/envelope.ts`                  | `toEnvelope`: the `dry-run` branch made false, its status emptied, or its block emptied                       | A dry-run result takes the same `ok: true` form after the branch, which only narrows the type                                              |
 | `src/envelope.ts`                  | `errorReader`: the reader of a branded value without `toJSON()` replaced by `{}`, or its `foreign` made false | Either way the read gives no object, so the error names the same `toJSON()` issue                                                          |
 | `src/http/rpc.ts`                  | `jsonFields`: the `catch` block emptied                                                                       | The function ends after the block and returns `undefined` either way                                                                       |
-| `src/flow/handle.ts`               | `checkFields`: each field check of the last condition made false, five mutants                                | A missing field always adds an issue, so `issues.length > 0` throws the same error; the checks only narrow the types                       |
 | `src/input/build.ts`               | `serialise` and `readDocuments`: the `catch` block emptied                                                    | The function ends after the block and returns `undefined` either way                                                                       |
 | `src/input/metadata.ts`            | `readMetadata`: the `catch` block emptied                                                                     | The function ends after the block and returns `undefined` either way                                                                       |
 | `src/input/build.ts`               | `plainArtifact`: its initial `false` replaced by `true`                                                       | Only artifacts and build-info outputs reach the check, and an output sets `output`, so the flag adds nothing; it stays as defence in depth |
@@ -775,6 +775,7 @@ or cannot reach them:
 | `src/input/build.ts`               | `buildOptionKeys`: a `true` value replaced by `false`                                                         | `Object.keys` reads only the keys                                                                                                          |
 | `src/input/build.ts`               | `readOptions`: the secrets of an unknown-option error, `[]`, replaced by a list with text                     | The message names only option keys that pass the name pattern, which Stryker's text does not                                               |
 | `src/input/build.ts`               | `readOptions`: `keys === undefined` always false                                                              | `readFields` gives `undefined` for every value whose keys cannot be listed                                                                 |
+| `src/flow/format-handle.ts`        | `splitHandle`: the `""` default of the address replaced by text                                               | The address is missing only for four parts or fewer, which the length check refuses first                                                  |
 
 ## Live matrix
 

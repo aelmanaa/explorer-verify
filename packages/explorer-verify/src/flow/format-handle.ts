@@ -1,8 +1,19 @@
+import { toBackendName } from "../backend-names.ts";
+import type { BackendName } from "../backend-names.ts";
 import { redact, redactJobId } from "../redact.ts";
-import type { Handle } from "../types.ts";
+import type { Handle, HandleString, Hex } from "../types.ts";
 
 // The fields of a handle in its one-line form before the job id: `ev1:<backend>:<chainId>:<address>`.
 const HANDLE_PREFIX_FIELDS = 4;
+
+/**
+ * A one-line handle split before its job id: the prefix keeps its last `:`. The chain id is as
+ * JavaScript writes the number, possibly `NaN` for a handle built by untyped code.
+ */
+export interface SplitHandle {
+  prefix: `ev1:${BackendName}:${number}:${Hex}:`;
+  jobId: string;
+}
 
 /**
  * Writes a handle on one line, as `ev1:<backend>:<chainId>:<address>:<jobId>`. The CLI prints this
@@ -11,28 +22,40 @@ const HANDLE_PREFIX_FIELDS = 4;
  * @param handle - A handle from `verify()` or `parseHandle`.
  * @returns The one-line form.
  */
-export function formatHandle(handle: Handle): string {
-  return `ev${String(handle.version)}:${handle.backend}:${String(handle.chainId)}:${handle.address}:${handle.jobId}`;
+export function formatHandle(handle: Handle): HandleString {
+  return `ev${handle.version}:${handle.backend}:${handle.chainId}:${handle.address}:${handle.jobId}`;
 }
 
 /**
  * A handle in its one-line form split into `ev1:<backend>:<chainId>:<address>:` and the job id,
- * which may hold any character. `undefined` when `value` is not in that form.
+ * which may hold any character. `undefined` when `value` is not in that form: the prefix must be
+ * `ev1`, a known backend, a chain id as JavaScript writes the number (possibly `NaN` for a handle
+ * built by untyped code), and `0x` with anything after it.
  *
  * @param value - Any value.
  * @returns The prefix, with its last `:`, and the job id.
  */
-export function splitHandle(value: unknown): { prefix: string; jobId: string } | undefined {
-  if (typeof value !== "string" || !value.startsWith("ev1:")) {
+export function splitHandle(value: unknown): SplitHandle | undefined {
+  if (typeof value !== "string") {
     return undefined;
   }
   // Lenient on purpose: this only finds the job id to redact in text that may hold any job id,
   // even one with a `:`. parseHandle, which decides what a valid handle is, demands five parts.
   const fields = value.split(":");
-  if (fields.length <= HANDLE_PREFIX_FIELDS) {
+  const [version, name, chain] = fields;
+  const address = fields[3] ?? "";
+  const backend = toBackendName(name);
+  const chainId = Number(chain);
+  if (
+    fields.length <= HANDLE_PREFIX_FIELDS ||
+    version !== "ev1" ||
+    backend === undefined ||
+    String(chainId) !== chain ||
+    !address.startsWith("0x")
+  ) {
     return undefined;
   }
-  const prefix = `${fields.slice(0, HANDLE_PREFIX_FIELDS).join(":")}:`;
+  const prefix: SplitHandle["prefix"] = `ev1:${backend}:${chainId}:0x${address.slice(2)}:`;
   return { prefix, jobId: value.slice(prefix.length) };
 }
 
@@ -45,10 +68,7 @@ export function splitHandle(value: unknown): { prefix: string; jobId: string } |
  * @param secrets - Key values to remove.
  * @returns The one-line handle.
  */
-export function redactSplitHandle(
-  handle: { prefix: string; jobId: string },
-  secrets: readonly string[],
-): string {
+export function redactSplitHandle(handle: SplitHandle, secrets: readonly string[]): HandleString {
   return `${handle.prefix}${redactJobId(handle.jobId, secrets)}`;
 }
 

@@ -195,7 +195,8 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
   ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
   later, from another process or after a page reload. The handle is plain JSON with a version field
-  and no URLs.
+  and no URLs. Its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, is the form to store;
+  `checkStatus` also reads the handle object (decision 0050).
 - **R-FLOW-6** Cancellation through `AbortSignal`, and retries with backoff on rate limits and
   transient errors.
 - **R-FLOW-7** Known explorer behaviour is handled, not reported as failure: Blockscout's partial

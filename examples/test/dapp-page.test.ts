@@ -152,9 +152,20 @@ describe("examples/dapp/src/main.ts", () => {
   });
 
   it("shows an error the resume step throws on load", async (t) => {
-    const page = await load(t, { storage: { "greeter-verification": "not a handle" } });
+    // A valid handle of a backend the chain does not route to: checkStatus refuses it, sending
+    // nothing.
+    const other = RECORDED_HANDLE.replace("ev1:sourcify:", "ev1:etherscan-v2:");
+    const page = await load(t, { storage: { "greeter-verification": other } });
     assert.equal(page.lines.length, 2);
+    assert.equal(page.lines[0], `Resuming ${other}`);
     assert.match(page.lines[1] ?? "", /handle/i);
+    assert.equal(page.storage.getItem("greeter-verification"), null);
+  });
+
+  it("removes a saved value that is not a handle, without a request (#218)", async (t) => {
+    const page = await load(t, { storage: { "greeter-verification": "not a handle" } });
+    assert.deepEqual(page.lines, ["The saved handle is not valid. It was removed."]);
+    assert.equal(page.storage.getItem("greeter-verification"), null);
   });
 
   it("shows a failed deployment, whatever was thrown", async (t) => {

@@ -14,8 +14,11 @@ to call without asking. Nothing is published to npm yet.
 
 ```ts fragment
 function checkStatus(handle: Handle | string, options?: CheckStatusOptions): Promise<VerifyResult>;
-function formatHandle(handle: Handle): string;
+function formatHandle(handle: Handle): HandleString;
 function parseHandle(value: unknown): Handle;
+function tryParseHandle(value: unknown): Handle | undefined;
+function isHandleString(value: unknown): value is HandleString;
+type HandleString = `ev1:${BackendName}:${number}:${Hex}:${string}`;
 ```
 
 ## Example
@@ -55,18 +58,38 @@ verified
 A handle is plain JSON with no URL: `{ version: 1, backend, chainId, address, jobId }`. Its one-line
 form is `ev1:<backend>:<chainId>:<address>:<jobId>`, for example
 `ev1:sourcify:84532:0x616dc0f820416e46841d2e1122ff7ca615a740fe:c2ecf68c-2f91-436f-8670-3210387bb3ea`.
-It holds no spaces or shell characters, so it can be pasted into a shell without quotes.
+It holds no spaces or shell characters, so it can be pasted into a shell without quotes. Store a
+handle in the one-line form.
 
-- `formatHandle(handle)` writes the one-line form. The `handle` field of an error's `toJSON()` and
-  the `verify.submitted` event carry the same form.
+- `formatHandle(handle)` writes the one-line form, typed `HandleString`. The `handle` field of an
+  error's `toJSON()` and the `verify.submitted` event carry the same form, with the same type.
 - `parseHandle(value)` reads either form from untrusted input and returns a new handle. The
-  one-line form must split on `:` into exactly five parts, because a job id never holds a `:`. The
-  address keeps its case. Surrounding whitespace is not trimmed.
-- `parseHandle(formatHandle(h))` and `parseHandle(JSON.parse(JSON.stringify(h)))` both equal `h`.
+  one-line form must split on `:` into exactly five parts, because a job id never holds a `:`. A
+  job id is 1 to 128 characters from `A-Z`, `a-z`, `0-9`, `_` and `-`, starting with a letter or
+  digit. The address keeps its case. Surrounding whitespace is not trimmed, and JSON text is not
+  read: store the one-line form, not `JSON.stringify(handle)`. `checkStatus` reads the handle the
+  same way.
+- `tryParseHandle(value)` reads both forms and returns `undefined` instead of throwing. It loads
+  none of the error code, so it stays small in a bundle.
+- `isHandleString(value)` is `true` when `value` is a valid handle in the one-line form, and
+  narrows it to `HandleString`. It is `false` for the handle object.
+- `parseHandle(formatHandle(h))` and `parseHandle(h)` both equal `h`.
+
+When a job id equals one of your keys, the handle in an error's `toJSON()`, an event or a log line
+ends in `:[redacted]`. It keeps the `HandleString` type but cannot resume: `isHandleString` gives
+`false` and `parseHandle` throws.
 
 `parseHandle` throws `invalid-input` and names each bad field in `details.issues`: `version`,
 `backend`, `chainId`, `address`, `jobId`, or `handle` for a value of neither form or for an object
-with fields a handle does not have, such as `apiUrl`. Messages never repeat a value.
+with fields a handle does not have, such as `apiUrl`. The hint names both forms. For a value of
+neither form, such as JSON text, a line with a leading space or a `String` object, the message
+names them too:
+
+```text
+The handle is invalid: handle. It must be a handle object or its one-line form ev1:<backend>:<chainId>:<address>:<jobId>.
+```
+
+Messages never repeat a value.
 
 ## What it does
 

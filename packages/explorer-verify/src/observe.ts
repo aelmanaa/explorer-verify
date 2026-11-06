@@ -4,7 +4,7 @@
  * (R-SEC-1), and neither can break a verification: a logger or a callback that throws is caught.
  * Without a logger and a callback, nothing is written anywhere.
  */
-import { redactHandleLine } from "./flow/format-handle.ts";
+import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { redact, redactingLogger } from "./redact.ts";
 import type { Logger, VerifyEvent } from "./types.ts";
 
@@ -156,7 +156,15 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
       return {
         type: event.type,
         backend: event.backend,
-        handle: redactHandleLine(event.handle, secrets),
+        // Only code that bypasses the types passes text that is not a one-line handle. It keeps
+        // the type: the text, redacted whole, stands in for the job id after a chain id of 0.
+        handle: redactSplitHandle(
+          splitHandle(event.handle) ?? {
+            prefix: `ev1:${event.backend}:0:0x:`,
+            jobId: redact(event.handle, secrets),
+          },
+          secrets,
+        ),
       };
     case "verify.poll":
       return {

@@ -25,7 +25,7 @@ on someone's behalf.
 ## Example
 
 ```ts
-import { ExplorerVerifyError, verify } from "explorer-verify";
+import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
 
 try {
   const result = await verify(input, { timeoutMs: 60_000 });
@@ -36,7 +36,7 @@ try {
   }
 } catch (error) {
   if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-    localStorage.setItem("pending-verification", JSON.stringify(error.details.handle));
+    localStorage.setItem("pending-verification", formatHandle(error.details.handle));
   } else {
     throw error;
   }
