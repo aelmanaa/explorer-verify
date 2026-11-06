@@ -288,7 +288,7 @@ describe("a call that reads the table loads it (decision 0040)", () => {
 });
 
 describe("a table that fails to load maps as a client load failure (decision 0040)", () => {
-  it("verify() rejects with the loader's error, and the next call loads again", async () => {
+  it("verify() rejects with network, and the next call loads again (decision 0054)", async () => {
     const chunkError = new TypeError("Failed to fetch dynamically imported module");
     let fail = true;
     let count = 0;
@@ -302,7 +302,11 @@ describe("a table that fails to load maps as a client load failure (decision 004
         return await Promise.resolve(TABLE);
       },
     };
-    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), chunkError);
+    await assert.rejects(runVerify(INPUT, { fetch: noFetch }, dependencies), {
+      code: "network",
+      message: "Loading the routing table failed.",
+      details: { code: "network", backend: "sourcify", attempts: 1 },
+    });
     fail = false;
     assert.equal(
       (await runVerify(INPUT, { fetch: noFetch }, dependencies)).status,
@@ -407,11 +411,11 @@ describe("a table that fails to load maps as a client load failure (decision 004
     assert.equal(first.error.cause.name, "TypeError");
     assert.equal(first.error.cause.message, chunkError.message);
     assert.equal(second?.ok, true);
-    // backends: "all" reads the row itself, so it throws the loader's error, as verify() does.
-    await assert.rejects(
-      runVerifyEach(INPUT, { fetch: noFetch, backends: "all" }, dependencies),
-      chunkError,
-    );
+    // backends: "all" reads the row itself, so it throws the load's error, as verify() does.
+    await assert.rejects(runVerifyEach(INPUT, { fetch: noFetch, backends: "all" }, dependencies), {
+      code: "network",
+      message: "Loading the routing table failed.",
+    });
   });
 
   it("verifyEach(): the failure's cause hides every entry's route.apiKey (R-SEC-1)", async () => {
@@ -439,7 +443,7 @@ describe("a table that fails to load maps as a client load failure (decision 004
     assert.doesNotMatch(first.error.cause.message, new RegExp(key));
   });
 
-  it("verifyEach(): a timeout names each entry's backend, another error stays as it is", async () => {
+  it("verifyEach(): a timeout or a failed load names each entry's backend", async () => {
     const { dependencies } = recording(never());
     const { outcomes } = await keptAlive(
       async () =>
@@ -470,7 +474,11 @@ describe("a table that fails to load maps as a client load failure (decision 004
     const again = await runVerifyEach(INPUT, { fetch: noFetch, backends: ["blockscout"] }, failing);
     const [only] = again.outcomes;
     assert.ok(only !== undefined && "error" in only);
-    assert.equal(only.error, refused);
+    // Any loader failure is a failed load, an ExplorerVerifyError included (decision 0054).
+    assert.deepEqual(only.error.details, { code: "network", backend: "blockscout", attempts: 1 });
+    assert.equal(only.error.message, "Loading the routing table failed.");
+    assert.ok(only.error.cause instanceof Error);
+    assert.equal(only.error.cause.message, refused.message);
   });
 });
 

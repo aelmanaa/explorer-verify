@@ -1171,12 +1171,15 @@ describe("linkProxy() with linkers passed in", () => {
     assert.equal(r.outcome.error, reason);
   });
 
-  it("rejects with the loader's error when the proxy-link code fails to load", async (t) => {
+  it("rejects with network when the proxy-link code fails to load (decision 0054)", async (t) => {
     const failure = new Error("chunk failed");
     const r = await run(t, [], SOURCIFY_OPTIONS, target, {
       linkers: { sourcify: async () => await Promise.reject(failure) },
     });
-    assert.equal(r.outcome.error, failure);
+    const error = errorOf(r, "network");
+    assert.equal(error.message, "Loading the sourcify proxy-link code failed.");
+    assert.ok(error.cause instanceof Error);
+    assert.equal(error.cause.message, "chunk failed");
   });
 
   it("routes with the table passed in", async (t) => {
