@@ -365,5 +365,6 @@ those IDs. `pnpm run pkg:check` runs `scripts/check-declaration-docs.ts` after t
 when any built declaration contains a contributor ID. The CLI and SDK README examples run in
 the documentation tests.
 
-Live probe scripts use internal flow helpers from source. The scripts project checks those
+`pnpm run check` builds the type-checking projects before type-aware lint, so lint can resolve
+the public declarations from a clean checkout. Live probe scripts use internal flow helpers from source. The scripts project checks those
 sources with DOM types; the separate core build still checks them without Node types.
