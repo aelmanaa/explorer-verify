@@ -65,7 +65,7 @@ export async function runDryRun(
     if (
       keyMissing({ route, apiKeys: settings.apiKeys }, settings.handler?.serves(route) === true)
     ) {
-      observer.emit({ type: "verify.lookup", backend: backend.name, match: "skipped" });
+      observer.emit({ type: "verify.lookup", backend: backend.name, lookup: "skipped" });
       observer.log.info(
         `${backend.name} needs an API key and none is set, so the dry run skipped the lookup. Nothing was submitted.`,
         fields,
@@ -73,7 +73,7 @@ export async function runDryRun(
       return { ...base, lookup: "skipped", ...chosen };
     }
     const found = await backend.lookup(target, ctx);
-    observer.emit({ type: "verify.lookup", backend: backend.name, match: found ?? "none" });
+    observer.emit({ type: "verify.lookup", backend: backend.name, lookup: found ?? "none" });
     observer.log.info(
       found === undefined
         ? `Dry run: ${backend.name} holds no match, so a verification would submit the source. Nothing was submitted.`

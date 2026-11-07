@@ -10,6 +10,7 @@ import type {
   RoutedBy,
   ErrorJson,
   VerifyResult,
+  LinkProxyResult,
 } from "explorer-verify";
 import type { Envelope } from "explorer-verify/envelope";
 
@@ -52,6 +53,8 @@ export type CliEnvelope =
       ok: false;
       /** The error, with the CLI's hint. */
       error: ErrorJson;
+      /** Errors carry no result. */
+      result?: never;
       /** The command to run next, as an argv array, when one exists. */
       nextCommand?: string[];
     };
@@ -66,7 +69,7 @@ export type CliEnvelope =
  * @returns The envelope to print.
  */
 export function cliEnvelope(envelope: Envelope, context: HintContext): CliEnvelope {
-  if ("error" in envelope) {
+  if (envelope.error !== undefined) {
     const error = cliErrorJson(envelope.error, context);
     const next = nextCommand(error, context);
     return { ...envelope, error, ...(next === undefined ? {} : { nextCommand: next }) };
@@ -74,12 +77,13 @@ export function cliEnvelope(envelope: Envelope, context: HintContext): CliEnvelo
   if (!("outcomes" in envelope.result)) {
     return envelope;
   }
+  if (envelope.ok) return envelope;
   const outcomes = envelope.result.outcomes.map((outcome) =>
-    "error" in outcome
+    outcome.error !== undefined
       ? { ...outcome, error: cliErrorJson(outcome.error, { ...context, own: false }) }
       : outcome,
   );
-  return { ...envelope, result: { ...envelope.result, outcomes } };
+  return { schemaVersion: 1, ok: false, result: { outcomes } };
 }
 
 /**
@@ -94,7 +98,7 @@ export function stdoutText(envelope: CliEnvelope, json: boolean, color: boolean)
   if (json) {
     return `${JSON.stringify(envelope)}\n`;
   }
-  if ("error" in envelope) {
+  if (envelope.error !== undefined) {
     return "";
   }
   const paint = painter(color);
@@ -107,7 +111,7 @@ export function stdoutText(envelope: CliEnvelope, json: boolean, color: boolean)
 
 /** The summary of a result of one backend. */
 function resultText(
-  result: VerifyResult | DryRunResult,
+  result: VerifyResult | DryRunResult | LinkProxyResult,
   paint: ReturnType<typeof painter>,
 ): string {
   if (result.status === "dry-run") {
@@ -116,6 +120,11 @@ function resultText(
   if (result.status === "failed") {
     return `${paint("red", "failed")} on ${result.backend}: ${visible(result.reason)}\n`;
   }
+  if (result.status === "linked") return `linked on ${result.backend}: ${result.implementation}\n`;
+  if (result.status === "mismatch")
+    return `mismatch on ${result.backend}: expected ${result.expectedImplementation}\n`;
+  if (result.status === "not-linked")
+    return `not-linked on ${result.backend}: ${visible(result.reason)}\n`;
   const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
@@ -128,7 +137,7 @@ function outcomeText(
   outcome: BackendOutcome<ErrorJson>,
   paint: ReturnType<typeof painter>,
 ): string {
-  if (!("error" in outcome)) {
+  if (!(outcome.error !== undefined)) {
     return resultText(outcome.result, paint);
   }
   const { error } = outcome;

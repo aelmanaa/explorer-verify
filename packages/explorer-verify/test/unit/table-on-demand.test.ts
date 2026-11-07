@@ -403,7 +403,7 @@ describe("a table that fails to load maps as a client load failure (decision 004
       dependencies,
     );
     const [first, second] = outcomes;
-    assert.ok(first !== undefined && "error" in first);
+    assert.ok(first !== undefined && first.error !== undefined);
     assert.deepEqual(first.error.details, { code: "network", backend: "sourcify", attempts: 1 });
     assert.equal(first.error.message, "Loading the routing table failed.");
     // The cause is a redacted copy: a plain Error with the original name and message.
@@ -438,7 +438,7 @@ describe("a table that fails to load maps as a client load failure (decision 004
       dependencies,
     );
     const [first] = outcomes;
-    assert.ok(first !== undefined && "error" in first);
+    assert.ok(first !== undefined && first.error !== undefined);
     assert.ok(first.error.cause instanceof Error);
     assert.doesNotMatch(first.error.cause.message, new RegExp(key));
   });
@@ -454,7 +454,7 @@ describe("a table that fails to load maps as a client load failure (decision 004
         ),
     );
     assert.deepEqual(
-      outcomes.map((outcome) => ("error" in outcome ? outcome.error.details : undefined)),
+      outcomes.map((outcome) => (outcome.error !== undefined ? outcome.error.details : undefined)),
       [
         { code: "timeout", backend: "sourcify", timeoutMs: 5 },
         { code: "timeout", backend: "blockscout", timeoutMs: 5 },
@@ -473,7 +473,7 @@ describe("a table that fails to load maps as a client load failure (decision 004
     };
     const again = await runVerifyEach(INPUT, { fetch: noFetch, backends: ["blockscout"] }, failing);
     const [only] = again.outcomes;
-    assert.ok(only !== undefined && "error" in only);
+    assert.ok(only !== undefined && only.error !== undefined);
     // Any loader failure is a failed load, an ExplorerVerifyError included (decision 0054).
     assert.deepEqual(only.error.details, { code: "network", backend: "blockscout", attempts: 1 });
     assert.equal(only.error.message, "Loading the routing table failed.");

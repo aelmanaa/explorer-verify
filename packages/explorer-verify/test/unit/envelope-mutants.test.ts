@@ -75,11 +75,11 @@ describe("toEnvelope says what is wrong with an outcome that bypassed the types 
     const error = thrownBy(() => toEnvelope(bypass(5)));
     assert.equal(
       error.message,
-      "The value is not a VerifyResult, a DryRunResult, a VerifyEachResult or an ExplorerVerifyError.",
+      "The value is not a VerifyResult, a DryRunResult, a VerifyEachResult, a LinkProxyResult or an ExplorerVerifyError.",
     );
     assert.equal(
       error.hint,
-      "Pass the result that verify(), checkStatus() or verifyEach() returned, or the ExplorerVerifyError it threw.",
+      "Pass the result that verify(), checkStatus(), verifyEach() or linkProxy() returned, or the ExplorerVerifyError it threw.",
     );
     assert.deepEqual(issuesOf(5), [
       { field: "outcome", message: "must be an object whose fields can be read" },

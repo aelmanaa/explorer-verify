@@ -332,7 +332,7 @@ export async function checkStatus(
  *   apiKeys: { "etherscan-v2": etherscanKey },
  * });
  * for (const outcome of outcomes) {
- *   console.log(outcome.backend, "error" in outcome ? outcome.error.code : outcome.result.status);
+ *   console.log(outcome.backend, outcome.error !== undefined ? outcome.error.code : outcome.result.status);
  * }
  * ```
  * @experimental

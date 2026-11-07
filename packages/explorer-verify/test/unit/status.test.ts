@@ -257,7 +257,13 @@ describe("checkStatus(): resume a job (R-FLOW-5)", () => {
       ROUTED,
       { type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" },
       { type: "verify.poll", backend: "sourcify", attempt: 2, state: "pending" },
-      { type: "verify.result", backend: "sourcify", status: "verified", match: "exact" },
+      {
+        type: "verify.result",
+        backend: "sourcify",
+        status: "verified",
+        match: "exact",
+        explorerUrl: GREETER_PAGE,
+      },
     ]);
   });
 
@@ -526,6 +532,7 @@ describe("checkStatus(): a job the explorer no longer knows (R-FLOW-5)", () => {
       backend: "sourcify",
       status: "verified",
       match: "exact",
+      explorerUrl: GREETER_PAGE,
     });
   });
 

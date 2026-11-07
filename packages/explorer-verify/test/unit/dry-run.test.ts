@@ -92,7 +92,7 @@ describe("dryRun (R-AX-8)", () => {
         routedBy: "table",
         skipped: "etherscan-v2",
       },
-      { type: "verify.lookup", backend: "sourcify", match: "none" },
+      { type: "verify.lookup", backend: "sourcify", lookup: "none" },
     ]);
   });
 
@@ -171,7 +171,7 @@ describe("dryRun (R-AX-8)", () => {
     assert.deepEqual(events.at(-1), {
       type: "verify.lookup",
       backend: "etherscan-v2",
-      match: "skipped",
+      lookup: "skipped",
     });
     assert.ok(lines.some((line) => line.includes("skipped the lookup")));
   });

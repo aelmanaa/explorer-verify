@@ -517,7 +517,7 @@ describe("toEnvelope() rebuilds the details of an error object it did not build 
 
 describe("the envelope schema checks the details (R-AX-5)", () => {
   const base = toEnvelope(newError(SAMPLE_DETAILS["incomplete-input"], "m", { secrets: [] }));
-  assert.ok("error" in base);
+  assert.ok(base.error !== undefined);
 
   it("refuses an error without details", () => {
     const { details: _left, ...without } = base.error;
@@ -623,7 +623,7 @@ describe("the rebuild from JSON caps what it keeps (D4, D5, decision 9)", () => 
       secrets: [],
     });
     const envelope = toEnvelope(error);
-    assert.ok("error" in envelope);
+    assert.ok(envelope.error !== undefined);
     assert.deepEqual(envelope.error, error.toJSON());
     assert.ok(envelope.error.details.code === "incomplete-input");
     assert.equal(envelope.error.details.candidates.length, 300);

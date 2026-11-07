@@ -134,6 +134,12 @@ export function createObserver(options: ObserverOptions): Observer {
  * ```
  */
 export function redactEvent(event: VerifyEvent, secrets: readonly string[]): VerifyEvent {
+  const safe = redactStage(event, secrets);
+  return event.entry === undefined ? safe : { ...safe, entry: event.entry };
+}
+
+/** The stage fields, with free text redacted. */
+function redactStage(event: VerifyEvent, secrets: readonly string[]): VerifyEvent {
   switch (event.type) {
     case "verify.validated":
       return {
@@ -141,17 +147,20 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
         chainId: event.chainId,
         address: `0x${redact(event.address.slice(2), secrets)}`,
       };
+    case "proxy.routed":
     case "verify.routed":
       // `routedBy` and `skipped` hold only fixed words and backend names.
       return {
         type: event.type,
         backend: event.backend,
         apiHost: redact(event.apiHost, secrets),
-        ...(event.routedBy === undefined ? {} : { routedBy: event.routedBy }),
-        ...(event.skipped === undefined ? {} : { skipped: event.skipped }),
+        ...("routedBy" in event && event.routedBy !== undefined
+          ? { routedBy: event.routedBy }
+          : {}),
+        ...("skipped" in event && event.skipped !== undefined ? { skipped: event.skipped } : {}),
       };
     case "verify.lookup":
-      return { type: event.type, backend: event.backend, match: event.match };
+      return { type: event.type, backend: event.backend, lookup: event.lookup };
     case "verify.submitted":
       return {
         type: event.type,
@@ -166,6 +175,13 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
           secrets,
         ),
       };
+    case "proxy.poll":
+      return {
+        type: event.type,
+        backend: event.backend,
+        attempt: event.attempt,
+        state: event.state,
+      };
     case "verify.poll":
       return {
         type: event.type,
@@ -173,6 +189,7 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
         attempt: event.attempt,
         state: event.state,
       };
+    case "proxy.retry":
     case "verify.retry":
       return {
         type: event.type,
@@ -184,7 +201,45 @@ export function redactEvent(event: VerifyEvent, secrets: readonly string[]): Ver
     case "verify.result":
       return event.status === "failed"
         ? { type: event.type, backend: event.backend, status: event.status }
-        : { type: event.type, backend: event.backend, status: event.status, match: event.match };
+        : {
+            type: event.type,
+            backend: event.backend,
+            status: event.status,
+            match: event.match,
+            ...(event.explorerUrl === undefined
+              ? {}
+              : { explorerUrl: redact(event.explorerUrl, secrets) }),
+          };
+    case "proxy.result":
+      if (event.status === "not-linked") {
+        return {
+          type: event.type,
+          status: event.status,
+          backend: event.backend,
+          reason: redact(event.reason, secrets),
+        };
+      }
+      if (event.status === "mismatch") {
+        return {
+          type: event.type,
+          status: event.status,
+          backend: event.backend,
+          expectedImplementation: `0x${redact(event.expectedImplementation.slice(2), secrets)}`,
+          ...(event.implementation === undefined
+            ? {}
+            : { implementation: `0x${redact(event.implementation.slice(2), secrets)}` }),
+        };
+      }
+      return {
+        type: event.type,
+        status: event.status,
+        backend: event.backend,
+        implementation: `0x${redact(event.implementation.slice(2), secrets)}`,
+        implementationVerified: event.implementationVerified,
+        ...(event.explorerUrl === undefined
+          ? {}
+          : { explorerUrl: redact(event.explorerUrl, secrets) }),
+      };
     default:
       return unreachable(event);
   }

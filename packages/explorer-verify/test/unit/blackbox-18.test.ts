@@ -931,6 +931,7 @@ describe("events", () => {
       backend: "sourcify",
       status: "verified",
       match: "exact",
+      explorerUrl: `https://repo.sourcify.dev/${String(CHAIN_ID)}/${ADDRESS.toLowerCase()}`,
     });
   });
 
@@ -1272,6 +1273,10 @@ describe("doc examples", () => {
         case "verify.routed":
         case "verify.lookup":
         case "verify.poll":
+        case "proxy.routed":
+        case "proxy.poll":
+        case "proxy.retry":
+        case "proxy.result":
         case "verify.result":
           break;
         default: {

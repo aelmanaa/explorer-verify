@@ -1133,7 +1133,7 @@ describe("new error codes (api-keys.md, error pages, json-output.md, verify.md)"
       assert.equal(error.hint, defaultHint(page));
       const envelope = toEnvelope(error);
       assert.deepEqual(validateEnvelope(JSON.parse(JSON.stringify(envelope))), []);
-      assert.ok("error" in envelope && envelope.error.code === code);
+      assert.ok(envelope.error !== undefined && envelope.error.code === code);
       assertNoKey(
         `${error.message}${JSON.stringify(error)}${inspect(error, { depth: 10 })}${JSON.stringify(envelope)}`,
       );

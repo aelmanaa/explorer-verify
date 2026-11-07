@@ -10,6 +10,42 @@ import { stdoutText } from "../../src/output.ts";
 const URL = "https://repo.sourcify.dev/1/0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
 describe("stdoutText", () => {
+  it("formats proxy result envelopes passed by SDK callers", () => {
+    const implementation = `0x${"ab".repeat(20)}` as const;
+    assert.equal(
+      stdoutText(
+        toEnvelope({
+          status: "linked",
+          backend: "blockscout",
+          implementation,
+          implementationVerified: true,
+        }),
+        false,
+        false,
+      ),
+      `linked on blockscout: ${implementation}\n`,
+    );
+    assert.equal(
+      stdoutText(
+        toEnvelope({
+          status: "mismatch",
+          backend: "blockscout",
+          expectedImplementation: implementation,
+        }),
+        false,
+        false,
+      ),
+      `mismatch on blockscout: expected ${implementation}\n`,
+    );
+    assert.equal(
+      stdoutText(
+        toEnvelope({ status: "not-linked", backend: "blockscout", reason: "refused" }),
+        false,
+        false,
+      ),
+      "not-linked on blockscout: refused\n",
+    );
+  });
   it("prints the envelope as one JSON line with --json", () => {
     const envelope = toEnvelope({ status: "verified", backend: "sourcify", match: "exact" });
     assert.equal(stdoutText(envelope, true, true), `${JSON.stringify(envelope)}\n`);

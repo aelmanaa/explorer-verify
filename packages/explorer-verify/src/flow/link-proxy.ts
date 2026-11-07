@@ -111,7 +111,22 @@ export async function runLinkProxy(
   // load rejects with signal.reason. Most routes with route.apiUrl load no table (decision 0040).
   return await abortWins(read.signal, async () => {
     const budget = startBudget(read);
-    const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
+    const observed: Settings =
+      read.onEvent === undefined
+        ? read
+        : {
+            ...read,
+            onEvent: (event) =>
+              read.onEvent?.(
+                event.type === "verify.retry" ? { ...event, type: "proxy.retry" } : event,
+              ),
+          };
+    const settings = await withHandler(
+      observed,
+      budget,
+      dependencies.handler,
+      dependencies.missing,
+    );
     const table = await tableFor(
       checked,
       dependencies.table,
@@ -191,7 +206,7 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
 /** Sends the link request, checks it until it ends, and maps the end to a result. */
 async function link(call: LinkCall): Promise<LinkProxyResult> {
   const { backend, linker, target, ctx, observer } = call;
-  observer.emit({ type: "verify.routed", backend, apiHost: apiHostOf(ctx) });
+  observer.emit({ type: "proxy.routed", backend, apiHost: apiHostOf(ctx) });
   observer.log.debug(
     `Linking proxy ${target.address} on chain ${String(target.chainId)} on ${backend}`,
     { backend, chainId: target.chainId, api: ctx.route.redactedApiUrl },
@@ -256,7 +271,7 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdic
     if (verdict.state !== "pending") {
       return verdict;
     }
-    observer.emit({ type: "verify.poll", backend, attempt, state: "pending" });
+    observer.emit({ type: "proxy.poll", backend, attempt, state: "pending" });
     observer.log.debug(`${backend} proxy link is pending (check ${String(attempt)})`, {
       backend,
       attempt,
@@ -304,9 +319,12 @@ async function finish(call: LinkCall, verdict: LinkVerdict): Promise<LinkProxyRe
     `Result: linked to ${implementation}${implementationVerified ? "" : " (implementation not verified)"} on ${backend}`,
     { backend, status: "linked" },
   );
-  return explorerUrl === undefined
-    ? { status: "linked", backend, implementation, implementationVerified }
-    : { status: "linked", backend, implementation, implementationVerified, explorerUrl };
+  const result: LinkProxyResult =
+    explorerUrl === undefined
+      ? { status: "linked", backend, implementation, implementationVerified }
+      : { status: "linked", backend, implementation, implementationVerified, explorerUrl };
+  observer.emit({ type: "proxy.result", ...result });
+  return result;
 }
 
 /** A `mismatch` result, logged at `info`. */
@@ -320,14 +338,18 @@ function mismatch(
     `Result: the proxy points at ${implementation ?? "another implementation"}, not ${expectedImplementation}, on ${backend}`,
     { backend, status: "mismatch" },
   );
-  return implementation === undefined
-    ? { status: "mismatch", backend, expectedImplementation }
-    : { status: "mismatch", backend, implementation, expectedImplementation };
+  const result: LinkProxyResult =
+    implementation === undefined
+      ? { status: "mismatch", backend, expectedImplementation }
+      : { status: "mismatch", backend, implementation, expectedImplementation };
+  observer.emit({ type: "proxy.result", ...result });
+  return result;
 }
 
 /** A `not-linked` result, logged at `info`. */
 function notLinked(observer: Observer, backend: BackendName, reason: string): LinkProxyResult {
   observer.log.info(`Result: not linked on ${backend}`, { backend, status: "not-linked" });
+  observer.emit({ type: "proxy.result", status: "not-linked", backend, reason });
   return { status: "not-linked", backend, reason };
 }
 

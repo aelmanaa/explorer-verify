@@ -50,6 +50,10 @@ const EVENT_LEVELS: Readonly<Record<VerifyEvent["type"], LineLevel>> = {
   "verify.poll": "debug",
   "verify.retry": "warn",
   "verify.result": "info",
+  "proxy.routed": "debug",
+  "proxy.poll": "debug",
+  "proxy.retry": "warn",
+  "proxy.result": "info",
 };
 
 /** The text before a line of each level, and its style. Info lines have none. */
@@ -96,18 +100,24 @@ export function eventMessage(event: VerifyEvent): string {
     case "verify.routed":
       message = routedMessage(event);
       break;
+    case "proxy.routed":
+      message = `Proxy route on ${event.backend} at ${event.apiHost}.`;
+      break;
     case "verify.lookup":
-      message = `Lookup on ${event.backend}: ${event.match}.`;
+      message = `Lookup on ${event.backend}: ${event.lookup}.`;
       break;
     case "verify.submitted":
       message = `Submitted to ${event.backend}. Handle: ${event.handle}`;
       break;
+    case "proxy.poll":
     case "verify.poll":
       message = `Poll ${String(event.attempt)} on ${event.backend}: ${event.state}.`;
       break;
+    case "proxy.retry":
     case "verify.retry":
       message = `Retrying ${event.backend} after ${event.reason}: attempt ${String(event.attempt)} in ${String(event.delayMs)} ms.`;
       break;
+    case "proxy.result":
     case "verify.result":
       message =
         "match" in event
@@ -131,6 +141,7 @@ export function stageText(event: VerifyEvent): string {
     case "verify.validated":
       stage = "Checked the input";
       break;
+    case "proxy.routed":
     case "verify.routed":
       stage = `Routed to ${event.backend}`;
       break;
@@ -140,12 +151,15 @@ export function stageText(event: VerifyEvent): string {
     case "verify.submitted":
       stage = `Submitted to ${event.backend}, waiting for the result`;
       break;
+    case "proxy.poll":
     case "verify.poll":
       stage = `Waiting for ${event.backend}: ${event.state}, poll ${String(event.attempt)}`;
       break;
+    case "proxy.retry":
     case "verify.retry":
       stage = `Retrying ${event.backend} after ${event.reason}`;
       break;
+    case "proxy.result":
     case "verify.result":
       stage = `Result from ${event.backend}: ${event.status}`;
       break;

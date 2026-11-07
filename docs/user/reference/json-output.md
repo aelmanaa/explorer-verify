@@ -308,3 +308,16 @@ first outcome that has it: read `result.outcomes` for every backend.
 print envelopes of their own, with `ok: true` and exit code 0. Their `result` is not a
 `VerifyResult`: validate them with `@explorer-verify/cli/help.schema.json` and
 `@explorer-verify/cli/version.schema.json`, not with this schema.
+
+## Proxy results in the SDK
+
+`toEnvelope()` and `exitCodeOf()` accept `LinkProxyResult`. `linked` returns
+`{ schemaVersion: 1, ok: true, result }` and exit 0. `mismatch` and `not-linked` return
+`{ schemaVersion: 1, ok: false, result }` and exit 1. The CLI has no proxy-link command;
+`proxy-link-pending` and `proxy-link-unknown-state` are SDK-only errors.
+
+`Envelope<Result>` keeps the result type, with errors serialized as `ErrorJson`. In a successful
+`verifyEach()` envelope, `ok: true` narrows every outcome to a successful result. A failed
+verification remains a result with `ok: false`, while a thrown error has `error`. Check
+`envelope.error !== undefined` to distinguish those two cases. `BackendOutcome` also makes
+`result` and `error` mutually exclusive in TypeScript.

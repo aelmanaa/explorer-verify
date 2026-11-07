@@ -152,11 +152,11 @@ async function run(context: CommandContext): Promise<VerifyResult> {
   onEvent({ type: "verify.validated", chainId: HANDLE.chainId, address: HANDLE.address });
   onEvent({ type: "verify.routed", backend: BACKEND, apiHost: "sourcify.dev" });
   if (outcome === "already-verified") {
-    onEvent({ type: "verify.lookup", backend: BACKEND, match: "exact" });
+    onEvent({ type: "verify.lookup", backend: BACKEND, lookup: "exact" });
     onEvent({ type: "verify.result", backend: BACKEND, status: outcome, match: "exact" });
     return { status: outcome, backend: BACKEND, match: "exact", explorerUrl: EXPLORER_URL };
   }
-  onEvent({ type: "verify.lookup", backend: BACKEND, match: "none" });
+  onEvent({ type: "verify.lookup", backend: BACKEND, lookup: "none" });
   for (let attempt = 2; attempt <= retries + 1; attempt++) {
     onEvent({ type: "verify.retry", backend: BACKEND, attempt, reason: "network", delayMs: 0 });
   }

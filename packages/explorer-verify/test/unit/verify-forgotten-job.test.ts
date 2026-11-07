@@ -508,10 +508,16 @@ describe("verify(): events for a forgotten job (R-DX-6, R-FLOW-5)", () => {
         apiHost: "sourcify.dev",
         routedBy: "table",
       },
-      { type: "verify.lookup", backend: "sourcify", match: "none" },
+      { type: "verify.lookup", backend: "sourcify", lookup: "none" },
       { type: "verify.submitted", backend: "sourcify", handle: LINE },
       { type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" },
-      { type: "verify.result", backend: "sourcify", status: "verified", match: "exact" },
+      {
+        type: "verify.result",
+        backend: "sourcify",
+        status: "verified",
+        match: "exact",
+        explorerUrl: GREETER_PAGE,
+      },
     ]);
 
     const resumed = await run(t, startCheckStatus, [

@@ -75,15 +75,15 @@ the verification goes on.
 
 `onEvent` receives one object per stage. Each has a `type` and flat, JSON-safe values.
 
-| `type`             | Emitted when                                       | Fields besides `type`                                           |
-| ------------------ | -------------------------------------------------- | --------------------------------------------------------------- |
-| `verify.validated` | The input passed validation                        | `chainId`, `address`                                            |
-| `verify.routed`    | The route is resolved                              | `backend`, `apiHost` (the host only), `routedBy`, `skipped`     |
-| `verify.lookup`    | The already-verified check finished or was skipped | `backend`, `match`: `exact`, `partial`, `none` or `skipped`     |
-| `verify.submitted` | The explorer accepted the submission               | `backend`, `handle` in its one-line form                        |
-| `verify.poll`      | One poll returned a state that is not final        | `backend`, `attempt`, `state`: `pending`, `queued`, `completed` |
-| `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                       |
-| `verify.result`    | The call is about to return a result               | `backend`, `status`, and `match` unless `status` is `failed`    |
+| `type`             | Emitted when                                       | Fields besides `type`                                                    |
+| ------------------ | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| `verify.validated` | The input passed validation                        | `chainId`, `address`                                                     |
+| `verify.routed`    | The route is resolved                              | `backend`, `apiHost` (the host only), `routedBy`, `skipped`              |
+| `verify.lookup`    | The already-verified check finished or was skipped | `backend`, `lookup`: `exact`, `partial`, `none` or `skipped`             |
+| `verify.submitted` | The explorer accepted the submission               | `backend`, `handle` in its one-line form                                 |
+| `verify.poll`      | One poll returned a state that is not final        | `backend`, `attempt`, `state`: `pending`, `queued`, `completed`          |
+| `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                                |
+| `verify.result`    | The call is about to return a result               | `backend`, `status`, `match` unless failed, and `explorerUrl` when known |
 
 - `verify.routed` `routedBy` is `caller`, `table`, `fallback` or `api-url`, as for a
   [dry run](verify.md#dry-run). `skipped` is present when the routing table passed over backends
@@ -98,11 +98,12 @@ the verification goes on.
   `verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits
   none. Its retries are logged at `warn`, with `label` set to `rpc`.
 - `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
-  `verify.retry` and `verify.result`. `linkProxy()` emits `verify.routed`, then one `verify.poll`
-  with `state` `pending` for each pending status check of the link, and `verify.retry` for an HTTP
-  retry. It emits no `verify.validated`, `verify.lookup`, `verify.submitted` or `verify.result`: its
-  outcome is the `LinkProxyResult` it returns, logged at `info`. See
-  [Verify a proxy](../guides/verify-a-proxy.md).
+  `verify.retry` and `verify.result`. `linkProxy()` emits `proxy.routed`, one `proxy.poll` per pending check,
+  `proxy.retry` when a request retries, and `proxy.result` before returning. A result event has
+  the fields of the returned `LinkProxyResult`. Proxy calls emit no `verify.*` events.
+- Every event from `verifyEach()` has `entry`, the zero-based index into `backends`. Each entry
+  emits its own `verify.validated`; events within an entry keep stage order while entries run
+  concurrently.
 - A call that throws emits no `verify.result`. The thrown error is the outcome.
 - `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
   if the call is aborted or the process stops, the handle resumes the verification. `verify()` also
@@ -128,6 +129,10 @@ function onEvent(event: VerifyEvent): void {
     case "verify.routed":
     case "verify.lookup":
     case "verify.poll":
+    case "proxy.routed":
+    case "proxy.poll":
+    case "proxy.retry":
+    case "proxy.result":
     case "verify.result":
       break;
     default: {

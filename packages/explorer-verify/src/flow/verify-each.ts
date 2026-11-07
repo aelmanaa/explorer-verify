@@ -129,14 +129,21 @@ export async function runVerifyEach(
     const everySecret = [...secrets, ...settings.rpcSecrets];
     checkRuns(runs, settings, checked.address, chainId, everySecret);
     const shared: Settings = { ...settings, keySecrets: () => secrets };
-    createObserver({
-      logger: settings.logger,
-      onEvent: settings.onEvent,
-      secrets: everySecret,
-    }).emit({ type: "verify.validated", chainId, address: checked.address });
     const settled = await Promise.allSettled(
-      runs.map(async ({ entry, route }): Promise<BackendOutcome> => {
-        const own: Settings = { ...shared, route: entry };
+      runs.map(async ({ entry, route }, index): Promise<BackendOutcome> => {
+        const own: Settings = {
+          ...shared,
+          route: entry,
+          onEvent:
+            settings.onEvent === undefined
+              ? undefined
+              : (event) => settings.onEvent?.({ ...event, entry: index }),
+        };
+        createObserver({
+          logger: settings.logger,
+          onEvent: own.onEvent,
+          secrets: everySecret,
+        }).emit({ type: "verify.validated", chainId, address: checked.address });
         try {
           if (route instanceof ExplorerVerifyError) {
             throw route;

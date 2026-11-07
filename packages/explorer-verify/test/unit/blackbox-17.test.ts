@@ -435,13 +435,14 @@ describe("verify(): already verified", () => {
       assert.deepEqual(rec.events[2], {
         type: "verify.lookup",
         backend: "sourcify",
-        match,
+        lookup: match,
       });
       assert.deepEqual(rec.events[3], {
         type: "verify.result",
         backend: "sourcify",
         status: "already-verified",
         match,
+        explorerUrl: `https://repo.sourcify.dev/${String(CHAIN_ID)}/${ADDRESS.toLowerCase()}`,
       });
       assertEventsValid(rec.events);
       assert.equal(exitCodeOf(result), 0);
@@ -478,7 +479,7 @@ describe("verify(): already verified", () => {
     assert.deepEqual(rec.events[2], {
       type: "verify.lookup",
       backend: "sourcify",
-      match: "none",
+      lookup: "none",
     });
     assertEventsValid(rec.events);
   });
@@ -577,6 +578,7 @@ describe("verify(): a submitted job", () => {
         backend: "sourcify",
         status: "verified",
         match,
+        explorerUrl: `https://repo.sourcify.dev/${String(CHAIN_ID)}/${ADDRESS.toLowerCase()}`,
       });
       assertEventsValid(rec.events);
       // The handle is logged at info as soon as the submission is accepted.
@@ -896,6 +898,7 @@ describe("verify(): time budget", () => {
       backend: "sourcify",
       status: "verified",
       match: "exact",
+      explorerUrl: `https://repo.sourcify.dev/${String(CHAIN_ID)}/${ADDRESS.toLowerCase()}`,
     });
   });
 
@@ -1538,6 +1541,10 @@ describe("verify(): doc examples", () => {
         case "verify.routed":
         case "verify.lookup":
         case "verify.poll":
+        case "proxy.routed":
+        case "proxy.poll":
+        case "proxy.retry":
+        case "proxy.result":
         case "verify.result":
           break;
         default: {

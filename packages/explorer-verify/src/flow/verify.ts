@@ -493,7 +493,7 @@ export async function verifyOnRoute(
   announceRoute(call, `Verifying ${checked.address} on chain ${String(checked.chainId)}`);
 
   const found = await backend.lookup(call.target, call.ctx);
-  emit({ type: "verify.lookup", backend: backend.name, match: found ?? "none" });
+  emit({ type: "verify.lookup", backend: backend.name, lookup: found ?? "none" });
   if (found !== undefined) {
     return finish(call, "already-verified", found);
   }
@@ -1533,7 +1533,7 @@ function finish(call: Call, status: "verified" | "already-verified", match: Matc
     explorerUrl === undefined
       ? { status, backend: backend.name, match }
       : { status, backend: backend.name, match, explorerUrl };
-  report(observer, { type: "verify.result", backend: backend.name, status, match });
+  report(observer, { type: "verify.result", ...result });
   return result;
 }
 
