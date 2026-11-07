@@ -235,7 +235,7 @@ describe("#53 schema", () => {
         address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       },
       { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
-      { type: "verify.lookup", backend: "blockscout", match: "skipped" },
+      { type: "verify.lookup", backend: "blockscout", lookup: "skipped" },
       {
         type: "verify.submitted",
         backend: "etherscan-v2",
@@ -266,7 +266,7 @@ describe("#53 schema", () => {
       { type: "verify.poll", backend: "sourcify", attempt: 1, state: "failed" },
       { type: "verify.result", backend: "sourcify", status: "failed", match: "exact" },
       { type: "verify.result", backend: "sourcify", status: "verified" },
-      { type: "verify.lookup", backend: "sourcify", match: "maybe" },
+      { type: "verify.lookup", backend: "sourcify", lookup: "maybe" },
       { type: "verify.unknown", backend: "sourcify" },
     ];
     for (const event of bad) {
@@ -276,7 +276,7 @@ describe("#53 schema", () => {
 
   it("allows a field it does not know, as the docs promise readers", () => {
     assert.deepEqual(
-      validateEvent({ type: "verify.lookup", backend: "sourcify", match: "none", extra: 1 }),
+      validateEvent({ type: "verify.lookup", backend: "sourcify", lookup: "none", extra: 1 }),
       [],
     );
   });
@@ -632,6 +632,10 @@ describe("#53 doc examples", () => {
           case "verify.routed":
           case "verify.lookup":
           case "verify.poll":
+          case "proxy.routed":
+          case "proxy.poll":
+          case "proxy.retry":
+          case "proxy.result":
           case "verify.result":
             break;
           default: {

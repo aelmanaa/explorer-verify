@@ -246,7 +246,7 @@ describe("toEnvelope (R-AX-5)", () => {
   it("wraps a failed result with ok: false, the result and no error", () => {
     const value = envelope(FAILED);
     assert.deepEqual(value, { schemaVersion: 1, ok: false, result: FAILED });
-    assert.ok(!("error" in value));
+    assert.ok(!(value.error !== undefined));
   });
 
   it("wraps an error as ok: false with its toJSON() and no result", () => {
@@ -260,13 +260,13 @@ describe("toEnvelope (R-AX-5)", () => {
           ? { ...json, details: { ...json.details, hash: "" } }
           : json;
       assert.deepEqual(value, { schemaVersion: 1, ok: false, error: expected }, code);
-      assert.ok(!("result" in value), code);
+      assert.ok(!(value.result !== undefined), code);
     }
   });
 
   it("carries the handle in its one-line form for not-confirmed", () => {
     const value = envelope(errorFor("not-confirmed"));
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${handle().jobId}`);
   });
 
@@ -289,7 +289,7 @@ describe("toEnvelope (R-AX-5)", () => {
     const value = envelope(result);
     assert.deepEqual(value, { schemaVersion: 1, ok: false, result: FAILED });
     Reflect.set(result, "reason", "changed");
-    assert.ok("result" in value);
+    assert.ok(value.result !== undefined);
     assert.deepEqual(value.result, FAILED);
   });
 
@@ -298,7 +298,7 @@ describe("toEnvelope (R-AX-5)", () => {
     Reflect.set(result, "url", LEAKY_URL);
     Reflect.set(result, "apiKey", DUMMY_KEY);
     const value = envelope(result);
-    assert.ok("result" in value);
+    assert.ok(value.result !== undefined);
     assert.deepEqual(Object.keys(value.result), ["status", "backend", "match", "explorerUrl"]);
     assert.ok(!JSON.stringify(value).includes(DUMMY_KEY));
   });
@@ -307,7 +307,7 @@ describe("toEnvelope (R-AX-5)", () => {
     const result: VerifyResult = { ...ALREADY_VERIFIED };
     Reflect.set(result, "explorerUrl", undefined);
     const value = envelope(result);
-    assert.ok("result" in value);
+    assert.ok(value.result !== undefined);
     assert.deepEqual(Object.keys(value.result), ["status", "backend", "match"]);
   });
 });
@@ -336,7 +336,7 @@ describe("toEnvelope output is deterministic (R-AX-12)", () => {
 
   it("orders error keys as code, message, hint, docsUrl, retryable, handle, details", () => {
     const value = envelope(errorFor("job-not-found"));
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.deepEqual(Object.keys(value), ["schemaVersion", "ok", "error"]);
     assert.deepEqual(Object.keys(value.error), [
       "code",
@@ -436,7 +436,7 @@ describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
     assert.ok(error.details.code === "not-confirmed");
     assert.equal(error.details.handle.jobId, KEY_SHAPED_JOB);
     const value = envelope(error);
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${KEY_SHAPED_JOB}`);
   });
 
@@ -447,7 +447,7 @@ describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
       { secrets: [] },
     );
     const value = envelope(error);
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.message, "Still verifying [redacted].");
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${KEY_SHAPED_JOB}`);
   });
@@ -461,7 +461,7 @@ describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
     assert.ok(viaError.details.code === "job-not-found");
     assert.equal(viaError.details.handle.jobId, "[redacted]");
     const value = envelope(viaError);
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
   });
 
@@ -472,7 +472,7 @@ describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
       { secrets: [] },
     );
     const value = envelope(error);
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:job?apikey=[redacted]`);
   });
 
@@ -485,14 +485,14 @@ describe("handle job id redaction (R-FLOW-5, R-SEC-1)", () => {
     // Precondition: the error alone keeps the 33-character value, which no rule matches.
     assert.equal(error.toJSON().handle, `ev1:sourcify:11155111:${ADDRESS}:${DUMMY_KEY}`);
     const value = envelope(error, { secrets: [DUMMY_KEY] });
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
   });
 
   it("does not redact the handle's prefix, backend, chain or address with toEnvelope's secrets", () => {
     const error = errorFor("not-confirmed");
     const value = envelope(error, { secrets: ["sourcify:11155111", ADDRESS] });
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.equal(value.error.handle, `ev1:sourcify:11155111:${ADDRESS}:${handle().jobId}`);
   });
 });
@@ -609,17 +609,17 @@ describe("toEnvelope and exitCodeOf accept an error from another copy of the pac
     const valid = `ev1:sourcify:11155111:${ADDRESS}:${secretJob}`;
     const other = bypass(new OtherCopyError({ ...json, handle: valid }));
     const plain = envelope(other);
-    assert.ok("error" in plain);
+    assert.ok(plain.error !== undefined);
     assert.equal(plain.error.handle, valid);
     const redacted = envelope(other, { secrets: [secretJob] });
-    assert.ok("error" in redacted);
+    assert.ok(redacted.error !== undefined);
     assert.equal(redacted.error.handle, `ev1:sourcify:11155111:${ADDRESS}:[redacted]`);
   });
 
   it("accepts a job id the other copy already redacted", () => {
     const value = `ev1:sourcify:11155111:${ADDRESS}:[redacted]`;
     const result = envelope(bypass(new OtherCopyError({ ...json, handle: value })));
-    assert.ok("error" in result);
+    assert.ok(result.error !== undefined);
     assert.equal(result.error.handle, value);
   });
 
@@ -628,7 +628,7 @@ describe("toEnvelope and exitCodeOf accept an error from another copy of the pac
       new OtherCopyError({ ...json, message: `failed at ${LEAKY_URL}`, extra: DUMMY_KEY }),
     );
     const value = envelope(other, { secrets: [DUMMY_KEY] });
-    assert.ok("error" in value);
+    assert.ok(value.error !== undefined);
     assert.ok(!JSON.stringify(value).includes(DUMMY_KEY));
     assert.deepEqual(Object.keys(value.error), Object.keys(json));
   });

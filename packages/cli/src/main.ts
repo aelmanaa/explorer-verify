@@ -317,7 +317,7 @@ function finish(
   const code = exitCodeOf(outcome);
   const text = stdoutText(envelope, options.json, options.color);
   // The stderr writer never throws, so stdout is written whatever stderr does.
-  if ("error" in envelope) {
+  if (envelope.error !== undefined) {
     stderr.error(envelope.error, envelope.nextCommand);
     if (outcome instanceof ExplorerVerifyError && outcome.code === "internal-error") {
       const { cause } = outcome;
@@ -330,7 +330,7 @@ function finish(
   } else if ("outcomes" in envelope.result) {
     // A run on several backends: each backend's error goes to stderr too, with its hint (#225).
     for (const each of envelope.result.outcomes) {
-      if ("error" in each) {
+      if (each.error !== undefined) {
         stderr.error({ ...each.error, message: `${each.backend}: ${each.error.message}` });
       }
     }

@@ -7,62 +7,235 @@
       "description": "verified or already-verified: exit code 0.",
       "type": "object",
       "properties": {
-        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "ok": { "const": true },
-        "result": { "$ref": "#/$defs/success" }
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "$ref": "#/$defs/success"
+        }
       },
       "required": ["schemaVersion", "ok", "result"],
-      "not": { "properties": { "error": {} }, "required": ["error"] }
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
     },
     {
       "description": "failed: the explorer rejected the submission. Exit code 1.",
       "type": "object",
       "properties": {
-        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "ok": { "const": false },
-        "result": { "$ref": "#/$defs/failure" }
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": false
+        },
+        "result": {
+          "$ref": "#/$defs/failure"
+        }
       },
       "required": ["schemaVersion", "ok", "result"],
-      "not": { "properties": { "error": {} }, "required": ["error"] }
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
     },
     {
       "description": "A dry run: toEnvelope() of the result of dryRun(), which the CLI prints for verify --dry-run. Nothing was submitted. Exit code 0.",
       "type": "object",
       "properties": {
-        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "ok": { "const": true },
-        "result": { "$ref": "#/$defs/dryRun" }
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "$ref": "#/$defs/dryRun"
+        }
       },
       "required": ["schemaVersion", "ok", "result"],
-      "not": { "properties": { "error": {} }, "required": ["error"] }
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
     },
     {
       "description": "Several backends: toEnvelope() of the result of verifyEach(), which the CLI prints for verify with --backend repeated. ok is true and the exit code 0 only when every outcome is ok. Otherwise the exit code is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has, each outcome's code being that of its result or error. A non-zero code names only the first outcome with that code: read result.outcomes for every backend.",
       "type": "object",
       "properties": {
-        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "ok": { "type": "boolean" },
-        "result": { "$ref": "#/$defs/each" }
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/$defs/each"
+        }
       },
       "required": ["schemaVersion", "ok", "result"],
-      "not": { "properties": { "error": {} }, "required": ["error"] }
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      },
+      "if": {
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        },
+        "required": ["ok"]
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "type": "object",
+            "properties": {
+              "outcomes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "result": {
+            "type": "object",
+            "properties": {
+              "outcomes": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
       "description": "An error from the catalogue. The exit code depends on error.code.",
       "type": "object",
       "properties": {
-        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "ok": { "const": false },
-        "error": { "$ref": "#/$defs/error" },
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
         "nextCommand": {
           "description": "The CLI only: the command to run next, as an argv array that starts with explorer-verify, when one exists. For not-confirmed and a cancelled run with one handle it calls explorer-verify status with the handle, which never submits. It holds no API key, RPC URL or file path. toEnvelope() never sets it.",
           "type": "array",
           "minItems": 2,
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": ["schemaVersion", "ok", "error"],
-      "not": { "properties": { "result": {} }, "required": ["result"] }
+      "not": {
+        "properties": {
+          "result": {}
+        },
+        "required": ["result"]
+      }
+    },
+    {
+      "description": "Proxy result linked: exit 0.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "$ref": "#/$defs/linked"
+        }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
+    },
+    {
+      "description": "Proxy result mismatch: exit 1.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": false
+        },
+        "result": {
+          "$ref": "#/$defs/mismatch"
+        }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
+    },
+    {
+      "description": "Proxy result not-linked: exit 1.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": false
+        },
+        "result": {
+          "$ref": "#/$defs/not-linked"
+        }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
     }
   ],
   "$defs": {
@@ -79,9 +252,15 @@
       "description": "A VerifyResult whose status is verified or already-verified.",
       "type": "object",
       "properties": {
-        "status": { "enum": ["verified", "already-verified"] },
-        "backend": { "$ref": "#/$defs/backend" },
-        "match": { "enum": ["exact", "partial"] },
+        "status": {
+          "enum": ["verified", "already-verified"]
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
+        "match": {
+          "enum": ["exact", "partial"]
+        },
         "explorerUrl": {
           "description": "The public page of the contract. Absent when the library knows none.",
           "type": "string"
@@ -93,8 +272,12 @@
       "description": "A VerifyResult whose status is failed.",
       "type": "object",
       "properties": {
-        "status": { "const": "failed" },
-        "backend": { "$ref": "#/$defs/backend" },
+        "status": {
+          "const": "failed"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
         "reason": {
           "description": "Why the explorer rejected the submission, with API keys removed.",
           "type": "string"
@@ -106,8 +289,12 @@
       "description": "A DryRunResult: where verify would go and what the explorer holds now. Nothing was submitted.",
       "type": "object",
       "properties": {
-        "status": { "const": "dry-run" },
-        "backend": { "$ref": "#/$defs/backend" },
+        "status": {
+          "const": "dry-run"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
         "apiHost": {
           "description": "The API host verify would send to, such as sourcify.dev, with the port when it is not the scheme's default.",
           "type": "string"
@@ -131,7 +318,13 @@
       "description": "A VerifyEachResult: one outcome per backend, in the order the call listed them.",
       "type": "object",
       "properties": {
-        "outcomes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/outcome" } }
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/outcome"
+          }
+        }
       },
       "required": ["outcomes"]
     },
@@ -142,34 +335,67 @@
           "description": "verified or already-verified.",
           "type": "object",
           "properties": {
-            "backend": { "$ref": "#/$defs/backend" },
-            "ok": { "const": true },
-            "result": { "$ref": "#/$defs/success" }
+            "backend": {
+              "$ref": "#/$defs/backend"
+            },
+            "ok": {
+              "const": true
+            },
+            "result": {
+              "$ref": "#/$defs/success"
+            }
           },
           "required": ["backend", "ok", "result"],
-          "not": { "properties": { "error": {} }, "required": ["error"] }
+          "not": {
+            "properties": {
+              "error": {}
+            },
+            "required": ["error"]
+          }
         },
         {
           "description": "failed: the explorer rejected the submission.",
           "type": "object",
           "properties": {
-            "backend": { "$ref": "#/$defs/backend" },
-            "ok": { "const": false },
-            "result": { "$ref": "#/$defs/failure" }
+            "backend": {
+              "$ref": "#/$defs/backend"
+            },
+            "ok": {
+              "const": false
+            },
+            "result": {
+              "$ref": "#/$defs/failure"
+            }
           },
           "required": ["backend", "ok", "result"],
-          "not": { "properties": { "error": {} }, "required": ["error"] }
+          "not": {
+            "properties": {
+              "error": {}
+            },
+            "required": ["error"]
+          }
         },
         {
           "description": "The call on this backend threw. A not-confirmed error carries the handle that resumes this backend alone.",
           "type": "object",
           "properties": {
-            "backend": { "$ref": "#/$defs/backend" },
-            "ok": { "const": false },
-            "error": { "$ref": "#/$defs/error" }
+            "backend": {
+              "$ref": "#/$defs/backend"
+            },
+            "ok": {
+              "const": false
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
           },
           "required": ["backend", "ok", "error"],
-          "not": { "properties": { "result": {} }, "required": ["result"] }
+          "not": {
+            "properties": {
+              "result": {}
+            },
+            "required": ["result"]
+          }
         }
       ]
     },
@@ -182,8 +408,15 @@
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
         },
-        "message": { "description": "What went wrong.", "type": "string" },
-        "hint": { "description": "What to do next.", "type": "string", "minLength": 1 },
+        "message": {
+          "description": "What went wrong.",
+          "type": "string"
+        },
+        "hint": {
+          "description": "What to do next.",
+          "type": "string",
+          "minLength": 1
+        },
         "docsUrl": {
           "description": "The code's own page in the error reference.",
           "type": "string",
@@ -205,8 +438,13 @@
           "items": {
             "type": "object",
             "properties": {
-              "backend": { "$ref": "#/$defs/backend" },
-              "handle": { "type": "string", "pattern": "^ev1:" }
+              "backend": {
+                "$ref": "#/$defs/backend"
+              },
+              "handle": {
+                "type": "string",
+                "pattern": "^ev1:"
+              }
             },
             "required": ["backend", "handle"]
           }
@@ -214,20 +452,34 @@
         "details": {
           "description": "The code's data, redacted (R-SEC-1), with the same fields as ErrorDetails in the library and each handle in its one-line form. details.code equals code. The fields of each known code are listed below; an unknown code's details are an object with its code.",
           "type": "object",
-          "properties": { "code": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" } },
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          },
           "required": ["code"]
         }
       },
       "required": ["code", "message", "hint", "docsUrl", "retryable", "details"],
       "allOf": [
         {
-          "if": { "properties": { "code": { "const": "invalid-input" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid-input"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "invalid-input" },
+                  "code": {
+                    "const": "invalid-input"
+                  },
                   "issues": {
                     "description": "Every problem found, in field order.",
                     "type": "array",
@@ -253,14 +505,25 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "not-confirmed" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "not-confirmed"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "not-confirmed" },
-                  "handle": { "$ref": "#/$defs/handleLine" }
+                  "code": {
+                    "const": "not-confirmed"
+                  },
+                  "handle": {
+                    "$ref": "#/$defs/handleLine"
+                  }
                 },
                 "required": ["code", "handle"]
               }
@@ -269,7 +532,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "unsupported-chain" } },
+            "properties": {
+              "code": {
+                "const": "unsupported-chain"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -277,9 +544,15 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "unsupported-chain" },
-                  "chainId": { "type": "number" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "unsupported-chain"
+                  },
+                  "chainId": {
+                    "type": "number"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "chainId", "backend"]
               }
@@ -287,15 +560,28 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "network" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "network"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "network" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "attempts": { "type": "number" }
+                  "code": {
+                    "const": "network"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "attempts": {
+                    "type": "number"
+                  }
                 },
                 "required": ["code", "backend", "attempts"]
               }
@@ -303,16 +589,31 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "rate-limited" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "rate-limited"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "rate-limited" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "retryAfterMs": { "type": "number" },
-                  "attempts": { "type": "number" }
+                  "code": {
+                    "const": "rate-limited"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "retryAfterMs": {
+                    "type": "number"
+                  },
+                  "attempts": {
+                    "type": "number"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -320,15 +621,28 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "timeout" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "timeout"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "timeout" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "timeoutMs": { "type": "number" }
+                  "code": {
+                    "const": "timeout"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "timeoutMs": {
+                    "type": "number"
+                  }
                 },
                 "required": ["code", "backend", "timeoutMs"]
               }
@@ -337,7 +651,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "unexpected-response" } },
+            "properties": {
+              "code": {
+                "const": "unexpected-response"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -345,12 +663,24 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "unexpected-response" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "status": { "type": "number" },
-                  "excerpt": { "type": "string" },
-                  "retryAfterMs": { "type": "number" },
-                  "attempts": { "type": "number" }
+                  "code": {
+                    "const": "unexpected-response"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "status": {
+                    "type": "number"
+                  },
+                  "excerpt": {
+                    "type": "string"
+                  },
+                  "retryAfterMs": {
+                    "type": "number"
+                  },
+                  "attempts": {
+                    "type": "number"
+                  }
                 },
                 "required": ["code", "backend", "status", "excerpt"]
               }
@@ -358,14 +688,25 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "in-progress" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "in-progress"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "in-progress" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "in-progress"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -373,15 +714,28 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "unknown-state" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "unknown-state"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "unknown-state" },
-                  "handle": { "$ref": "#/$defs/handleLine" },
-                  "excerpt": { "type": "string" }
+                  "code": {
+                    "const": "unknown-state"
+                  },
+                  "handle": {
+                    "$ref": "#/$defs/handleLine"
+                  },
+                  "excerpt": {
+                    "type": "string"
+                  }
                 },
                 "required": ["code", "handle", "excerpt"]
               }
@@ -389,14 +743,25 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "job-not-found" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "job-not-found"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "job-not-found" },
-                  "handle": { "$ref": "#/$defs/handleLine" }
+                  "code": {
+                    "const": "job-not-found"
+                  },
+                  "handle": {
+                    "$ref": "#/$defs/handleLine"
+                  }
                 },
                 "required": ["code", "handle"]
               }
@@ -404,18 +769,31 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "cancelled" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "cancelled"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "cancelled" },
-                  "handle": { "$ref": "#/$defs/handleLine" },
+                  "code": {
+                    "const": "cancelled"
+                  },
+                  "handle": {
+                    "$ref": "#/$defs/handleLine"
+                  },
                   "handles": {
                     "type": "array",
                     "minItems": 1,
-                    "items": { "$ref": "#/$defs/handleLine" }
+                    "items": {
+                      "$ref": "#/$defs/handleLine"
+                    }
                   }
                 },
                 "required": ["code"]
@@ -425,7 +803,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "incomplete-input" } },
+            "properties": {
+              "code": {
+                "const": "incomplete-input"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -433,9 +815,18 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "incomplete-input" },
-                  "field": { "enum": ["input", "compilerVersion", "contract", "sources"] },
-                  "candidates": { "type": "array", "items": { "type": "string" } }
+                  "code": {
+                    "const": "incomplete-input"
+                  },
+                  "field": {
+                    "enum": ["input", "compilerVersion", "contract", "sources"]
+                  },
+                  "candidates": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
                 },
                 "required": ["code", "field", "candidates"]
               }
@@ -444,7 +835,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "insufficient-artifact" } },
+            "properties": {
+              "code": {
+                "const": "insufficient-artifact"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -452,8 +847,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "insufficient-artifact" },
-                  "field": { "const": "input" }
+                  "code": {
+                    "const": "insufficient-artifact"
+                  },
+                  "field": {
+                    "const": "input"
+                  }
                 },
                 "required": ["code", "field"]
               }
@@ -462,7 +861,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "unsupported-compiler" } },
+            "properties": {
+              "code": {
+                "const": "unsupported-compiler"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -470,8 +873,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "unsupported-compiler" },
-                  "field": { "type": "string" }
+                  "code": {
+                    "const": "unsupported-compiler"
+                  },
+                  "field": {
+                    "type": "string"
+                  }
                 },
                 "required": ["code", "field"]
               }
@@ -480,7 +887,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "verification-inconclusive" } },
+            "properties": {
+              "code": {
+                "const": "verification-inconclusive"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -488,9 +899,15 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "verification-inconclusive" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "reason": { "type": "string" }
+                  "code": {
+                    "const": "verification-inconclusive"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
                 },
                 "required": ["code", "backend", "reason"]
               }
@@ -498,16 +915,33 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "source-mismatch" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "source-mismatch"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "source-mismatch" },
-                  "path": { "type": "string" },
-                  "expected": { "type": "string", "pattern": "^0x([0-9a-f]{64})?$" },
-                  "actual": { "type": "string", "pattern": "^0x([0-9a-f]{64})?$" }
+                  "code": {
+                    "const": "source-mismatch"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "expected": {
+                    "type": "string",
+                    "pattern": "^0x([0-9a-f]{64})?$"
+                  },
+                  "actual": {
+                    "type": "string",
+                    "pattern": "^0x([0-9a-f]{64})?$"
+                  }
                 },
                 "required": ["code", "path", "expected", "actual"]
               }
@@ -515,14 +949,25 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "missing-api-key" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "missing-api-key"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "missing-api-key" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "missing-api-key"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -531,7 +976,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "api-key-rejected" } },
+            "properties": {
+              "code": {
+                "const": "api-key-rejected"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -539,8 +988,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "api-key-rejected" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "api-key-rejected"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -548,14 +1001,25 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "quota-exceeded" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "quota-exceeded"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "quota-exceeded" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "quota-exceeded"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -563,12 +1027,23 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "internal-error" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "internal-error"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
-                "properties": { "code": { "const": "internal-error" } },
+                "properties": {
+                  "code": {
+                    "const": "internal-error"
+                  }
+                },
                 "required": ["code"]
               }
             }
@@ -576,7 +1051,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "no-metadata-hash" } },
+            "properties": {
+              "code": {
+                "const": "no-metadata-hash"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -584,8 +1063,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "no-metadata-hash" },
-                  "found": { "enum": ["no-code", "no-metadata", "version-only"] }
+                  "code": {
+                    "const": "no-metadata-hash"
+                  },
+                  "found": {
+                    "enum": ["no-code", "no-metadata", "version-only"]
+                  }
                 },
                 "required": ["code", "found"]
               }
@@ -594,7 +1077,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "metadata-unavailable" } },
+            "properties": {
+              "code": {
+                "const": "metadata-unavailable"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -602,14 +1089,20 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "metadata-unavailable" },
-                  "hash": { "type": "string" },
+                  "code": {
+                    "const": "metadata-unavailable"
+                  },
+                  "hash": {
+                    "type": "string"
+                  },
                   "attempts": {
                     "type": "array",
                     "items": {
                       "type": "object",
                       "properties": {
-                        "source": { "enum": ["rpc", "ipfs", "sourcify"] },
+                        "source": {
+                          "enum": ["rpc", "ipfs", "sourcify"]
+                        },
                         "outcome": {
                           "enum": [
                             "not-found",
@@ -619,7 +1112,9 @@
                             "timeout"
                           ]
                         },
-                        "status": { "type": "number" }
+                        "status": {
+                          "type": "number"
+                        }
                       },
                       "required": ["source", "outcome"]
                     }
@@ -632,7 +1127,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "constructor-args-unavailable" } },
+            "properties": {
+              "code": {
+                "const": "constructor-args-unavailable"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -640,8 +1139,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "constructor-args-unavailable" },
-                  "reason": { "enum": ["prefix-mismatch", "bad-length"] }
+                  "code": {
+                    "const": "constructor-args-unavailable"
+                  },
+                  "reason": {
+                    "enum": ["prefix-mismatch", "bad-length"]
+                  }
                 },
                 "required": ["code", "reason"]
               }
@@ -650,7 +1153,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "proxy-link-pending" } },
+            "properties": {
+              "code": {
+                "const": "proxy-link-pending"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -658,8 +1165,12 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "proxy-link-pending" },
-                  "backend": { "$ref": "#/$defs/backend" }
+                  "code": {
+                    "const": "proxy-link-pending"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  }
                 },
                 "required": ["code", "backend"]
               }
@@ -668,7 +1179,11 @@
         },
         {
           "if": {
-            "properties": { "code": { "const": "proxy-link-unknown-state" } },
+            "properties": {
+              "code": {
+                "const": "proxy-link-unknown-state"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -676,9 +1191,15 @@
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "proxy-link-unknown-state" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "excerpt": { "type": "string" }
+                  "code": {
+                    "const": "proxy-link-unknown-state"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "excerpt": {
+                    "type": "string"
+                  }
                 },
                 "required": ["code", "backend", "excerpt"]
               }
@@ -686,17 +1207,35 @@
           }
         },
         {
-          "if": { "properties": { "code": { "const": "handler-refused" } }, "required": ["code"] },
+          "if": {
+            "properties": {
+              "code": {
+                "const": "handler-refused"
+              }
+            },
+            "required": ["code"]
+          },
           "then": {
             "properties": {
               "details": {
                 "type": "object",
                 "properties": {
-                  "code": { "const": "handler-refused" },
-                  "backend": { "$ref": "#/$defs/backend" },
-                  "status": { "type": "number" },
-                  "excerpt": { "type": "string" },
-                  "handlerCode": { "type": "string", "pattern": "^([a-z][a-z-]{0,39})?$" }
+                  "code": {
+                    "const": "handler-refused"
+                  },
+                  "backend": {
+                    "$ref": "#/$defs/backend"
+                  },
+                  "status": {
+                    "type": "number"
+                  },
+                  "excerpt": {
+                    "type": "string"
+                  },
+                  "handlerCode": {
+                    "type": "string",
+                    "pattern": "^([a-z][a-z-]{0,39})?$"
+                  }
                 },
                 "required": ["code", "backend", "status", "excerpt", "handlerCode"]
               }
@@ -709,6 +1248,63 @@
       "description": "A handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>.",
       "type": "string",
       "pattern": "^ev1:"
+    },
+    "linked": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "linked"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
+        "implementation": {
+          "type": "string",
+          "pattern": "^0x"
+        },
+        "implementationVerified": {
+          "type": "boolean"
+        },
+        "explorerUrl": {
+          "type": "string"
+        }
+      },
+      "required": ["status", "backend", "implementation", "implementationVerified"]
+    },
+    "mismatch": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "mismatch"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
+        "implementation": {
+          "type": "string",
+          "pattern": "^0x"
+        },
+        "expectedImplementation": {
+          "type": "string",
+          "pattern": "^0x"
+        }
+      },
+      "required": ["status", "backend", "expectedImplementation"]
+    },
+    "not-linked": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "not-linked"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": ["status", "backend", "reason"]
     }
   }
 }

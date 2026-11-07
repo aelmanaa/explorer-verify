@@ -338,7 +338,7 @@ describe("blackbox #61: full verify run (R-BE-1, R-DX-6)", () => {
     assert.equal(routed.apiHost, "api.etherscan.io");
     const lookup = run.events[2];
     assert.ok(lookup?.type === "verify.lookup");
-    assert.equal(lookup.match, "none");
+    assert.equal(lookup.lookup, "none");
     const submitted = run.events[3];
     assert.ok(submitted?.type === "verify.submitted");
     assert.equal(submitted.handle, `ev1:etherscan-v2:${CHAIN_ID}:${ADDRESS}:${GUID}`);
@@ -877,7 +877,7 @@ describe("blackbox #61: lookup mapping (R-FLOW-3, R-FLOW-4)", () => {
       });
       assert.deepEqual(actions(run), ["getsourcecode"]);
       const lookup = run.events.find((event) => event.type === "verify.lookup");
-      assert.ok(lookup?.type === "verify.lookup" && lookup.match === "exact");
+      assert.ok(lookup?.type === "verify.lookup" && lookup.lookup === "exact");
     }
   });
 

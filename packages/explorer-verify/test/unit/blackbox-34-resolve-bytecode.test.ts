@@ -1626,12 +1626,18 @@ describe("#34 feeding verify()", () => {
     const eb = toEnvelope(b);
     assert.equal(ea.ok, false);
     assert.equal(eb.ok, false);
-    assert.ok("error" in ea && ea.error.docsUrl.endsWith("/reference/errors/no-metadata-hash"));
-    assert.ok("error" in eb && eb.error.docsUrl.endsWith("/reference/errors/metadata-unavailable"));
-    assert.ok("error" in ea && ea.error.hint.startsWith("Build the input from the build files"));
-    assert.ok("error" in eb && eb.error.hint.startsWith("Read details.attempts"));
+    assert.ok(
+      ea.error !== undefined && ea.error.docsUrl.endsWith("/reference/errors/no-metadata-hash"),
+    );
+    assert.ok(
+      eb.error !== undefined && eb.error.docsUrl.endsWith("/reference/errors/metadata-unavailable"),
+    );
+    assert.ok(
+      ea.error !== undefined && ea.error.hint.startsWith("Build the input from the build files"),
+    );
+    assert.ok(eb.error !== undefined && eb.error.hint.startsWith("Read details.attempts"));
     // json-output.md: the envelope holds the details, redacted.
-    assert.ok("error" in eb);
+    assert.ok(eb.error !== undefined);
     assert.deepEqual(eb.error.details, { code: "metadata-unavailable", hash: "", attempts: [] });
   });
 

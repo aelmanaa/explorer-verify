@@ -416,9 +416,9 @@ describe("nextCommand (R-AX-5)", () => {
       },
       {},
     );
-    assert.ok("result" in envelope && "outcomes" in envelope.result);
+    assert.ok(envelope.result !== undefined && "outcomes" in envelope.result);
     const failed = envelope.result.outcomes[1];
-    assert.ok(failed !== undefined && "error" in failed);
+    assert.ok(failed !== undefined && failed.error !== undefined);
     assert.match(failed.error.hint, /ETHERSCAN_API_KEY/);
     const verified: Envelope = {
       schemaVersion: 1,

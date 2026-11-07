@@ -117,7 +117,7 @@ describe("a key bound to a route through the handler is refused by every entry p
           await verifyEach(input(), { fetch, handlerUrl: HANDLER, backends: [route] }).then(
             (result) => {
               const [only] = result.outcomes;
-              if (only !== undefined && "error" in only) {
+              if (only !== undefined && only.error !== undefined) {
                 throw only.error;
               }
               return result;

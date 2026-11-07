@@ -276,15 +276,19 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   and JSON-safe values. The types follow OpenTelemetry's event naming rules (lowercase,
   dot-separated, no dynamic values):
 
-  | `type`             | Fields besides `type`                                       |
-  | ------------------ | ----------------------------------------------------------- |
-  | `verify.validated` | `chainId`, `address`                                        |
-  | `verify.routed`    | `backend`, `apiHost` (host only, no path or query)          |
-  | `verify.lookup`    | `backend`, `match`: `exact`, `partial`, `none` or `skipped` |
-  | `verify.submitted` | `backend`, `handle` in its one-line string form             |
-  | `verify.poll`      | `backend`, `attempt`, `state`                               |
-  | `verify.retry`     | `backend`, `attempt`, `reason`, `delayMs`                   |
-  | `verify.result`    | `backend`, `status`, and `match` when the status has one    |
+  | `type`             | Fields besides `type`                                        |
+  | ------------------ | ------------------------------------------------------------ |
+  | `verify.validated` | `chainId`, `address`                                         |
+  | `verify.routed`    | `backend`, `apiHost` (host only, no path or query)           |
+  | `verify.lookup`    | `backend`, `lookup`: `exact`, `partial`, `none` or `skipped` |
+  | `verify.submitted` | `backend`, `handle` in its one-line string form              |
+  | `verify.poll`      | `backend`, `attempt`, `state`                                |
+  | `verify.retry`     | `backend`, `attempt`, `reason`, `delayMs`                    |
+  | `verify.result`    | `backend`, `status`, `match` and `explorerUrl` when known    |
+
+  Every event from `verifyEach()` carries `entry`, its zero-based index in `backends`, including
+  one `verify.validated` per entry. `linkProxy()` emits `proxy.routed`, `proxy.poll`,
+  `proxy.retry` and `proxy.result`; the result event holds its `LinkProxyResult` fields.
 
   `verify()` emits them in stage order and emits `verify.submitted` as soon as the explorer accepts
   the submission, so an aborted call can still be resumed (R-FLOW-5). `checkStatus` emits
@@ -339,6 +343,10 @@ CLI:
   - `{ "schemaVersion": 1, "ok": ..., "result": { "outcomes": [...] } }` for several backends (R-RT-4),
     whose `ok` is true only when every outcome's `ok` is true
   - `{ "schemaVersion": 1, "ok": false, "error": { "code", "message", "hint", "docsUrl", "retryable", "handle"?, "details" } }`
+
+  The SDK also accepts `LinkProxyResult` in `toEnvelope()` and `exitCodeOf()`: `linked` has
+  `ok: true` and exit 0; `mismatch` and `not-linked` have `ok: false` and exit 1. All three are
+  results, with no error. The CLI has no proxy-link command.
 
   `ok` is true exactly when the exit code (R-AX-7) is 0, so the two never disagree. For `verify` and
   `status`, `result` is a `VerifyResult`, for `verify --dry-run` a `DryRunResult` with `routedBy`

@@ -191,8 +191,8 @@ describe("black box #5: results", () => {
       assert.deepEqual(Object.keys(envelope), ["schemaVersion", "ok", "result"]);
       assert.equal(envelope.schemaVersion, 1);
       assert.equal(envelope.ok, exit === 0);
-      assert.ok("result" in envelope);
-      assert.ok(!("error" in envelope));
+      assert.ok(envelope.result !== undefined);
+      assert.ok(!(envelope.error !== undefined));
       assert.deepEqual(envelope.result, result);
       assert.notEqual(envelope.result, result, "envelope result is a new object");
       const expectedKeys =
@@ -231,7 +231,7 @@ describe("black box #5: results", () => {
       ...extra,
     };
     const envelope = toEnvelope(result, { secrets: [OPAQUE_KEY] });
-    assert.ok("result" in envelope);
+    assert.ok(envelope.result !== undefined);
     assert.deepEqual(Object.keys(envelope.result), ["status", "backend", "match"]);
     const failedExtra = { match: "exact", explorerUrl: "https://x.example", token: OPAQUE_KEY };
     const failed: VerifyResult = {
@@ -241,7 +241,7 @@ describe("black box #5: results", () => {
       ...failedExtra,
     };
     const failedEnvelope = toEnvelope(failed);
-    assert.ok("result" in failedEnvelope);
+    assert.ok(failedEnvelope.result !== undefined);
     assert.deepEqual(Object.keys(failedEnvelope.result), ["status", "backend", "reason"]);
     assertValid(envelope);
     assertValid(failedEnvelope);
@@ -265,8 +265,8 @@ describe("black box #5: errors", () => {
       assert.equal(envelope.schemaVersion, 1);
       assert.equal(envelope.ok, false);
       assert.equal(envelope.ok, exit === 0);
-      assert.ok("error" in envelope);
-      assert.ok(!("result" in envelope));
+      assert.ok(envelope.error !== undefined);
+      assert.ok(!(envelope.result !== undefined));
       assert.deepEqual(envelope.error, error.toJSON());
       assert.equal(JSON.stringify(envelope.error), JSON.stringify(error));
       const json = envelope.error;
@@ -294,7 +294,7 @@ describe("black box #5: errors", () => {
   it("cancelled without a handle has no handle field", () => {
     const error = new ExplorerVerifyError({ code: "cancelled" }, "Cancelled.", { secrets: [] });
     const envelope = toEnvelope(error);
-    assert.ok("error" in envelope);
+    assert.ok(envelope.error !== undefined);
     assert.deepEqual(Object.keys(envelope.error), [
       "code",
       "message",
@@ -318,7 +318,7 @@ describe("black box #5: errors", () => {
     });
     const custEnv = toEnvelope(custom);
     const blankEnv = toEnvelope(blank);
-    assert.ok("error" in custEnv && "error" in blankEnv);
+    assert.ok(custEnv.error !== undefined && blankEnv.error !== undefined);
     assert.equal(custEnv.error.hint, "Do X.");
     assert.equal(blankEnv.error.hint, errorFor("network").hint);
     assertValid(blankEnv);

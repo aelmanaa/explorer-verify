@@ -64,3 +64,5 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 The zksolc Blockscout mapping is recorded in [decision 0059](contributor/decisions/0059-zksolc-on-blockscout.md)
 and its [protocol evidence](contributor/research/2026-11-07-blockscout-zksolc.md).
+Event and envelope fields are recorded in [decision 0058](contributor/decisions/0058-settle-event-and-envelope-fields.md),
+with [source research](contributor/research/2026-11-07-event-envelope-fields.md).

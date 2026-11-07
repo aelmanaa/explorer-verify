@@ -360,7 +360,7 @@ function assertEventsValid(run: Run): void {
 
 function lookupMatch(run: Run): string | undefined {
   const event = run.events.find((entry) => entry.type === "verify.lookup");
-  return event?.type === "verify.lookup" ? event.match : undefined;
+  return event?.type === "verify.lookup" ? event.lookup : undefined;
 }
 
 // ---------------------------------------------------------------------------------------------

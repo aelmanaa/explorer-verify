@@ -113,9 +113,9 @@ describe("toEnvelope() of a verifyEach() result (R-AX-5)", () => {
     assert.equal(exitCodeOf(result), 4);
     const envelope = toEnvelope(result, { secrets: [KEY] });
     assert.deepEqual(validateEnvelope(envelope), []);
-    assert.ok("result" in envelope && "outcomes" in envelope.result);
+    assert.ok(envelope.result !== undefined && "outcomes" in envelope.result);
     const [outcome] = envelope.result.outcomes;
-    assert.ok(outcome !== undefined && "error" in outcome);
+    assert.ok(outcome !== undefined && outcome.error !== undefined);
     assert.equal(outcome.error.handle, HANDLE);
     assert.ok(!JSON.stringify(envelope).includes(KEY));
   });
@@ -132,9 +132,9 @@ describe("toEnvelope() of a verifyEach() result (R-AX-5)", () => {
 
   it("keeps the handle of a not-confirmed outcome, so checkStatus() resumes it (R-FLOW-5)", () => {
     const envelope = toEnvelope(each(errorOutcome("not-confirmed")));
-    assert.ok("result" in envelope && "outcomes" in envelope.result);
+    assert.ok(envelope.result !== undefined && "outcomes" in envelope.result);
     const [outcome] = envelope.result.outcomes;
-    assert.ok(outcome !== undefined && "error" in outcome);
+    assert.ok(outcome !== undefined && outcome.error !== undefined);
     assert.equal(outcome.error.handle, HANDLE);
   });
 
@@ -146,7 +146,9 @@ describe("toEnvelope() of a verifyEach() result (R-AX-5)", () => {
     };
     const error = errorOutcome("network");
     const withKey: BackendOutcome<ErrorJson> =
-      "error" in error ? { ...error, error: { ...error.error, message: `echo ${KEY}` } } : error;
+      error.error !== undefined
+        ? { ...error, error: { ...error.error, message: `echo ${KEY}` } }
+        : error;
     const text = JSON.stringify(toEnvelope(each(leaky, withKey), { secrets: [KEY] }));
     assert.ok(!text.includes(KEY), text);
   });
@@ -270,7 +272,7 @@ describe("the handles of a cancelled run on several backends (R-AX-5)", () => {
     assert.deepEqual(error.toJSON().handles, expected);
     const envelope = toEnvelope(error);
     assert.deepEqual(validateEnvelope(envelope), []);
-    assert.ok("error" in envelope);
+    assert.ok(envelope.error !== undefined);
     assert.deepEqual(envelope.error.handles, expected);
     assert.equal(exitCodeOf(error), 130);
     assert.match(envelope.error.hint, /error\.handles/);

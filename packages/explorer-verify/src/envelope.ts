@@ -26,7 +26,13 @@ import type { SplitHandle } from "./flow/format-handle.ts";
 import { ownKeys, unknownKeys } from "./internal/known-keys.ts";
 import { addressDigits, readChainId, readFields } from "./internal/read-fields.ts";
 import { REDACTED, redact, redactExcerpt } from "./redact.ts";
-import type { BackendOutcome, DryRunResult, VerifyEachResult, VerifyResult } from "./types.ts";
+import type {
+  BackendOutcome,
+  DryRunResult,
+  LinkProxyResult,
+  VerifyEachResult,
+  VerifyResult,
+} from "./types.ts";
 
 /**
  * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
@@ -121,7 +127,7 @@ export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
  * import type { Envelope } from "explorer-verify/envelope";
  *
  * function summary(envelope: Envelope): string {
- *   if ("error" in envelope) {
+ *   if (envelope.error !== undefined) {
  *     return `${envelope.error.code}: ${envelope.error.hint}`;
  *   }
  *   return envelope.result.status;
@@ -129,47 +135,39 @@ export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
  * ```
  * @experimental
  */
-export type Envelope =
+export type Envelope<R extends EnvelopeResult = EnvelopeResult> =
+  | ResultEnvelope<R>
   | {
-      /** The version of this document's form. */
       schemaVersion: 1;
-      /** `true`: the exit code is 0. */
-      ok: true;
-      /** The verified or already-verified result. */
-      result: Extract<VerifyResult, Record<"status", "verified" | "already-verified">>;
-    }
-  | {
-      /** The version of this document's form. */
-      schemaVersion: 1;
-      /** `false`: the explorer rejected the submission. */
       ok: false;
-      /** The failed result. */
-      result: Extract<VerifyResult, Record<"status", "failed">>;
-    }
-  | {
-      /** The version of this document's form. */
-      schemaVersion: 1;
-      /** `true`: a dry run submits nothing, and the exit code is 0. */
-      ok: true;
-      /** The dry run's result. */
-      result: DryRunResult;
-    }
-  | {
-      /** The version of this document's form. */
-      schemaVersion: 1;
-      /** `true` when every backend holds the verified source: the exit code is 0. */
-      ok: boolean;
-      /** The outcome of each backend of a `verifyEach()` call. */
-      result: VerifyEachResult<ErrorJson>;
-    }
-  | {
-      /** The version of this document's form. */
-      schemaVersion: 1;
-      /** `false`: the call threw. */
-      ok: false;
-      /** The error, as `ExplorerVerifyError.toJSON()` gives it, with API keys removed. */
       error: ErrorJson;
+      result?: never;
     };
+
+/** The result types accepted by the envelope. */
+type EnvelopeResult =
+  | VerifyResult
+  | DryRunResult
+  | LinkProxyResult
+  | VerifyEachResult<ExplorerVerifyError | ErrorJson>;
+
+/** A result envelope, distributed over its result union. */
+type ResultEnvelope<R extends EnvelopeResult> =
+  R extends VerifyEachResult<ExplorerVerifyError | ErrorJson>
+    ?
+        | {
+            schemaVersion: 1;
+            ok: true;
+            result: { outcomes: Extract<BackendOutcome<ErrorJson>, { ok: true }>[] };
+            error?: never;
+          }
+        | { schemaVersion: 1; ok: false; result: VerifyEachResult<ErrorJson>; error?: never }
+    : {
+        schemaVersion: 1;
+        ok: R extends { status: "failed" | "mismatch" | "not-linked" } ? false : true;
+        result: R;
+        error?: never;
+      };
 
 /**
  * Options for {@link toEnvelope}.
@@ -192,10 +190,10 @@ export interface EnvelopeOptions {
 }
 
 /** Every result status: those of `VerifyResult` and `dry-run`. */
-type Status = VerifyResult["status"] | DryRunResult["status"];
+type Status = VerifyResult["status"] | DryRunResult["status"] | LinkProxyResult["status"];
 
 /** A result `toEnvelope` takes: a `VerifyResult` or a `DryRunResult`. */
-type AnyResult = VerifyResult | DryRunResult;
+type AnyResult = VerifyResult | DryRunResult | LinkProxyResult;
 
 // The exit code of each result status (R-AX-7). A status without an entry fails to compile.
 const RESULT_EXIT_CODES: Readonly<Record<Status, ExitCode>> = {
@@ -203,6 +201,9 @@ const RESULT_EXIT_CODES: Readonly<Record<Status, ExitCode>> = {
   "already-verified": 0,
   failed: 1,
   "dry-run": 0,
+  linked: 0,
+  mismatch: 1,
+  "not-linked": 1,
 };
 
 const MATCHES = ["exact", "partial"] as const;
@@ -237,9 +238,9 @@ function strictHandle(value: unknown): SplitHandle | undefined {
 }
 
 const NOT_AN_OUTCOME =
-  "The value is not a VerifyResult, a DryRunResult, a VerifyEachResult or an ExplorerVerifyError.";
+  "The value is not a VerifyResult, a DryRunResult, a VerifyEachResult, a LinkProxyResult or an ExplorerVerifyError.";
 const NOT_AN_OUTCOME_HINT =
-  "Pass the result that verify(), checkStatus() or verifyEach() returned, or the ExplorerVerifyError it threw.";
+  "Pass the result that verify(), checkStatus(), verifyEach() or linkProxy() returned, or the ExplorerVerifyError it threw.";
 
 /**
  * The exit code of a `verifyEach()` result that is not 0, in order of precedence (R-AX-7): the
@@ -273,6 +274,9 @@ function statusOf(value: unknown): Status | undefined {
   return value === "verified" ||
     value === "already-verified" ||
     value === "failed" ||
+    value === "linked" ||
+    value === "mismatch" ||
+    value === "not-linked" ||
     value === "dry-run"
     ? value
     : undefined;
@@ -425,6 +429,9 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
   const backend =
     toBackendName(fields.get("backend")) ??
     problems.add("outcome.backend", "must be one of BACKEND_NAMES");
+  if (status === "linked" || status === "mismatch" || status === "not-linked") {
+    return copyLinkResult(fields, status, backend, problems, secrets);
+  }
   if (status === "failed") {
     const reason =
       stringOf(fields.get("reason")) ?? problems.add("outcome.reason", "must be a string");
@@ -453,6 +460,66 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
   return explorerUrl === undefined
     ? { status, backend, match }
     : { status, backend, match, explorerUrl: redact(explorerUrl, secrets) };
+}
+
+/** Validates and redacts the result of linkProxy(). */
+function copyLinkResult(
+  fields: Map<string, unknown>,
+  status: LinkProxyResult["status"],
+  backend: BackendOutcome["backend"] | undefined,
+  problems: Problems,
+  secrets: readonly string[],
+): LinkProxyResult {
+  if (status === "not-linked") {
+    const reason =
+      stringOf(fields.get("reason")) ?? problems.add("outcome.reason", "must be a string");
+    if (backend === undefined || reason === undefined) throw invalid(problems.issues);
+    return { status, backend, reason: redact(reason, secrets) };
+  }
+  const address = (name: string): `0x${string}` | undefined => {
+    const digits = addressDigits(fields.get(name));
+    return digits === undefined
+      ? problems.add(`outcome.${name}`, "must be 0x followed by 40 hex digits")
+      : `0x${redact(digits.toLowerCase(), secrets)}`;
+  };
+  if (status === "mismatch") {
+    const expectedImplementation = address("expectedImplementation");
+    const implementation =
+      fields.get("implementation") === undefined ? undefined : address("implementation");
+    if (
+      backend === undefined ||
+      expectedImplementation === undefined ||
+      (fields.get("implementation") !== undefined && implementation === undefined)
+    ) {
+      throw invalid(problems.issues);
+    }
+    return {
+      status,
+      backend,
+      ...(implementation === undefined ? {} : { implementation }),
+      expectedImplementation,
+    };
+  }
+  const implementation = address("implementation");
+  const verified = fields.get("implementationVerified");
+  if (typeof verified !== "boolean")
+    problems.add("outcome.implementationVerified", "must be a boolean");
+  const explorerUrl = explorerUrlOf(fields, problems);
+  if (
+    backend === undefined ||
+    implementation === undefined ||
+    typeof verified !== "boolean" ||
+    explorerUrl === null
+  ) {
+    throw invalid(problems.issues);
+  }
+  return {
+    status,
+    backend,
+    implementation,
+    implementationVerified: verified,
+    ...(explorerUrl === undefined ? {} : { explorerUrl: redact(explorerUrl, secrets) }),
+  };
 }
 
 /**
@@ -677,6 +744,9 @@ function copyBackendOutcome(
   }
   const errorValue = fields.get("error");
   if (errorValue !== undefined) {
+    if (fields.get("result") !== undefined) {
+      throw invalid([{ field, message: "must not carry both result and error" }]);
+    }
     if (ok) {
       throw invalid([{ field: `${field}.ok`, message: "must be false for an error" }]);
     }
@@ -690,7 +760,12 @@ function copyBackendOutcome(
     };
   }
   const result = copyResult(fields.get("result"), secrets);
-  if (result.status === "dry-run" || result.backend !== backend) {
+  if (
+    (result.status !== "verified" &&
+      result.status !== "already-verified" &&
+      result.status !== "failed") ||
+    result.backend !== backend
+  ) {
     throw invalid([
       { field: `${field}.result`, message: "must be a VerifyResult of the outcome's backend" },
     ]);
@@ -710,7 +785,7 @@ function copyBackendOutcome(
 /** The exit code of each outcome of a `verifyEach()` result, combined by {@link EACH_EXIT_ORDER}. */
 function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
   const codes = each.outcomes.map((outcome) =>
-    "error" in outcome
+    outcome.error !== undefined
       ? ERROR_EXIT_CODES[outcome.error.code]
       : RESULT_EXIT_CODES[outcome.result.status],
   );
@@ -755,6 +830,7 @@ function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
 export function exitCodeOf(
   outcome:
     | VerifyOutcome
+    | LinkProxyResult
     | ExplorerVerifyError
     | DryRunResult
     | VerifyEachResult
@@ -808,9 +884,25 @@ export function exitCodeOf(
  * ```
  * @experimental
  */
+export function toEnvelope<R extends EnvelopeResult>(
+  outcome: R,
+  options?: EnvelopeOptions,
+): Envelope<R>;
 export function toEnvelope(
   outcome:
     | VerifyOutcome
+    | ExplorerVerifyError
+    | LinkProxyResult
+    | DryRunResult
+    | VerifyEachResult
+    | VerifyEachResult<ExplorerVerifyError>
+    | VerifyEachResult<ErrorJson>,
+  options?: EnvelopeOptions,
+): Envelope;
+export function toEnvelope(
+  outcome:
+    | VerifyOutcome
+    | LinkProxyResult
     | ExplorerVerifyError
     | DryRunResult
     | VerifyEachResult
@@ -820,7 +912,13 @@ export function toEnvelope(
 ): Envelope {
   const read = readOutcome(outcome, secretsOf(options));
   if ("each" in read) {
-    return { schemaVersion: 1, ok: eachExitCode(read.each) === 0, result: read.each };
+    const outcomes: Extract<BackendOutcome<ErrorJson>, { ok: true }>[] = [];
+    for (const each of read.each.outcomes) {
+      if (each.ok) outcomes.push(each);
+    }
+    return outcomes.length === read.each.outcomes.length
+      ? { schemaVersion: 1, ok: true, result: { outcomes } }
+      : { schemaVersion: 1, ok: false, result: read.each };
   }
   if ("error" in read) {
     return { schemaVersion: 1, ok: false, error: read.error };
@@ -829,7 +927,9 @@ export function toEnvelope(
   if (result.status === "dry-run") {
     return { schemaVersion: 1, ok: true, result };
   }
-  return result.status === "failed"
+  return result.status === "failed" ||
+    result.status === "mismatch" ||
+    result.status === "not-linked"
     ? { schemaVersion: 1, ok: false, result }
     : { schemaVersion: 1, ok: true, result };
 }

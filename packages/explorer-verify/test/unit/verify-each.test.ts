@@ -258,14 +258,16 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     });
     assert.equal(second?.backend, "etherscan-v2");
     assert.equal(second?.ok, false);
-    assert.ok(second !== undefined && "result" in second && second.result.status === "failed");
+    assert.ok(
+      second !== undefined && second.result !== undefined && second.result.status === "failed",
+    );
     // The envelope: ok false, exit code 1, valid against the shipped schema.
     const envelope = toEnvelope(resultOf(r));
     assert.deepEqual(validateEnvelope(envelope), []);
     assert.equal(envelope.ok, false);
     assert.equal(exitCodeOf(resultOf(r)), 1);
-    // verify.validated once; every other event names its backend.
-    assert.equal(r.events.filter((event) => event.type === "verify.validated").length, 1);
+    // Each entry has a validated event; every other event names its backend.
+    assert.equal(r.events.filter((event) => event.type === "verify.validated").length, 2);
     const backends = new Set(
       r.events.flatMap((event) => ("backend" in event ? [event.backend] : [])),
     );
@@ -278,7 +280,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     const r = await run(t, { fetch: fake.fetch, backends: ["sourcify", "etherscan-v2"] });
     const [first, second] = resultOf(r).outcomes;
     assert.equal(first?.ok, true);
-    assert.ok(second !== undefined && "error" in second);
+    assert.ok(second !== undefined && second.error !== undefined);
     assert.deepEqual(second.error.details, { code: "missing-api-key", backend: "etherscan-v2" });
     assert.equal(fake.sent.get("api.etherscan.io"), undefined);
   });
@@ -346,9 +348,9 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
     const [first, second] = resultOf(r).outcomes;
     assert.equal(first?.backend, "etherscan-v2");
     assert.equal(first?.ok, true);
-    assert.ok(first !== undefined && "result" in first);
+    assert.ok(first !== undefined && first.result !== undefined);
     assert.equal(first.result.status, "already-verified");
-    assert.ok(second !== undefined && "error" in second);
+    assert.ok(second !== undefined && second.error !== undefined);
     assert.equal(second.backend, "sourcify");
     assert.equal(second.error.code, "unknown-state");
     assert.equal(
@@ -454,7 +456,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
       timeoutMs: 4_000,
     });
     const [first, second] = resultOf(r).outcomes;
-    assert.ok(first !== undefined && "error" in first);
+    assert.ok(first !== undefined && first.error !== undefined);
     assert.equal(first.error.code, "not-confirmed");
     const handle = parseHandle(first.error.toJSON().handle);
     assert.deepEqual(handle, {
@@ -487,7 +489,7 @@ describe("verifyEach(): one outcome per backend (R-RT-4)", () => {
       timeoutMs: 5_000,
     });
     const codes = resultOf(r).outcomes.map((outcome) =>
-      "error" in outcome ? outcome.error.code : outcome.result.status,
+      outcome.error !== undefined ? outcome.error.code : outcome.result.status,
     );
     assert.deepEqual(codes, ["not-confirmed", "not-confirmed"]);
     // The clock started at 0: the call ends within the budget plus one poll interval.
@@ -603,7 +605,7 @@ describe("verifyEach(): backends and routes", () => {
       { ...DEPENDENCIES, backends: { ...CLIENTS, blockscout: sourcify } },
     );
     const [first, second] = resultOf(r).outcomes;
-    assert.ok(first !== undefined && "error" in first);
+    assert.ok(first !== undefined && first.error !== undefined);
     assert.equal(first.backend, "blockscout");
     assert.equal(first.error.code, "unsupported-chain");
     assert.match(first.error.hint, /backends\[0\]\.backend/);
@@ -618,7 +620,7 @@ describe("verifyEach(): backends and routes", () => {
     t.mock.method(globalThis, "fetch", fake.fetch);
     const r = await run(t, { backends: ["etherscan-v2", "sourcify"] });
     const [first, second] = resultOf(r).outcomes;
-    assert.ok(first !== undefined && "error" in first);
+    assert.ok(first !== undefined && first.error !== undefined);
     assert.equal(first.error.code, "missing-api-key");
     assert.equal(second?.ok, true);
     assert.equal(fake.sent.get("api.etherscan.io"), undefined);
@@ -644,7 +646,7 @@ describe("verifyEach(): backends and routes", () => {
     );
     const [first, second] = resultOf(r).outcomes;
     assert.equal(first?.ok, true);
-    assert.ok(second !== undefined && "error" in second);
+    assert.ok(second !== undefined && second.error !== undefined);
     assert.equal(second.backend, "etherscan-v2");
     assert.ok(second.error instanceof ExplorerVerifyError);
     assert.equal(second.error.code, "network");
@@ -687,7 +689,7 @@ describe("verifyEach(): backends and routes", () => {
       },
     );
     const second = resultOf(r).outcomes[1];
-    assert.ok(second !== undefined && "error" in second);
+    assert.ok(second !== undefined && second.error !== undefined);
     assert.equal(second.error.code, "timeout");
   });
 
@@ -727,7 +729,7 @@ describe("verifyEach(): backends and routes", () => {
     t.mock.method(globalThis, "fetch", byHost({}).fetch);
     const r = await run(t, { backends: "all" }, { ...DEPENDENCIES, table });
     const [only] = resultOf(r).outcomes;
-    assert.ok(only !== undefined && "error" in only);
+    assert.ok(only !== undefined && only.error !== undefined);
     assert.equal(only.error.code, "missing-api-key");
   });
 
@@ -735,12 +737,12 @@ describe("verifyEach(): backends and routes", () => {
     t.mock.method(globalThis, "fetch", byHost({}).fetch);
     const r = await run(t, { backends: ["etherscan-v2"] });
     const [only] = resultOf(r).outcomes;
-    assert.ok(only !== undefined && "error" in only);
+    assert.ok(only !== undefined && only.error !== undefined);
     assert.ok(only.error instanceof ExplorerVerifyError);
     assert.deepEqual(only.error.details, { code: "missing-api-key", backend: "etherscan-v2" });
     const envelope = toEnvelope(resultOf(r));
     assert.deepEqual(validateEnvelope(envelope), []);
-    assert.ok("result" in envelope && "outcomes" in envelope.result);
+    assert.ok(envelope.result !== undefined && "outcomes" in envelope.result);
     assert.deepEqual(envelope.result.outcomes[0], {
       backend: "etherscan-v2",
       ok: false,
@@ -795,7 +797,7 @@ describe("verifyEach(): the origin of an answer (R-SEC-2, decision 0035)", () =>
     );
     assert.equal(outcome.outcomes.length, 2);
     for (const each of outcome.outcomes) {
-      assert.ok("error" in each, `${each.backend} read the answer`);
+      assert.ok(each.error !== undefined, `${each.backend} read the answer`);
       assert.equal(each.error.code, "unexpected-response");
       assert.match(each.error.message, /redirect, which is not followed/);
     }
@@ -824,7 +826,7 @@ describe("verifyEach(): the origin of an answer (R-SEC-2, decision 0035)", () =>
     const fake = byHost({ "sourcify.dev": [markedRedirected] });
     const outcome = await verifyEach(input(), { backends: ["sourcify"], fetch: fake.fetch });
     const [only] = outcome.outcomes;
-    assert.ok(only !== undefined && "error" in only);
+    assert.ok(only !== undefined && only.error !== undefined);
     assert.equal(only.error.code, "unexpected-response");
   });
 });

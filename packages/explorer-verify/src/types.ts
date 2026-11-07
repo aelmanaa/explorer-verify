@@ -450,7 +450,7 @@ export interface Logger {
  * ```
  * @experimental
  */
-export type VerifyEvent =
+type VerificationEvent =
   | {
       /** The event type. */
       readonly type: "verify.validated";
@@ -481,7 +481,7 @@ export type VerifyEvent =
       /** The backend that was asked. */
       readonly backend: BackendName;
       /** What the already-verified check found, or `skipped` when it did not run. */
-      readonly match: "exact" | "partial" | "none" | "skipped";
+      readonly lookup: "exact" | "partial" | "none" | "skipped";
     }
   | {
       /** The event type. */
@@ -528,6 +528,8 @@ export type VerifyEvent =
       readonly status: "verified" | "already-verified";
       /** The result's match. */
       readonly match: "exact" | "partial";
+      /** The public contract page when known. */
+      readonly explorerUrl?: string;
     }
   | {
       /** The event type. */
@@ -537,6 +539,26 @@ export type VerifyEvent =
       /** The result's status. A failed result has no match. */
       readonly status: "failed";
     };
+
+/** A stage event, with an entry index for calls made by verifyEach(). */
+export type VerifyEvent = (VerificationEvent | ProxyEvent) & {
+  /** The zero-based index into verifyEach()'s backends; absent for other calls. */
+  readonly entry?: number;
+};
+
+/** A proxy linking stage. */
+type ProxyEvent =
+  | { readonly type: "proxy.routed"; readonly backend: BackendName; readonly apiHost: string }
+  | {
+      readonly type: "proxy.poll";
+      readonly backend: BackendName;
+      readonly attempt: number;
+      readonly state: "pending";
+    }
+  | (Omit<Extract<VerificationEvent, { type: "verify.retry" }>, "type"> & {
+      readonly type: "proxy.retry";
+    })
+  | (LinkProxyResult & { readonly type: "proxy.result" });
 
 /**
  * Overrides the route for one call: which backend to use and where its API lives, for example a
@@ -913,7 +935,7 @@ export interface VerifyEachOptions extends Omit<VerifyOptions, "route"> {
  * import type { BackendOutcome } from "explorer-verify";
  *
  * function line(outcome: BackendOutcome): string {
- *   if ("error" in outcome) {
+ *   if (outcome.error !== undefined) {
  *     return `${outcome.backend}: ${outcome.error.code}`;
  *   }
  *   return `${outcome.backend}: ${outcome.result.status}`;
@@ -928,6 +950,8 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       /** `true`: the backend holds the verified source. */
       ok: true;
       /** The verified or already-verified result. */
+      /** Result members carry no error. */
+      error?: never;
       result: Extract<VerifyResult, Record<"status", "verified" | "already-verified">>;
     }
   | {
@@ -936,6 +960,8 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       /** `false`: the explorer rejected the submission. */
       ok: false;
       /** The failed result. */
+      /** Result members carry no error. */
+      error?: never;
       result: Extract<VerifyResult, Record<"status", "failed">>;
     }
   | {
@@ -945,6 +971,8 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       ok: false;
       /** The error the call on this backend threw; `ErrorJson`, its `toJSON()`, in an envelope. */
       error: E;
+      /** Error members carry no result. */
+      result?: never;
     };
 
 /**

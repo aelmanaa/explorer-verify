@@ -103,7 +103,7 @@ function widen(error: ExplorerVerifyError<"timeout">): [ExplorerVerifyError, Det
 /** An outcome of `verifyEach()` narrows its error by code, as the library hands it back. */
 function pendingHandles(result: VerifyEachResult): Handle[] {
   return result.outcomes.flatMap((outcome: BackendOutcome) =>
-    "error" in outcome && outcome.error.code === "not-confirmed"
+    outcome.error !== undefined && outcome.error.code === "not-confirmed"
       ? [outcome.error.details.handle]
       : [],
   );
@@ -369,7 +369,7 @@ describe("ExplorerVerifyError.is and instanceof (R-DX-3, decision 0044)", () => 
     });
     assert.ok(foreign instanceof ExplorerVerifyError);
     const expected = toEnvelope(own);
-    assert.ok("error" in expected);
+    assert.ok(expected.error !== undefined);
     assert.deepEqual(toEnvelope(foreign), {
       ...expected,
       error: { ...expected.error, hint: `Read ${docsUrlOf("not-confirmed")} for what to do next.` },

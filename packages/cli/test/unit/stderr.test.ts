@@ -15,7 +15,7 @@ const HANDLE = "ev1:sourcify:1:0x5fbdb2315678afecb367f032d93f642f64180aa3:job-1"
 const EVENTS: readonly VerifyEvent[] = [
   { type: "verify.validated", chainId: 1, address: "0x5fbdb2315678afecb367f032d93f642f64180aa3" },
   { type: "verify.routed", backend: "sourcify", apiHost: "sourcify.dev" },
-  { type: "verify.lookup", backend: "sourcify", match: "none" },
+  { type: "verify.lookup", backend: "sourcify", lookup: "none" },
   { type: "verify.retry", backend: "sourcify", attempt: 2, reason: "network", delayMs: 10 },
   { type: "verify.submitted", backend: "sourcify", handle: HANDLE },
   { type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" },
@@ -234,6 +234,19 @@ describe("text lines", () => {
   it("names every event type in eventMessage", () => {
     for (const event of EVENTS) {
       assert.ok(eventMessage(event).length > 0, event.type);
+    }
+  });
+
+  it("formats proxy stages without verification labels", () => {
+    const events: VerifyEvent[] = [
+      { type: "proxy.routed", backend: "blockscout", apiHost: "scan.example" },
+      { type: "proxy.poll", backend: "blockscout", attempt: 1, state: "pending" },
+      { type: "proxy.retry", backend: "blockscout", attempt: 2, reason: "network", delayMs: 100 },
+      { type: "proxy.result", backend: "blockscout", status: "not-linked", reason: "refused" },
+    ];
+    for (const event of events) {
+      assert.ok(eventMessage(event).includes("blockscout"));
+      assert.ok(stageText(event).includes("blockscout"));
     }
   });
 });

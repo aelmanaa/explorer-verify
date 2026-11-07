@@ -68,8 +68,8 @@ function everyEvent(): VerifyEvent[] {
   return [
     { type: "verify.validated", chainId: 11155111, address: ADDRESS },
     { type: "verify.routed", backend: "sourcify", apiHost: `${DUMMY_KEY}.example.org` },
-    { type: "verify.lookup", backend: "sourcify", match: "none" },
-    { type: "verify.lookup", backend: "sourcify", match: "skipped" },
+    { type: "verify.lookup", backend: "sourcify", lookup: "none" },
+    { type: "verify.lookup", backend: "sourcify", lookup: "skipped" },
     {
       type: "verify.submitted",
       backend: "etherscan-v2",
@@ -96,6 +96,38 @@ function everyEvent(): VerifyEvent[] {
     { type: "verify.result", backend: "sourcify", status: "verified", match: "exact" },
     { type: "verify.result", backend: "blockscout", status: "already-verified", match: "partial" },
     { type: "verify.result", backend: "routescan", status: "failed" },
+    { type: "proxy.routed", backend: "blockscout", apiHost: `${DUMMY_KEY}.example.org` },
+    { type: "proxy.poll", backend: "blockscout", attempt: 1, state: "pending" },
+    { type: "proxy.retry", backend: "blockscout", attempt: 2, reason: "network", delayMs: 100 },
+    {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "linked",
+      implementation: ADDRESS,
+      implementationVerified: true,
+      explorerUrl: `https://example.org/${DUMMY_KEY}`,
+    },
+    {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "linked",
+      implementation: ADDRESS,
+      implementationVerified: false,
+    },
+    {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "mismatch",
+      expectedImplementation: ADDRESS,
+    },
+    {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "mismatch",
+      expectedImplementation: ADDRESS,
+      implementation: ADDRESS,
+    },
+    { type: "proxy.result", backend: "blockscout", status: "not-linked", reason: DUMMY_KEY },
   ];
 }
 
@@ -157,7 +189,7 @@ describe("Logger and VerifyEvent types (R-DX-5, R-DX-6)", () => {
     assert.equal(Object.keys(fields).length, 4);
   });
 
-  it("VerifyEvent has exactly the seven types of R-DX-6", () => {
+  it("VerifyEvent lists verification and proxy stages (R-DX-6)", () => {
     const types: Record<VerifyEvent["type"], true> = {
       "verify.validated": true,
       "verify.routed": true,
@@ -166,6 +198,10 @@ describe("Logger and VerifyEvent types (R-DX-5, R-DX-6)", () => {
       "verify.poll": true,
       "verify.retry": true,
       "verify.result": true,
+      "proxy.routed": true,
+      "proxy.poll": true,
+      "proxy.retry": true,
+      "proxy.result": true,
     };
     assert.deepEqual(Object.keys(types), [...new Set(everyEvent().map((event) => event.type))]);
   });
@@ -238,6 +274,11 @@ describe("event.schema.json (R-DX-6, R-AX-16)", () => {
   it("rejects every event with any one of its fields removed: every field is required", () => {
     for (const event of everyEvent()) {
       for (const name of Object.keys(event)) {
+        if (
+          ["entry", "explorerUrl", "implementation"].includes(name) &&
+          (name !== "implementation" || ("status" in event && event.status === "mismatch"))
+        )
+          continue;
         const without = Object.fromEntries(Object.entries(event).filter(([key]) => key !== name));
         assert.notDeepEqual(validateEvent(without), [], `${event.type} without ${name}`);
       }
@@ -290,7 +331,7 @@ describe("event.schema.json (R-DX-6, R-AX-16)", () => {
   });
 
   it("accepts a field it does not know, as a later release may add one", () => {
-    assertValidEvent({ type: "verify.lookup", backend: "sourcify", match: "exact", extra: 1 });
+    assertValidEvent({ type: "verify.lookup", backend: "sourcify", lookup: "exact", extra: 1 });
   });
 
   it("ships in the package as explorer-verify/event.schema.json", () => {
@@ -353,13 +394,13 @@ describe("redactEvent (R-SEC-1, R-DX-6)", () => {
     const withExtra = {
       type: "verify.lookup",
       backend: "sourcify",
-      match: "exact",
+      lookup: "exact",
       url: KEYED_URL,
     } as const;
     assert.deepEqual(redactEvent(withExtra, SECRETS), {
       type: "verify.lookup",
       backend: "sourcify",
-      match: "exact",
+      lookup: "exact",
     });
     const result = {
       type: "verify.result",
@@ -425,7 +466,7 @@ describe("redactEvent (R-SEC-1, R-DX-6)", () => {
   });
 
   it("returns a new object each time", () => {
-    const event: VerifyEvent = { type: "verify.lookup", backend: "sourcify", match: "exact" };
+    const event: VerifyEvent = { type: "verify.lookup", backend: "sourcify", lookup: "exact" };
     assert.notEqual(redactEvent(event, []), event);
   });
 
@@ -460,7 +501,7 @@ describe("createObserver: silent default (R-DX-5, decision 0010)", () => {
   it("emits nothing to a logger when there is no onEvent", () => {
     const { logger, lines } = recorder();
     const { emit } = createObserver({ logger, secrets: [] });
-    emit({ type: "verify.lookup", backend: "sourcify", match: "skipped" });
+    emit({ type: "verify.lookup", backend: "sourcify", lookup: "skipped" });
     assert.deepEqual(lines, []);
   });
 });
@@ -487,8 +528,27 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       backend: "etherscan-v2",
       handle: `ev1:etherscan-v2:1:${ADDRESS}:[redacted]`,
     };
+    expected[16] = {
+      type: "proxy.routed",
+      backend: "blockscout",
+      apiHost: "[redacted].example.org",
+    };
+    expected[19] = {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "linked",
+      implementation: ADDRESS,
+      implementationVerified: true,
+      explorerUrl: "https://example.org/[redacted]",
+    };
+    expected[23] = {
+      type: "proxy.result",
+      backend: "blockscout",
+      status: "not-linked",
+      reason: "[redacted]",
+    };
     assert.deepEqual(seen, expected);
-    assert.equal(seen.length, 16);
+    assert.equal(seen.length, 24);
     for (const event of seen) {
       assertValidEvent(event);
     }
@@ -507,7 +567,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       secrets: SECRETS,
     });
     assert.doesNotThrow(() => {
-      emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+      emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
       emit({ type: "verify.poll", backend: "sourcify", attempt: 1, state: "pending" });
     });
     assert.equal(calls, 2);
@@ -526,7 +586,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
         throw errorLike(`plain ${DUMMY_KEY}`);
       },
       secrets: SECRETS,
-    }).emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+    }).emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
     const fields = {
       name: "Unreadable",
       message: "",
@@ -541,7 +601,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
         throw unreadable;
       },
       secrets: SECRETS,
-    }).emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+    }).emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
     assert.deepEqual(
       lines.map((line) => line.fields?.["error"]),
       ["plain [redacted]", "[unloggable]"],
@@ -555,8 +615,8 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       onEvent: returning(Promise.reject(new Error(`async failure ${DUMMY_KEY}`))),
       secrets: SECRETS,
     });
-    emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
-    emit({ type: "verify.lookup", backend: "sourcify", match: "exact" });
+    emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
+    emit({ type: "verify.lookup", backend: "sourcify", lookup: "exact" });
     await flush();
     assert.equal(lines.length, 1);
     assert.equal(lines[0]?.level, "warn");
@@ -570,7 +630,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       rejectLater = reject;
     });
     const { emit } = createObserver({ logger, onEvent: returning(pending), secrets: [] });
-    emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+    emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
     await flush();
     // emit returned and the promise is still pending: nothing was waited for or logged.
     assert.equal(lines.length, 0);
@@ -585,7 +645,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
     createObserver({ logger, onEvent: returning(42), secrets: [] }).emit({
       type: "verify.lookup",
       backend: "sourcify",
-      match: "none",
+      lookup: "none",
     });
     await flush();
     assert.deepEqual(lines, []);
@@ -600,7 +660,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
     createObserver({ logger, onEvent: returning(thenable), secrets: SECRETS }).emit({
       type: "verify.lookup",
       backend: "sourcify",
-      match: "none",
+      lookup: "none",
     });
     await flush();
     assert.equal(lines[0]?.fields?.["error"], "Error: thenable [redacted]");
@@ -621,7 +681,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       secrets: [],
     });
     assert.doesNotThrow(() => {
-      emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+      emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
     });
     assert.equal(lines[0]?.fields?.["event"], "verify.lookup");
   });
@@ -634,7 +694,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
     });
     const { emit } = createObserver({ logger, onEvent: returning(broken), secrets: [] });
     assert.doesNotThrow(() => {
-      emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+      emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
     });
     await flush();
     assert.equal(lines[0]?.fields?.["error"], "Error: then failed");
@@ -647,7 +707,7 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       secrets: SECRETS,
     });
     assert.doesNotThrow(() => {
-      emit({ type: "verify.lookup", backend: "sourcify", match: "none" });
+      emit({ type: "verify.lookup", backend: "sourcify", lookup: "none" });
       log.debug("x", { a: 1 });
       log.error("x");
     });
@@ -655,16 +715,16 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
 
   it("gives onEvent a copy, so a callback that changes it cannot change the caller's event", () => {
     const seen: VerifyEvent[] = [];
-    const event: VerifyEvent = { type: "verify.lookup", backend: "sourcify", match: "none" };
+    const event: VerifyEvent = { type: "verify.lookup", backend: "sourcify", lookup: "none" };
     const { emit } = createObserver({
       onEvent: (received) => {
         seen.push(received);
-        Reflect.set(received, "match", "exact");
+        Reflect.set(received, "lookup", "exact");
       },
       secrets: [],
     });
     emit(event);
-    assert.equal(event.match, "none");
+    assert.equal(event.lookup, "none");
     assert.notEqual(seen[0], event);
   });
 });

@@ -268,10 +268,10 @@ describe("linkProxy() on Etherscan v2 (R-FLOW-8)", () => {
     // The key goes in the body only (decision 0016, R-SEC-1).
     assert.ok(r.calls.every((call) => !call.url.includes(KEY)));
     assert.ok(!visible(r).includes(KEY));
-    // linkProxy emits verify.routed, and no verify.validated or verify.result.
+    // linkProxy emits proxy.routed and its final proxy.result.
     assert.deepEqual(
       r.events.map((event) => event.type),
-      ["verify.routed"],
+      ["proxy.routed", "proxy.result"],
     );
   });
 
@@ -312,10 +312,10 @@ describe("linkProxy() on Etherscan v2 (R-FLOW-8)", () => {
     const r = await run(t, [REQUESTED(), PENDING_0(), PENDING_0(), LINKED()], ETHERSCAN_OPTIONS);
     assert.equal(resultOf(r).status, "linked");
     assert.deepEqual(
-      r.events.filter((event) => event.type === "verify.poll"),
+      r.events.filter((event) => event.type === "proxy.poll"),
       [
-        { type: "verify.poll", backend: "etherscan-v2", attempt: 1, state: "pending" },
-        { type: "verify.poll", backend: "etherscan-v2", attempt: 2, state: "pending" },
+        { type: "proxy.poll", backend: "etherscan-v2", attempt: 1, state: "pending" },
+        { type: "proxy.poll", backend: "etherscan-v2", attempt: 2, state: "pending" },
       ],
     );
   });

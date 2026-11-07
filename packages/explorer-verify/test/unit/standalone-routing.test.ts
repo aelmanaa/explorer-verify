@@ -480,7 +480,7 @@ describe('verifyEach() with "all" and a standalone entry that needs a key (decis
     );
     assert.equal(result.outcomes.length, 1);
     const [outcome] = result.outcomes;
-    assert.ok(outcome !== undefined && "error" in outcome);
+    assert.ok(outcome !== undefined && outcome.error !== undefined);
     assert.equal(outcome.backend, "etherscan-compatible");
     assert.equal(outcome.error.code, "missing-api-key");
     assert.equal(fetch.mock.callCount(), 0);
