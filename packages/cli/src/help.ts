@@ -1,8 +1,9 @@
+// References: R-AX-11, R-AX-2.
 /**
- * The help of the CLI and of each command (R-AX-11): examples first, then the usage, the options,
+ * The help of the CLI and of each command: examples first, then the usage, the options,
  * the environment variables, the exit codes, and links to the docs and `llms.txt`. One
  * {@link HelpResult} feeds the text on stdout, the `--json` envelope and the generated CLI
- * reference, so the three never disagree (R-AX-2).
+ * reference, so the three never disagree.
  */
 import type { ExitCode } from "explorer-verify/envelope";
 
@@ -51,7 +52,8 @@ export interface ExitCodeHelp {
   readonly meaning: string;
 }
 
-/** Every exit code of the CLI, in order (R-AX-7). The tests check it against the catalogue. */
+// References: R-AX-7.
+/** Every exit code of the CLI, in order. The tests check it against the catalogue. */
 export const EXIT_CODES: readonly ExitCodeHelp[] = [
   { code: 0, meaning: "Verified: verified or already-verified. Help and the version also exit 0" },
   { code: 1, meaning: "Failed: the explorer definitively rejected the submission" },
@@ -164,9 +166,10 @@ export function commandHelp(command: Command): CommandHelp {
   };
 }
 
+// References: R-AX-11.
 /**
  * The usage lines of a command, one for each way to call it, each ending in `[options]`. They name
- * the arguments and options the command needs (R-AX-11).
+ * the arguments and options the command needs.
  *
  * @param command - The command.
  * @returns The lines, starting with `explorer-verify`.
@@ -242,9 +245,10 @@ function optionLines(options: readonly OptionHelp[]): string[] {
   );
 }
 
+// References: R-AX-12.
 /**
  * The help as text for stdout. Every line ends in a newline, and nothing depends on the terminal,
- * so the same command gives the same bytes (R-AX-12).
+ * so the same command gives the same bytes.
  *
  * @param help - The help.
  * @returns The text.
@@ -295,9 +299,10 @@ export function helpText(help: HelpResult): string {
 /** How many examples the short help shows. */
 const SHORT_EXAMPLES = 2;
 
+// References: R-AX-11.
 /**
  * The short help that a bare `explorer-verify`, or a command typed with nothing after it, prints
- * on stderr before it exits 2 (R-AX-11): the usage, two examples, and where the full help is.
+ * on stderr before it exits 2: the usage, two examples, and where the full help is.
  *
  * @param help - The help of the CLI or of the command.
  * @returns The text.

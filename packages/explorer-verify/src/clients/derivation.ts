@@ -1,6 +1,7 @@
+// References: decision 0052.
 /**
  * The constructor argument derivation that the clients of `explorer-verify/clients/*` which take
- * constructor arguments bring, imported statically (decision 0052). The Sourcify client does not
+ * constructor arguments bring, imported statically. The Sourcify client does not
  * import it.
  */
 import type { DeriveLoader } from "../flow/verify.ts";

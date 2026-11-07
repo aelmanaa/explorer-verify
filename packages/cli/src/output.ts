@@ -1,5 +1,6 @@
+// References: R-AX-5, R-AX-12.
 /**
- * What the CLI writes to stdout (R-AX-5, R-AX-12): with `--json`, the one envelope of the outcome;
+ * What the CLI writes to stdout: with `--json`, the one envelope of the outcome;
  * without it, a short summary of a result, and nothing for an error, whose lines go to stderr.
  * Both come from the same envelope, so they hold the same redacted values and the same text for
  * the same outcome.
@@ -40,9 +41,10 @@ function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): st
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
 
+// References: R-AX-5, R-AX-10.
 /**
  * The envelope the CLI prints: the library's, with the CLI's hint in each error, and, for an
- * error, `nextCommand` when one command resumes the run (R-AX-5, R-AX-10).
+ * error, `nextCommand` when one command resumes the run.
  */
 export type CliEnvelope =
   | Exclude<Envelope, { readonly error: ErrorJson }>
@@ -145,8 +147,9 @@ function outcomeText(
   return error.handle === undefined ? line : `${line}Handle: ${error.handle}\n`;
 }
 
+// References: R-AX-11.
 /**
- * The stdout text of help or the version (R-AX-11): with `--json`, an envelope with `ok: true`
+ * The stdout text of help or the version: with `--json`, an envelope with `ok: true`
  * whose `result` is `info`; without it, the text `toText` makes of it.
  *
  * @param info - The help or the version.

@@ -1,11 +1,12 @@
+// References: R-FLOW-6, R-SRV-5, decision 0002, R-RUN-1.
 /**
- * The HTTP layer every backend client uses (R-FLOW-6, R-SRV-5). It sends each request through the
+ * The HTTP layer every backend client uses. It sends each request through the
  * caller's `fetch`, retries transient failures with backoff, enforces a per-request timeout and
  * the call's time budget, and stops at once on abort.
  *
  * Only web-platform globals are used: `fetch`, `Response`, `Headers`, `TextDecoder`,
- * `AbortController`, `AbortSignal`, `DOMException`, `URL`, `Date` and `setTimeout` (decision 0002,
- * R-RUN-1). Two newer helpers are avoided on purpose:
+ * `AbortController`, `AbortSignal`, `DOMException`, `URL`, `Date` and `setTimeout`. Two newer
+ * helpers are avoided on purpose:
  *
  * - `AbortSignal.timeout()`: in Node its timer does not keep the process alive, so a script that
  *   waits only on it exits with neither a result nor an error. The `node:test` mock timers do not
@@ -56,10 +57,11 @@ const BODY_HEADERS: readonly string[] = ["content-encoding", "content-length", "
 const HTTP_DATE_START = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i;
 const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
 
+// References: decision 0035.
 /**
  * `globalThis.fetch`, read when each request starts and called as a plain function. It is the
  * default of {@link HttpContext.fetch}. A caller that fills its own default passes this function,
- * so a request through it gets the same-origin check of the default (decision 0035).
+ * so a request through it gets the same-origin check of the default.
  */
 export const platformFetch: typeof fetch = async (input, init) =>
   await globalThis.fetch(input, init);
@@ -124,19 +126,21 @@ export interface HttpContext {
    * that event names the backend a request goes to. The retry is still logged at `warn`.
    */
   readonly label?: RequestLabel;
+  // References: R-SRV-5, decision 0035.
   /**
-   * The caller's `fetch`, the only way out to the network (R-SRV-5). Defaults to
+   * The caller's `fetch`, the only way out to the network. Defaults to
    * {@link platformFetch}, which reads `globalThis.fetch` when each request starts. With the
    * default, a response whose URL has another origin than the request is refused as a redirect.
    * Any other `fetch` may send the request to another URL on purpose, such as a server handler,
-   * so its response URL is not checked; its redirects are still refused (decision 0035).
+   * so its response URL is not checked; its redirects are still refused.
    */
   readonly fetch?: typeof fetch | undefined;
   /** The caller's signal. On abort, every request and wait stops and rejects with its reason. */
   readonly signal?: AbortSignal | undefined;
+  // References: R-DX-5, R-DX-6.
   /**
-   * The call's observer from `createObserver`, shared by every request of the call (R-DX-5,
-   * R-DX-6). Its `log` gets debug and retry lines; its `emit` gets a `verify.retry` event before
+   * The call's observer from `createObserver`, shared by every request of the call. Its `log` gets
+   * debug and retry lines; its `emit` gets a `verify.retry` event before
    * each retry wait. It redacts with the keys it was created with and never throws. Taking the
    * observer, not a raw logger and callback, keeps one observer per call, so a broken `onEvent` is
    * reported once per call. Without it, nothing is logged or emitted. Its `log` and `emit` must be
@@ -165,8 +169,9 @@ export interface HttpContext {
    * two, so its retries and the client's do not multiply.
    */
   readonly maxAttempts?: number;
+  // References: decision 0046.
   /**
-   * For a route through the caller's server handler (decision 0046): the URL a request is sent
+   * For a route through the caller's server handler: the URL a request is sent
    * to, the handler's for a request to Etherscan's API. Log lines and errors name that URL.
    */
   readonly sendTo?: ((url: string) => string) | undefined;
@@ -278,9 +283,10 @@ interface Progress {
   status?: number;
 }
 
+// References: R-FLOW-6, R-SEC-2, R-SEC-1, R-DX-5, R-DX-6, decision 0010.
 /**
  * Sends one request through the caller's `fetch`, with retries, a per-request timeout, the call's
- * time budget and abort (R-FLOW-6).
+ * time budget and abort.
  *
  * - Retries with exponential backoff and jitter: base 1 s, doubled per attempt, at most 5
  *   attempts. The jitter keeps between half and all of each step.
@@ -294,17 +300,17 @@ interface Progress {
  *   retry: a job for this contract is already running, and the backend maps it to `in-progress`.
  * - Retries a response whose body `req.rateLimited` reads as a rate-limit answer, as a 429.
  * - Never follows a redirect, and sends every attempt to the same URL, so a request never reaches
- *   a host the caller did not configure (R-SEC-2).
+ *   a host the caller did not configure.
  * - Reads at most `maxResponseBytes` of a body. Once the headers arrived, a body that is too large,
  *   fails or stalls past the timeout is `unexpected-response`, never retried.
  * - Logs only the URL's origin and path, with `?REDACTED` in place of a query string, through the
- *   redacting logger, with the backend, method, URL and attempt as fields (R-SEC-1, R-DX-5). A
+ *   redacting logger, with the backend, method, URL and attempt as fields. A
  *   retry is logged at `warn`; a failure the call throws is never logged at `error`.
- * - Emits a `verify.retry` event before each retry wait (R-DX-6), unless `ctx.label` is set. With
+ * - Emits a `verify.retry` event before each retry wait, unless `ctx.label` is set. With
  *   a label, log lines carry `label` in place of `backend`.
- * - A logger or `onEvent` callback that throws does not change the request (decision 0010).
+ * - A logger or `onEvent` callback that throws does not change the request.
  * - Reads each field of `ctx`, of its budget and observer, and of `req` once, as an own property,
- *   so this layer never uses a value added to `Object.prototype` (R-SEC-2). The `RequestInit` it
+ *   so this layer never uses a value added to `Object.prototype`. The `RequestInit` it
  *   passes to `fetch` has no prototype; a platform fetch may still read inherited members of its
  *   own objects.
  *
@@ -459,7 +465,8 @@ function timerMs(ms: number): number {
  * The fields of `ctx` and `req`, each read once as an own property, with the defaults filled in.
  * `fetch` is read once and then called as a plain function: a browser's fetch called as a method
  * of another object throws "Illegal invocation". Without it, {@link platformFetch} reads
- * `globalThis.fetch` when the request is sent. The headers are copied, so a getter on them runs here and only once.
+ * `globalThis.fetch` when the request is sent. The headers are copied, so a getter on them runs
+ * here and only once.
  * `signal` is read first: once it has aborted, its reason wins over any problem in another field.
  *
  * @throws The caller's `signal.reason`, unchanged, when the signal has aborted.
@@ -506,11 +513,12 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
   };
 }
 
+// References: R-SEC-1.
 /**
  * The own property `name` of `value`, read once, or `undefined` when `value` does not have it.
  *
  * @throws ExplorerVerifyError `invalid-input`, without the thrown error, when a getter or Proxy
- *   trap throws: the error may repeat a caller value (R-SEC-1).
+ *   trap throws: the error may repeat a caller value.
  */
 function optional<T extends object, K extends keyof T & string>(
   value: T,
@@ -798,12 +806,13 @@ function isRedirect(response: Response): boolean {
   );
 }
 
+// References: decision 0035.
 /**
  * Whether the response came from the request's origin, or does not say where it came from (an
  * empty `url`). Checked only for the platform's fetch, which sends the request to `url` and
  * nowhere else, so another origin there can only mean a redirect that was followed. An injected
  * `fetch` may send the request to another URL on purpose, such as a server handler on the page's
- * own origin, so its response URL is not checked (decision 0035).
+ * own origin, so its response URL is not checked.
  */
 function sameOrigin(response: Response, url: string): boolean {
   if (response.url === "") {
@@ -997,9 +1006,10 @@ function describe(failure: Failure): string {
   return failure.reason === "network" ? "no response" : `answered ${String(failure.status)}`;
 }
 
+// References: decision 0010.
 /**
  * The URL as a log line may show it: origin and path, then `?REDACTED` when there is a query
- * string, as `Route.redactedApiUrl` does (decision 0010). User name, password and fragment are
+ * string, as `Route.redactedApiUrl` does. User name, password and fragment are
  * dropped. A URL that does not parse is shown as `[invalid URL]`, never as given.
  */
 function loggableUrl(url: string): string {

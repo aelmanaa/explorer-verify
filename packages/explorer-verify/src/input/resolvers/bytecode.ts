@@ -1,12 +1,13 @@
 import { newError } from "../../error-hints.ts";
+// References: R-IN-5, decision 0026, R-IN-7, R-FLOW-6, R-SEC-2.
 /**
- * The bytecode-metadata resolver (R-IN-5, decision 0026): reads the metadata hash solc appends to
+ * The bytecode-metadata resolver: reads the metadata hash solc appends to
  * the runtime bytecode, finds the metadata and the sources that hash names, and rebuilds the
- * Standard JSON input with `buildVerifyInput` (R-IN-7).
+ * Standard JSON input with `buildVerifyInput`.
  *
  * Every request goes through the HTTP layer, so it never follows a redirect, reads a bounded body,
- * retries transient failures and stops on abort or when the time budget runs out (R-FLOW-6,
- * R-SEC-2). Hosts come only from the caller (`rpcUrl`, `ipfsGateway`) and from the routing
+ * retries transient failures and stops on abort or when the time budget runs out. Hosts come only
+ * from the caller (`rpcUrl`, `ipfsGateway`) and from the routing
  * table's Sourcify API; there is no built-in IPFS gateway.
  */
 import { ExplorerVerifyError } from "../../errors.ts";
@@ -119,8 +120,9 @@ export interface BuildFromBytecodeOptions {
    * field, `rpc` or `ipfs`, and no backend name.
    */
   logger?: Logger | undefined;
+  // References: R-DX-6.
   /**
-   * Receives events with secrets removed, as `VerifyOptions.onEvent` does (R-DX-6). The resolver
+   * Receives events with secrets removed, as `VerifyOptions.onEvent` does. The resolver
    * emits `verify.retry` before each retry of a request to Sourcify. Requests to `rpcUrl` and
    * `ipfsGateway` emit no event; their retries are logged. An exception it throws, or a rejection
    * of a promise it returns, is logged once at `warn` and does not change the outcome.
@@ -729,9 +731,10 @@ async function fetchSources(
   }
 }
 
+// References: R-IN-5, R-SEC-2, R-FLOW-6.
 /**
  * Builds the `compiler` part of `VerifyInput` and the fully qualified contract name from the
- * deployed bytecode alone (R-IN-5). solc appends a CBOR block to the runtime bytecode that holds
+ * deployed bytecode alone. solc appends a CBOR block to the runtime bytecode that holds
  * the hash of the contract's metadata; the metadata names the compiler version, the settings and
  * the keccak-256 hash of each source.
  *
@@ -739,7 +742,8 @@ async function fetchSources(
  *    that `eth_chainId` is `target.chainId`. Bytecode above 65536 bytes is refused.
  * 2. Reads the metadata hash from the CBOR block: IPFS (`ipfs`) or Swarm (`bzzr0`, `bzzr1`).
  * 3. Looks for a verified copy on Sourcify at the same address, on any chain (unless
- *    `options.allowSourcifyLookup` is `false`). A copy is used only when its metadata, serialised as solc
+ *    `options.allowSourcifyLookup` is `false`). A copy is used only when its metadata, serialised
+ * as solc
  *    does, has the bytecode's IPFS hash; for a Swarm hash, only an exact match on the same chain.
  *    A source of the copy whose keccak-256 differs from the metadata is not used.
  * 4. Otherwise, when `options.ipfsGateway` is set and the hash is IPFS, fetches
@@ -750,10 +754,10 @@ async function fetchSources(
  *    keccak-256 against the metadata before it returns.
  *
  * There is no built-in IPFS gateway: only the hosts you configure and the routing table's
- * Sourcify API get requests (R-SEC-2). Every request goes through the HTTP layer of `verify()`:
+ * Sourcify API get requests. Every request goes through the HTTP layer of `verify()`:
  * no redirect is followed, a JSON-RPC answer above 1 MiB, a gateway answer above 4 MiB and a
  * Sourcify answer above 16 MiB are refused, transient failures are retried, and the call stops on
- * abort or when `timeoutMs` runs out (R-FLOW-6).
+ * abort or when `timeoutMs` runs out.
  *
  * @param target - The chain id and the contract address.
  * @param options - Where to read the bytecode and find the metadata.
@@ -773,7 +777,7 @@ async function fetchSources(
  *
  * const target = { chainId: 84532, address: "0x06dc80b924f113d9b6758c95aa9854b46936f2c0" } as const;
  * const built = await buildVerifyInputFromBytecode(target, { rpcUrl: "https://sepolia.base.org" });
- * const result = await verify({ ...target, ...built });
+ * const result = await verify({...target,...built });
  * ```
  * @experimental
  */

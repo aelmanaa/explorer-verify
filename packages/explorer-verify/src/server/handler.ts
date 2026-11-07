@@ -1,12 +1,13 @@
+// References: R-SRV-1, R-SRV-5, decisions 0003, 0008, 0016 and 0021, R-RUN-1, R-SRV-3, R-SEC-1.
 /**
  * `createVerifyHandler`, the handler an operator runs on their own server with their own Etherscan
- * key (R-SRV-1 to R-SRV-5, decisions 0003, 0008, 0016 and 0021). It accepts the requests the
+ * key. It accepts the requests the
  * Etherscan v2 client sends, checks them against its guards, adds the key and forwards them to
  * Etherscan. It is the `explorer-verify/server` entry point.
  *
  * It uses no Node built-in, only web-platform globals (`Request`, `Response`, `URL`,
  * `URLSearchParams`, `TextDecoder`, `setTimeout` and `fetch`), so it runs in Node, edge runtimes
- * and serverless platforms (R-SRV-1, R-RUN-1).
+ * and serverless platforms.
  *
  * What it never does:
  *
@@ -15,11 +16,10 @@
  *   elsewhere;
  * - forward an action other than `verifysourcecode`, `checkverifystatus`, the proxy-link actions
  *   `verifyproxycontract` and `checkproxyverification` (only with `allowProxyLink`), and the
- *   read-only lookup `getsourcecode`, whose answer it reduces so that no source is relayed
- *   (R-SRV-3);
+ *   read-only lookup `getsourcecode`, whose answer it reduces so that no source is relayed;
  * - follow a redirect: every upstream request has `redirect: "manual"`, and a 3xx is refused;
  * - return a key: refusals are fixed sentences, and every string of an upstream answer is
- *   redacted (R-SEC-1).
+ *   redacted.
  */
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
@@ -209,9 +209,10 @@ export type RateLimit = (request: Request) => boolean | Promise<boolean>;
  * @experimental
  */
 export interface VerifyHandlerOptions {
+  // References: decision 0016.
   /**
    * The operator's Etherscan key: 8 to 1024 letters, digits, `.`, `_`, `~` or `-`, not all
-   * digits, as `apiKeys` takes it (decision 0016). It goes only to `api.etherscan.io`, in the form
+   * digits, as `apiKeys` takes it. It goes only to `api.etherscan.io`, in the form
    * body of a POST, never in a URL.
    */
   readonly apiKey: string;
@@ -224,9 +225,10 @@ export interface VerifyHandlerOptions {
    * also for a contract a factory created, and listing a public factory admits anyone who uses it.
    */
   readonly deployers?: readonly string[] | undefined;
+  // References: R-FLOW-8.
   /**
    * Whether the handler forwards the proxy-link actions, `verifyproxycontract` and
-   * `checkproxyverification`, that `linkProxy()` sends (R-FLOW-8). Off by default: Etherscan links
+   * `checkproxyverification`, that `linkProxy()` sends. Off by default: Etherscan links
    * a proxy whose source it has not verified, so a link request needs no source, and turning it on
    * lets whoever can reach the handler change a proxy's page under your key. With `deployers` set,
    * the deployer check runs on the proxy's `address`; `expectedimplementation` is not checked.
@@ -250,9 +252,10 @@ export interface VerifyHandlerOptions {
    * each request starts.
    */
   readonly fetch?: typeof fetch | undefined;
+  // References: R-DX-5.
   /**
    * Receives a line for each refusal (`info`), each upstream failure (`warn`) and each internal
-   * failure (`error`), in the shape of `VerifyOptions.logger` (R-DX-5). Every line is redacted of
+   * failure (`error`), in the shape of `VerifyOptions.logger`. Every line is redacted of
    * the key; a logger that throws is ignored. Without it, nothing is logged.
    */
   readonly logger?: Logger | undefined;
@@ -332,11 +335,12 @@ const RESPONSE_HEADERS: Readonly<Record<string, string>> = {
   "x-content-type-options": "nosniff",
 };
 
+// References: decisions 0016 and 0023.
 /**
  * The route the key module checks every upstream request against: Etherscan v2 at
  * `ETHERSCAN_API_URL`, not overridden, with that host as its `tableHost` and no `route.apiKey`.
  * `keyFor` attaches the key only to `https://` on the `tableHost` of a route that is not
- * overridden (decisions 0016 and 0023), so a wrong URL here would send no key. `requestUrl`
+ * overridden, so a wrong URL here would send no key. `requestUrl`
  * appends the path only: the handler adds `chainid` itself.
  */
 const ETHERSCAN_ROUTE: Route = Object.freeze({
@@ -353,9 +357,10 @@ const ETHERSCAN_ROUTE: Route = Object.freeze({
   skipped: [],
 });
 
+// References: R-SRV-1, R-SRV-2, R-SRV-5, R-SRV-3.
 /**
- * Creates the handler that holds the operator's Etherscan key on their own server (R-SRV-1,
- * R-SRV-2). The browser reaches it through a `fetch` it passes to `verify()` (R-SRV-5); the
+ * Creates the handler that holds the operator's Etherscan key on their own server. The browser
+ * reaches it through a `fetch` it passes to `verify()`; the
  * handler checks each request, adds the key and forwards it to Etherscan's v2 API.
  *
  * It accepts a `POST` with an `application/x-www-form-urlencoded` body. Each field may be in the
@@ -371,7 +376,7 @@ const ETHERSCAN_ROUTE: Route = Object.freeze({
  *    (400): the handler routes from its own configuration only; a field given twice (400);
  * 7. a `module` other than `contract`, or an action other than `verifysourcecode`,
  *    `checkverifystatus`, `getsourcecode` and, with `allowProxyLink`, `verifyproxycontract` and
- *    `checkproxyverification` (403, R-SRV-3);
+ *    `checkproxyverification` (403);
  * 8. a missing or malformed `chainid` (400), or a chain not in `chains` (403);
  * 9. a field the action does not take, a missing field, or a value of the wrong form (400);
  * 10. with `deployers` set, a submit or lookup for an address none of them created (403), or one
@@ -533,11 +538,12 @@ function redactDeep(value: unknown, secrets: readonly string[]): unknown {
   );
 }
 
+// References: decision 0021, R-FLOW-8.
 /**
- * A `getsourcecode` answer reduced to what the client classifies (decision 0021): `status`,
+ * A `getsourcecode` answer reduced to what the client classifies: `status`,
  * `message`, and of the first result only whether it has source, `SimilarMatch`, `ContractName`
  * and `CompilerVersion`, and `Implementation` when it is an address, which `linkProxy()` reads
- * after a mismatch (R-FLOW-8). A `result` that is text, such as a key error, is kept.
+ * after a mismatch. A `result` that is text, such as a key error, is kept.
  */
 function reduceLookup(answer: ReadonlyMap<string, unknown>): Record<string, unknown> {
   const reduced: Record<string, unknown> = {
@@ -578,9 +584,10 @@ interface Answer {
   readonly value: unknown;
 }
 
+// References: R-SEC-2.
 /**
  * Sends one form-encoded POST to Etherscan with the key in its body, through the HTTP layer, which
- * sets `redirect: "manual"` and refuses a redirect (R-SEC-2). Maps a failure to a refusal.
+ * sets `redirect: "manual"` and refuses a redirect. Maps a failure to a refusal.
  */
 async function upstream(
   http: HttpContext,
@@ -657,8 +664,9 @@ function upstreamError(): Refusal {
   );
 }
 
+// References: R-SRV-4.
 /**
- * The deployer check (R-SRV-4): asks Etherscan's `getcontractcreation` who created `address`.
+ * The deployer check: asks Etherscan's `getcontractcreation` who created `address`.
  *
  * - `status` `"1"` and a record naming an allowed `contractCreator` or `contractFactory`: go on
  *   (`undefined`). A record naming none: 403. No record: 503 `address-not-indexed`.

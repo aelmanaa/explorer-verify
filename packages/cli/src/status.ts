@@ -1,5 +1,6 @@
+// References: R-FLOW-5, R-AX-16.
 /**
- * The `status` command (R-FLOW-5, R-AX-16): resumes a submitted verification from its handle with
+ * The `status` command: resumes a submitted verification from its handle with
  * `checkStatus()`, which never submits. The handle comes as the one argument, or in the request of
  * `--input-json`.
  */

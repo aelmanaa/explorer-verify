@@ -1,5 +1,6 @@
+// References: decision 0026.
 /**
- * SHA-256 (FIPS 180-4, section 6.2), for the IPFS hash solc puts in the bytecode (decision 0026).
+ * SHA-256 (FIPS 180-4, section 6.2), for the IPFS hash solc puts in the bytecode.
  * Written here rather than taken from `crypto.subtle`: that API is asynchronous, absent from
  * insecure browser contexts, and its types need the DOM library in every caller.
  *

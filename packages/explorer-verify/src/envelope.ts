@@ -1,8 +1,9 @@
+// References: R-AX-5, R-AX-7, decision 0055.
 /**
- * The machine contract for an outcome (R-AX-5, R-AX-7): the exit code of a result or an error,
+ * The machine contract for an outcome: the exit code of a result or an error,
  * and the versioned JSON envelope the CLI prints on stdout. The server handler and the CLI both
  * use these, so they cannot disagree. `schema/envelope.schema.json` describes the envelope. The
- * `explorer-verify/envelope` entry exports them (decision 0055).
+ * `explorer-verify/envelope` entry exports them.
  */
 import { toBackendName } from "./backend-names.ts";
 import { newError } from "./error-hints.ts";
@@ -34,8 +35,9 @@ import type {
   VerifyResult,
 } from "./types.ts";
 
+// References: R-AX-7.
 /**
- * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
+ * The exit codes of the CLI: 0 verified, 1 failed, 2 invalid input, 3 key problem,
  * 4 still pending, 5 network or explorer unavailable, 6 unknown state or internal error,
  * 130 cancelled.
  *
@@ -49,8 +51,9 @@ import type {
  */
 export type ExitCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 130;
 
+// References: R-AX-7.
 /**
- * The CLI exit code for each error code (R-AX-7). Every code maps to exactly one exit code.
+ * The CLI exit code for each error code. Every code maps to exactly one exit code.
  *
  * @example
  * ```ts
@@ -58,7 +61,7 @@ export type ExitCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 130;
  * import { ExplorerVerifyError } from "explorer-verify/errors";
  *
  * function exitCode(error: unknown): number {
- *   return error instanceof ExplorerVerifyError ? ERROR_EXIT_CODES[error.code] : 1;
+ *   return error instanceof ExplorerVerifyError ? ERROR_EXIT_CODES[error.code]: 1;
  * }
  * ```
  * @experimental
@@ -116,10 +119,11 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
  */
 export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
 
+// References: R-AX-5, R-AX-8.
 /**
- * The versioned JSON document for an outcome (R-AX-5). `ok` is `true` exactly when the exit code
+ * The versioned JSON document for an outcome. `ok` is `true` exactly when the exit code
  * is 0. A `failed` result has `ok: false` and the result, with no `error`. A `DryRunResult` has
- * `ok: true`: a dry run submits nothing and exits 0 (R-AX-8). Keys appear in the order
+ * `ok: true`: a dry run submits nothing and exits 0. Keys appear in the order
  * shown, and `schema/envelope.schema.json` in the package describes every form.
  *
  * @example
@@ -271,8 +275,9 @@ const NOT_AN_OUTCOME =
 const NOT_AN_OUTCOME_HINT =
   "Pass the result that verify(), checkStatus(), verifyEach() or linkProxy() returned, or the ExplorerVerifyError it threw.";
 
+// References: R-AX-7.
 /**
- * The exit code of a `verifyEach()` result that is not 0, in order of precedence (R-AX-7): the
+ * The exit code of a `verifyEach()` result that is not 0, in order of precedence: the
  * first code in this list that any outcome has. 0 only when every outcome has 0.
  */
 const EACH_EXIT_ORDER: readonly ExitCode[] = [6, 4, 3, 2, 5, 1, 130];
@@ -551,12 +556,13 @@ function copyLinkResult(
   };
 }
 
+// References: decision 0044.
 /**
  * A reader of the error object of `outcome`: its own `toJSON()` when it is an
  * `ExplorerVerifyError` of this copy of the package or of another copy, recognised by its name and
  * a `toJSON()`. `foreign` marks the other copy, whose handle is checked field by field. Only an
  * error whose prototype chain holds this copy's class is this copy's: `instanceof` also accepts an
- * error from another copy by its brand (decision 0044). `undefined` for any other value.
+ * error from another copy by its brand. `undefined` for any other value.
  */
 function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean } | undefined {
   const branded = ExplorerVerifyError.is(outcome);
@@ -821,8 +827,9 @@ function eachExitCode(each: VerifyEachResult<ErrorJson>): ExitCode {
   return EACH_EXIT_ORDER.find((code) => codes.includes(code)) ?? 0;
 }
 
+// References: R-AX-7.
 /**
- * The CLI exit code of an outcome (R-AX-7): 0 for `verified`, `already-verified` and a
+ * The CLI exit code of an outcome: 0 for `verified`, `already-verified` and a
  * `DryRunResult`, 1 for `failed`, and {@link ERROR_EXIT_CODES} for an error. A server handler or
  * a script uses it to decide what to do next without parsing messages. It checks the outcome as
  * {@link toEnvelope} does, so the two never disagree.
@@ -876,15 +883,16 @@ export function exitCodeOf(
     : RESULT_EXIT_CODES[read.result.status];
 }
 
+// References: R-AX-5, R-AX-12, R-AX-9, R-SEC-1.
 /**
- * The versioned JSON envelope of an outcome (R-AX-5), as the CLI prints it with `--json`:
+ * The versioned JSON envelope of an outcome, as the CLI prints it with `--json`:
  * `{ schemaVersion: 1, ok, result }` for a result and `{ schemaVersion: 1, ok: false, error }` for
  * an error. `ok` is `true` exactly when {@link exitCodeOf} is 0. A `verifyEach()` result is the
  * `result`, its outcomes each copied as a result or an error is.
  *
  * The envelope is a new object. A result keeps only the fields its status declares, an error is
- * its `toJSON()`, keys are always in the same order (R-AX-12), and every string is redacted again,
- * so the envelope never holds an API key (R-AX-9, R-SEC-1). The job id of a handle is redacted only
+ * its `toJSON()`, keys are always in the same order, and every string is redacted again,
+ * so the envelope never holds an API key. The job id of a handle is redacted only
  * where it holds a known secret or a key-like parameter, so a valid job id keeps working.
  *
  * An error from another copy of the package in the same program, which `instanceof` misses, is

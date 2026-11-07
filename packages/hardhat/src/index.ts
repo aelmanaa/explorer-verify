@@ -1,6 +1,7 @@
+// References: R-DX-2.
 /**
  * `@explorer-verify/hardhat`: finds a contract's build files in a Hardhat 2 or Hardhat 3 project
- * and passes them to `buildVerifyInput` from `explorer-verify` (R-DX-2). Node only.
+ * and passes them to `buildVerifyInput` from `explorer-verify`. Node only.
  */
 import { buildVerifyInput } from "explorer-verify";
 import type { BuildVerifyInputOptions, BuiltVerifyInput } from "explorer-verify";

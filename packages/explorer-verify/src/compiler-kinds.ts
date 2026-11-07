@@ -1,6 +1,7 @@
+// References: R-EXT-1, decisions 0004.
 /**
- * Which backend clients verify which compiler kind, on which chains (R-EXT-1, decisions 0004 and
- * 0057). Every client maps `solc` on every chain. A client maps `zksolc` only on the chains whose
+ * Which backend clients verify which compiler kind, on which chains. Every client maps `solc` on
+ * every chain. A client maps `zksolc` only on the chains whose
  * explorer reads the zksolc fields it sends; the routing table passes over any other backend for
  * zksolc input, and the flow engine refuses such input before any request when the route's backend
  * does not map it there. The list is static, so the route is chosen before any client loads.
@@ -19,9 +20,10 @@ export type CompilerKind = VerifyInput["compiler"]["kind"];
 /** Backends and the chains on which each one's client maps zksolc input. */
 export type ZksolcRoutes = readonly (readonly [BackendName, readonly number[]])[];
 
+// References: decision 0059.
 /**
  * The backends whose client maps zksolc input, each with the chains whose explorer reads the
- * zksolc fields. Blockscout maps the fields on chains 324 and 300 (decision 0059). Keyed by chain
+ * zksolc fields. Blockscout maps the fields on chains 324 and 300. Keyed by chain
  * as well as backend, so that mapping Blockscout cannot send zksolc input to another instance.
  */
 export const ZKSOLC_ROUTES: ZksolcRoutes = [["blockscout", [324, 300]]];

@@ -1,5 +1,6 @@
+// References: R-FLOW-8.
 /**
- * What the proxy-link code shares (R-FLOW-8): reading the answer that names the implementation,
+ * What the proxy-link code shares: reading the answer that names the implementation,
  * the strict check of an implementation address, and the error for an answer it does not know.
  * Etherscan and Blockscout both answer
  * `The proxy's (<proxy>) implementation contract is found at <implementation> and …`.
@@ -77,8 +78,9 @@ export function implementationOf(value: unknown): Hex | undefined {
   return address === ZERO ? undefined : address;
 }
 
+// References: R-FLOW-4.
 /**
- * `proxy-link-unknown-state` for a proxy-link answer the client does not know (R-FLOW-4). It
+ * `proxy-link-unknown-state` for a proxy-link answer the client does not know. It
  * carries no handle: a link has none.
  *
  * @param ctx - The call's context, for its secrets.

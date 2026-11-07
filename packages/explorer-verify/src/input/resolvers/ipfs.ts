@@ -78,7 +78,8 @@ function multihash(block: Uint8Array): Uint8Array {
 }
 
 /**
- * The CIDv0 of `bytes` as solc computes it, such as `QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb`.
+ * The CIDv0 of `bytes` as solc computes it, such as
+ * `QmQXfzJLPTjPUD1LWY6XQHqnWgqgDYEravjDpAMCtW4Uvb`.
  *
  * @param bytes - The file, here the metadata JSON as UTF-8.
  * @returns The CID in base58btc.

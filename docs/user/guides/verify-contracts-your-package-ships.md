@@ -104,12 +104,12 @@ all three. Backends that support it use the creation transaction hash to match t
 bytecode; Sourcify receives it as `creationTransactionHash`.
 
 ```ts
-import { buildVerifyInput, validateInput, verify } from "explorer-verify";
-import type { VerifyOptions, VerifyResult } from "explorer-verify";
+import { buildVerifyInput, verify } from "explorer-verify";
+import type { Hex, VerifyOptions, VerifyResult } from "explorer-verify";
 
 /** Verifies a Greeter that this package deployed. The application chooses the options. */
 export async function verifyGreeter(
-  deployment: { chainId: number; address: string; creationTxHash: string },
+  deployment: { chainId: number; address: Hex; creationTxHash: Hex },
   options?: VerifyOptions,
 ): Promise<VerifyResult> {
   // Loaded only when verification runs: an application that never verifies never loads them.
@@ -118,7 +118,7 @@ export async function verifyGreeter(
     import("./verification/Greeter.manifest.json", { with: { type: "json" } }),
   ]);
   const built = buildVerifyInput([standardJson], manifest);
-  return await verify(validateInput({ ...deployment, ...built }), options);
+  return await verify({ ...deployment, ...built }, options);
 }
 
 // A Greeter deployed on Sepolia, with its creation transaction.
@@ -156,7 +156,7 @@ your package, see [Using explorer-verify from an agent](using-from-an-agent.md).
 
 ## Where it runs
 
-`buildVerifyInput`, `validateInput` and `verify()` use no Node API, so the same deploy function runs
+`buildVerifyInput` and `verify()` use no Node API, so the same deploy function runs
 on a backend and in a browser.
 
 - On a backend, Node 22.18 or later reads each JSON file when `import()` runs.

@@ -36,9 +36,10 @@ export interface CommandContext {
   readonly onEvent: (event: VerifyEvent, level?: LineLevel) => void;
   /** The environment variables, without the key variables: the keys come from `routeOptions`. */
   readonly env: Environment;
+  // References: R-AX-9.
   /**
-   * Returns `apiKeys` and `route` from the route options, the key variables and the key flags
-   * (R-AX-9). Spread it into the library's options. Empty for a command that is not `routed`.
+   * Returns `apiKeys` and `route` from the route options, the key variables and the key flags.
+   * Spread it into the library's options. Empty for a command that is not `routed`.
    * A function, so printing the context shows no key.
    */
   readonly routeOptions: () => RouteOptions;
@@ -66,8 +67,9 @@ export interface PrepareContext {
   readonly values: ReadonlyMap<string, OptionValue>;
   /** Opens stdin. Call it only when an option asks to read stdin, such as `--input-json -`. */
   readonly stdin: () => InputStream;
+  // References: R-SEC-1.
   /**
-   * Adds values that the main loop removes from stdout and stderr (R-SEC-1), such as the parts of
+   * Adds values that the main loop removes from stdout and stderr, such as the parts of
    * an RPC URL that can hold a key. Call it as soon as the value is read, before any check.
    */
   readonly addSecrets: (secrets: readonly string[]) => void;
@@ -100,7 +102,8 @@ interface CommandFields extends CommandSpec {
   readonly usage: string;
   /** More usage lines, for each other way to call the command, such as with `--input-json`. */
   readonly moreUsage?: readonly string[];
-  /** At least one example. The help text shows them first (R-AX-11), and the tests run them. */
+  // References: R-AX-11.
+  /** At least one example. The help text shows them first, and the tests run them. */
   readonly examples: readonly [Example, ...Example[]];
   /** The most positionals the command accepts after its name. */
   readonly maxPositionals: number;
@@ -111,10 +114,11 @@ interface CommandFields extends CommandSpec {
   readonly extraArguments?: (values: ReadonlyMap<string, OptionValue>) => InputIssue | undefined;
 }
 
+// References: R-AX-16.
 /**
  * One row of the command table. A command either runs at once with `run`, or reads its request
  * first with `prepare`, before the main loop reads the keys, so the request can name the route
- * the keys go to (R-AX-16). Either one returns a result, or throws an `ExplorerVerifyError`;
+ * the keys go to. Either one returns a result, or throws an `ExplorerVerifyError`;
  * anything else it throws becomes `internal-error`.
  */
 export type Command = CommandFields &
@@ -133,11 +137,12 @@ const USAGE_HINT: string =
 /** The most issues a usage error lists; the message counts the rest. */
 const MAX_ISSUES = 20;
 
+// References: R-AX-5, R-AX-10.
 /**
- * The `invalid-input` error of a command line (R-AX-5): exit code 2. The message lists the first
+ * The `invalid-input` error of a command line: exit code 2. The message lists the first
  * {@link MAX_ISSUES} issues, so the error line alone says what to fix, and counts the rest; the
  * envelope also holds them in `details.issues`. Issues name options, never their values. A
- * suggestion, one of the CLI's own names, leads the hint (R-AX-10). The CLI keeps this hint.
+ * suggestion, one of the CLI's own names, leads the hint. The CLI keeps this hint.
  *
  *
  * @param issues - The problems found.

@@ -6,14 +6,15 @@ import { SHAPE_ISSUE, checkHandle } from "./check-handle.ts";
 export { isHandleString, tryParseHandle } from "./check-handle.ts";
 export { formatHandle } from "./format-handle.ts";
 
+// References: R-FLOW-5, R-SEC-2.
 /**
  * Reads a handle from untrusted input, such as a command-line argument, a URL parameter, local
- * storage or a request body, and checks every field (R-FLOW-5). It takes the handle object, or
+ * storage or a request body, and checks every field. It takes the handle object, or
  * the one-line form that `formatHandle` writes, `ev1:<backend>:<chainId>:<address>:<jobId>`,
  * which must split on `:` into exactly five parts; a job id never holds a `:`.
  *
- * Any field it does not know, such as a URL, is rejected, so no host can enter through a handle
- * (R-SEC-2). Error messages name the known fields only and never repeat a value or a field name
+ * Any field it does not know, such as a URL, is rejected, so no host can enter through a handle.
+ * Error messages name the known fields only and never repeat a value or a field name
  * the input chose. To check a value without catching an error, use `tryParseHandle` or
  * `isHandleString`.
  *

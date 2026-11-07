@@ -1,5 +1,6 @@
+// References: R-AX-2.
 /**
- * The generated part of the CLI reference, `docs/user/reference/cli.md` (R-AX-2). It renders the
+ * The generated part of the CLI reference, `docs/user/reference/cli.md`. It renders the
  * same {@link HelpResult} the `--help` text shows, so the page cannot drift from the code:
  * `scripts/generate-cli-reference.ts` writes it, and `pnpm run check` fails when the committed page
  * differs. The tables are padded the way the formatter pads them, so a formatted page still

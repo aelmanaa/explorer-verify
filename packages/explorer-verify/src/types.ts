@@ -1,8 +1,4 @@
-/**
- * The public contract of explorer-verify, drafted from docs/contributor/requirements.md before any
- * backend exists. Every type is experimental until 1.0: change it when an implementation shows a
- * better shape, and record the change in the decision log.
- */
+/** Public input, result and option types. These APIs are experimental until 1.0. */
 import type { BackendName, KeyedBackendName } from "./backend-names.ts";
 import type { AnyExplorerVerifyError, ErrorJson, ExplorerVerifyError } from "./errors.ts";
 
@@ -44,9 +40,10 @@ export interface SolcCompiler {
   input: SolidityStandardJsonInput;
 }
 
+// References: decision 0057.
 /**
  * The zksolc compiler and its input: a contract compiled for EraVM, the virtual machine of ZKsync
- * Era (decision 0057). zksolc runs a solc build of its own, so the input names both versions.
+ * Era. zksolc runs a solc build of its own, so the input names both versions.
  *
  * Only Blockscout on ZKsync Era (324) and ZKsync Sepolia (300) maps the zksolc fields. Any
  * other backend refuses it with `unsupported-compiler` before any request, and the routing table
@@ -85,9 +82,10 @@ export interface ZksolcCompiler {
   input: SolidityStandardJsonInput;
 }
 
+// References: decision 0004.
 /**
  * What to verify. `compiler` is a discriminated union so other languages (Vyper and others) can
- * be added as new members without changing existing callers (decision 0004). An optional field
+ * be added as new members without changing existing callers. An optional field
  * set to `undefined` counts as absent.
  *
  * @experimental
@@ -97,14 +95,16 @@ export interface VerifyInput {
   chainId: number;
   /** The deployed contract address. */
   address: Hex;
-  /** The compiler and its input: solc, or zksolc for EraVM contracts (decision 0057). */
+  // References: decision 0057.
+  /** The compiler and its input: solc, or zksolc for EraVM contracts. */
   compiler: SolcCompiler | ZksolcCompiler;
   /** Fully qualified contract name, as `src/Token.sol:Token`. */
   contractName: string;
+  // References: R-IN-3.
   /**
    * ABI-encoded constructor arguments without the selector. `0x` means none. When absent,
    * `verify()` derives them from the creation code for a backend that takes them, if
-   * `creationBytecode` is set (R-IN-3). When set, they win: nothing is derived.
+   * `creationBytecode` is set. When set, they win: nothing is derived.
    */
   constructorArgs?: Hex | undefined;
   /**
@@ -112,18 +112,20 @@ export interface VerifyInput {
    * with `VerifyOptions.rpcUrl` it is where `verify()` reads the creation code.
    */
   creationTxHash?: Hex | undefined;
+  // References: R-IN-3.
   /**
    * The compiled creation bytecode, the compiler's `evm.bytecode.object` with or without `0x`,
    * library placeholders (`__$`, 34 hex digits, `$__`) included. `verify()` uses it only to
-   * derive missing `constructorArgs`: the creation code minus this prefix is the arguments
-   * (R-IN-3). It is never sent to an explorer. `buildVerifyInput` fills it when the documents
+   * derive missing `constructorArgs`: the creation code minus this prefix is the arguments. It is
+   * never sent to an explorer. `buildVerifyInput` fills it when the documents
    * hold it.
    */
   creationBytecode?: Hex | undefined;
+  // References: R-IN-4, decision 0025.
   /**
    * Library link addresses, keyed by the library's fully qualified name, as
-   * `{ "src/MathLib.sol:MathLib": "0x…" }` (R-IN-4). `verify()` checks them and sends
-   * `compiler.input` unchanged (decision 0025): for a contract linked after compiling, adding the
+   * `{ "src/MathLib.sol:MathLib": "0x…" }`. `verify()` checks them and sends
+   * `compiler.input` unchanged: for a contract linked after compiling, adding the
    * addresses to `settings.libraries` changes the metadata hash. In a live test on 2026-11-03,
    * Sourcify then gave only a partial match.
    * Call `linkLibraries` to merge them into `settings.libraries` for an explorer that needs them
@@ -184,8 +186,9 @@ export type VerifyResult =
       reason: string;
     };
 
+// References: R-FLOW-8.
 /**
- * The proxy that `linkProxy()` links to its implementation (R-FLOW-8). Other fields are ignored,
+ * The proxy that `linkProxy()` links to its implementation. Other fields are ignored,
  * as `verify()` ignores fields its input does not declare.
  *
  * @example
@@ -280,9 +283,10 @@ export type LinkProxyResult =
       reason: string;
     };
 
+// References: R-AX-8.
 /**
  * What `dryRun()` returns: where a `verify()` call with the same input and options would go, and
- * what the explorer holds now (R-AX-8). Nothing was submitted.
+ * what the explorer holds now. Nothing was submitted.
  *
  * - `lookup` is the already-verified check: `exact` or `partial` when the explorer holds a match,
  *   so `verify()` would return `already-verified` without a submit; `none` when it holds none, so
@@ -298,8 +302,7 @@ export type LinkProxyResult =
  *
  * function describe(result: DryRunResult): string {
  *   return result.lookup === "skipped"
- *     ? `${result.backend} needs an API key; the lookup was skipped`
- *     : `${result.backend} at ${result.apiHost}: ${result.lookup}`;
+ *     ? `${result.backend} needs an API key; the lookup was skipped`: `${result.backend} at ${result.apiHost}: ${result.lookup}`;
  * }
  * ```
  * @experimental
@@ -338,18 +341,20 @@ export interface DryRunResult {
  */
 export type RoutedBy = "caller" | "table" | "fallback" | "api-url";
 
+// References: R-DX-5.
 /**
  * One log field value: flat and JSON-safe, so it maps to a JSON Lines record or an OpenTelemetry
- * attribute without conversion (R-DX-5).
+ * attribute without conversion.
  *
  * @experimental
  */
 export type LogValue = string | number | boolean | null;
 
+// References: R-DX-5.
 /**
  * The structured fields of one log line, such as the backend or the attempt number. Values are
  * flat. Field names are diagnostics and may change in any release; a program reads
- * {@link VerifyEvent} objects instead (R-DX-5).
+ * {@link VerifyEvent} objects instead.
  *
  * @example
  * ```ts
@@ -361,9 +366,10 @@ export type LogValue = string | number | boolean | null;
  */
 export type LogFields = Readonly<Record<string, LogValue>>;
 
+// References: R-DX-5, R-SEC-1.
 /**
- * Receives the library's log lines (R-DX-5). Each method takes a message and optional flat
- * fields, both with API keys removed (R-SEC-1). `console` fits this shape, and a logger that reads
+ * Receives the library's log lines. Each method takes a message and optional flat
+ * fields, both with API keys removed. `console` fits this shape, and a logger that reads
  * only the message keeps working. Messages and fields are diagnostics: their wording may change in
  * any release.
  *
@@ -495,9 +501,10 @@ type VerificationEvent =
       readonly status: "failed";
     };
 
+// References: R-DX-6, R-SEC-1.
 /**
- * A stage event, passed to `VerifyOptions.onEvent` (R-DX-6). The union is keyed by `type`. Every
- * value is flat and JSON-safe, and API keys are removed from every string (R-SEC-1). The
+ * A stage event, passed to `VerifyOptions.onEvent`. The union is keyed by `type`. Every
+ * value is flat and JSON-safe, and API keys are removed from every string. The
  * `event.schema.json` file in the package describes the same objects.
  *
  * | `type`             | Emitted when                                       |
@@ -575,10 +582,11 @@ type ProxyEvent =
       readonly type: "proxy.result";
     });
 
+// References: R-SEC-2.
 /**
  * Overrides the route for one call: which backend to use and where its API lives, for example a
  * self-hosted Sourcify server or a local fake in tests. Hosts come only from here or from the
- * routing table, never from a {@link Handle} (R-SEC-2). A field set to `undefined` counts as
+ * routing table, never from a {@link Handle}. A field set to `undefined` counts as
  * absent; a key other than these three throws `invalid-input` naming `route.<key>`.
  *
  * @example
@@ -590,12 +598,13 @@ type ProxyEvent =
  * @experimental
  */
 export interface RouteOverride {
+  // References: decision 0041.
   /**
    * The backend to use instead of the one the routing table picks. Without `apiUrl`, the
    * routing table must list it for the chain; otherwise the call throws `unsupported-chain`
    * naming the chain and the backend. `blockscout-hosted` is the exception: the table never lists
-   * it, and without `apiUrl` it goes to `https://api.blockscout.com/<chainId>/api` for any chain
-   * (decision 0041). With `apiUrl`, any backend goes. A name outside
+   * it, and without `apiUrl` it goes to `https://api.blockscout.com/<chainId>/api` for any chain.
+   * With `apiUrl`, any backend goes. A name outside
    * `BACKEND_NAMES`, or a backend this version has no client for, throws `invalid-input` naming
    * `route.backend`.
    */
@@ -614,9 +623,10 @@ export interface RouteOverride {
    * the host, takes `apiKeys["etherscan-v2"]`. Pass `route.apiKey` for any other `apiUrl`.
    */
   apiUrl?: string | undefined;
+  // References: R-SEC-2.
   /**
    * The API key for this route's explorer, bound to the route's API host: it is sent only to that
-   * host, and only for requests of the route's backend (R-SEC-2). Use it for an explorer on its
+   * host, and only for requests of the route's backend. Use it for an explorer on its
    * own host, such as a standalone Etherscan-compatible explorer, which `apiKeys` does not accept.
    * It wins over `apiKeys` for the route's backend.
    *
@@ -628,18 +638,19 @@ export interface RouteOverride {
   apiKey?: string | undefined;
 }
 
+// References: decision 0009.
 /**
  * The options every call to an explorer takes: `verify()`, `dryRun()`, `checkStatus()`,
  * `linkProxy()` and `verifyEach()`. Each function has its own options type that extends this one
- * with the fields it reads, so a misplaced key in an object literal fails to compile (decision
- * 0047). At run time, `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every
+ * with the fields it reads, so a misplaced key in an object literal fails to compile. At run time,
+ * `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every
  * key of `VerifyOptions`, so one options object can go to each.
  *
  * Every field is optional, and a field set to `undefined` counts as absent, so a value that may be
  * `undefined` can be passed straight through. Any other key throws `invalid-input` before any
  * request: the issue names the key and, when one matches it ignoring case or by prefix, the option
  * it may mean, such as `timeoutMs` for `timeout`. It never repeats the key's value. A later
- * release adds fields without changing these, so existing callers keep working (decision 0009).
+ * release adds fields without changing these, so existing callers keep working.
  *
  * @example
  * ```ts
@@ -651,17 +662,19 @@ export interface RouteOverride {
  * @experimental
  */
 export interface CallOptions {
+  // References: R-SRV-5.
   /**
-   * The `fetch` every request goes through. Defaults to `globalThis.fetch` (R-SRV-5). The library
+   * The `fetch` every request goes through. Defaults to `globalThis.fetch`. The library
    * sends every request with `redirect: "manual"` and never follows a redirect: a redirect could
    * carry a key to another host. An injected `fetch` must keep that behaviour and must not follow
    * redirects itself. An injected `fetch` does not turn off the missing-key check: to send
    * Etherscan requests to a server that adds the key, set `handlerUrl`.
    */
   fetch?: typeof fetch | undefined;
+  // References: R-SRV-5, decision 0046.
   /**
    * The URL of your server handler (`createVerifyHandler` from `explorer-verify/server`), which
-   * holds the Etherscan key and adds it (R-SRV-5, decision 0046). Set it in browser code, where an
+   * holds the Etherscan key and adds it. Set it in browser code, where an
    * Etherscan key must not be.
    *
    * - Each request to Etherscan's v2 API goes to this URL instead, with its query, method, headers
@@ -688,17 +701,20 @@ export interface CallOptions {
    * ```
    */
   handlerUrl?: string | undefined;
-  /** Cancels the call. The call rejects with `signal.reason` unchanged (R-FLOW-6). */
+  // References: R-FLOW-6.
+  /** Cancels the call. The call rejects with `signal.reason` unchanged. */
   signal?: AbortSignal | undefined;
   /**
    * Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. A
    * positive number; a value above 2147483647 is lowered to it.
    */
   timeoutMs?: number | undefined;
-  /** Receives log lines with keys removed. Nothing is logged when it is absent (R-DX-5). */
+  // References: R-DX-5.
+  /** Receives log lines with keys removed. Nothing is logged when it is absent. */
   logger?: Logger | undefined;
+  // References: R-DX-6.
   /**
-   * Receives the stage events, with keys removed (R-DX-6). Nothing is emitted when it is absent.
+   * Receives the stage events, with keys removed. Nothing is emitted when it is absent.
    * An exception it throws, or a rejection of a promise it returns, is logged once at `warn` and
    * does not change the outcome. A returned promise is not awaited.
    */
@@ -708,8 +724,9 @@ export interface CallOptions {
    * throws `invalid-input` naming `route.<key>`.
    */
   route?: RouteOverride | undefined;
+  // References: R-RT-3.
   /**
-   * Lets a chain that the routing table does not list resolve to the public Sourcify API (R-RT-3).
+   * Lets a chain that the routing table does not list resolve to the public Sourcify API.
    * Defaults to `false`: such a chain throws `unsupported-chain`, whose hint names this option and
    * the `route` override. A value that is not a boolean throws `invalid-input`.
    *
@@ -721,11 +738,12 @@ export interface CallOptions {
    * ```
    */
   allowSourcifyFallback?: boolean | undefined;
+  // References: decision 0009, R-SEC-2, R-SEC-1, R-SRV-5.
   /**
-   * API keys by backend name (decision 0009, amended by 0016 and 0041). A key is sent only to its
+   * API keys by backend name (amended by 0016 and 0041). A key is sent only to its
    * backend's one API host, `api.etherscan.io` for `etherscan-v2`, `api.routescan.io` for
    * `routescan` and `api.blockscout.com` for `blockscout-hosted`, Blockscout's hosted API, and
-   * only when the call's route resolves to that backend (R-SEC-2). A route that moves `apiUrl` to
+   * only when the call's route resolves to that backend. A route that moves `apiUrl` to
    * another host gets no key from here; pass `route.apiKey` for it.
    *
    * - Accepted names: `etherscan-v2`, `routescan` and `blockscout-hosted`, the
@@ -739,14 +757,14 @@ export interface CallOptions {
    *   `undefined` value counts as absent.
    * - Only own enumerable string-keyed properties are read, each once; a non-enumerable property
    *   or a Symbol key is ignored. The object must be a plain object.
-   * - Every key is removed from logs, events, errors and results (R-SEC-1).
+   * - Every key is removed from logs, events, errors and results.
    * - When the route's backend needs a key (`etherscan-v2`, `blockscout-hosted`) and none is
    *   bound to its host, the call throws `missing-api-key` before any request, whether `fetch` is
    *   set or not. Only `handlerUrl` sends an Etherscan request without a key, to your server
    *   handler.
    *
    * Etherscan's terms forbid an Etherscan key in browser code. In a browser, set `handlerUrl` to a
-   * server handler that holds the key instead (R-SRV-5). Blockscout's hosted API sends no CORS
+   * server handler that holds the key instead. Blockscout's hosted API sends no CORS
    * headers and the server handler does not forward Blockscout, so a browser cannot use
    * `blockscout-hosted`; use `blockscout`, an instance, which needs no key.
    *
@@ -785,9 +803,10 @@ export interface VerifyOptions extends CallOptions {
    * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
    */
   pollIntervalMs?: number | undefined;
+  // References: R-IN-3.
   /**
    * A JSON-RPC endpoint of the contract's chain. `verify()` uses it only to derive missing
-   * constructor arguments (R-IN-3): it checks `eth_chainId`, then reads the transaction that
+   * constructor arguments: it checks `eth_chainId`, then reads the transaction that
    * `creationTxHash` names and its receipt. An absolute `https` URL, or `http` on `localhost`,
    * `127.0.0.1` or `[::1]`, with no user name, password or fragment. Its path segments and query
    * values of 8 or more characters are redacted from logs, events and errors, because providers
@@ -883,10 +902,11 @@ export interface LinkProxyOptions extends CallOptions {
  */
 export type ApiKeys = { [B in KeyedBackendName]?: string | undefined };
 
+// References: R-RT-2, R-RT-4.
 /**
  * One backend of a `verifyEach()` call: a backend name, which the routing table resolves for the
  * chain, or a route override that names its backend, such as a standalone explorer with its own
- * `apiUrl` and `apiKey` (R-RT-2, R-RT-4).
+ * `apiUrl` and `apiKey`.
  *
  * @example
  * ```ts
@@ -990,8 +1010,9 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       result?: never;
     };
 
+// References: R-RT-4.
 /**
- * What `verifyEach()` returns: one outcome per entry of `backends`, in the same order (R-RT-4).
+ * What `verifyEach()` returns: one outcome per entry of `backends`, in the same order.
  *
  * @example
  * ```ts
@@ -1010,13 +1031,14 @@ export interface VerifyEachResult<
   outcomes: BackendOutcome<E>[];
 }
 
+// References: R-FLOW-5, R-SEC-2.
 /**
  * Identifies a submitted verification so polling can continue later, in another process or after
- * a page reload (R-FLOW-5). It is plain JSON and survives `JSON.stringify` and `JSON.parse`.
+ * a page reload. It is plain JSON and survives `JSON.stringify` and `JSON.parse`.
  *
  * It carries no URL. When polling resumes, the library resolves the API from `backend`, `chainId`
  * and the caller's `route` option, so a handle read from untrusted storage cannot choose where
- * requests go (R-SEC-2). Store it in its one-line form with `formatHandle`, and read it back with
+ * requests go. Store it in its one-line form with `formatHandle`, and read it back with
  * `parseHandle`, `tryParseHandle` or `checkStatus`.
  *
  * @example
@@ -1048,9 +1070,10 @@ export interface Handle {
   jobId: string;
 }
 
+// References: R-FLOW-5.
 /**
- * A handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`: the form to store
- * (R-FLOW-5). `formatHandle` writes it, the `verify.submitted` event and an error's `toJSON()`
+ * A handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`: the form to store.
+ * `formatHandle` writes it, the `verify.submitted` event and an error's `toJSON()`
  * carry it, and `isHandle` checks a string for it. The type checks the shape of each part, not
  * its value: `parseHandle` checks the value.
  *

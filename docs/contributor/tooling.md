@@ -356,3 +356,15 @@ report; this section covers the setup.
   catalog, like the other tools. They add no runtime dependency. `typed-rest-client`, a
   dependency of `@stryker-mutator/core`, pins `qs` 6.15.1, which has four moderate advisories; an
   override in `pnpm-workspace.yaml` raises it to 6.16.1.
+
+## Public declaration comments
+
+Builds use `stripInternal` to omit dependency injection seams from package declarations. Source
+comments keep requirement and decision IDs with `//`; public TSDoc describes the API without
+those IDs. `pnpm run pkg:check` runs `scripts/check-declaration-docs.ts` after the build and fails
+when any built declaration contains a contributor ID. The CLI and SDK README examples run in
+the documentation tests.
+
+`pnpm run check` builds the type-checking projects before type-aware lint, so lint can resolve
+the public declarations from a clean checkout. Live probe scripts use internal flow helpers from source. The scripts project checks those
+sources with DOM types; the separate core build still checks them without Node types.

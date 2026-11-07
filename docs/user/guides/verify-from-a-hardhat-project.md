@@ -159,19 +159,19 @@ To record the addresses, pass them in `libraries`, keyed by `path:Name`. Each ke
 
 ```ts
 import { buildVerifyInputFromHardhat } from "@explorer-verify/hardhat";
-import { validateInput } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
 
 const built = await buildVerifyInputFromHardhat({
   root: ".",
   contract: "contracts/Counter.sol:Counter",
 });
 // The artifact's linkReferences: { "project/contracts/Tally.sol": { Tally: [...] } }
-const input = validateInput({
+const input: VerifyInput = {
   chainId: 11155111,
   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   ...built,
-  libraries: { "project/contracts/Tally.sol:Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c" },
-});
+  libraries: { "project/contracts/Tally.sol:Tally": "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c" },
+};
 console.log(JSON.stringify(input.libraries));
 ```
 

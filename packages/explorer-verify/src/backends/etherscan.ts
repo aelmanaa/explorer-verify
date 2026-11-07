@@ -1,13 +1,14 @@
+// References: R-BE-1, R-BE-5, R-BE-2, decision 0016, R-SEC-1, R-FLOW-4.
 /**
- * The Etherscan API v2 client (R-BE-1), and {@link etherscanStyle}, which builds it and the other
- * clients of APIs that answer as Etherscan does: Routescan's (R-BE-5) and standalone explorers'
- * (R-BE-2). For Etherscan, one
+ * The Etherscan API v2 client, and {@link etherscanStyle}, which builds it and the other
+ * clients of APIs that answer as Etherscan does: Routescan's  and standalone explorers'. For
+ * Etherscan, one
  * API base serves every chain, with `chainid` in the query of each request. Every request is a
- * form-encoded POST, so the key goes in the body and never in the URL (decision 0016, R-SEC-1).
+ * form-encoded POST, so the key goes in the body and never in the URL.
  *
  * Etherscan answers almost everything with HTTP 200 and puts the meaning in the `result` text. The
  * client maps each known text to an outcome or a typed error; a text it does not know is never
- * read as success, "not verified" or `failed` (R-FLOW-4). The evidence for each mapping is in
+ * read as success, "not verified" or `failed`. The evidence for each mapping is in
  * docs/contributor/research/2026-11-04-etherscan-client.md, and for Routescan's texts in
  * docs/contributor/research/2026-11-04-routescan-client.md.
  */
@@ -99,8 +100,9 @@ export interface Dialect {
     backend: BackendName,
     fields: Record<string, string>,
   ) => HttpRequest;
+  // References: R-IN-3.
   /**
-   * Whether the client reads the creation code with `getcontractcreation` (R-IN-3). Set for
+   * Whether the client reads the creation code with `getcontractcreation`. Set for
    * Etherscan, whose answer was checked live on 2026-11-03 and 2026-11-04.
    */
   readonly creation?: boolean;
@@ -289,12 +291,13 @@ export function etherscanStyle(dialect: Dialect): Backend {
     throw unexpected(ctx, answer, "the submit");
   }
 
+  // References: R-FLOW-2.
   /**
    * Asks once for the state of a job with `checkverifystatus`. The handle is checked first: it
    * may come from storage. `Fail - Unable to verify` is checked with one lookup, because it was
    * once answered for a contract that the lookup showed verified moments later. A text in the
    * dialect's `rejections` gives `failed` at once. An unknown job
-   * throws `job-not-found`, and the flow then looks the contract up once (R-FLOW-2).
+   * throws `job-not-found`, and the flow then looks the contract up once.
    */
   async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
     checkHandle(handle, name, label, ctx);
@@ -409,7 +412,8 @@ export function etherscanStyle(dialect: Dialect): Backend {
 
 /**
  * The Etherscan API v2 client. Every request is
- * `POST https://api.etherscan.io/v2/api?chainid=<id>` with a form body that holds `module=contract`,
+ * `POST https://api.etherscan.io/v2/api?chainid=<id>` with a form body that holds
+ * `module=contract`,
  * the action and its fields, and the key as `apikey`.
  *
  * @example

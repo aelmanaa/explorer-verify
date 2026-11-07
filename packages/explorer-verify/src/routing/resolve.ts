@@ -1,18 +1,19 @@
+// References: R-RT-1, R-RT-3, R-SEC-2, decision 0024, decision 0052, decision 0040.
 /**
  * Chain id to backend, API URL and explorer URL (R-RT). The routing table, `routing/table.json`,
  * lists each chain's backends in order of preference; a caller can pick another listed backend,
- * point a backend at another server, or let a chain missing from the table fall back to Sourcify
- * (R-RT-1 to R-RT-3). Hosts come only from the table or the caller's options (R-SEC-2).
+ * point a backend at another server, or let a chain missing from the table fall back to Sourcify.
+ * Hosts come only from the table or the caller's options.
  *
  * The table holds only what varies per chain. {@link tableTarget} derives each backend's API URL
- * and explorer page from fixed templates, in one place (decision 0024).
+ * and explorer page from fixed templates, in one place.
  *
  * This module does not import the table, and holds no dynamic `import()`. Its rows sit in
  * `routing/table.ts`, which the default entry loads with a dynamic `import()`, through
  * `loadRoutingTable` in `routing/load-table.ts`, so a bundler that splits code puts them in a chunk
- * of their own; `explorer-verify/core` takes them from its caller (decision 0052).
+ * of their own; `explorer-verify/core` takes them from its caller.
  * {@link readsTable} tells which routes need it: a call whose `route.apiUrl` cannot be a URL the
- * table lists does not load it (decision 0040).
+ * table lists does not load it.
  */
 import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
@@ -87,8 +88,9 @@ export interface TableRow {
   readonly backends: readonly TableEntry[];
 }
 
+// References: R-RT-1.
 /**
- * The routing table: the shape of `routing/table.json` (R-RT-1).
+ * The routing table: the shape of `routing/table.json`.
  *
  * @example
  * ```ts
@@ -133,7 +135,8 @@ export interface TableTarget {
   readonly needsKey?: boolean;
 }
 
-/** Loads the routing table. The shipped one sits behind a dynamic `import()` (decision 0040). */
+// References: decision 0040.
+/** Loads the routing table. The shipped one sits behind a dynamic `import()`. */
 export type TableLoader = () => Promise<RoutingTable>;
 
 /**
@@ -184,13 +187,14 @@ export interface Route {
   readonly apiKey: () => string | undefined;
   /** Whether `apiBase` came from the caller's `route.apiUrl` rather than the routing table. */
   readonly overridden: boolean;
+  // References: R-SEC-2, decision 0016, decision 0053, decision 0040.
   /**
    * The host of the routing table's API URL for this backend and chain, or `undefined` when the
    * table lists none. A key from `apiKeys` goes only to this host, and only when the route is not
-   * overridden (R-SEC-2, decision 0016), or is an `etherscan-v2` route whose `route.apiUrl` is on
-   * this host (decision 0053). For a route with `route.apiUrl` it is the backend's one API host,
+   * overridden, or is an `etherscan-v2` route whose `route.apiUrl` is on
+   * this host. For a route with `route.apiUrl` it is the backend's one API host,
    * for `sourcify`, `etherscan-v2`, `routescan` and `blockscout-hosted`, and `undefined` for the
-   * others (decision 0040).
+   * others.
    */
   readonly tableHost: string | undefined;
   /**
@@ -222,24 +226,27 @@ export interface Route {
 export interface RouteChoice {
   /** The caller's checked keys. A backend that needs a key is skipped without one. */
   readonly apiKeys?: CheckedKeys;
-  /** Whether a chain missing from the table resolves to Sourcify (R-RT-3). Defaults to false. */
+  // References: R-RT-3.
+  /** Whether a chain missing from the table resolves to Sourcify. Defaults to false. */
   readonly allowSourcifyFallback?: boolean;
   /**
    * The backends this version has a client for. `route.backend` naming another one throws
    * `invalid-input`. Absent means every backend name is accepted.
    */
   readonly clients?: readonly BackendName[];
+  // References: decision 0057.
   /**
-   * Whether a backend's client verifies the input's compiler kind (decision 0057). The table
+   * Whether a backend's client verifies the input's compiler kind. The table
    * passes over a backend that does not, unless no listed backend does; the flow engine then
    * refuses the input. Absent means every backend does.
    */
   readonly verifies?: ((backend: BackendName) => boolean) | undefined;
+  // References: decision 0040.
   /**
    * The routing table, loaded. A route without `route.apiUrl` throws a `TypeError` without it. A
    * route with `route.apiUrl` reads it, when given, only for what the row says about its own API
    * URL: the explorer page and `needsKey`. The flow engine loads it only when {@link readsTable}
-   * says so (decision 0040).
+   * says so.
    */
   readonly table?: RoutingTable | undefined;
 }
@@ -286,15 +293,16 @@ export const SOURCIFY_API_URL = "https://sourcify.dev/server";
  */
 export const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
 
+// References: decision 0046.
 /**
  * What `choiceKeys` puts under `etherscan-v2` when `handlerUrl` is set, so that the routing table
- * chooses as it does with an Etherscan key (decision 0046). The empty string is never sent: it
+ * chooses as it does with an Etherscan key. The empty string is never sent: it
  * only marks the backend as keyed. {@link routeFrom} reads keys with `!== undefined`; a
  * truthiness check there would drop it and break `handlerUrl`.
  *
  * @example
  * ```ts
- * const keys = { ...settings.apiKeys(), "etherscan-v2": HANDLER_KEY };
+ * const keys = {...settings.apiKeys(), "etherscan-v2": HANDLER_KEY };
  * ```
  */
 export const HANDLER_KEY = "";
@@ -304,9 +312,10 @@ const ROUTESCAN_HOST = "api.routescan.io";
 // An API base that may be a Blockscout row's: `https://<instance>/api` (decision 0040).
 const BLOCKSCOUT_API = /^https:\/\/[^/]+\/api$/;
 
+// References: decision 0040.
 /**
  * The one API host of a backend whose API host does not depend on the row, for the hint of a
- * route with `route.apiUrl`, or `undefined` (decision 0040). A function, not a constant, so a
+ * route with `route.apiUrl`, or `undefined`. A function, not a constant, so a
  * bundle that does not resolve routes, such as the server handler's, drops it.
  */
 function fixedHost(backend: BackendName): string | undefined {
@@ -333,15 +342,18 @@ const API_KEY_HINT =
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
 
+// References: decision 0024.
 /**
- * Derives a table entry's API URL and explorer page for `chainId` (decision 0024):
+ * Derives a table entry's API URL and explorer page for `chainId`:
  *
- * - `sourcify`: `https://sourcify.dev/server`; page `https://repo.sourcify.dev/<chainId>/<address>`.
+ * - `sourcify`: `https://sourcify.dev/server`; page
+ * `https://repo.sourcify.dev/<chainId>/<address>`.
  * - `etherscan-v2`: `https://api.etherscan.io/v2/api`; page
  *   `https://<explorer>/address/<address>#code` when the entry names an `explorer` host, else none.
  * - `routescan`: `https://api.routescan.io/v2/network/<network>/evm/<chainId>/etherscan/api`, with
  *   `network` `mainnet` or `testnet`; no page yet.
- * - `blockscout`: `https://<instance>/api`; page `https://<instance>/address/<address>?tab=contract`.
+ * - `blockscout`: `https://<instance>/api`; page
+ * `https://<instance>/address/<address>?tab=contract`.
  * - `etherscan-compatible`: `https://<api>`; page as for `etherscan-v2`. `needsKey` is copied.
  *
  * @param chainId - The row's chain id.
@@ -393,7 +405,8 @@ export function tableTarget(chainId: number, entry: TableEntry): TableTarget | u
             : undefined;
 }
 
-/** The keys of a route override, in documentation order (R-IN-6). */
+// References: R-IN-6.
+/** The keys of a route override, in documentation order. */
 export function routeKeys(): readonly string[] {
   return Object.keys({
     backend: true,
@@ -478,20 +491,22 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
   return { apiBase: `${url.origin}${path}`, search: url.search };
 }
 
+// References: R-RT-1, R-RT-3, R-SEC-2, decision 0041, decision 0039.
 /**
- * Resolves where a call for `chainId` goes (R-RT-1 to R-RT-3). Hosts come only from the routing
- * table or `override`, never from a handle (R-SEC-2).
+ * Resolves where a call for `chainId` goes. Hosts come only from the routing
+ * table or `override`, never from a handle.
  *
  * Without `override.apiUrl`:
  *
  * - A chain in the table resolves to its first backend that is usable with `choice.apiKeys`: one
  *   that needs no key, or one with a key. A standalone entry with `needsKey` counts as needing
- *   one, and no `apiKeys` entry gives it one. When none is usable, it resolves to the first, and the
+ *   one, and no `apiKeys` entry gives it one. When none is usable, it resolves to the first, and
+ * the
  *   flow reports the missing key. `override.backend` picks another backend the row lists.
  * - `override.backend` that the row does not list throws `unsupported-chain` naming the chain and
  *   the backend, except `blockscout-hosted`, which no row lists: it goes to
  *   `https://api.blockscout.com/<chainId>/api` for any chain, with the page of the row's
- *   Blockscout instance (decision 0041).
+ *   Blockscout instance.
  * - A chain missing from the table resolves to Sourcify when `choice.allowSourcifyFallback` is
  *   true. Otherwise it throws `unsupported-chain`, whose hint names the fallback option and the
  *   route override.
@@ -517,7 +532,7 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  * `route.apiKey`, and set next to `apiUrl`. With `backend` `etherscan-compatible` it may also be
  * set without `apiUrl` when the chain's row lists a standalone host with `needsKey`: the key then
  * goes to that host. A row whose standalone entry takes no key throws `invalid-input` naming
- * `route.apiKey`, and a chain whose row lists none throws `unsupported-chain` (decision 0039).
+ * `route.apiKey`, and a chain whose row lists none throws `unsupported-chain`.
  *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
@@ -544,16 +559,17 @@ export function resolveRoute(
   return routeFrom(chainId, checkRoute(chainId, override, choice.clients), choice);
 }
 
+// References: decision 0040, decision 0052.
 /**
  * The first step of {@link resolveRoute}: checks `chainId` and `override`, and reads the override's
  * fields, each once. It reads no routing table, so the flow engine checks a route before it loads
- * the table (decision 0040).
+ * the table.
  *
  * @param chainId - The EVM chain id, a positive safe integer.
  * @param override - The caller's `VerifyOptions.route`, if any.
  * @param clients - The backends this version has a client for; absent accepts every name.
  * @param passed - Set by `explorer-verify/core`, whose `clients` are the caller's: the hint for a
- *   `route.backend` the caller left out of them (decision 0052).
+ *   `route.backend` the caller left out of them.
  * @returns The checked override. `target` is `undefined` when the route reads the routing table.
  * @throws ExplorerVerifyError with code `invalid-input`, as {@link resolveRoute} describes.
  * @example
@@ -650,11 +666,12 @@ export function checkRoute(
   return { named, target, apiKey };
 }
 
+// References: decision 0052.
 /**
  * Whether a checked route resolves without the routing table: it has `route.apiUrl`, or names a
  * backend with one public host for every chain (Sourcify, Etherscan v2, Blockscout's hosted API).
  * Only `explorer-verify/core` routes without a table; such a route then reads no row, so it has no
- * explorer page from one (decision 0052).
+ * explorer page from one.
  *
  * @param checked - The checked override, from {@link checkRoute}.
  * @returns `true` when the route needs no table.
@@ -673,15 +690,16 @@ export function servesWithoutTable(checked: CheckedRoute): boolean {
   );
 }
 
+// References: decision 0040.
 /**
- * Whether a checked route needs the routing table (decision 0040). A route without `route.apiUrl`
+ * Whether a checked route needs the routing table. A route without `route.apiUrl`
  * does. A route with it needs the table only for what the row says about its own API URL, the
  * explorer page and `needsKey`, and only for a backend whose row decides them:
  *
  * - `etherscan-v2` at Etherscan's v2 API, whose page host the row names;
  * - `blockscout` at an `https` URL whose path is `/api`, which may be the row's instance;
- * - `etherscan-compatible` at an `https` URL, which may be the row's standalone API (decision
- *   0039), with its page and `needsKey`.
+ * - `etherscan-compatible` at an `https` URL, which may be the row's standalone API, with its page
+ * and `needsKey`.
  *
  * Any other route with `route.apiUrl` gives the same route with or without the table: a Sourcify
  * page needs no row, a Routescan entry has no page, and the row never lists an `http` URL.
@@ -705,11 +723,13 @@ export function readsTable(checked: CheckedRoute): boolean {
   );
 }
 
+// References: decision 0040.
 /**
  * The second step of {@link resolveRoute}: the route of a checked override. A route without
  * `route.apiUrl` reads `choice.table`. A route with it reads the table, when given, only for the
- * explorer page and `needsKey` of the row's own API URL, which {@link readsTable} tells apart; its `tableHost` is
- * the backend's one API host, read from no row (decision 0040).
+ * explorer page and `needsKey` of the row's own API URL, which {@link readsTable} tells apart; its
+ * `tableHost` is
+ * the backend's one API host, read from no row.
  *
  * @param chainId - The chain id, checked by {@link checkRoute}.
  * @param checked - The override, from {@link checkRoute}.
@@ -961,11 +981,12 @@ export async function routesWith(
   return { listed, pick: { backend, routedBy, skipped, keyMissing } };
 }
 
+// References: decision 0052.
 /**
  * `unsupported-chain` for a chain the routing table does not route: no row (`row`), a row that
  * does not list the backend the caller named (`listed`), or a row whose chosen backend has no
  * client in this version (`client`). The flow engine throws the last one when it opens the call;
- * through `explorer-verify/core`, it throws the error of `Missing.client` instead (decision 0052).
+ * through `explorer-verify/core`, it throws the error of `Missing.client` instead.
  *
  * @param chainId - The chain of the call.
  * @param backend - The backend named or chosen; `sourcify`, the fallback, for a missing row.

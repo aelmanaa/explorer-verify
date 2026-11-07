@@ -1,5 +1,6 @@
+// References: R-AX-8.
 /**
- * `dryRun()`: the steps of `verify()` before the submit (R-AX-8). It validates, resolves the route
+ * `dryRun()`: the steps of `verify()` before the submit. It validates, resolves the route
  * and looks the contract up through the same helpers as `verify()`, then stops. It never submits.
  */
 import type { Target } from "../backends/backend.ts";
@@ -32,6 +33,7 @@ import type { FlowDependencies } from "./verify.ts";
  * ```ts
  * const result = await runDryRun(input, { fetch }, { backends: { sourcify } });
  * ```
+ * @internal
  */
 export async function runDryRun(
   input: VerifyInput,

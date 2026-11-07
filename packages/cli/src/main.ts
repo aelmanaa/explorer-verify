@@ -1,6 +1,7 @@
+// References: R-AX-5, R-AX-6, R-AX-7, R-AX-12, R-AX-14, R-AX-15.
 /**
- * The CLI's main loop and its output contract (R-AX-5, R-AX-6, R-AX-7, R-AX-12, R-AX-14,
- * R-AX-15). Every exit path ends here with one outcome: the result a command returned, the
+ * The CLI's main loop and its output contract. Every exit path ends here with one outcome: the
+ * result a command returned, the
  * `ExplorerVerifyError` it threw, `invalid-input` for a usage error, `cancelled` for SIGINT or
  * SIGTERM, or `internal-error` for anything else. The outcome gives stdout, the error line on
  * stderr and the exit code, so the three never disagree.
@@ -77,9 +78,10 @@ interface RunState {
   order: readonly string[];
   /** Set once the outcome is fixed; later signals are ignored. */
   fixed: boolean;
+  // References: R-SEC-1, R-AX-9.
   /**
    * Every key read, and every part of an RPC URL that can hold one, removed from everything written
-   * to stdout and stderr (R-SEC-1, R-AX-9).
+   * to stdout and stderr.
    */
   readonly secrets: string[];
 }
@@ -107,10 +109,11 @@ function choice<T extends string>(
   return found;
 }
 
+// References: R-AX-5, R-SEC-1.
 /**
- * The `internal-error` of an unexpected exception (R-AX-5): exit code 6, not retryable, no handle,
+ * The `internal-error` of an unexpected exception: exit code 6, not retryable, no handle,
  * the fixed hint, and the exception's message redacted whole, then cut short, so a key across the
- * cut never leaves a fragment (R-SEC-1). The redacted cause keeps the stack for the debug line.
+ * cut never leaves a fragment. The redacted cause keeps the stack for the debug line.
  */
 function internalError(error: unknown, secrets: readonly string[]): ExplorerVerifyError {
   let text: string;
@@ -438,9 +441,10 @@ async function runCli(
   });
 }
 
+// References: R-AX-7, R-AX-5.
 /**
- * Runs the CLI once and returns its exit code (R-AX-7). It never throws: an unexpected exception
- * becomes `internal-error`, with one envelope on stdout under `--json` (R-AX-5).
+ * Runs the CLI once and returns its exit code. It never throws: an unexpected exception
+ * becomes `internal-error`, with one envelope on stdout under `--json`.
  *
  * The first SIGINT or SIGTERM before the outcome is fixed gives `cancelled` (exit code 130); later
  * ones are ignored, so the envelope is written in full.
