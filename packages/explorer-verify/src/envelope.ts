@@ -136,38 +136,67 @@ export type VerifyOutcome = VerifyResult | AnyExplorerVerifyError;
  * @experimental
  */
 export type Envelope<R extends EnvelopeResult = EnvelopeResult> =
-  | ResultEnvelope<R>
+  | (R extends VerifyEachResult<ExplorerVerifyError | ErrorJson>
+      ?
+          | {
+              /** The envelope schema version. */
+              schemaVersion: 1;
+              /** Every backend succeeded. */
+              ok: true;
+              /** Successful results in the requested order. */
+              result: {
+                /** One successful outcome per entry. */ outcomes: Extract<
+                  BackendOutcome<ErrorJson>,
+                  Record<"ok", true>
+                >[];
+              };
+              /** Result envelopes carry no top-level error. */
+              error?: never;
+            }
+          | {
+              /** The envelope schema version. */
+              schemaVersion: 1;
+              /** At least one backend failed. */
+              ok: false;
+              /** All outcomes in the requested order. */
+              result: VerifyEachResult<ErrorJson>;
+              /** Backend errors are inside the outcomes. */
+              error?: never;
+            }
+      : {
+          /** The envelope schema version. */
+          schemaVersion: 1;
+          /** Whether the result exits successfully. */
+          ok: R extends {
+            /** Result states that exit unsuccessfully. */ status:
+              | "failed"
+              | "mismatch"
+              | "not-linked";
+          }
+            ? false
+            : true;
+          /** The validated result. */
+          result: R;
+          /** Result envelopes carry no error. */
+          error?: never;
+        })
   | {
+      /** The envelope schema version. */
       schemaVersion: 1;
+      /** An error always exits with a nonzero code. */
       ok: false;
+      /** The serialized error. */
       error: ErrorJson;
+      /** Error envelopes carry no result. */
       result?: never;
     };
 
-/** The result types accepted by the envelope. */
+/** The result types accepted by the envelope. @inline */
 type EnvelopeResult =
   | VerifyResult
   | DryRunResult
   | LinkProxyResult
   | VerifyEachResult<ExplorerVerifyError | ErrorJson>;
-
-/** A result envelope, distributed over its result union. */
-type ResultEnvelope<R extends EnvelopeResult> =
-  R extends VerifyEachResult<ExplorerVerifyError | ErrorJson>
-    ?
-        | {
-            schemaVersion: 1;
-            ok: true;
-            result: { outcomes: Extract<BackendOutcome<ErrorJson>, { ok: true }>[] };
-            error?: never;
-          }
-        | { schemaVersion: 1; ok: false; result: VerifyEachResult<ErrorJson>; error?: never }
-    : {
-        schemaVersion: 1;
-        ok: R extends { status: "failed" | "mismatch" | "not-linked" } ? false : true;
-        result: R;
-        error?: never;
-      };
 
 /**
  * Options for {@link toEnvelope}.

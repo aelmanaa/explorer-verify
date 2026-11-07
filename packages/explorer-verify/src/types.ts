@@ -404,52 +404,7 @@ export interface Logger {
   error: (message: string, fields?: LogFields) => void;
 }
 
-/**
- * A stage event, passed to `VerifyOptions.onEvent` (R-DX-6). The union is keyed by `type`. Every
- * value is flat and JSON-safe, and API keys are removed from every string (R-SEC-1). The
- * `event.schema.json` file in the package describes the same objects.
- *
- * | `type`             | Emitted when                                       |
- * | ------------------ | -------------------------------------------------- |
- * | `verify.validated` | The input passed validation                        |
- * | `verify.routed`    | The route is resolved                              |
- * | `verify.lookup`    | The already-verified check finished or was skipped |
- * | `verify.submitted` | The explorer accepted the submission               |
- * | `verify.poll`      | One poll returned a state that is not final        |
- * | `verify.retry`     | A request is retried after a transient failure     |
- * | `verify.result`    | The call is about to return a result               |
- *
- * Within a schema version, a release adds event types or fields and never removes or changes one.
- *
- * @example
- * ```ts
- * import type { VerifyEvent } from "explorer-verify";
- *
- * // User code: keep the handle, count retries, and fail to compile when a type is added.
- * let retries = 0;
- * function onEvent(event: VerifyEvent): void {
- *   switch (event.type) {
- *     case "verify.submitted":
- *       localStorage.setItem("pending-verification", event.handle);
- *       break;
- *     case "verify.retry":
- *       retries += 1;
- *       break;
- *     case "verify.validated":
- *     case "verify.routed":
- *     case "verify.lookup":
- *     case "verify.poll":
- *     case "verify.result":
- *       break;
- *     default: {
- *       const unknown: never = event;
- *       throw new Error(`Unknown event ${JSON.stringify(unknown)}`);
- *     }
- *   }
- * }
- * ```
- * @experimental
- */
+/** Verification stages. @inline */
 type VerificationEvent =
   | {
       /** The event type. */
@@ -540,25 +495,85 @@ type VerificationEvent =
       readonly status: "failed";
     };
 
-/** A stage event, with an entry index for calls made by verifyEach(). */
+/**
+ * A stage event, passed to `VerifyOptions.onEvent` (R-DX-6). The union is keyed by `type`. Every
+ * value is flat and JSON-safe, and API keys are removed from every string (R-SEC-1). The
+ * `event.schema.json` file in the package describes the same objects.
+ *
+ * | `type`             | Emitted when                                       |
+ * | ------------------ | -------------------------------------------------- |
+ * | `verify.validated` | The input passed validation                        |
+ * | `verify.routed`    | The route is resolved                              |
+ * | `verify.lookup`    | The already-verified check finished or was skipped |
+ * | `verify.submitted` | The explorer accepted the submission               |
+ * | `verify.poll`      | One poll returned a state that is not final        |
+ * | `verify.retry`     | A request is retried after a transient failure     |
+ * | `verify.result`    | The call is about to return a result               |
+ *
+ * Within a schema version, a release adds event types or fields and never removes or changes one.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyEvent } from "explorer-verify";
+ *
+ * // User code: keep the handle, count retries, and fail to compile when a type is added.
+ * let retries = 0;
+ * function onEvent(event: VerifyEvent): void {
+ *   switch (event.type) {
+ *     case "verify.submitted":
+ *       localStorage.setItem("pending-verification", event.handle);
+ *       break;
+ *     case "verify.retry":
+ *       retries += 1;
+ *       break;
+ *     case "verify.validated":
+ *     case "verify.routed":
+ *     case "verify.lookup":
+ *     case "verify.poll":
+ *     case "verify.result":
+ *       break;
+ *     default: {
+ *       const unknown: never = event;
+ *       throw new Error(`Unknown event ${JSON.stringify(unknown)}`);
+ *     }
+ *   }
+ * }
+ * ```
+ * @experimental
+ */
 export type VerifyEvent = (VerificationEvent | ProxyEvent) & {
   /** The zero-based index into verifyEach()'s backends; absent for other calls. */
   readonly entry?: number;
 };
 
-/** A proxy linking stage. */
+/** A proxy linking stage. @inline */
 type ProxyEvent =
-  | { readonly type: "proxy.routed"; readonly backend: BackendName; readonly apiHost: string }
   | {
-      readonly type: "proxy.poll";
+      /** The event type. */
+      readonly type: "proxy.routed";
+      /** The selected backend. */
       readonly backend: BackendName;
+      /** The selected API host. */
+      readonly apiHost: string;
+    }
+  | {
+      /** The event type. */
+      readonly type: "proxy.poll";
+      /** The selected backend. */
+      readonly backend: BackendName;
+      /** The poll number, starting at one. */
       readonly attempt: number;
+      /** The proxy job is still pending. */
       readonly state: "pending";
     }
   | (Omit<Extract<VerificationEvent, { type: "verify.retry" }>, "type"> & {
+      /** The event type. */
       readonly type: "proxy.retry";
     })
-  | (LinkProxyResult & { readonly type: "proxy.result" });
+  | (LinkProxyResult & {
+      /** The event type. */
+      readonly type: "proxy.result";
+    });
 
 /**
  * Overrides the route for one call: which backend to use and where its API lives, for example a
@@ -949,9 +964,9 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       backend: BackendName;
       /** `true`: the backend holds the verified source. */
       ok: true;
-      /** The verified or already-verified result. */
       /** Result members carry no error. */
       error?: never;
+      /** The verified or already-verified result. */
       result: Extract<VerifyResult, Record<"status", "verified" | "already-verified">>;
     }
   | {
@@ -959,9 +974,9 @@ export type BackendOutcome<E extends ExplorerVerifyError | ErrorJson = AnyExplor
       backend: BackendName;
       /** `false`: the explorer rejected the submission. */
       ok: false;
-      /** The failed result. */
       /** Result members carry no error. */
       error?: never;
+      /** The failed result. */
       result: Extract<VerifyResult, Record<"status", "failed">>;
     }
   | {
