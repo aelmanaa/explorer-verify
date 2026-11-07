@@ -230,6 +230,12 @@ export interface RouteChoice {
    */
   readonly clients?: readonly BackendName[];
   /**
+   * Whether a backend's client verifies the input's compiler kind (decision 0057). The table
+   * passes over a backend that does not, unless no listed backend does; the flow engine then
+   * refuses the input. Absent means every backend does.
+   */
+  readonly verifies?: ((backend: BackendName) => boolean) | undefined;
+  /**
    * The routing table, loaded. A route without `route.apiUrl` throws a `TypeError` without it. A
    * route with `route.apiUrl` reads it, when given, only for what the row says about its own API
    * URL: the explorer page and `needsKey`. The flow engine loads it only when {@link readsTable}
@@ -780,10 +786,14 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
     }
     const candidates =
       row === undefined && choice.allowSourcifyFallback === true ? fallback : listed;
-    // Backends with a client come first. When none has one, the first entry stays, and the flow
+    // Backends that verify the input's compiler kind come first. When none does, every entry
+    // stays, and the flow refuses the input for the pick (decision 0057).
+    const capable = candidates.filter((each) => choice.verifies?.(each.backend) !== false);
+    const kinds = capable.length > 0 ? capable : candidates;
+    // Then backends with a client. When none has one, the first entry stays, and the flow
     // throws `unsupported-chain` for it once the handle's backend has been checked.
-    const served = candidates.filter((each) => choice.clients?.includes(each.backend) !== false);
-    const pool = served.length > 0 ? served : candidates;
+    const served = kinds.filter((each) => choice.clients?.includes(each.backend) !== false);
+    const pool = served.length > 0 ? served : kinds;
     const found =
       named === undefined
         ? (pool.find(

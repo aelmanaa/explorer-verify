@@ -2,7 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "explorer-verify request",
   "description": "The whole request of the CLI's verify or status command as one JSON document, passed with --input-json <file|-> (R-AX-16). A verify request is a VerifyInput, as validateInput() checks it, with an optional route. A status request is a handle with an optional route. No field holds an API key or an RPC URL: give keys through the environment, --api-key-file or --api-key-stdin, and the RPC URL of verify through --rpc-url-file, --rpc-url-stdin or --rpc-url. The CLI refuses unknown properties with one invalid-input issue that counts them and never names them.",
-  "oneOf": [{ "$ref": "#/$defs/verify" }, { "$ref": "#/$defs/status" }],
+  "oneOf": [
+    {
+      "$ref": "#/$defs/verify"
+    },
+    {
+      "$ref": "#/$defs/status"
+    }
+  ],
   "$defs": {
     "verify": {
       "description": "The request of explorer-verify verify: a VerifyInput and an optional route.",
@@ -20,34 +27,71 @@
           "pattern": "^0x[0-9a-fA-F]{40}$"
         },
         "compiler": {
-          "description": "The compiler, its full version and the Standard JSON input of the deployment.",
+          "description": "The compiler, its full version and the Standard JSON input of the deployment. For kind zksolc, also the version of the solc that zksolc ran and, optionally, the revision of ZKsync's solc fork.",
           "type": "object",
           "properties": {
-            "kind": { "const": "solc" },
+            "kind": {
+              "enum": ["solc", "zksolc"]
+            },
             "version": {
-              "description": "The full solc version with its commit, such as 0.8.24+commit.e11b9ed9.",
+              "description": "For solc, the full version with its commit, such as 0.8.24+commit.e11b9ed9. For zksolc, the zksolc version, such as 1.5.15.",
+              "type": "string"
+            },
+            "solcVersion": {
+              "description": "zksolc only: the full version of the solc that zksolc ran, such as 0.8.24+commit.e11b9ed9.",
+              "type": "string"
+            },
+            "solcFork": {
+              "description": "zksolc only, optional: the revision of ZKsync's solc fork, such as 1.0.2.",
               "type": "string"
             },
             "input": {
               "description": "The Standard JSON input. Fields other than language, sources and settings pass through to the explorer.",
               "type": "object",
               "properties": {
-                "language": { "const": "Solidity" },
+                "language": {
+                  "const": "Solidity"
+                },
                 "sources": {
                   "type": "object",
                   "additionalProperties": {
                     "type": "object",
-                    "properties": { "content": { "type": "string" } },
+                    "properties": {
+                      "content": {
+                        "type": "string"
+                      }
+                    },
                     "required": ["content"]
                   }
                 },
-                "settings": { "type": "object" }
+                "settings": {
+                  "type": "object"
+                }
               },
               "required": ["language", "sources", "settings"]
             }
           },
           "required": ["kind", "version", "input"],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "zksolc"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "solcVersion": true
+            },
+            "required": ["solcVersion"]
+          },
+          "else": {
+            "properties": {
+              "solcVersion": false,
+              "solcFork": false
+            }
+          }
         },
         "contractName": {
           "description": "The fully qualified contract name, path:Name.",
@@ -73,9 +117,14 @@
         "libraries": {
           "description": "Library link addresses by the library's fully qualified name, path:Name.",
           "type": "object",
-          "additionalProperties": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          }
         },
-        "route": { "$ref": "#/$defs/route" }
+        "route": {
+          "$ref": "#/$defs/route"
+        }
       },
       "required": ["chainId", "address", "compiler", "contractName"],
       "additionalProperties": false
@@ -89,7 +138,9 @@
           "type": "string",
           "pattern": "^ev1:"
         },
-        "route": { "$ref": "#/$defs/route" }
+        "route": {
+          "$ref": "#/$defs/route"
+        }
       },
       "required": ["handle"],
       "additionalProperties": false

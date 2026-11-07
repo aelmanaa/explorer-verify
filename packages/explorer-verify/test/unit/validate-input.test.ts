@@ -14,7 +14,7 @@ const MESSAGES = {
   chainId: "must be a positive integer",
   address: "must be 0x followed by 40 hex digits",
   compiler: "must be an object with kind, version and input",
-  kind: 'must be "solc", the only supported kind',
+  kind: 'must be "solc" or "zksolc"',
   shortVersion:
     "is a short version; pass the full version with its commit, such as 0.8.24+commit.e11b9ed9",
   version: "must be a full solc version, such as 0.8.24+commit.e11b9ed9",
@@ -278,7 +278,7 @@ describe("rule: address is 0x and 40 hex digits, any case, checksum not checked 
   });
 });
 
-describe("rule: compiler.kind is solc (R-IN-6, decision 0004)", () => {
+describe("rule: compiler.kind is solc or zksolc (R-IN-6, decisions 0004 and 0057)", () => {
   it("accepts solc (R-IN-6)", () => {
     assert.equal(validateInput(input()).compiler.kind, "solc");
   });
@@ -286,7 +286,7 @@ describe("rule: compiler.kind is solc (R-IN-6, decision 0004)", () => {
   it("rejects any other kind with a hint naming the supported kinds (R-IN-6)", () => {
     for (const kind of ["vyper", "SOLC", undefined]) {
       const error = assertIssue(withCompiler({ kind }), "compiler.kind", MESSAGES.kind);
-      assert.equal(error.hint, 'Set compiler.kind to "solc", the only supported compiler kind.');
+      assert.equal(error.hint, 'Set compiler.kind to "solc", or "zksolc" for EraVM.');
     }
   });
 
@@ -589,7 +589,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
     const error = rejection({ ...withCompiler({ version: "0.8.24", kind: "x" }), chainId: 0 });
     assert.equal(
       error.hint,
-      'Set compiler.kind to "solc", the only supported compiler kind. Then fix the other fields in details.issues.',
+      'Set compiler.kind to "solc", or "zksolc" for EraVM. Then fix the other fields in details.issues.',
     );
   });
 
@@ -1326,5 +1326,151 @@ describe("rule: each libraries entry says why it is invalid and what to pass (R-
       error.hint,
       "Give each library the address compiler.input.settings.libraries holds for it, or remove the entry there.",
     );
+  });
+});
+
+/** `input()` with a zksolc compiler, its fields replaced by `fields`. */
+function zksolc(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  const base = input();
+  return {
+    ...base,
+    compiler: {
+      kind: "zksolc",
+      version: "1.5.15",
+      solcVersion: VERSION,
+      input: base.compiler.input,
+      ...fields,
+    },
+  };
+}
+
+describe("rule: a zksolc compiler names zksolc's version, solc's and the fork's (R-IN-1, R-IN-6, decision 0057)", () => {
+  const ZKSOLC_VERSION = "must be a version x.y.z, such as 1.5.15";
+
+  it("accepts zksolc and returns each version without its leading v", () => {
+    const validated = validateInput(
+      zksolc({ version: "v1.5.15", solcVersion: `v${VERSION}`, solcFork: "v1.0.2" }),
+    );
+    assert.deepEqual(validated.compiler, {
+      kind: "zksolc",
+      version: "1.5.15",
+      solcVersion: VERSION,
+      input: input().compiler.input,
+      solcFork: "1.0.2",
+    });
+  });
+
+  it("leaves solcFork out when it is absent or undefined", () => {
+    for (const value of [zksolc(), zksolc({ solcFork: undefined })]) {
+      const { compiler } = validateInput(value);
+      assert.deepEqual(Object.keys(compiler), ["kind", "version", "solcVersion", "input"]);
+    }
+  });
+
+  it("refuses a zksolc version that is not x.y.z, a solc version included", () => {
+    for (const version of [
+      VERSION,
+      "1.5",
+      "1.5.15.1",
+      " 1.5.15",
+      "latest",
+      ["1.5.15"],
+      1,
+      undefined,
+    ]) {
+      assertIssue(zksolc({ version }), "compiler.version", ZKSOLC_VERSION);
+    }
+  });
+
+  it("checks solcVersion as a solc compiler.version is checked, naming solcVersion", () => {
+    assertIssue(zksolc({ solcVersion: undefined }), "compiler.solcVersion", MESSAGES.version);
+    assertIssue(zksolc({ solcVersion: "1.5.15x" }), "compiler.solcVersion", MESSAGES.version);
+    const short = assertIssue(
+      zksolc({ solcVersion: "0.8.24" }),
+      "compiler.solcVersion",
+      MESSAGES.shortVersion,
+    );
+    assert.equal(
+      short.hint,
+      "Pass the full compiler version with its commit, such as 0.8.24+commit.e11b9ed9.",
+    );
+    const platform = assertIssue(
+      zksolc({ solcVersion: `${VERSION}.Linux.g++` }),
+      "compiler.solcVersion",
+      MESSAGES.platformVersion,
+    );
+    assert.equal(
+      platform.hint,
+      "Remove the platform suffix after the commit hash from compiler.solcVersion, such as .Linux.g++.",
+    );
+  });
+
+  it("refuses a solcFork that is not x.y.z, such as the zkVM long version", () => {
+    for (const solcFork of ["zkVM-0.8.24-1.0.2", "", "1.0", ["1.0.2"], 1, null]) {
+      assertIssue(
+        zksolc({ solcFork }),
+        "compiler.solcFork",
+        "must be a revision x.y.z, such as 1.0.2",
+      );
+    }
+  });
+
+  it("reports every zksolc field at once, with the input's own issues", () => {
+    assertRejected(
+      zksolc({ version: "x", solcVersion: "x", solcFork: "x", input: { language: "Vyper" } }),
+      [
+        "compiler.version",
+        "compiler.solcVersion",
+        "compiler.solcFork",
+        "compiler.input.language",
+        "compiler.input.sources",
+        "compiler.input.settings",
+      ],
+    );
+  });
+
+  it("checks contractName against the zksolc input's sources", () => {
+    assertIssue(
+      { ...zksolc(), contractName: "src/Other.sol:Other" },
+      "contractName",
+      MESSAGES.contractNamePath,
+    );
+    assertRejected({ ...zksolc({ version: "x" }), contractName: "src/Other.sol:Other" }, [
+      "compiler.version",
+      "contractName",
+    ]);
+  });
+
+  it("checks contractName against the sources when only solcVersion or solcFork is invalid", () => {
+    for (const fields of [{ solcVersion: "x" }, { solcFork: "x" }]) {
+      const field = "solcVersion" in fields ? "compiler.solcVersion" : "compiler.solcFork";
+      assertRejected({ ...zksolc(fields), contractName: "src/Other.sol:Other" }, [
+        field,
+        "contractName",
+      ]);
+    }
+  });
+
+  it("refuses zksolc-only fields on a solc compiler", () => {
+    for (const field of ["solcVersion", "solcFork"]) {
+      assertIssue(withCompiler({ [field]: "1.0.2" }), `compiler.${field}`, "is zksolc only");
+    }
+  });
+
+  it("explains how to split a zkVM long version", () => {
+    const error = assertIssue(
+      zksolc({ solcVersion: "zkVM-0.8.24-1.0.2" }),
+      "compiler.solcVersion",
+      "is a zkVM- long version; split it into solcVersion and solcFork",
+    );
+    assert.match(error.hint, /solcFork to 1\.0\.2 and solcVersion to 0\.8\.24 with its commit/);
+  });
+
+  it("checks the version of a compiler whose kind is invalid as a solc version", () => {
+    assertRejected(withCompiler({ kind: "vyper", version: "1.5.15" }), [
+      "compiler.kind",
+      "compiler.version",
+    ]);
+    assertRejected(withCompiler({ kind: "ZKSOLC", version: VERSION }), ["compiler.kind"]);
   });
 });

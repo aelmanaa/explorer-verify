@@ -221,7 +221,7 @@ export const VERIFY_REQUEST: JsonRequestSpec = {
     "creationBytecode",
     "libraries",
   ],
-  nested: { compiler: ["kind", "version", "input"] },
+  nested: { compiler: ["kind", "version", "solcVersion", "solcFork", "input"] },
 };
 
 /** The request field of each route option, for an issue about one the request left out. */

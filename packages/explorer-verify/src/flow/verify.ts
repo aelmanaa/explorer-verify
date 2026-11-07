@@ -6,6 +6,8 @@
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
+import { kindCheck } from "../compiler-kinds.ts";
+import type { KindCheck, ZksolcRoutes } from "../compiler-kinds.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
@@ -139,6 +141,12 @@ export interface FlowDependencies {
   readonly handler?: HandlerLoader | undefined;
   /** Set by `explorer-verify/core`: the errors for what its caller left out. */
   readonly missing?: Missing | undefined;
+  /**
+   * The backends whose client maps zksolc input, each with its chains (decision 0057). Absent
+   * means `ZKSOLC_ROUTES`, as both entries leave it; the tests pass a list to reach the steps of a
+   * backend that maps it.
+   */
+  readonly zksolc?: ZksolcRoutes | undefined;
 }
 
 /**
@@ -440,7 +448,13 @@ async function verifyWith(
   const checked = validateInput(input);
   const budget = startBudget(read);
   const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
-  const route = await routeOf(checked.chainId, settings, dependencies, budget);
+  const route = await routeOf(
+    checked.chainId,
+    settings,
+    dependencies,
+    budget,
+    kindsOf(checked, dependencies),
+  );
   return await verifyOnRoute(checked, route, settings, dependencies, budget, true);
 }
 
@@ -973,12 +987,15 @@ function invalidOptions(
  * @param settings - The options from {@link settingsOf}.
  * @param dependencies - The backend clients: `route.backend` must name one of them.
  * @param budget - The call's budget, from {@link startBudget}.
+ * @param kinds - The input's compiler kind, from {@link kindsOf}, for a call that looks up or
+ *   submits input; absent for `checkStatus()`, whose job was accepted already.
  * @returns The route.
  * @throws ExplorerVerifyError `invalid-input` or `unsupported-chain`, as `resolveRoute` throws
- *   them; what {@link tableFor} throws.
+ *   them; what {@link tableFor} throws; `unsupported-compiler` as {@link routeWith} throws it.
  * @example
  * ```ts
- * const route = await routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES, budget);
+ * const kinds = kindsOf(checked, DEFAULT_DEPENDENCIES);
+ * const route = await routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES, budget, kinds);
  * ```
  */
 export async function routeOf(
@@ -986,10 +1003,30 @@ export async function routeOf(
   settings: Settings,
   dependencies: FlowDependencies,
   budget: Budget,
+  kinds?: KindCheck,
 ): Promise<Route> {
   const checked = checkRouteOf(chainId, settings, dependencies);
   const table = await tableFor(checked, dependencies.table, settings, budget, dependencies.missing);
-  return routeWith(chainId, checked, settings, dependencies, table);
+  return routeWith(chainId, checked, settings, dependencies, table, kinds);
+}
+
+/**
+ * The kind check of checked input, with the backends that map zksolc from `dependencies`
+ * (decision 0057). `checkStatus()` does not call it, so its bundle does not hold the check. Each
+ * flow that takes input calls it before it resolves the route, so no route hint comes first.
+ *
+ * @param input - The input, as `validateInput` returned it.
+ * @param dependencies - The flow dependencies: `zksolc`, when a test sets it.
+ * @returns The check.
+ * @throws ExplorerVerifyError `unsupported-compiler` when no backend verifies the input's kind on
+ *   its chain.
+ * @example
+ * ```ts
+ * const kinds = kindsOf(checked, DEFAULT_DEPENDENCIES);
+ * ```
+ */
+export function kindsOf(input: VerifyInput, dependencies: FlowDependencies): KindCheck {
+  return kindCheck(input.compiler.kind, input.chainId, dependencies.zksolc);
 }
 
 /**
@@ -1151,11 +1188,15 @@ export async function loadTable(
  * @param settings - The options from {@link settingsOf}: the keys and the fallback option.
  * @param dependencies - The backend clients.
  * @param table - The table, from {@link tableFor}.
+ * @param kinds - The input's compiler kind, from `kindCheck`: the table passes over a backend
+ *   whose client does not map it (decision 0057). Absent for `checkStatus()`.
  * @returns The route.
- * @throws ExplorerVerifyError `unsupported-chain`, as `resolveRoute` throws it.
+ * @throws ExplorerVerifyError `unsupported-chain`, as `resolveRoute` throws it;
+ *   `unsupported-compiler` when the route's backend does not map the kind, before any request.
  * @example
  * ```ts
- * const route = routeWith(11155111, checked, settings, DEFAULT_DEPENDENCIES, table);
+ * const kinds = kindCheck("solc", 11155111);
+ * const route = routeWith(11155111, checked, settings, DEFAULT_DEPENDENCIES, table, kinds);
  * ```
  */
 export function routeWith(
@@ -1164,13 +1205,19 @@ export function routeWith(
   settings: Settings,
   dependencies: FlowDependencies,
   table: RoutingTable | undefined,
+  kinds?: KindCheck,
 ): Route {
-  return routeFrom(chainId, checked, {
+  const route = routeFrom(chainId, checked, {
     apiKeys: choiceKeys(settings),
     allowSourcifyFallback: settings.allowSourcifyFallback === true,
     clients: clientsOf(dependencies),
+    verifies: kinds?.verifies,
     table,
   });
+  if (kinds?.verifies(route.backend) === false) {
+    throw kinds.refused(route.backend);
+  }
+  return route;
 }
 
 /** The backends with a client in `dependencies`, loaded or not. */

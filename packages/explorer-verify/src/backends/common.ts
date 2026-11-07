@@ -254,6 +254,11 @@ export async function waitToResubmit(
  * constructor arguments: `sourceCode` holds only `language`, `sources` and `settings`, and
  * `compilerversion` has one leading `v`.
  *
+ * Solc input only. The flow engine refuses input of another kind before it loads a client that
+ * does not map it, and no client maps zksolc yet (decision 0057): for zksolc, `compiler.version`
+ * is the zksolc version, so a client that maps zksolc sends `compiler.solcVersion` here instead,
+ * with the zksolc field its explorer reads.
+ *
  * @param input - The checked input.
  * @returns The form fields, `module` excluded.
  * @example

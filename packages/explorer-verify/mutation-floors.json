@@ -46,6 +46,11 @@
       "floor": 99
     },
     {
+      "file": "src/compiler-kinds.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
       "file": "src/redact.ts",
       "measured": 98.3,
       "floor": 97

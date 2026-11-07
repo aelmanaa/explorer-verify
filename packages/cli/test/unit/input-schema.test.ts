@@ -70,4 +70,25 @@ describe("input.schema.json and the CLI's request fields (R-AX-16)", () => {
     const request: unknown = JSON.parse(readFileSync(join(PROJECT, "verify-input.json"), "utf8"));
     assert.deepEqual(inputProblems(request), []);
   });
+
+  it("accepts a zksolc compiler with solcVersion, and refuses one without it (decision 0057)", () => {
+    const input = { language: "Solidity", sources: { "A.sol": { content: "" } }, settings: {} };
+    const request = (compiler: Record<string, unknown>): unknown => ({
+      chainId: 324,
+      address: `0x${"ab".repeat(20)}`,
+      compiler: { version: "1.5.15", input, ...compiler },
+      contractName: "A.sol:A",
+    });
+    const solcVersion = "0.8.24+commit.e11b9ed9";
+    assert.deepEqual(inputProblems(request({ kind: "zksolc", solcVersion })), []);
+    assert.deepEqual(
+      inputProblems(request({ kind: "zksolc", solcVersion, solcFork: "1.0.2" })),
+      [],
+    );
+    assert.notDeepEqual(inputProblems(request({ kind: "zksolc" })), []);
+    assert.notDeepEqual(inputProblems(request({ kind: "vyper", solcVersion })), []);
+    for (const field of ["solcVersion", "solcFork"]) {
+      assert.notDeepEqual(inputProblems(request({ kind: "solc", [field]: solcVersion })), []);
+    }
+  });
 });
