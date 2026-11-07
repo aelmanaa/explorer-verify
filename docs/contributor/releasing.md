@@ -1,7 +1,7 @@
 # Releasing
 
-Audience: the maintainer. Nothing is published yet; `packages/explorer-verify` is `"private": true`
-until the pull request that prepares 0.1.0. [Decision 0017](decisions/0017-first-release-is-0-1-0.md)
+Audience: the maintainer. The first-release preparation makes the four package manifests public
+and sets their shared version to 0.1.0. Publishing still requires the maintainer steps below. [Decision 0017](decisions/0017-first-release-is-0-1-0.md)
 sets the version rules.
 
 The model in one sentence: every version is built from a maintainer-signed `vX.Y.Z` tag on `main`,
@@ -85,26 +85,23 @@ recommends a GitHub App installation token or a personal access token instead
 read 2026-11-04). With `GITHUB_TOKEN`, the six required checks would never run on the pull request,
 and it could not merge.
 
-Before the first release, the maintainer:
+Before merging the first-release pull request, the maintainer creates a fine-grained personal
+access token limited to `aelmanaa/explorer-verify`, with Contents read/write, Pull requests
+read/write, Metadata read-only and an expiry date. Store it as repository secret
+`RELEASE_PR_TOKEN`. The workflow refuses to continue when it is absent and passes it explicitly
+to the [pinned changesets action](https://github.com/changesets/action/blob/ae32849d5ba541f9ae29e40e22a623bc13562f51/action.yml).
+The job's default token has read permissions for checkout. Do not set `GITHUB_TOKEN` on the
+action step: the pinned action rejects a conflicting environment token and passes its custom
+token to the version command itself
+([implementation](https://github.com/changesets/action/blob/ae32849d5ba541f9ae29e40e22a623bc13562f51/src/run.ts)).
 
-1. Creates a GitHub App owned by `aelmanaa`, installed on `explorer-verify` only, with these
-   repository permissions and no others: Contents read and write (pushes
-   `changeset-release/main`), Pull requests read and write (opens and updates the pull request),
-   and Metadata read-only (GitHub sets it on every App). No webhook, no account permissions.
-   A fine-grained personal access token limited to `explorer-verify`, with the same three
-   permissions and an expiry date, also works; an App token is short-lived and is not tied to a
-   person.
-2. Stores the App's client ID as the repository variable `RELEASE_APP_CLIENT_ID` and its private
-   key as the repository secret `RELEASE_APP_PRIVATE_KEY` (or the fine-grained token as the secret
-   `RELEASE_PR_TOKEN`).
-3. In the pull request that prepares 0.1.0, adds a step to the `version-pr` job before
-   changesets/action that creates the token (`actions/create-github-app-token`, pinned by commit
-   SHA), and passes it to changesets/action as its `github-token` input. `GITHUB_TOKEN` in the
-   step's `env` stays as it is: `@changesets/changelog-github` only reads with it.
-4. Leaves "Allow GitHub Actions to create and approve pull requests" (Settings, Actions, General)
-   off. That setting applies to `GITHUB_TOKEN` only
-   ([Managing GitHub Actions settings for a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository),
-   read 2026-11-04), and the workflow no longer needs it.
+A GitHub App installation token is also supported by the action. Switching to an App requires
+a reviewed workflow change to create its installation token and pass it as `github-token`.
+It must have the same repository scope and permissions; it must not fall back to `GITHUB_TOKEN`.
+
+Leave "Allow GitHub Actions to create and approve pull requests" off. That setting applies to
+`GITHUB_TOKEN`, and this workflow uses the separate token for its pull request. Agents do not
+create the token, configure environments, reserve npm names or publish packages.
 
 ### Who can change what a release runs
 

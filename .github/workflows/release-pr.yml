@@ -59,8 +59,8 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
-      contents: write # pushes changeset-release/main through the API
-      pull-requests: write # opens and updates the pull request
+      contents: read # changelog metadata; the separate token writes the pull request
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,13 +75,19 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Require the version pull request token
+        env:
+          RELEASE_PR_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_PR_TOKEN" ]; then
+            echo "::error::Set RELEASE_PR_TOKEN to a repository-scoped token with Contents and Pull requests read/write. See docs/contributor/releasing.md."
+            exit 1
+          fi
       # No publish script: with no changeset on main the action does nothing.
       - name: Open or update the Version Packages pull request
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
-        env:
-          # @changesets/changelog-github reads the pull request and author of each changeset.
-          GITHUB_TOKEN: ${{ github.token }}
         with:
+          github-token: ${{ secrets.RELEASE_PR_TOKEN }}
           version-script: pnpm run version-packages
           commit-message: "chore(release): version packages"
           pr-title: "chore(release): version packages"

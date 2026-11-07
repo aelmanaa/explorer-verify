@@ -39,6 +39,8 @@ jobs:
     if: needs.packages.outputs.any == 'true'
     steps:
       - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51
+        with:
+          github-token: \${{ secrets.RELEASE_PR_TOKEN }}
 `;
 
 const ungated = (job: string): string =>
@@ -356,8 +358,55 @@ describe("release workflow order (R-AX-10, R-SEC-4, decision 0015)", () => {
     for (const releasePr of variants) {
       assert.deepEqual(problems({ releasePr }), [ungated("version-pr")]);
     }
-    const second = `${RELEASE_PR}  again:\n    steps:\n      - uses: changesets/action\n`;
+    const second = `${RELEASE_PR}  again:\n    steps:\n      - uses: changesets/action\n        with:\n          github-token: \${{ secrets.RELEASE_PR_TOKEN }}\n`;
     assert.deepEqual(problems({ releasePr: second }), [ungated("again")]);
+  });
+
+  it("requires a custom token that can start pull request checks", () => {
+    const input = "          github-token: ${{ secrets.RELEASE_PR_TOKEN }}\n";
+    const message = `${WORKFLOWS.releasePr}: job version-pr must pass a separate secret or App token as github-token; GITHUB_TOKEN does not start pull request checks`;
+    for (const token of [
+      "",
+      "${{ github.token }}",
+      "${{ secrets.GITHUB_TOKEN }}",
+      "${{ secrets.RELEASE_PR_TOKEN || github.token }}",
+      "literal-token",
+    ]) {
+      const changed = RELEASE_PR.replace(
+        input,
+        token === "" ? "" : `          github-token: ${token}\n`,
+      );
+      assert.deepEqual(problems({ releasePr: changed }), [message]);
+    }
+    assert.deepEqual(
+      problems({
+        releasePr: RELEASE_PR.replace(
+          input,
+          "          github-token: ${{ steps.release-app.outputs.token }}\n",
+        ),
+      }),
+      [],
+    );
+  });
+
+  it("rejects an environment token that conflicts with the action input", () => {
+    const line = "      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51\n";
+    const conflicting = RELEASE_PR.replace(
+      line,
+      line + "        env:\n          GITHUB_TOKEN: ${{ github.token }}\n",
+    );
+    assert.deepEqual(problems({ releasePr: conflicting }), [
+      `${WORKFLOWS.releasePr}: job version-pr gives changesets/action a conflicting GITHUB_TOKEN environment value`,
+    ]);
+    assert.deepEqual(
+      problems({
+        releasePr: conflicting.replace(
+          "GITHUB_TOKEN: ${{ github.token }}",
+          "GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}",
+        ),
+      }),
+      [],
+    );
   });
 
   it("refuses a release-pr.yml without changesets/action or without permissions: {}", () => {

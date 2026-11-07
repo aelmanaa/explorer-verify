@@ -63,6 +63,10 @@ interface Job {
   runs: string;
   /** The `uses` of each step. */
   actions: string[];
+  /** Tokens explicitly supplied to changesets/action. */
+  versionTokens: string[];
+  /** A conflicting environment token makes the pinned action refuse the run. */
+  versionTokenConflict: boolean;
   /** Where the job or a step has `if` or `continue-on-error`, as `job` or `step N`, with the key. */
   conditions: string[];
 }
@@ -106,6 +110,17 @@ function readJob(name: string, value: unknown): Job {
     pages: grants(permissions, "pages"),
     runs: steps.map((step) => text(field(step, "run"))).join("\n"),
     actions: steps.map((step) => text(field(step, "uses"))),
+    versionTokens: steps
+      .filter((step) => CHANGESETS_ACTION.test(text(field(step, "uses"))))
+      .map((step) => text(field(field(step, "with"), "github-token"))),
+    versionTokenConflict: steps.some((step) => {
+      const token = text(field(field(step, "env"), "GITHUB_TOKEN"));
+      return (
+        CHANGESETS_ACTION.test(text(field(step, "uses"))) &&
+        token !== "" &&
+        token !== text(field(field(step, "with"), "github-token"))
+      );
+    }),
     conditions: [
       ...conditionsOf("job", value),
       ...steps.flatMap((step, index) => conditionsOf(`step ${index + 1}`, step)),
@@ -269,6 +284,9 @@ function docsProblems(workflow: Workflow): string[] {
 }
 
 const CHANGESETS_ACTION = /^changesets\/action(?:@|$)/;
+// A named secret or an App step output, with no default-token fallback.
+const CUSTOM_PR_TOKEN =
+  /^\$\{\{\s*(?:secrets\.(?!GITHUB_TOKEN\b)[A-Z_][A-Z_0-9]*|steps\.[\w-]+\.outputs\.token)\s*\}\}$/;
 
 // A step that prints whether any package is published.
 const ANY_PACKAGE = /\brelease-packages\.ts\b[^\n]*\s--any\b/;
@@ -295,6 +313,16 @@ function releasePrProblems(workflow: Workflow): string[] {
     problems.push(`${file}: no job runs changesets/action`);
   }
   for (const job of versioners) {
+    if (job.versionTokenConflict) {
+      problems.push(
+        `${file}: job ${job.name} gives changesets/action a conflicting GITHUB_TOKEN environment value`,
+      );
+    }
+    if (job.versionTokens.some((token) => !CUSTOM_PR_TOKEN.test(token))) {
+      problems.push(
+        `${file}: job ${job.name} must pass a separate secret or App token as github-token; GITHUB_TOKEN does not start pull request checks`,
+      );
+    }
     const gated = gates.some(
       (gate) =>
         job.needs.includes(gate) &&
