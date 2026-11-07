@@ -65,11 +65,9 @@ adds the kind; issue #207 adds the Blockscout mapping.
 - Code that reads `input.compiler.version` now gets the zksolc version for zksolc input. Code that
   needs the solc version switches on `kind`.
 - `BuiltVerifyInput.compiler` takes the union type; the builder still returns solc input.
-- Size, esbuild 0.28.2, minified, gzip, measured on 2026-11-06 on main `a8f5f1b` plus this change,
-  against main `f3fda61`: `verify` grows by 285 bytes, `verifyEach` by 361, `checkStatus` by 57,
-  the `index` entry by 311 and the constructor-args chunk by 87; `validateInput` alone grows by 152. About half is the
-  validation of the zksolc fields, which every `validateInput` call bundles. No client chunk
-  changes, and every entry stays under its ceiling.
-
-The Blockscout chunk measured 3493 bytes against a 3520-byte ceiling before the review fixes.
-Issue #207 must account for its mapping in `common.ts` or document any ceiling increase.
+- Size measured with esbuild 0.28.2 and Node 24.21.0 on 2026-11-07, with the light-subpath change
+  `b877564` as the base: `verify` is 17342 bytes gzip (ceiling 19738), `verifyEach` 19067 (22178),
+  `checkStatus` 14524 (17006), and `index` 28532 (31510). The constructor-args chunk is 2005 bytes
+  (2352). No ceiling changes.
+- The Blockscout chunk is 3453 bytes against a 3520-byte ceiling. Issue #207 must account for its
+  mapping in `common.ts` or document any ceiling increase.

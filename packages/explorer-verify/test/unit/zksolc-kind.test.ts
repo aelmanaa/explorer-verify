@@ -126,9 +126,13 @@ describe("compiler kinds (R-EXT-1, decision 0057)", () => {
     );
   });
   it("limits each compiler mapping to its backend and chains", () => {
-    const routes = [["blockscout", [324, 300]]] as const;
+    const routes = [
+      ["blockscout", [324, 300]],
+      ["sourcify", [300]],
+    ] as const;
     assert.equal(kindCheck("zksolc", 300, routes).verifies("blockscout"), true);
     assert.equal(kindCheck("zksolc", 324, routes).verifies("sourcify"), false);
+    assert.equal(kindCheck("zksolc", 324, routes).verifies("blockscout"), true);
     for (const chainId of [1, 11155111, 999999]) {
       assert.throws(
         () => kindCheck("zksolc", chainId, routes),

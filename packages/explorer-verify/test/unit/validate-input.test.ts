@@ -1472,5 +1472,23 @@ describe("rule: a zksolc compiler names zksolc's version, solc's and the fork's 
       "compiler.version",
     ]);
     assertRejected(withCompiler({ kind: "ZKSOLC", version: VERSION }), ["compiler.kind"]);
+    assertRejected(withCompiler({ kind: "vyper", solcVersion: "1.0.2", solcFork: "1.0.2" }), [
+      "compiler.kind",
+    ]);
+  });
+});
+
+describe("a one-character source path (R-IN-6)", () => {
+  it("accepts a fully qualified name with one character before the colon", () => {
+    const base = input();
+    const validated = validateInput({
+      ...base,
+      contractName: "A:A",
+      compiler: {
+        ...base.compiler,
+        input: { language: "Solidity", sources: { A: { content: "contract A {}" } }, settings: {} },
+      },
+    });
+    assert.equal(validated.contractName, "A:A");
   });
 });
