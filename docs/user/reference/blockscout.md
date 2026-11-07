@@ -42,6 +42,20 @@ to `https://example.org/explorer/api/v2/smart-contracts/<address>`. A key in `ro
 `blockscout-hosted`. A result has no `explorerUrl` when `route.apiUrl` names an instance
 other than the one the chain's row lists.
 
+## ZKsync compiler input
+
+On ZKsync Era (324) and ZKsync Sepolia (300), `kind: "zksolc"` sends the upstream long
+`solcVersion` as `compilerversion=v<solcVersion>` and `version` as `zksolcVersion=v<version>`.
+The Standard JSON input stays in `sourceCode`, and supplied constructor arguments are preserved.
+`solcFork` describes the build and is not an extra form field. The library does not derive
+constructor arguments from EraVM creation code. Other backend and chain pairs refuse this kind
+before requests; the hosted API is not enabled for it.
+
+The lookup can include `zk_compiler_version`. Verification is still decided by `is_verified`,
+`is_fully_verified` and `is_partially_verified`, as for solc. A compiler version alone does not
+prove verification. Recorded lookups cover both instances. A live zksolc submission remains
+unmeasured; see [issue #208](https://github.com/aelmanaa/explorer-verify/issues/208).
+
 ## The hosted API
 
 Blockscout's docs say the per-instance API "has been deprecated", with no removal date, and point

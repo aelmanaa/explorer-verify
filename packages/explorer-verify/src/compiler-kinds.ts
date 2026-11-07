@@ -21,10 +21,10 @@ export type ZksolcRoutes = readonly (readonly [BackendName, readonly number[]])[
 
 /**
  * The backends whose client maps zksolc input, each with the chains whose explorer reads the
- * zksolc fields. None in this release: Blockscout on chains 324 and 300 comes next. Keyed by chain
+ * zksolc fields. Blockscout maps the fields on chains 324 and 300 (decision 0059). Keyed by chain
  * as well as backend, so that mapping Blockscout cannot send zksolc input to another instance.
  */
-export const ZKSOLC_ROUTES: ZksolcRoutes = [];
+export const ZKSOLC_ROUTES: ZksolcRoutes = [["blockscout", [324, 300]]];
 
 /** The compiler kind of one call's input, as the routing reads it. */
 export interface KindCheck {
@@ -67,7 +67,7 @@ export function kindCheck(
         backend === undefined
           ? `No backend of this release verifies ${chain}.`
           : `The ${backend} backend does not verify ${chain}.`,
-        // The code's default hint, which names no route: no backend of this release maps zksolc.
+        // The code's default hint, which names no route: unsupported backend/chain pairs name the supported kinds.
         // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message holds only the backend, the kind and the chain id.
         { secrets: [] },
       ),

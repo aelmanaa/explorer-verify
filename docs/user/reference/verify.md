@@ -95,9 +95,9 @@ The routing table passes over a backend that does not verify the input's kind. A
 backend does not verify it, whether the table chose it or you named it, throws
 [`unsupported-compiler`](errors/unsupported-compiler.md) with `details.field` `compiler.kind`, and
 nothing is sent. If no backend verifies the kind on the chain, the whole call throws before
-routing, including `verifyEach()`. No backend of this release verifies zksolc input yet.
+routing, including `verifyEach()`. Blockscout verifies zksolc input on ZKsync Era (324) and ZKsync Sepolia (300).
 For zksolc input, `verify()` never derives constructor arguments: pass `constructorArgs` when the
-constructor takes any. Once a backend verifies zksolc, an `info` line explains the skipped
+constructor takes any. An `info` line explains the skipped
 derivation only when arguments would otherwise be derived.
 
 ## Linked libraries

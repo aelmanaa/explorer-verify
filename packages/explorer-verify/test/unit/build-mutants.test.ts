@@ -207,7 +207,7 @@ describe("buildVerifyInput: messages of the argument checks (#202, R-IN-7)", () 
     );
     assert.equal(
       error.hint,
-      "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
+      "Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia (300). Verify other compilers with their own tooling.",
     );
   });
 });

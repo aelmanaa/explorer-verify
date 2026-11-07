@@ -160,3 +160,6 @@ natively. pnpm 12.16.1 (`packageManager`).
   request. A design change that reverses a decision adds a new decision record.
 - Prose (docs, changesets, issues, pull requests, comments) is plain and factual: short sentences,
   active voice, no filler, no marketing words.
+
+The zksolc Blockscout mapping is recorded in [decision 0059](docs/contributor/decisions/0059-zksolc-on-blockscout.md)
+and its [protocol evidence](docs/contributor/research/2026-11-07-blockscout-zksolc.md).
