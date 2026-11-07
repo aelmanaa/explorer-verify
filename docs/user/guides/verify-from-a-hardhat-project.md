@@ -5,7 +5,6 @@ Version: explorer-verify 0.1.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers with a Hardhat 2 or Hardhat 3 project who want to verify a deployed contract.
-The package `@explorer-verify/hardhat` reads the compiler files in a local project.
 
 `@explorer-verify/hardhat` finds the build files of one contract in the project folder, reads them,
 and passes them to [`buildVerifyInput`](verify-a-contract-from-an-npm-package.md). It runs on Node

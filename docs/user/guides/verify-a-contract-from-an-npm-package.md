@@ -5,7 +5,6 @@ Version: explorer-verify 0.1.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who deploy a contract that an SDK ships compiled, and want it verified.
-`buildVerifyInput`, `validateInput` and [`verify`](../reference/verify.md) exist.
 
 An SDK often ships compiled contracts as JSON files in its npm package. You may not know whether
 Hardhat 2, Hardhat 3 or Foundry produced them. `buildVerifyInput` takes the parsed files, works out

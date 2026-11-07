@@ -5,8 +5,7 @@ Version: explorer-verify 0.1.0
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: authors of an SDK or library that deploys its own contracts, who want each deployment
-verified right after it lands. `buildVerifyInput`, `validateInput`,
-[`verify`](../reference/verify.md) and `@explorer-verify/foundry` exist in the repository.
+verified right after it lands.
 
 The package ships two JSON files per contract: the Standard JSON input of the compile and a
 manifest with the contract name and the full compiler version. After a deployment, the package
