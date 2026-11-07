@@ -1,0 +1,21 @@
+{
+  "source": "GET recorded 2026-11-07 with curl 8.7.1; body reduced to the verification and compiler fields; no submission.",
+  "request": {
+    "method": "GET",
+    "url": "https://zksync-sepolia.blockscout.com/api/v2/smart-contracts/0x685eFBe097741899a66851b816a953619AF376c9"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "is_verified": true,
+      "is_fully_verified": true,
+      "is_partially_verified": false,
+      "compiler_version": "v0.8.24+commit.e11b9ed9",
+      "zk_compiler_version": "v1.5.11",
+      "name": "MyWriterTrigger"
+    }
+  }
+}

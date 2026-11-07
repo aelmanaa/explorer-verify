@@ -254,10 +254,9 @@ export async function waitToResubmit(
  * constructor arguments: `sourceCode` holds only `language`, `sources` and `settings`, and
  * `compilerversion` has one leading `v`.
  *
- * Solc input only. The flow engine refuses input of another kind before it loads a client that
- * does not map it, and no client maps zksolc yet (decision 0057): for zksolc, `compiler.version`
- * is the zksolc version, so a client that maps zksolc sends `compiler.solcVersion` here instead,
- * with the zksolc field its explorer reads.
+ * For zksolc, `compilerversion` is the upstream solc long version and `zksolcVersion` is the
+ * zksolc version, both with one leading `v`. Only Blockscout on chains 324 and 300 maps this kind;
+ * the flow refuses it for other backend/chain pairs before loading the client (decision 0059).
  *
  * @param input - The checked input.
  * @returns The form fields, `module` excluded.
@@ -267,7 +266,9 @@ export async function waitToResubmit(
  * ```
  */
 export function standardJsonFields(input: ResolvedInput): Record<string, string> {
+  const compiler = input.compiler;
   const { language, sources, settings } = input.compiler.input;
+  const version = compiler.kind === "zksolc" ? compiler.solcVersion : compiler.version;
   return {
     action: "verifysourcecode",
     codeformat: "solidity-standard-json-input",
@@ -275,7 +276,8 @@ export function standardJsonFields(input: ResolvedInput): Record<string, string>
     contractaddress: input.address,
     contractname: input.contractName,
     // Stryker disable next-line Regex: equivalent. A solc version has a `v` only as its first character, so removing the first `v` removes the same one; validateInput drops it already.
-    compilerversion: `v${input.compiler.version.replace(/^v/, "")}`,
+    compilerversion: `v${version.replace(/^v/, "")}`,
+    ...(compiler.kind === "zksolc" ? { zksolcVersion: `v${compiler.version}` } : {}),
   };
 }
 

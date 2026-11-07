@@ -48,7 +48,7 @@ export interface SolcCompiler {
  * The zksolc compiler and its input: a contract compiled for EraVM, the virtual machine of ZKsync
  * Era (decision 0057). zksolc runs a solc build of its own, so the input names both versions.
  *
- * Only a backend whose client maps the zksolc fields verifies it; this release has none yet. Any
+ * Only Blockscout on ZKsync Era (324) and ZKsync Sepolia (300) maps the zksolc fields. Any
  * other backend refuses it with `unsupported-compiler` before any request, and the routing table
  * skips such backends. `verify()` never derives constructor arguments for it: on EraVM a contract
  * is deployed through the ContractDeployer system contract, so the arguments do not follow the

@@ -1207,6 +1207,9 @@ export function routeWith(
   table: RoutingTable | undefined,
   kinds?: KindCheck,
 ): Route {
+  if (checked.named !== undefined && kinds?.verifies(checked.named) === false) {
+    throw kinds.refused(checked.named);
+  }
   const route = routeFrom(chainId, checked, {
     apiKeys: choiceKeys(settings),
     allowSourcifyFallback: settings.allowSourcifyFallback === true,

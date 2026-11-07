@@ -151,6 +151,10 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   same requests to the hosted multichain API, `https://api.blockscout.com/<chainId>/api`, with
   `apiKeys["blockscout-hosted"]` in the `authorization` header. No row lists it; a call names it
   (decision 0041, [research](research/2026-11-05-blockscout-hosted-api.md)).
+  For `kind: "zksolc"`, only the Blockscout instances on chains 324 and 300 verify the input.
+  The form sends the upstream long solc version as `compilerversion` and the zksolc version as
+  `zksolcVersion`, each with one leading `v`. Other backend/chain pairs refuse this kind before
+  any request (R-EXT-1). Build helpers and EraVM argument derivation remain separate.
 - **R-BE-4** Sourcify API v2 (`/v2/verify/{chainId}/{address}`, job polling, `/v2/contract/...`
   lookup). No key.
 - **R-BE-5** Routescan (Etherscan-compatible host per network).

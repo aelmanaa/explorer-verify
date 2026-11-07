@@ -18,18 +18,18 @@ release or the route's backend does not verify.
   artifact, `hh-zksolc-artifact-1`).
 - `compiler.kind`: `verify()`, `dryRun()` or `verifyEach()` got input of a kind that the route's
   backend does not verify, such as `kind: "zksolc"`. The message names the kind and chain, and the backend when one was selected. The routing table passes over such backends when another listed backend verifies the
-  kind; no backend of this release verifies zksolc.
+  kind; Blockscout verifies zksolc on chains 324 and 300.
 
-Fix: verify the contract with its compiler's own tooling. This release verifies Solidity compiled
-with solc only. On ZKsync Era (chain 324) and ZKsync Sepolia (chain 300), a contract compiled with
-plain solc verifies with the solc build-info, as on any other chain. A contract compiled with zksolc
-needs the ZKsync verification tooling for now.
+Fix: use `kind: "solc"` for Solidity compiled with solc, or pass zksolc compiler input directly
+with `kind: "zksolc"` on Blockscout for ZKsync Era (324) or Sepolia (300). Build helpers still
+refuse zksolc build documents; extract the input and versions with the compiler's tooling.
+Use the compiler's own verification tooling for other compilers.
 
-Default hint: Only Solidity compiled with solc is supported. Verify this contract with its
-compiler's own tooling.
+Default hint: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia
+(300). Verify other compilers with their own tooling.
 
-From the CLI: Only Solidity compiled with solc is supported. Verify this contract with its
-compiler's own tooling.
+From the CLI: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia
+(300). Verify other compilers with their own tooling.
 
 For a zksolc field, the hint says instead that zksolc (EraVM) builds are not supported and that a
 contract compiled with plain solc verifies with the solc build-info.

@@ -194,7 +194,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 2,
   },
   "unsupported-compiler": {
-    hint: "Only Solidity compiled with solc is supported. Verify this contract with its compiler's own tooling.",
+    hint: "Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia (300). Verify other compilers with their own tooling.",
     retryable: false,
     exitCode: 2,
   },

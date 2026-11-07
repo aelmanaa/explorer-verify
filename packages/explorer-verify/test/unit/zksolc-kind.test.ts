@@ -85,14 +85,14 @@ function mapping(seen: string[], submitted: VerifyInput[] = []): FlowDependencie
 }
 
 /** Asserts the refusal of zksolc input by `backend`. */
-function isRefusal(error: unknown, backend?: BackendName): true {
+function isRefusal(error: unknown, backend?: BackendName, chainId = ZKSYNC): true {
   assert.ok(error instanceof ExplorerVerifyError, `threw ${String(error)}`);
   assert.deepEqual(error.details, { code: "unsupported-compiler", field: "compiler.kind" });
   assert.equal(
     error.message,
     backend === undefined
-      ? `No backend of this release verifies zksolc input on chain ${String(ZKSYNC)}.`
-      : `The ${backend} backend does not verify zksolc input on chain ${String(ZKSYNC)}.`,
+      ? `No backend of this release verifies zksolc input on chain ${String(chainId)}.`
+      : `The ${backend} backend does not verify zksolc input on chain ${String(chainId)}.`,
   );
   assert.equal(error.hint, ERROR_HINTS["unsupported-compiler"]);
   assert.equal(error.retryable, false);
@@ -101,14 +101,11 @@ function isRefusal(error: unknown, backend?: BackendName): true {
 }
 
 describe("compiler kinds (R-EXT-1, decision 0057)", () => {
-  it("maps solc on every backend and zksolc on none in this release", () => {
-    assert.deepEqual(ZKSOLC_ROUTES, []);
+  it("maps zksolc only to the ZKsync Blockscout chains", () => {
+    assert.deepEqual(ZKSOLC_ROUTES, [["blockscout", [324, 300]]]);
     assert.equal(kindCheck("solc", ZKSYNC).verifies("sourcify"), true);
     assert.equal(kindCheck("solc", ZKSYNC, []).verifies("routescan"), true);
-    assert.throws(
-      () => kindCheck("zksolc", ZKSYNC),
-      (error) => isRefusal(error),
-    );
+    assert.equal(kindCheck("zksolc", ZKSYNC).verifies("blockscout"), true);
     assert.equal(
       kindCheck("zksolc", ZKSYNC, [["blockscout", [324, 300]]]).verifies("blockscout"),
       true,
@@ -151,7 +148,9 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
   it("by verify() and dryRun() of the default entry, on the routing table's pick", async () => {
     for (const run of [verify, dryRun]) {
       const fake = replay();
-      await assert.rejects(run(zksolcInput(), { fetch: fake.fetch }), (error) => isRefusal(error));
+      await assert.rejects(run({ ...zksolcInput(), chainId: 1 }, { fetch: fake.fetch }), (error) =>
+        isRefusal(error, undefined, 1),
+      );
       assert.deepEqual(fake.calls, []);
     }
   });
@@ -159,7 +158,6 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
   it("on every backend the caller names, before a missing key is reported", async () => {
     const routes: [BackendName, RouteOverride][] = [
       ["sourcify", { backend: "sourcify" }],
-      ["blockscout", { backend: "blockscout" }],
       ["blockscout-hosted", { backend: "blockscout-hosted" }],
       ["etherscan-v2", { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api" }],
       [
@@ -175,10 +173,10 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
       ],
       ["sourcify", { apiUrl: "http://127.0.0.1:5555" }],
     ];
-    for (const [, route] of routes) {
+    for (const [backend, route] of routes) {
       const fake = replay();
       await assert.rejects(verify(zksolcInput(), { fetch: fake.fetch, route }), (error) =>
-        isRefusal(error),
+        isRefusal(error, backend),
       );
       assert.deepEqual(fake.calls, []);
     }
@@ -187,8 +185,9 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
   it("refuses verifyEach() when no backend maps the kind", async () => {
     for (const backends of ["all", ["sourcify", "blockscout"]] as const) {
       const fake = replay();
-      await assert.rejects(verifyEach(zksolcInput(), { fetch: fake.fetch, backends }), (error) =>
-        isRefusal(error),
+      await assert.rejects(
+        verifyEach({ ...zksolcInput(), chainId: 1 }, { fetch: fake.fetch, backends }),
+        (error) => isRefusal(error, undefined, 1),
       );
       assert.deepEqual(fake.calls, []);
     }
@@ -198,17 +197,23 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
     const clients = [sourcify(), blockscout()] as const;
     const fake = replay();
     await assert.rejects(
-      coreVerify(zksolcInput(), { fetch: fake.fetch, clients, table: routingTable }),
-      (error) => isRefusal(error),
+      coreVerify(
+        { ...zksolcInput(), chainId: 1 },
+        { fetch: fake.fetch, clients, table: routingTable },
+      ),
+      (error) => isRefusal(error, undefined, 1),
     );
     await assert.rejects(
-      coreDryRun(zksolcInput(), {
-        fetch: fake.fetch,
-        clients,
-        table: routingTable,
-        route: { backend: "blockscout" },
-      }),
-      (error) => isRefusal(error),
+      coreDryRun(
+        { ...zksolcInput(), chainId: 1 },
+        {
+          fetch: fake.fetch,
+          clients,
+          table: routingTable,
+          route: { backend: "blockscout" },
+        },
+      ),
+      (error) => isRefusal(error, undefined, 1),
     );
     assert.deepEqual(fake.calls, []);
   });
@@ -220,7 +225,7 @@ describe("zksolc input is refused before any request (R-IN-6, decision 0057)", (
         handlerUrl: "https://handler.example/verify",
         route: { backend: "etherscan-v2" },
       }),
-      (error) => isRefusal(error),
+      (error) => isRefusal(error, "etherscan-v2"),
     );
     for (const run of [verify, dryRun]) {
       await assert.rejects(
