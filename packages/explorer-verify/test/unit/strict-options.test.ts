@@ -576,6 +576,7 @@ const body = (url: URL): string =>
     .split("\n")
     .filter((line) => !line.startsWith("import "))
     .join("\n")
+    .replace(/^\/\/ References:[^\n]*\n/, "")
     .replace(/^\/\*\*[\s\S]*?\*\/\n/, "");
 
 // Mutation testing runs on an instrumented copy of the core in a sandbox without the helpers, so

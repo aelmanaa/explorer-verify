@@ -1,7 +1,8 @@
+// References: R-FLOW-8, decision 0016, R-SEC-1.
 /**
- * Links a proxy on Etherscan v2 and on standalone Etherscan-compatible explorers (R-FLOW-8):
+ * Links a proxy on Etherscan v2 and on standalone Etherscan-compatible explorers:
  * `verifyproxycontract`, then `checkproxyverification` with the guid it answers. Both are
- * form-encoded POSTs, so the key goes in the body and never in the URL (decision 0016, R-SEC-1).
+ * form-encoded POSTs, so the key goes in the body and never in the URL.
  * `linkProxy()` loads this module with a dynamic `import()`, so `verify()` never bundles it.
  *
  * `status` is never read on its own: Etherscan answered `Pending in queue` with `status` `"0"`,

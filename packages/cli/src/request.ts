@@ -1,11 +1,12 @@
+// References: R-AX-16, decision 0009, R-AX-9.
 /**
  * Reads what `verify` and `status` work on: the JSON files of `--input`, and the whole request of
- * `--input-json <file|->` (R-AX-16), checked against the shape of the core package's
+ * `--input-json <file|->`, checked against the shape of the core package's
  * `input.schema.json`. Unknown properties are one issue that counts them and never names them,
- * as `parseHandle` does (decision 0009).
+ * as `parseHandle` does.
  *
  * No issue repeats a path, a file's contents or a value: a path or a value typed by mistake can be
- * a key (R-AX-9). An issue names the option, and the position of a repeated option's value.
+ * a key. An issue names the option, and the position of a repeated option's value.
  */
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
@@ -20,7 +21,8 @@ import type { InputStream } from "./keys.ts";
 /** The most bytes read from one `--input` file or from `--input-json`: 64 MiB. */
 export const MAX_JSON_BYTES: number = 64 * 1024 * 1024;
 
-/** The options that may accompany `--input-json` (R-AX-16), besides help and the version. */
+// References: R-AX-16.
+/** The options that may accompany `--input-json`, besides help and the version. */
 const INPUT_JSON_COMPANIONS: readonly string[] = [
   "input-json",
   "json",
@@ -155,8 +157,9 @@ export async function readJsonFile(
   return parsed(text, field);
 }
 
+// References: R-AX-6.
 /**
- * Reads and parses the JSON piped on stdin. The CLI never prompts (R-AX-6), so a terminal on
+ * Reads and parses the JSON piped on stdin. The CLI never prompts, so a terminal on
  * stdin is an issue at once, before any read.
  *
  * @param stdin - Opens stdin.
@@ -229,7 +232,8 @@ function unknownCount(fields: ReadonlyMap<string, unknown>, known: readonly stri
   return count;
 }
 
-/** Checks the options given with `--input-json`: only those of R-AX-16, and no positional. */
+// References: R-AX-16.
+/** Checks the options given with `--input-json`: only those of, and no positional. */
 function companionIssues(
   values: ReadonlyMap<string, OptionValue>,
   positionals: readonly string[],
@@ -250,8 +254,9 @@ function companionIssues(
   return issues;
 }
 
+// References: R-AX-16.
 /**
- * Reads the request of `--input-json <file|->` (R-AX-16) and checks its shape:
+ * Reads the request of `--input-json <file|->`  and checks its shape:
  *
  * - Only the options of {@link INPUT_JSON_COMPANIONS} may accompany it, and no positional.
  * - `-` reads stdin, refused with `--api-key-stdin` or `--rpc-url-stdin` and when stdin is a

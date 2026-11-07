@@ -1,7 +1,8 @@
+// References: R-DX-2, R-IN-7.
 /**
- * Finds a contract's build files in a Foundry project and passes them to the core's input builder
- * (R-DX-2). It reads files and picks which ones belong to the contract. It does not detect formats:
- * `buildVerifyInput` in the core does that (R-IN-7).
+ * Finds a contract's build files in a Foundry project and passes them to the core's input builder.
+ * It reads files and picks which ones belong to the contract. It does not detect formats:
+ * `buildVerifyInput` in the core does that.
  */
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -312,9 +313,9 @@ function buildKeys(): readonly string[] {
   } satisfies Record<keyof BuildFromProjectOptions, true>);
 }
 
+// References: R-IN-6.
 /**
- * Reads the options. A key outside `known` throws `invalid-input` naming it, never its value
- * (R-IN-6).
+ * Reads the options. A key outside `known` throws `invalid-input` naming it, never its value.
  */
 function readOptions(options: FindBuildOptions, known: readonly string[]): Options {
   // The keys first, so a getter on an unknown key never runs (R-IN-6).
@@ -458,7 +459,8 @@ async function readArtifact(
 }
 
 /**
- * The artifacts of `spec` under `outDir`: files named after the contract, in a directory named after
+ * The artifacts of `spec` under `outDir`: files named after the contract, in a directory named
+ * after
  * the source file when a path is given, whose metadata targets the contract.
  */
 async function findArtifacts(
@@ -648,11 +650,13 @@ async function readSources(
   return Object.fromEntries(entries);
 }
 
+// References: R-DX-2, R-IN-7.
 /**
  * Finds the build files of one contract in a Foundry project and returns them parsed, ready for
- * `buildVerifyInput` (R-DX-2). It runs no `forge` command and reads no `foundry.toml`.
+ * `buildVerifyInput`. It runs no `forge` command and reads no `foundry.toml`.
  *
- * 1. It finds the contract's artifact under `outDir`, or reads the file the `artifact` option names.
+ * 1. It finds the contract's artifact under `outDir`, or reads the file the `artifact` option
+ * names.
  *    The search looks for files named `Name.json` or `Name.<suffix>.json`, such as
  *    `Context.0.8.20.json`, in a directory named after the source file when `contract` has a
  *    path. It skips `Name.metadata.json`, never follows a symbolic link, and goes at most 32
@@ -668,10 +672,10 @@ async function readSources(
  *    names, from the root, so the core can rebuild the input from the metadata. It reads only
  *    regular files of at most 16 MB whose real path, after symbolic links, is under the root.
  *
- * The files under `outDir` and `buildInfoDir` are trusted: they are parsed as they are, up to 256 MB
+ * The files under `outDir` and `buildInfoDir` are trusted: they are parsed as they are, up to 256
+ * MB
  * each. The source contents are not checked here; `buildVerifyInput` checks their hashes. Paths in
- * `files` are relative to the root, and the core's builder rejects a local path in the input
- * (R-IN-7).
+ * `files` are relative to the root, and the core's builder rejects a local path in the input.
  *
  * @param options - The project root, the contract, and the output and build-info directories
  *   and the artifact file when they are not the defaults.
@@ -733,9 +737,10 @@ async function findBuild(checked: Options): Promise<ProjectBuild> {
   };
 }
 
+// References: R-DX-2, R-IN-7.
 /**
  * Finds the contract's build files with {@link findFoundryBuild}, then builds the `compiler` part
- * of `VerifyInput` and the contract name with the core's `buildVerifyInput` (R-DX-2, R-IN-7). It
+ * of `VerifyInput` and the contract name with the core's `buildVerifyInput`. It
  * passes the contract the build names, the source files it read, and the `compilerVersion` and
  * `sources` options. A source in `options.sources` replaces the file read for the same path.
  *
@@ -756,8 +761,7 @@ async function findBuild(checked: Options): Promise<ProjectBuild> {
  * const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
  * const result = await verify({
  *   chainId: 11155111,
- *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
- *   ...built,
+ *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",...built,
  * });
  * ```
  * @experimental

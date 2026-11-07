@@ -1,43 +1,87 @@
 # explorer-verify
 
-Verify the source of deployed smart contracts on Etherscan, Blockscout, Sourcify and Routescan with
-one API, from a browser, a backend or a CLI.
+Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a
+browser, backend or CLI.
 
-> Status: before 0.1.0; nothing is published to npm yet. `verify()`, `checkStatus()`, the server
-> handler, the `explorer-verify` command and the Foundry and Hardhat build helpers work on `main`.
-> The plan is in [docs/contributor/roadmap.md](docs/contributor/roadmap.md).
+Status: before 0.1.0; the implementation works in this repository and nothing is published to npm yet.
 
-## What it does
+## CLI
 
-- Take a contract's address, chain id, compiler version and Standard JSON input, and verify it on
-  the chain's explorer.
-- Check first, then submit and poll, and return `verified` (exact or partial), `already-verified` or
-  `failed`. An unknown explorer answer is an error, never a success.
-- Route each chain to the right explorer from a built-in table, with per-call overrides.
-- Run in browsers, Node, Deno, Bun and edge runtimes. Keyless explorers are called directly; Etherscan
-  calls go through a small handler you host, so your API key stays on your server.
+The command ships in `@explorer-verify/cli` and needs Node.js 22.18 or later.
 
-## Planned usage
+In a Foundry project, first run `forge build --build-info`. These commands use its Greeter
+build and the deployed address on Sepolia; replace the address and contract with your deployment.
+The dry run reads the explorer. The second command can publish source. Output below is from an
+already verified contract; progress goes to stderr.
 
-This API is a draft and may change before 0.1.0:
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run
+# exit code 0
+```
+
+```text
+dry run on sourcify at sourcify.dev: exact match already, so a run without --dry-run would not submit.
+https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
+```
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify
+# exit code 0
+```
+
+```text
+already-verified: exact match on sourcify
+https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
+```
+
+## SDK
+
+This example uses the Foundry helper. The core also accepts compiler Standard JSON directly and
+runs in browsers and edge runtimes.
+
+After compiling the project, install `explorer-verify` next to `@explorer-verify/foundry`.
+Pass the build with the deployed address and chain. `verify()` validates the input before requests.
 
 ```ts
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 import { verify } from "explorer-verify";
 
-const result = await verify({
-  chainId: 11155111,
-  address: "0x<deployed address>",
-  contractName: "src/Token.sol:Token",
-  compiler: { kind: "solc", version: "0.8.24+commit.e11b9ed9", input: standardJsonInput },
+const built = await buildVerifyInputFromFoundry({
+  root: ".",
+  contract: "src/Greeter.sol:Greeter",
 });
-
-if (result.status === "failed") throw new Error(result.reason);
-console.log(result.explorerUrl);
+const result = await verify(
+  {
+    chainId: 11155111,
+    address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+    ...built,
+  },
+  { route: { backend: "sourcify" } },
+);
+console.log(result.status);
 ```
+
+```text
+already-verified
+```
+
+For Etherscan in a browser, host the [server handler](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/run-the-server-handler.md)
+and pass `handlerUrl`; the key stays on your server.
+
+## Guides
+
+- [Browser](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-a-browser.md)
+- [Node.js](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-node.md)
+- [Foundry](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-a-foundry-project.md)
+- [Hardhat](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-a-hardhat-project.md)
+- [CI and CLI](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-ci-with-the-cli.md)
+- [Agents](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/using-from-an-agent.md)
+- [Tools that wrap verification](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/wrap-explorer-verify-in-your-tool.md)
 
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md). Agents start at [AGENTS.md](AGENTS.md).
+The [roadmap](docs/contributor/roadmap.md) tracks remaining work.
 
 ## Licence
 

@@ -1,7 +1,7 @@
+// References: R-AX-10, R-AX-9.
 /**
- * The closest match for a mistyped command or option name (R-AX-10). The suggestion is always one
- * of the CLI's own names, never text the caller typed, so a mistyped key is never repeated
- * (R-AX-9).
+ * The closest match for a mistyped command or option name. The suggestion is always one
+ * of the CLI's own names, never text the caller typed, so a mistyped key is never repeated.
  */
 
 /** Names shorter than this are not compared: a one- or two-letter typo matches too much. */

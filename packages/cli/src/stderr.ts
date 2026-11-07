@@ -1,5 +1,6 @@
+// References: R-AX-6, R-AX-14, R-AX-15.
 /**
- * Everything the CLI writes to stderr (R-AX-6, R-AX-14, R-AX-15): log lines from the logger, the
+ * Everything the CLI writes to stderr: log lines from the logger, the
  * stage events from `onEvent`, the error of a run, and a spinner. stdout never receives any of it.
  *
  * Text lines are for people and may change in any release. With `--log-format json`, each line is
@@ -29,7 +30,8 @@ export interface OutputStream {
   readonly isTTY?: boolean | undefined;
 }
 
-/** The version of the JSON line shape, the same as the envelope's (R-AX-14). */
+// References: R-AX-14.
+/** The version of the JSON line shape, the same as the envelope's. */
 const SCHEMA_VERSION = 1;
 
 /** Names a field cannot take at the top level of a JSON line. */
@@ -41,7 +43,8 @@ const RESERVED: ReadonlySet<string> = new Set([
   "fields",
 ]);
 
-/** The level of each event's line (R-AX-15). */
+// References: R-AX-15.
+/** The level of each event's line. */
 const EVENT_LEVELS: Readonly<Record<VerifyEvent["type"], LineLevel>> = {
   "verify.validated": "debug",
   "verify.routed": "debug",
@@ -129,7 +132,8 @@ export function eventMessage(event: VerifyEvent): string {
 }
 
 /**
- * The spinner's text for the stage an event starts, such as `Waiting for sourcify: pending, poll 3`.
+ * The spinner's text for the stage an event starts, such as `Waiting for sourcify: pending, poll
+ * 3`.
  * The spinner shows it whatever the level, so a run at `info` still shows each poll.
  *
  * @param event - The event.
@@ -178,9 +182,10 @@ const REPEATED_LINES: readonly { readonly marker: RegExp; readonly field: string
   { marker: /^Dry run: /, field: "routedBy" },
 ];
 
+// References: R-AX-14.
 /**
  * Whether a library log line repeats an event or the result. A text run at `info` shows the
- * event's line only, and the log line at `debug` (R-AX-14). The match reads the message and the
+ * event's line only, and the log line at `debug`. The match reads the message and the
  * fields, never the order of the lines, so a line from another backend in between changes nothing.
  *
  * @param message - The log line's message.

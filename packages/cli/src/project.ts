@@ -1,8 +1,9 @@
+// References: R-DX-1, R-DX-2, decision 0051.
 /**
- * Project mode of `verify` (R-DX-1, R-DX-2): `--foundry <dir>` or `--hardhat <dir>` with
+ * Project mode of `verify`: `--foundry <dir>` or `--hardhat <dir>` with
  * `--contract path:Name` finds the contract's build files in the project, so the caller names no
  * hash-named build-info file. The helper package of the build tool loads only when its option is
- * given (decision 0051). Its errors name the library's options, such as `outDir`; the CLI renames
+ * given. Its errors name the library's options, such as `outDir`; the CLI renames
  * them to its own flags.
  */
 import { ExplorerVerifyError } from "explorer-verify";

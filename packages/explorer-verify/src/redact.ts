@@ -1,5 +1,6 @@
+// References: R-SEC-1, R-AX-9.
 /**
- * API key redaction (R-SEC-1, R-AX-9). The error class and the HTTP layer's logger both go through
+ * API key redaction. The error class and the HTTP layer's logger both go through
  * {@link redact}, so there is one rule for what counts as a secret.
  *
  * Every pattern runs in linear time: each one starts at most once per position, behind a
@@ -370,9 +371,10 @@ function loggableFields(fields: LogFields, secrets: readonly string[]): LogField
  */
 const KEY_NAME_FIELD = new RegExp(`^(?:${API_KEY_NAME}|${KEY_LIKE_NAME})$`, "i");
 
+// References: R-SEC-1, R-DX-5.
 /**
  * Wraps a logger so that the message and every field name and value pass through {@link redact}
- * before they reach the caller's logger (R-SEC-1, R-DX-5). The fields are a new object; the
+ * before they reach the caller's logger. The fields are a new object; the
  * caller's method gets no second argument when there are no fields, so `console` prints no
  * `undefined`.
  *

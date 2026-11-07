@@ -1,5 +1,6 @@
+// References: R-AX-8, decision 0043.
 /**
- * The target of a submitting `verify` (R-AX-8, decision 0043). A submit publishes source and
+ * The target of a submitting `verify`. A submit publishes source and
  * cannot be undone, so `verify` submits only where the caller said: `--backend <name>` or
  * `--backend auto`. Without one it exits 2 before any request, with a hint that names the backends
  * the chain lists and what `auto` would pick, and why.
@@ -17,7 +18,8 @@ import { KEY_VARIABLES } from "./keys.ts";
 /** The `--backend` value that lets the routing table pick the backend. */
 export const AUTO = "auto";
 
-/** The `--backend` value that verifies on every backend the chain's row lists (R-RT-4). */
+// References: R-RT-4.
+/** The `--backend` value that verifies on every backend the chain's row lists. */
 export const ALL = "all";
 
 /** What the caller named: `auto`, `all`, one or more backends, or nothing. */
@@ -149,9 +151,10 @@ export async function allDryRunRefusal(
   return ownHint(new ExplorerVerifyError(base.details, base.message, { hint: text, secrets: [] }));
 }
 
+// References: R-RT-4.
 /**
  * The lines that name each backend of the chain's row that `--backend all` left out: the library
- * leaves out a backend that needs an API key when none is set for it (R-RT-4). Each line names the
+ * leaves out a backend that needs an API key when none is set for it. Each line names the
  * key's environment variable when the CLI reads one.
  *
  * @param row - The backends the chain's row lists.

@@ -1,6 +1,7 @@
+// References: R-DX-3, decision 0055.
 /**
  * `explorer-verify/errors`: the error class, its codes, their default hints and the error types,
- * without the verification flow (R-DX-3, decision 0055). No module this entry imports reaches the
+ * without the verification flow. No module this entry imports reaches the
  * flow or a dynamic `import()`, so a bundler emits one file for any of its names. `ERROR_CODES`
  * alone loads none of the error class.
  */

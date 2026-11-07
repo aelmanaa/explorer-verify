@@ -1,16 +1,19 @@
+// References: decision 0048.
 /**
- * The refusal codes of `createVerifyHandler`, each with the error code the client throws for it
- * (decision 0048). The handler refuses only with a `HandlerRefusal`, the table needs an entry for
- * each, and the client's handler code reads the table, so the two cannot drift. Internal: neither entry point exports the table.
+ * The refusal codes of `createVerifyHandler`, each with the error code the client throws for it.
+ * The handler refuses only with a `HandlerRefusal`, the table needs an entry for
+ * each, and the client's handler code reads the table, so the two cannot drift. Internal: neither
+ * entry point exports the table.
  */
 import type { ErrorCode } from "../errors.ts";
 
+// References: decision 0048.
 /**
  * The stable code of a refusal of `createVerifyHandler`. Every refusal body is
  * `{ "status": "0", "message": "NOTOK", "result": "<sentence>", "code": "<code>" }`: the shape of
  * an Etherscan error, plus `code`. The sentence may change in any release; the code does not. An
  * answer without `code` is Etherscan's own. A client that set `handlerUrl` maps each code to an
- * error code (decision 0048).
+ * error code.
  *
  * @experimental
  */

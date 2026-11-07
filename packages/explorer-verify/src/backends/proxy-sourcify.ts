@@ -1,5 +1,6 @@
+// References: R-FLOW-8.
 /**
- * Reads a proxy's link on Sourcify (R-FLOW-8). Sourcify detects proxies on its own when it
+ * Reads a proxy's link on Sourcify. Sourcify detects proxies on its own when it
  * verifies a contract and takes no request to link one: one lookup with `fields=proxyResolution`
  * says what it found. `linkProxy()` loads this module with a dynamic `import()`, so `verify()`
  * never bundles it.

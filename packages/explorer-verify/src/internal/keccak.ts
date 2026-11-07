@@ -1,5 +1,6 @@
+// References: decision 0012.
 /**
- * Keccak-256, the hash solc records for each source in the Solidity metadata (decision 0012). It
+ * Keccak-256, the hash solc records for each source in the Solidity metadata. It
  * is the Keccak sponge with a 1088-bit rate and the original Keccak padding (`0x01 … 0x80`), not
  * the SHA3-256 padding of FIPS 202 (`0x06 … 0x80`). Written from the specification:
  * https://keccak.team/keccak_specs_summary.html and FIPS 202, section 3.2.

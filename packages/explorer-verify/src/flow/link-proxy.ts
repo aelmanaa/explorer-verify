@@ -1,8 +1,9 @@
+// References: R-FLOW-8, R-RUN-5, decision 0033.
 /**
- * `linkProxy()`: links a verified proxy to its implementation on the explorer the route names
- * (R-FLOW-8). It is a separate export from `verify()`, and each explorer's proxy-link code loads
+ * `linkProxy()`: links a verified proxy to its implementation on the explorer the route names. It
+ * is a separate export from `verify()`, and each explorer's proxy-link code loads
  * with a dynamic `import()` only when a call is routed to it, so a caller who imports only
- * `verify` does not bundle any of it (R-RUN-5, decision 0033).
+ * `verify` does not bundle any of it.
  */
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
@@ -34,20 +35,23 @@ import type { HandlerLoader, LinkMissing, Settings } from "./verify.ts";
 /** Loads one explorer's proxy-link code. */
 export type LinkerLoader = () => Promise<ProxyLinker>;
 
+// References: decision 0052.
 /**
  * What `linkProxy()` takes besides the caller's target and options. The default entry passes
  * `DEFAULT_LINK_DEPENDENCIES`; `explorer-verify/core` passes the proxy-link clients and the table
- * its caller gave (decision 0052). The tests pass linkers of their own, a fixed `random` for the
+ * its caller gave. The tests pass linkers of their own, a fixed `random` for the
  * backoff jitter, or a routing table.
+ * @internal
  */
 export interface LinkDependencies {
   /** The proxy-link code of each backend that has one, loaded or the function that loads it. */
   readonly linkers: Readonly<Partial<Record<BackendName, ProxyLinker | LinkerLoader>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
+  // References: decision 0040.
   /**
    * The routing table, or the function that loads it, read only for a call without
-   * `route.apiUrl` (decision 0040). Absent, such a call throws `invalid-input` naming `table`.
+   * `route.apiUrl`. Absent, such a call throws `invalid-input` naming `table`.
    */
   readonly table?: RoutingTable | TableLoader | undefined;
   /** Loads the `handlerUrl` code; absent, a call with `handlerUrl` throws `invalid-input`. */
@@ -90,6 +94,7 @@ interface LinkCall {
  * ```ts
  * const result = await runLinkProxy(target, { fetch }, { linkers: { sourcify: sourcifyProxyLinker } });
  * ```
+ * @internal
  */
 export async function runLinkProxy(
   value: unknown,
@@ -183,11 +188,12 @@ export async function runLinkProxy(
   });
 }
 
+// References: decision 0052.
 /**
  * `invalid-input` on `route.backend` for a backend this version cannot link a proxy on, or for an
  * `etherscan-compatible` route from the routing table rather than `route.apiUrl`. Through
  * `explorer-verify/core`, a backend that has proxy-link code but whose client the caller left out
- * of `clients` gets `LinkMissing.linker` instead (decision 0052).
+ * of `clients` gets `LinkMissing.linker` instead.
  */
 function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyError {
   return newError(

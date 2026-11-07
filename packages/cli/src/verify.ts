@@ -1,5 +1,6 @@
+// References: R-DX-1, R-AX-8, R-AX-16.
 /**
- * The `verify` command (R-DX-1, R-AX-8, R-AX-16): reads the build files of `--input`, the build of
+ * The `verify` command: reads the build files of `--input`, the build of
  * the Foundry or Hardhat project of `--foundry` or `--hardhat`, or the whole request of
  * `--input-json`, builds and checks the input, then calls `verify()`, or `dryRun()` with
  * `--dry-run`. The address may come first, without the word `verify`.
@@ -478,8 +479,9 @@ const TABLE_WORDS: Readonly<Record<typeof AUTO | typeof ALL, string>> = {
   all: "all verifies on every backend the routing table lists for the chain",
 };
 
+// References: R-AX-8, R-AX-9, R-RT-4.
 /**
- * The target of a run (R-AX-8, R-AX-9, R-RT-4): `auto`, `all`, `named` for `--backend` naming
+ * The target of a run: `auto`, `all`, `named` for `--backend` naming
  * backends, or `undefined` when none is given. `auto` and `all` are removed from the values, so
  * the routing table picks the backends. Each stands alone: with another `--backend`, with
  * `--api-url` or with a key flag it is an issue, because none of them can say which backend they

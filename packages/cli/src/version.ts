@@ -1,5 +1,6 @@
+// References: R-AX-11.
 /**
- * The `--version` output (R-AX-11): the CLI's version and the core's, and with `--json` the date
+ * The `--version` output: the CLI's version and the core's, and with `--json` the date
  * of the routing table the core ships, so an agent knows how fresh the chain data is.
  */
 import { readFileSync } from "node:fs";
@@ -39,9 +40,10 @@ export interface VersionResult {
   readonly routingTableDate: string;
 }
 
+// References: decision 0040.
 /**
- * The versions and the routing table's date. The core loads its routing table on demand
- * (decision 0040), so the date comes from a promise.
+ * The versions and the routing table's date. The core loads its routing table on demand, so the
+ * date comes from a promise.
  *
  * @returns The result of `--version --json`.
  */

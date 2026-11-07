@@ -1,5 +1,6 @@
+// References: R-IN-4.
 /**
- * Merges library link addresses into the Standard JSON input (R-IN-4). Kept out of `verify()`:
+ * Merges library link addresses into the Standard JSON input. Kept out of `verify()`:
  * for a contract linked after compiling, the addresses change the metadata hash (live probe E,
  * 2026-11-03).
  */
@@ -9,16 +10,19 @@ import { readFields } from "../internal/read-fields.ts";
 import type { VerifyInput } from "../types.ts";
 import { validateInput } from "./validate.ts";
 
+// References: R-IN-4, decision 0025.
 /**
  * Returns the input with each address of `libraries` added to `compiler.input.settings.libraries`,
- * in the Standard JSON shape `{ "<path>": { "<Name>": "<address>" } }` (R-IN-4). Entries already
+ * in the Standard JSON shape `{ "<path>": { "<Name>": "<address>" } }`. Entries already
  * in `settings.libraries` are kept. Without `libraries`, the input comes back unchanged.
  *
- * `verify()` does not do this (decision 0025). Solidity's metadata includes `settings.libraries`,
+ * `verify()` does not do this. Solidity's metadata includes `settings.libraries`,
  * so for a contract that was compiled without them and linked afterwards, as Foundry and Hardhat
  * do, the input with the addresses compiles to a different metadata hash. In a live test on
  * 2026-11-03, Sourcify then gave only a partial match, and Etherscan found the address itself
- * ({@link https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-03-m2-live-probes.md#e-a-contract-linked-to-an-external-library | probe E}). Use this for an explorer that needs the addresses in the input.
+ * ({@link
+ * https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/research/2026-11-03-m2-live-probes.md#e-a-contract-linked-to-an-external-library
+ * | probe E}). Use this for an explorer that needs the addresses in the input.
  *
  * The input is checked with `validateInput` first, so the result is a new, normalised copy that
  * shares no object with `input`, and the addresses are in lower case.
@@ -34,8 +38,7 @@ import { validateInput } from "./validate.ts";
  * ```ts
  * import { linkLibraries } from "explorer-verify";
  *
- * const linked = linkLibraries({
- *   ...input,
+ * const linked = linkLibraries({...input,
  *   libraries: { "src/MathLib.sol:MathLib": "0xd0B737fC4e4195144824eB07b2d1bb778525b86B" },
  * });
  * // linked.compiler.input.settings.libraries:

@@ -1,5 +1,6 @@
+// References: R-AX-14, R-AX-15.
 /**
- * The log level and format of stderr (R-AX-14, R-AX-15). `--quiet` sets `error`, `--verbose` sets
+ * The log level and format of stderr. `--quiet` sets `error`, `--verbose` sets
  * `debug`, and `EXPLORER_VERIFY_LOG` sets the level when no flag does. The default is `info`.
  */
 

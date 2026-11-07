@@ -511,8 +511,9 @@ function checkLibrary(
   return { address: lower };
 }
 
+// References: R-IN-4.
 /**
- * The library link addresses in lower case (R-IN-4): `{}` when absent, `undefined` when invalid.
+ * The library link addresses in lower case: `{}` when absent, `undefined` when invalid.
  * Each issue names `libraries.<position>`, from 1 in the object's key order, never the key: the
  * key holds a path the input chose.
  */
@@ -592,9 +593,10 @@ function checkCreationBytecode(value: unknown, problems: Problems): { value?: He
   return { value: `0x${value.replace(/^0x/, "").toLowerCase()}` };
 }
 
+// References: R-IN-6, R-IN-1, decision 0057, R-IN-4.
 /**
- * Checks a verification input before any request is sent (R-IN-6), and returns it normalised
- * (R-IN-1): the compiler version without a leading `v`, and the address, `constructorArgs`,
+ * Checks a verification input before any request is sent, and returns it normalised: the compiler
+ * version without a leading `v`, and the address, `constructorArgs`,
  * `creationTxHash`, `creationBytecode` and each `libraries` address in lower case. Each backend
  * adds the prefix or checksum it needs.
  *
@@ -616,12 +618,12 @@ function checkCreationBytecode(value: unknown, problems: Problems): { value?: He
  * `compiler.version` needs an 8-character commit hash, so solc 0.1.1 and 0.1.2, whose long
  * versions carry a 7-character hash, are rejected.
  *
- * `compiler.kind` is `"solc"` or `"zksolc"` (decision 0057). For zksolc, `compiler.version` is the
+ * `compiler.kind` is `"solc"` or `"zksolc"`. For zksolc, `compiler.version` is the
  * zksolc version, `x.y.z` such as `1.5.15`; `compiler.solcVersion` is the full solc version, with
  * the same rules as a solc `compiler.version`; and the optional `compiler.solcFork` is the
  * revision of ZKsync's solc fork, `x.y.z` such as `1.0.2`. Each comes back without a leading `v`.
  *
- * `libraries` (R-IN-4) is keyed by `path:Name`. The path must be a key of
+ * `libraries`  is keyed by `path:Name`. The path must be a key of
  * `compiler.input.sources` and must not be a local path: absolute, home, drive, file URL, or
  * climbing above the root. When `settings.libraries` already holds a value for the same library
  * under its path, the value must be the same address in any case; any other value is rejected. An

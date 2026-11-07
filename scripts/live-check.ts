@@ -27,14 +27,6 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_DEPENDENCIES } from "../packages/explorer-verify/dist/src/flow/defaults.js";
-import {
-  openCall,
-  routeOf,
-  settingsOf,
-  startBudget,
-  withClient,
-} from "../packages/explorer-verify/dist/src/flow/verify.js";
 import {
   ExplorerVerifyError,
   dryRun,
@@ -48,6 +40,14 @@ import type {
   VerifyOptions,
 } from "../packages/explorer-verify/dist/src/index.js";
 import { redact } from "../packages/explorer-verify/dist/src/redact.js";
+import { DEFAULT_DEPENDENCIES } from "../packages/explorer-verify/src/flow/defaults.ts";
+import {
+  openCall,
+  routeOf,
+  settingsOf,
+  startBudget,
+  withClient,
+} from "../packages/explorer-verify/src/flow/verify.ts";
 import { codeCell } from "./github-issue.ts";
 import { errorMessage, isMainModule } from "./release-packages.ts";
 

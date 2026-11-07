@@ -1,6 +1,7 @@
+// References: R-SEC-1, R-SEC-2, decision 0016.
 /**
  * API keys: which ones the caller may pass, which request gets one, where in the request it goes,
- * and what an explorer's answer about a key means (R-SEC-1, R-SEC-2, decision 0016). Every keyed
+ * and what an explorer's answer about a key means. Every keyed
  * client sends its requests through {@link withKey}, so one rule decides where a key may go.
  * Internal: the package entry point does not export it.
  */
@@ -25,8 +26,9 @@ export type ApiKeysReader = () => CheckedKeys;
 /** The longest key accepted, in characters. */
 export const MAX_KEY_LENGTH = 1024;
 
+// References: decision 0041.
 /**
- * The host of Blockscout's hosted multichain API, the backend `blockscout-hosted` (decision 0041).
+ * The host of Blockscout's hosted multichain API, the backend `blockscout-hosted`.
  *
  * @example
  * ```ts
@@ -42,9 +44,10 @@ const KEYED: { readonly [B in KeyedBackendName]: B } = {
   "blockscout-hosted": "blockscout-hosted",
 };
 
+// References: decisions 0016, 0041 and 0046.
 /**
- * The backends that take a key from `VerifyOptions.apiKeys`, built from {@link KeyedBackendName}
- * (decisions 0016, 0041 and 0046). The public type does not refer to this list.
+ * The backends that take a key from `VerifyOptions.apiKeys`, built from {@link KeyedBackendName}.
+ * The public type does not refer to this list.
  *
  * @example
  * ```ts
@@ -206,12 +209,13 @@ export interface ReadKeys {
   readonly secrets: string[];
 }
 
+// References: decision 0041.
 /**
  * Reads and checks `VerifyOptions.apiKeys`. Only own enumerable string-keyed properties are read,
  * each once, and only from a plain object (prototype `Object.prototype` or `null`). A
  * non-enumerable property and a Symbol key are ignored.
  *
- * - `etherscan-v2`, `routescan` and `blockscout-hosted` take a key (decision 0041).
+ * - `etherscan-v2`, `routescan` and `blockscout-hosted` take a key.
  *   `etherscan-compatible` is refused: each standalone explorer has its own host, so its key goes
  *   in `route.apiKey`. `sourcify` and `blockscout`, whose instances need none, take no key.
  * - A name that is not a backend is counted, never named: the name could be a key.
@@ -316,8 +320,9 @@ export interface KeyContext {
   readonly apiKeys?: ApiKeysReader;
 }
 
+// References: R-SEC-2, decision 0053.
 /**
- * The key a request may carry, or `undefined`. This is the one rule for every client (R-SEC-2).
+ * The key a request may carry, or `undefined`. This is the one rule for every client.
  * A key is returned only when all of these hold:
  *
  * - `backend`, the backend the request is for, equals the route's backend. For a status poll it is
@@ -328,7 +333,7 @@ export interface KeyContext {
  *   backend and chain (`api.blockscout.com` for `blockscout-hosted`), on the default port, with a
  *   trailing dot on the host ignored. The route must not be `overridden`, except for
  *   `etherscan-v2`: a `route.apiUrl` on Etherscan's own API host takes `apiKeys["etherscan-v2"]`,
- *   because the key still goes only to that host (decision 0053). Any other route whose `apiUrl`
+ *   because the key still goes only to that host. Any other route whose `apiUrl`
  *   the caller set gets no key from `apiKeys`.
  *
  * @param ctx - The route and the caller's keys.
@@ -358,11 +363,12 @@ export function keyFor(ctx: KeyContext, backend: BackendName, url: string): stri
   return onTableHost(route, origin) ? key : undefined;
 }
 
+// References: decision 0053.
 /**
  * Whether `origin`, the origin of a request on `route`, may carry a key from `apiKeys`: it is
  * `https://` on the route's `tableHost` on the default port, a trailing dot on the host ignored,
- * and the route is the table's, or an `etherscan-v2` route whose `apiUrl` is Etherscan's own API
- * (decision 0053). `URL` has already lower-cased the host and dropped `:443`.
+ * and the route is the table's, or an `etherscan-v2` route whose `apiUrl` is Etherscan's own API.
+ * `URL` has already lower-cased the host and dropped `:443`.
  */
 function onTableHost(route: Route, origin: string): boolean {
   const { overridden, tableHost } = route;
@@ -382,16 +388,18 @@ function originOf(url: string): string | undefined {
   }
 }
 
+// References: R-SEC-1.
 /**
  * `req` with the key {@link keyFor} allows, placed where the explorer reads it and never in the
- * URL (R-SEC-1):
+ * URL:
  *
  * - `etherscan-v2` and `etherscan-compatible`: the `apikey` field of the form body. The request
  *   must be a `POST` with a `URLSearchParams` body, `chainid` in the query. Etherscan ignores a key
  *   in a header (live, 2026-11-03).
  * - `routescan`: the `apikey` request header, as Routescan's docs show. Not confirmed live: a
  *   made-up key in the header was answered without a refusal (2026-11-03).
- * - `blockscout-hosted`: the `authorization` request header, as `Bearer <key>`, for every request to the
+ * - `blockscout-hosted`: the `authorization` request header, as `Bearer <key>`, for every request
+ * to the
  *   hosted API: the REST lookup is a GET, so a form body cannot hold it (live, 2026-11-05).
  *
  * Without a key, `req` is returned unchanged. The caller adds the key to the call's secrets; the
@@ -441,11 +449,12 @@ export function withKey(ctx: KeyContext, backend: BackendName, req: HttpRequest)
   return { ...req, body: keyed };
 }
 
+// References: decision 0046.
 /**
  * Whether the route needs a key (its backend always does, or its table entry says so), none is
  * bound to the route's host, and no server handler adds it. {@link requireKey} throws in that
  * case; a dry run skips its lookup instead. An injected `fetch` does not count as a server that
- * adds the key: only `VerifyOptions.handlerUrl` does (decision 0046).
+ * adds the key: only `VerifyOptions.handlerUrl` does.
  *
  * @param ctx - The route and the caller's keys.
  * @param serverAddsKey - Whether the route's requests go to the caller's server handler, which
@@ -467,10 +476,11 @@ export function keyMissing(ctx: KeyContext, serverAddsKey: boolean): boolean {
   );
 }
 
+// References: decision 0046.
 /**
  * Throws `missing-api-key` before any request when the route needs a key (its backend always
  * does, or its table entry says so), none is bound to the route's host, and the caller's server
- * handler does not add it. An injected `fetch` does not change this (decision 0046). Only the
+ * handler does not add it. An injected `fetch` does not change this. Only the
  * error for `etherscan-v2` names `handlerUrl`: the server handler serves Etherscan alone.
  *
  * @param ctx - The route and the caller's keys.

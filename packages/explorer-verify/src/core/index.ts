@@ -1,7 +1,8 @@
 import { tryParseHandle } from "../flow/check-handle.ts";
+// References: decision 0052.
 /**
  * `explorer-verify/core`: the five flow functions of the default entry, which take the explorer
- * clients and the routing table from the caller instead of loading them (decision 0052). No module
+ * clients and the routing table from the caller instead of loading them. No module
  * this entry imports holds a dynamic `import()`, so a bundler that does not split code, or a
  * wrapper SDK that bundles this package, ships only the clients the caller imports, and the rows
  * only when the caller imports `explorer-verify/table`.
@@ -74,22 +75,23 @@ export type CoreVerifyEachOptions = VerifyEachOptions & ClientOptions<ExplorerCl
  */
 export type CoreLinkProxyOptions = LinkProxyOptions & ClientOptions<ProxyLinkClient>;
 
+// References: decision 0052, R-SEC-2, R-FLOW-6.
 /**
  * Verifies a deployed contract's source, as the default entry's `verify()` does, with the clients
- * and the routing table the caller passes (decision 0052). The steps, the result and the errors
+ * and the routing table the caller passes. The steps, the result and the errors
  * are the same.
  *
  * - The routing table chooses among the backends of `clients`. A `route.backend` without a client
  *   in `clients` throws `invalid-input`; a chain whose listed backends all lack one throws
  *   `unsupported-chain`. Both happen before any request.
  * - Without `table`, a call without `route.apiUrl` throws `invalid-input` naming `table`, before
- *   any request. Requests go only to hosts from the passed table or the caller's route (R-SEC-2).
+ *   any request. Requests go only to hosts from the passed table or the caller's route.
  * - `handlerUrl` needs the Etherscan v2 client in `clients`: it brings the handler code.
  *
  * @param input - What to verify. It is checked with `validateInput` first.
  * @param options - The default entry's options, plus `clients`, at least one, and `table`.
  * @returns As the default entry's `verify()` returns.
- * @throws The caller's `signal.reason`, unchanged, when the signal aborts (R-FLOW-6).
+ * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
  * @throws ExplorerVerifyError `invalid-input` for a `clients` or `table` that this package did not
  *   export, and as the default entry's `verify()` throws.
  * @example

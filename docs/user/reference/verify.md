@@ -109,14 +109,15 @@ Here `built` is what `buildVerifyInput` returned for `src/Counter.sol:Counter`, 
 library `Tally`:
 
 ```ts
-import { linkLibraries, validateInput, verify } from "explorer-verify";
+import { linkLibraries, verify } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
 
-const input = validateInput({
+const input: VerifyInput = {
   chainId: 11155111,
   address: "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
   ...built, // from buildVerifyInput
   libraries: { "src/Tally.sol:Tally": "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c" },
-});
+};
 
 // Sends compiler.input unchanged.
 const result = await verify(input);

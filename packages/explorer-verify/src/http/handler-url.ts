@@ -1,6 +1,7 @@
+// References: R-SRV-5, decision 0046.
 /**
  * The check of `VerifyOptions.handlerUrl`, the caller's server handler, which adds the Etherscan
- * key (R-SRV-5, decision 0046), and the refusal of a key bound to a route through it. A call loads
+ * key, and the refusal of a key bound to a route through it. A call loads
  * this module with a dynamic `import()` only when `handlerUrl` is set, so a caller who never sets
  * it does not download it. Internal: the package entry point does not export it.
  */
@@ -23,9 +24,11 @@ const LOOPBACK = ["localhost", "127.0.0.1", "[::1]"];
 const SPACE_OR_BACKSLASH = /[\s\\]/u;
 const SHAPE = "must be a path such as /api/verify, or a URL that starts with https://";
 
+// References: decision 0048.
 /**
  * The checked handler of a call: its absolute URL, the refusal of a key bound to it, and the
- * errors of its answers, mapped by the handler's refusal code (decision 0048). It lives in this chunk, so a caller who never sets
+ * errors of its answers, mapped by the handler's refusal code. It lives in this chunk, so a caller
+ * who never sets
  * `handlerUrl` does not download it.
  */
 export interface ResolvedHandler {
@@ -85,9 +88,10 @@ function codeOf(fields: Map<string, unknown> | undefined): string | undefined {
   return typeof code === "string" && CODE.test(code) ? code : undefined;
 }
 
+// References: decision 0048.
 /**
  * The error for a refusal code of `createVerifyHandler` that came with the status the handler
- * sends for it (decision 0048), or `undefined` for anything else. A 429 never gets here: the
+ * sends for it, or `undefined` for anything else. A 429 never gets here: the
  * HTTP layer throws `rate-limited` for it.
  */
 function mapped(
@@ -127,9 +131,10 @@ function mapped(
   return undefined;
 }
 
+// References: decision 0048.
 /**
  * The error of an answer of the handler that the client does not read. A refusal code of
- * `createVerifyHandler` with its status maps to its error code (decision 0048). Any other answer
+ * `createVerifyHandler` with its status maps to its error code. Any other answer
  * is `unexpected-response`, and its message names no code: a 4xx other than a 408 or a 429, with
  * or without a code, holds until something changes, so it is not retryable; a 408, a 429 and a
  * 5xx stay retryable.

@@ -1,8 +1,9 @@
+// References: R-BE-4, R-FLOW-4.
 /**
- * The Sourcify API v2 client (R-BE-4). Sourcify needs no key and answers browsers directly. The
+ * The Sourcify API v2 client. Sourcify needs no key and answers browsers directly. The
  * v1 API was switched off on 2026-07-07, so only v2 is used. Every answer is mapped to a match, a
  * poll outcome or a typed error; an answer the client does not recognise is never read as "not
- * verified" or as success (R-FLOW-4). The evidence for each mapping is in
+ * verified" or as success. The evidence for each mapping is in
  * docs/contributor/research/2026-11-02-sourcify-v2.md.
  */
 import type { BackendName } from "../backend-names.ts";
@@ -158,7 +159,8 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
 
 /**
  * Submits the source. A submit may have reached Sourcify without the client learning its job id:
- * no response, a 500, 502 or 504, a 2xx whose body failed or stalled, or a 202 that is not JSON. The client
+ * no response, a 500, 502 or 504, a 2xx whose body failed or stalled, or a 202 that is not JSON.
+ * The client
  * then looks the contract up, and submits once more only when the lookup finds it not verified.
  */
 async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {

@@ -1,5 +1,6 @@
+// References: R-FLOW-5.
 /**
- * `checkStatus()`: resumes a submitted verification from its handle (R-FLOW-5). It runs the poll
+ * `checkStatus()`: resumes a submitted verification from its handle. It runs the poll
  * and result steps of `verify()` through the same helpers, so a resumed job ends as it would have
  * in `verify()`.
  */
@@ -33,6 +34,7 @@ import type { FlowDependencies } from "./verify.ts";
  * ```ts
  * const result = await runCheckStatus(line, { fetch }, { backends: { sourcify }, random: () => 0 });
  * ```
+ * @internal
  */
 export async function runCheckStatus(
   value: unknown,
@@ -65,9 +67,10 @@ export async function runCheckStatus(
   });
 }
 
+// References: R-SEC-2.
 /**
  * Throws `invalid-input` unless the handle names the backend the route resolves for its chain. A
- * handle never chooses where requests go or which key goes with them (R-SEC-2).
+ * handle never chooses where requests go or which key goes with them.
  */
 function checkBackend(handle: Handle, route: Route): void {
   if (handle.backend === route.backend) {
