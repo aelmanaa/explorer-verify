@@ -1,12 +1,12 @@
 # Verify a proxy
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who deployed an upgradeable contract behind a proxy, such as an ERC-1967,
 UUPS or transparent proxy, and want the explorer to show the implementation's functions on the
-proxy's page. Nothing is released yet. `linkProxy` and [`verify`](../reference/verify.md) exist.
+proxy's page. `linkProxy` and [`verify`](../reference/verify.md) exist.
 
 A proxy holds no logic of its own: calls run the implementation's code. An explorer shows the
 implementation's functions on the proxy's page only once it knows which implementation the proxy

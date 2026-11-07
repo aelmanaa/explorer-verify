@@ -2,7 +2,7 @@
 
 Build verification input from a Hardhat project's compiler files. Runs on Node.js 22.18 or later.
 
-Status: before 0.1.0; nothing is published to npm yet.
+Status: experimental before 1.0. The API may change before 1.0.
 
 Run `npx hardhat compile` on Hardhat 2 or `npx hardhat build` on Hardhat 3 first. The helper reads files and does not compile.
 

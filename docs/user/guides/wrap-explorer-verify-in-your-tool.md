@@ -1,14 +1,11 @@
 # Wrap explorer-verify behind your tool's API
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: authors of a tool that already verifies contracts, such as a deploy framework, a
-dashboard or an SDK, who want to call explorer-verify inside their existing functions. Nothing is
-published to npm yet.
-
-Your users keep calling the functions they call today. Inside those functions, the tool calls
+dashboard or an SDK, who want to call explorer-verify inside their existing functions. Your users keep calling the functions they call today. Inside those functions, the tool calls
 [`verify()`](../reference/verify.md) and [`checkStatus()`](../reference/check-status.md), maps its
 own settings onto `VerifyOptions`, and maps results and error codes back onto its own results and
 error classes. The examples use a made-up tool, `deployKit`, with a function

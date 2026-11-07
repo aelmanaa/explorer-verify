@@ -1,12 +1,11 @@
 # Verify a contract from a Foundry project
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who build with Foundry and want the verification input for one contract.
-Nothing is released yet. `@explorer-verify/foundry` 0.0.0 exists in the repository and needs
-Node 22.18 or later.
+`@explorer-verify/foundry` requires Node 22.18 or later.
 
 After `forge build`, the files that verification needs are under `out/`: one artifact per contract
 and, with `--build-info`, one build-info file per compile. `@explorer-verify/foundry` finds the

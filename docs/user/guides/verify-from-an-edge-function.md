@@ -1,11 +1,10 @@
 # Verify from an edge function
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who call `verify()` from an edge function, such as a Cloudflare Worker.
-Nothing is published to npm yet.
 
 An edge function answers one request at a time, and the platform, a proxy or the client may end a
 request sooner than an explorer finishes checking a source. So the function submits in one request

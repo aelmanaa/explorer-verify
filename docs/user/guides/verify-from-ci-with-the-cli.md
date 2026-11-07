@@ -1,11 +1,11 @@
 # Verify from CI with the CLI
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who verify contracts in a CI job, such as a GitHub Actions workflow that runs
-after a deployment. Nothing is published to npm yet.
+after a deployment.
 
 The job builds the contracts, runs a dry run on the project's build, then verifies with `--json`
 and acts on the exit code. The key comes from a CI secret, in an environment

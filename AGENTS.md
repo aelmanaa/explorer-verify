@@ -5,7 +5,7 @@ explorer-verify verifies the source of deployed smart contracts on block explore
 runs in a browser, on a backend or in a CLI, and a self-hosted server handler keeps Etherscan keys
 off the client.
 
-Status: before 0.1.0; nothing is published to npm yet. `main` has the explorer clients
+Status: experimental before 1.0. The repository has the explorer clients
 (`packages/explorer-verify/src/backends/`), `verify()` and `checkStatus()`
 (`packages/explorer-verify/src/flow/`), the routing table, the server handler
 (`explorer-verify/server`), the `explorer-verify` command (`packages/cli`) and the Foundry and

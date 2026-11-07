@@ -1,12 +1,11 @@
 # Run the server handler
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who run a dapp and want its users to verify contracts on Etherscan without
-shipping an Etherscan key to the browser. Nothing is released yet. The package `explorer-verify`
-exists in the repository and is not published to npm.
+shipping an Etherscan key to the browser. The handler is part of the core `explorer-verify` package.
 
 This guide runs [`createVerifyHandler`](../reference/server-handler.md) in two places: a Next.js
 App Router route and a Cloudflare Worker. In both, the key comes from the platform's secret store,

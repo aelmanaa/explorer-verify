@@ -1,12 +1,11 @@
 # Verify from deployed bytecode
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers who have a deployed contract's address but not its build files, such as a
-block explorer, a wallet or a monitoring tool. Nothing is released yet.
-`buildVerifyInputFromBytecode` and [`verify`](../reference/verify.md) exist.
+block explorer, a wallet or a monitoring tool. `buildVerifyInputFromBytecode` and [`verify`](../reference/verify.md) exist.
 
 solc appends a hash of the contract's metadata to the runtime bytecode. The metadata names the
 compiler version, the settings and a keccak-256 hash for every source file.
