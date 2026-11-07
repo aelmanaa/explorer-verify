@@ -1,7 +1,8 @@
+// References: decision 0009, R-DX-3, R-AX-7, R-AX-10, R-SEC-1.
 /**
- * The one error class the library throws, and the codes it carries (decision 0009). Each code has
- * a fix hint, its own page in docs/user/reference/errors/ and a CLI exit code (R-DX-3, R-AX-7,
- * R-AX-10). The constructor redacts API keys from everything the error holds (R-SEC-1).
+ * The one error class the library throws, and the codes it carries. Each code has
+ * a fix hint, its own page in docs/user/reference/errors/ and a CLI exit code. The constructor
+ * redacts API keys from everything the error holds.
  */
 import { toBackendName } from "./backend-names.ts";
 import type { BackendName } from "./backend-names.ts";
@@ -227,7 +228,8 @@ export type ErrorDetails =
   | {
       /**
        * The run was cancelled. The core never throws this code: an abort rejects with
-       * `signal.reason`. The CLI creates it for exit code 130, so its JSON output has a typed error.
+       * `signal.reason`. The CLI creates it for exit code 130, so its JSON output has a typed
+       * error.
        */
       code: "cancelled";
       /** Present when the explorer accepted the submission before the cancel. */
@@ -340,7 +342,8 @@ export type ErrorDetails =
     }
   | {
       /**
-       * `buildVerifyInputFromBytecode` could not read the bytecode from the JSON-RPC endpoint, or no
+       * `buildVerifyInputFromBytecode` could not read the bytecode from the JSON-RPC endpoint, or
+       * no
        * source it tried returned the metadata the bytecode's hash names.
        */
       code: "metadata-unavailable";
@@ -353,10 +356,10 @@ export type ErrorDetails =
       attempts: readonly MetadataAttempt[];
     }
   | {
+      // References: R-IN-3, decision 0032.
       /**
-       * The creation code shows that `creationBytecode` is not the deployed build (R-IN-3), on a
-       * backend that would refuse another build, so `verify()` sent nothing to the explorer
-       * (decision 0032).
+       * The creation code shows that `creationBytecode` is not the deployed build, on a
+       * backend that would refuse another build, so `verify()` sent nothing to the explorer.
        */
       code: "constructor-args-unavailable";
       /**
@@ -366,9 +369,10 @@ export type ErrorDetails =
       reason: "prefix-mismatch" | "bad-length";
     }
   | {
+      // References: R-FLOW-8.
       /**
        * `linkProxy()` asked the explorer to link a proxy, and the link was still pending when the
-       * time budget ran out, or the status requests kept failing (R-FLOW-8). There is no handle:
+       * time budget ran out, or the status requests kept failing. There is no handle:
        * calling `linkProxy()` again starts a new link, which is safe.
        */
       code: "proxy-link-pending";
@@ -376,9 +380,10 @@ export type ErrorDetails =
       backend: BackendName;
     }
   | {
+      // References: R-FLOW-4, R-FLOW-8.
       /**
        * `linkProxy()` got an answer about a proxy link that the library cannot classify, such as
-       * Etherscan's `Error!` or an implementation that is not one address (R-FLOW-4, R-FLOW-8). The
+       * Etherscan's `Error!` or an implementation that is not one address. The
        * proxy is not reported as linked. There is no handle: a link has none.
        */
       code: "proxy-link-unknown-state";
@@ -388,10 +393,11 @@ export type ErrorDetails =
       excerpt: string;
     }
   | {
+      // References: decision 0048.
       /**
        * The caller's server handler, `createVerifyHandler`, refused the request with a code that
        * holds until its options or the request change, such as `chain-not-allowed`. The request
-       * did not reach the explorer (decision 0048).
+       * did not reach the explorer.
        */
       code: "handler-refused";
       /** The backend whose requests go through the handler. */
@@ -477,8 +483,9 @@ export type AnyExplorerVerifyError<C extends ErrorCode = ErrorCode> = C extends 
   ? ExplorerVerifyError<C>
   : never;
 
+// References: R-AX-5.
 /**
- * The `details` of an error in its JSON form (R-AX-5): the same fields as {@link ErrorDetails},
+ * The `details` of an error in its JSON form: the same fields as {@link ErrorDetails},
  * except that each handle is in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
  * Checking `details.code`, or the `code` of the {@link ErrorJson} that holds it, narrows it.
  *
@@ -487,7 +494,7 @@ export type AnyExplorerVerifyError<C extends ErrorCode = ErrorCode> = C extends 
  * import type { ErrorDetailsJson } from "explorer-verify";
  *
  * function candidates(details: ErrorDetailsJson): string[] {
- *   return details.code === "incomplete-input" ? details.candidates : [];
+ *   return details.code === "incomplete-input" ? details.candidates: [];
  * }
  * ```
  * @experimental
@@ -591,9 +598,10 @@ export interface ErrorJsonFields {
   }[];
 }
 
+// References: R-AX-5.
 /**
  * What `ExplorerVerifyError.toJSON()` returns: the `error` object of the CLI's JSON output, field
- * for field (R-AX-5). It holds the code's `details`, redacted, with each handle in its one-line
+ * for field. It holds the code's `details`, redacted, with each handle in its one-line
  * form. It never holds a `cause`, a stack or an API key. It is a union keyed by `code`, so checking
  * `code` narrows `details`, as on the error itself.
  *
@@ -609,8 +617,7 @@ export interface ErrorJsonFields {
  *
  * function issues(json: ErrorJson): string[] {
  *   return json.code === "invalid-input"
- *     ? json.details.issues.map((issue) => `${issue.field} ${issue.message}`)
- *     : [];
+ *     ? json.details.issues.map((issue) => `${issue.field} ${issue.message}`): [];
  * }
  * ```
  * @experimental
@@ -670,8 +677,9 @@ export interface ExplorerVerifyErrorOptions {
   secrets: readonly string[];
 }
 
+// References: decision 0015.
 /**
- * The `docsUrl` of a code: its own page on the docs site, unversioned before 1.0 (decision 0015).
+ * The `docsUrl` of a code: its own page on the docs site, unversioned before 1.0.
  * The site build test checks that each URL maps to a page in the build output, and the deploy
  * checks that each one returns 200.
  */
@@ -1018,14 +1026,16 @@ export function errorJsonOf<C extends ErrorCode>(
 type ReadField = (name: string) => unknown;
 
 /**
- * What the rebuild knows besides the details: the handles the error object carries at its top level,
+ * What the rebuild knows besides the details: the handles the error object carries at its top
+ * level,
  * already checked and redacted, and whether another copy or a server built it.
  */
 interface TopHandles {
+  // References: R-AX-5.
   /**
    * Whether the error object comes from another copy of the package or a server, so its strings
    * and lists are cut. This copy's own errors keep their full details, so `toJSON()` equals the
-   * envelope (R-AX-5).
+   * envelope.
    */
   readonly foreign?: boolean;
   /** The one-line handle, when the error object has one. */
@@ -1366,6 +1376,7 @@ function redactCause(cause: unknown, secrets: readonly string[], depth: number):
 // symbol in every copy of the package, so an error from another copy passes too (decision 0044).
 const BRAND: unique symbol = Symbol.for("explorer-verify.error");
 
+// References: R-SEC-1.
 /**
  * The error every library function throws, except on abort, where the call rejects with
  * `signal.reason` unchanged. Check `code` to narrow `details` to that code's data.
@@ -1375,11 +1386,12 @@ const BRAND: unique symbol = Symbol.for("explorer-verify.error");
  * narrow `error` to {@link AnyExplorerVerifyError}, so a check of `error.code` narrows `details`.
  *
  * The constructor removes API keys from the message, the hint, every string in `details` and the
- * cause, so nothing the error holds can print a key (R-SEC-1). `JSON.stringify(error)` calls
+ * cause, so nothing the error holds can print a key. `JSON.stringify(error)` calls
  * {@link ExplorerVerifyError.toJSON}, which leaves out `cause` and the stack and keeps the
  * redacted `details`, each handle in its one-line form.
  * `Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`. The brand is a
- * symbol key, so `structuredClone(error)` and `postMessage` drop it, and the copy is not recognised;
+ * symbol key, so `structuredClone(error)` and `postMessage` drop it, and the copy is not
+ * recognised;
  * send `error.toJSON()` across instead.
  *
  * @template C - The error's code. Defaults to every code.
@@ -1408,7 +1420,8 @@ const BRAND: unique symbol = Symbol.for("explorer-verify.error");
 export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error {
   /** The stable error code, equal to `details.code`. Check it to narrow `details`. */
   readonly code: C;
-  /** One sentence: what to do next (R-DX-3). */
+  // References: R-DX-3.
+  /** One sentence: what to do next. */
   readonly hint: string;
   /**
    * Whether trying again may succeed without changing the input. For `not-confirmed`, trying
@@ -1418,7 +1431,8 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
   readonly retryable: boolean;
   /** The code's data, redacted. */
   readonly details: DetailsOf<C>;
-  /** The code's own page in the error reference (R-AX-10). */
+  // References: R-AX-10.
+  /** The code's own page in the error reference. */
   readonly docsUrl: string;
 
   /**
@@ -1571,8 +1585,9 @@ export class ExplorerVerifyError<C extends ErrorCode = ErrorCode> extends Error 
     return "ExplorerVerifyError";
   }
 
+  // References: R-AX-5.
   /**
-   * The error as plain data for logs and the CLI's JSON output (R-AX-5).
+   * The error as plain data for logs and the CLI's JSON output.
    *
    * @returns The code, message, hint, docs URL, retry flag, the handle when there is one, and the
    *   redacted details, each handle in its one-line form.

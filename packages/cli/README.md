@@ -1,12 +1,34 @@
 # @explorer-verify/cli
 
-The `explorer-verify` command. It verifies the source of deployed smart contracts on Etherscan,
-Blockscout, Sourcify and Routescan from a terminal, a CI job or an agent.
+Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a terminal.
 
-Status: before 0.1.0; nothing is published to npm yet. `explorer-verify verify` submits a contract
-and `explorer-verify status` resumes a job from its handle. With `--json`, stdout holds one JSON
-envelope, logs and progress go to stderr, and the exit codes are documented.
-`explorer-verify --help` lists the commands, options, environment variables and exit codes, and
-`explorer-verify --version --json` prints the versions and the routing table's date. See the
-[CLI reference](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/cli.md)
-and the [repository README](https://github.com/aelmanaa/explorer-verify#readme).
+Status: before 0.1.0; nothing is published to npm yet. Requires Node.js 22.18 or later.
+
+In a Foundry project, first run `forge build --build-info`. These commands use its Greeter
+build and the deployed address on Sepolia; replace the address and contract with your deployment.
+The dry run reads the explorer. The second command can publish source. Output below is from an
+already verified contract; progress goes to stderr.
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run
+# exit code 0
+```
+
+```text
+dry run on sourcify at sourcify.dev: exact match already, so a run without --dry-run would not submit.
+https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
+```
+
+```sh
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify
+# exit code 0
+```
+
+```text
+already-verified: exact match on sourcify
+https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
+```
+
+Use `--json` for one stdout envelope and documented exit codes; logs stay on stderr.
+See the [CLI reference](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/cli.md)
+and [CI guide](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-ci-with-the-cli.md).

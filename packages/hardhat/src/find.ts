@@ -1,5 +1,6 @@
+// References: R-DX-2.
 /**
- * Finds the build files of one contract in a Hardhat project (R-DX-2). It reads files and parses
+ * Finds the build files of one contract in a Hardhat project. It reads files and parses
  * JSON; it does not interpret the compiler input. The core's `buildVerifyInput` does that.
  */
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
@@ -442,8 +443,9 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
   return document;
 }
 
+// References: R-DX-2.
 /**
- * Finds and parses the build files of one contract in a Hardhat 2 or Hardhat 3 project (R-DX-2).
+ * Finds and parses the build files of one contract in a Hardhat 2 or Hardhat 3 project.
  * It reads files only; it does not run a compile, load the Hardhat config or need `hardhat`
  * installed.
  *
@@ -477,7 +479,7 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  * import { findHardhatBuild } from "@explorer-verify/hardhat";
  *
  * const build = await findHardhatBuild({ root: ".", contract: "Greeter" });
- * // build.files: ["artifacts/contracts/Greeter.sol/Greeter.json", "artifacts/build-info/<id>.json", ...]
+ * // build.files: ["artifacts/contracts/Greeter.sol/Greeter.json", "artifacts/build-info/<id>.json",...]
  * const built = buildVerifyInput(build.documents);
  * ```
  * @experimental

@@ -24,10 +24,11 @@ export function readFields(value: unknown): Map<string, unknown> | undefined {
   }
 }
 
+// References: R-SEC-2.
 /**
  * The own property `name` of `value`, read once, or `undefined` when `value` does not have it. A
- * value inherited from a prototype, such as one added to `Object.prototype`, is never returned
- * (R-SEC-2). A getter or Proxy trap that throws is not caught: the caller decides what the failure
+ * value inherited from a prototype, such as one added to `Object.prototype`, is never returned. A
+ * getter or Proxy trap that throws is not caught: the caller decides what the failure
  * means.
  */
 export function readOwn<T extends object, K extends keyof T>(value: T, name: K): T[K] | undefined {

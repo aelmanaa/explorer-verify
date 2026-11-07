@@ -1,6 +1,7 @@
 import { newError } from "../error-hints.ts";
+// References: R-IN-7.
 /**
- * The format-detecting input builder (R-IN-7): turns compiler JSON of unknown origin into the
+ * The format-detecting input builder: turns compiler JSON of unknown origin into the
  * `compiler` part of `VerifyInput` and the fully qualified contract name.
  */
 import { ExplorerVerifyError } from "../errors.ts";
@@ -73,11 +74,12 @@ export interface BuiltVerifyInput {
   compiler: VerifyInput["compiler"];
   /** The fully qualified contract name, as `path:Name`, with a path that is a key of the sources. */
   contractName: string;
+  // References: R-IN-3.
   /**
    * The contract's compiled creation bytecode, when the documents hold it: `evm.bytecode.object`
    * of a build-info output, or an artifact's `bytecode`. Absent when they do not, or when they
    * hold different values for the contract. `verify()` uses it to derive missing constructor
-   * arguments (R-IN-3).
+   * arguments.
    */
   creationBytecode?: Hex;
 }
@@ -876,7 +878,8 @@ function buildOptionKeys(): readonly string[] {
   } satisfies Record<keyof BuildVerifyInputOptions, true>);
 }
 
-/** The options, checked. An unknown key throws `invalid-input` naming it (R-IN-6). */
+// References: R-IN-6.
+/** The options, checked. An unknown key throws `invalid-input` naming it. */
 function readOptions(options: unknown): ReadOptions {
   if (options === undefined) {
     return { sources: new Map() };
@@ -927,9 +930,10 @@ function readDocuments(documents: unknown): unknown[] | undefined {
   }
 }
 
+// References: R-IN-7.
 /**
  * Builds the `compiler` part of `VerifyInput` and the fully qualified contract name from compiler
- * JSON of unknown origin (R-IN-7), such as the files an SDK ships in its npm package. It takes
+ * JSON of unknown origin, such as the files an SDK ships in its npm package. It takes
  * parsed objects, not paths, so it runs in a browser too.
  *
  * Each document is classified by its shape, never by a file name or a tool name:
@@ -986,7 +990,8 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *   `sources` with every missing source path in `details.candidates`); `source-mismatch` for a
  *   source whose keccak-256 differs from the metadata, with the path and both hashes in `details`;
  *   `insufficient-artifact` for ABI and bytecode only; `unsupported-compiler` for a compiler other
- *   than solc, zksolc (EraVM) included; `invalid-input` for documents of no known shape, documents of different builds or
+ *   than solc, zksolc (EraVM) included; `invalid-input` for documents of no known shape, documents
+ * of different builds or
  *   versions, metadata whose `compilationTarget` does not name exactly one contract, a path not in
  *   the sources, a local path, or an input that `validateInput` rejects. Messages never repeat a
  *   value or a path.
@@ -1003,8 +1008,7 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *
  * const input = validateInput({
  *   chainId: 11155111,
- *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
- *   ...built,
+ *   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",...built,
  * });
  *
  * // A Foundry artifact holds the metadata; the source files come next to it.

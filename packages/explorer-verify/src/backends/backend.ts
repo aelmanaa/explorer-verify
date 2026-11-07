@@ -1,5 +1,6 @@
+// References: R-BE-6.
 /**
- * The interface every backend client implements (R-BE-6), so the flow engine never branches on the
+ * The interface every backend client implements, so the flow engine never branches on the
  * backend. Internal: the package entry point does not export it.
  *
  * This file holds types only: nothing in it runs, so `.c8rc.json` excludes it from coverage.
@@ -32,10 +33,10 @@ export interface Target {
   readonly address: Hex;
 }
 
+// References: R-IN-3.
 /**
  * The input of a submit: a {@link VerifyInput} that `validateInput` has already checked and
- * normalised, with the constructor arguments that `verify()` derived when they were missing
- * (R-IN-3).
+ * normalised, with the constructor arguments that `verify()` derived when they were missing.
  */
 export type ResolvedInput = VerifyInput;
 
@@ -52,9 +53,10 @@ export type ResolvedInput = VerifyInput;
  * ```
  */
 export interface Context {
+  // References: R-SEC-2.
   /**
    * Where the requests go and where a person sees the contract. Request URLs come only from
-   * `route.requestUrl`, never from a handle (R-SEC-2).
+   * `route.requestUrl`, never from a handle.
    */
   readonly route: Route;
   /**
@@ -62,9 +64,10 @@ export interface Context {
    * observer, whose logger and event callback redact keys and never throw.
    */
   readonly http: HttpContext;
+  // References: R-SEC-2.
   /**
    * The caller's checked `apiKeys`. A client never reads it directly: it passes each request
-   * through `withKey`, which decides whether the request gets a key (R-SEC-2). Absent means none.
+   * through `withKey`, which decides whether the request gets a key. Absent means none.
    */
   readonly apiKeys?: ApiKeysReader;
   /**
@@ -73,8 +76,9 @@ export interface Context {
    * Absent means 3000.
    */
   readonly pollIntervalMs?: number;
+  // References: decision 0046.
   /**
-   * The caller's server handler, for a route whose requests go through it (decision 0046): it
+   * The caller's server handler, for a route whose requests go through it: it
    * words the errors of the handler's answers. Absent otherwise.
    */
   readonly handler?: ResolvedHandler | undefined;
@@ -101,8 +105,9 @@ export type SubmitOutcome =
       readonly match: Match;
     };
 
+// References: R-FLOW-4.
 /**
- * The result of one poll. Anything the backend cannot classify throws instead (R-FLOW-4).
+ * The result of one poll. Anything the backend cannot classify throws instead.
  *
  * - `pending`: the job is still running. Poll again.
  * - `verified`: the job verified the contract with this match.
@@ -133,12 +138,13 @@ export type PollOutcome =
 export interface Backend {
   /** The backend's name, as in `BACKEND_NAMES`. */
   readonly name: BackendName;
+  // References: R-FLOW-4.
   /**
    * Asks whether the contract is verified. Sends no submission.
    *
    * @returns The match, or `undefined` when the explorer says the contract is not verified.
    * @throws ExplorerVerifyError for every answer that does not clearly say one or the other. A
-   *   failed lookup never reads as "not verified" (R-FLOW-4).
+   *   failed lookup never reads as "not verified".
    */
   readonly lookup: (target: Target, ctx: Context) => Promise<Match | undefined>;
   /**
@@ -157,20 +163,23 @@ export interface Backend {
    *   may resolve; and `job-not-found` when the explorer does not know the job.
    */
   readonly poll: (handle: Handle, ctx: Context) => Promise<PollOutcome>;
+  // References: R-FLOW-3.
   /**
    * The public page of the contract, or `undefined` when the route points at a server whose
-   * contracts no public page shows, such as a self-hosted or local one (R-FLOW-3).
+   * contracts no public page shows, such as a self-hosted or local one.
    */
   readonly explorerUrl: (target: Target, ctx: Context) => string | undefined;
+  // References: R-IN-3.
   /**
    * Whether a submit sends constructor arguments. When it does, `verify()` derives missing ones
-   * from the creation code before the submit (R-IN-3). Absent means it does not.
+   * from the creation code before the submit. Absent means it does not.
    */
   readonly takesConstructorArgs?: boolean;
+  // References: decision 0032.
   /**
    * Whether the explorer refuses a build other than the deployed one, so a creation code that
-   * does not match `creationBytecode` is an early error rather than a submit without arguments
-   * (decision 0032). Absent means it may accept another build, as a partial match.
+   * does not match `creationBytecode` is an early error rather than a submit without arguments.
+   * Absent means it may accept another build, as a partial match.
    */
   readonly refusesOtherBuilds?: boolean;
   /**
@@ -184,8 +193,9 @@ export interface Backend {
   readonly creationCode?: (target: Target, ctx: Context) => Promise<string | undefined>;
 }
 
+// References: R-FLOW-8.
 /**
- * One step of a proxy link (R-FLOW-8), as a {@link ProxyLinker} reports it.
+ * One step of a proxy link, as a {@link ProxyLinker} reports it.
  *
  * - `submitted`: the explorer accepted the request and gave a job id to check.
  * - `pending`: the explorer is still linking. Check again.
@@ -218,8 +228,9 @@ export interface LinkTarget extends Target {
   readonly expectedImplementation?: Hex;
 }
 
+// References: R-FLOW-8.
 /**
- * How one explorer links a proxy to its implementation (R-FLOW-8). Each linker sits in a module of
+ * How one explorer links a proxy to its implementation. Each linker sits in a module of
  * its own that `linkProxy()` loads with a dynamic `import()`, so `verify()` never bundles it.
  * Every method sends its requests through `ctx.http`. A request answered in a form the client does
  * not know throws `unexpected-response`, since nothing started; a status check answered with a

@@ -1,7 +1,8 @@
+// References: R-DX-5, R-DX-6, decision 0010, R-SEC-1.
 /**
- * The two ways out for diagnostics: the caller's logger and the caller's `onEvent` callback
- * (R-DX-5, R-DX-6, decision 0010). Both pass the one redaction step of {@link redact} first
- * (R-SEC-1), and neither can break a verification: a logger or a callback that throws is caught.
+ * The two ways out for diagnostics: the caller's logger and the caller's `onEvent` callback. Both
+ * pass the one redaction step of {@link redact} first, and neither can break a verification: a
+ * logger or a callback that throws is caught.
  * Without a logger and a callback, nothing is written anywhere.
  */
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
@@ -46,7 +47,8 @@ export interface Observer {
 /** Does nothing: the method of a silent logger and the emit of a call without `onEvent`. */
 const nothing = (): void => {};
 
-/** The logger used when the caller passes none: it writes nothing (decision 0010). */
+// References: decision 0010.
+/** The logger used when the caller passes none: it writes nothing. */
 const SILENT: Logger = { debug: nothing, info: nothing, warn: nothing, error: nothing };
 
 /** An observer that writes nothing: no logger and no callback. */
@@ -118,9 +120,10 @@ export function createObserver(options: ObserverOptions): Observer {
   return { log, emit };
 }
 
+// References: R-SEC-1.
 /**
- * A copy of `event` with only its documented fields, and every free-text value redacted
- * (R-SEC-1): the address, the API host and the handle's job id. The job id uses the handle rule
+ * A copy of `event` with only its documented fields, and every free-text value redacted: the
+ * address, the API host and the handle's job id. The job id uses the handle rule
  * of the envelope and the errors, so a job id shaped like an Etherscan key still resumes. `type`,
  * `backend`, `match`, `state`, `reason` and `status` hold fixed values chosen by the library and
  * numbers hold no text, so they are copied as they are.

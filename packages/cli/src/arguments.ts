@@ -1,8 +1,9 @@
+// References: R-AX-5, R-AX-9.
 /**
  * Reads the command line with `util.parseArgs` in its non-strict, token mode, which never throws,
- * then checks the tokens itself. So `--json` is known before any usage error (R-AX-5), and no
- * error message repeats text the caller typed: an option's value, or a mistyped name, may be a key
- * (R-AX-9). An issue names the CLI's own option names, or the position of an argument.
+ * then checks the tokens itself. So `--json` is known before any usage error, and no
+ * error message repeats text the caller typed: an option's value, or a mistyped name, may be a key.
+ * An issue names the CLI's own option names, or the position of an argument.
  */
 import { parseArgs } from "node:util";
 import type { ParseArgsOptionsConfig } from "node:util";
@@ -43,9 +44,10 @@ export interface CommandSpec {
   readonly options: OptionSpecs;
   /** A hidden command runs, but no message or help text names it. */
   readonly hidden?: boolean;
+  // References: R-AX-9, R-RT-2.
   /**
-   * Whether the command talks to an explorer: it then accepts the route options and the key flags
-   * (R-AX-9, R-RT-2), and the main loop reads the keys before it runs.
+   * Whether the command talks to an explorer: it then accepts the route options and the key flags,
+   * and the main loop reads the keys before it runs.
    */
   readonly routed?: boolean;
 }
@@ -55,8 +57,9 @@ export function commandOptions(command: CommandSpec): OptionSpecs {
   return command.routed === true ? { ...ROUTE_OPTIONS, ...command.options } : command.options;
 }
 
+// References: R-AX-5, R-AX-6, R-AX-11, R-AX-14, R-AX-15.
 /**
- * The options every command accepts, in help order (R-AX-5, R-AX-6, R-AX-11, R-AX-14, R-AX-15).
+ * The options every command accepts, in help order.
  * `-v` is not bound, because it can mean verbose or version; `-V` is the version, as in cargo and
  * forge.
  */
@@ -85,16 +88,18 @@ export const GLOBAL_OPTIONS: OptionSpecs = {
 /** The word that asks for help, as in `explorer-verify help verify`. */
 export const HELP_WORD = "help";
 
-/** The command a contract address as the first argument runs (R-DX-1). */
+// References: R-DX-1.
+/** The command a contract address as the first argument runs. */
 const ADDRESS_COMMAND = "verify";
 
 /** The issue message of a string option that does not repeat, given twice. */
 const ONCE_MESSAGE = "can be given only once";
 
+// References: R-AX-9.
 /**
  * The shape of an unknown option that an issue may name: `--` and at most 32 lowercase letters and
  * `-`, as the CLI's own names are. It is named only when it is also close to one of the CLI's
- * names, as a typo such as `--colour` is, so a key of that shape is not echoed (R-AX-9). Any other
+ * names, as a typo such as `--colour` is, so a key of that shape is not echoed. Any other
  * unknown argument is named by its position.
  */
 const NAMEABLE = /^--[a-z][a-z-]{0,31}$/;
@@ -124,8 +129,9 @@ export interface Arguments {
   issues: InputIssue[];
   /** Whether `--help`, `-h` or the word `help` asked for help. The command is then its topic. */
   help: boolean;
+  // References: R-AX-10.
   /**
-   * The closest command or option to the first mistyped one (R-AX-10), such as `--dry-run`. It is
+   * The closest command or option to the first mistyped one, such as `--dry-run`. It is
    * one of the CLI's own names.
    */
   suggestion?: string;

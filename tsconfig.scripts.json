@@ -3,11 +3,18 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
+    "lib": ["ES2023", "DOM"],
     "outDir": "node_modules/.cache/tsbuild/scripts",
     "tsBuildInfoFile": "node_modules/.cache/tsbuild/scripts.tsbuildinfo"
   },
-  // The live matrix imports the built core package; the reference builds it first.
-  "references": [{ "path": "./packages/explorer-verify/tsconfig.build.json" }],
+  // Live probes read internal flow seams from source; published declarations omit them.
   // The CLI reference generator imports the CLI's command table and help from source.
-  "include": ["scripts", "site/.vitepress/config.ts", "site/api-reference.ts", "packages/cli/src"]
+  "include": [
+    "scripts",
+    "site/.vitepress/config.ts",
+    "site/api-reference.ts",
+    "packages/cli/src",
+    "packages/explorer-verify/src",
+    "packages/explorer-verify/src/routing/table.json"
+  ]
 }

@@ -1,9 +1,10 @@
+// References: R-FLOW-8, decisions 0016 and 0041.
 /**
- * Links a proxy on a Blockscout instance (R-FLOW-8). Blockscout detects proxies on its own; a
+ * Links a proxy on a Blockscout instance. Blockscout detects proxies on its own; a
  * `verifyproxycontract` request asks it to read the implementation again, and
  * `checkproxyverification` with the guid it answers says what it found. Both are form-encoded
  * POSTs to the route's `/api`, built by the Blockscout client, so the hosted API gets its key in a
- * header and an instance gets none (decisions 0016 and 0041). `linkProxy()` loads this module with
+ * header and an instance gets none. `linkProxy()` loads this module with
  * a dynamic `import()`, so `verify()` never bundles it.
  *
  * Blockscout's answer does not say whether the implementation is verified, so one lookup on the

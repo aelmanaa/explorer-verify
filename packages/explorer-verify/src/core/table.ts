@@ -1,14 +1,16 @@
+// References: decision 0052.
 /**
  * `explorer-verify/table`: the routing table shipped with this version, for the `table` option of
- * `explorer-verify/core` (decision 0052). It imports the rows statically: a caller who imports it
+ * `explorer-verify/core`. It imports the rows statically: a caller who imports it
  * bundles them, and one who does not, never does.
  */
 import { ROUTING_TABLE } from "../routing/table.ts";
 import { defineTable } from "./parts.ts";
 import type { ShippedRoutingTable } from "./parts.ts";
 
+// References: R-RT-1.
 /**
- * The routing table shipped with this version (R-RT-1). Pass it as `table` to the functions of
+ * The routing table shipped with this version. Pass it as `table` to the functions of
  * `explorer-verify/core` when a call leaves out `route.apiUrl`, so the table chooses the backend
  * and its API. `date` is when its rows were last checked, as `routingTableDate()` gives it.
  *

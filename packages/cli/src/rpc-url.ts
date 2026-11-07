@@ -1,7 +1,8 @@
+// References: R-IN-3, R-AX-9, R-SEC-1, decision 0016.
 /**
- * The JSON-RPC endpoint of `verify` (R-IN-3, R-AX-9, R-SEC-1): `VerifyOptions.rpcUrl`, which the
+ * The JSON-RPC endpoint of `verify`: `VerifyOptions.rpcUrl`, which the
  * library reads the creation transaction from to derive missing constructor arguments. Providers
- * put keys in the URL's path or query, so the URL follows the key rules of decision 0016 as far as
+ * put keys in the URL's path or query, so the URL follows the key rules of  as far as
  * a URL can:
  *
  * - `--rpc-url <url>` takes only a URL with no part that can hold a key: no path segment or query

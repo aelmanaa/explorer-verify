@@ -1,5 +1,6 @@
+// References: R-AX-9, R-RT-2, R-SEC-1, R-SEC-2, decision 0016.
 /**
- * API keys and the route options of a command (R-AX-9, R-RT-2, R-SEC-1, R-SEC-2, decision 0016).
+ * API keys and the route options of a command.
  * A key comes from an environment variable, from `--api-key-file` or from `--api-key-stdin`, and
  * never from a flag value. The library binds each key to its backend's host; this module only
  * reads the keys and the route flags and turns them into `VerifyOptions.apiKeys` and
@@ -24,9 +25,10 @@ import type { OptionSpecs, OptionValue } from "./arguments.ts";
 import type { OutputStream } from "./stderr.ts";
 import type { Environment } from "./terminal.ts";
 
+// References: decisions 0016 and 0041.
 /**
  * The environment variables the CLI reads keys from, the backend each one fills, and the one host
- * the library sends that key to (decisions 0016 and 0041).
+ * the library sends that key to.
  */
 export const KEY_VARIABLES: readonly {
   readonly name: string;
@@ -38,7 +40,8 @@ export const KEY_VARIABLES: readonly {
   { name: "BLOCKSCOUT_API_KEY", backend: "blockscout-hosted", host: "api.blockscout.com" },
 ];
 
-/** The options of a command that talks to an explorer (R-AX-9, R-RT-2). */
+// References: R-AX-9, R-RT-2.
+/** The options of a command that talks to an explorer. */
 export const ROUTE_OPTIONS: OptionSpecs = {
   backend: {
     type: "string",
@@ -120,7 +123,8 @@ export type RouteOptions = Pick<VerifyOptions, "apiKeys" | "route"> & {
 export interface ReadRouteOptions {
   /** The options to pass to the library, or `undefined` when there are issues. */
   readonly options: RouteOptions | undefined;
-  /** Every key read, valid or not, for redaction (R-SEC-1). */
+  // References: R-SEC-1.
+  /** Every key read, valid or not, for redaction. */
   readonly secrets: readonly string[];
   /** One issue per problem. Each names a variable or a flag, never a value. */
   readonly issues: readonly InputIssue[];
@@ -136,8 +140,9 @@ export interface RouteSources {
   readonly stdin: () => InputStream;
 }
 
+// References: decision 0016.
 /**
- * What is wrong with a key, as decision 0016 sets the rules, or `undefined` when it is valid.
+ * What is wrong with a key, as  sets the rules, or `undefined` when it is valid.
  *
  * @param key - The key.
  * @returns The issue message, which never repeats the key.
@@ -263,12 +268,13 @@ type Destination =
   | { readonly kind: "none" }
   | { readonly kind: "problem"; readonly message: string };
 
+// References: R-SEC-2.
 /**
  * Where a key from a flag goes. The routing table picks a backend partly by the keys it has, so
  * the CLI cannot tell which backend an unnamed key is for. The caller names it: `--api-url` binds
  * the key to that host, and `--backend` names a backend that takes a key from `apiKeys`.
  * `--backend etherscan-compatible` alone binds it to the standalone host of the chain's row. A key
- * is never given to a backend it was not meant for, such as a Routescan key to Etherscan (R-SEC-2).
+ * is never given to a backend it was not meant for, such as a Routescan key to Etherscan.
  */
 function destinationOf(route: RouteOverride, backendGiven: boolean): Destination {
   const { backend, apiUrl } = route;
@@ -304,9 +310,10 @@ const STDIN_READERS: readonly (readonly [option: string, label: string])[] = [
   ["rpc-url-stdin", "--rpc-url-stdin"],
 ];
 
+// References: R-AX-9.
 /**
  * The issue of two options that would both read stdin, such as `--api-key-stdin` with
- * `--input-json -` (R-AX-9), or `undefined`. The request, the keys and the RPC URL check it before
+ * `--input-json -`, or `undefined`. The request, the keys and the RPC URL check it before
  * any of them reads a byte. The issue names the later option of {@link STDIN_READERS}.
  *
  * @param values - The checked option values.
@@ -401,20 +408,22 @@ function checked(field: string, key: string, secrets: string[]): FlagKey {
   return problem === undefined ? { key } : { issue: { field, message: problem } };
 }
 
+// References: R-AX-9, R-RT-2, decision 0016.
 /**
- * Reads the route options and the keys of a command (R-AX-9, R-RT-2):
+ * Reads the route options and the keys of a command:
  *
  * - `ETHERSCAN_API_KEY` fills `apiKeys["etherscan-v2"]`, `ROUTESCAN_API_KEY` fills
  *   `apiKeys.routescan` and `BLOCKSCOUT_API_KEY` fills `apiKeys["blockscout-hosted"]`. An empty
  *   value counts as unset.
  * - `--api-key-file <path>` and `--api-key-stdin` give one key, with one trailing newline removed.
  *   With `--api-url`, it goes in `route.apiKey`, bound to that host. Otherwise `--backend` must
- *   name `etherscan-v2`, `routescan` or `blockscout-hosted`, and the key fills that `apiKeys` entry, winning over its
+ *   name `etherscan-v2`, `routescan` or `blockscout-hosted`, and the key fills that `apiKeys`
+ * entry, winning over its
  *   variable. Without either flag, the key has no named destination, which is an issue.
  * - `--api-key-stdin` with `--input-json -`, or with stdin a terminal, is an issue at once.
  * - `--backend <name>` and `--api-url <url>` fill `route`; the library checks the URL.
  *
- * Each key is checked with the rules of decision 0016, so an issue names the variable or the flag.
+ * Each key is checked with the rules of, so an issue names the variable or the flag.
  * Every key read, valid or not, is returned in `secrets`.
  *
  * @param sources - The option values, the environment and stdin.
@@ -489,9 +498,10 @@ function backendsGiven(value: OptionValue | undefined): readonly string[] {
   return typeof value === "object" ? value : [];
 }
 
+// References: R-RT-4.
 /**
  * The route options of `--backend` given more than once: `verify` then runs `verifyEach()` on each
- * backend (R-RT-4). Each backend uses its routing-table URL and gets its key only from its
+ * backend. Each backend uses its routing-table URL and gets its key only from its
  * environment variable, so `--api-url`, `--api-key-file` and `--api-key-stdin` are issues: none of
  * them can say which backend it is for.
  */
@@ -640,9 +650,10 @@ function scrubbed(text: string, pattern: RegExp): string {
   return text.replace(pattern, REDACTED);
 }
 
+// References: R-SEC-1.
 /**
- * A stream that writes through to `stream` with every key in `secrets` replaced by `[redacted]`
- * (R-SEC-1). It reads `secrets` at each write, so keys read after it was made are removed too.
+ * A stream that writes through to `stream` with every key in `secrets` replaced by `[redacted]`. It
+ * reads `secrets` at each write, so keys read after it was made are removed too.
  * Keys shorter than 8 characters are left alone: the library refuses them, and replacing them
  * could corrupt other text. A key holds only characters that JSON and the text lines write as
  * they are, so a plain replacement finds every copy. A write of one JSON object on one line keeps
@@ -671,9 +682,10 @@ function secretPattern(secrets: readonly string[]): RegExp | undefined {
   return parts.length === 0 ? undefined : new RegExp(parts.join("|"), "gi");
 }
 
+// References: R-SEC-1.
 /**
  * The non-empty values of the key variables, so the main loop can remove them from every output
- * before it reads the command line (R-SEC-1).
+ * before it reads the command line.
  *
  * @param env - The environment variables.
  * @returns The values that are set.

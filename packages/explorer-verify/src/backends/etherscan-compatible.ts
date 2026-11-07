@@ -1,18 +1,19 @@
+// References: R-BE-2, decision 0039, R-FLOW-3, decisions 0016 and 0039, R-SEC-2, R-SEC-1, R-FLOW-4.
 /**
- * The client for standalone Etherscan-compatible explorers (R-BE-2): an explorer that serves
+ * The client for standalone Etherscan-compatible explorers: an explorer that serves
  * Etherscan's API on its own host, for one chain, outside Etherscan's multichain API. It is the
  * Etherscan client, built by `etherscanStyle`, with these differences. The evidence is in
  * docs/contributor/research/2026-11-04-etherscan-compatible-client.md and
  * docs/contributor/research/2026-11-05-etherscan-compatible-hosts.md.
  *
- * - The API base is the routing table's entry for the chain (decision 0039), or the caller's
+ * - The API base is the routing table's entry for the chain, or the caller's
  *   `route.apiUrl`. A result has an `explorerUrl` only when the table's entry names an explorer
- *   host and the route is the table's (R-FLOW-3).
+ *   host and the route is the table's.
  * - No request sends a `chainid` parameter: each host serves one chain.
  * - A key comes only from `route.apiKey`, which is bound to the host of `route.apiUrl`, or to the
  *   table's host for the chain when its entry has `needsKey`. `apiKeys["etherscan-compatible"]`
- *   throws `invalid-input` (decisions 0016 and 0039, R-SEC-2). The key goes in the `apikey` field
- *   of the form body, never in the URL (R-SEC-1).
+ *   throws `invalid-input`. The key goes in the `apikey` field
+ *   of the form body, never in the URL.
  * - A lookup or a status request without a key is a GET with its fields in the query: Bitlayer's
  *   API answers `getsourcecode` sent as a POST with `Request method 'POST' not supported` (live,
  *   2026-11-05). With a key, it is a form POST, so the key stays out of the URL.
@@ -20,7 +21,7 @@
  * Every answer is read as the Etherscan client reads it, except that a lookup answered with an
  * empty `result` list means "not verified", as Bitlayer answers (live, 2026-11-05). A retired
  * Etherscan host, such as `api-sepolia.basescan.org/api`, answers `You are using a deprecated V1
- * endpoint` with HTTP 200; that throws `unexpected-response`, never `failed` (R-FLOW-4).
+ * endpoint` with HTTP 200; that throws `unexpected-response`, never `failed`.
  */
 import type { BackendName } from "../backend-names.ts";
 import { keyFor, withKey } from "../http/api-keys.ts";

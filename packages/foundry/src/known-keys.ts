@@ -1,5 +1,6 @@
+// References: R-IN-6.
 /**
- * The check for unknown option keys (R-IN-6): every public function refuses an options object
+ * The check for unknown option keys: every public function refuses an options object
  * with a key it does not read, and suggests the closest name it does read. Internal: not exported
  * from the package entry point. A copy of the core's `src/internal/known-keys.ts`; a core test
  * keeps the two the same.
@@ -9,10 +10,11 @@ import type { InputIssue } from "explorer-verify";
 /** Keys shorter than this get no suggestion: a one- or two-letter key matches too much. */
 const MIN_LENGTH = 3;
 
+// References: R-SEC-1.
 /**
  * A key named in an issue: an identifier of at most 32 characters with fewer than 8 digits. Any
  * other key is not repeated, because a long or key-shaped name may be a secret pasted in the
- * wrong place (R-SEC-1).
+ * wrong place.
  */
 const NAMEABLE = /^(?!(?:\D*\d){8})[A-Za-z_$][\w$-]{0,31}$/;
 
@@ -65,7 +67,8 @@ function closest(typed: string, names: readonly string[]): string | undefined {
  * An issue for each key of `keys` that is not in `known`. The issue names the key, after
  * `prefix`, and the closest known name when one is close; it never holds the key's value. A key
  * that is not a short identifier with few digits is not repeated: its issue names the object,
- * `prefix` without its dot or `fallback` when there is no prefix. Callers pass the own enumerable string keys, as {@link ownKeys}
+ * `prefix` without its dot or `fallback` when there is no prefix. Callers pass the own enumerable
+ * string keys, as {@link ownKeys}
  * gives them.
  *
  * @param keys - The keys of the caller's object.

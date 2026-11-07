@@ -1,5 +1,6 @@
+// References: R-AX-12, decision 0056.
 /**
- * The chain names `--chain` accepts besides a chain ID (R-AX-12, decision 0056). The routing table
+ * The chain names `--chain` accepts besides a chain ID. The routing table
  * holds chain IDs only, so the CLI keeps this list: one short lowercase name for each chain it
  * covers, plus `ethereum` for chain 1. A test checks that the routing table has a row for every
  * ID. A name and its ID give the same run and the same stdout.
@@ -8,10 +9,11 @@ import type { InputIssue } from "explorer-verify";
 
 import { closest } from "./suggest.ts";
 
+// References: decision 0056.
 /**
  * The chain ID of each name, in help order: mainnets, each followed by its testnets and other
  * names for the same chains, such as `op` and `amoy`. Each ID matches the chain's entry on
- * chainid.network (decision 0056).
+ * chainid.network.
  */
 export const CHAIN_NAMES: ReadonlyMap<string, number> = new Map([
   ["mainnet", 1],
@@ -79,10 +81,10 @@ export type ChainRead =
   | { readonly chainId: number }
   | { readonly issue: InputIssue; readonly suggestion?: string };
 
+// References: R-AX-9, R-AX-10.
 /**
  * The chain ID of a `--chain` value: a chain ID, or one of {@link CHAIN_NAMES}, any case. Anything
- * else is an issue that names `--chain`, never the value, with the closest name when one is close
- * (R-AX-9, R-AX-10).
+ * else is an issue that names `--chain`, never the value, with the closest name when one is close.
  *
  * @param value - The value of `--chain`.
  * @returns The chain ID, or the issue and the closest name.

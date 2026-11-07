@@ -14,7 +14,7 @@ parsing messages:
 - `exitCodeOf(outcome)` gives the exit code.
 - `toEnvelope(outcome)` gives the JSON envelope.
 
-The CLI, once it ships, prints the envelope on stdout with `--json` and exits with that code. Both
+The CLI prints the envelope on stdout with `--json` and exits with that code. Both
 functions, [verify()](verify.md) and [checkStatus()](check-status.md) are in the library now.
 
 ```ts

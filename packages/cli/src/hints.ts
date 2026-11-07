@@ -1,11 +1,12 @@
+// References: R-AX-5, R-AX-10, R-SEC-1.
 /**
- * The CLI's words for an error (R-AX-5, R-AX-10): a hint that names the CLI's flags and
+ * The CLI's words for an error: a hint that names the CLI's flags and
  * environment variables instead of the library's options, and the next command to run when one
  * exists. The library's hints name `checkStatus()`, `details.handle` or `apiKeys`, which a person
  * at a shell or an agent cannot act on.
  *
  * A hint is filled in only with values that cannot hold a key: a handle, contract names, a source
- * path and a backend name, each already redacted by the library (R-SEC-1).
+ * path and a backend name, each already redacted by the library.
  */
 import { ERROR_HINTS, tryParseHandle } from "explorer-verify";
 import type { BackendName, DetailsJsonOf, ErrorCode, ErrorJson } from "explorer-verify";

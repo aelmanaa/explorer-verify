@@ -1,6 +1,7 @@
+// References: R-BE-3, decision 0041, R-FLOW-4.
 /**
- * The Blockscout clients (R-BE-3): `blockscout` for a single-chain instance and
- * `blockscout-hosted` for Blockscout's hosted multichain API (decision 0041). Each instance serves
+ * The Blockscout clients: `blockscout` for a single-chain instance and
+ * `blockscout-hosted` for Blockscout's hosted multichain API. Each instance serves
  * its own API at `<origin>/api`, needs no key and answers browsers directly. The hosted API serves
  * each chain it indexes at `https://api.blockscout.com/<chainId>/api`, with the same requests and
  * answers, and needs a key, which `withKey` puts in the `authorization` header. The submit and the
@@ -11,7 +12,7 @@
  * Blockscout answers a submit and a status request with HTTP 200 and puts the meaning in the
  * `result` text. `status` `"1"` alone never means success: an unknown job also comes with it. The
  * client maps each known text to an outcome or a typed error; a text it does not know is never
- * read as success, "not verified" or `failed` (R-FLOW-4). The evidence for each mapping is in
+ * read as success, "not verified" or `failed`. The evidence for each mapping is in
  * docs/contributor/research/2026-11-04-blockscout-client.md.
  */
 import type { BackendName } from "../backend-names.ts";
@@ -51,9 +52,10 @@ import type { Answer } from "./common.ts";
 type Name = Extract<BackendName, "blockscout" | "blockscout-hosted">;
 const HOSTED: Name = "blockscout-hosted";
 const LABEL = "Blockscout";
+// References: R-FLOW-7.
 /**
  * How long after the first submit the client may still submit again while Blockscout gives an
- * empty answer, as it can right after a deployment (R-FLOW-7).
+ * empty answer, as it can right after a deployment.
  */
 export const EMPTY_SUBMIT_WINDOW_MS = 30_000;
 /**
@@ -95,10 +97,11 @@ const UNKNOWN_UID = "Unknown UID";
  */
 export const blockscout: Backend = /* @__PURE__ */ client("blockscout");
 
+// References: decision 0041.
 /**
  * The client for Blockscout's hosted API, `https://api.blockscout.com/<chainId>/api`: the
  * instance client's requests with `apiKeys["blockscout-hosted"]` in the `authorization` header,
- * and the hosted API's key answers mapped by {@link refusal} (decision 0041).
+ * and the hosted API's key answers mapped by {@link refusal}.
  *
  * @example
  * ```ts
@@ -150,7 +153,8 @@ function client(name: Name): Backend {
   }
 
   /**
-   * Submits the source with `verifysourcecode`. A submit that may have reached Blockscout without an
+   * Submits the source with `verifysourcecode`. A submit that may have reached Blockscout without
+   * an
    * answer (no response, a 500, 502 or 504, or a 200 whose body failed, stalled or is not JSON) is
    * never sent again blindly: the client looks the contract up first. So is a submit that got an
    * empty answer.
@@ -398,9 +402,10 @@ const PLAN_NEEDED = "requires one of the following plans";
 const PLAN_HINT =
   "Use a key whose plan covers this chain, or the backend blockscout, an instance that needs no key.";
 
+// References: decision 0041.
 /**
  * The error an answer of Blockscout's hosted API reports about the key or the chain, or
- * `undefined` (decision 0041). Answers recorded on 2026-11-05:
+ * `undefined`. Answers recorded on 2026-11-05:
  *
  * - HTTP 401, `{"error":"Unauthorized"}`, for a key the API does not know: `api-key-rejected`.
  * - HTTP 402 when the request carried a key, or with `requires one of the following plans`: the

@@ -1,5 +1,5 @@
 // The TypeScript examples of the user docs (R-AX-2), tested against the build as the skill's are
-// (R-AX-4): every `ts` block under docs/user/ compiles, and runs with recorded Sourcify answers and
+// (R-AX-4): every `ts` block under docs/user/ and in the READMEs compiles, runs with recorded answers and
 // prints its documented output. A `ts no-run` block is only type-checked; a `ts fragment` block is
 // skipped. Run after the build, as `pnpm test` does: the examples import `explorer-verify`,
 // `@explorer-verify/foundry` and `@explorer-verify/hardhat`, which resolve to each `dist/`.
@@ -34,7 +34,14 @@ import {
 import type { DocExample, DocSetup } from "../helpers/user-docs.ts";
 
 const pages = userDocPages();
-const parsed = pages.map((page) =>
+const readmes = [
+  "../../README.md",
+  "../../packages/explorer-verify/README.md",
+  "../../packages/cli/README.md",
+  "../../packages/foundry/README.md",
+  "../../packages/hardhat/README.md",
+];
+const parsed = [...pages, ...readmes].map((page) =>
   docExamples(page, readFileSync(path.join(USER_DOCS_DIR, page), "utf8")),
 );
 const all: readonly DocExample[] = parsed.flatMap((page) => page.examples);
@@ -96,6 +103,25 @@ const ETHERSCAN_KEY_ENV: Readonly<Record<string, string>> = {
 // A block with no entry here runs once in a `core` project with no answers, and must exit 0 and
 // print its output block, or nothing.
 const RUNS: readonly DocRun[] = [
+  ...[
+    "../../README.md",
+    "../../packages/explorer-verify/README.md",
+    "../../packages/foundry/README.md",
+  ].map((page): DocRun => ({
+    page,
+    example: 0,
+    what: "README SDK quickstart",
+    setup: "foundry",
+    fixtures: ALREADY_VERIFIED,
+  })),
+  {
+    page: "../../packages/hardhat/README.md",
+    example: 0,
+    what: "README Hardhat quickstart",
+    setup: "hardhat-3",
+    fixtures: ALREADY_VERIFIED,
+  },
+
   {
     page: "guides/verify-a-contract-from-an-npm-package.md",
     example: 0,

@@ -1,9 +1,10 @@
+// References: R-IN-3, decision 0032, decision 0031.
 /**
- * Constructor argument derivation (R-IN-3): the creation code minus the compiled creation bytecode
+ * Constructor argument derivation: the creation code minus the compiled creation bytecode
  * is the ABI-encoded arguments. `verify()` runs it before a submit when the caller passed no
  * `constructorArgs`, the route's backend sends arguments, and the input holds `creationBytecode`.
- * What happens when it cannot derive them is decision 0032. `verify()` loads this module with a
- * dynamic `import()` only when it derives (decision 0031). Internal: the package entry point does
+ * What happens when it cannot derive them is. `verify()` loads this module with a
+ * dynamic `import()` only when it derives. Internal: the package entry point does
  * not export it.
  */
 import type { Backend, Context, Target } from "../backends/backend.ts";
@@ -22,8 +23,9 @@ import type { Hex, Logger, VerifyInput } from "../types.ts";
 /** Why the creation code shows the arguments cannot be derived. */
 type Mismatch = Extract<ErrorDetails, { code: "constructor-args-unavailable" }>["reason"];
 
+// References: decision 0032.
 /**
- * Why no arguments were derived, when the call goes on without them (decision 0032):
+ * Why no arguments were derived, when the call goes on without them:
  *
  * - `no-source`: nothing to ask, neither `rpcUrl` with `creationTxHash` nor an explorer source;
  * - `no-creation-code`: every source asked gave no usable answer;
@@ -102,7 +104,8 @@ export interface DeriveCall {
   readonly target: Target;
 }
 
-/** Why no constructor arguments were derived, as the log line says it (decision 0032). */
+// References: decision 0032.
+/** Why no constructor arguments were derived, as the log line says it. */
 const SKIPPED: Record<SkipReason, string> = {
   "no-source": "No rpcUrl with creationTxHash and no explorer key to read the creation code",
   "no-creation-code": "No source gave the creation code",
@@ -112,16 +115,17 @@ const SKIPPED: Record<SkipReason, string> = {
   "bad-length": "What follows creationBytecode is not whole 32-byte words",
 };
 
+// References: R-IN-3, decision 0057.
 /**
- * `input` with the constructor arguments derived from the creation code (R-IN-3). When no
+ * `input` with the constructor arguments derived from the creation code. When no
  * arguments are derived, it logs why and returns `input` unchanged, so the submit goes out without
- * arguments as before: at `info` when no source is configured, at `warn` otherwise (decision
- * 0032). A mismatch on a backend that refuses another build throws instead. Requests to `rpcUrl`
+ * arguments as before: at `info` when no source is configured, at `warn` otherwise. A mismatch on a
+ * backend that refuses another build throws instead. Requests to `rpcUrl`
  * share the call's budget, signal and observer. Their log lines carry `label: "rpc"` and no
  * backend name, and their retries emit no `verify.retry` event, which names a backend. A `timeout`
  * error still names the route's backend: the budget is the call's. zksolc input is returned
  * unchanged with an `info` line and no request: on EraVM the arguments do not follow the creation
- * code (decision 0057).
+ * code.
  *
  * @param call - The `verify()` call, with its loaded client.
  * @param input - The checked input.
@@ -196,9 +200,9 @@ export async function withDerivedArgs(
   return { ...input, constructorArgs: derived.args };
 }
 
+// References: R-IN-3, decision 0032.
 /**
- * The ABI-encoded constructor arguments of `input.address`, derived from its creation code
- * (R-IN-3).
+ * The ABI-encoded constructor arguments of `input.address`, derived from its creation code.
  *
  * 1. With `sources.rpc` and `input.creationTxHash`: reads `eth_chainId`, then the transaction.
  *    A transaction to the CREATE2 deployer gives the init code after its salt. A transaction with
@@ -214,7 +218,7 @@ export async function withDerivedArgs(
  *
  * @param input - The checked input, with `creationBytecode` in lower case with `0x`.
  * @param sources - Where to read the creation code, and whether a mismatch throws.
- * @returns The arguments, `0x` and lower-case hex, or why there are none (decision 0032).
+ * @returns The arguments, `0x` and lower-case hex, or why there are none.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
  * @throws ExplorerVerifyError `constructor-args-unavailable` with `details.reason`
  *   `prefix-mismatch` or `bad-length` when `sources.strict` is set; `invalid-input` naming

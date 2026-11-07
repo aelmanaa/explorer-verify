@@ -1,6 +1,7 @@
+// References: decision 0052.
 /**
  * The objects `explorer-verify/clients/*` and `explorer-verify/table` export, and what each one
- * holds (decision 0052). A caller of `explorer-verify/core` sees only a backend name and a kind:
+ * holds. A caller of `explorer-verify/core` sees only a backend name and a kind:
  * the code behind each object stays internal, kept here by object, so the client interface can
  * change without a breaking release and a plain object cannot pose as a client.
  *
@@ -72,7 +73,8 @@ export interface ProxyLinkClient {
 export interface ShippedRoutingTable {
   /** Tells the table from a client. */
   readonly kind: "routing-table";
-  /** When the rows were last checked against their sources, as `YYYY-MM-DD` (R-RT-1). */
+  // References: R-RT-1.
+  /** When the rows were last checked against their sources, as `YYYY-MM-DD`. */
   readonly date: string;
 }
 

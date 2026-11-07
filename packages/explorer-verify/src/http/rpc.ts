@@ -1,7 +1,8 @@
+// References: decision 0026, R-IN-3.
 /**
  * A JSON-RPC endpoint the caller configures (`rpcUrl`): the request to it, the `result` of its
- * answer, and the parts of its URL that may hold a key. The bytecode resolver (decision 0026) and
- * the constructor argument derivation (R-IN-3) both read the chain through it. Internal: the
+ * answer, and the parts of its URL that may hold a key. The bytecode resolver  and
+ * the constructor argument derivation  both read the chain through it. Internal: the
  * package entry point does not export it.
  */
 import { readFields } from "../internal/read-fields.ts";

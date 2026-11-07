@@ -1,6 +1,6 @@
+// References: decision 0052.
 /**
- * `explorer-verify/clients/etherscan-v2`: the Etherscan v2 clients for `explorer-verify/core`
- * (decision 0052).
+ * `explorer-verify/clients/etherscan-v2`: the Etherscan v2 clients for `explorer-verify/core`.
  */
 import { etherscan } from "../backends/etherscan.ts";
 import { etherscanProxyLinker } from "../backends/proxy-etherscan.ts";

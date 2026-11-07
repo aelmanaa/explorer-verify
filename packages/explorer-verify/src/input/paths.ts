@@ -1,5 +1,6 @@
+// References: R-IN-7, R-IN-4.
 /**
- * The local-path rule shared by the input builder and `validateInput` (R-IN-7, R-IN-4). Internal:
+ * The local-path rule shared by the input builder and `validateInput`. Internal:
  * not exported from the package entry point.
  */
 

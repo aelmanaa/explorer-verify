@@ -249,6 +249,7 @@ export async function waitToResubmit(
   await sleep(delayMs, signal);
 }
 
+// References: decision 0059.
 /**
  * The `verifysourcecode` fields of an Etherscan-style API for a Standard JSON input, without the
  * constructor arguments: `sourceCode` holds only `language`, `sources` and `settings`, and
@@ -256,7 +257,7 @@ export async function waitToResubmit(
  *
  * For zksolc, `compilerversion` is the upstream solc long version and `zksolcVersion` is the
  * zksolc version, both with one leading `v`. Only Blockscout on chains 324 and 300 maps this kind;
- * the flow refuses it for other backend/chain pairs before loading the client (decision 0059).
+ * the flow refuses it for other backend/chain pairs before loading the client.
  *
  * @param input - The checked input.
  * @returns The form fields, `module` excluded.

@@ -1,5 +1,6 @@
+// References: R-FLOW-5, R-SEC-2.
 /**
- * The checks behind `parseHandle`, `tryParseHandle` and `isHandleString` (R-FLOW-5, R-SEC-2). This
+ * The checks behind `parseHandle`, `tryParseHandle` and `isHandleString`. This
  * module imports no error code, so the two checks that do not throw stay small in a bundle.
  */
 import { toBackendName } from "../backend-names.ts";
@@ -32,9 +33,10 @@ export type HandleCheck =
   | { readonly handle: Handle; readonly issues?: undefined }
   | { readonly handle?: undefined; readonly issues: InputIssue[] };
 
+// References: R-SEC-2.
 /**
  * Reads and checks a handle in either form: the handle object or its one-line form. Any field it
- * does not know, such as a URL, is an issue (R-SEC-2). Issue messages name the known fields only
+ * does not know, such as a URL, is an issue. Issue messages name the known fields only
  * and never repeat a value.
  *
  * @param value - Any value.
@@ -46,10 +48,11 @@ export function checkHandle(value: unknown): HandleCheck {
     : checkFields(readFields(value), "must be 1");
 }
 
+// References: R-FLOW-5.
 /**
  * Reads a handle in either form, as `parseHandle` does, and returns `undefined` for a value
  * that `parseHandle` rejects. It never throws and loads none of the error code, so a page can
- * check a stored value cheaply (R-FLOW-5).
+ * check a stored value cheaply.
  *
  * @param value - The handle object or its one-line form, from untrusted input.
  * @returns A new handle with exactly the fields of {@link Handle}, or `undefined`.
@@ -68,11 +71,12 @@ export function tryParseHandle(value: unknown): Handle | undefined {
   return checkHandle(value).handle;
 }
 
+// References: R-FLOW-5.
 /**
- * Whether `value` is a valid handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`,
+ * Whether `value` is a valid handle in its one-line form,
+ * `ev1:<backend>:<chainId>:<address>:<jobId>`,
  * the form `formatHandle` writes. A handle object gives `false`: read it with `tryParseHandle`.
- * A handle whose job id was redacted, such as `…:[redacted]`, gives `false` too. It never throws
- * (R-FLOW-5).
+ * A handle whose job id was redacted, such as `…:[redacted]`, gives `false` too. It never throws.
  *
  * @param value - Any value.
  * @returns `true` when `parseHandle` would accept the string, which TypeScript then types as

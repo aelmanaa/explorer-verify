@@ -1,8 +1,9 @@
+// References: R-RT-4, decision 0034, R-RUN-5.
 /**
- * `verifyEach()`: one call that verifies on several backends and returns one outcome per backend
- * (R-RT-4, decision 0034). Each backend runs the steps of `verify()` through the same helpers, in
+ * `verifyEach()`: one call that verifies on several backends and returns one outcome per backend.
+ * Each backend runs the steps of `verify()` through the same helpers, in
  * parallel, with one shared time budget and the caller's signal. It is its own module, so a caller
- * who imports only `verify` does not bundle it (R-RUN-5).
+ * who imports only `verify` does not bundle it.
  */
 import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
@@ -98,6 +99,7 @@ const BACKENDS_HINT =
  * ```ts
  * const result = await runVerifyEach(input, { backends: ["sourcify"] }, { backends: { sourcify } });
  * ```
+ * @internal
  */
 export async function runVerifyEach(
   input: VerifyInput,
@@ -183,6 +185,7 @@ function outcomeOf(backend: BackendName, result: VerifyResult): BackendOutcome {
     : { backend, ok: true, result };
 }
 
+// References: R-SEC-1.
 /**
  * Checks every run against the others before any request, and throws `invalid-input` with every
  * issue:
@@ -190,7 +193,7 @@ function outcomeOf(backend: BackendName, result: VerifyResult): BackendOutcome {
  * - Two entries that resolve to the same backend and API base, once the URL is normalised (host
  *   case, trailing slashes), are a duplicate. The same backend on two hosts is allowed.
  * - Every key, from `apiKeys` or an entry's `apiKey`, must not appear in the address or in the
- *   handle's fixed part of any backend: redaction would corrupt them (R-SEC-1).
+ *   handle's fixed part of any backend: redaction would corrupt them.
  */
 function checkRuns(
   runs: readonly Run[],
@@ -251,13 +254,15 @@ function normalised(apiUrl: string | undefined): string {
   return typeof checked === "string" ? "" : checked.apiBase;
 }
 
+// References: decision 0040, decision 0057.
 /**
  * The runs of the call: each entry with its route. Every entry is checked before the routing table
  * loads, and the table loads only when an entry needs it (`readsTable`), or for `"all"`, which
- * reads the chain's row (decision 0040). For `"all"`, a table that fails to load throws `network`, as in `verify()`.
+ * reads the chain's row. For `"all"`, a table that fails to load throws `network`, as in
+ * `verify()`.
  * For a list, it is the outcome of each entry that reads the table, as a client's load failure is.
  * An entry whose backend does not map the input's compiler kind ends in `unsupported-compiler`,
- * before any request (decision 0057).
+ * before any request.
  */
 async function runsOf(
   chainId: number,
@@ -401,11 +406,12 @@ function entryError(error: unknown, override: Entry, index: number): unknown {
   );
 }
 
+// References: decision 0039.
 /**
  * The route of one entry, checked with {@link checkEntry} unless `checked` is given. An
  * `unsupported-chain` is returned, as that backend's outcome, with its hint naming the entry. An
- * `invalid-input` that needs the row, a `route.apiKey` for a standalone explorer that takes none
- * (decision 0039), is thrown with its fields named after the entry.
+ * `invalid-input` that needs the row, a `route.apiKey` for a standalone explorer that takes none,
+ * is thrown with its fields named after the entry.
  */
 function routeFor(
   chainId: number,

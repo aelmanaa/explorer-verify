@@ -30,7 +30,7 @@
     "coverage": "pnpm run build && pnpm -r run coverage",
     "test:mutation": "pnpm --filter explorer-verify run test:mutation",
     "test:mutation:incremental": "pnpm --filter explorer-verify run test:mutation:incremental",
-    "pkg:check": "pnpm run build && pnpm -r run pkg:check && knip",
+    "pkg:check": "pnpm run build && pnpm -r run pkg:check && node scripts/check-declaration-docs.ts && knip",
     "size": "pnpm run build && node scripts/check-size.ts size-budget.json && node scripts/check-names.ts name-budget.json",
     "test:browser": "pnpm run build && node scripts/browser-smoke.ts",
     "test:browser:harness": "node scripts/test-browser/browser-smoke.test.ts",

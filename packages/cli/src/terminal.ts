@@ -1,5 +1,6 @@
+// References: R-AX-6.
 /**
- * What each stream may show (R-AX-6): colour per stream and spinners on stderr. The CLI has no
+ * What each stream may show: colour per stream and spinners on stderr. The CLI has no
  * pager: its longest output, the help, fits a screen or two.
  * Each decision reads only its own stream's terminal state, `--color`, `NO_COLOR`, `TERM`, `CI`,
  * the log format and the log level. The CLI never prompts.
@@ -41,8 +42,9 @@ function isSet(env: Environment, name: string): boolean {
   return value !== undefined && value !== "";
 }
 
+// References: R-AX-6.
 /**
- * The terminal rules of R-AX-6:
+ * The terminal rules of:
  *
  * - `--color=always` colours both streams and `--color=never` neither. With `auto`, a non-empty
  *   `NO_COLOR` or `TERM=dumb` turns colour off, and each stream is coloured only when it is a

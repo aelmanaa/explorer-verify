@@ -1,5 +1,6 @@
+// References: R-BE-5, decision 0016, R-SEC-1.
 /**
- * The Routescan client (R-BE-5). Routescan serves an Etherscan-compatible API, so this client is
+ * The Routescan client. Routescan serves an Etherscan-compatible API, so this client is
  * the Etherscan one with three differences. The evidence is in
  * docs/contributor/research/2026-11-04-routescan-client.md and
  * docs/contributor/research/2026-11-03-routescan-zksync.md.
@@ -8,7 +9,7 @@
  *   `https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api`. No request sends a
  *   `chainid` parameter.
  * - A key is optional: the free tier needs none. When one is set, `withKey` puts it in the
- *   `apikey` request header, never in the URL or the body (decision 0016, R-SEC-1). A real key
+ *   `apikey` request header, never in the URL or the body. A real key
  *   there is read: the answer carries the keyed tier's `x-ratelimit-*` headers (live,
  *   2026-11-05, docs/contributor/research/2026-11-05-routescan-key.md).
  * - A lookup or a status request is a GET with its fields in the query, plus a random `nocache`

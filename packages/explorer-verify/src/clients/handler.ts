@@ -1,7 +1,8 @@
+// References: decision 0052, decision 0046.
 /**
  * The `handlerUrl` code that the Etherscan v2 clients of `explorer-verify/clients/etherscan-v2`
- * bring, imported statically (decision 0052): `handlerUrl` sends only Etherscan v2 requests
- * through the caller's server handler (decision 0046).
+ * bring, imported statically: `handlerUrl` sends only Etherscan v2 requests
+ * through the caller's server handler.
  */
 import type { HandlerLoader } from "../flow/verify.ts";
 import { resolveHandler } from "../http/handler-url.ts";

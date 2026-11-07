@@ -15,9 +15,10 @@ export interface SplitHandle {
   jobId: string;
 }
 
+// References: R-AX-5.
 /**
  * Writes a handle on one line, as `ev1:<backend>:<chainId>:<address>:<jobId>`. The CLI prints this
- * form and the `error` object of its JSON output carries it (R-AX-5).
+ * form and the `error` object of its JSON output carries it.
  *
  * @param handle - A handle from `verify()` or `parseHandle`.
  * @returns The one-line form.
@@ -59,9 +60,10 @@ export function splitHandle(value: unknown): SplitHandle | undefined {
   return { prefix, jobId: value.slice(prefix.length) };
 }
 
+// References: R-SEC-1.
 /**
  * A split one-line handle with its job id redacted by {@link redactJobId}, so a job id shaped like
- * a key still resumes (R-SEC-1). The envelope, the errors and the `verify.submitted` event share
+ * a key still resumes. The envelope, the errors and the `verify.submitted` event share
  * this rule.
  *
  * @param handle - The prefix and job id from {@link splitHandle}.

@@ -1,6 +1,6 @@
+// References: decision 0052.
 /**
- * `explorer-verify/clients/sourcify`: the Sourcify clients for `explorer-verify/core`
- * (decision 0052).
+ * `explorer-verify/clients/sourcify`: the Sourcify clients for `explorer-verify/core`.
  */
 import { sourcifyProxyLinker } from "../backends/proxy-sourcify.ts";
 import { sourcify as sourcifyBackend } from "../backends/sourcify.ts";

@@ -1,5 +1,6 @@
+// References: R-IN-7.
 /**
- * Rebuilding a Standard JSON input from Solidity metadata and source files (R-IN-7). The metadata
+ * Rebuilding a Standard JSON input from Solidity metadata and source files. The metadata
  * is the JSON whose hash solc appends to the bytecode: it records the language, the compiler
  * version, the settings, the target contract and the keccak-256 hash of every source. Format:
  * https://docs.soliditylang.org/en/v0.8.24/metadata.html.

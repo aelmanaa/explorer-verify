@@ -3,6 +3,8 @@
   "src": ["scripts"],
   "include": [
     "scripts/agent-docs.ts",
+    "scripts/declaration-docs.ts",
+    "scripts/check-declaration-docs.ts",
     "scripts/blockscout-deprecation.ts",
     "scripts/bundle.ts",
     "scripts/check-size.ts",

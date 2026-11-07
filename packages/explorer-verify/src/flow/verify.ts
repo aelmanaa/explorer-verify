@@ -1,5 +1,6 @@
+// References: R-FLOW-1, R-FLOW-6.
 /**
- * The flow engine (R-FLOW-1 to R-FLOW-6): validate, route, look up, submit, poll and map the
+ * The flow engine: validate, route, look up, submit, poll and map the
  * outcome to one of three results or a typed error. It never branches on the backend: every
  * explorer call goes through the {@link Backend} interface.
  */
@@ -53,12 +54,13 @@ export const DEFAULT_POLL_INTERVAL_MS = 3_000;
 /** The shortest wait between two status polls, in milliseconds. A shorter `pollIntervalMs` is raised to it. */
 export const MIN_POLL_INTERVAL_MS = 1_000;
 
+// References: decision 0047, decision 0052.
 /**
  * The keys of `VerifyOptions`, as a record so that a field added to the type and not here fails
  * to compile. `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accept every one of
- * them at run time, so one options object can go to each (decision 0047); their types are narrower
+ * them at run time, so one options object can go to each; their types are narrower
  * so that a misplaced key in an object literal fails to compile. `explorer-verify/core` checks
- * them with its own keys, so an unknown key is named with its issues (decision 0052).
+ * them with its own keys, so an unknown key is named with its issues.
  *
  * @returns The keys.
  * @example
@@ -93,19 +95,20 @@ const POLL_FAILURES: readonly ExplorerVerifyError["code"][] = [
   "unexpected-response",
 ];
 
+// References: decision 0031.
 /**
  * Loads a backend's client. Each shipped client sits behind a dynamic `import()`, so a bundler
- * that splits code puts it in its own chunk, and a call loads only the client its route names
- * (decision 0031).
+ * that splits code puts it in its own chunk, and a call loads only the client its route names.
  */
 export type ClientLoader = () => Promise<Backend>;
 
 /** A backend's client, loaded, or the function that loads it. */
 export type Client = Backend | ClientLoader;
 
+// References: R-IN-3, decisions 0031 and 0032.
 /**
- * Loads the constructor argument derivation (R-IN-3). The default entry's sits behind a dynamic
- * `import()`, so a call that derives nothing does not load it (decisions 0031 and 0032).
+ * Loads the constructor argument derivation. The default entry's sits behind a dynamic
+ * `import()`, so a call that derives nothing does not load it.
  */
 export type DeriveLoader = () => Promise<typeof WithDerivedArgs>;
 
@@ -114,25 +117,29 @@ export interface HandlerCode {
   readonly resolveHandler: (settings: Settings, etherscanApi: string) => ResolvedHandler;
 }
 
-/** Loads the `handlerUrl` code. The default entry's sits in a chunk of its own (decision 0046). */
+// References: decision 0046.
+/** Loads the `handlerUrl` code. The default entry's sits in a chunk of its own. */
 export type HandlerLoader = () => Promise<HandlerCode>;
 
+// References: decision 0052.
 /**
  * What the flow engine takes besides the caller's input and options. This module holds no dynamic
- * `import()`, so `explorer-verify/core` bundles the engine without any client (decision 0052).
+ * `import()`, so `explorer-verify/core` bundles the engine without any client.
  * The default entry passes `DEFAULT_DEPENDENCIES`, whose loaders do; `explorer-verify/core` passes
  * the clients and the table its caller gave. The tests pass a fixed `random` for the backoff
  * jitter, a backend table without a client to reach the error for it, or a routing table with rows
  * for clients to come.
+ * @internal
  */
 export interface FlowDependencies {
   /** The client of each backend, or the function that loads it. */
   readonly backends: Readonly<Partial<Record<BackendName, Client>>>;
   /** A number in `[0, 1)` for the backoff jitter. Defaults to `Math.random`. */
   readonly random?: () => number;
+  // References: decision 0052.
   /**
    * The routing table, or the function that loads it. Absent, a route that reads the table throws
-   * `missing.table()` (decision 0052).
+   * `missing.table()`.
    */
   readonly table?: RoutingTable | TableLoader | undefined;
   /** Loads the constructor argument derivation; absent, a call that must derive throws. */
@@ -141,17 +148,19 @@ export interface FlowDependencies {
   readonly handler?: HandlerLoader | undefined;
   /** Set by `explorer-verify/core`: the errors for what its caller left out. */
   readonly missing?: Missing | undefined;
+  // References: decision 0057.
   /**
-   * The backends whose client maps zksolc input, each with its chains (decision 0057). Absent
+   * The backends whose client maps zksolc input, each with its chains. Absent
    * means `ZKSOLC_ROUTES`, as both entries leave it; the tests pass a list to reach the steps of a
    * backend that maps it.
    */
   readonly zksolc?: ZksolcRoutes | undefined;
 }
 
+// References: decision 0052.
 /**
- * The errors for what a caller of `explorer-verify/core` left out, each thrown before any request
- * (decision 0052). `explorer-verify/core` holds their text, so the default entry, which always
+ * The errors for what a caller of `explorer-verify/core` left out, each thrown before any request.
+ * `explorer-verify/core` holds their text, so the default entry, which always
  * has every client, the table and the `handlerUrl` code, does not bundle it. Without them, as in
  * the default entry, the engine throws `unsupported-chain` for a backend without a client and a
  * `TypeError` for the rest.
@@ -199,6 +208,7 @@ export function startBudget(settings: Settings): Budget {
   return { deadline: Date.now() + settings.timeoutMs, timeoutMs: settings.timeoutMs };
 }
 
+// References: R-FLOW-6, decision 0054.
 /**
  * Loads the client of the route's backend when it is a {@link ClientLoader}, and returns the
  * dependencies with that client in place, ready for {@link openCall}. No other client loads. A
@@ -206,7 +216,7 @@ export function startBudget(settings: Settings): Budget {
  * `unsupported-chain` for a missing one.
  *
  * The load ends when the caller's signal aborts, with `signal.reason`, or when the budget runs
- * out, with `timeout` (R-FLOW-6): a chunk that never arrives cannot hold the call.
+ * out, with `timeout`: a chunk that never arrives cannot hold the call.
  *
  * @param route - The resolved route.
  * @param dependencies - The backend clients, loaded or not.
@@ -215,13 +225,14 @@ export function startBudget(settings: Settings): Budget {
  * @returns The dependencies with the route's client loaded.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
  *   the budget runs out; ExplorerVerifyError `network` when the loader fails, such as a chunk
- *   that does not load (decision 0054).
+ *   that does not load.
  * @example
  * ```ts
  * const budget = startBudget(settings);
  * const loaded = await withClient(route, DEFAULT_DEPENDENCIES, settings, budget);
  * const call = openCall(settings, route, target, loaded, true, budget);
  * ```
+ * @internal
  */
 export async function withClient(
   route: Route,
@@ -244,6 +255,7 @@ export async function withClient(
   return { ...dependencies, backends: { ...dependencies.backends, [route.backend]: backend } };
 }
 
+// References: decision 0054.
 /**
  * Runs `load`, and rejects first when `settings.signal` aborts or the budget runs out. `memo`
  * keeps what each loader gave, so a later call takes it at once. `what` names the code in the
@@ -251,7 +263,7 @@ export async function withClient(
  * explorer code through it too.
  *
  * A load that fails, such as a chunk the page cannot fetch, rejects with `network`, retryable,
- * with the loader's error as its cause and a hint about the files the site serves (decision 0054).
+ * with the loader's error as its cause and a hint about the files the site serves.
  * No request was sent.
  *
  * @param load - Loads the module's export.
@@ -337,7 +349,8 @@ export async function bounded<T extends object>(
   }
 }
 
-/** The hint of a load that failed (decision 0054). */
+// References: decision 0054.
+/** The hint of a load that failed. */
 const LOAD_HINT =
   "Check the network connection and that the site serves every file of its build, then call again.";
 
@@ -350,15 +363,17 @@ const LOADED = new WeakMap<ClientLoader, Backend>();
 /** The derivation each loader has given, by loader, as {@link LOADED} keeps clients. */
 const DERIVATIONS = new WeakMap<DeriveLoader, typeof WithDerivedArgs>();
 
-/** The table each loader has given, by loader, as {@link LOADED} keeps clients (decision 0040). */
+// References: decision 0040.
+/** The table each loader has given, by loader, as {@link LOADED} keeps clients. */
 const TABLES = new WeakMap<TableLoader, RoutingTable>();
 
 /** The caller's options, each read once, with the defaults applied and the durations checked. */
 export interface Settings {
   readonly fetch: typeof fetch | undefined;
+  // References: decision 0046.
   /**
    * The caller's `handlerUrl`, unchecked: the caller's server handler, which adds the Etherscan
-   * key (decision 0046). {@link withHandler} checks it.
+   * key. {@link withHandler} checks it.
    */
   readonly handlerUrl?: unknown;
   /** The checked handler, set by {@link withHandler}; `undefined` until then or without one. */
@@ -369,7 +384,8 @@ export interface Settings {
   readonly logger: Logger | undefined;
   readonly onEvent: VerifyOptions["onEvent"];
   readonly route: RouteOverride | undefined;
-  /** Whether a chain missing from the routing table falls back to Sourcify (R-RT-3). */
+  // References: R-RT-3.
+  /** Whether a chain missing from the routing table falls back to Sourcify. */
   readonly allowSourcifyFallback: boolean | undefined;
   /**
    * Returns the checked `apiKeys`: only valid keys of backends that take one. A function, so
@@ -378,7 +394,8 @@ export interface Settings {
   readonly apiKeys: ApiKeysReader;
   /** Returns every string value of `apiKeys`, valid or not, removed from all the call outputs. */
   readonly keySecrets: () => readonly string[];
-  /** The checked `rpcUrl`, for the constructor argument derivation (R-IN-3). */
+  // References: R-IN-3.
+  /** The checked `rpcUrl`, for the constructor argument derivation. */
   readonly rpcUrl: Endpoint | undefined;
   /** The parts of `rpcUrl` that may hold a key, removed from all the call outputs. */
   readonly rpcSecrets: readonly string[];
@@ -425,6 +442,7 @@ type Final = Exclude<PollOutcome, { readonly state: "pending" }>;
  * ```ts
  * const result = await runVerify(input, { fetch }, { backends: { sourcify }, random: () => 0 });
  * ```
+ * @internal
  */
 export async function runVerify(
   input: VerifyInput,
@@ -473,6 +491,7 @@ async function verifyWith(
  * ```ts
  * const result = await verifyOnRoute(checked, route, settings, DEFAULT_DEPENDENCIES, budget, true);
  * ```
+ * @internal
  */
 export async function verifyOnRoute(
   checked: VerifyInput,
@@ -519,12 +538,13 @@ export async function verifyOnRoute(
   return await settle(call, handle, settings.pollIntervalMs);
 }
 
+// References: R-IN-3, decision 0032.
 /**
- * `input` with the constructor arguments derived from the creation code (R-IN-3), when the caller
+ * `input` with the constructor arguments derived from the creation code, when the caller
  * passed none, the backend sends arguments and the input has `creationBytecode`; otherwise `input`
  * unchanged. The derivation code loads with `load` only then, so a call that derives nothing does
- * not load it; the load ends on abort or when the budget runs out, as a client's does (decision
- * 0031). See `withDerivedArgs` for what it logs and throws (decision 0032).
+ * not load it; the load ends on abort or when the budget runs out, as a client's does. See
+ * `withDerivedArgs` for what it logs and throws.
  */
 async function withArgs(
   call: Call,
@@ -555,9 +575,11 @@ async function withArgs(
   return await derive(call, input, creationBytecode);
 }
 
+// References: R-FLOW-6.
 /**
- * Runs `work` and, when it throws after the signal aborted, throws `signal.reason` instead, whatever
- * the error (R-FLOW-6). `verify()` and `checkStatus()` both run their requests through it, so a
+ * Runs `work` and, when it throws after the signal aborted, throws `signal.reason` instead,
+ * whatever
+ * the error. `verify()` and `checkStatus()` both run their requests through it, so a
  * cancelled call always rejects with the reason, unchanged, even when a lookup or a poll threw
  * another error as the signal aborted.
  *
@@ -604,6 +626,7 @@ export async function abortWins<T>(
  * ```ts
  * const call = openCall(settingsOf(options), resolveRoute(11155111), target, DEFAULT_DEPENDENCIES);
  * ```
+ * @internal
  */
 export function openCall(
   settings: Settings,
@@ -735,9 +758,10 @@ export function announceRoute(call: Call, message: string): void {
   });
 }
 
+// References: decision 0046.
 /**
- * The host the call's requests go to: the server handler's for a route that goes through it
- * (decision 0046), the route's API host otherwise.
+ * The host the call's requests go to: the server handler's for a route that goes through it, the
+ * route's API host otherwise.
  *
  * @param ctx - The call's context.
  * @returns The host, as events and dry-run results name it.
@@ -801,12 +825,13 @@ export async function settle(
   return failed(call, outcome.reason);
 }
 
+// References: R-IN-6.
 /**
  * Reads each option once, applies the defaults and checks every option but `route`, which
  * `resolveRoute` checks. Only own properties are read, each once, so a polluted `Object.prototype`
  * cannot add an option, and a getter or Proxy that throws gives `invalid-input` without its text.
  * An own enumerable key outside `known` is an issue that names the key and the closest known
- * name, never its value (R-IN-6). An option set to `undefined`
+ * name, never its value. An option set to `undefined`
  * counts as absent.
  *
  * - `timeoutMs` must be a positive finite number; one above {@link MAX_TIMER_MS} is clamped to it,
@@ -974,14 +999,15 @@ function invalidOptions(
   );
 }
 
+// References: R-RT-1, R-RT-3, decision 0040, decision 0031.
 /**
  * Resolves the route of a call from the routing table and the caller's options: the route
- * override, the keys and the Sourcify fallback (R-RT-1 to R-RT-3). `verify()` and `checkStatus()`
+ * override, the keys and the Sourcify fallback. `verify()` and `checkStatus()`
  * both resolve through it, so a resumed job resolves the same route from the same options.
  *
  * It checks the override first, then loads the routing table only when the route needs it: a
- * call whose `route.apiUrl` cannot be a URL the table lists loads no table (decision 0040). The
- * load counts against the budget and ends on an abort, as a client's load does (decision 0031).
+ * call whose `route.apiUrl` cannot be a URL the table lists loads no table. The
+ * load counts against the budget and ends on an abort, as a client's load does.
  *
  * @param chainId - The chain of the call.
  * @param settings - The options from {@link settingsOf}.
@@ -997,6 +1023,7 @@ function invalidOptions(
  * const kinds = kindsOf(checked, DEFAULT_DEPENDENCIES);
  * const route = await routeOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES, budget, kinds);
  * ```
+ * @internal
  */
 export async function routeOf(
   chainId: number,
@@ -1010,9 +1037,10 @@ export async function routeOf(
   return routeWith(chainId, checked, settings, dependencies, table, kinds);
 }
 
+// References: decision 0057.
 /**
- * The kind check of checked input, with the backends that map zksolc from `dependencies`
- * (decision 0057). `checkStatus()` does not call it, so its bundle does not hold the check. Each
+ * The kind check of checked input, with the backends that map zksolc from `dependencies`.
+ * `checkStatus()` does not call it, so its bundle does not hold the check. Each
  * flow that takes input calls it before it resolves the route, so no route hint comes first.
  *
  * @param input - The input, as `validateInput` returned it.
@@ -1024,6 +1052,7 @@ export async function routeOf(
  * ```ts
  * const kinds = kindsOf(checked, DEFAULT_DEPENDENCIES);
  * ```
+ * @internal
  */
 export function kindsOf(input: VerifyInput, dependencies: FlowDependencies): KindCheck {
   return kindCheck(input.compiler.kind, input.chainId, dependencies.zksolc);
@@ -1041,6 +1070,7 @@ export function kindsOf(input: VerifyInput, dependencies: FlowDependencies): Kin
  * ```ts
  * const checked = checkRouteOf(11155111, settingsOf(options), DEFAULT_DEPENDENCIES);
  * ```
+ * @internal
  */
 export function checkRouteOf(
   chainId: number,
@@ -1055,9 +1085,10 @@ export function checkRouteOf(
   );
 }
 
+// References: decision 0046.
 /**
  * The keys the routing table chooses a backend with. With `handlerUrl`, `etherscan-v2` counts as
- * keyed, as with `apiKeys["etherscan-v2"]`: the server handler adds its key (decision 0046). The
+ * keyed, as with `apiKeys["etherscan-v2"]`: the server handler adds its key. The
  * value marks the backend only; it is never sent, because no route that uses it gets a key from
  * `apiKeys`.
  *
@@ -1076,16 +1107,17 @@ export function choiceKeys(settings: Settings): CheckedKeys {
 /** The `handlerUrl` code each loader has given, as {@link LOADED} keeps clients. */
 const HANDLER_CODE = new WeakMap<HandlerLoader, HandlerCode>();
 
+// References: decision 0046, decision 0052.
 /**
  * `settings` with `handlerUrl` checked, when the caller set it. The check loads with `load`,
  * through {@link bounded}: the default entry's loader runs a dynamic `import()`, so a caller who
- * never sets `handlerUrl` never downloads it (decision 0046). Every flow calls it before it
+ * never sets `handlerUrl` never downloads it. Every flow calls it before it
  * resolves the route.
  *
  * @param settings - The options from {@link settingsOf}.
  * @param budget - The call's budget, from {@link startBudget}.
  * @param load - Loads the `handlerUrl` code. Through `explorer-verify/core`, it comes with the
- *   Etherscan v2 client, and is absent without it (decision 0052).
+ *   Etherscan v2 client, and is absent without it.
  * @param missing - The errors of `explorer-verify/core`, for a `load` that is absent.
  * @returns The settings, with `handler` set when `handlerUrl` is.
  * @throws ExplorerVerifyError `invalid-input` naming `handlerUrl`; `missing.handler()` when
@@ -1111,16 +1143,17 @@ export async function withHandler(
   return { ...settings, handler: code.resolveHandler(settings, ETHERSCAN_API_URL) };
 }
 
+// References: decision 0040, decision 0052, decision 0054.
 /**
  * The routing table a checked route reads, loaded, or `undefined` for a route that `readsTable`
- * says needs none (decision 0040). A loader runs once per page or process: what
+ * says needs none. A loader runs once per page or process: what
  * it gave is kept, and a load that failed is tried again by the next call. The load ends when the
  * caller's signal aborts, with `signal.reason`, or when the budget runs out, with `timeout`
  * naming the backend of `route.backend`, or `sourcify`, the fallback, when none is named.
  *
  * Without a table, which only `explorer-verify/core` allows, a route with `route.apiUrl` reads
  * none: it goes where the caller says, and gets no explorer page from a row. A route without
- * `route.apiUrl` throws `missing.table()` (decision 0052).
+ * `route.apiUrl` throws `missing.table()`.
  *
  * @param checked - The checked override, from {@link checkRouteOf}.
  * @param source - The routing table, or the function that loads it; absent through
@@ -1131,7 +1164,7 @@ export async function withHandler(
  * @returns The table, or `undefined` when the route reads none.
  * @throws The caller's `signal.reason` when the signal aborts; ExplorerVerifyError `timeout` when
  *   the budget runs out; `missing.table()` for a route without `route.apiUrl` and no `source`;
- *   ExplorerVerifyError `network` when the loader fails (decision 0054).
+ *   ExplorerVerifyError `network` when the loader fails.
  * @example
  * ```ts
  * const table = await tableFor(checked, DEFAULT_DEPENDENCIES.table, settings, budget);
@@ -1180,6 +1213,7 @@ export async function loadTable(
     : source;
 }
 
+// References: decision 0057.
 /**
  * The last step of {@link routeOf}: the route of a checked override, with the table it reads.
  *
@@ -1189,7 +1223,7 @@ export async function loadTable(
  * @param dependencies - The backend clients.
  * @param table - The table, from {@link tableFor}.
  * @param kinds - The input's compiler kind, from `kindCheck`: the table passes over a backend
- *   whose client does not map it (decision 0057). Absent for `checkStatus()`.
+ *   whose client does not map it. Absent for `checkStatus()`.
  * @returns The route.
  * @throws ExplorerVerifyError `unsupported-chain`, as `resolveRoute` throws it;
  *   `unsupported-compiler` when the route's backend does not map the kind, before any request.
@@ -1198,6 +1232,7 @@ export async function loadTable(
  * const kinds = kindCheck("solc", 11155111);
  * const route = routeWith(11155111, checked, settings, DEFAULT_DEPENDENCIES, table, kinds);
  * ```
+ * @internal
  */
 export function routeWith(
   chainId: number,
@@ -1249,10 +1284,11 @@ function backendOf(route: Route, chainId: number, dependencies: FlowDependencies
   return backend;
 }
 
+// References: R-SEC-1.
 /**
  * The values of the route's query string, as secrets of the call. A caller who puts a key in
  * `route.apiUrl`'s query gets it removed from errors, logs, events and results, even where an
- * explorer repeats it in an answer (R-SEC-1). Left out:
+ * explorer repeats it in an answer. Left out:
  *
  * - values of digits only, which would hide numbers such as a chain id;
  * - values found in the handle's fixed part, `ev1:<backend>:<chainId>:<address>`, so the handle,

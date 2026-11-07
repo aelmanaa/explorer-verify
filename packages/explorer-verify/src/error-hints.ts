@@ -1,14 +1,16 @@
+// References: R-DX-3, decision 0044.
 /**
- * The default fix hint of each error code (R-DX-3), apart from the error class so that importing
- * `ExplorerVerifyError` alone, to check a caught error, does not bundle the hint text
- * (decision 0044). Library code builds its errors through {@link newError}, which fills the hint
+ * The default fix hint of each error code, apart from the error class so that importing
+ * `ExplorerVerifyError` alone, to check a caught error, does not bundle the hint text. Library code
+ * builds its errors through {@link newError}, which fills the hint
  * from this table.
  */
 import { ExplorerVerifyError } from "./errors.ts";
 import type { DetailsOf, ErrorCode, ExplorerVerifyErrorOptions } from "./errors.ts";
 
+// References: R-DX-3.
 /**
- * The default `hint` of each error code: one sentence that says what to do next (R-DX-3). Errors
+ * The default `hint` of each error code: one sentence that says what to do next. Errors
  * the library throws carry these unless a more specific hint applies. Pass one as `hint` when you
  * create an `ExplorerVerifyError` yourself.
  *
@@ -20,7 +22,7 @@ import type { DetailsOf, ErrorCode, ExplorerVerifyErrorOptions } from "./errors.
  *   hint: ERROR_HINTS["internal-error"],
  *   secrets: [],
  * });
- * console.log(error.hint); // "This is a bug in explorer-verify. ..."
+ * console.log(error.hint); // "This is a bug in explorer-verify...."
  * ```
  * @experimental
  */

@@ -1,6 +1,7 @@
+// References: decision 0052.
 /**
  * Reads the `clients` and `table` options of `explorer-verify/core` into the engine's
- * dependencies, and hands the engine the other options untouched (decision 0052).
+ * dependencies, and hands the engine the other options untouched.
  */
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, ProxyLinker } from "../backends/backend.ts";
@@ -136,9 +137,10 @@ function missingFor(rows: RoutingTable | undefined, link: boolean): Missing {
   };
 }
 
+// References: decision 0052.
 /**
  * The error of `checkStatus()` for a handle whose backend has no client in `clients`, before any
- * route resolves (decision 0052).
+ * route resolves.
  *
  * @param backend - The backend the handle names.
  * @returns The error.
@@ -189,6 +191,7 @@ function missingLinker(
  * ```ts
  * const { rest, dependencies } = flowParts({ clients: [sourcify()] }, verifyOptionKeys());
  * ```
+ * @internal
  */
 export function flowParts(options: unknown, known: readonly string[]): Split<FlowDependencies> {
   const { rest, list, table, issues } = read(options, known, HINT);
@@ -225,6 +228,7 @@ export function flowParts(options: unknown, known: readonly string[]): Split<Flo
  * ```ts
  * const { rest, dependencies } = linkOptions({ clients: [sourcifyProxyLink()] }, keys);
  * ```
+ * @internal
  */
 export function linkOptions(options: unknown, known: readonly string[]): Split<LinkDependencies> {
   const { rest, list, table, issues } = read(options, known, LINK_HINT);
@@ -288,11 +292,12 @@ function tableOf(table: unknown, issues: InputIssue[]): RoutingTable | undefined
   return rows;
 }
 
+// References: decision 0047.
 /**
  * The caller's `clients` and `table`, a copy of the options without them, and the issues found so
  * far: unknown keys and a `clients` that is not a non-empty array. The copy takes each property's
  * descriptor, so no getter runs here: the engine reads the keys before any value, as for the
- * default entry (decision 0047). Holes in `clients` are read as `undefined`.
+ * default entry. Holes in `clients` are read as `undefined`.
  */
 function read(
   options: unknown,
