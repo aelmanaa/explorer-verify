@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { ExplorerVerifyError, toEnvelope } from "../../src/index.ts";
+import { toEnvelope } from "../../src/envelope.ts";
+import { ExplorerVerifyError } from "../../src/index.ts";
 import type { DryRunResult, VerifyEvent } from "../../src/index.ts";
 import { redactEvent } from "../../src/observe.ts";
 import { resolveRoute } from "../helpers/route.ts";

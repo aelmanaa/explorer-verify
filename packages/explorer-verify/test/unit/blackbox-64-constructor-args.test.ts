@@ -10,12 +10,8 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import { inspect } from "node:util";
 
-import {
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  buildVerifyInput,
-  verify,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ExplorerVerifyError, buildVerifyInput, verify } from "../../src/index.ts";
 import type {
   Hex,
   LogFields,

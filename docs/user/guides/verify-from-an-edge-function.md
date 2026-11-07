@@ -94,15 +94,10 @@ The test harness at the end of the block, below the line `Test harness`, calls t
 directly for each case. Leave it out of the Worker.
 
 ```ts
-import {
-  ExplorerVerifyError,
-  checkStatus,
-  exitCodeOf,
-  toEnvelope,
-  validateInput,
-  verify,
-} from "explorer-verify";
-import type { VerifyOptions, VerifyOutcome, VerifyResult } from "explorer-verify";
+import { ExplorerVerifyError, checkStatus, validateInput, verify } from "explorer-verify";
+import type { VerifyOptions, VerifyResult } from "explorer-verify";
+import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
+import type { VerifyOutcome } from "explorer-verify/envelope";
 
 export interface Env {
   /** A secret: `npx wrangler secret put ETHERSCAN_API_KEY`. */

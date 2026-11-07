@@ -211,9 +211,9 @@ timeout: is not a known option; did you mean timeoutMs?
 
 The same rule holds for the keys of `route` and of each `backends` entry of `verifyEach()`, which
 are `backend`, `apiUrl` and `apiKey`, and for the options of `buildVerifyInput()`,
-`buildVerifyInputFromBytecode()`, `toEnvelope()`, `createVerifyHandler()` and `routesFor()`. A key that is not a
-short identifier is not repeated: its issue names the options object instead. Symbol keys and
-non-enumerable properties are ignored, and a getter on an unknown key never runs.
+`buildVerifyInputFromBytecode()`, `toEnvelope()`, `createVerifyHandler()` and `routesFor()`. A key
+that is not a short identifier is not repeated: its issue names the options object instead. Symbol
+keys and non-enumerable properties are ignored, and a getter on an unknown key never runs.
 
 The library sends every request with `redirect: "manual"` and never follows a redirect, because a
 redirect could carry a key to another host. A `fetch` you pass must keep that behaviour: it must not
@@ -336,8 +336,8 @@ errors of a failed lookup. It emits `verify.validated`, `verify.routed` and `ver
 `match` is `skipped` when no request was sent.
 
 The CLI runs it for `explorer-verify verify --dry-run` and prints the result in an envelope with
-`ok: true` and exit code 0 ([CLI](cli.md#dry-run)). `toEnvelope()` and `exitCodeOf()` take a
-`DryRunResult` too: they give that envelope and exit code 0.
+`ok: true` and exit code 0 ([CLI](cli.md#dry-run)). `toEnvelope()` and `exitCodeOf()`, from
+`explorer-verify/envelope`, take a `DryRunResult` too: they give that envelope and exit code 0.
 
 ## Several backends in one call
 

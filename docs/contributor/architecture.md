@@ -28,7 +28,14 @@ optional features stay out of it (R-RUN-5). `explorer-verify`, `@explorer-verify
 The core also has `explorer-verify/core`, `explorer-verify/clients/<name>` and
 `explorer-verify/table`: the flow functions, the explorer clients and the routing table, for a
 caller who passes the clients and the table instead of loading them, so that a bundle that does not
-split code holds only those ([decision 0052](decisions/0052-explicit-clients-and-table.md)). `@explorer-verify/foundry`
+split code holds only those ([decision 0052](decisions/0052-explicit-clients-and-table.md)).
+
+`explorer-verify/handle`, `explorer-verify/errors` and `explorer-verify/backends` export the handle
+functions, the error class with its codes and hints, and the backend names, and
+`explorer-verify/envelope` the CLI's exit codes and JSON envelope. Their modules, under
+`src/entries/`, never reach the verification flow or a dynamic `import()`, so any bundler emits one
+file for a name from them ([decision 0055](decisions/0055-light-subpaths-and-envelope-subpath.md)).
+`@explorer-verify/foundry`
 depends on the core's public entry point only: it finds and reads a contract's files under `out/`
 and leaves every format check to `buildVerifyInput` (R-DX-2).
 
@@ -165,7 +172,9 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   `toEnvelope(outcome)` the versioned JSON envelope (R-AX-5): a result copied field by field or the
   error's `toJSON()`, in a fixed key order, with every string redacted. `schema/envelope.schema.json`
   ships in the package as `explorer-verify/envelope.schema.json`. The CLI and the server handler use
-  both, so they cannot disagree.
+  both, so they cannot disagree. They, `ERROR_EXIT_CODES` and the envelope types are exported from
+  `explorer-verify/envelope`, not from the main entry
+  ([decision 0055](decisions/0055-light-subpaths-and-envelope-subpath.md)).
 - A time budget that runs out after the explorer accepted the submission throws `not-confirmed`,
   whose `details.handle` `checkStatus` accepts. One that runs out before then throws a timeout error
   without a handle; its code arrives in #12, and the CLI maps it to exit code 5.
@@ -173,7 +182,7 @@ amended by [decision 0010](decisions/0010-logger-fields-events-and-silent-defaul
   the handle as soon as the submit is accepted, so an aborted call can still be resumed (R-DX-6).
 
 `types.ts` holds the option and handle types, `errors.ts` the error class, `envelope.ts`
-`exitCodeOf` and `toEnvelope`, `flow/handle.ts` `parseHandle` and `formatHandle`,
+`exitCodeOf`, `toEnvelope` and the exit codes, `flow/handle.ts` `parseHandle` and `formatHandle`,
 `input/validate.ts` `validateInput`, `input/libraries.ts` `linkLibraries`, `flow/verify.ts`
 `verify`, `flow/status.ts` `checkStatus` and `flow/dry-run.ts` `dryRun`. `dryRun` reuses
 `settingsOf`, `routeOf` and `openCall`, with the key check off, and `keyMissing` of

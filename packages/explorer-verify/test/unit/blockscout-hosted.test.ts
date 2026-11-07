@@ -9,7 +9,8 @@ import type { TestContext } from "node:test";
 
 import { blockscout, blockscoutHosted, refusal } from "../../src/backends/blockscout.ts";
 import { blockscoutProxyLinker } from "../../src/backends/proxy-blockscout.ts";
-import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { ErrorCode } from "../../src/errors.ts";
 import { formatHandle } from "../../src/flow/format-handle.ts";
 import { parseHandle } from "../../src/flow/handle.ts";

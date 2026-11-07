@@ -14,14 +14,13 @@ import { inspect } from "node:util";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import type { VerifyOutcome } from "../../src/envelope.ts";
 import {
   ERROR_CODES,
-  ERROR_EXIT_CODES,
   ERROR_HINTS,
   ExplorerVerifyError,
   checkStatus,
-  exitCodeOf,
-  toEnvelope,
   verify,
 } from "../../src/index.ts";
 import type {
@@ -34,7 +33,6 @@ import type {
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
-  VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";

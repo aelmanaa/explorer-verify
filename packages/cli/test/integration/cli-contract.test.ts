@@ -20,7 +20,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { after, describe, it } from "node:test";
 
-import { ERROR_EXIT_CODES } from "explorer-verify";
+import { ERROR_EXIT_CODES } from "explorer-verify/envelope";
 
 import { GLOBAL_OPTIONS, commandOptions } from "../../src/arguments.ts";
 import { COMMANDS } from "../../src/commands.ts";

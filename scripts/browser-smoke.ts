@@ -18,7 +18,9 @@
 //    handle with `checkStatus()` alone, and another runs `verify()` without a route, which the
 //    routing table sends to Sourcify: `already-verified` with the row's explorer page. Each full run also runs `createVerifyHandler` from
 //    `explorer-verify/server` against an in-page fake Etherscan: it must forward a status poll
-//    with the key in the body and `redirect: "manual"`, and refuse `getabi` (R-SRV-1).
+//    with the key in the body and `redirect: "manual"`, and refuse `getabi` (R-SRV-1). It also
+//    runs the names of `explorer-verify/handle`, `/errors`, `/backends` and `/envelope` on its
+//    handle and result (decision 0055).
 //
 // A request out of the recorded order, a recorded answer nobody asked for, a request to any other
 // host, a WebSocket, a request header beyond the CORS-safelisted set and `content-type:
@@ -414,6 +416,17 @@ function expected(): unknown {
           keyInBody: true,
         },
       ],
+    },
+    subpaths: {
+      roundTrip: HANDLE,
+      isHandleString: true,
+      tryParseBad: true,
+      parseBadCode: "invalid-input",
+      listsNetwork: true,
+      backend: "sourcify",
+      listsSourcify: true,
+      exitCode: 0,
+      envelopeOk: true,
     },
   };
 }

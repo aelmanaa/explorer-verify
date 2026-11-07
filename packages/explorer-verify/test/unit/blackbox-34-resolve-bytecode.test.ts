@@ -11,16 +11,9 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import {
-  ERROR_EXIT_CODES,
-  ERROR_HINTS,
-  ExplorerVerifyError,
-  exitCodeOf,
-  toEnvelope,
-  validateInput,
-  verify,
-} from "explorer-verify";
+import { ERROR_HINTS, ExplorerVerifyError, validateInput, verify } from "explorer-verify";
 import type { LogFields, Logger } from "explorer-verify";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "explorer-verify/envelope";
 import { buildVerifyInputFromBytecode } from "explorer-verify/resolve";
 
 // --- fixtures ---------------------------------------------------------------------------------

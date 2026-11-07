@@ -478,63 +478,6 @@ export type AnyExplorerVerifyError<C extends ErrorCode = ErrorCode> = C extends 
   : never;
 
 /**
- * The exit codes of the CLI (R-AX-7): 0 verified, 1 failed, 2 invalid input, 3 key problem,
- * 4 still pending, 5 network or explorer unavailable, 6 unknown state or internal error,
- * 130 cancelled.
- *
- * @example
- * ```ts
- * import type { ExitCode } from "explorer-verify";
- *
- * const cancelled: ExitCode = 130;
- * ```
- * @experimental
- */
-export type ExitCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 130;
-
-/**
- * The CLI exit code for each error code (R-AX-7). Every code maps to exactly one exit code.
- *
- * @example
- * ```ts
- * import { ERROR_EXIT_CODES, ExplorerVerifyError } from "explorer-verify";
- *
- * function exitCode(error: unknown): number {
- *   return error instanceof ExplorerVerifyError ? ERROR_EXIT_CODES[error.code] : 1;
- * }
- * ```
- * @experimental
- */
-export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
-  "invalid-input": 2,
-  "not-confirmed": 4,
-  "unsupported-chain": 2,
-  network: 5,
-  "rate-limited": 5,
-  timeout: 5,
-  "unexpected-response": 5,
-  "in-progress": 5,
-  "unknown-state": 6,
-  "job-not-found": 6,
-  cancelled: 130,
-  "incomplete-input": 2,
-  "insufficient-artifact": 2,
-  "unsupported-compiler": 2,
-  "verification-inconclusive": 4,
-  "source-mismatch": 2,
-  "missing-api-key": 3,
-  "api-key-rejected": 3,
-  "quota-exceeded": 3,
-  "internal-error": 6,
-  "no-metadata-hash": 2,
-  "metadata-unavailable": 5,
-  "constructor-args-unavailable": 2,
-  "proxy-link-pending": 4,
-  "proxy-link-unknown-state": 6,
-  "handler-refused": 2,
-};
-
-/**
  * The `details` of an error in its JSON form (R-AX-5): the same fields as {@link ErrorDetails},
  * except that each handle is in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
  * Checking `details.code`, or the `code` of the {@link ErrorJson} that holds it, narrows it.

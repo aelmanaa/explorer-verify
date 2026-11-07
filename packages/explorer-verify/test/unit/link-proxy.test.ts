@@ -18,7 +18,8 @@ import type {
 import { blockscoutProxyLinker } from "../../src/backends/proxy-blockscout.ts";
 import { compatibleProxyLinker, etherscanProxyLinker } from "../../src/backends/proxy-etherscan.ts";
 import { sourcifyProxyLinker } from "../../src/backends/proxy-sourcify.ts";
-import { ERROR_EXIT_CODES, ExplorerVerifyError } from "../../src/errors.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ExplorerVerifyError } from "../../src/errors.ts";
 import { DEFAULT_LINK_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { LinkDependencies } from "../../src/flow/link-proxy.ts";
 import { linkProxy } from "../../src/index.ts";

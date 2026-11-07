@@ -11,12 +11,12 @@ import { inspect } from "node:util";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
+import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
+import type { VerifyOutcome } from "../../src/envelope.ts";
 import {
   ExplorerVerifyError,
-  exitCodeOf,
   formatHandle,
   parseHandle,
-  toEnvelope,
   verify as publicVerify,
 } from "../../src/index.ts";
 import type {
@@ -26,7 +26,6 @@ import type {
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
-  VerifyOutcome,
   VerifyResult,
 } from "../../src/index.ts";
 import { docsUrlOf } from "../helpers/docs-url.ts";

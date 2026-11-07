@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
 import { newError } from "../../src/error-hints.ts";
-import { ERROR_CODES, ERROR_EXIT_CODES } from "../../src/index.ts";
+import { ERROR_CODES } from "../../src/index.ts";
 import type { ErrorCode, ExplorerVerifyError } from "../../src/index.ts";
 import { docsFileOf, docsUrlOf } from "../helpers/docs-url.ts";
 import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";

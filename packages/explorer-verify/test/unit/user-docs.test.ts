@@ -242,6 +242,18 @@ const RUNS: readonly DocRun[] = [
     fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match"],
   },
   {
+    page: "reference/check-status.md",
+    example: 2,
+    what: "explorer-verify/handle reads the stored handle and writes it back",
+    storage: { "pending-verification": RECORDED_HANDLE },
+    stdout: `${RECORDED_HANDLE}\n`,
+  },
+  {
+    page: "reference/check-status.md",
+    example: 2,
+    what: "explorer-verify/handle with nothing stored prints nothing",
+  },
+  {
     page: "reference/errors/index.md",
     example: 0,
     what: "verify() finds the contract verified",
@@ -440,6 +452,13 @@ const RUNS: readonly DocRun[] = [
     what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified sourcify\n",
+  },
+  {
+    page: "reference/core.md",
+    example: 1,
+    what: "explorer-verify/core ends not-confirmed: the error class and the handle from their subpaths",
+    fixtures: NOT_CONFIRMED,
+    stdout: `${RECORDED_HANDLE}\n`,
   },
   {
     page: WRAPPER,

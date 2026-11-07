@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ERROR_EXIT_CODES } from "explorer-verify";
+import { ERROR_EXIT_CODES } from "explorer-verify/envelope";
 
 import { readArguments } from "../../src/arguments.ts";
 import type { Command } from "../../src/command.ts";

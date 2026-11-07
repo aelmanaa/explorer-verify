@@ -8,7 +8,8 @@ Audience: developers and agents that read the outcome of a verification as data:
 server handler, a CI job or the CLI with `--json`.
 
 A call to `verify()` or `checkStatus()` ends with a result or an `ExplorerVerifyError`. Two
-functions turn either one into data that a program reads without parsing messages:
+functions of `explorer-verify/envelope` turn either one into data that a program reads without
+parsing messages:
 
 - `exitCodeOf(outcome)` gives the exit code.
 - `toEnvelope(outcome)` gives the JSON envelope.
@@ -17,8 +18,9 @@ The CLI, once it ships, prints the envelope on stdout with `--json` and exits wi
 functions, [verify()](verify.md) and [checkStatus()](check-status.md) are in the library now.
 
 ```ts
-import { ExplorerVerifyError, exitCodeOf, toEnvelope, verify } from "explorer-verify";
-import type { VerifyOutcome } from "explorer-verify";
+import { ExplorerVerifyError, verify } from "explorer-verify";
+import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
+import type { VerifyOutcome } from "explorer-verify/envelope";
 
 let outcome: VerifyOutcome;
 try {
@@ -258,7 +260,7 @@ release knows.
 
 ## Exit codes
 
-Each outcome has one exit code. `ERROR_EXIT_CODES` holds the codes of the errors, and `exitCodeOf`
+Each outcome has one exit code. `ERROR_EXIT_CODES` of `explorer-verify/envelope` holds the codes of the errors, and `exitCodeOf`
 covers results and errors.
 
 | Outcome                        | Kind   | `ok`    | Exit code |

@@ -8,8 +8,7 @@ import type { TestContext } from "node:test";
 
 import type { Backend } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
-import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
-import { ERROR_EXIT_CODES } from "../../src/errors.ts";
+import { ERROR_EXIT_CODES, exitCodeOf, toEnvelope } from "../../src/envelope.ts";
 import type { ErrorCode } from "../../src/errors.ts";
 import { MAX_POLL_FAILURES } from "../../src/flow/verify.ts";
 import type { FlowDependencies } from "../../src/flow/verify.ts";

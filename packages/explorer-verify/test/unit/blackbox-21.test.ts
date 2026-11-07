@@ -18,12 +18,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  ERROR_EXIT_CODES,
-  ExplorerVerifyError,
-  buildVerifyInput,
-  validateInput,
-} from "../../src/index.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ExplorerVerifyError, buildVerifyInput, validateInput } from "../../src/index.ts";
 import type { BuiltVerifyInput } from "../../src/index.ts";
 
 // --- helpers -----------------------------------------------------------------------------------

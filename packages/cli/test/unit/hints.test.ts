@@ -5,14 +5,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { ERROR_CODES, ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
-import type {
-  Envelope,
-  ErrorCode,
-  ErrorDetails,
-  ErrorJson,
-  Handle,
-  HandleString,
-} from "explorer-verify";
+import type { ErrorCode, ErrorDetails, ErrorJson, Handle, HandleString } from "explorer-verify";
+import type { Envelope } from "explorer-verify/envelope";
 
 import type { Command } from "../../src/command.ts";
 import {
