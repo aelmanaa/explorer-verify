@@ -178,6 +178,7 @@ function redactStage(event: VerifyEvent, secrets: readonly string[]): VerifyEven
           secrets,
         ),
       };
+    // Stryker disable next-line ConditionalExpression: equivalent. Removing this body falls through to verify.poll, which copies the same fields. Separate cases preserve the type/state correlation.
     case "proxy.poll":
       return {
         type: event.type,

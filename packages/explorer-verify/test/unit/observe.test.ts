@@ -353,6 +353,22 @@ describe("event.schema.json (R-DX-6, R-AX-16)", () => {
 // --- redactEvent --------------------------------------------------------------------------------
 
 describe("redactEvent (R-SEC-1, R-DX-6)", () => {
+  it("omits undefined optional routing fields from JavaScript callers", () => {
+    for (const type of ["verify.routed", "proxy.routed"]) {
+      const event: unknown = Reflect.apply(redactEvent, undefined, [
+        {
+          type,
+          backend: "sourcify",
+          apiHost: "api.example",
+          routedBy: undefined,
+          skipped: undefined,
+        },
+        [],
+      ]);
+      assert.deepEqual(event, { type, backend: "sourcify", apiHost: "api.example" });
+    }
+  });
+
   it("removes a dummy key from every event and keeps the event's type and shape", () => {
     const events = everyEvent();
     const redacted = events.map((event) => redactEvent(event, SECRETS));
