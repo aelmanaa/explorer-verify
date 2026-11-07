@@ -6,6 +6,7 @@
  */
 import { toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
+import type { KindCheck } from "../compiler-kinds.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { DetailsOf, InputIssue } from "../errors.ts";
@@ -36,6 +37,7 @@ import {
   abortWins,
   checkRouteOf,
   choiceKeys,
+  kindsOf,
   loadTable,
   routeWith,
   settingsOf,
@@ -110,7 +112,14 @@ export async function runVerifyEach(
     const { chainId } = checked;
     const budget = startBudget(read);
     const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
-    const runs = await runsOf(chainId, entries, settings, dependencies, budget);
+    const runs = await runsOf(
+      chainId,
+      kindsOf(checked, dependencies),
+      entries,
+      settings,
+      dependencies,
+      budget,
+    );
     // Every entry's key is a secret of every call, whether its route resolved or not, so no
     // output of one backend shows another's.
     const secrets = [
@@ -240,9 +249,12 @@ function normalised(apiUrl: string | undefined): string {
  * loads, and the table loads only when an entry needs it (`readsTable`), or for `"all"`, which
  * reads the chain's row (decision 0040). For `"all"`, a table that fails to load throws `network`, as in `verify()`.
  * For a list, it is the outcome of each entry that reads the table, as a client's load failure is.
+ * An entry whose backend does not map the input's compiler kind ends in `unsupported-compiler`,
+ * before any request (decision 0057).
  */
 async function runsOf(
   chainId: number,
+  kinds: KindCheck,
   entries: readonly Entry[] | "all",
   settings: Settings,
   dependencies: FlowDependencies,
@@ -256,9 +268,9 @@ async function runsOf(
       budget,
       dependencies.missing,
     );
-    return everyListed(chainId, settings, dependencies, table).map((entry, index) => ({
+    return everyListed(chainId, kinds, settings, dependencies, table).map((entry, index) => ({
       entry,
-      route: routeFor(chainId, settings, entry, index, dependencies, table),
+      route: routeFor(chainId, kinds, settings, entry, index, dependencies, table),
     }));
   }
   const checked = entries.map((entry, index) => ({
@@ -309,7 +321,7 @@ async function runsOf(
     route:
       failure !== undefined && readsTable(each)
         ? tableFailure(entry, failure, secrets)
-        : routeFor(chainId, settings, entry, index, dependencies, table, each),
+        : routeFor(chainId, kinds, settings, entry, index, dependencies, table, each),
   }));
 }
 
@@ -390,6 +402,7 @@ function entryError(error: unknown, override: Entry, index: number): unknown {
  */
 function routeFor(
   chainId: number,
+  kinds: KindCheck,
   settings: Settings,
   override: Entry,
   index: number,
@@ -399,12 +412,13 @@ function routeFor(
 ): Route | ExplorerVerifyError {
   const own: Settings = { ...settings, route: override };
   try {
-    return routeWith(chainId, checked, own, dependencies, table);
+    return routeWith(chainId, checked, own, dependencies, table, kinds);
   } catch (error: unknown) {
     if (!(error instanceof ExplorerVerifyError) || error.details.code === "invalid-input") {
       throw entryError(error, override, index);
     }
-    // `unsupported-chain`, the only other error routeWith throws: this backend's outcome.
+    // `unsupported-chain` or `unsupported-compiler`, the only other errors routeWith throws:
+    // this backend's outcome.
     return newError(error.details, error.message, {
       hint: renamed(error.hint, index),
       // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the chain id and the backend name.
@@ -416,10 +430,12 @@ function routeFor(
 /**
  * The entries of `"all"`: every backend the chain's row lists that this version has a client for,
  * in the row's order. A chain with no row gives Sourcify when `allowSourcifyFallback` is set, and
- * otherwise throws `unsupported-chain`, as `verify()` does.
+ * otherwise throws `unsupported-chain`, as `verify()` does. Backends that do not map the input's
+ * compiler kind are left out, unless none maps it: then each ends in `unsupported-compiler`.
  */
 function everyListed(
   chainId: number,
+  kinds: KindCheck,
   settings: Settings,
   dependencies: FlowDependencies,
   table: RoutingTable,
@@ -455,12 +471,14 @@ function everyListed(
   // As the routing table chooses for verify(): a backend that needs a key is left out without
   // one, whether or not `fetch` is set. `handlerUrl` counts as an Etherscan key, as it does for
   // verify() (decision 0046). When every listed backend needs a key and none is set, they all
-  // stay, and each ends in `missing-api-key`.
+  // stay, and each ends in `missing-api-key`. The compiler kind is checked first (decision 0057).
+  const capable = names.filter((name) => kinds.verifies(name));
+  const listed = capable.length > 0 ? capable : names;
   const keys = choiceKeys(settings);
-  const usable = names.filter(
+  const usable = listed.filter(
     (name) => !(needsKey(name) || keyed.includes(name)) || readOwn(keys, name) !== undefined,
   );
-  return (usable.length > 0 ? usable : names).map((backend) => ({ backend }));
+  return (usable.length > 0 ? usable : listed).map((backend) => ({ backend }));
 }
 
 /**

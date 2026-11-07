@@ -43,6 +43,7 @@ export type {
   LogValue,
   RoutedBy,
   RouteOverride,
+  SolcCompiler,
   SolidityStandardJsonInput,
   VerifyEachOptions,
   VerifyEachResult,
@@ -50,4 +51,5 @@ export type {
   VerifyInput,
   VerifyOptions,
   VerifyResult,
+  ZksolcCompiler,
 } from "./types.ts";

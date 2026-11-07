@@ -40,7 +40,10 @@ non-EVM chains, zkSync's zksolc for EraVM contracts, compiling sources inside th
 On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain solc verifies with
 `kind: "solc"`, as on any other chain. `buildVerifyInput` refuses zksolc build documents with
 `unsupported-compiler` and names the field that showed them (R-IN-7)
-([ZKsync and zksolc](research/2026-11-05-zksync-zksolc.md)).
+([ZKsync and zksolc](research/2026-11-05-zksync-zksolc.md)). A zksolc contract can be described
+with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind refuses it with
+`unsupported-compiler` before any request
+([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
 
 ## Functional requirements
 
@@ -48,7 +51,9 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
 
 - **R-IN-1** The caller passes the chain id, the contract address, the fully qualified contract name
   (`path:Name`), the compiler version (full form, `0.8.24+commit.e11b9ed9`) and the compiler's
-  Standard JSON input. Optional fields: the constructor arguments (R-IN-3), the creation
+  Standard JSON input. For zksolc, the compiler version is zksolc's (`1.5.15`), and the input also
+  names the full version of the solc that zksolc ran and, optionally, the revision of ZKsync's
+  solc fork (`1.0.2`) (decision 0057). Optional fields: the constructor arguments (R-IN-3), the creation
   transaction hash, the compiled creation bytecode, `creationBytecode` (R-IN-3), and the library
   link addresses, `libraries` (R-IN-4).
 - **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
@@ -73,7 +78,10 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
   (the Etherscan-style backends); on Blockscout, which reports partial matches, it is logged and the
   submit goes on
   ([decision 0032](decisions/0032-derived-constructor-arguments-fail-soft-when-unavailable.md)).
-  When the caller supplies the arguments, they win: nothing is derived or requested. `rpcUrl`
+  When the caller supplies the arguments, they win: nothing is derived or requested. For zksolc
+  input nothing is derived or requested either: on EraVM the ContractDeployer system contract
+  deploys the contract, so its arguments do not follow the creation code; `verify()` logs that at
+  `info` and submits without them (decision 0057). `rpcUrl`
   follows the `route.apiUrl` rules, and its path segments and query values are redacted
   (R-SEC-1).
 - **R-IN-4** Library link addresses are accepted for contracts that use external libraries, as
@@ -98,7 +106,8 @@ On ZKsync Era (324) and ZKsync Sepolia (300), a contract compiled with plain sol
   the Standard JSON input of a contract already verified on Sourcify, whatever its metadata hash;
   it is not built yet. Resolvers are pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
-  Standard JSON, version format. Validation errors name the field. The address check is format only:
+  Standard JSON, version format, and for zksolc its own fields (`compiler.solcVersion`,
+  `compiler.solcFork`). Validation errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any
   case. Options are validated too: a key the function does not read throws `invalid-input` naming
   the key and the closest known name, never its value, and an optional field set to `undefined`
@@ -567,7 +576,12 @@ Measurement:
 ### Extensibility (R-EXT)
 
 - **R-EXT-1** The compiler is a discriminated union (`{ kind: "solc", ... }`). Adding Vyper is a new
-  member plus backend mappings, with no change for Solidity callers (decision 0004).
+  member plus backend mappings, with no change for Solidity callers (decision 0004). The second
+  member is `{ kind: "zksolc"; version; solcVersion; solcFork?; input }`. The routing table passes
+  over a backend whose client does not map the input's kind, and a route whose backend does not
+  map it throws `unsupported-compiler`, naming `compiler.kind`, before any request. No backend
+  maps zksolc yet; Blockscout's ZKsync instances come next
+  ([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
 - **R-EXT-2** Input resolvers, backends and the routing table are extension points with documented
   interfaces.
 

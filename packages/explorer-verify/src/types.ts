@@ -31,6 +31,61 @@ export interface SolidityStandardJsonInput {
 }
 
 /**
+ * The solc compiler and its input: a contract compiled for the EVM.
+ *
+ * @experimental
+ */
+export interface SolcCompiler {
+  /** The compiler family. */
+  kind: "solc";
+  /** Full version, as `0.8.24+commit.e11b9ed9`. */
+  version: string;
+  /** The Standard JSON input used for the deployment. */
+  input: SolidityStandardJsonInput;
+}
+
+/**
+ * The zksolc compiler and its input: a contract compiled for EraVM, the virtual machine of ZKsync
+ * Era (decision 0057). zksolc runs a solc build of its own, so the input names both versions.
+ *
+ * Only a backend whose client maps the zksolc fields verifies it; this release has none yet. Any
+ * other backend refuses it with `unsupported-compiler` before any request, and the routing table
+ * skips such backends. `verify()` never derives constructor arguments for it: on EraVM a contract
+ * is deployed through the ContractDeployer system contract, so the arguments do not follow the
+ * creation code.
+ *
+ * @example
+ * ```ts
+ * import type { ZksolcCompiler } from "explorer-verify";
+ *
+ * declare const standardJson: ZksolcCompiler["input"];
+ * const compiler: ZksolcCompiler = {
+ *   kind: "zksolc",
+ *   version: "1.5.15",
+ *   solcVersion: "0.8.24+commit.e11b9ed9",
+ *   solcFork: "1.0.2",
+ *   input: standardJson,
+ * };
+ * ```
+ * @experimental
+ */
+export interface ZksolcCompiler {
+  /** The compiler family. */
+  kind: "zksolc";
+  /** The zksolc version, as `1.5.15`. */
+  version: string;
+  /** The full version of the solc that zksolc ran, as `0.8.24+commit.e11b9ed9`. */
+  solcVersion: string;
+  /**
+   * The revision of ZKsync's fork of solc, as `1.0.2`, when the build used that fork: its long
+   * version reads `zkVM-<solc>-<revision>`. Absent for an upstream solc.
+   */
+  solcFork?: string | undefined;
+  /** The Standard JSON input used for the deployment, zksolc's settings included. */
+  input: SolidityStandardJsonInput;
+}
+
+/**
  * What to verify. `compiler` is a discriminated union so other languages (Vyper and others) can
  * be added as new members without changing existing callers (decision 0004). An optional field
  * set to `undefined` counts as absent.
@@ -42,15 +97,8 @@ export interface VerifyInput {
   chainId: number;
   /** The deployed contract address. */
   address: Hex;
-  /** The compiler and its input. */
-  compiler: {
-    /** The compiler family. */
-    kind: "solc";
-    /** Full version, as `0.8.24+commit.e11b9ed9`. */
-    version: string;
-    /** The Standard JSON input used for the deployment. */
-    input: SolidityStandardJsonInput;
-  };
+  /** The compiler and its input: solc, or zksolc for EraVM contracts (decision 0057). */
+  compiler: SolcCompiler | ZksolcCompiler;
   /** Fully qualified contract name, as `src/Token.sol:Token`. */
   contractName: string;
   /**

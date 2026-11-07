@@ -119,7 +119,9 @@ const SKIPPED: Record<SkipReason, string> = {
  * 0032). A mismatch on a backend that refuses another build throws instead. Requests to `rpcUrl`
  * share the call's budget, signal and observer. Their log lines carry `label: "rpc"` and no
  * backend name, and their retries emit no `verify.retry` event, which names a backend. A `timeout`
- * error still names the route's backend: the budget is the call's.
+ * error still names the route's backend: the budget is the call's. zksolc input is returned
+ * unchanged with an `info` line and no request: on EraVM the arguments do not follow the creation
+ * code (decision 0057).
  *
  * @param call - The `verify()` call, with its loaded client.
  * @param input - The checked input.
@@ -137,6 +139,15 @@ export async function withDerivedArgs(
   creationBytecode: Hex,
 ): Promise<VerifyInput> {
   const { backend, ctx, settings, observer, target } = call;
+  if (input.compiler.kind === "zksolc") {
+    // On EraVM the ContractDeployer system contract deploys the contract, so its arguments do not
+    // follow the creation code (decision 0057). Nothing is requested.
+    observer.log.info(
+      "zksolc input: EraVM creation code holds no constructor arguments; submitting without them. Pass constructorArgs if the constructor takes any (zksolc)",
+      { backend: backend.name, reason: "zksolc" },
+    );
+    return input;
+  }
   const { rpcUrl } = settings;
   const { creationCode } = backend;
   const { secrets, budget, fetch, signal, random } = ctx.http;

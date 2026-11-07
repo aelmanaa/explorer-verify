@@ -10,6 +10,7 @@ import {
   abortWins,
   announceRoute,
   apiHostOf,
+  kindsOf,
   openCall,
   routeOf,
   settingsOf,
@@ -43,7 +44,13 @@ export async function runDryRun(
     const checked = validateInput(input);
     const budget = startBudget(read);
     const settings = await withHandler(read, budget, dependencies.handler, dependencies.missing);
-    const route = await routeOf(checked.chainId, settings, dependencies, budget);
+    const route = await routeOf(
+      checked.chainId,
+      settings,
+      dependencies,
+      budget,
+      kindsOf(checked, dependencies),
+    );
     const target: Target = { chainId: checked.chainId, address: checked.address };
     const loaded = await withClient(route, dependencies, settings, budget);
     const call = openCall(settings, route, target, loaded, false, budget);

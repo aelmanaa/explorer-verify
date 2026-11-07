@@ -11,7 +11,9 @@ const VERSION =
 // A full version followed by a platform suffix, as `solc --version` prints it (`.Linux.g++`).
 const PLATFORM_VERSION =
   /^v?\d{1,4}\.\d{1,4}\.\d{1,4}(?:-nightly\.\d{4}\.\d{1,2}\.\d{1,2}|-pre\.\d{1,4})?\+commit\.[0-9a-f]{8}\.[A-Za-z]/;
-const SHORT_VERSION = /^v?\d{1,4}\.\d{1,4}\.\d{1,4}$/;
+// Group 1 is the version without the optional `v`: a short solc version, a zksolc version or a
+// revision of ZKsync's solc fork.
+const SHORT_VERSION = /^v?(\d{1,4}\.\d{1,4}\.\d{1,4})$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const EVEN_HEX = /^0x(?:[0-9a-fA-F]{2})*$/;
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -29,9 +31,9 @@ const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "setting
 
 const SHORT_VERSION_HINT =
   "Pass the full compiler version with its commit, such as 0.8.24+commit.e11b9ed9.";
-const PLATFORM_HINT =
-  "Remove the platform suffix after the commit hash from compiler.version, such as .Linux.g++.";
-const KIND_HINT = 'Set compiler.kind to "solc", the only supported compiler kind.';
+const ZKVM_HINT =
+  "Pass only the revision: for zkVM-0.8.24-1.0.2, set solcFork to 1.0.2 and solcVersion to 0.8.24 with its commit.";
+const KIND_HINT = 'Set compiler.kind to "solc", or "zksolc" for EraVM.';
 const LIBRARY_KEY_HINT =
   "Key each entry of libraries by the path of a file in compiler.input.sources, a colon and the library's name, such as src/Lib.sol:Lib.";
 const LIBRARY_ADDRESS_HINT =
@@ -130,14 +132,14 @@ function checkAddress(value: unknown, problems: Problems): Hex | undefined {
     : `0x${digits.toLowerCase()}`;
 }
 
-function checkKind(value: unknown, problems: Problems): "solc" | undefined {
-  return value === "solc"
+function checkKind(value: unknown, problems: Problems): "solc" | "zksolc" | undefined {
+  return value === "solc" || value === "zksolc"
     ? value
-    : problems.add("compiler.kind", 'must be "solc", the only supported kind', KIND_HINT);
+    : problems.add("compiler.kind", 'must be "solc" or "zksolc"', KIND_HINT);
 }
 
-function checkVersion(value: unknown, problems: Problems): string | undefined {
-  const field = "compiler.version";
+/** A full solc version without the leading `v`: `compiler.version`, or zksolc's `solcVersion`. */
+function checkVersion(value: unknown, field: string, problems: Problems): string | undefined {
   if (typeof value !== "string") {
     return problems.add(field, "must be a full solc version, such as 0.8.24+commit.e11b9ed9");
   }
@@ -156,7 +158,7 @@ function checkVersion(value: unknown, problems: Problems): string | undefined {
     return problems.add(
       field,
       "has a platform suffix; pass the version up to the commit hash, such as 0.8.24+commit.e11b9ed9",
-      PLATFORM_HINT,
+      `Remove the platform suffix after the commit hash from ${field}, such as .Linux.g++.`,
     );
   }
   return problems.add(field, "must be a full solc version, such as 0.8.24+commit.e11b9ed9");
@@ -347,12 +349,90 @@ function checkCompiler(value: unknown, problems: Problems): WithPaths<VerifyInpu
     return {};
   }
   const kind = checkKind(fields.get("kind"), problems);
-  const version = checkVersion(fields.get("version"), problems);
+  // zksolc's own fields (decision 0057): its version is x.y.z, solcVersion is checked as a solc
+  // version, and solcFork is optional. "" stands for a field that a kind does not have; a solc
+  // compiler that sets one is refused, as its type and the schema refuse it.
+  const zksolc = kind === "zksolc";
+  const version = zksolc
+    ? checkShort(
+        fields.get("version"),
+        "compiler.version",
+        "a version x.y.z, such as 1.5.15",
+        problems,
+      )
+    : checkVersion(fields.get("version"), "compiler.version", problems);
+  const solcVersion = zksolc
+    ? checkSolcVersion(fields.get("solcVersion"), problems)
+    : onlyZksolc(fields, "solcVersion", kind, problems);
+  const fork = fields.get("solcFork");
+  const solcFork = !zksolc
+    ? onlyZksolc(fields, "solcFork", kind, problems)
+    : fork === undefined
+      ? ""
+      : checkShort(
+          fork,
+          "compiler.solcFork",
+          "a revision x.y.z, such as 1.0.2",
+          problems,
+          ZKVM_HINT,
+        );
   const { value: input, paths } = checkStandardJson(fields.get("input"), problems);
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: equivalent for the false variant: each check that leaves a field undefined adds an issue, and validateInput fails the input on any issue. The true variant rejects valid input, which other tests catch.
   if (kind === undefined || version === undefined || input === undefined) {
     return { paths };
   }
-  return { value: { kind, version, input }, paths };
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: equivalent for the false variant: each check that leaves a field undefined adds an issue, and validateInput fails the input on any issue. The true variant rejects valid input, which other tests catch.
+  if (solcVersion === undefined || solcFork === undefined) {
+    return { paths };
+  }
+  return {
+    value:
+      kind === "solc"
+        ? { kind, version, input }
+        : { kind, version, solcVersion, ...(solcFork === "" ? {} : { solcFork }), input },
+    paths,
+  };
+}
+
+/** A version `x.y.z` without the leading `v`: zksolc's version, or its solc fork's revision. */
+function checkShort(
+  value: unknown,
+  field: string,
+  what: string,
+  problems: Problems,
+  hint?: string,
+): string | undefined {
+  const version = typeof value === "string" ? SHORT_VERSION.exec(value)?.[1] : undefined;
+  return version ?? problems.add(field, `must be ${what}`, hint);
+}
+
+/**
+ * zksolc's `solcVersion`: a full solc version. A build-info's `zkVM-<solc>-<revision>` long version
+ * gets its own message: it splits into `solcVersion` and `solcFork`.
+ */
+function checkSolcVersion(value: unknown, problems: Problems): string | undefined {
+  const field = "compiler.solcVersion";
+  return typeof value === "string" && value.startsWith("zkVM-")
+    ? problems.add(
+        field,
+        "is a zkVM- long version; split it into solcVersion and solcFork",
+        ZKVM_HINT,
+      )
+    : checkVersion(value, field, problems);
+}
+
+/** `""` for a zksolc field that a solc compiler leaves out, or an issue when it sets it. */
+function onlyZksolc(
+  fields: Map<string, unknown>,
+  name: string,
+  kind: "solc" | undefined,
+  problems: Problems,
+): string | undefined {
+  if (kind === "solc" && fields.get(name) !== undefined) {
+    return problems.add(`compiler.${name}`, "is zksolc only");
+  }
+  // Stryker disable next-line StringLiteral: equivalent. A compiler that is not zksolc never reads this value.
+  return "";
 }
 
 function checkContractName(
@@ -535,6 +615,11 @@ function checkCreationBytecode(value: unknown, problems: Problems): { value?: He
  *
  * `compiler.version` needs an 8-character commit hash, so solc 0.1.1 and 0.1.2, whose long
  * versions carry a 7-character hash, are rejected.
+ *
+ * `compiler.kind` is `"solc"` or `"zksolc"` (decision 0057). For zksolc, `compiler.version` is the
+ * zksolc version, `x.y.z` such as `1.5.15`; `compiler.solcVersion` is the full solc version, with
+ * the same rules as a solc `compiler.version`; and the optional `compiler.solcFork` is the
+ * revision of ZKsync's solc fork, `x.y.z` such as `1.0.2`. Each comes back without a leading `v`.
  *
  * `libraries` (R-IN-4) is keyed by `path:Name`. The path must be a key of
  * `compiler.input.sources` and must not be a local path: absolute, home, drive, file URL, or

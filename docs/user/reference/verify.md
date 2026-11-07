@@ -79,6 +79,27 @@ and `explorerUrl`.
 A partial match found by the lookup is returned as `already-verified`, without a submit. To turn it
 into an exact match, submit the exact sources another way; an option for this is planned.
 
+## Compiler kinds
+
+`input.compiler` is `{ kind: "solc", version, input }` for a contract compiled for the EVM, or
+`{ kind: "zksolc", version, solcVersion, solcFork?, input }` for a contract compiled for EraVM on
+ZKsync Era. For zksolc, `version` is the zksolc version, such as `1.5.15`; `solcVersion` is the full
+version of the solc that zksolc ran, such as `0.8.24+commit.e11b9ed9`; and `solcFork` is the
+revision of ZKsync's solc fork, such as `1.0.2`, when the build used it.
+A build-info long version `zkVM-0.8.24-1.0.2` splits into `solcVersion`
+`0.8.24+commit.e11b9ed9` and `solcFork` `1.0.2`. Find the upstream commit hash in the
+[solc release list](https://binaries.soliditylang.org/bin/list.json). A solc input that sets
+`solcVersion` or `solcFork` is refused with `invalid-input` naming the field.
+
+The routing table passes over a backend that does not verify the input's kind. A route whose
+backend does not verify it, whether the table chose it or you named it, throws
+[`unsupported-compiler`](errors/unsupported-compiler.md) with `details.field` `compiler.kind`, and
+nothing is sent. If no backend verifies the kind on the chain, the whole call throws before
+routing, including `verifyEach()`. No backend of this release verifies zksolc input yet.
+For zksolc input, `verify()` never derives constructor arguments: pass `constructorArgs` when the
+constructor takes any. Once a backend verifies zksolc, an `info` line explains the skipped
+derivation only when arguments would otherwise be derived.
+
 ## Linked libraries
 
 A contract that calls an external library has the library's address in its deployed code. Pass

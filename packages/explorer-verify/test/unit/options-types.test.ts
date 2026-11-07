@@ -21,10 +21,12 @@ import type {
   LinkProxyTarget,
   Logger,
   RouteOverride,
+  SolcCompiler,
   VerifyEachOptions,
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
+  ZksolcCompiler,
 } from "explorer-verify";
 import { toEnvelope } from "explorer-verify/envelope";
 import type { EnvelopeOptions } from "explorer-verify/envelope";
@@ -96,6 +98,17 @@ const input: VerifyInput = {
   creationBytecode: maybe.hex,
   libraries: maybe.libraries,
 };
+// A zksolc input (decision 0057): solcFork takes string | undefined.
+const zksolc: ZksolcCompiler = {
+  kind: "zksolc",
+  version: "1.5.15",
+  solcVersion: "0.8.24+commit.e11b9ed9",
+  solcFork: env.FORK,
+  input: base.compiler.input,
+};
+const solc: SolcCompiler = { kind: "solc", version: "0.8.24+commit.e11b9ed9", input: zksolc.input };
+const zksolcInput: VerifyInput = { ...input, compiler: zksolc };
+const solcInput: VerifyInput = { ...input, compiler: solc };
 const target: LinkProxyTarget = { chainId: 1, address: base.address, expectedImplementation: maybe.hex };
 const build: BuildVerifyInputOptions = {
   contract: env.CONTRACT,
@@ -154,6 +167,8 @@ const foundryBuild: FoundryBuildOptions = {
 export async function run(): Promise<unknown[]> {
   return [
     await verify(input, options),
+    await verify(zksolcInput, options),
+    await dryRun(solcInput, dry),
     await verify(input, { signal: maybe.signal, timeoutMs: maybe.number, rpcUrl: env.RPC_URL }),
     await dryRun(input, dry),
     await checkStatus(handle, status),
@@ -174,7 +189,7 @@ export async function run(): Promise<unknown[]> {
 /** Each line passes an option the function does not read; each must fail to compile. */
 const MISPLACED = [
   'import { checkStatus, dryRun, linkProxy, verify } from "explorer-verify";',
-  'import type { Handle, LinkProxyTarget, VerifyInput } from "explorer-verify";',
+  'import type { Handle, LinkProxyTarget, SolcCompiler, VerifyInput, ZksolcCompiler } from "explorer-verify";',
   "declare const input: VerifyInput;",
   "declare const handle: Handle;",
   "declare const target: LinkProxyTarget;",
@@ -183,6 +198,9 @@ const MISPLACED = [
   "export const b = checkStatus(handle, { rpcUrl });",
   "export const c = linkProxy(target, { rpcUrl });",
   "export const d = verify(input, { timeout: 5 });",
+  'declare const json: VerifyInput["compiler"]["input"];',
+  'export const e: ZksolcCompiler = { kind: "zksolc", version: "1.5.15", input: json };',
+  'export const f: SolcCompiler = { kind: "solc", version: "x", solcVersion: "x", input: json };',
   "",
 ].join("\n");
 
@@ -216,6 +234,8 @@ describe("the options types under exactOptionalPropertyTypes (R-IN-6, R-DX-4)", 
       "misplaced:8 TS2353 rpcUrl",
       "misplaced:9 TS2353 rpcUrl",
       "misplaced:10 TS2561 timeout",
+      "misplaced:12 TS2741 solcVersion",
+      "misplaced:13 TS2353 solcVersion",
     ]);
   });
 });

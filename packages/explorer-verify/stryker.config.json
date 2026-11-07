@@ -7,6 +7,7 @@
     "src/backends/common.ts",
     "src/flow/verify.ts",
     "src/flow/status.ts",
+    "src/compiler-kinds.ts",
     "src/redact.ts",
     "src/errors.ts",
     "src/observe.ts",
