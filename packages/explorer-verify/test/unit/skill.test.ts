@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import process from "node:process";
 import { describe, it } from "node:test";
 
 import {
@@ -23,6 +24,7 @@ import {
   runExample,
   SKILL_ENTRIES,
   SKILL_FILE,
+  startExample,
   tsc,
   typeCheck,
   typeNamesModule,
@@ -420,6 +422,36 @@ describe("the skill checks catch a stale skill", () => {
       const unusedRepeat = runExample(dir, "nothing.ts", ["2026-11-02-job-pending*"]);
       assert.match(unusedRepeat.stderr, /1 fixtures left unused/);
     } finally {
+      removeProject(dir);
+    }
+  });
+
+  it("keeps sync and async example output plain under forced colors (#272)", async () => {
+    const dir = createProject();
+    const previous = process.env["FORCE_COLOR"];
+    try {
+      process.env["FORCE_COLOR"] = "3";
+      writeFiles(dir, {
+        "colors.ts": [
+          'console.log(false, 2, { status: "verified" });',
+          'console.error(true, 4, { status: "pending" });',
+          "",
+        ].join("\n"),
+      });
+      const sync = runExample(dir, "colors.ts", []);
+      const asyncRun = await startExample(dir, "colors.ts", [], [], { FORCE_COLOR: "3" });
+      for (const run of [sync, asyncRun]) {
+        assert.equal(run.status, 0);
+        assert.equal(run.stdout, "false 2 { status: 'verified' }\n");
+        assert.equal(run.stderr, "true 4 { status: 'pending' }\n");
+      }
+      assert.equal(process.env["FORCE_COLOR"], "3");
+    } finally {
+      if (previous === undefined) {
+        delete process.env["FORCE_COLOR"];
+      } else {
+        process.env["FORCE_COLOR"] = previous;
+      }
       removeProject(dir);
     }
   });

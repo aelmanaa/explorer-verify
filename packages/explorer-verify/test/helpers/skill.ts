@@ -419,7 +419,7 @@ export async function startExample(
   return await new Promise((resolve) => {
     const child = spawn(process.execPath, exampleArgs(file, preloads), {
       cwd: dir,
-      env: { ...exampleEnv(fixtures), ...env },
+      env: exampleEnv(fixtures, env),
     });
     let stdout = "";
     let stderr = "";
@@ -439,6 +439,18 @@ function exampleArgs(file: string, preloads: readonly string[]): string[] {
   return [...[FETCH_PRELOAD, ...preloads].flatMap((url) => ["--import", url]), file];
 }
 
-function exampleEnv(fixtures: readonly string[]): NodeJS.ProcessEnv {
-  return { ...process.env, SKILL_FIXTURES: JSON.stringify(fixtures) };
+function exampleEnv(
+  fixtures: readonly string[],
+  overrides: Readonly<Record<string, string>> = {},
+): NodeJS.ProcessEnv {
+  // Examples promise plain output. A terminal or package manager may force inspect colors even
+  // through a pipe; remove that override rather than stripping output and hiding regressions.
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...overrides,
+    SKILL_FIXTURES: JSON.stringify(fixtures),
+    NO_COLOR: "1",
+  };
+  delete env["FORCE_COLOR"];
+  return env;
 }
