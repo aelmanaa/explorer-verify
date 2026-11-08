@@ -1,0 +1,31 @@
+{
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "packages": [
+    {
+      "file": "explorer-verify-0.1.0.tgz",
+      "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+    },
+    {
+      "file": "explorer-verify-cli-0.1.0.tgz",
+      "sha256": "58a35deef0f9a5dbb493aee521b4f3ebcc106f14e04e9d2f1d50a2f3c1e22a43"
+    },
+    {
+      "file": "explorer-verify-foundry-0.1.0.tgz",
+      "sha256": "d8a722260989e8017e82b7c4d9a5baa5143812f22f6d7eb16982d2deea943fe7"
+    },
+    {
+      "file": "explorer-verify-hardhat-0.1.0.tgz",
+      "sha256": "e7f40427fa9c2a6e2cae6a090b56938d586ad80ebcae8069531e1059e647e6b1"
+    }
+  ],
+  "gson": {
+    "version": "2.11.0",
+    "url": "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar",
+    "sha256": "57928d6e5a6edeb2abd3770a8f95ba44dce45f3b23b7a9dc2b309c581552a78b"
+  },
+  "jdk": {
+    "version": "17.0.21+9",
+    "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.21%2B9/OpenJDK17U-jdk_x64_mac_hotspot_17.0.21_9.tar.gz",
+    "sha256": "868f5c672b3389fdbe48e44f94ae170f01668b1401360944fc7159d7cc9772cc"
+  }
+}
