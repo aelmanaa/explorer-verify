@@ -1,0 +1,15 @@
+{
+  "name": "explorer-verify-adoption-browser-remix",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "@remixproject/plugin": "0.3.38",
+    "@remixproject/plugin-webview": "0.3.38",
+    "esbuild": "0.25.12",
+    "playwright": "1.58.2",
+    "solc": "0.8.24"
+  }
+}
