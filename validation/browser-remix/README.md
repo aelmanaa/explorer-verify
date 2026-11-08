@@ -91,3 +91,45 @@ separate authorization.
 The shared `validation/packages.mjs` inspector selects the supplied core by its manifest. New
 runs record its actual version and gitHead. The committed evidence identifies the original 0.1.0
 run. Linux uses Playwright Chromium by default; macOS uses the installed Chrome path.
+
+## Optional real Remix website smoke
+
+This network-dependent follow-up is separate from the local runner and does not gate normal CI:
+
+```sh
+node validation/browser-remix/run-real-remix.mjs --tarballs <candidate-tarballs-directory>
+```
+
+The same tooling installation and Chrome prerequisite apply. `--chrome <executable>` and
+`--output <directory>` are supported. The default output is the ignored `output/real-remix/`.
+The runner installs the actual SDK tarball into a temporary consumer, bundles the separate
+`real-remix-plugin.mjs`, and opens `https://remix.ethereum.org` in a fresh browser context.
+It attempts the website's external-plugin UI flow, then requests only
+`solidity.compileWithParameters` for our harmless Counter sample using compiler
+`0.8.24+commit.e11b9ed9`. The plugin accepts host messages only from `remix.ethereum.org`
+or Remix's advertised new home, `app.remix.live`. It never requests wallet access, deployment,
+RPC calls or explorer verification. No RemixVM deployment is attempted.
+
+On success it would retain the actual host compilation response and SDK-rebuilt input, with
+compiler version and tarball digest. It writes `status: "blocked"`, `success: false` and exits 1
+when navigation, UI, permission, transport or compilation cannot complete. Website text and a
+screenshot are retained on failure. It does not dump storage, keys, request bodies, headers or
+query parameters. All captured pages come from a fresh, unauthenticated context.
+The host/compiler path after the blocked steps remains unvalidated; its presence in the script
+is not evidence that the website accepted or executed it.
+
+The 2026-11-08 attempts are recorded in `evidence-real-remix/`. **The real IDE smoke is blocked.**
+HTTP navigation succeeded and the website showed Remix 2.6.13. One attempt reached the plugin
+manager but failed to locate its external-plugin button by accessible role. The follow-up used
+the visible text selector and stopped earlier: a Remix promotional nudge intercepted pointer
+events on **Save Preferences** for 15 seconds. The screenshot shows the intercepting overlay.
+No plugin handshake, compiler response, build-info, receipt or SDK execution inside the real IDE
+was obtained. Promotional UI text about a verified Sepolia contract in the screenshot is Remix
+marketing content, not a transaction or verification performed by this test. The 16 previously
+recorded local scenarios are unchanged and do not stand in for this blocked remote result.
+
+The external-plugin flow follows the upstream
+[Plugin Manager documentation](https://remix-ide.readthedocs.io/en/latest/plugin_manager.html)
+(read 2026-11-08). `compileWithParameters` and its input shape come from the pinned Remix
+plugin-api 0.3.38 `compiler/api.d.ts` and `compiler/type/input.d.ts`. UI selectors may need
+maintenance as the live website changes; no hidden host API or replacement fake host is used.
