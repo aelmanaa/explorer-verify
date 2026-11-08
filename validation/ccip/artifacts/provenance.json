@@ -1,0 +1,36 @@
+{
+  "repository": "https://github.com/smartcontractkit/ccip-tools-ts",
+  "commit": "1cecb266d924bb52c6c6030e0bdc2b4b6f5e430e",
+  "files": [
+    {
+      "file": "CrossChainToken.standard-input.json",
+      "source": "ccip-sdk/src/verify/fixtures/CrossChainToken.standard-input.json",
+      "sha256": "6d22c8dde7fdc3d7bfa9ce95139cf08beb3541fada23d11b1394dd825ca28181"
+    },
+    {
+      "file": "CrossChainToken.abi.json",
+      "source": "ccip-sdk/src/verify/fixtures/CrossChainToken.abi.json",
+      "sha256": "5adfbef0c9e10a8ddb3ef28dfcfb7d82f4ba3b5cd302d6162fd00a082ce92e46"
+    },
+    {
+      "file": "CrossChainToken.bytecode.ts",
+      "source": "ccip-sdk/src/cct/evm/token/bytecodes/CrossChainToken.ts",
+      "sha256": "45b0e67632004c507827732f1409cc66347d83c2028ce3e7f8be339bbf3c5284"
+    },
+    {
+      "file": "BurnMintTokenPool.standard-input.json",
+      "source": "ccip-sdk/src/verify/fixtures/BurnMintTokenPool.standard-input.json",
+      "sha256": "ade483a975b7ef222ccb3f3b25b5b30630bd9650663101cdccfd293f6738b2d4"
+    },
+    {
+      "file": "BurnMintTokenPool.abi.json",
+      "source": "ccip-sdk/src/verify/fixtures/BurnMintTokenPool.abi.json",
+      "sha256": "5964b24c606fa160079ad020f52ebbe0e4b4e74a7a8c063e8ffdb1841a0e8ab7"
+    },
+    {
+      "file": "BurnMintTokenPool.bytecode.ts",
+      "source": "ccip-sdk/src/cct/evm/token-pool/bytecodes/BurnMintTokenPool.ts",
+      "sha256": "7f20418b84756834cf9a5b8e92393dc885964110a7fcf5b58c7f10fbb037e91a"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "ccip-adoption-validation",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "explorer-verify": "file:./candidate.tgz",
+    "ethers": "6.15.0"
+  }
+}
