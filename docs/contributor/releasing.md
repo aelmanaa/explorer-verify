@@ -25,6 +25,12 @@ same tarballs, same provenance.
 | `scripts/check-changesets.ts`        | Run by `pnpm run check`: refuses a `major` changeset during 0.x                                                                                                                                                                         |
 | `scripts/check-release-workflows.ts` | Run by `pnpm run check`: fails when the job that moves `latest` does not need the docs job or runs outside `npm-latest`, when another job can deploy to Pages, or when the Version Packages job runs without the published-package gate |
 
+The registry check accepts the object returned by npm 11.19.0 and the one-result array returned
+by npm 12.2.0 for `npm view <package>@<version> --json`. It rejects empty or multiple results.
+Both formats must pass the same version, beta tag, commit and provenance checks before promotion.
+Both promotion jobs install the same pinned npm version, so preflight uses the same metadata
+format as the check after approval.
+
 The packages share one version through the changesets `fixed` group
 `["explorer-verify", "@explorer-verify/*"]`. A scoped package joins the release when its manifest
 drops `"private": true`; the workflows read the list from `scripts/release-packages.ts` only.
