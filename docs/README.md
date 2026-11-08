@@ -66,3 +66,6 @@ The zksolc Blockscout mapping is recorded in [decision 0059](contributor/decisio
 and its [protocol evidence](contributor/research/2026-11-07-blockscout-zksolc.md).
 Event and envelope fields are recorded in [decision 0058](contributor/decisions/0058-settle-event-and-envelope-fields.md),
 with [source research](contributor/research/2026-11-07-event-envelope-fields.md).
+
+The [2026-11-08 agent evaluation](contributor/research/2026-11-08-agent-evaluation.md) records the five CLI tasks
+with two independent model sessions, their results and unsafe attempts.

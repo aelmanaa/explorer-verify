@@ -87,6 +87,9 @@ skill that ships in the package is
 package, and `packages/explorer-verify/test/unit/skill.test.ts` runs its examples against the
 build.
 
+The [2026-11-08 agent evaluation](docs/contributor/research/2026-11-08-agent-evaluation.md) records the five CLI tasks
+with two independent model sessions, their results and unsafe attempts.
+
 ## Commands
 
 | Command                              | What it does                                                                               |
