@@ -7,6 +7,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { describe, it } from "node:test";
+import { stripVTControlCharacters } from "node:util";
 
 import {
   API_SURFACE,
@@ -443,7 +444,10 @@ describe("the skill checks catch a stale skill", () => {
       for (const run of [sync, asyncRun]) {
         assert.equal(run.status, 0);
         assert.equal(run.stdout, "false 2 { status: 'verified' }\n");
-        assert.equal(run.stderr, "true 4 { status: 'pending' }\n");
+        // Node 24.0 prints a type-stripping warning for the preload before the example runs.
+        assert.match(run.stderr, /(?:^|\n)true 4 \{ status: 'pending' \}\n$/);
+        assert.equal(run.stderr, stripVTControlCharacters(run.stderr));
+        assert.doesNotMatch(run.stderr, /NO_COLOR.*ignored/);
       }
       assert.equal(process.env["FORCE_COLOR"], "3");
     } finally {
