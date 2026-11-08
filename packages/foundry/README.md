@@ -2,7 +2,7 @@
 
 Build verification input from a Foundry project's compiler files. Runs on Node.js 22.18 or later.
 
-Status: before 0.1.0; nothing is published to npm yet.
+Status: experimental. The API may change before 1.0.
 
 Run `forge build --build-info` first. The helper reads files and does not compile.
 

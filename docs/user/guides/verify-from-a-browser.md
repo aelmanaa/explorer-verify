@@ -1,13 +1,10 @@
 # Verify from a browser
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers who call `verify()` from a web page, with a bundler or from a CDN. Nothing is
-published to npm yet.
-
-This guide covers what changes in a browser: how the library reaches the page, which explorers the
+Audience: developers who call `verify()` from a web page, with a bundler or from a CDN. This guide covers what changes in a browser: how the library reaches the page, which explorers the
 page calls directly, where the Etherscan key lives, how to keep a handle across a reload, and what
 the library adds to your bundle. For a full walk-through, from a wallet deployment to a verified
 contract, follow the tutorial

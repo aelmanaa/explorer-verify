@@ -1,11 +1,11 @@
 # Deploy a contract from a dapp and verify it
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: developers new to explorer-verify who build a web dapp that deploys contracts for its
-users. Nothing is published to npm yet.
+users.
 
 In this tutorial you build the parts of a dapp that deploy a small contract, `Greeter`, from the
 user's browser wallet on the Sepolia testnet, then verify its source on Sourcify. Sourcify needs no

@@ -1,12 +1,12 @@
 # CLI
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 Audience: people, CI jobs and agents that run the `explorer-verify` command.
 
-The command ships in the `@explorer-verify/cli` package, which is not published yet. It runs on
+The command ships in the `@explorer-verify/cli` package, which runs on
 Node 22.18 and later. `verify` verifies a contract from a Foundry or Hardhat project or from its
 build files, and `status` resumes a submitted verification from its handle. This page describes both, and the output contract that
 every command follows.

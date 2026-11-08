@@ -1,12 +1,12 @@
 # explorer-verify
 
-> explorer-verify verifies the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. Nothing is published to npm yet. `verify()` works with Sourcify, Etherscan v2, Routescan, Blockscout and standalone Etherscan-compatible explorers. The user docs grow with each feature. Once published, the npm package will ship these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
+> explorer-verify verifies the source of deployed smart contracts on block explorers: Etherscan (API v2), Blockscout, Sourcify and Routescan, with one API for a browser, a backend or a CLI. The APIs are experimental before 1.0. `verify()` works with Sourcify, Etherscan v2, Routescan, Blockscout and standalone Etherscan-compatible explorers. The npm package ships these pages under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the installed version.
 
 Submitting a verification is outward and permanent. Read the agent page before you call the library or the CLI on someone's behalf.
 
 ## User docs
 
-- [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages and the planned ones
+- [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages
 - [Deploy a contract from a dapp and verify it](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/tutorials/deploy-and-verify-from-a-dapp.md): tutorial: ship the build files with a dapp, deploy from a browser wallet on Sepolia, verify on Sourcify with no key, resume after a reload, read the result, and verify on Etherscan through the server handler
 - [Using explorer-verify from an agent](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/using-from-an-agent.md): which calls and commands are safe and which submit, the target a submit needs (`--backend` or `--backend auto`), the dry run, where API keys come from, the stderr handle line, what to do on each exit code, and the Etherscan plan rule
 - [Verify a contract shipped in an npm package](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/guides/verify-a-contract-from-an-npm-package.md): build the verification input from build-info, artifacts, Standard JSON or Solidity metadata and sources of unknown origin

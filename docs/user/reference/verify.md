@@ -1,6 +1,6 @@
 # verify()
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
@@ -10,7 +10,7 @@ Audience: developers and agents who call `verify()` and act on what it returns o
 have it yet. The routing table sends each chain it lists to Etherscan v2 when you pass an
 Etherscan key and the chain is on Etherscan's free tier, and to Sourcify, which needs no key,
 otherwise. Routescan is reached with `route.backend` and `route.apiUrl`.
-[Routing](routing.md) explains how a chain resolves. Nothing is published to npm yet.
+[Routing](routing.md) explains how a chain resolves.
 
 <!-- fragment: the signature only; the example below runs. -->
 

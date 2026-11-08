@@ -3,7 +3,7 @@
 Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a
 browser, backend or CLI.
 
-Status: before 0.1.0; the implementation works in this repository and nothing is published to npm yet.
+Status: experimental. The API may change before 1.0.
 
 ## CLI
 

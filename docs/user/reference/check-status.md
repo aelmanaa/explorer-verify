@@ -1,6 +1,6 @@
 # checkStatus()
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
@@ -8,7 +8,7 @@ Audience: developers and agents who resume a verification that `verify()` submit
 
 `checkStatus()` continues polling a submitted verification from its handle. Use it after a
 `not-confirmed` error, an abort, a page reload or a process restart. It never submits, so it is safe
-to call without asking. Nothing is published to npm yet.
+to call without asking.
 
 <!-- fragment: signatures only; the example below runs. -->
 

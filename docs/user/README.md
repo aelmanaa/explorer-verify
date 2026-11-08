@@ -1,11 +1,10 @@
 # User documentation
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../llms.txt) lists every page of these docs.
 
-Audience: developers using explorer-verify. Nothing is released yet, so most of this section is
-still to come.
+Audience: developers using explorer-verify. The APIs are experimental before 1.0.
 
 | Page                                                                                           | What it covers                                                                                |
 | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -52,7 +51,7 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | `explanation/` | Background        | In place: match types; Etherscan plans and attribution  |
 
 Each user page states the version it describes in a `Version:` line and links
-[llms.txt](../../llms.txt) near the top. Once published, the npm package will ship these pages
+[llms.txt](../../llms.txt) near the top. The npm package ships these pages
 under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the
 installed version.
 

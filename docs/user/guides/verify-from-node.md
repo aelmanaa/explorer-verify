@@ -1,13 +1,10 @@
 # Verify from Node.js
 
-Version: explorer-verify 0.0.0
+Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers who verify contracts from a Node.js backend service or script. Nothing is
-published to npm yet.
-
-On a backend, the keys stay on your server, a call may wait for minutes, and a job queue can
+Audience: developers who verify contracts from a Node.js backend service or script. On a backend, the keys stay on your server, a call may wait for minutes, and a job queue can
 resume a verification long after the process that submitted it has ended. This guide shows a
 verification with keys from the environment, a logger, events for your telemetry and a long time
 budget, then a queue job that resumes it with `checkStatus()`. The same code runs in Deno and Bun;

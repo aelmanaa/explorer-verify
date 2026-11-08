@@ -2,7 +2,7 @@
 
 Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a terminal.
 
-Status: before 0.1.0; nothing is published to npm yet. Requires Node.js 22.18 or later.
+Status: experimental. The API may change before 1.0. Requires Node.js 22.18 or later.
 
 In a Foundry project, first run `forge build --build-info`. These commands use its Greeter
 build and the deployed address on Sepolia; replace the address and contract with your deployment.
