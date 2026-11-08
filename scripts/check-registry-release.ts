@@ -186,7 +186,10 @@ export function checkPackage(name: string, version: string, commit: string, view
   const result = view(spec);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(result.stdout);
+    const metadata: unknown = JSON.parse(result.stdout);
+    // npm 11 returns one object; npm 12.2.0 returns an array even for an exact version.
+    // Unwrap exactly one result. Empty or ambiguous arrays still fail the version check.
+    parsed = Array.isArray(metadata) && metadata.length === 1 ? metadata[0] : metadata;
   } catch {
     parsed = undefined;
   }

@@ -145,6 +145,37 @@ describe("registry check before the promote (R-SEC-4)", () => {
     assert.equal(checkTags({ beta: "0.1.0" }, "0.1.0").alreadyLatest, false);
   });
 
+  it("accepts npm 12 single-result arrays as well as npm 11 objects (#274)", () => {
+    const output = viewJson("0.2.0", { beta: "0.2.0", latest: "0.1.0" });
+    assert.deepEqual(
+      checkPackage("a", "0.2.0", COMMIT, stub(`[${output}]`)),
+      checkPackage("a", "0.2.0", COMMIT, stub(output)),
+    );
+  });
+
+  it("rejects empty, ambiguous and malformed npm view arrays (#274)", () => {
+    const output = viewJson("0.2.0", { beta: "0.2.0" });
+    for (const stdout of ["[]", `[${output},${output}]`, "[null]", `[[${output}]]`]) {
+      assert.throws(
+        () => checkPackage("a", "0.2.0", COMMIT, stub(stdout)),
+        /a@0\.2\.0 is not on npm/,
+      );
+    }
+  });
+
+  it("keeps every release guard for npm 12 arrays (#274)", () => {
+    for (const [output, message] of [
+      [viewJson("0.1.0", { beta: "0.2.0" }), /is not on npm/],
+      [viewJson("0.2.0", { beta: "0.3.0" }), /the beta dist-tag/],
+      [viewJson("0.2.0", { beta: "0.2.0" }, { gitHead: "d" }), /has gitHead/],
+      [viewJson("0.2.0", { beta: "0.2.0" }, { dist: {} }), /no provenance attestation/],
+      [viewJson("0.2.0", { beta: "0.2.0", latest: "0.3.0" }), /latest never moves back/],
+    ]) {
+      assert.ok(typeof output === "string" && message instanceof RegExp);
+      assert.throws(() => checkPackage("a", "0.2.0", COMMIT, stub(`[${output}]`)), message);
+    }
+  });
+
   it("refuses a version that is not on npm", () => {
     const missing = JSON.stringify({ error: { code: "E404" } });
     assert.throws(

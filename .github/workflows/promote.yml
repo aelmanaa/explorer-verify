@@ -61,6 +61,11 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
+      # Match the npm used after approval, so preflight exercises the same registry output.
+      - name: Install the pinned npm
+        run: |
+          npm install --global --ignore-scripts npm@12.2.0
+          npm --version
       # The release workflow checked the tag before publishing; this checks it again, with the keys
       # and the script of main, before latest moves. --output appends commit= and version=.
       - name: Verify the tag signature, version and commit
