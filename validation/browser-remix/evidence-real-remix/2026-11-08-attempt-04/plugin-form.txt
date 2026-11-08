@@ -1,0 +1,15 @@
+Local Plugin
+Plugin Name (required)
+Display Name
+Api  (comma separated list of method names)
+Plugins it can activate  (comma separated list of plugin names)
+Url (required)
+Type of connection (required)
+Iframe
+Websocket
+Location in remix (required)
+Side Panel
+Main Panel
+None
+OK
+Cancel

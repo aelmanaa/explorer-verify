@@ -1,0 +1,48 @@
+{
+  "startedAt": "2026-11-08T15:05:27.234Z",
+  "target": "https://remix.ethereum.org",
+  "optional": true,
+  "success": true,
+  "status": "passed",
+  "stage": "complete",
+  "scenarios": [
+    {
+      "name": "real-remix-navigation",
+      "success": true
+    },
+    {
+      "name": "actual-remix-host-compiler-to-public-sdk",
+      "success": true,
+      "compiler": "0.8.24+commit.e11b9ed9"
+    }
+  ],
+  "constraints": {
+    "freshBrowserContext": true,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  },
+  "package": {
+    "name": "explorer-verify",
+    "version": "0.1.0",
+    "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+  },
+  "browser": "156.0.8078.80",
+  "localNetworkPermission": "granted-to-remix-origins-in-fresh-context",
+  "promotionsDismissed": 0,
+  "httpStatus": 200,
+  "finalUrl": "https://remix.ethereum.org/#lang=en",
+  "performanceAnalytics": "disabled",
+  "pluginStage": "compiled-and-built-sdk-input",
+  "networkFailures": [
+    {
+      "resource": "https://web-assets.solidityscan.com/web-assets/solidity_scan_assets/images/logo/logo192.png",
+      "error": "net::ERR_BLOCKED_BY_ORB"
+    },
+    {
+      "resource": "https://app.remix.live/assets/audio/remiGuitar-single-power-chord-A-minor.mp3",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "finishedAt": "2026-11-08T15:05:49.624Z"
+}

@@ -16,7 +16,12 @@
     "correctness": "error",
     "suspicious": "error"
   },
-  "ignorePatterns": ["**/dist/**", "**/coverage/**", "node_modules/**"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/coverage/**",
+    "node_modules/**",
+    "validation/hardhat/project/**"
+  ],
   "rules": {
     "eslint/no-console": "error",
     "eslint/no-unused-vars": [
@@ -111,6 +116,23 @@
   },
   "overrides": [
     {
+      // JSON-driven JavaScript harnesses use runtime assertions instead of TypeScript narrowing.
+      "files": ["validation/**/*.mjs"],
+      "rules": {
+        "typescript/strict-boolean-expressions": "off",
+        "typescript/no-misused-promises": "off"
+      }
+    },
+    {
+      // Adoption consumers are application and test programs with stdout and process settings.
+      "files": ["validation/**"],
+      "rules": {
+        "eslint/no-console": "off",
+        "node/no-process-env": "off",
+        "jsdoc-js/require-jsdoc": "off"
+      }
+    },
+    {
       "files": ["packages/*/src/**"],
       "rules": {
         "import/no-nodejs-modules": "error"
@@ -193,7 +215,7 @@
       }
     },
     {
-      "files": ["**/*.mjs"],
+      "files": ["**/*.mjs", "validation/**/*.cjs"],
       "rules": {
         "typescript/no-unsafe-call": "off",
         "typescript/no-unsafe-return": "off",

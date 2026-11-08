@@ -9,6 +9,8 @@
     "**/coverage/**",
     "**/CHANGELOG.md",
     ".changeset/*.md",
-    "pnpm-lock.yaml"
+    "pnpm-lock.yaml",
+    "validation/ccip/artifacts/**",
+    "validation/browser-remix/evidence-real-remix/**"
   ]
 }

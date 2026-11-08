@@ -1,0 +1,30 @@
+{
+  "startedAt": "2026-11-08T14:55:11.250Z",
+  "target": "https://remix.ethereum.org",
+  "optional": true,
+  "success": false,
+  "status": "blocked",
+  "stage": "open-plugin-manager",
+  "scenarios": [
+    {
+      "name": "real-remix-navigation",
+      "success": true
+    }
+  ],
+  "constraints": {
+    "freshBrowserContext": true,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  },
+  "package": {
+    "name": "explorer-verify",
+    "version": "0.1.0",
+    "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+  },
+  "browser": "156.0.8078.80",
+  "httpStatus": 200,
+  "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Connect to an external plugin', exact: true })\u001b[22m\n",
+  "title": "Remix IDE - Smart Contract Development",
+  "finishedAt": "2026-11-08T14:55:58.643Z"
+}

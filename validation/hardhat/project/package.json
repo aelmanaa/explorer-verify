@@ -1,0 +1,15 @@
+{
+  "name": "explorer-verify-hardhat-validation",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@explorer-verify/hardhat": "file:./explorer-verify-hardhat.tgz",
+    "explorer-verify": "file:./explorer-verify.tgz",
+    "hardhat": "3.21.2",
+    "solc": "0.8.24"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "typescript": "7.0.2"
+  }
+}

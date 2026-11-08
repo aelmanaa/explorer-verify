@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "checks": [
+    {
+      "language": "python",
+      "scenario": "deliberately-wrong-status",
+      "success": true,
+      "clientExitCode": 1
+    },
+    {
+      "language": "go",
+      "scenario": "deliberately-wrong-status",
+      "success": true,
+      "clientExitCode": 2
+    },
+    {
+      "language": "java",
+      "scenario": "deliberately-wrong-status",
+      "success": true,
+      "clientExitCode": 1
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "project": "hardhat",
+  "issue": 266,
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "node": "v24.21.0",
+  "mode": "local-http-stand-in",
+  "packages": [
+    {
+      "file": "explorer-verify-0.1.0.tgz",
+      "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+    },
+    {
+      "file": "explorer-verify-hardhat-0.1.0.tgz",
+      "sha256": "e7f40427fa9c2a6e2cae6a090b56938d586ad80ebcae8069531e1059e647e6b1"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "strict-typecheck",
+      "success": true,
+      "exitCode": 0
+    },
+    {
+      "name": "compile-default",
+      "success": true,
+      "exitCode": 0
+    },
+    {
+      "name": "success-default",
+      "success": true,
+      "exitCode": 0,
+      "schemaVersion": 1,
+      "result": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    },
+    {
+      "name": "compile-production",
+      "success": true,
+      "exitCode": 0
+    },
+    {
+      "name": "success-production",
+      "success": true,
+      "exitCode": 0,
+      "schemaVersion": 1,
+      "result": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    },
+    {
+      "name": "explorer-rejection",
+      "success": true,
+      "exitCode": 1,
+      "schemaVersion": 1,
+      "result": {
+        "status": "failed",
+        "backend": "sourcify",
+        "reason": "no_match: Synthetic bytecode mismatch"
+      }
+    },
+    {
+      "name": "pending-not-confirmed-with-handle",
+      "success": true,
+      "exitCode": 1,
+      "resumeHandle": "ev1:sourcify:31337:0x0000000000000000000000000000000000000001:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+      "schemaVersion": 1,
+      "error": {
+        "code": "not-confirmed",
+        "message": "The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 2.5 s budget ran out before the job ended, and a last lookup found no match.",
+        "details": {
+          "code": "not-confirmed",
+          "handle": {
+            "version": 1,
+            "backend": "sourcify",
+            "chainId": 31337,
+            "address": "0x0000000000000000000000000000000000000001",
+            "jobId": "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718"
+          }
+        },
+        "hint": "Call checkStatus with details.handle later to continue polling."
+      }
+    },
+    {
+      "name": "resume-new-process-no-resubmit",
+      "success": true,
+      "exitCode": 0,
+      "schemaVersion": 1,
+      "result": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    },
+    {
+      "name": "incomplete-build-no-network",
+      "success": true,
+      "exitCode": 1,
+      "schemaVersion": 1,
+      "error": {
+        "code": "incomplete-input",
+        "message": "The build-info output file build/artifacts/build-info/solc-0_8_24-07705f328820d3779c4d6b596f2ad2efe5c510e7.output.json was not found.",
+        "details": {
+          "code": "incomplete-input",
+          "field": "input",
+          "candidates": []
+        },
+        "hint": "Compile the project (npx hardhat compile on Hardhat 2, npx hardhat build on Hardhat 3), then try again."
+      }
+    },
+    {
+      "name": "restore-build-recovery",
+      "success": true,
+      "exitCode": 0,
+      "schemaVersion": 1,
+      "result": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    }
+  ],
+  "success": true,
+  "submissions": [
+    {
+      "contractIdentifier": "project/contracts/Counter.sol:Counter",
+      "compilerVersion": "0.8.24+commit.e11b9ed9",
+      "optimizer": {
+        "enabled": false,
+        "runs": 200
+      },
+      "sourceNames": ["project/contracts/Counter.sol"],
+      "inputSha256": "423500bf1228f479e6f773b314d2ddcb3ffdbc7b222dca324d664ceb0129540e"
+    },
+    {
+      "contractIdentifier": "project/contracts/Counter.sol:Counter",
+      "compilerVersion": "0.8.24+commit.e11b9ed9",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "sourceNames": ["project/contracts/Counter.sol"],
+      "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
+    },
+    {
+      "contractIdentifier": "project/contracts/Counter.sol:Counter",
+      "compilerVersion": "0.8.24+commit.e11b9ed9",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "sourceNames": ["project/contracts/Counter.sol"],
+      "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
+    },
+    {
+      "contractIdentifier": "project/contracts/Counter.sol:Counter",
+      "compilerVersion": "0.8.24+commit.e11b9ed9",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "sourceNames": ["project/contracts/Counter.sol"],
+      "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
+    },
+    {
+      "contractIdentifier": "project/contracts/Counter.sol:Counter",
+      "compilerVersion": "0.8.24+commit.e11b9ed9",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "sourceNames": ["project/contracts/Counter.sol"],
+      "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
+    }
+  ]
+}

@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 1,
+  "project": "polyglot",
+  "issue": 268,
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "mode": "local-preload-protocol-contract",
+  "success": true,
+  "packages": [
+    {
+      "file": "explorer-verify-0.1.0.tgz",
+      "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+    },
+    {
+      "file": "explorer-verify-cli-0.1.0.tgz",
+      "sha256": "58a35deef0f9a5dbb493aee521b4f3ebcc106f14e04e9d2f1d50a2f3c1e22a43"
+    },
+    {
+      "file": "explorer-verify-foundry-0.1.0.tgz",
+      "sha256": "d8a722260989e8017e82b7c4d9a5baa5143812f22f6d7eb16982d2deea943fe7"
+    },
+    {
+      "file": "explorer-verify-hardhat-0.1.0.tgz",
+      "sha256": "e7f40427fa9c2a6e2cae6a090b56938d586ad80ebcae8069531e1059e647e6b1"
+    }
+  ],
+  "version": {
+    "schemaVersion": 1,
+    "ok": true,
+    "result": {
+      "cli": "0.1.0",
+      "core": "0.1.0",
+      "routingTableDate": "2026-11-05"
+    }
+  },
+  "runtimes": {
+    "node": "v24.21.0",
+    "python": "Python 3.14.6",
+    "go": "go version go1.27.1 darwin/amd64",
+    "java": "openjdk 17.0.21 2026-10-20\nOpenJDK Runtime Environment Temurin-17.0.21+9 (build 17.0.21+9)\nOpenJDK 64-Bit Server VM Temurin-17.0.21+9 (build 17.0.21+9, mixed mode)"
+  },
+  "results": [
+    {
+      "language": "python",
+      "success": true,
+      "scenarios": [
+        {
+          "name": "verified",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "rejected",
+          "success": true,
+          "exitCode": 1,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "result": {
+              "status": "failed",
+              "backend": "sourcify",
+              "reason": "no_match: The deployed and recompiled bytecode do not match."
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: failed.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "pending",
+          "success": true,
+          "exitCode": 4,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "not-confirmed",
+              "message": "The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match.",
+              "hint": "The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
+              "retryable": true,
+              "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "details": {
+                "code": "not-confirmed",
+                "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718"
+              }
+            },
+            "nextCommand": [
+              "explorer-verify",
+              "status",
+              "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "--json"
+            ]
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nerror: The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match. (not-confirmed)\n  hint: The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed\n  handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\n  next: explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json\n",
+          "requests": 5,
+          "submits": 1
+        },
+        {
+          "name": "resume",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Result from sourcify: verified, exact match.\n",
+          "requests": 1,
+          "submits": 0
+        },
+        {
+          "name": "invalid-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "invalid-input",
+              "message": "The command line is invalid: argument 5 is not an option.",
+              "hint": "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+              "retryable": false,
+              "details": {
+                "code": "invalid-input",
+                "issues": [
+                  {
+                    "field": "argument 5",
+                    "message": "is not an option"
+                  }
+                ]
+              }
+            }
+          },
+          "stderr": "error: The command line is invalid: argument 5 is not an option. (invalid-input)\n  hint: Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "incomplete-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "incomplete-input",
+              "message": "The documents hold no compiler input: the build-info was written without it.",
+              "hint": "The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input",
+              "retryable": false,
+              "details": {
+                "code": "incomplete-input",
+                "field": "input",
+                "candidates": []
+              }
+            }
+          },
+          "stderr": "error: The documents hold no compiler input: the build-info was written without it. (incomplete-input)\n  hint: The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "recovered-with-complete-input",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        }
+      ]
+    },
+    {
+      "language": "go",
+      "success": true,
+      "scenarios": [
+        {
+          "name": "verified",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "rejected",
+          "success": true,
+          "exitCode": 1,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "result": {
+              "status": "failed",
+              "backend": "sourcify",
+              "reason": "no_match: The deployed and recompiled bytecode do not match."
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: failed.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "pending",
+          "success": true,
+          "exitCode": 4,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "not-confirmed",
+              "message": "The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match.",
+              "hint": "The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
+              "retryable": true,
+              "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "details": {
+                "code": "not-confirmed",
+                "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718"
+              }
+            },
+            "nextCommand": [
+              "explorer-verify",
+              "status",
+              "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "--json"
+            ]
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nerror: The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match. (not-confirmed)\n  hint: The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed\n  handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\n  next: explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json\n",
+          "requests": 5,
+          "submits": 1
+        },
+        {
+          "name": "resume",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Result from sourcify: verified, exact match.\n",
+          "requests": 1,
+          "submits": 0
+        },
+        {
+          "name": "invalid-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "invalid-input",
+              "message": "The command line is invalid: argument 5 is not an option.",
+              "hint": "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+              "retryable": false,
+              "details": {
+                "code": "invalid-input",
+                "issues": [
+                  {
+                    "field": "argument 5",
+                    "message": "is not an option"
+                  }
+                ]
+              }
+            }
+          },
+          "stderr": "error: The command line is invalid: argument 5 is not an option. (invalid-input)\n  hint: Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "incomplete-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "incomplete-input",
+              "message": "The documents hold no compiler input: the build-info was written without it.",
+              "hint": "The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input",
+              "retryable": false,
+              "details": {
+                "code": "incomplete-input",
+                "field": "input",
+                "candidates": []
+              }
+            }
+          },
+          "stderr": "error: The documents hold no compiler input: the build-info was written without it. (incomplete-input)\n  hint: The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "recovered-with-complete-input",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        }
+      ]
+    },
+    {
+      "language": "java",
+      "success": true,
+      "scenarios": [
+        {
+          "name": "verified",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "rejected",
+          "success": true,
+          "exitCode": 1,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "result": {
+              "status": "failed",
+              "backend": "sourcify",
+              "reason": "no_match: The deployed and recompiled bytecode do not match."
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: failed.\n",
+          "requests": 3,
+          "submits": 1
+        },
+        {
+          "name": "pending",
+          "success": true,
+          "exitCode": 4,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "not-confirmed",
+              "message": "The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match.",
+              "hint": "The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
+              "retryable": true,
+              "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "details": {
+                "code": "not-confirmed",
+                "handle": "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718"
+              }
+            },
+            "nextCommand": [
+              "explorer-verify",
+              "status",
+              "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
+              "--json"
+            ]
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nerror: The verification of job ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 on sourcify is not confirmed: the 3 s budget ran out before the job ended, and a last lookup found no match. (not-confirmed)\n  hint: The explorer is still verifying. Run explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 later to continue polling, or raise --timeout. Running verify again would submit again.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed\n  handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\n  next: explorer-verify status ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718 --json\n",
+          "requests": 5,
+          "submits": 1
+        },
+        {
+          "name": "resume",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Result from sourcify: verified, exact match.\n",
+          "requests": 1,
+          "submits": 0
+        },
+        {
+          "name": "invalid-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "invalid-input",
+              "message": "The command line is invalid: argument 5 is not an option.",
+              "hint": "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+              "retryable": false,
+              "details": {
+                "code": "invalid-input",
+                "issues": [
+                  {
+                    "field": "argument 5",
+                    "message": "is not an option"
+                  }
+                ]
+              }
+            }
+          },
+          "stderr": "error: The command line is invalid: argument 5 is not an option. (invalid-input)\n  hint: Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "incomplete-input",
+          "success": true,
+          "exitCode": 2,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": false,
+            "error": {
+              "code": "incomplete-input",
+              "message": "The documents hold no compiler input: the build-info was written without it.",
+              "hint": "The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.",
+              "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input",
+              "retryable": false,
+              "details": {
+                "code": "incomplete-input",
+                "field": "input",
+                "candidates": []
+              }
+            }
+          },
+          "stderr": "error: The documents hold no compiler input: the build-info was written without it. (incomplete-input)\n  hint: The build-info holds no compiler input. Rebuild with build-info enabled (forge build --build-info), then pass the new build-info file.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input\n",
+          "requests": 0,
+          "submits": 0
+        },
+        {
+          "name": "recovered-with-complete-input",
+          "success": true,
+          "exitCode": 0,
+          "envelope": {
+            "schemaVersion": 1,
+            "ok": true,
+            "result": {
+              "status": "verified",
+              "backend": "sourcify",
+              "match": "exact",
+              "explorerUrl": "https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"
+            }
+          },
+          "stderr": "Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718\nResult from sourcify: verified, exact match.\n",
+          "requests": 3,
+          "submits": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "success": true,
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "scenarios": [
+    {
+      "name": "remix-compilation-to-receipt",
+      "success": true,
+      "detail": {
+        "compiler": "0.8.24+commit.e11b9ed9",
+        "contract": "contracts/Counter.sol:Counter",
+        "address": "0x1234567890123456789012345678901234567890"
+      }
+    },
+    {
+      "name": "build-info-equivalence",
+      "success": true,
+      "detail": "Same solc build, locally assembled build-info envelope"
+    },
+    {
+      "name": "incomplete-input",
+      "success": true,
+      "detail": {
+        "code": "incomplete-input",
+        "field": "sources",
+        "hint": "Pass each path in details.candidates as a key of options.sources, with the file's exact content, or pass the build-info of the same build."
+      }
+    },
+    {
+      "name": "source-mismatch",
+      "success": true,
+      "detail": {
+        "code": "source-mismatch"
+      }
+    },
+    {
+      "name": "output-only-incomplete",
+      "success": true,
+      "detail": {
+        "code": "incomplete-input",
+        "field": "input"
+      }
+    },
+    {
+      "name": "browser-enforces-cors",
+      "success": true,
+      "detail": "Cross-origin response without CORS blocked"
+    },
+    {
+      "name": "source-recovery",
+      "success": true,
+      "detail": "Restored exact source contents; no bytecode-only recovery attempted"
+    },
+    {
+      "name": "accepted",
+      "success": true,
+      "detail": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    },
+    {
+      "name": "rejected",
+      "success": true,
+      "detail": {
+        "status": "failed",
+        "backend": "sourcify",
+        "reason": "compiler_error: Local stand-in rejected source"
+      }
+    },
+    {
+      "name": "pending",
+      "success": true,
+      "detail": {
+        "code": "not-confirmed"
+      }
+    },
+    {
+      "name": "real-plugin-webview-transport",
+      "success": true,
+      "detail": [
+        {
+          "action": "request",
+          "key": "handshake"
+        },
+        {
+          "action": "response",
+          "name": "manager",
+          "key": "handshake"
+        },
+        {
+          "action": "on",
+          "name": "solidity",
+          "key": "compilationFinished"
+        }
+      ]
+    },
+    {
+      "name": "pending-resume-after-reload",
+      "success": true,
+      "detail": {
+        "status": "verified",
+        "backend": "sourcify",
+        "match": "exact"
+      }
+    },
+    {
+      "name": "resume-never-resubmits",
+      "success": true
+    },
+    {
+      "name": "submission-preserves-source-and-target",
+      "success": true,
+      "detail": {
+        "submissions": 3
+      }
+    },
+    {
+      "name": "no-browser-errors",
+      "success": true,
+      "detail": []
+    },
+    {
+      "name": "metadata-rebuilt-input-recompiles-identically",
+      "success": true
+    }
+  ],
+  "package": {
+    "name": "explorer-verify",
+    "version": "0.1.0",
+    "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+  },
+  "bundle": {
+    "files": 24,
+    "inputModules": 162,
+    "sdkFromPackedPackage": true
+  },
+  "browser": "156.0.8078.80"
+}

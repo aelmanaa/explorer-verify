@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-08",
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "candidateRuns": [
+    {
+      "project": "browser-remix",
+      "scenarios": 16,
+      "passed": true,
+      "source": "candidate tarballs",
+      "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2"
+    },
+    {
+      "project": "ccip",
+      "scenarios": 6,
+      "passed": true,
+      "source": "candidate tarballs",
+      "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2"
+    },
+    {
+      "project": "hardhat",
+      "scenarios": 10,
+      "passed": true,
+      "source": "candidate tarballs",
+      "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2"
+    },
+    {
+      "project": "cli-comparison",
+      "scenarios": 19,
+      "passed": true,
+      "source": "candidate tarballs",
+      "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2"
+    },
+    {
+      "project": "polyglot",
+      "scenarios": 21,
+      "passed": true,
+      "source": "candidate tarballs",
+      "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2"
+    }
+  ],
+  "scenarios": 72,
+  "freshCheckout": {
+    "packageVersion": "0.0.0",
+    "projects": [
+      {
+        "project": "browser-remix",
+        "passed": true
+      },
+      {
+        "project": "ccip",
+        "passed": true
+      },
+      {
+        "project": "hardhat",
+        "passed": true
+      },
+      {
+        "project": "cli-comparison",
+        "passed": true
+      },
+      {
+        "project": "polyglot",
+        "passed": true
+      }
+    ]
+  },
+  "limits": [
+    "Local explorer responses; no new public explorer verification.",
+    "Browser deterministic cases use a local host fixture; an additional real Remix host compilation and SDK rebuild passed.",
+    "CCIP uses pinned authentic token/pool artifacts, not an upstream SDK migration.",
+    "Hardhat task adapter does not establish full hardhat-verify parity.",
+    "Foundry comparison is bounded to recorded local scenarios; no performance parity claim.",
+    "Java/Python/Go execution uses real CLI processes with a local fetch preload."
+  ],
+  "realRemix": {
+    "passed": true,
+    "ideVersion": "2.6.13",
+    "scenarios": 3,
+    "evidence": "browser-remix/evidence-real-remix/2026-11-08-attempt-05/results.json",
+    "methodResponseCaptured": true,
+    "compilationEventCaptured": false,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  }
+}

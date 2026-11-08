@@ -1,0 +1,41 @@
+{
+  "startedAt": "2026-11-08T14:56:12.099Z",
+  "target": "https://remix.ethereum.org",
+  "optional": true,
+  "success": false,
+  "status": "blocked",
+  "stage": "dismiss-onboarding",
+  "scenarios": [
+    {
+      "name": "real-remix-navigation",
+      "success": true
+    }
+  ],
+  "constraints": {
+    "freshBrowserContext": true,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  },
+  "package": {
+    "name": "explorer-verify",
+    "version": "0.1.0",
+    "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+  },
+  "browser": "156.0.8078.80",
+  "httpStatus": 200,
+  "finalUrl": "https://remix.ethereum.org/#lang=en",
+  "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Save Preferences', exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"modal-ok btn btn-sm btn-primary\" data-id=\"managePreferencesModal-modal-footer-ok-react\">Save Preferences</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not stable\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is not stable\u001b[22m\n\u001b[2m  2 × retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m      - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"nudge-widget-desc nudge-widget-desc--html\">…</div> from <div id=\"root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  26 × retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\u001b[2m       - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"nudge-widget-desc nudge-widget-desc--html\">…</div> from <div id=\"root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 500ms\u001b[22m\n",
+  "title": "Remix IDE - Smart Contract Development",
+  "networkFailures": [
+    {
+      "resource": "https://app.remix.live/assets/audio/remiGuitar-single-power-chord-A-minor.mp3",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "resource": "https://web-assets.solidityscan.com/web-assets/solidity_scan_assets/images/logo/logo192.png",
+      "error": "net::ERR_BLOCKED_BY_ORB"
+    }
+  ],
+  "finishedAt": "2026-11-08T14:57:00.294Z"
+}
