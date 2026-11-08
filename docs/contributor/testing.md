@@ -107,6 +107,12 @@ are tested with it.
 
 ## User-docs examples
 
+Skill and user-docs example subprocesses remove inherited or per-run `FORCE_COLOR` and set
+`NO_COLOR=1`. Their recorded output is plain text even when the terminal or package manager
+forces colors. Assertions compare the unmodified stdout and stderr, so ANSI escapes or other
+unexpected output still fail the tests. The regression test covers both synchronous and
+asynchronous runners and checks that the parent environment is unchanged (#272).
+
 `test/unit/user-docs.test.ts` in the core package tests every `ts` block under `docs/user/`
 against the build, with the helpers of the skill test (R-AX-2, R-AX-4). It runs in `pnpm test`,
 after the build, because the examples import `explorer-verify`, `@explorer-verify/foundry` and
