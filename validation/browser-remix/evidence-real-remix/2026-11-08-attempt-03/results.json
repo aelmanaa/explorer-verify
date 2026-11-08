@@ -1,0 +1,47 @@
+{
+  "startedAt": "2026-11-08T15:03:48.376Z",
+  "target": "https://remix.ethereum.org",
+  "optional": true,
+  "success": false,
+  "status": "blocked",
+  "stage": "await-real-host-compilation",
+  "scenarios": [
+    {
+      "name": "real-remix-navigation",
+      "success": true
+    }
+  ],
+  "constraints": {
+    "freshBrowserContext": true,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  },
+  "package": {
+    "name": "explorer-verify",
+    "version": "0.1.0",
+    "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+  },
+  "browser": "156.0.8078.80",
+  "promotionsDismissed": 0,
+  "httpStatus": 200,
+  "finalUrl": "https://remix.ethereum.org/#lang=en",
+  "performanceAnalytics": "disabled",
+  "error": "frame.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"http://127.0.0.1:54143/**\" until \"load\"\n============================================================",
+  "title": "Remix IDE - Smart Contract Development",
+  "networkFailures": [
+    {
+      "resource": "https://web-assets.solidityscan.com/web-assets/solidity_scan_assets/images/logo/logo192.png",
+      "error": "net::ERR_BLOCKED_BY_ORB"
+    },
+    {
+      "resource": "https://app.remix.live/assets/audio/remiGuitar-single-power-chord-A-minor.mp3",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "resource": "http://127.0.0.1:54143/",
+      "error": "net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS"
+    }
+  ],
+  "finishedAt": "2026-11-08T15:05:01.294Z"
+}

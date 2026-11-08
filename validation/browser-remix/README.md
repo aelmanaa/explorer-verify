@@ -77,8 +77,9 @@ has no address-only recovery command.
   transitive resolutions and integrity hashes. Existing `examples/dapp` and
   `scripts/browser-smoke.ts` informed the flow and local-browser test arrangement.
 
-No live Remix workspace, compiler plugin, deployment plugin, wallet permission flow, RPC chain,
-public testnet or explorer is exercised. The local host implements only the handshake and the
+The local runner does not exercise a live Remix workspace, compiler plugin, deployment plugin,
+wallet permission flow, RPC chain, public testnet or explorer. The optional smoke below separately
+exercises the real Remix host and compiler. The local host implements only the handshake and the
 compilation event used here. The receipt does not prove deployment success, source/address identity
 or constructor argument extraction on a chain. Explorer acceptance is simulated, and no contract
 submission leaves loopback. Etherscan, server-handler key custody, CDN loading and other bundlers
@@ -110,23 +111,39 @@ It attempts the website's external-plugin UI flow, then requests only
 or Remix's advertised new home, `app.remix.live`. It never requests wallet access, deployment,
 RPC calls or explorer verification. No RemixVM deployment is attempted.
 
-On success it would retain the actual host compilation response and SDK-rebuilt input, with
-compiler version and tarball digest. It writes `status: "blocked"`, `success: false` and exits 1
-when navigation, UI, permission, transport or compilation cannot complete. Website text and a
-screenshot are retained on failure. It does not dump storage, keys, request bodies, headers or
-query parameters. All captured pages come from a fresh, unauthenticated context.
-The host/compiler path after the blocked steps remains unvalidated; its presence in the script
-is not evidence that the website accepted or executed it.
+The runner grants Chrome's `local-network-access` permission only to the two Remix origins in
+its fresh context, so the real host can load our loopback iframe. It does not disable browser
+security features. This permission is required with the recorded Chrome version; attempt 03
+without it captured `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`. It disables the optional
+Matomo performance-analytics toggle before saving preferences and records the observed state.
+If a promotion appears, a locator handler inspects its DOM, saves `promotion-dom.html`, and clicks
+its close/dismiss control. It never clicks Upgrade or Sign in. `promotionsDismissed` records the
+number actually dismissed; zero does not claim a dismissal.
 
-The 2026-11-08 attempts are recorded in `evidence-real-remix/`. **The real IDE smoke is blocked.**
-HTTP navigation succeeded and the website showed Remix 2.6.13. One attempt reached the plugin
-manager but failed to locate its external-plugin button by accessible role. The follow-up used
-the visible text selector and stopped earlier: a Remix promotional nudge intercepted pointer
-events on **Save Preferences** for 15 seconds. The screenshot shows the intercepting overlay.
-No plugin handshake, compiler response, build-info, receipt or SDK execution inside the real IDE
-was obtained. Promotional UI text about a verified Sepolia contract in the screenshot is Remix
-marketing content, not a transaction or verification performed by this test. The 16 previously
-recorded local scenarios are unchanged and do not stand in for this blocked remote result.
+On success it retains the actual host compilation response, metadata, compiler input/output,
+and SDK-built input. `build-info.json` is a locally assembled envelope around the **actual Remix
+response's** input, output and full compiler version; it is not a Remix file-manager export.
+The public SDK consumes both that envelope and the real metadata with exact source contents.
+The plugin also subscribes to `solidity.compilationFinished` and records an event if the host emits
+one for this API call; event capture is reported separately from the method response.
+It writes `status: "blocked"`, `success: false` and exits 1 when navigation, UI, permission,
+transport or compilation cannot complete. Website text and a screenshot are retained on failure.
+It does not dump storage, keys, request bodies, headers or query parameters. All captured pages
+come from a fresh, unauthenticated context. It remains separate from the default test and CI.
+
+The 2026-11-08 attempts are recorded in `evidence-real-remix/`. **Attempts 04 and 05 passed against the
+real Remix host and Solidity 0.8.24 compiler.** It loaded our external iframe, completed the actual
+plugin handshake and compiler method call, and ran the packed public SDK in that iframe to rebuild
+input from authentic metadata. Performance analytics was disabled. No promotion appeared during
+attempt 04 (`promotionsDismissed: 0`). Attempt 05 inspected and dismissed one actual promotion
+using `button.nudge-widget-close` (title `Dismiss`); its DOM is retained. It also captured the full
+compiler input/output, metadata and both SDK builder paths. `compileWithParameters` returned an
+authentic compilation response; no `compilationFinished` event was observed
+(`compilationEventCaptured: false`). Attempts 01 and 02 preserve the original UI blockers; attempt
+03 got past preferences and captured Chrome's local-network-access refusal. No wallet, receipt,
+RemixVM or public deployment, or explorer verification is involved in the real-IDE smoke. It proves
+host/compiler/SDK compatibility for this sample, not upstream acceptance or live verification.
+The original 16 local scenario results remain unchanged.
 
 The external-plugin flow follows the upstream
 [Plugin Manager documentation](https://remix-ide.readthedocs.io/en/latest/plugin_manager.html)

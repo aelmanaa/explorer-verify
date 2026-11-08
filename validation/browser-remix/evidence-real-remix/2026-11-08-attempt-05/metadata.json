@@ -1,0 +1,66 @@
+{
+  "compiler": {
+    "version": "0.8.24+commit.e11b9ed9"
+  },
+  "language": "Solidity",
+  "output": {
+    "abi": [
+      {
+        "inputs": [],
+        "name": "count",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "increment",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ],
+    "devdoc": {
+      "kind": "dev",
+      "methods": {},
+      "version": 1
+    },
+    "userdoc": {
+      "kind": "user",
+      "methods": {},
+      "version": 1
+    }
+  },
+  "settings": {
+    "compilationTarget": {
+      "contracts/Counter.sol": "Counter"
+    },
+    "evmVersion": "shanghai",
+    "libraries": {},
+    "metadata": {
+      "bytecodeHash": "ipfs"
+    },
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "remappings": []
+  },
+  "sources": {
+    "contracts/Counter.sol": {
+      "keccak256": "0x4ab231dbb2077035c7a1570ba191984678429e1e12fd4d549b640531e1c74256",
+      "license": "MIT",
+      "urls": [
+        "bzz-raw://7aeed3e6928aa1ac57ac900d80bcb1d4caeeb1d62f4976fe4eaad7195fc12b78",
+        "dweb:/ipfs/QmVoSaLhMe6XWc1NEATkmhL9a42t8bPpspssth3aM71NP5"
+      ]
+    }
+  },
+  "version": 1
+}

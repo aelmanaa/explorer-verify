@@ -1,0 +1,41 @@
+{
+  "compiler": {
+    "kind": "solc",
+    "version": "0.8.24+commit.e11b9ed9",
+    "input": {
+      "language": "Solidity",
+      "sources": {
+        "contracts/Counter.sol": {
+          "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.24;\ncontract Counter {\n    uint256 public count;\n    function increment() external { count += 1; }\n}\n"
+        }
+      },
+      "settings": {
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "outputSelection": {
+          "*": {
+            "": ["ast"],
+            "*": [
+              "abi",
+              "metadata",
+              "devdoc",
+              "userdoc",
+              "storageLayout",
+              "evm.legacyAssembly",
+              "evm.bytecode",
+              "evm.deployedBytecode",
+              "evm.methodIdentifiers",
+              "evm.gasEstimates",
+              "evm.assembly"
+            ]
+          }
+        },
+        "remappings": []
+      }
+    }
+  },
+  "contractName": "contracts/Counter.sol:Counter",
+  "creationBytecode": "0x608060405234801561000f575f80fd5b5060c58061001c5f395ff3fe6080604052348015600e575f80fd5b50600436106030575f3560e01c806306661abd146034578063d09de08a14604d575b5f80fd5b603b5f5481565b60405190815260200160405180910390f35b60536055565b005b60015f8082825460649190606b565b9091555050565b80820180821115608957634e487b7160e01b5f52601160045260245ffd5b9291505056fea26469706673582212202ea7845321bf3754a957ce8ff025d2227543378b2b124a32439ef1a433a496b764736f6c63430008180033"
+}

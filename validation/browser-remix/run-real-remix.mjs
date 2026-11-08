@@ -114,8 +114,26 @@ try {
   });
   result.browser = browser.version();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1100 } });
+  await context.grantPermissions(["local-network-access"], {
+    origin: "https://remix.ethereum.org",
+  });
+  await context.grantPermissions(["local-network-access"], { origin: "https://app.remix.live" });
+  result.localNetworkPermission = "granted-to-remix-origins-in-fresh-context";
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  result.promotionsDismissed = 0;
+  await page.addLocatorHandler(page.locator(".nudge-widget-title"), async (title) => {
+    const widget = title.locator("xpath=ancestor::div[.//button][1]");
+    await writeFile(
+      join(output, "promotion-dom.html"),
+      await widget.evaluate((element) => element.outerHTML),
+    );
+    const close = widget.locator(
+      'button[class*="close"], button[class*="dismiss"], [aria-label="Close"], [aria-label="Dismiss"]',
+    );
+    await close.first().click();
+    result.promotionsDismissed += 1;
+  });
   page.on("requestfailed", (request) => {
     // Keep only host/path, never query parameters, headers, bodies or credentials.
     const url = new URL(request.url());
@@ -135,29 +153,46 @@ try {
   await page
     .getByRole("button", { name: "Manage Preferences", exact: true })
     .click({ timeout: 45000 });
+  const performanceToggle = page.locator("#matomoPerfAnalyticsToggle");
+  if (await performanceToggle.isVisible()) {
+    if ((await performanceToggle.locator(".fa-toggle-on").count()) > 0)
+      await performanceToggle.click();
+    result.performanceAnalytics =
+      (await performanceToggle.locator(".fa-toggle-off").count()) > 0 ? "disabled" : "unconfirmed";
+    if (result.performanceAnalytics !== "disabled")
+      throw new Error("Performance analytics toggle did not turn off");
+  } else result.performanceAnalytics = "control-unavailable";
   await page.getByRole("button", { name: "Save Preferences", exact: true }).click();
   result.stage = "open-plugin-manager";
   await page.getByText("Plugins", { exact: true }).first().click();
   await page.getByText("Connect to an external plugin", { exact: true }).click();
   result.stage = "configure-external-plugin";
   // Form selectors intentionally follow the website UI; changed labels produce a blocked run.
-  const modal = page.locator(".modal-content").filter({ hasText: "plugin" }).last();
+  const modal = page.locator(".modal-content").filter({ has: page.locator("#local-plugin-form") });
   await writeFile(join(output, "plugin-form.txt"), await modal.innerText());
-  const inputs = modal.locator("input");
-  await inputs.nth(0).fill("explorerVerifySmoke");
-  await inputs.nth(1).fill(pluginUrl);
+  await modal.locator("#plugin-name").fill("explorerVerifySmoke");
+  await modal.locator("#plugin-url").fill(pluginUrl);
+  await modal.locator("#plugin-canactivate").fill("solidity");
   const frameAttached = page.waitForEvent("frameattached", { timeout: 20000 });
-  await modal.getByRole("button", { name: /connect/i }).click();
+  await modal.getByRole("button", { name: "OK", exact: true }).click();
   result.stage = "await-real-host-compilation";
   const handle = await frameAttached;
   await handle.waitForURL(pluginUrl + "/**", { timeout: 20000 });
   // Only this compilation permission may be granted. Never approve wallet or deployment access.
-  const permission = page.locator(".modal-content").filter({ hasText: "compileWithParameters" });
-  if (await permission.isVisible())
-    await permission.getByRole("button", { name: /accept|allow/i }).click();
-  await handle.waitForFunction(() => window.realRemix?.success !== undefined, undefined, {
-    timeout: 45000,
-  });
+  const permission = page
+    .locator(".modal-content:visible")
+    .filter({ hasText: "compileWithParameters" });
+  const compilationDeadline = Date.now() + 60000;
+  while (Date.now() < compilationDeadline) {
+    if (await permission.isVisible()) {
+      await writeFile(join(output, "compiler-permission.txt"), await permission.innerText());
+      await permission.getByRole("button", { name: /accept|allow/i }).click();
+    }
+    if (await handle.evaluate(() => window.realRemix?.success !== undefined)) break;
+    await handle
+      .waitForFunction(() => window.realRemix?.success !== undefined, undefined, { timeout: 1000 })
+      .catch(() => undefined);
+  }
   const observed = await handle.evaluate(() => window.realRemix);
   result.pluginStage = observed.stage;
   if (observed.success !== true) throw new Error(observed.error ?? "Real compiler did not succeed");
@@ -169,6 +204,26 @@ try {
     join(output, "sdk-built-input.json"),
     JSON.stringify(observed.built, null, 2) + "\n",
   );
+  await writeFile(join(output, "metadata.json"), JSON.stringify(observed.metadata, null, 2) + "\n");
+  await writeFile(
+    join(output, "build-info.json"),
+    JSON.stringify(observed.buildInfo, null, 2) + "\n",
+  );
+  await writeFile(
+    join(output, "sdk-built-from-build-info.json"),
+    JSON.stringify(observed.builtFromBuildInfo, null, 2) + "\n",
+  );
+  if (observed.compilationEvent !== null)
+    await writeFile(
+      join(output, "compilation-event.json"),
+      JSON.stringify(observed.compilationEvent, null, 2) + "\n",
+    );
+  result.compilationEventCaptured = observed.compilationEvent !== null;
+  result.scenarios.push({
+    name: "authentic-remix-build-info-to-sdk",
+    success: true,
+    contract: observed.builtFromBuildInfo.contractName,
+  });
   result.scenarios.push({
     name: "actual-remix-host-compiler-to-public-sdk",
     success: true,
@@ -185,6 +240,13 @@ try {
     const page = pages[0];
     if (page !== undefined) {
       // Fresh context, no wallet/deploy screens opened; capture UI only, never browser storage.
+      const pluginFrame = page
+        .frames()
+        .find((frame) => frame.url().startsWith("http://127.0.0.1:"));
+      if (pluginFrame !== undefined)
+        result.pluginObservation = await pluginFrame
+          .evaluate(() => window.realRemix)
+          .catch(() => undefined);
       result.title = await page.title().catch(() => "unavailable");
       await page.screenshot({ path: join(output, "blocked.png") }).catch(() => undefined);
       await writeFile(

@@ -1,0 +1,161 @@
+Welcome to the new home of Remix. Bookmark app.remix.live so you always land here.
+Still need your files from remix.ethereum.org?
+REMIX
+2.6.13
+default_workspace
+AI
+Code
+Sign In
+1
+AI
+Files
+Search
+Compile
+Deploy
+Frontend
+Collab
+Plugins
+PLUGIN MANAGER
+Connect to an external plugin
+Filters
+Only maintained by Remix
+All plugins 25
+Active 0
+Inactive 25
+BuildBear
+Maintained by BuildBear Team
+Create a Private Sandbox for various EVM and EVM-compatible blockchain networks, complete with a Faucet and Explorer.
+Open documentation
+Circom ZKP compiler
+Maintained by Remix
+Enables circuit compilation and computing a witness for ZK proofs
+CODE BY WELLDONE STUDIO
+Maintained by DSRV
+Deploy and run Sui Move contracts
+Open documentation
+Contract Verification
+Maintained by Remix
+Verify contract code on Sourcify, Etherscan and Blockscout at the same time
+Open documentation
+COTI
+Maintained by COTI team
+Deploy and interact with contracts on the COTI privacy-preserving network
+Open documentation
+Debugger
+Maintained by Remix
+Debug transactions
+Open documentation
+Docgen - Documentation Generator
+Maintained by Community
+Generate Solidity documentation (as md)
+explorerVerifySmoke
+Maintained by Community
+Kaia
+Maintained by Ozys Co., Ltd
+Deploy and Run Transactions with Kaia.
+Open documentation
+LearnEth
+Maintained by Remix
+Learn Ethereum with Remix!
+Open documentation
+Nahmii Compiler
+Maintained by Community
+Compiler for Nahmii 2.0.
+Noir Compiler
+Maintained by Remix
+Enables support for noir circuit compilation
+QuickDApp
+Maintained by Remix
+Edit & deploy a Dapp
+Remix Guide
+Maintained by Remix
+Learn Web3 development using Remix with videos.
+RemixD
+Maintained by Remix
+Using Remixd daemon, allow to access file system
+Open documentation
+Script configuration
+Maintained by Remix
+Configure the dependencies for running scripts.
+Sentio
+Maintained by sentio team
+Search and view function related transactions directly in Remix, service is provided by Sentio
+Open documentation
+Solidity Analyzers
+Maintained by Remix
+Analyze your code using Remix, Solhint and Slither.
+Open documentation
+Solidity unit testing
+Maintained by Remix
+Write and run unit tests for your contracts in Solidity
+Open documentation
+SolidityScan
+Maintained by Credshields
+An automated smart contract auditing & vulnerability scanning tool built to discover vulnerabilities & proactively address risks within your code.
+Open documentation
+Starknet
+Maintained by Nethermind
+Compile and deploy contracts with Cairo, a native smart contract language for Starknet.
+Open documentation
+Tenderly
+Maintained by Community
+Remix & Tenderly Project Integration. Verify Contracts. Import To Remix From your Tenderly project.
+Open documentation
+Vyper Compiler
+Maintained by Remix
+Compile vyper contracts
+Open documentation
+ZKsync
+Maintained by Matter Labs
+Compile and deploy smart contracts for ZKsync chains.
+Open documentation
+ZoKrates
+Maintained by Community
+ZoKrates toolbox for zkSNARKs on Ethereum
+Open documentation
+Permissions
+Compile
+Home
+REMIX
+Learn. Explore. Create.
+START
+Create a new workspace
+Start from a template
+Start Coding
+Open a Playground workspace
+Start Learning
+Interactive Solidity tutorial
+OPEN
+Open Folder
+Clone
+Gist
+DESKTOP APP
+Download Remix Desktop
+Available for Windows, macOS and Linux
+AI
+Load Skills
+AI skill modules
+Load Audit Checklist
+Security audit checklists
+Gas Optimisation Audit
+Optimize gas usage
+Terms & Conditions
+REMIXAI ASSISTANT
+
+New chat
+
+What do you want to build today?
+
+Code
+Explain
+Learn
+Deploy
+Audit
+Skills
+Select Model
+low-cost AI
+Sign in
+RemixAI can make mistakes. Always check important info.
+Scam Alert
+Initialize as git repo
+RemixAI Copilot (enabled)
