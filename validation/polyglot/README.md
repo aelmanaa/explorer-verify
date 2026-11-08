@@ -16,9 +16,7 @@ JAVA_HOME=<portable-jdk-home> node validation/polyglot/run.mjs \
 ```
 
 Prerequisites: Node 24.21.0 with npm, Python 3.14.6, Go 1.27.1, and JDK
-17.0.21+9 (`java` and `javac`). Set `JAVA_HOME` for portable use. In the delegated
-validation environment the runner can also read the coordinator's JDK path file.
-It never changes global Java configuration. Network access is needed for Gson
+17.0.21+9 (`java` and `javac`). Set `JAVA_HOME` for portable use. The runner never changes global Java configuration. Network access is needed for Gson
 from Maven Central; npm installs the four supplied local tarballs with scripts
 disabled. The clients have no additional Python or Go dependencies.
 `dependencies.json` pins the candidate tarball hashes, Gson artifact hash, and
@@ -102,12 +100,7 @@ Protocol shapes and CLI contract are attributed to the candidate at
 The synthetic stand-in follows the recorded fixtures' response fields; it does
 not import repository internals or mock a precomputed CLI envelope.
 
-## Integration check
-
-The stock pre-commit lint does not currently include a Node validation-runner
-exception: it rejects `process.env`, console output and inferred JavaScript
-conditions in the `.mjs` harness. Shared lint configuration is outside this
-project's assigned scope. The project was committed with hooks disabled for
-that commit; the coordinator must integrate the validation-runner lint policy.
-The hook also automatically installed workspace dependencies and refreshed the
-repository Git hooks before linting. No tracked shared configuration changed.
+Repository integration lints the JavaScript harness and runs the actual three language clients.
+The shared tarball inspector reads supplied versions and records their checksums; when supplied
+tarballs identify the original candidate commit, their historical recorded checksums are enforced.
+The committed evidence records that candidate. Other source checkouts produce their own results.

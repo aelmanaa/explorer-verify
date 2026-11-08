@@ -20,7 +20,7 @@ packages, the four supplied tarballs, and permission to bind loopback ports. No 
 RPC provider, explorer credentials, native solc installation or public network transaction
 is needed. The runner creates an isolated HOME and passes an environment allowlist to tools.
 It never inherits API key variables. It installs all four packed public packages together,
-so their exact 0.1.0 sibling dependencies cannot resolve to registry placeholders.
+so their sibling dependencies resolve to the supplied local packages.
 
 The runner uses `npm ci` with the committed compiler lockfile, then installs the four local
 tarballs without changing that lockfile. solc-js is pinned to 0.8.24. `solc.cjs` adapts the
@@ -110,3 +110,6 @@ implemented by [solc-js](https://github.com/ethereum/solc-js) 0.8.24 (MIT);
 Local runs dated 2026-11-08 are the evidence for every observed output above. Relevant project
 requirements are R-IN (input validation), R-FLOW (submit/poll), and R-AX (machine diagnostics).
 Shared documentation indexes and CI are left for the coordinator.
+
+The original evidence records the 0.1.0 candidate. New runs use the shared tarball inspector
+and report the supplied versions and gitHead, so the same scenarios also run on main in CI.

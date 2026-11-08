@@ -134,9 +134,7 @@
         "enabled": false,
         "runs": 200
       },
-      "sourceNames": [
-        "project/contracts/Counter.sol"
-      ],
+      "sourceNames": ["project/contracts/Counter.sol"],
       "inputSha256": "423500bf1228f479e6f773b314d2ddcb3ffdbc7b222dca324d664ceb0129540e"
     },
     {
@@ -146,9 +144,7 @@
         "enabled": true,
         "runs": 200
       },
-      "sourceNames": [
-        "project/contracts/Counter.sol"
-      ],
+      "sourceNames": ["project/contracts/Counter.sol"],
       "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
     },
     {
@@ -158,9 +154,7 @@
         "enabled": true,
         "runs": 200
       },
-      "sourceNames": [
-        "project/contracts/Counter.sol"
-      ],
+      "sourceNames": ["project/contracts/Counter.sol"],
       "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
     },
     {
@@ -170,9 +164,7 @@
         "enabled": true,
         "runs": 200
       },
-      "sourceNames": [
-        "project/contracts/Counter.sol"
-      ],
+      "sourceNames": ["project/contracts/Counter.sol"],
       "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
     },
     {
@@ -182,9 +174,7 @@
         "enabled": true,
         "runs": 200
       },
-      "sourceNames": [
-        "project/contracts/Counter.sol"
-      ],
+      "sourceNames": ["project/contracts/Counter.sol"],
       "inputSha256": "6533b72b6f7e9b729fbd97f503aaa3c660a2cd9fc25ddb8b189d0c003d4429a1"
     }
   ]

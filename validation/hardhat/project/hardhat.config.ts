@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+
 import { defineConfig, task } from "hardhat/config";
 
 export default defineConfig({
@@ -6,26 +7,19 @@ export default defineConfig({
     profiles: {
       default: {
         version: "0.8.24",
-        path: fileURLToPath(
-          new URL("./node_modules/solc/soljson.js", import.meta.url),
-        ),
+        path: fileURLToPath(new URL("./node_modules/solc/soljson.js", import.meta.url)),
         settings: { optimizer: { enabled: false, runs: 200 } },
       },
       production: {
         version: "0.8.24",
-        path: fileURLToPath(
-          new URL("./node_modules/solc/soljson.js", import.meta.url),
-        ),
+        path: fileURLToPath(new URL("./node_modules/solc/soljson.js", import.meta.url)),
         settings: { optimizer: { enabled: true, runs: 200 } },
       },
     },
   },
   paths: { artifacts: "build/artifacts", cache: "build/cache" },
   tasks: [
-    task(
-      "explorer-verify",
-      "Verify the exact existing Hardhat build through explorer-verify",
-    )
+    task("explorer-verify", "Verify the exact existing Hardhat build through explorer-verify")
       .addOption({
         name: "apiUrl",
         description: "Explicit explorer API base",

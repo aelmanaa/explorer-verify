@@ -1,19 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rename,
-  writeFile,
-} from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { packedPackage } from "../packages.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -31,7 +25,7 @@ const report = {
   schemaVersion: 1,
   project: "hardhat",
   issue: 266,
-  candidate: "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  candidate: null,
   node: process.version,
   mode: "local-http-stand-in",
   packages: [],
@@ -57,15 +51,14 @@ function command(bin, argv) {
   });
 }
 const hardhat = async (...argv) => {
-  const result = await command(process.execPath, [
-    "node_modules/hardhat/dist/src/cli.js",
-    ...argv,
-  ]);
+  const result = await command(process.execPath, ["node_modules/hardhat/dist/src/cli.js", ...argv]);
   const line = result.stdout
     .split("\n")
-    .find((line) => line.startsWith("{") && line.includes('"schemaVersion":1'));
-  if (argv[0] === "explorer-verify")
-    assert.ok(line, result.stdout + result.stderr);
+    .find(
+      (candidateLine) =>
+        candidateLine.startsWith("{") && candidateLine.includes('"schemaVersion":1'),
+    );
+  if (argv[0] === "explorer-verify") assert.ok(line, result.stdout + result.stderr);
   return { ...result, envelope: line ? JSON.parse(line) : undefined };
 };
 let mode = "success";
@@ -82,9 +75,7 @@ const server = createServer(async (req, res) => {
     submissions.push(JSON.parse(text));
     res.writeHead(202).end(JSON.stringify({ verificationId: job }));
   } else if (req.url.startsWith("/v2/contract/")) {
-    res
-      .writeHead(404)
-      .end(JSON.stringify({ match: null, chainId: "31337", address }));
+    res.writeHead(404).end(JSON.stringify({ match: null, chainId: "31337", address }));
   } else {
     res.end(
       JSON.stringify({
@@ -112,28 +103,27 @@ const server = createServer(async (req, res) => {
   }
 });
 try {
-  for (const [source, target] of [
-    ["explorer-verify-0.1.0.tgz", "explorer-verify.tgz"],
-    ["explorer-verify-hardhat-0.1.0.tgz", "explorer-verify-hardhat.tgz"],
+  const lockPath = join(work, "package-lock.json");
+  const consumerLock = JSON.parse(await readFile(lockPath, "utf8"));
+  for (const [name, target] of [
+    ["explorer-verify", "explorer-verify.tgz"],
+    ["@explorer-verify/hardhat", "explorer-verify-hardhat.tgz"],
   ]) {
-    const bytes = await readFile(join(tarballs, source));
-    report.packages.push({
-      file: source,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    });
+    const packed = packedPackage(tarballs, name);
+    if (name === "explorer-verify") report.candidate = packed.gitHead;
+    const bytes = await readFile(packed.path);
+    report.packages.push({ name, version: packed.version, file: target, sha256: packed.sha256 });
     await writeFile(join(work, target), bytes);
+    consumerLock.packages[`node_modules/${name}`].version = packed.version;
+    consumerLock.packages[`node_modules/${name}`].integrity = packed.integrity;
+    if (name === "@explorer-verify/hardhat")
+      consumerLock.packages[`node_modules/${name}`].peerDependencies["explorer-verify"] =
+        packed.manifest.peerDependencies["explorer-verify"];
   }
-  const install = await command("npm", [
-    "ci",
-    "--ignore-scripts",
-    "--no-audit",
-    "--no-fund",
-  ]);
+  await writeFile(lockPath, JSON.stringify(consumerLock, null, 2) + "\n");
+  const install = await command("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"]);
   assert.equal(install.code, 0, install.stderr);
-  await cp(
-    join(work, "package-lock.json"),
-    join(output, "installation-lock.json"),
-  );
+  await cp(join(work, "package-lock.json"), join(output, "installation-lock.json"));
   const types = await command(process.execPath, [
     "node_modules/typescript/bin/tsc",
     "--project",
@@ -149,8 +139,7 @@ try {
   const bound = server.address();
   assert.ok(bound && typeof bound !== "string");
   const api = `http://127.0.0.1:${bound.port}`;
-  const run = (...extra) =>
-    hardhat("explorer-verify", "--api-url", api, ...extra);
+  const run = (...extra) => hardhat("explorer-verify", "--api-url", api, ...extra);
   const record = (name, result) =>
     report.scenarios.push({
       name,
@@ -165,23 +154,14 @@ try {
   assert.equal(result.code, 0, result.stderr + result.stdout);
   assert.equal(result.envelope.result.status, "verified");
   record("success-default", result);
-  assert.equal(
-    submissions.at(-1).contractIdentifier,
-    "project/contracts/Counter.sol:Counter",
-  );
-  assert.equal(
-    submissions.at(-1).stdJsonInput.settings.optimizer.enabled,
-    false,
-  );
+  assert.equal(submissions.at(-1).contractIdentifier, "project/contracts/Counter.sol:Counter");
+  assert.equal(submissions.at(-1).stdJsonInput.settings.optimizer.enabled, false);
   built = await hardhat("build", "--build-profile", "production");
   assert.equal(built.code, 0, built.stderr);
   record("compile-production", built);
   result = await run();
   assert.equal(result.envelope.result.status, "verified");
-  assert.equal(
-    submissions.at(-1).stdJsonInput.settings.optimizer.enabled,
-    true,
-  );
+  assert.equal(submissions.at(-1).stdJsonInput.settings.optimizer.enabled, true);
   record("success-production", result);
   mode = "reject";
   result = await run();
@@ -197,27 +177,20 @@ try {
   assert.ok(saved);
   const before = submissions.length;
   mode = "success";
-  result = await run(
-    "--resume",
-    typeof saved === "string" ? saved : JSON.stringify(saved),
-  );
+  result = await run("--resume", typeof saved === "string" ? saved : JSON.stringify(saved));
   assert.equal(result.envelope.result.status, "verified");
   assert.equal(submissions.length, before);
   record("resume-new-process-no-resubmit", result);
   const info = join(work, "build/artifacts/build-info");
-  const files = (await readdir(info)).filter((file) =>
-    file.endsWith(".output.json"),
-  );
-  for (const file of files)
-    await rename(join(info, file), join(info, `${file}.saved`));
+  const files = (await readdir(info)).filter((file) => file.endsWith(".output.json"));
+  for (const file of files) await rename(join(info, file), join(info, `${file}.saved`));
   const beforeMissing = requests;
   result = await run();
   assert.equal(result.code, 1);
   assert.equal(result.envelope.error.code, "incomplete-input");
   assert.equal(requests, beforeMissing);
   record("incomplete-build-no-network", result);
-  for (const file of files)
-    await rename(join(info, `${file}.saved`), join(info, file));
+  for (const file of files) await rename(join(info, `${file}.saved`), join(info, file));
   result = await run();
   assert.equal(result.envelope.result.status, "verified");
   record("restore-build-recovery", result);
@@ -226,9 +199,7 @@ try {
     compilerVersion: body.compilerVersion,
     optimizer: body.stdJsonInput.settings.optimizer,
     sourceNames: Object.keys(body.stdJsonInput.sources),
-    inputSha256: createHash("sha256")
-      .update(JSON.stringify(body.stdJsonInput))
-      .digest("hex"),
+    inputSha256: createHash("sha256").update(JSON.stringify(body.stdJsonInput)).digest("hex"),
   }));
   report.success = true;
 } catch (error) {
@@ -236,9 +207,6 @@ try {
   process.exitCode = 1;
 } finally {
   server.close();
-  await writeFile(
-    join(output, "results.json"),
-    JSON.stringify(report, null, 2) + "\n",
-  );
+  await writeFile(join(output, "results.json"), JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report, null, 2));
 }

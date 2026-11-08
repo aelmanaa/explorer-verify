@@ -168,3 +168,15 @@ The zksolc Blockscout mapping is recorded in [decision 0059](docs/contributor/de
 and its [protocol evidence](docs/contributor/research/2026-11-07-blockscout-zksolc.md).
 Event and envelope fields are recorded in [decision 0058](docs/contributor/decisions/0058-settle-event-and-envelope-fields.md),
 with [source research](docs/contributor/research/2026-11-07-event-envelope-fields.md).
+
+## Adoption validation projects
+
+- [Suite and commands](validation/README.md)
+- [Browser and Remix](validation/browser-remix/README.md)
+- [CCIP SDK and CLI](validation/ccip/README.md)
+- [Hardhat adapter](validation/hardhat/README.md)
+- [CLI comparison](validation/cli-comparison/README.md)
+- [Python, Go and Java](validation/polyglot/README.md)
+- [Recover incomplete deployment information](validation/recovery.md)
+
+The [2026-11-08 adoption evidence](docs/contributor/research/2026-11-08-adoption-validation.md) records the five consumer runs and their limits.

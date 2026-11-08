@@ -73,7 +73,7 @@ has no address-only recovery command.
   define the exercised transport. Their code is consumed as a dependency, not copied here.
 - [Solidity solc-js](https://github.com/ethereum/solc-js), npm `solc` 0.8.24, compiler commit
   `e11b9ed9`, GPL-3.0. Compiler output is generated from this project's source.
-- esbuild 0.25.12 and Playwright 1.58.2 are exact direct dependencies. `package-lock.json` pins
+- esbuild 0.28.2 and Playwright 1.64.1 are exact direct dependencies. `package-lock.json` pins
   transitive resolutions and integrity hashes. Existing `examples/dapp` and
   `scripts/browser-smoke.ts` informed the flow and local-browser test arrangement.
 
@@ -87,3 +87,7 @@ plugin; it does not establish plugin acceptance or upstream adoption. Before an 
 PR after release, test a real Remix workspace, selected-contract UI, network/receipt provenance,
 permission handling, imports/libraries/constructor arguments, and funded testnet deployments under
 separate authorization.
+
+The shared `validation/packages.mjs` inspector selects the supplied core by its manifest. New
+runs record its actual version and gitHead. The committed evidence identifies the original 0.1.0
+run. Linux uses Playwright Chromium by default; macOS uses the installed Chrome path.

@@ -41,7 +41,8 @@
     "site:preview": "vitepress preview site",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",
     "changeset": "changeset",
-    "version-packages": "changeset version && node scripts/record-released-codes.ts && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts"
+    "version-packages": "changeset version && node scripts/record-released-codes.ts && node scripts/check-agent-docs.ts --write-versions && pnpm install --lockfile-only --ignore-scripts",
+    "validate:adoption": "node validation/run.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",

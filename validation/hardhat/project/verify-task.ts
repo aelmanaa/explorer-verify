@@ -16,10 +16,7 @@ interface Arguments {
   resume: string;
 }
 
-export default async function action(
-  args: Arguments,
-  hre: HardhatRuntimeEnvironment,
-) {
+export default async function action(args: Arguments, hre: HardhatRuntimeEnvironment) {
   const options = {
     route: { backend: "sourcify", apiUrl: args.apiUrl },
     timeoutMs: 2500,
@@ -46,9 +43,7 @@ export default async function action(
     if (result.status === "failed") process.exitCode = 1;
   } catch (error) {
     if (!(error instanceof ExplorerVerifyError)) throw error;
-    const handle = tryParseHandle(
-      "handle" in error.details ? error.details.handle : undefined,
-    );
+    const handle = tryParseHandle("handle" in error.details ? error.details.handle : undefined);
     console.log(
       JSON.stringify({
         ...(handle === undefined ? {} : { resumeHandle: formatHandle(handle) }),

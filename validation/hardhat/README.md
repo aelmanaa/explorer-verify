@@ -62,9 +62,8 @@ a poll budget below the SDK's one-second minimum interval, and treating a handle
 JSON text as its compact wire form. The task now uses `ExplorerVerifyError`,
 `validateInput`, and `formatHandle` from the public SDK. No product files changed.
 
-The root pre-commit lint is not configured for this isolated package. It failed
-on unresolved Hardhat/SDK imports outside the temporary installation, CLI stdout
-calls, and root lint rules for JavaScript. The project's own strict typecheck and
-runtime assertions passed. The validation commit bypasses that root hook; this is
-not a claim that the shared root checks pass. Coordinator integration must choose
-how independent validation projects enter root tooling.
+Repository integration checks the runner, while the temporary consumer runs its own strict
+TypeScript check against installed Hardhat and SDK declarations. The shared tarball inspector
+selects the supplied versions. The temporary lock binds those local SDK entries to the supplied
+versions and integrity, preserving the pinned external dependencies. Committed evidence records
+the original 0.1.0 run; later runs record their actual package versions and gitHead.

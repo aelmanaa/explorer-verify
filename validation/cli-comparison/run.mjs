@@ -8,10 +8,11 @@ import { homedir } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { packedPackage } from "../packages.mjs";
+
 const base = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
-const option = (name, fallback) =>
-  args.includes(name) === true ? args[args.indexOf(name) + 1] : fallback;
+const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const tarballs = option("--tarballs");
 if (typeof tarballs !== "string")
   throw new Error(
@@ -30,7 +31,7 @@ const env = {
   NO_COLOR: "1",
 };
 const report = {
-  candidate: "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  candidate: packedPackage(tarballs, "explorer-verify").gitHead,
   scope: "Local fixture only; no live acceptance",
   versions: {},
   tarballs: [],
@@ -134,8 +135,8 @@ for (const name of [
   const manifest = JSON.parse(
     await readFile(join(install, "node_modules", name, "package.json"), "utf8"),
   );
-  assert.equal(manifest.version, "0.1.0");
-  assert.equal(manifest.gitHead, report.candidate);
+  assert.equal(manifest.version, packedPackage(tarballs, name).version);
+  assert.equal(manifest.gitHead ?? null, report.candidate);
 }
 report.versions.explorer = stored(await command(process.execPath, [cli, "--version", "--json"]));
 report.versions.solc = stored(await command(join(base, "solc.cjs"), ["--version"]));

@@ -24,8 +24,7 @@ globalThis.fetch = async (input, init) => {
     body = contract;
   } else if (submit && /\/v2\/verify\/11155111\//.test(url.pathname)) {
     const request = JSON.parse(init.body);
-    if (!JSON.stringify(request).includes("Greeter"))
-      throw new Error("Missing compiler input");
+    if (!JSON.stringify(request).includes("Greeter")) throw new Error("Missing compiler input");
     status = 202;
     body = { verificationId: job };
   } else if (method === "GET" && url.pathname.endsWith("/v2/verify/" + job)) {

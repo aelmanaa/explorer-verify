@@ -10,9 +10,10 @@ Run from the repository root with Node 24 and npm available:
 node validation/ccip/run.mjs --tarballs <candidate-tarball-directory> --output validation/ccip/results
 ```
 
-The directory must contain `explorer-verify-0.1.0.tgz`. The runner copies it to a temporary
+The directory must contain a core tarball named by its package manifest. The runner copies it to a temporary
 consumer installation and uses `npm ci --ignore-scripts --no-audit --no-fund`. The lockfile pins
-the candidate's integrity and ethers 6.15.0 with its transitive dependencies. npm registry access
+ethers 6.15.0 with its transitive dependencies. In the temporary installation, the runner binds
+the local core entry to the supplied tarball's actual version and integrity. npm registry access
 (or a populated npm cache), writable temporary storage, and permission to bind loopback HTTP are
 required. No credentials, RPC endpoint or funded account is required. Temporary installations
 remain available for inspection. Only the core public package is imported; the other three
@@ -76,8 +77,8 @@ through `buildVerifyInputFromBytecode` and real RPC constructor inference are no
 The existing official CLI has no address-only recovery command. No public submissions or
 transactions occur. Root checks and CI integration remain the coordinator's responsibility.
 
-Repository pre-commit lint was attempted. Its shared type-aware rules report untyped JavaScript
-conditions and console output in this standalone `.mjs` consumer; it does not include a consumer
-TypeScript project. The commit skips that shared hook to preserve exact upstream artifact bytes
-(the formatting hook would rewrite them). Syntax checks and the isolated packed consumer run are
-the checks for this project. No root lint configuration was changed.
+The integrated repository checks lint the runner and wrapper. Vendored artifacts keep their exact
+upstream bytes, are excluded from formatting, and are checked by their recorded SHA-256 hashes.
+
+The runner uses the shared `validation/packages.mjs` tarball inspector. The original committed
+evidence identifies the 0.1.0 candidate; new runs record the version and gitHead they actually use.

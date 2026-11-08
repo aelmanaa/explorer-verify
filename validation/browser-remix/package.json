@@ -8,8 +8,8 @@
   "devDependencies": {
     "@remixproject/plugin": "0.3.38",
     "@remixproject/plugin-webview": "0.3.38",
-    "esbuild": "0.25.12",
-    "playwright": "1.58.2",
+    "esbuild": "0.28.2",
+    "playwright": "1.64.1",
     "solc": "0.8.24"
   }
 }

@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium } from "playwright";
 import solc from "solc";
+
+import { packedPackage } from "../packages.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 function option(name, fallback) {
@@ -29,7 +31,7 @@ const servers = [];
 const requests = [];
 const result = {
   success: false,
-  candidate: "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  candidate: null,
   scenarios: [],
 };
 async function serve(handler) {
@@ -41,10 +43,12 @@ async function serve(handler) {
   return `http://127.0.0.1:${address.port}`;
 }
 try {
-  const tarball = join(resolve(tarballs), "explorer-verify-0.1.0.tgz");
+  const packed = packedPackage(tarballs, "explorer-verify");
+  const tarball = packed.path;
+  result.candidate = packed.gitHead;
   result.package = {
     name: "explorer-verify",
-    version: "0.1.0",
+    version: packed.version,
     sha256: createHash("sha256")
       .update(await readFile(tarball))
       .digest("hex"),
@@ -74,7 +78,7 @@ try {
   const pkg = JSON.parse(
     await readFile(join(temp, "node_modules/explorer-verify/package.json"), "utf8"),
   );
-  if (pkg.version !== "0.1.0") throw new Error("Wrong SDK version");
+  if (pkg.version !== packed.version) throw new Error("Wrong SDK version");
   const source = await readFile(join(here, "Counter.sol"), "utf8");
   const input = {
     language: "Solidity",
@@ -203,7 +207,9 @@ try {
   browser = await chromium.launch({
     executablePath: option(
       "--chrome",
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      process.platform === "darwin"
+        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        : undefined,
     ),
     headless: true,
   });

@@ -1,8 +1,10 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve, dirname, join, delimiter } from "node:path";
-import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve, dirname, join, delimiter, basename } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { packedPackage } from "../packages.mjs";
 const root = dirname(fileURLToPath(import.meta.url));
 const flag = (name) => {
   const i = process.argv.indexOf(name);
@@ -37,28 +39,27 @@ try {
       ...options,
     });
     if (r.error || r.status !== 0)
-      throw new Error(
-        `${command} failed: ${r.error?.message ?? ""}\n${r.stdout}\n${r.stderr}`,
-      );
+      throw new Error(`${command} failed: ${r.error?.message ?? ""}\n${r.stdout}\n${r.stderr}`);
     return r.stdout;
   }
   const names = [
     "explorer-verify",
-    "explorer-verify-cli",
-    "explorer-verify-foundry",
-    "explorer-verify-hardhat",
+    "@explorer-verify/cli",
+    "@explorer-verify/foundry",
+    "@explorer-verify/hardhat",
   ];
-  const pins = JSON.parse(
-    await readFile(join(root, "dependencies.json"), "utf8"),
-  );
+  const pins = JSON.parse(await readFile(join(root, "dependencies.json"), "utf8"));
   const packages = [];
+  const core = packedPackage(tarballs, "explorer-verify");
   for (const name of names) {
-    const file = name + "-0.1.0.tgz";
-    const bytes = await readFile(join(tarballs, file));
-    const sha256 = createHash("sha256").update(bytes).digest("hex");
-    if (pins.packages.find((p) => p.file === file)?.sha256 !== sha256)
-      throw new Error("Candidate tarball checksum mismatch: " + file);
-    packages.push({ file, sha256 });
+    const packed = packedPackage(tarballs, name);
+    const file = basename(packed.path);
+    if (
+      packed.gitHead === pins.candidate &&
+      pins.packages.find((entry) => entry.file === file)?.sha256 !== packed.sha256
+    )
+      throw new Error("Recorded candidate tarball checksum mismatch: " + file);
+    packages.push({ file, name, version: packed.version, sha256: packed.sha256 });
   }
   await writeFile(
     join(work, "package.json"),
@@ -81,12 +82,7 @@ try {
     { cwd: work },
   );
   const bin = join(work, "node_modules/.bin/explorer-verify");
-  const command = [
-    process.execPath,
-    "--import",
-    join(root, "preload.mjs"),
-    bin,
-  ];
+  const command = [process.execPath, "--import", join(root, "preload.mjs"), bin];
   const request = {
     chainId: 11155111,
     address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
@@ -200,17 +196,11 @@ try {
       submits: 1,
     },
   ];
-  const javaHome =
-    process.env.JAVA_HOME ??
-    (
-      await readFile(
-        "/private/tmp/explorer-verify-adoption/java-home.txt",
-        "utf8",
-      )
-    ).trim();
+  const javaHome = process.env.JAVA_HOME;
+  if (typeof javaHome !== "string" || javaHome.length === 0)
+    throw new Error("Set JAVA_HOME to a JDK 17 installation before running the Java consumer.");
   const jar = join(work, "gson-2.11.0.jar");
-  const jarHash =
-    "57928d6e5a6edeb2abd3770a8f95ba44dce45f3b23b7a9dc2b309c581552a78b";
+  const jarHash = "57928d6e5a6edeb2abd3770a8f95ba44dce45f3b23b7a9dc2b309c581552a78b";
   const response = await fetch(
     "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar",
   );
@@ -219,27 +209,21 @@ try {
   if (createHash("sha256").update(jarBytes).digest("hex") !== jarHash)
     throw new Error("Gson checksum mismatch");
   await writeFile(jar, jarBytes);
-  run(join(javaHome, "bin/javac"), [
-    "-cp",
-    jar,
-    "-d",
-    work,
-    join(root, "java/Client.java"),
-  ]);
+  run(join(javaHome, "bin/javac"), ["-cp", jar, "-d", work, join(root, "java/Client.java")]);
   run("go", ["build", "-o", join(work, "go-client"), "."], {
     cwd: join(root, "go"),
   });
   const languages = [
-    ["python", "python3", [join(root, "python/client.py")]],
-    ["go", join(work, "go-client"), []],
-    [
-      "java",
-      join(javaHome, "bin/java"),
-      ["-cp", work + delimiter + jar, "Client"],
-    ],
+    { language: "python", executable: "python3", args: [join(root, "python/client.py")] },
+    { language: "go", executable: join(work, "go-client"), args: [] },
+    {
+      language: "java",
+      executable: join(javaHome, "bin/java"),
+      args: ["-cp", work + delimiter + jar, "Client"],
+    },
   ];
   const results = [];
-  for (const [language, executable, args] of languages) {
+  for (const { language, executable, args } of languages) {
     const cases = definitions.map((c) => ({
       ...c,
       log: join(work, `${language}-${c.name}.jsonl`),
@@ -257,13 +241,8 @@ try {
           .map((line) => JSON.parse(line));
         const submits = requests.filter((r) => r.submit).length;
         if (submits !== c.submits)
-          throw new Error(
-            `${language}/${c.name}: ${submits} submits, expected ${c.submits}`,
-          );
-        if (
-          ["invalid-input", "incomplete-input"].includes(c.name) &&
-          requests.length !== 0
-        )
+          throw new Error(`${language}/${c.name}: ${submits} submits, expected ${c.submits}`);
+        if (["invalid-input", "incomplete-input"].includes(c.name) && requests.length !== 0)
           throw new Error("Invalid input reached network");
         Object.assign(
           result.scenarios.find((s) => s.name === c.name),
@@ -280,7 +259,7 @@ try {
     schemaVersion: 1,
     project: "polyglot",
     issue: 268,
-    candidate: "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+    candidate: core.gitHead,
     mode: "local-preload-protocol-contract",
     success: results.every((r) => r.success),
     packages,
@@ -294,10 +273,7 @@ try {
     results,
   };
   // Remove runtime-specific paths from diagnostics before writing portable evidence.
-  const portable = JSON.stringify(report, null, 2).replaceAll(
-    root,
-    "<project>",
-  );
+  const portable = JSON.stringify(report, null, 2).replaceAll(root, "<project>");
   await writeFile(join(output, "results.json"), portable + "\n");
   console.log(
     JSON.stringify({
@@ -320,10 +296,7 @@ try {
     failure: error.message.replaceAll(root, "<project>"),
   };
   await mkdir(output, { recursive: true });
-  await writeFile(
-    join(output, "results.json"),
-    JSON.stringify(failure, null, 2) + "\n",
-  );
+  await writeFile(join(output, "results.json"), JSON.stringify(failure, null, 2) + "\n");
   console.error(JSON.stringify(failure));
   process.exitCode = 1;
 }

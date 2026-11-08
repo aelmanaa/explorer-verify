@@ -69,3 +69,15 @@ with [source research](contributor/research/2026-11-07-event-envelope-fields.md)
 
 The [2026-11-08 agent evaluation](contributor/research/2026-11-08-agent-evaluation.md) records the five CLI tasks
 with two independent model sessions, their results and unsafe attempts.
+
+## Adoption validation projects
+
+- [Suite and commands](../validation/README.md)
+- [Browser and Remix](../validation/browser-remix/README.md)
+- [CCIP SDK and CLI](../validation/ccip/README.md)
+- [Hardhat adapter](../validation/hardhat/README.md)
+- [CLI comparison](../validation/cli-comparison/README.md)
+- [Python, Go and Java](../validation/polyglot/README.md)
+- [Recover incomplete deployment information](../validation/recovery.md)
+
+The [2026-11-08 adoption evidence](contributor/research/2026-11-08-adoption-validation.md) records the five consumer runs and their limits.
