@@ -77,31 +77,53 @@ While every `packages/*/package.json` is private, `release-pr.yml` opens no pull
 `version-pr` job is skipped and the run passes. `scripts/check-release-workflows.ts` fails when the
 `version-pr` job loses that gate.
 
-Once the pull request that prepares 0.1.0 removes `"private": true`, the `version-pr` job runs. It
-must not open the pull request with the default `GITHUB_TOKEN`. GitHub starts no new workflow run
-for an event that `GITHUB_TOKEN` causes, except `workflow_dispatch` and `repository_dispatch`, and
-recommends a GitHub App installation token or a personal access token instead
-([Triggering a workflow from a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow),
-read 2026-11-04). With `GITHUB_TOKEN`, the six required checks would never run on the pull request,
-and it could not merge.
+The version job uses a GitHub App installed only on `aelmanaa/explorer-verify`. It requests
+Contents and Pull requests read/write permissions and receives Metadata read-only automatically.
+Each run generates a short-lived installation token with
+[`actions/create-github-app-token`](https://github.com/actions/create-github-app-token/tree/64ab729a6294000f5aa4a4bc0b73d1f32bc45510).
+The action revokes the token when the job finishes. There is no personal-token fallback.
 
-Before merging the first-release pull request, the maintainer creates a fine-grained personal
-access token limited to `aelmanaa/explorer-verify`, with Contents read/write, Pull requests
-read/write, Metadata read-only and an expiry date. Store it as repository secret
-`RELEASE_PR_TOKEN`. The workflow refuses to continue when it is absent and passes it explicitly
-to the [pinned changesets action](https://github.com/changesets/action/blob/ae32849d5ba541f9ae29e40e22a623bc13562f51/action.yml).
-The job's default token has read permissions for checkout. Do not set `GITHUB_TOKEN` on the
-action step: the pinned action rejects a conflicting environment token and passes its custom
-token to the version command itself
+GitHub now starts approval-required CI for `opened`, `synchronize` and `reopened` pull request
+events caused by `GITHUB_TOKEN`. App tokens let those checks start without that approval step
+([Triggering a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
+read 2026-11-08). The App keeps version pull requests automatic.
+
+The maintainer registers a private GitHub App owned by `aelmanaa`:
+
+1. Set the homepage to this repository. Disable webhooks. Leave redirect and setup URLs empty,
+   user authorization during installation off, and device flow off. Allow installation only on
+   this account.
+2. Grant Contents and Pull requests read/write. Leave every other permission at no access,
+   except the mandatory Metadata read-only permission.
+3. Install the App on `explorer-verify` only.
+4. Store its Client ID as repository variable `RELEASE_APP_CLIENT_ID`.
+5. Generate a private key and upload the downloaded PEM directly to repository secret
+   `RELEASE_APP_PRIVATE_KEY`, without displaying or committing its contents:
+
+   ```sh
+   gh variable set RELEASE_APP_CLIENT_ID --repo aelmanaa/explorer-verify --body CLIENT_ID
+   gh secret set RELEASE_APP_PRIVATE_KEY --repo aelmanaa/explorer-verify < /path/to/key.pem
+   ```
+
+The App private key signs requests for GitHub installation tokens. OAuth client secrets are not
+used: this job acts as an App installation rather than asking a user to authorize it. npm uses
+its separate OIDC trusted publishers and never receives the App key
+([App authentication in Actions](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow),
+read 2026-11-08).
+
+The workflow scopes each token to this repository and those two write permissions. Its default
+token remains read-only. Pass the App token explicitly as `github-token` to
+[changesets/action](https://github.com/changesets/action/blob/ae32849d5ba541f9ae29e40e22a623bc13562f51/action.yml).
+Do not set `GITHUB_TOKEN` on the action step: the pinned action rejects a conflicting environment
+token and passes its custom token to the version command itself
 ([implementation](https://github.com/changesets/action/blob/ae32849d5ba541f9ae29e40e22a623bc13562f51/src/run.ts)).
 
-A GitHub App installation token is also supported by the action. Switching to an App requires
-a reviewed workflow change to create its installation token and pass it as `github-token`.
-It must have the same repository scope and permissions; it must not fall back to `GITHUB_TOKEN`.
-
 Leave "Allow GitHub Actions to create and approve pull requests" off. That setting applies to
-`GITHUB_TOKEN`, and this workflow uses the separate token for its pull request. Agents do not
-create the token, configure environments, reserve npm names or publish packages.
+`GITHUB_TOKEN`; this workflow uses the App token. After the first successful App run, remove the
+unused `RELEASE_PR_TOKEN` repository secret. Rotate the App private key through its credentials
+settings and replace the secret before revoking the old key. The maintainer registers and installs
+the App; agents may store its supplied credentials and update the workflow when authorized.
+Agents never tag, publish or approve release environments.
 
 ### Who can change what a release runs
 

@@ -364,7 +364,7 @@ describe("release workflow order (R-AX-10, R-SEC-4, decision 0015)", () => {
 
   it("requires a custom token that can start pull request checks", () => {
     const input = "          github-token: ${{ secrets.RELEASE_PR_TOKEN }}\n";
-    const message = `${WORKFLOWS.releasePr}: job version-pr must pass a separate secret or App token as github-token; GITHUB_TOKEN does not start pull request checks`;
+    const message = `${WORKFLOWS.releasePr}: job version-pr must pass a separate secret or App token as github-token; GITHUB_TOKEN requires approval for pull request checks`;
     for (const token of [
       "",
       "${{ github.token }}",
@@ -380,13 +380,32 @@ describe("release workflow order (R-AX-10, R-SEC-4, decision 0015)", () => {
     }
     assert.deepEqual(
       problems({
-        releasePr: RELEASE_PR.replace(
-          input,
-          "          github-token: ${{ steps.release-app.outputs.token }}\n",
-        ),
+        releasePr: REPOSITORY.releasePr,
       }),
       [],
     );
+  });
+
+  it("refuses an unscoped, unrevoked or missing App token producer (R-SEC-4)", () => {
+    for (const [before, after] of [
+      ["          repositories: explorer-verify\n", ""],
+      ["          permission-contents: write\n", "          permission-contents: read\n"],
+      ["          permission-pull-requests: write\n", ""],
+      ["          owner: ${{ github.repository_owner }}\n", ""],
+      ["          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}\n", ""],
+      ["          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}\n", ""],
+      ["        id: release-app\n", "        id: other-app\n"],
+      [
+        "          repositories: explorer-verify\n",
+        "          repositories: explorer-verify\n          skip-token-revoke: true\n",
+      ],
+    ]) {
+      assert.ok(before !== undefined && after !== undefined);
+      assert.ok(REPOSITORY.releasePr.includes(before));
+      assert.deepEqual(problems({ releasePr: REPOSITORY.releasePr.replace(before, after) }), [
+        `${WORKFLOWS.releasePr}: job version-pr must mint its App token with repository scope, required permissions and automatic revocation`,
+      ]);
+    }
   });
 
   it("rejects an environment token that conflicts with the action input", () => {

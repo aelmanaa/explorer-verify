@@ -65,6 +65,8 @@ interface Job {
   actions: string[];
   /** Tokens explicitly supplied to changesets/action. */
   versionTokens: string[];
+  /** Scoped App token outputs minted by this job and revoked at completion. */
+  appTokens: string[];
   /** A conflicting environment token makes the pinned action refuse the run. */
   versionTokenConflict: boolean;
   /** Where the job or a step has `if` or `continue-on-error`, as `job` or `step N`, with the key. */
@@ -113,6 +115,21 @@ function readJob(name: string, value: unknown): Job {
     versionTokens: steps
       .filter((step) => CHANGESETS_ACTION.test(text(field(step, "uses"))))
       .map((step) => text(field(field(step, "with"), "github-token"))),
+    appTokens: steps
+      .filter((step) => APP_TOKEN_ACTION.test(text(field(step, "uses"))))
+      .filter((step) => {
+        const inputs = field(step, "with");
+        return (
+          text(field(inputs, "client-id")) === "${{ vars.RELEASE_APP_CLIENT_ID }}" &&
+          text(field(inputs, "private-key")) === "${{ secrets.RELEASE_APP_PRIVATE_KEY }}" &&
+          text(field(inputs, "owner")) === "${{ github.repository_owner }}" &&
+          text(field(inputs, "repositories")) === "explorer-verify" &&
+          text(field(inputs, "permission-contents")) === "write" &&
+          text(field(inputs, "permission-pull-requests")) === "write" &&
+          field(inputs, "skip-token-revoke") === undefined
+        );
+      })
+      .map((step) => `\${{ steps.${text(field(step, "id"))}.outputs.token }}`),
     versionTokenConflict: steps.some((step) => {
       const token = text(field(field(step, "env"), "GITHUB_TOKEN"));
       return (
@@ -283,6 +300,8 @@ function docsProblems(workflow: Workflow): string[] {
   return problems;
 }
 
+const APP_TOKEN_ACTION = /^actions\/create-github-app-token@[a-f0-9]{40}$/;
+
 const CHANGESETS_ACTION = /^changesets\/action(?:@|$)/;
 // A named secret or an App step output, with no default-token fallback.
 const CUSTOM_PR_TOKEN =
@@ -320,7 +339,14 @@ function releasePrProblems(workflow: Workflow): string[] {
     }
     if (job.versionTokens.some((token) => !CUSTOM_PR_TOKEN.test(token))) {
       problems.push(
-        `${file}: job ${job.name} must pass a separate secret or App token as github-token; GITHUB_TOKEN does not start pull request checks`,
+        `${file}: job ${job.name} must pass a separate secret or App token as github-token; GITHUB_TOKEN requires approval for pull request checks`,
+      );
+    }
+    if (
+      job.versionTokens.some((token) => token.includes("steps.") && !job.appTokens.includes(token))
+    ) {
+      problems.push(
+        `${file}: job ${job.name} must mint its App token with repository scope, required permissions and automatic revocation`,
       );
     }
     const gated = gates.some(
