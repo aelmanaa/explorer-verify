@@ -180,3 +180,5 @@ with [source research](docs/contributor/research/2026-11-07-event-envelope-field
 - [Recover incomplete deployment information](validation/recovery.md)
 
 The [2026-11-08 adoption evidence](docs/contributor/research/2026-11-08-adoption-validation.md) records the five consumer runs and their limits.
+
+The [real Remix host evidence](validation/browser-remix/evidence-real-remix/README.md) records compilation and SDK input rebuilding through the actual IDE.

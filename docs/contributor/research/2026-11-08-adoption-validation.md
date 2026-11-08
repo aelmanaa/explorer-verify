@@ -16,8 +16,8 @@ The package source files are identical between the tested candidate and the base
 The [suite index](../../../validation/README.md) gives reproducible commands.
 [Combined results](../../../validation/results.json) identify the runs. Each project retains
 its own evidence, tool pins and source attribution. The CI workflow repeats each consumer in its
-own job and preserves logs and results. A failed expected rejection is a failed scenario; a
-correctly observed rejection counts as a successful validation scenario.
+own job and preserves logs and results. Scenario success means the expected outcome and assertions held, including expected
+rejections and missing-input errors.
 
 ## Observed results
 
@@ -38,6 +38,23 @@ wrong expected result. These controls are separate from the 72 scenario total.
 The browser's host and deployment receipt are local fixtures. Its initial evidence proves the
 plugin protocol and browser SDK path; it does not show a deployed upstream Remix integration.
 Its source recovery scenarios verify hashes and identical recompilation.
+
+### Actual Remix IDE compilation
+
+A separate network-dependent follow-up used Chrome 156.0.8078.80 and the actual Remix IDE
+2.6.13 website. It loaded our external plugin through the real host, called
+`solidity.compileWithParameters` with Counter and solc `0.8.24+commit.e11b9ed9`, and rebuilt the
+returned compiler input through the public packed SDK. Three additional assertions passed,
+separate from the 72 deterministic scenarios.
+
+The [real-host evidence](../../../validation/browser-remix/evidence-real-remix/README.md) retains
+the actual compilation response, metadata and rebuilt inputs. The build-info envelope wraps the
+real method response's input/output/version locally. No compilation event was observed for this
+method call. The run used a fresh browser context, disabled optional performance analytics and
+granted local-network permission only to the Remix origins so they could load the loopback
+plugin. Earlier UI-selector, overlay and local-network blockers remain separate recorded attempts.
+No wallet was connected, and no deployment or explorer submission occurred. This proves the
+compiled-data path through the real host, rather than full verification-plugin parity.
 
 The CCIP project uses exact artifacts at upstream revision
 `1cecb266d924bb52c6c6030e0bdc2b4b6f5e430e`, with recorded hashes and preserved license notices.
@@ -82,7 +99,7 @@ README. The five-run CI matrix covers Linux; the original recorded local runs us
 installed Chrome browser where applicable.
 
 After the validated release, the browser project can support an upstream Remix issue and an
-SDK-backed verification plugin PR. That work needs an actual IDE integration and public-testnet
+SDK-backed verification plugin PR. That work needs a complete verification-plugin integration and public-testnet
 coverage with the maintainers. No upstream outreach or pull request occurred in this validation.
 
 ## Sources

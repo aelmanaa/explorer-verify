@@ -63,3 +63,11 @@ comparison. Local chains use disposable accounts and require no testnet funds.
 The release checklist distinguishes these consumer runs from the recorded live explorer probes.
 After 0.1.0, the Remix project can support an upstream integration proposal and plugin PR, followed
 by tests on several public testnets with the maintainers. This suite makes no upstream changes.
+
+## Real Remix host follow-up
+
+The [optional real-IDE smoke](browser-remix/evidence-real-remix/README.md) loaded an external
+plugin in Remix IDE 2.6.13, compiled Counter and rebuilt verification input through the packed
+SDK. Three additional real-host assertions passed. It received an authentic compilation method
+response; no compilation event was captured. No wallet, deployment or explorer submission was
+involved. This network-dependent run is kept separate from the 72 deterministic suite scenarios.

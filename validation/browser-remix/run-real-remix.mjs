@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium } from "playwright";
 
+import { packedPackage } from "../packages.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 function option(name, fallback) {
@@ -41,10 +43,11 @@ let browser;
 let server;
 const networkFailures = [];
 try {
-  const packed = await readFile(join(resolve(tarballs), "explorer-verify-0.1.0.tgz"));
+  const candidate = packedPackage(tarballs, "explorer-verify");
+  const packed = await readFile(candidate.path);
   result.package = {
     name: "explorer-verify",
-    version: "0.1.0",
+    version: candidate.version,
     sha256: createHash("sha256").update(packed).digest("hex"),
   };
   await writeFile(join(temp, "candidate.tgz"), packed);
@@ -72,7 +75,8 @@ try {
   const pkg = JSON.parse(
     await readFile(join(temp, "node_modules/explorer-verify/package.json"), "utf8"),
   );
-  if (pkg.version !== "0.1.0") throw new Error("Expected packed SDK 0.1.0");
+  if (pkg.version !== candidate.version)
+    throw new Error("Installed SDK version differs from the supplied tarball");
   await build({
     entryPoints: [join(here, "real-remix-plugin.mjs")],
     outfile: join(temp, "plugin.js"),
@@ -108,7 +112,9 @@ try {
   browser = await chromium.launch({
     executablePath: option(
       "--chrome",
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      process.platform === "darwin"
+        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        : undefined,
     ),
     headless: true,
   });

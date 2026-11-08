@@ -66,10 +66,21 @@
   },
   "limits": [
     "Local explorer responses; no new public explorer verification.",
-    "Browser initial run uses a local Remix protocol host and synthetic receipt.",
+    "Browser deterministic cases use a local host fixture; an additional real Remix host compilation and SDK rebuild passed.",
     "CCIP uses pinned authentic token/pool artifacts, not an upstream SDK migration.",
     "Hardhat task adapter does not establish full hardhat-verify parity.",
     "Foundry comparison is bounded to recorded local scenarios; no performance parity claim.",
     "Java/Python/Go execution uses real CLI processes with a local fetch preload."
-  ]
+  ],
+  "realRemix": {
+    "passed": true,
+    "ideVersion": "2.6.13",
+    "scenarios": 3,
+    "evidence": "browser-remix/evidence-real-remix/2026-11-08-attempt-05/results.json",
+    "methodResponseCaptured": true,
+    "compilationEventCaptured": false,
+    "walletConnected": false,
+    "deploymentAttempted": false,
+    "explorerSubmissionAttempted": false
+  }
 }
