@@ -3,9 +3,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const solc = require(path.join(__dirname, ".work/install/node_modules/solc"));
-if (process.argv.includes("--version")) {
+if (process.argv.indexOf("--version") >= 0) {
   console.log("solc, the solidity compiler commandline interface\nVersion: " + solc.version());
-} else if (process.argv.includes("--standard-json")) {
+} else if (process.argv.indexOf("--standard-json") >= 0) {
   process.stdout.write(solc.compile(fs.readFileSync(0, "utf8")));
 } else {
   throw new Error("Adapter supports only --version and --standard-json");
