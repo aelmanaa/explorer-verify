@@ -1,0 +1,979 @@
+{
+  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
+  "scope": "Local fixture only; no live acceptance",
+  "versions": {
+    "forge": "forge Version: 1.8.1\nCommit SHA: 982849d3140c01fd3b72905759581a132df7aa98\nBuild Timestamp: 2026-08-28T17:50:20.499955000Z (1787939420)\nBuild Profile: dist",
+    "cast": "cast Version: 1.8.1\nCommit SHA: 982849d3140c01fd3b72905759581a132df7aa98\nBuild Timestamp: 2026-08-28T17:50:20.499955000Z (1787939420)\nBuild Profile: dist",
+    "anvil": "anvil Version: 1.8.1\nCommit SHA: 982849d3140c01fd3b72905759581a132df7aa98\nBuild Timestamp: 2026-08-28T17:50:20.499955000Z (1787939420)\nBuild Profile: dist",
+    "node": "v24.21.0",
+    "npm": "11.19.0",
+    "explorer": {
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "--version",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"schemaVersion\":1,\"ok\":true,\"result\":{\"cli\":\"0.1.0\",\"core\":\"0.1.0\",\"routingTableDate\":\"2026-11-05\"}}\n",
+      "stderr": ""
+    },
+    "solc": {
+      "command": ["<project>/solc.cjs", "--version"],
+      "exitCode": 0,
+      "stdout": "solc, the solidity compiler commandline interface\nVersion: 0.8.24+commit.e11b9ed9.Emscripten.clang\n",
+      "stderr": ""
+    }
+  },
+  "tarballs": [
+    {
+      "name": "explorer-verify-0.1.0.tgz",
+      "sha256": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda"
+    },
+    {
+      "name": "explorer-verify-cli-0.1.0.tgz",
+      "sha256": "58a35deef0f9a5dbb493aee521b4f3ebcc106f14e04e9d2f1d50a2f3c1e22a43"
+    },
+    {
+      "name": "explorer-verify-foundry-0.1.0.tgz",
+      "sha256": "d8a722260989e8017e82b7c4d9a5baa5143812f22f6d7eb16982d2deea943fe7"
+    },
+    {
+      "name": "explorer-verify-hardhat-0.1.0.tgz",
+      "sha256": "e7f40427fa9c2a6e2cae6a090b56938d586ad80ebcae8069531e1059e647e6b1"
+    }
+  ],
+  "setup": [
+    {
+      "command": [
+        "npm",
+        "ci",
+        "--prefix",
+        "<project>/.work/install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "exitCode": 0,
+      "stdout": "\nadded 9 packages in 621ms\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "npm",
+        "install",
+        "--prefix",
+        "<project>/.work/install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--package-lock=false",
+        "<tarballs>/explorer-verify-0.1.0.tgz",
+        "<tarballs>/explorer-verify-cli-0.1.0.tgz",
+        "<tarballs>/explorer-verify-foundry-0.1.0.tgz",
+        "<tarballs>/explorer-verify-hardhat-0.1.0.tgz"
+      ],
+      "exitCode": 0,
+      "stdout": "\nadded 4 packages in 3s\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "<foundry-bin>/forge",
+        "build",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--build-info",
+        "--force"
+      ],
+      "exitCode": 0,
+      "stdout": "Compiling 1 files with Solc 0.8.24\nSolc 0.8.24 finished in 589.49ms\nCompiler run successful!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "0x0000000000000000000000000000000000001234",
+        "src/Counter.sol:Counter",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--show-standard-json-input"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"language\":\"Solidity\",\"sources\":{\"src/Counter.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity 0.8.24;\\ncontract Counter {\\n    uint256 public number;\\n    function increment() external { number++; }\\n}\\n\"}},\"settings\":{\"optimizer\":{\"enabled\":false,\"runs\":200},\"metadata\":{\"useLiteralContent\":true,\"bytecodeHash\":\"ipfs\",\"appendCBOR\":true},\"outputSelection\":{\"*\":{\"\":[\"ast\"],\"*\":[\"abi\",\"evm.bytecode.object\",\"evm.bytecode.sourceMap\",\"evm.bytecode.linkReferences\",\"evm.deployedBytecode.object\",\"evm.deployedBytecode.sourceMap\",\"evm.deployedBytecode.linkReferences\",\"evm.deployedBytecode.immutableReferences\",\"evm.methodIdentifiers\",\"metadata\"]}},\"evmVersion\":\"paris\",\"viaIR\":false,\"libraries\":{}}}\n",
+      "stderr": ""
+    }
+  ],
+  "scenarios": [
+    {
+      "tool": "explorer-verify",
+      "name": "success",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--input",
+        "<project>/.work/input.json",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--compiler-version",
+        "0.8.24+commit.e11b9ed9",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"schemaVersion\":1,\"ok\":true,\"result\":{\"status\":\"verified\",\"backend\":\"etherscan-compatible\",\"match\":\"exact\"}}\n",
+      "stderr": "Submitted to etherscan-compatible. Handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\nResult from etherscan-compatible: verified, exact match.\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": true,
+        "result": {
+          "status": "verified",
+          "backend": "etherscan-compatible",
+          "match": "exact"
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 3,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "foundry-project-success",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--foundry",
+        "<project>/project",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"schemaVersion\":1,\"ok\":true,\"result\":{\"status\":\"verified\",\"backend\":\"etherscan-compatible\",\"match\":\"exact\"}}\n",
+      "stderr": "No rpcUrl with creationTxHash and no explorer key to read the creation code; submitting without constructor arguments (no-source) backend=etherscan-compatible reason=no-source\nSubmitted to etherscan-compatible. Handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\nResult from etherscan-compatible: verified, exact match.\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": true,
+        "result": {
+          "status": "verified",
+          "backend": "etherscan-compatible",
+          "match": "exact"
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 3,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "success",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "0x0000000000000000000000000000000000001234",
+        "src/Counter.sol:Counter",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json",
+        "--watch"
+      ],
+      "exitCode": 0,
+      "stdout": "local-job-1\t<fixture>/address/0x0000000000000000000000000000000000001234\n",
+      "stderr": "Start verifying contract `0x0000000000000000000000000000000000001234` deployed on anvil-hardhat\n\nVerifying on blockscout...\nSubmitting verification for [src/Counter.sol:Counter] 0x0000000000000000000000000000000000001234.\nSubmitted contract for verification:\n\tResponse: `OK`\n\tGUID: `local-job-1`\n\tURL: <fixture>/address/0x0000000000000000000000000000000000001234\n\nWaiting for blockscout verification result...\nContract verification status:\nResponse: `OK`\nDetails: `Pass - Verified`\nContract successfully verified\n",
+      "json": null,
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getabi"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 3,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "rejection",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--input",
+        "<project>/.work/input.json",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--compiler-version",
+        "0.8.24+commit.e11b9ed9",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 1,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"result\":{\"status\":\"failed\",\"backend\":\"etherscan-compatible\",\"reason\":\"Fail - Unable to verify\"}}\n",
+      "stderr": "Submitted to etherscan-compatible. Handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\nResult from etherscan-compatible: failed.\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "result": {
+          "status": "failed",
+          "backend": "etherscan-compatible",
+          "reason": "Fail - Unable to verify"
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        },
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 4,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "rejection",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "0x0000000000000000000000000000000000001234",
+        "src/Counter.sol:Counter",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json",
+        "--watch"
+      ],
+      "exitCode": 1,
+      "stdout": "local-job-1\t<fixture>/address/0x0000000000000000000000000000000000001234\n",
+      "stderr": "Start verifying contract `0x0000000000000000000000000000000000001234` deployed on anvil-hardhat\n\nVerifying on blockscout...\nSubmitting verification for [src/Counter.sol:Counter] 0x0000000000000000000000000000000000001234.\nSubmitted contract for verification:\n\tResponse: `OK`\n\tGUID: `local-job-1`\n\tURL: <fixture>/address/0x0000000000000000000000000000000000001234\n\nWaiting for blockscout verification result...\nContract verification status:\nResponse: `NOTOK`\nDetails: `Fail - Unable to verify`\nError: Checking verification result failed\n\nContext:\n- Contract verification failed:\nStatus: `0`\nResult: `Fail - Unable to verify`\n",
+      "json": null,
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getabi"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 3,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "pending",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--input",
+        "<project>/.work/input.json",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--compiler-version",
+        "0.8.24+commit.e11b9ed9",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1",
+        "--timeout",
+        "2"
+      ],
+      "exitCode": 4,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"error\":{\"code\":\"not-confirmed\",\"message\":\"The verification of job local-job-1 on etherscan-compatible is not confirmed: the 2 s budget ran out before the job ended, and a last lookup found no match.\",\"hint\":\"The explorer is still verifying. Run explorer-verify status ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1 with --api-url <the same URL> later to continue polling, or raise --timeout. Running verify again would submit again.\",\"docsUrl\":\"https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed\",\"retryable\":true,\"handle\":\"ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\",\"details\":{\"code\":\"not-confirmed\",\"handle\":\"ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\"}}}\n",
+      "stderr": "Submitted to etherscan-compatible. Handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\nerror: The verification of job local-job-1 on etherscan-compatible is not confirmed: the 2 s budget ran out before the job ended, and a last lookup found no match. (not-confirmed)\n  hint: The explorer is still verifying. Run explorer-verify status ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1 with --api-url <the same URL> later to continue polling, or raise --timeout. Running verify again would submit again.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed\n  handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "error": {
+          "code": "not-confirmed",
+          "message": "The verification of job local-job-1 on etherscan-compatible is not confirmed: the 2 s budget ran out before the job ended, and a last lookup found no match.",
+          "hint": "The explorer is still verifying. Run explorer-verify status ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1 with --api-url <the same URL> later to continue polling, or raise --timeout. Running verify again would submit again.",
+          "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/not-confirmed",
+          "retryable": true,
+          "handle": "ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1",
+          "details": {
+            "code": "not-confirmed",
+            "handle": "ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1"
+          }
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        },
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 4,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "resume",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "status",
+        "ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"schemaVersion\":1,\"ok\":true,\"result\":{\"status\":\"verified\",\"backend\":\"etherscan-compatible\",\"match\":\"exact\"}}\n",
+      "stderr": "Result from etherscan-compatible: verified, exact match.\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": true,
+        "result": {
+          "status": "verified",
+          "backend": "etherscan-compatible",
+          "match": "exact"
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 1,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "pending-submit",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "0x0000000000000000000000000000000000001234",
+        "src/Counter.sol:Counter",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "local-job-1\t<fixture>/address/0x0000000000000000000000000000000000001234\n",
+      "stderr": "Start verifying contract `0x0000000000000000000000000000000000001234` deployed on anvil-hardhat\n\nVerifying on blockscout...\nSubmitting verification for [src/Counter.sol:Counter] 0x0000000000000000000000000000000000001234.\nSubmitted contract for verification:\n\tResponse: `OK`\n\tGUID: `local-job-1`\n\tURL: <fixture>/address/0x0000000000000000000000000000000000001234\n",
+      "json": null,
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getabi"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 2,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "pending-check",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-check",
+        "local-job-1",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "Checking verification status on anvil-hardhat\nContract verification status:\nResponse: `NOTOK`\nDetails: `Pending in queue`\nWarning: Verification is still pending...; waiting 1 seconds before trying again (0 tries remaining)\nContract verification status:\nResponse: `NOTOK`\nDetails: `Pending in queue`\nError: Checking verification result failed\n\nContext:\n- Verification is still pending...\n",
+      "json": null,
+      "requests": [
+        {
+          "method": "POST",
+          "action": "checkverifystatus"
+        },
+        {
+          "method": "POST",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 2,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "resume",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-check",
+        "local-job-1",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Checking verification status on anvil-hardhat\nContract verification status:\nResponse: `OK`\nDetails: `Pass - Verified`\nContract successfully verified\n",
+      "json": null,
+      "requests": [
+        {
+          "method": "POST",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 1,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "bad-input",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "bad-address",
+        "--chain",
+        "31337",
+        "--input",
+        "<project>/.work/input.json",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--compiler-version",
+        "0.8.24+commit.e11b9ed9",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 2,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"error\":{\"code\":\"invalid-input\",\"message\":\"The input is invalid: address must be 0x followed by 40 hex digits.\",\"hint\":\"Fix what the message names, and each issue listed under it, then run the command again. explorer-verify --help lists every option.\",\"docsUrl\":\"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\",\"retryable\":false,\"details\":{\"code\":\"invalid-input\",\"issues\":[{\"field\":\"address\",\"message\":\"must be 0x followed by 40 hex digits\"}]}}}\n",
+      "stderr": "error: The input is invalid: address must be 0x followed by 40 hex digits. (invalid-input)\n  hint: Fix what the message names, and each issue listed under it, then run the command again. explorer-verify --help lists every option.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "error": {
+          "code": "invalid-input",
+          "message": "The input is invalid: address must be 0x followed by 40 hex digits.",
+          "hint": "Fix what the message names, and each issue listed under it, then run the command again. explorer-verify --help lists every option.",
+          "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+          "retryable": false,
+          "details": {
+            "code": "invalid-input",
+            "issues": [
+              {
+                "field": "address",
+                "message": "must be 0x followed by 40 hex digits"
+              }
+            ]
+          }
+        }
+      },
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "bad-input",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "bad-address",
+        "src/Counter.sol:Counter",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json"
+      ],
+      "exitCode": 2,
+      "stdout": "",
+      "stderr": "error: invalid value 'bad-address' for '<ADDRESS>': odd number of digits\n\nFor more information, try '--help'.\n",
+      "json": null,
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "missing-build-data",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--foundry",
+        "<project>/.work",
+        "--contract",
+        "src/Counter.sol:Counter",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 2,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"error\":{\"code\":\"invalid-input\",\"message\":\"The input is invalid: --out-dir.\",\"hint\":\"Run forge build in the project folder, or pass --out-dir with the output directory of the build (the out setting of foundry.toml).\",\"docsUrl\":\"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\",\"retryable\":false,\"details\":{\"code\":\"invalid-input\",\"issues\":[{\"field\":\"--foundry\",\"message\":\"has no out folder: build the project, or pass --out-dir\"}]}}}\n",
+      "stderr": "error: The input is invalid: --out-dir. (invalid-input)\n  issue: --foundry has no out folder: build the project, or pass --out-dir\n  hint: Run forge build in the project folder, or pass --out-dir with the output directory of the build (the out setting of foundry.toml).\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "error": {
+          "code": "invalid-input",
+          "message": "The input is invalid: --out-dir.",
+          "hint": "Run forge build in the project folder, or pass --out-dir with the output directory of the build (the out setting of foundry.toml).",
+          "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+          "retryable": false,
+          "details": {
+            "code": "invalid-input",
+            "issues": [
+              {
+                "field": "--foundry",
+                "message": "has no out folder: build the project, or pass --out-dir"
+              }
+            ]
+          }
+        }
+      },
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "incomplete-input",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--input",
+        "<project>/.work/incomplete-metadata.json",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 2,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"error\":{\"code\":\"incomplete-input\",\"message\":\"The documents and options.sources lack 1 of the source files the Solidity metadata lists.\",\"hint\":\"Pass the build-info file of the same build with --input: it holds every source the metadata lists.\",\"docsUrl\":\"https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input\",\"retryable\":false,\"details\":{\"code\":\"incomplete-input\",\"field\":\"sources\",\"candidates\":[\"src/Counter.sol\"]}}}\n",
+      "stderr": "error: The documents and options.sources lack 1 of the source files the Solidity metadata lists. (incomplete-input)\n  missing sources: src/Counter.sol\n  hint: Pass the build-info file of the same build with --input: it holds every source the metadata lists.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "error": {
+          "code": "incomplete-input",
+          "message": "The documents and options.sources lack 1 of the source files the Solidity metadata lists.",
+          "hint": "Pass the build-info file of the same build with --input: it holds every source the metadata lists.",
+          "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/incomplete-input",
+          "retryable": false,
+          "details": {
+            "code": "incomplete-input",
+            "field": "sources",
+            "candidates": ["src/Counter.sol"]
+          }
+        }
+      },
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "forge",
+      "name": "missing-build-data",
+      "command": [
+        "<foundry-bin>/forge",
+        "verify-contract",
+        "0x0000000000000000000000000000000000001234",
+        "src/Missing.sol:Missing",
+        "--root",
+        "<project>/project",
+        "--use",
+        "<project>/solc.cjs",
+        "--chain",
+        "31337",
+        "--verifier",
+        "blockscout",
+        "--verifier-url",
+        "<fixture>/api",
+        "--retries",
+        "1",
+        "--delay",
+        "1",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "Start verifying contract `0x0000000000000000000000000000000000001234` deployed on anvil-hardhat\n\nVerifying on blockscout...\nError: Failed to get standard json input\n\nContext:\n- cannot resolve file at \"<project>/project/src/Missing.sol\"\n",
+      "json": null,
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "address-only",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "0x0000000000000000000000000000000000001234",
+        "--chain",
+        "31337",
+        "--backend",
+        "etherscan-compatible",
+        "--api-url",
+        "<fixture>/api",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 2,
+      "stdout": "{\"schemaVersion\":1,\"ok\":false,\"error\":{\"code\":\"invalid-input\",\"message\":\"The command line is invalid: --input is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json.\",\"hint\":\"Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.\",\"docsUrl\":\"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\",\"retryable\":false,\"details\":{\"code\":\"invalid-input\",\"issues\":[{\"field\":\"--input\",\"message\":\"is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json\"}]}}}\n",
+      "stderr": "error: The command line is invalid: --input is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json. (invalid-input)\n  hint: Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.\n  docs: https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": false,
+        "error": {
+          "code": "invalid-input",
+          "message": "The command line is invalid: --input is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json.",
+          "hint": "Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.",
+          "docsUrl": "https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input",
+          "retryable": false,
+          "details": {
+            "code": "invalid-input",
+            "issues": [
+              {
+                "field": "--input",
+                "message": "is needed: a build file, --foundry or --hardhat with --contract, or the whole request with --input-json"
+              }
+            ]
+          }
+        }
+      },
+      "requests": [],
+      "counts": {
+        "invocations": 1,
+        "http": 0,
+        "submissions": 0
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    },
+    {
+      "tool": "SDK",
+      "name": "metadata-unavailable",
+      "code": "metadata-unavailable",
+      "success": true
+    },
+    {
+      "tool": "SDK",
+      "name": "local-metadata-recovery",
+      "contractName": "src/Counter.sol:Counter",
+      "success": true
+    },
+    {
+      "tool": "explorer-verify",
+      "name": "recovered-input",
+      "command": [
+        "node",
+        "<project>/.work/install/node_modules/@explorer-verify/cli/dist/src/bin.js",
+        "verify",
+        "--input-json",
+        "<project>/.work/recovered.json",
+        "--json",
+        "--poll-interval",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"schemaVersion\":1,\"ok\":true,\"result\":{\"status\":\"verified\",\"backend\":\"etherscan-compatible\",\"match\":\"exact\"}}\n",
+      "stderr": "Submitted to etherscan-compatible. Handle: ev1:etherscan-compatible:31337:0x0000000000000000000000000000000000001234:local-job-1\nResult from etherscan-compatible: verified, exact match.\n",
+      "json": {
+        "schemaVersion": 1,
+        "ok": true,
+        "result": {
+          "status": "verified",
+          "backend": "etherscan-compatible",
+          "match": "exact"
+        }
+      },
+      "requests": [
+        {
+          "method": "GET",
+          "action": "getsourcecode"
+        },
+        {
+          "method": "POST",
+          "action": "verifysourcecode"
+        },
+        {
+          "method": "GET",
+          "action": "checkverifystatus"
+        }
+      ],
+      "counts": {
+        "invocations": 1,
+        "http": 3,
+        "submissions": 1
+      },
+      "submittedInputsMatch": true,
+      "success": true
+    }
+  ],
+  "target": {
+    "chainId": 31337,
+    "address": "0x0000000000000000000000000000000000001234",
+    "contract": "src/Counter.sol:Counter",
+    "installation": "anvil_setCode; zero accounts; no transaction",
+    "runtimeSha256": "346c37e793cb8ec48be1a1e1c4e54c7fb055d957a5e45a469bc8bc6630ee1b8b"
+  },
+  "completedAt": "2026-11-08T14:08:49.695Z",
+  "success": true
+}
