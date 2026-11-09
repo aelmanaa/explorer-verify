@@ -184,8 +184,8 @@ catalogs:
       specifier: 10.0.0
       version: 10.0.0
     '@stryker-mutator/tap-runner':
-      specifier: 10.0.0
-      version: 10.0.0
+      specifier: 10.1.1
+      version: 10.1.1
     '@types/node':
       specifier: ^22.18.0
       version: 22.20.5
@@ -355,7 +355,7 @@ importers:
         version: 10.0.0(@types/node@22.20.5)
       '@stryker-mutator/tap-runner':
         specifier: 'catalog:'
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@22.20.5))
+        version: 10.1.1(@stryker-mutator/core@10.0.0(@types/node@22.20.5))
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -2109,6 +2109,10 @@ packages:
     resolution: {integrity: sha512-ZtAJ0ZT3MVRCWJTBE2h90XB/6E+4lifHYtcTyNG6nU2nLekPgTo4gD5esjX6Okxo1b/JB4jJzyxYB54fwKAoJw==}
     engines: {node: '>=22.0.0'}
 
+  '@stryker-mutator/api@10.1.1':
+    resolution: {integrity: sha512-3s/ECsrD1Tf1WEB7amBk0HxjN7zgkabKvmqnI2C831rTNszJ6o2HoV9PVxtElDEWxb2+t4iavK5x25G+DTUOUA==}
+    engines: {node: '>=22.0.0'}
+
   '@stryker-mutator/core@10.0.0':
     resolution: {integrity: sha512-ZvMsRyaXQQ5e6Thcid9pkuODv6Fn9E3nrBQJUap+hcJuGJ4unm26afo3m6YKSjn8kinyxJ/3TXf0cTWRDaTxVw==}
     engines: {node: '>=22.0.0'}
@@ -2118,14 +2122,17 @@ packages:
     resolution: {integrity: sha512-B7Wmn1KlEWyFeOz6D6oGvQGRfi5Xw3VemG6dEKvFQp4qLvxD9Mf4kcZghfxffgnYwXd3bFgqXsJ+ZGlhdfIOrQ==}
     engines: {node: '>=22.0.0'}
 
-  '@stryker-mutator/tap-runner@10.0.0':
-    resolution: {integrity: sha512-tVCu5g50KRZ7eZaZlQWUXEfNHaO/79L/eyXy939GEL/Sv8n+NsFEaU8yFmscXTTe6bF3qJM85Y4XsrmM2MEOuQ==}
+  '@stryker-mutator/tap-runner@10.1.1':
+    resolution: {integrity: sha512-YoMqy80yPnKZ4vLM5z1ge8LtPajtOUjIpusE3iuk7YVOF00NHDaSmqihmdvqpatyox8uTdPp3TD3rS0NEjZlOQ==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
-      '@stryker-mutator/core': 10.0.0
+      '@stryker-mutator/core': 10.1.1
 
   '@stryker-mutator/util@10.0.0':
     resolution: {integrity: sha512-LzOpHiJaCp2ABQgnPMlrQQcsK43bd5Vo/2FGL78aN62yDoeRQ+4j3tzeuXxK5OAHdC3fUz6TDoy4IsoAuLAd3w==}
+
+  '@stryker-mutator/util@10.1.1':
+    resolution: {integrity: sha512-Z0zDzsmhoSykE1gT3DvD1knFxySgNMfBlpSSs1j87kWvjEMfeMqfLOk0bqEPRg/rTFIUNSEXLZapxePUhZmfZA==}
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -5334,6 +5341,13 @@ snapshots:
       tslib: 2.8.1
       typed-inject: 5.0.0
 
+  '@stryker-mutator/api@10.1.1':
+    dependencies:
+      mutation-testing-metrics: 3.8.4
+      mutation-testing-report-schema: 3.8.4
+      tslib: 2.8.1
+      typed-inject: 5.0.0
+
   '@stryker-mutator/core@10.0.0(@types/node@22.20.5)':
     dependencies:
       '@inquirer/prompts': 8.7.4(@types/node@22.20.5)
@@ -5382,16 +5396,18 @@ snapshots:
       tslib: 2.8.1
       weapon-regex: 2.0.6
 
-  '@stryker-mutator/tap-runner@10.0.0(@stryker-mutator/core@10.0.0(@types/node@22.20.5))':
+  '@stryker-mutator/tap-runner@10.1.1(@stryker-mutator/core@10.0.0(@types/node@22.20.5))':
     dependencies:
-      '@stryker-mutator/api': 10.0.0
+      '@stryker-mutator/api': 10.1.1
       '@stryker-mutator/core': 10.0.0(@types/node@22.20.5)
-      '@stryker-mutator/util': 10.0.0
+      '@stryker-mutator/util': 10.1.1
       glob: 13.0.6
       tap-parser: 17.0.0
       tslib: 2.8.1
 
   '@stryker-mutator/util@10.0.0': {}
+
+  '@stryker-mutator/util@10.1.1': {}
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
