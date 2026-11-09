@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "explorer-verify": "workspace:*",
-    "viem": "2.57.8"
+    "viem": "2.57.14"
   },
   "devDependencies": {
     "@explorer-verify/foundry": "workspace:*",
