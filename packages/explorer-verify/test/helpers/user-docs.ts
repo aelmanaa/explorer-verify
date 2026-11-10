@@ -326,7 +326,8 @@ export function createDocsProject(setup: DocSetup): string {
       break;
     case "without-explorer-verify":
       // A user of a wrapper that declares explorer-verify an optional peer and did not install it.
-      rmSync(path.join(dir, "node_modules/explorer-verify"));
+      // A symlink on most Node versions, a copied directory on others: remove either.
+      rmSync(path.join(dir, "node_modules/explorer-verify"), { recursive: true, force: true });
       break;
   }
   return dir;
