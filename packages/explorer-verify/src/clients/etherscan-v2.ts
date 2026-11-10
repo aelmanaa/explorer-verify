@@ -1,7 +1,10 @@
 // References: decision 0052.
 /**
- * `explorer-verify/clients/etherscan-v2`: the Etherscan v2 clients for `explorer-verify/core`.
+ * The Etherscan v2 clients for `explorer-verify/core`.
+ *
+ * @packageDocumentation
  */
+
 import { etherscan } from "../backends/etherscan.ts";
 import { etherscanProxyLinker } from "../backends/proxy-etherscan.ts";
 import { defineClient, defineProxyLink } from "../core/parts.ts";

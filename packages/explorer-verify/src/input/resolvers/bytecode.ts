@@ -1,15 +1,19 @@
-import { newError } from "../../error-hints.ts";
 // References: R-IN-5, decision 0026, R-IN-7, R-FLOW-6, R-SEC-2.
 /**
- * The bytecode-metadata resolver: reads the metadata hash solc appends to
- * the runtime bytecode, finds the metadata and the sources that hash names, and rebuilds the
- * Standard JSON input with `buildVerifyInput`.
+ * Rebuilds the verification input of a deployed contract from the metadata hash in its bytecode.
+ *
+ * It reads the metadata hash solc appends to the runtime bytecode, finds the metadata and the
+ * sources that hash names, and rebuilds the Standard JSON input with `buildVerifyInput`.
  *
  * Every request goes through the HTTP layer, so it never follows a redirect, reads a bounded body,
  * retries transient failures and stops on abort or when the time budget runs out. Hosts come only
- * from the caller (`rpcUrl`, `ipfsGateway`) and from the routing
- * table's Sourcify API; there is no built-in IPFS gateway.
+ * from the caller (`rpcUrl`, `ipfsGateway`) and from the routing table's Sourcify API; there is
+ * no built-in IPFS gateway.
+ *
+ * @packageDocumentation
  */
+
+import { newError } from "../../error-hints.ts";
 import { ExplorerVerifyError } from "../../errors.ts";
 import type { InputIssue, MetadataAttempt } from "../../errors.ts";
 import { MAX_TIMER_MS, platformFetch, request } from "../../http/fetch.ts";

@@ -1,9 +1,13 @@
 // References: decision 0052, decision 0041.
 /**
- * `explorer-verify/clients/blockscout`: the Blockscout clients for `explorer-verify/core`: one for
- * a Blockscout instance's own API, one for Blockscout's hosted API, and one proxy-link client for
- * both.
+ * The Blockscout clients for `explorer-verify/core`.
+ *
+ * One client is for a Blockscout instance's own API, one for Blockscout's hosted API, and one
+ * proxy-link client is for both.
+ *
+ * @packageDocumentation
  */
+
 import {
   blockscout as instanceBackend,
   blockscoutHosted as hostedBackend,

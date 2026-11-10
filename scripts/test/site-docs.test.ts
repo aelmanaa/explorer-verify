@@ -328,7 +328,7 @@ Read the agent page first.
     );
   });
 
-  it("adds a last section that links the Markdown copy of each API reference page", () => {
+  it("adds a last section that links each API reference page, members under their entry point", () => {
     const text = `# explorer-verify
 
 > Verifies contract source.
@@ -339,7 +339,9 @@ Read the agent page first.
 `;
     const api = [
       { page: "index.md", title: "API reference" },
-      { page: "core-server.md", title: "core/server" },
+      { page: "core/index.md", title: "core" },
+      { page: "core/functions/verify.md", title: "Function: verify()" },
+      { page: "core-server/index.md", title: "core/server" },
     ];
     assert.equal(
       siteLlmsTxt(text, "1.2.3", api),
@@ -358,7 +360,9 @@ ${API_SECTION}
 Generated from the TSDoc of each package entry point. The \`.d.ts\` files in the npm packages carry the same comments.
 
 - [API reference](${SITE_URL}api/index.md): the list of entry points
-- [core/server](${SITE_URL}api/core-server.md): the exports of \`core/server\`
+- [core](${SITE_URL}api/core/index.md): the exports of \`core\`
+  - [Function: verify()](${SITE_URL}api/core/functions/verify.md)
+- [core/server](${SITE_URL}api/core-server/index.md): the exports of \`core/server\`
 `,
     );
   });
@@ -444,10 +448,11 @@ describe("siteSidebar", () => {
     assert.deepEqual(siteSidebar(root)[0]?.items?.[0], { text: "Overview", link: "/overview" });
   });
 
-  it("ends with the API reference, collapsed, its index first, once site/api holds pages", () => {
+  it("ends with the API reference, collapsed, its index first, then the entry points only", () => {
     writeFiles(root, {
-      "site/api/core.md": "# core\n",
-      "site/api/core-server.md": "# core/server\n",
+      "site/api/core/index.md": "# core\n",
+      "site/api/core/functions/verify.md": "# Function: verify()\n",
+      "site/api/core-server/index.md": "# core/server\n",
       "site/api/index.md": "# API reference\n",
     });
     assert.deepEqual(siteSidebar(root).at(-1), {
@@ -455,8 +460,8 @@ describe("siteSidebar", () => {
       collapsed: true,
       items: [
         { text: "API reference", link: "/api/" },
-        { text: "core", link: "/api/core" },
-        { text: "core/server", link: "/api/core-server" },
+        { text: "core", link: "/api/core/" },
+        { text: "core/server", link: "/api/core-server/" },
       ],
     });
   });

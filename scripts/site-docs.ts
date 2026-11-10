@@ -43,7 +43,7 @@ import {
   splitTarget,
   USER_DOCS,
 } from "./agent-docs.ts";
-import { API_OUT, API_SITE_DIR, apiPages } from "./site-api.ts";
+import { API_OUT, API_SITE_DIR, apiPages, isApiEntryPage } from "./site-api.ts";
 import type { ApiPage } from "./site-api.ts";
 
 /** The address of the docs site. Every `docsUrl` starts with it before 1.0. */
@@ -263,7 +263,8 @@ export const API_SECTION = "## API reference";
  * The site's `llms.txt`, from the root one: links to user pages and to the skill point to their
  * Markdown copies on the site, list items that link anything else are dropped, and so are sections
  * left empty. A line after the summary names the version and where the docs of other versions
- * are. When `api` lists pages of the API reference, a last section links their Markdown copies.
+ * are. When `api` lists pages of the API reference, a last section links their Markdown copies:
+ * the index and the page of each entry point, with the pages of its members nested under it.
  * With `home` set, the site has its own home page, and the user index is `overview.md`.
  */
 export function siteLlmsTxt(
@@ -318,10 +319,13 @@ export function siteLlmsTxt(
       "",
       "Generated from the TSDoc of each package entry point. The `.d.ts` files in the npm packages carry the same comments.",
       "",
-      ...api.map(
-        ({ page, title }) =>
-          `- [${title}](${SITE_URL}${API_SITE_DIR}/${page}): ${page === "index.md" ? "the list of entry points" : `the exports of \`${title}\``}`,
-      ),
+      ...api.map(({ page, title }) => {
+        const link = `[${title}](${SITE_URL}${API_SITE_DIR}/${page})`;
+        if (page === "index.md") {
+          return `- ${link}: the list of entry points`;
+        }
+        return isApiEntryPage(page) ? `- ${link}: the exports of \`${title}\`` : `  - ${link}`;
+      }),
       "",
     );
   }
@@ -535,7 +539,8 @@ function sidebarItem(
 
 /**
  * The sidebar: the groups of `SIDEBAR` with the pages that exist, then the generated API
- * reference, collapsed, once `site/api/` holds pages.
+ * reference, collapsed, once `site/api/` holds pages: its index and the page of each entry point.
+ * The page of an entry point links the pages of its members.
  */
 export function siteSidebar(root: string): SidebarItem[] {
   const pages = listFiles(root, USER_DOCS, ".md").map((file) =>
@@ -543,7 +548,7 @@ export function siteSidebar(root: string): SidebarItem[] {
   );
   const home = hasSiteHome(root);
   const groups = SIDEBAR.flatMap((entry) => sidebarItem(root, entry, pages, home) ?? []);
-  const api = apiPages(path.join(root, API_OUT));
+  const api = apiPages(path.join(root, API_OUT)).filter(({ page }) => isApiEntryPage(page));
   if (api.length > 0) {
     groups.push({
       text: API_GROUP,

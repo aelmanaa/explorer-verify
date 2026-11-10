@@ -6,12 +6,17 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import {
+  API_GROUP_ORDER,
+  API_LEADING_FUNCTIONS,
   API_OUT,
   API_TITLE,
   apiEntryPoints,
   apiPageName,
   apiPages,
   apiProblems,
+  isApiEntryPage,
+  isRepositorySource,
+  orderApiMembers,
 } from "../site-api.ts";
 import { makeFixture, removeFixture, writeFiles } from "./fixture.ts";
 
@@ -125,24 +130,98 @@ describe("apiEntryPoints on this repository", () => {
 });
 
 describe("apiPages", () => {
-  it("lists the index first, then the pages in path order, each with its first heading", () => {
+  it("lists the index first, then each folder's index before its pages, each with its first heading", () => {
     writeFiles(root, {
-      [`${API_OUT}/b.md`]: "# b\n",
-      [`${API_OUT}/a/server.md`]: "# a/server\n",
+      [`${API_OUT}/core-server/index.md`]: "# core/server\n",
+      [`${API_OUT}/core/functions/verify.md`]: "[API reference](../../index.md)\n\n# verify\n",
+      [`${API_OUT}/core/classes/Error.md`]: "# Error\n",
+      [`${API_OUT}/core/index.md`]: "# core\n",
       [`${API_OUT}/index.md`]: `# ${API_TITLE}\n`,
+      [`${API_OUT}/b.md`]: "# b\n",
       [`${API_OUT}/untitled.md`]: "No heading.\n",
       [`${API_OUT}/style.css`]: "",
     });
     assert.deepEqual(apiPages(path.join(root, API_OUT)), [
       { page: "index.md", title: API_TITLE },
-      { page: "a/server.md", title: "a/server" },
       { page: "b.md", title: "b" },
+      { page: "core/index.md", title: "core" },
+      { page: "core/classes/Error.md", title: "Error" },
+      { page: "core/functions/verify.md", title: "verify" },
+      { page: "core-server/index.md", title: "core/server" },
       { page: "untitled.md", title: "untitled.md" },
     ]);
   });
 
   it("gives no pages when the folder does not exist", () => {
     assert.deepEqual(apiPages(path.join(root, API_OUT)), []);
+  });
+});
+
+describe("isApiEntryPage", () => {
+  it("is true for the index and the page of an entry point, false for a member's page", () => {
+    assert.equal(isApiEntryPage("index.md"), true);
+    assert.equal(isApiEntryPage("explorer-verify/index.md"), true);
+    assert.equal(isApiEntryPage("explorer-verify/functions/verify.md"), false);
+    assert.equal(isApiEntryPage("explorer-verify/functions/index.md"), false);
+    assert.equal(isApiEntryPage("explorer-verify.md"), false);
+  });
+});
+
+/** `list` as `orderApiMembers` orders members of those names. */
+function names(list: readonly string[]): string[] {
+  return orderApiMembers(list.map((name) => ({ name }))).map(({ name }) => name);
+}
+
+describe("orderApiMembers", () => {
+  it("puts the flow functions first, in their order, and keeps the others in their order", () => {
+    assert.deepEqual(
+      names(["buildVerifyInput", "checkStatus", "dryRun", "formatHandle", "linkProxy", "verify"]),
+      ["verify", "dryRun", "checkStatus", "linkProxy", "buildVerifyInput", "formatHandle"],
+    );
+    assert.deepEqual(names(["b", "a"]), ["b", "a"]);
+    assert.deepEqual(names(API_LEADING_FUNCTIONS.toReversed()), [...API_LEADING_FUNCTIONS]);
+  });
+
+  it("returns a new array", () => {
+    const members = [{ name: "dryRun" }, { name: "verify" }];
+    assert.notEqual(orderApiMembers(members), members);
+    assert.deepEqual(members, [{ name: "dryRun" }, { name: "verify" }]);
+  });
+});
+
+describe("API_GROUP_ORDER", () => {
+  it("lists functions first, then classes, types and constants", () => {
+    assert.deepEqual(API_GROUP_ORDER, [
+      "Functions",
+      "Classes",
+      "Interfaces",
+      "Type Aliases",
+      "Variables",
+      "*",
+    ]);
+  });
+});
+
+describe("isRepositorySource", () => {
+  it("is true for a file in the repository, false outside it or under node_modules", () => {
+    const repository = path.join(root, "repository");
+    assert.equal(
+      isRepositorySource(repository, path.join(repository, "packages/a/src/x.ts")),
+      true,
+    );
+    assert.equal(isRepositorySource(repository, path.join(root, "other/x.ts")), false);
+    assert.equal(isRepositorySource(repository, repository), false);
+    assert.equal(
+      isRepositorySource(
+        repository,
+        path.join(repository, "node_modules/typescript/lib/lib.es5.d.ts"),
+      ),
+      false,
+    );
+    assert.equal(
+      isRepositorySource(repository, path.join(repository, "site/node_modules/@types/node/x.d.ts")),
+      false,
+    );
   });
 });
 
@@ -161,12 +240,23 @@ describe("apiProblems", () => {
     { name: "core/server", packageName: "core", source: "packages/core/src/server.ts" },
   ];
 
-  it("passes an index and a page per entry point, with `{{` only in code", () => {
+  const index = `# ${API_TITLE}
+
+## Modules
+
+| Module | Description |
+| ------ | ------ |
+| [core](core/index.md) | Verifies contracts. |
+| [core/server](core-server/index.md) | The server handler. |
+`;
+
+  it("passes an index that describes each entry point, and its pages, with `{{` only in code", () => {
     writeFiles(root, {
-      [`${API_OUT}/index.md`]: `# ${API_TITLE}\n`,
-      [`${API_OUT}/core.md`]:
+      [`${API_OUT}/index.md`]: index,
+      [`${API_OUT}/core/index.md`]:
         "# core\n\nA `{{ code }}` span.\n\n```ts\nconst a = { b: {} };\n```\n",
-      [`${API_OUT}/core-server.md`]: "# core/server\n",
+      [`${API_OUT}/core/functions/verify.md`]: "# Function: verify()\n",
+      [`${API_OUT}/core-server/index.md`]: "# core/server\n",
     });
     assert.deepEqual(apiProblems(path.join(root, API_OUT), entryPoints), []);
   });
@@ -174,25 +264,40 @@ describe("apiProblems", () => {
   it("reports a page that shares its name with a folder (R-AX-17)", () => {
     const directory = path.join(root, API_OUT);
     writeFiles(root, {
-      [`${API_OUT}/index.md`]: `# ${API_TITLE}\n`,
-      [`${API_OUT}/core.md`]: "# core\n",
-      [`${API_OUT}/core/server.md`]: "# core/server\n",
+      [`${API_OUT}/index.md`]: index,
+      [`${API_OUT}/core/index.md`]: "# core\n",
+      [`${API_OUT}/core/functions.md`]: "# functions\n",
+      [`${API_OUT}/core/functions/verify.md`]: "# Function: verify()\n",
+      [`${API_OUT}/core-server/index.md`]: "# core/server\n",
     });
     assert.deepEqual(apiProblems(directory, entryPoints), [
-      `${directory}/core.md has a folder of the same name; a link to the page would reach the folder (R-AX-17)`,
+      `${directory}/core/functions.md has a folder of the same name; a link to the page would reach the folder (R-AX-17)`,
     ]);
   });
 
-  it("reports a missing index, a missing page and `{{` in prose (R-AX-2, R-AX-17)", () => {
+  it("reports an entry point the index lists without a description (R-AX-2)", () => {
+    const directory = path.join(root, API_OUT);
+    writeFiles(root, {
+      [`${API_OUT}/index.md`]: index.replace("The server handler.", "-"),
+      [`${API_OUT}/core/index.md`]: "# core\n",
+      [`${API_OUT}/core-server/index.md`]: "# core/server\n",
+    });
+    assert.deepEqual(apiProblems(directory, entryPoints), [
+      `${directory}/index.md lists core/server without a description; give its entry point a @packageDocumentation comment (R-AX-2)`,
+    ]);
+  });
+
+  it("reports a missing index, a missing or misplaced page and `{{` in prose (R-AX-2, R-AX-17)", () => {
     const directory = path.join(root, API_OUT);
     writeFiles(root, {
       [`${API_OUT}/index.md`]: "# Something else\n",
-      [`${API_OUT}/core.md`]: "# core\n\nSee {{ value }}.\n",
+      [`${API_OUT}/core/index.md`]: "# core\n\nSee {{ value }}.\n",
+      [`${API_OUT}/core-server.md`]: "# core/server\n",
     });
     assert.deepEqual(apiProblems(directory, entryPoints), [
       `${directory} has no index.md titled "${API_TITLE}" (R-AX-2)`,
-      `${directory} has no page for core/server (R-AX-2)`,
-      `${directory}/core.md:3: holds {{ outside code; the docs site would evaluate it as a Vue expression. Put it in a code span or a code block (R-AX-17)`,
+      `${directory} has no page core-server/index.md titled core/server (R-AX-2)`,
+      `${directory}/core/index.md:3: holds {{ outside code; the docs site would evaluate it as a Vue expression. Put it in a code span or a code block (R-AX-17)`,
     ]);
   });
 });
