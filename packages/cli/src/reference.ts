@@ -1,8 +1,9 @@
 // References: R-AX-2.
 /**
- * The generated part of the CLI reference, `docs/user/reference/cli.md`. It renders the
- * same {@link HelpResult} the `--help` text shows, so the page cannot drift from the code:
- * `scripts/generate-cli-reference.ts` writes it, and `pnpm run check` fails when the committed page
+ * The generated parts of the CLI reference, `docs/user/reference/cli.md`, and of the CLI output
+ * page, `cli-output.md`. They render the same {@link HelpResult} the `--help` text shows, so the
+ * pages cannot drift from the code:
+ * `scripts/generate-cli-reference.ts` writes them, and `pnpm run check` fails when a committed page
  * differs. The tables are padded the way the formatter pads them, so a formatted page still
  * matches.
  */
@@ -54,14 +55,39 @@ function optionTable(options: readonly OptionHelp[]): string[] {
   );
 }
 
-/** The section of one command. */
-function commandSection(help: CommandHelp): string[] {
-  const lines = [`### \`${help.name}\``, "", help.summary, ""];
-  lines.push("```text", help.usage, "```", "", "Examples:", "");
-  for (const example of help.examples) {
-    lines.push(`- \`${example.command}\`: ${example.description}`);
+/** The widest line of a generated code block: wider lines scroll on the docs site. */
+export const USAGE_WIDTH = 72;
+
+/**
+ * A usage line folded to {@link USAGE_WIDTH} columns. It breaks only before an option, a group in
+ * parentheses or a part in brackets, and indents each continuation line by two spaces.
+ *
+ * @param usage - The usage line.
+ * @returns Its lines.
+ */
+export function foldUsage(usage: string): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const part of usage.split(/ (?=--|\(|\[)/)) {
+    if (line === "") {
+      line = part;
+    } else if (line.length + 1 + part.length <= USAGE_WIDTH) {
+      line = `${line} ${part}`;
+    } else {
+      lines.push(line);
+      line = `  ${part}`;
+    }
   }
-  lines.push("");
+  return [...lines, line];
+}
+
+/**
+ * The section of one command: its usage and its options. A hidden command, which the table of
+ * commands does not list, also gets its summary.
+ */
+function commandSection(help: CommandHelp, summary: boolean): string[] {
+  const lines = [`### \`${help.name}\``, "", ...(summary ? [help.summary, ""] : [])];
+  lines.push("Usage:", "", "```text", ...foldUsage(help.usage), "```", "");
   if (help.options.length > 0) {
     lines.push(...optionTable(help.options), "");
   }
@@ -69,19 +95,17 @@ function commandSection(help: CommandHelp): string[] {
 }
 
 /**
- * The generated part of the CLI reference, markers included.
+ * The generated part of the CLI reference, markers included: the usage, the commands with their
+ * options, and the chain names.
  *
  * @param commands - The command table.
  * @returns The Markdown, ending in a newline.
  */
 export function referenceBlock(commands: readonly Command[]): string {
   const help = helpResult(commands);
-  const lines = [START_MARKER, "", "## Usage", "", "```text", ...help.usage, "```", ""];
-  lines.push("## Examples", "");
-  for (const example of help.examples) {
-    lines.push(`- \`${example.command}\`: ${example.description}`);
-  }
-  lines.push("", "## Commands", "");
+  const rows = chainRows();
+  const lines = [START_MARKER, "", "## Usage", "", "Run a command, or print the help:", ""];
+  lines.push("```text", ...help.usage.flatMap(foldUsage), "```", "");
   if (help.commands.length === 0) {
     lines.push("This version has no public commands yet.", "");
   } else {
@@ -94,7 +118,7 @@ export function referenceBlock(commands: readonly Command[]): string {
     );
   }
   for (const command of commands.filter((each) => each.hidden !== true)) {
-    lines.push(...commandSection(commandHelp(command)));
+    lines.push(...commandSection(commandHelp(command), false));
   }
   const hidden = commands.filter((each) => each.hidden === true);
   if (hidden.length > 0) {
@@ -105,10 +129,46 @@ export function referenceBlock(commands: readonly Command[]): string {
       "",
     );
     for (const command of hidden) {
-      lines.push(...commandSection(commandHelp(command)));
+      lines.push(...commandSection(commandHelp(command), true));
     }
   }
-  lines.push("## Global options", "", ...optionTable(help.globalOptions), "");
+  lines.push(
+    "## Chain names",
+    "",
+    "`--chain` takes these names, in any case, as well as any chain ID.",
+    "",
+    // Folded, so the long table does not push the rest of the page down.
+    "<details>",
+    `<summary>The names of ${String(rows.length)} chains</summary>`,
+    "",
+    ...table(["Names", "Chain ID"], rows),
+    "",
+    "</details>",
+    "",
+    END_MARKER,
+  );
+  return `${lines.join("\n")}\n`;
+}
+
+/** One row for each chain ID, with its names in help order. */
+function chainRows(): string[][] {
+  const names = new Map<number, string[]>();
+  for (const [name, chainId] of CHAIN_NAMES) {
+    names.set(chainId, [...(names.get(chainId) ?? []), `\`${name}\``]);
+  }
+  return [...names].map(([chainId, each]) => [each.join(", "), String(chainId)]);
+}
+
+/**
+ * The generated part of the CLI output page, `docs/user/reference/cli-output.md`, markers
+ * included: the global options, the environment variables and the exit codes.
+ *
+ * @param commands - The command table.
+ * @returns The Markdown, ending in a newline.
+ */
+export function outputBlock(commands: readonly Command[]): string {
+  const help = helpResult(commands);
+  const lines = [START_MARKER, "", "## Global options", "", ...optionTable(help.globalOptions), ""];
   lines.push(
     "## Environment variables",
     "",
@@ -117,8 +177,6 @@ export function referenceBlock(commands: readonly Command[]): string {
       help.environment.map((variable) => [`\`${variable.name}\``, variable.description]),
     ),
     "",
-  );
-  lines.push(
     "## Exit codes",
     "",
     ...table(
@@ -127,15 +185,6 @@ export function referenceBlock(commands: readonly Command[]): string {
     ),
     "",
     "[Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.",
-    "",
-    "## Chain names",
-    "",
-    "`--chain` takes these names, in any case, as well as any chain ID.",
-    "",
-    ...table(
-      ["Name", "Chain ID"],
-      [...CHAIN_NAMES].map(([name, chainId]) => [`\`${name}\``, String(chainId)]),
-    ),
     "",
     END_MARKER,
   );
@@ -146,7 +195,7 @@ export function referenceBlock(commands: readonly Command[]): string {
  * The page with its generated part replaced by `block`.
  *
  * @param page - The page as committed.
- * @param block - The generated part, from {@link referenceBlock}.
+ * @param block - The generated part, from {@link referenceBlock} or {@link outputBlock}.
  * @returns The new page.
  * @throws Error when the page does not hold each marker exactly once, start first.
  */

@@ -356,6 +356,7 @@ const RUNS: readonly DocRun[] = [
     page: "reference/json-output.md",
     example: 0,
     what: "the envelope of a verified result",
+    setup: "foundry",
     fixtures: ALREADY_VERIFIED,
   },
   {

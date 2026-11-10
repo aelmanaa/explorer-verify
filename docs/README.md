@@ -49,7 +49,8 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Blockscout](user/reference/blockscout.md)                                                          | What is sent to a Blockscout instance, and how each answer becomes a result                   |
 | [Etherscan-compatible explorers](user/reference/etherscan-compatible.md)                            | What is sent to a standalone explorer with Etherscan's API, and its key                       |
 | [Logging and events](user/reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction                                  |
-| [CLI](user/reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes                         |
+| [CLI](user/reference/cli.md)                                                                        | Install, examples, every option, where `verify` submits, API keys and the RPC URL             |
+| [CLI output](user/reference/cli-output.md)                                                          | stdout, stderr, log levels, `--json`, help, the version, usage errors and cancelling          |
 | [API reference](https://aelmanaa.github.io/explorer-verify/api/)                                    | Every export of each package, generated from TSDoc, on the docs site                          |
 | [Match types](user/explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit                            |
 | [Etherscan plans and attribution](user/explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client                             |

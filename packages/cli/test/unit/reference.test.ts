@@ -8,17 +8,30 @@ import { CHAIN_NAMES } from "../../src/chains.ts";
 import type { Command } from "../../src/command.ts";
 import { COMMANDS } from "../../src/commands.ts";
 import { helpResult, helpText } from "../../src/help.ts";
-import { END_MARKER, referenceBlock, replaceBlock, START_MARKER } from "../../src/reference.ts";
+import {
+  END_MARKER,
+  foldUsage,
+  outputBlock,
+  referenceBlock,
+  replaceBlock,
+  START_MARKER,
+  USAGE_WIDTH,
+} from "../../src/reference.ts";
 import { WITH_SCRIPTED } from "../helpers/scripted-command.ts";
 
 const PAGE = readFileSync(
   new URL("../../../../docs/user/reference/cli.md", import.meta.url),
   "utf8",
 );
+const OUTPUT_PAGE = readFileSync(
+  new URL("../../../../docs/user/reference/cli-output.md", import.meta.url),
+  "utf8",
+);
 
 describe("CLI reference (R-AX-2)", () => {
   it("holds the generated part exactly as the generator writes it", () => {
     assert.equal(replaceBlock(PAGE, referenceBlock(COMMANDS)), PAGE);
+    assert.equal(replaceBlock(OUTPUT_PAGE, outputBlock(COMMANDS)), OUTPUT_PAGE);
   });
 
   it("differs when a flag's description changes and the page is not regenerated", () => {
@@ -28,7 +41,11 @@ describe("CLI reference (R-AX-2)", () => {
       ...first,
       options: {
         ...first.options,
-        polls: { type: "string", value: "<n>", description: "A new description." },
+        polls: {
+          type: "string",
+          value: "<n>",
+          description: "A new description.",
+        },
       },
     };
     const page = replaceBlock(PAGE, referenceBlock([changed]));
@@ -38,26 +55,50 @@ describe("CLI reference (R-AX-2)", () => {
 
   it("lists every command, every global option, every variable and every exit code", () => {
     const block = referenceBlock(COMMANDS);
-    assert.ok(block.startsWith(`${START_MARKER}\n`));
-    assert.ok(block.endsWith(`${END_MARKER}\n`));
+    const output = outputBlock(COMMANDS);
+    for (const each of [block, output]) {
+      assert.ok(each.startsWith(`${START_MARKER}\n`));
+      assert.ok(each.endsWith(`${END_MARKER}\n`));
+    }
     for (const text of [
-      "### `verify`",
-      "### `status`",
       "| `-h`, `--help` ",
       "| `--log-format <format>` ",
       "| `EXPLORER_VERIFY_LOG` ",
       "| 130  |",
-      "- `explorer-verify --version --json`: ",
+    ]) {
+      assert.ok(output.includes(text), text);
+      assert.ok(!block.includes(text), text);
+    }
+    for (const text of [
+      "### `verify`",
+      "### `status`",
+      "Usage:\n\n```text\nexplorer-verify verify <address>",
+      "```\n\n| Option ",
     ]) {
       assert.ok(block.includes(text), text);
     }
     assert.doesNotMatch(block, /Hidden commands/);
+    // The examples are written on the page, with their output, not generated.
+    assert.doesNotMatch(block, /^## Examples$|^Examples:$/m);
+  });
+
+  it("folds every line of its code blocks to the usage width", () => {
+    const fences = [...referenceBlock(COMMANDS).matchAll(/^```text\n([\s\S]*?)\n```$/gm)];
+    assert.ok(fences.length >= 3);
+    for (const [, body] of fences) {
+      for (const line of String(body).split("\n")) {
+        assert.ok(line.length <= USAGE_WIDTH, line);
+      }
+    }
   });
 
   it("lists a hidden command in its own section", () => {
     const block = referenceBlock(WITH_SCRIPTED);
     assert.ok(block.includes("## Hidden commands\n"));
     assert.ok(block.includes("### `scripted`"));
+    // A hidden command keeps its summary; a public one has it in the table of commands.
+    assert.doesNotMatch(block, /### `scripted`\n\nUsage:/);
+    assert.match(block, /### `verify`\n\nUsage:/);
   });
 
   it("writes a table of public commands, and escapes a pipe in a cell", () => {
@@ -66,7 +107,9 @@ describe("CLI reference (R-AX-2)", () => {
       summary: "Verify a | contract.",
       usage: "<input>",
       examples: [{ args: "verify input.json", description: "Verify it." }],
-      options: { file: { type: "string", multiple: true, description: "A file." } },
+      options: {
+        file: { type: "string", multiple: true, description: "A file." },
+      },
       maxPositionals: 1,
       run: async () => await Promise.reject(new Error("must not run")),
     };
@@ -84,11 +127,39 @@ describe("CLI reference (R-AX-2)", () => {
     assert.match(helpText(helpResult([])), /^ {2}This version has no public commands yet\.$/m);
   });
 
-  it("lists every chain name --chain takes, with its ID (#225)", () => {
+  it("lists every chain name --chain takes, with its ID, one row per ID (#225)", () => {
     const block = referenceBlock(COMMANDS);
+    const ids = new Set(CHAIN_NAMES.values());
+    assert.match(block, new RegExp(`<summary>The names of ${String(ids.size)} chains</summary>`));
     for (const [name, chainId] of CHAIN_NAMES) {
-      assert.match(block, new RegExp(`^\\| \`${name}\` +\\| ${String(chainId)} +\\|$`, "m"), name);
+      const row = new RegExp(
+        `^\\| (?:\`[a-z-]+\`, )*\`${name}\`(?:, \`[a-z-]+\`)* +\\| ${String(chainId)} +\\|$`,
+        "m",
+      );
+      assert.match(block, row, name);
     }
+    assert.match(block, /^\| `mainnet`, `ethereum` +\| 1 +\|$/m);
+    assert.equal(block.slice(block.indexOf("<summary>")).match(/^\| `/gm)?.length, ids.size);
+  });
+
+  it("folds a long usage line before an option, a group or a part in brackets", () => {
+    const usage =
+      "explorer-verify verify <address> --chain <chain> --input <file>... (--backend <name> | --dry-run) [options]";
+    assert.deepEqual(foldUsage(usage), [
+      "explorer-verify verify <address> --chain <chain> --input <file>...",
+      "  (--backend <name> | --dry-run) [options]",
+    ]);
+    assert.deepEqual(foldUsage("explorer-verify status <handle> [options]"), [
+      "explorer-verify status <handle> [options]",
+    ]);
+    assert.deepEqual(foldUsage(`a ${"b".repeat(USAGE_WIDTH)} [c]`), [
+      `a ${"b".repeat(USAGE_WIDTH)}`,
+      "  [c]",
+    ]);
+    // A line may end exactly at the width.
+    const exact = `${"x".repeat(USAGE_WIDTH - 4)} [y]`;
+    assert.deepEqual(foldUsage(exact), [exact]);
+    assert.deepEqual(foldUsage(`${exact} --z`), [exact, "  --z"]);
   });
 
   it("replaces only the part between the markers", () => {

@@ -45,8 +45,9 @@ through the server handler.
 `packages/explorer-verify/src/routing/table.json` and its checks. The index for agents is
 [llms.txt](llms.txt), and
 [docs/user/guides/using-from-an-agent.md](docs/user/guides/using-from-an-agent.md) says which calls
-are safe and which one submits. The CLI's output contract is in
-[docs/user/reference/cli.md](docs/user/reference/cli.md). The error reference is
+are safe and which one submits. The CLI's options are in
+[docs/user/reference/cli.md](docs/user/reference/cli.md), and its output contract in
+[docs/user/reference/cli-output.md](docs/user/reference/cli-output.md). The error reference is
 [docs/user/reference/errors/index.md](docs/user/reference/errors/index.md), with one page per
 error code next to it, and the JSON envelope and exit codes are in
 [docs/user/reference/json-output.md](docs/user/reference/json-output.md). Building the input from

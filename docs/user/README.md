@@ -36,7 +36,8 @@ Audience: developers using explorer-verify. The APIs are experimental before 1.0
 | [Blockscout](reference/blockscout.md)                                                          | What is sent to Blockscout, and how each answer becomes a result                              |
 | [Etherscan-compatible explorers](reference/etherscan-compatible.md)                            | What is sent to a standalone explorer with Etherscan's API, and its key                       |
 | [Logging and events](reference/logging-and-events.md)                                          | The logger, the stage events, their schema and key redaction                                  |
-| [CLI](reference/cli.md)                                                                        | help, version, stdout and stderr, `--json`, log levels and exit codes                         |
+| [CLI](reference/cli.md)                                                                        | Install, examples, every option, where `verify` submits, API keys and the RPC URL             |
+| [CLI output](reference/cli-output.md)                                                          | stdout, stderr, log levels, `--json`, help, the version, usage errors and cancelling          |
 | [API reference](https://aelmanaa.github.io/explorer-verify/api/)                               | Every export of each package, generated from TSDoc, on the docs site                          |
 | [Match types](explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit                            |
 | [Etherscan plans and attribution](explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client                             |
