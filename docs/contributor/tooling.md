@@ -138,25 +138,42 @@ page or the packaged `llms.txt` points to a file that is not in the tarball.
 
 ### Docs site
 
-The docs site is <https://aelmanaa.github.io/explorer-verify/> (R-AX-17, decisions 0015 and
-0028). VitePress 1.6.4, pinned exactly in the catalogue, builds it from `docs/user/` and from the
-generated [API reference](#api-reference) in `site/api/`. It sets `base` to `/explorer-verify/` and
-uses clean URLs and local search.
+The docs site is <https://aelmanaa.github.io/explorer-verify/> (R-AX-17, decisions 0015, 0028 and
+0062). VitePress 1.6.4, pinned exactly in the catalogue, builds it from `docs/user/`, from the
+generated [API reference](#api-reference) in `site/api/`, and from the site-only pages in
+`site/pages/`. It sets `base` to `/explorer-verify/` and uses clean URLs and local search.
 
 VitePress reads pages from `srcDir` only, so `srcDir` is the repository root (decision 0028).
-`srcExclude` hides every other Markdown file, and `rewrites` serve `docs/user/` at the site root
-and `site/api/` under `api/`, so every URL stays the same. Vite's root is `srcDir` as well, which
+`srcExclude` hides every other Markdown file, and `rewrites` serve `docs/user/` at the site root,
+`site/api/` under `api/` and `site/pages/` at the root, so every URL stays the same. Vite's root is
+`srcDir` as well, which
 brings two rules: `envDir` is `site/`, so a `.env` file at the repository root never reaches the
 build, and the repository must not have a root `public/` folder, because Vite would serve it.
 
 The config is `site/.vitepress/config.ts`, outside `docs/user/`, so GitHub and the package never
-see it. The pages stay plain Markdown: no frontmatter, Vue components or containers. The link
-rules, the sidebar and the copies live in `scripts/site-docs.ts`:
+see it. The pages in `docs/user/` stay plain Markdown: no frontmatter, Vue components or
+containers. The link rules, the sidebar, the nav and the copies live in `scripts/site-docs.ts`:
 
 - `README.md` becomes `index.md`, the page of its folder.
+- A Markdown file in `site/pages/` is a site-only page (decision 0062). It may use frontmatter,
+  `layout: home` and Vue, and it has no Markdown copy. `site/pages/index.md` is the site's home
+  page; while it exists, `docs/user/README.md` is served at `/overview`.
 - Before VitePress reads a page, a link inside `docs/user/` stays relative, a link to the root
   `llms.txt` points to the site's `llms.txt`, and any other link into the repository points to the
-  file on GitHub at the tag `v<version>`, because the site is built from that tag.
+  file on GitHub at the tag `v<version>`, because the site is built from that tag. The HTML page
+  drops the `Version:` and `Agents:` lines of the header; the nav shows the version, and the
+  Markdown copy keeps both lines.
+- The sidebar is the curated list `SIDEBAR`: groups of pages, each with a short label. A listed
+  page that does not exist yet is skipped, so a pull request that adds a planned page needs no
+  change to the list. `site:check` and a unit test fail when a user page is in no group or in two.
+  The nav links the first page of the Get started, Guides by setup, Reference and API groups, and
+  a version menu links the changelog at the release tag and the package on npm.
+- Search boosts a match in a heading, ranks the API reference below the written pages, and treats
+  a plural word as its singular, so "key" finds "API keys".
+- A code block with a title, such as ` ```ts [verify.ts] `, gets a title bar on the site.
+  VitePress 1.6.4 shows the title only inside a code group.
+- The theme in `site/.vitepress/theme/` adds CSS (the code language label reaches 4.5:1 contrast
+  in both themes) and a 404 page that links the overview, the Get started pages and the search.
 - Headings get GitHub's anchors, the same ones the docs check uses, so a link with a fragment that
   passes the check works on the site too.
 - Inline code is marked `v-pre`, as VitePress already marks code blocks, so `{{` in code is shown as
@@ -176,22 +193,26 @@ because CI and the deploy only build. Run `site:dev` and `site:preview` on local
 pass `--host`.
 
 `scripts/site-copies.ts` writes each user page next to its HTML as `<page>.md`, with the site's
-links, copies each page of the API reference to `api/`, and writes `site/dist/llms.txt`. That
-`llms.txt` is the root one with only the user pages, each linked as its Markdown copy on the site,
+links, copies every other file under `docs/user/` (images, JSON samples) as it is, writes a copy
+of the skill at `skills/explorer-verify/SKILL.md`, copies each page of the API reference to `api/`,
+and writes `site/dist/llms.txt`. That `llms.txt` is the root one with only the user pages and the
+skill, each linked as its Markdown copy on the site,
 plus a line that names the version and the jsDelivr URL of other versions, and an
 `## API reference` section that links the copy of each API page. The root and packaged `llms.txt`
 do not change.
 
 `scripts/check-site.ts` reads the codes from the built package and builds an error for each. It
 fails when a `docsUrl`, with the site address removed, has no HTML page or no `.md` copy in
-`site/dist`; when a link in the site's `llms.txt` is not a built `.md` copy; or when an HTML page
-other than `404.html` has no copy that `llms.txt` lists. The CI `site` job runs the core build,
-`site:build` and `site:check`. It never deploys. The job is not yet a required check; the
+`site/dist`; when a link in the site's `llms.txt` is not a built `.md` copy; when an HTML page
+other than `404.html` and the site-only pages has no copy that `llms.txt` lists; when a file under
+`docs/user/` that is not a page is missing from the build; or when a user page is in no sidebar
+group or in two. The CI `site` job runs the core build, `site:build` and `site:check`. It never deploys. The job is not yet a required check; the
 maintainer adds `Docs site build` to the `main` ruleset.
 
 `scripts/smoke-site.ts` runs after a deploy: test 4 of decision 0015. It fetches each code page, its
-`.md` copy, the site's `llms.txt` and every page that file lists, and fails unless each returns 200
-within 10 seconds. It also fails unless the site's `llms.txt` names the package version at the
+`.md` copy, the site's `llms.txt`, every page that file lists and every file under `docs/user/`
+that is not a page, and fails unless each returns 200 within 10 seconds and each JSON file parses
+as JSON. It also fails unless the site's `llms.txt` names the package version at the
 checked-out tag, so a site that still serves an older version fails. It tries up to five times, 15 seconds apart, because a new deployment can take a short time to
 reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
 

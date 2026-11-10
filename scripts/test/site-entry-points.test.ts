@@ -2,7 +2,7 @@
 // site:build`, pull request CI and the deploy workflow run them (R-AX-10, R-AX-17, decision 0015).
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import path from "node:path";
@@ -81,7 +81,7 @@ describe("site-copies.ts", () => {
     const result = await run("site-copies.ts", root);
     assert.equal(result.stderr, "");
     assert.equal(result.status, 0);
-    assert.equal(result.stdout, "site copies: wrote 5 files to site/dist\n");
+    assert.equal(result.stdout, "site copies: wrote 6 files to site/dist\n");
     assert.match(
       readFileSync(path.join(root, SITE_OUT, "llms.txt"), "utf8"),
       /\(https:\/\/aelmanaa\.github\.io\/explorer-verify\/reference\/errors\/boom\.md\)/,
@@ -98,8 +98,31 @@ describe("check-site.ts (test 3)", () => {
     assert.equal(result.status, 0);
     assert.equal(
       result.stdout,
-      "site: the docsUrl of 1 error codes, llms.txt and the Markdown copies resolve in site/dist\n",
+      "site: the docsUrl of 1 error codes, llms.txt, the Markdown copies and the sidebar resolve in site/dist\n",
     );
+  });
+
+  it("exits 1 when a user page is in no sidebar group", async () => {
+    writeFiles(root, { "docs/user/guides/unlisted.md": "# Unlisted\n" });
+    await run("site-copies.ts", root);
+    writeHtml();
+    writeFiles(root, { [`${SITE_OUT}/guides/unlisted.html`]: "" });
+    const result = await run("check-site.ts", root);
+    assert.equal(result.status, 1);
+    assert.equal(
+      result.stderr,
+      "docs/user/guides/unlisted.md is in no sidebar group; add it to SIDEBAR in scripts/site-docs.ts\nllms.txt does not list guides/unlisted.md (R-AX-17)\n",
+    );
+  });
+
+  it("accepts the site-only pages without a Markdown copy", async () => {
+    writeFiles(root, { "site/pages/index.md": "---\nlayout: home\n---\n" });
+    await run("site-copies.ts", root);
+    writeHtml();
+    writeFiles(root, { [`${SITE_OUT}/overview.html`]: "" });
+    const result = await run("check-site.ts", root);
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, 0);
   });
 
   it("exits 1 and names the file a docsUrl lacks", async () => {
@@ -133,8 +156,10 @@ describe("smoke-site.ts (test 4)", () => {
         response.writeHead(404).end();
         return;
       }
+      // A file in the build output is served as it is; any other path is a page with no body.
+      const built = path.join(root, SITE_OUT, file);
       response.writeHead(200, { "content-type": "text/plain" });
-      response.end(file === "llms.txt" ? readFileSync(path.join(root, SITE_OUT, "llms.txt")) : "");
+      response.end(file !== "" && existsSync(built) ? readFileSync(built) : "");
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
@@ -152,7 +177,23 @@ describe("smoke-site.ts (test 4)", () => {
     assert.equal(result.status, 0);
     assert.equal(
       result.stdout,
-      `site smoke: ${site}/ serves the page and Markdown copy of 1 error codes, llms.txt and every page it lists\n`,
+      `site smoke: ${site}/ serves the page and Markdown copy of 1 error codes, 1 other files, llms.txt and every page it lists\n`,
+    );
+  });
+
+  it("fetches each file under docs/user that is not a page, and parses a JSON file", async () => {
+    writeFiles(root, { "docs/user/start/sample.json": '{"chainId":11155111}\n' });
+    await run("site-copies.ts", root);
+    const passing = await run("smoke-site.ts", "--url", site, "--attempts", "1", root);
+    assert.equal(passing.stderr, "");
+    assert.equal(passing.status, 0);
+    missing.add("img/logo.png");
+    writeFiles(root, { [`${SITE_OUT}/start/sample.json`]: "<!doctype html>" });
+    const failing = await run("smoke-site.ts", "--url", site, "--attempts", "1", root);
+    assert.equal(failing.status, 1);
+    assert.equal(
+      failing.stderr,
+      `${site}/img/logo.png: status 404\n${site}/start/sample.json: the body is not JSON\n`,
     );
   });
 

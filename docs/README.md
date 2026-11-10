@@ -71,6 +71,11 @@ with [source research](contributor/research/2026-11-07-event-envelope-fields.md)
 The [2026-11-08 agent evaluation](contributor/research/2026-11-08-agent-evaluation.md) records the five CLI tasks
 with two independent model sessions, their results and unsafe attempts.
 
+The [2026-11-10 docs audit](contributor/research/2026-11-10-docs-audit.md) records the site's UX
+findings (F1 to F20), the persona walkthroughs and a benchmark of twelve docs sites. Site-only
+pages, such as the home page, are recorded in
+[decision 0062](contributor/decisions/0062-site-only-pages.md).
+
 ## Adoption validation projects
 
 - [Suite and commands](../validation/README.md)
