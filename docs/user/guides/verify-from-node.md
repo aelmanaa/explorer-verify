@@ -12,7 +12,9 @@ see [Deno and Bun](#deno-and-bun).
 
 ## Setup
 
-Node.js 22.18 or later. Install the core package:
+Node.js 22.18 or later. Supported Node.js versions follow Node's LTS schedule
+([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)). Install
+the core package:
 
 ```sh
 npm install explorer-verify

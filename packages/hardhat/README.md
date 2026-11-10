@@ -1,6 +1,7 @@
 # @explorer-verify/hardhat
 
 Build verification input from a Hardhat project's compiler files. Runs on Node.js 22.18 or later.
+Supported Node.js versions follow Node's LTS schedule ([decision 0060](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/decisions/0060-supported-node-versions-follow-lts.md)).
 
 Status: experimental. The API may change before 1.0.
 

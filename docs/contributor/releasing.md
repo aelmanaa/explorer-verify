@@ -312,6 +312,19 @@ To set up Pages once, the maintainer:
   (see [Promote to latest](#promote-to-latest)) unless you re-run the promote at once.
 - During `latest`: re-run the workflow; it moves only the packages not on `latest` yet.
 
+## Supported Node versions
+
+[Decision 0060](decisions/0060-supported-node-versions-follow-lts.md) sets the rule: the packages
+support Node's active and maintenance LTS lines, and a line is dropped when it reaches end of life.
+During 0.x the drop ships in a minor release with a "Breaking:" changeset. The same pull request
+raises `engines.node` in every package and in the root `package.json`, the first leg of the CI test
+matrix, and the Node version that the READMEs and user guides state.
+
+Next: Node 22 reaches end of life on 2027-04-30
+([Node.js release schedule](https://github.com/nodejs/Release/blob/main/schedule.json), read
+2026-11-10), so the first minor release after that date drops it and moves the floor to a Node 24
+release.
+
 ## 0.x rules
 
 From decision 0017:
