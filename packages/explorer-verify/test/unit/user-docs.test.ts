@@ -405,18 +405,24 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/verify.md",
     example: 3,
+    what: "one VerifyOptions object goes to dryRun() and verify() (R-DX-4)",
+    fixtures: [...ALREADY_VERIFIED, ...ALREADY_VERIFIED],
+  },
+  {
+    page: "reference/verify.md",
+    example: 4,
     what: "an unknown option throws invalid-input before any request (R-IN-6)",
     fixtures: [],
   },
   {
     page: "reference/verify.md",
-    example: 4,
+    example: 5,
     what: "dryRun() finds the contract verified and submits nothing",
     fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/verify.md",
-    example: 6,
+    example: 7,
     what: "keep the handle from verify.submitted",
     fixtures: [
       "2026-11-02-lookup-not-verified",
@@ -507,6 +513,19 @@ const RUNS: readonly DocRun[] = [
     what: "explorer-verify/core with route.apiUrl and no table: already verified",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified\n",
+  },
+  {
+    page: WRAPPER,
+    example: 4,
+    what: "the optional peer is installed: the lazy import loads it and verify() runs",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "already-verified\n",
+  },
+  {
+    page: WRAPPER,
+    example: 4,
+    what: "the optional peer is missing: the lazy import throws the wrapper's own error",
+    setup: "without-explorer-verify",
   },
   {
     page: WRAPPER,
