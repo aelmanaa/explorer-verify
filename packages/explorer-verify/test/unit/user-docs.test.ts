@@ -161,6 +161,12 @@ const RUNS: readonly DocRun[] = [
       "verified exact https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc\n",
   },
   {
+    page: "guides/verify-contracts-your-package-ships.md",
+    example: 2,
+    what: "an Etherscan key in apiKeys: the Sepolia row picks Etherscan, which finds the Greeter verified",
+    fixtures: ETHERSCAN_VERIFIED,
+  },
+  {
     page: "guides/using-from-an-agent.md",
     example: 0,
     what: "a dry run whose lookup finds no match: verify() would submit (R-AX-3)",

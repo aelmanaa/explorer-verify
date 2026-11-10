@@ -166,19 +166,43 @@ on a backend and in a browser.
   needs the `with { type: "json" }` attribute shown above.
 
 `verifyGreeter` passes its options through to `verify()`, so the application that uses your
-package chooses the explorer, the key and the `fetch`. Without options, `verify()` uses the
-routing table, which in this release sends every chain it lists to Sourcify, with no API key.
+package chooses the explorer, the key and the `fetch`. Without `route`, `verify()` uses the
+routing table: the call goes to the first backend in the chain's row that works with the keys
+passed. On Sepolia the row lists Etherscan v2 first and Sourcify second. With no key, the call
+goes to Sourcify, as in the example above. [Routing](../reference/routing.md#how-a-chain-resolves) gives
+the full rule.
 
-The table lists no Etherscan rows yet, so a key in `apiKeys` alone does not reach Etherscan
-([#122](https://github.com/aelmanaa/explorer-verify/issues/122)). To verify on Etherscan:
+On a backend, pass the Etherscan key in `apiKeys`. The routing table then sends the Sepolia call to
+Etherscan. This call passes the same options that the application passes to `verifyGreeter`:
 
-- On a backend, pass
-  `route: { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api", apiKey }`.
-- In a browser, never ship the key. Pass `route: { backend: "etherscan-v2", apiUrl }` without a key,
-  and a `fetch` that sends the requests to the
-  [server handler](../reference/server-handler.md) on your own server, which adds the key.
-  [Run the server handler](run-the-server-handler.md) shows it in a Next.js route and a Cloudflare
-  Worker.
+```ts
+import { verify } from "explorer-verify";
+import type { VerifyOptions } from "explorer-verify";
+
+// On a backend. Never ship an Etherscan key to a browser.
+const options: VerifyOptions = {
+  apiKeys: { "etherscan-v2": etherscanKey },
+  onEvent: (event) => {
+    if (event.type === "verify.routed") {
+      console.log(`routed to ${event.backend} by ${event.routedBy}`);
+    }
+  },
+};
+const result = await verify(input, options);
+console.log(result.status, result.backend);
+```
+
+When Etherscan already has the contract, it prints:
+
+```text
+routed to etherscan-v2 by table
+already-verified etherscan-v2
+```
+
+In a browser, never ship the key. Pass `handlerUrl`, the URL of the
+[server handler](../reference/server-handler.md) on your own server, which adds the key.
+[Run the server handler](run-the-server-handler.md) shows it in a Next.js route and a Cloudflare
+Worker.
 
 [Etherscan](../reference/etherscan.md) lists what the client sends and how it reads each answer,
 and [API keys](../reference/api-keys.md) says which host gets each key. A public dapp, or any use
