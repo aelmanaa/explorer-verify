@@ -1,59 +1,108 @@
 # Verify from Node.js
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers who verify contracts from a Node.js backend service or script. On a backend, the keys stay on your server, a call may wait for minutes, and a job queue can
-resume a verification long after the process that submitted it has ended. This guide shows a
-verification with keys from the environment, a logger, events for your telemetry and a long time
-budget, then a queue job that resumes it with `checkStatus()`. The same code runs in Deno and Bun;
-see [Deno and Bun](#deno-and-bun).
+For: developers who verify contracts from a Node.js script or backend service.
 
-## Setup
+You need: Node.js 22.18 or later. An Etherscan key is optional; the first steps need none.
 
-Node.js 22.18 or later. Supported Node.js versions follow Node's LTS schedule
-([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)). Install
-the core package:
+On a backend, the keys stay on your server and a call may wait for minutes. This guide runs a dry
+run on a sample contract, verifies it, then builds a service with a logger, telemetry and a queue.
+The same code runs in Deno and Bun; see [Deno and Bun](#deno-and-bun).
+
+## Install
+
+Add the core package:
 
 ```sh
 npm install explorer-verify
 ```
 
-To build the input from a Foundry or Hardhat project, see
-[Verify a contract from a Foundry project](verify-from-a-foundry-project.md) and
-[Verify a contract from a Hardhat project](verify-from-a-hardhat-project.md). Both helpers run on
-Node.js only.
+Node.js 22.18 runs the `.ts` files below directly. Supported Node.js versions follow Node's LTS
+schedule ([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)).
 
-## Keys
+## Run a dry run on the sample contract
 
-The library never reads `process.env`. Read the keys yourself and pass them in `apiKeys`, by backend
-name. Each key goes only to its backend's host ([API keys](../reference/api-keys.md)). Load them
-from your secret store into the environment, or in development from a `.env` file kept out of git
-with `node --env-file=.env` ([Node.js CLI](https://nodejs.org/api/cli.html#--env-filefile), v26
-docs, read on 2026-11-04). Never write a key into code, a log or a fixture.
+Save [greeter-sepolia.json](../start/greeter-sepolia.json) in the project folder. It is a verify
+request for a Greeter contract on Sepolia that Sourcify already holds. A dry run checks the input,
+picks the explorer and looks the contract up once. It submits nothing:
+
+```ts [dry-run.ts]
+import { readFile } from "node:fs/promises";
+
+import { dryRun, validateInput } from "explorer-verify";
+
+// validateInput() checks the parsed JSON and returns a typed VerifyInput.
+const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+const plan = await dryRun(input);
+console.log(plan.status, plan.backend, plan.apiHost, plan.lookup);
+```
+
+Run it:
+
+```sh
+node dry-run.ts
+```
+
+```text
+dry-run sourcify sourcify.dev exact
+```
+
+With no key, the routing table picks the first backend of the chain's row that needs none, here
+Sourcify. `exact` means Sourcify already holds the contract.
 
 ## Verify
 
-`verifyAndQueue` verifies one contract. Its logger writes one JSON line per log line to stderr,
-and `onEvent` passes each stage event to your telemetry. The time budget is ten minutes, because a
-backend has no user waiting on a page. When the budget runs out while the explorer is still
-checking, it queues the handle for the job of the next section. The last lines run it once, with a
-queue that prints the handle; in your service, pass your own queue.
+The real run is the same call with `verify()`. Read the keys from the environment yourself: the
+library never reads `process.env`. An empty variable counts as unset:
 
-```ts
-import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
-import type { LogFields, Logger, VerifyEvent, VerifyInput, VerifyOptions } from "explorer-verify";
+```ts [verify.ts]
+import { readFile } from "node:fs/promises";
 
-type ApiKeys = NonNullable<VerifyOptions["apiKeys"]>;
+import { validateInput, verify } from "explorer-verify";
 
-/** The keys in the environment, by backend. An empty variable counts as unset. */
-export function apiKeysFrom(env: Readonly<Record<string, string | undefined>>): ApiKeys {
-  const etherscan = env["ETHERSCAN_API_KEY"] ?? "";
-  return etherscan === "" ? {} : { "etherscan-v2": etherscan };
-}
+const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+const etherscan = process.env["ETHERSCAN_API_KEY"] ?? "";
+const result = await verify(input, {
+  apiKeys: etherscan === "" ? {} : { "etherscan-v2": etherscan },
+});
+console.log(`${result.status} on ${result.backend}`);
+```
+
+Run it:
+
+```sh
+node verify.ts
+```
+
+```text
+already-verified on sourcify
+```
+
+With `ETHERSCAN_API_KEY` set, the routing table sends the same chain to Etherscan v2, which also
+holds the contract, and it prints `already-verified on etherscan-v2`. For your own contract, build
+the input from your project: see [Next steps](#next-steps).
+
+## Keep keys out of code
+
+Each key goes only to its backend's host ([API keys](../reference/api-keys.md)). Load keys from
+your secret store into the environment. In development, keep them in a `.env` file out of git and
+run `node --env-file=.env verify.ts`. Never write a key into code, a log or a fixture.
+
+## Build a service: logger, telemetry and a long budget
+
+`verifyAndQueue` verifies one contract in a service. Its logger writes one JSON line per log line
+to stderr, and `onEvent` passes each stage event to your telemetry. The budget is ten minutes:
+no user waits on a page. If the explorer is still checking when the budget runs out, the function
+queues the handle for a later job:
+
+```ts [service.ts]
+import { readFile } from "node:fs/promises";
+
+import { ExplorerVerifyError, formatHandle, validateInput, verify } from "explorer-verify";
+import type { LogFields, Logger, VerifyEvent, VerifyInput } from "explorer-verify";
 
 /** One JSON line per log line, on stderr. The library removes keys before it calls the logger. */
 function jsonLine(level: string): (message: string, fields?: LogFields) => void {
@@ -78,9 +127,10 @@ export async function verifyAndQueue(
   queue: Queue,
   telemetry: (event: VerifyEvent) => void,
 ): Promise<string> {
+  const etherscan = process.env["ETHERSCAN_API_KEY"] ?? "";
   try {
     const result = await verify(input, {
-      apiKeys: apiKeysFrom(process.env),
+      apiKeys: etherscan === "" ? {} : { "etherscan-v2": etherscan },
       logger,
       onEvent: telemetry,
       timeoutMs: 10 * 60_000,
@@ -97,43 +147,52 @@ export async function verifyAndQueue(
   }
 }
 
+// Runs it once, with a queue that prints the handle. In your service, pass your own queue.
+const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
 const queue: Queue = {
   add: async (handle) => {
     console.log(`queued ${handle}`);
     await Promise.resolve();
   },
 };
-console.log(await verifyAndQueue(input, queue, (event) => process.stderr.write(`${event.type}\n`)));
+const toStderr = (event: VerifyEvent): void => {
+  process.stderr.write(`${event.type}\n`);
+};
+console.log(await verifyAndQueue(input, queue, toStderr));
 ```
 
-With no Etherscan key in the environment, the Sepolia contract goes to Sourcify, which verifies it:
+For the sample, it prints the same line as `verify.ts`:
 
 ```text
-verified on sourcify
+already-verified on sourcify
 ```
 
-With `ETHERSCAN_API_KEY` set, the routing table sends the same chain to Etherscan v2, which already
-holds the contract, and it prints `already-verified on etherscan-v2`. When the budget runs out
-first, it prints the handle and `queued for a status check`.
+If the budget runs out first, it prints the handle, then `queued for a status check`. The job that
+finishes it is in [Resume from a job queue](../advanced/resume-from-a-job-queue.md).
+
+## Set the budget and stop a call
 
 A call ends within `timeoutMs` plus at most 30 seconds. Give a script that runs under a process
-manager, or a request handler behind a proxy, a budget shorter than their own limits. To stop a call
-early, such as on shutdown, pass an `AbortSignal` in `signal`; the call rejects with the signal's
-reason. Save the handle from the `verify.submitted` event when a crash between submit and result
-must not lose the job ([Abort and resume](../reference/verify.md#abort-and-resume)).
+manager, or a request handler behind a proxy, a budget shorter than their own limits.
+
+To stop a call early, such as on shutdown, pass an `AbortSignal` in `signal`. The call rejects with
+the signal's reason. When a crash between submit and result must not lose the job, save the handle
+from the `verify.submitted` event ([Abort and resume](../reference/verify.md#abort-and-resume)).
 
 ## Verify on several explorers at once
 
 To publish the source on Etherscan and on Sourcify, call `verifyEach()` once instead of `verify()`
 twice. Both backends run at once with one time budget, and the call returns one outcome per
-backend. Each key goes only to its own backend. A pending backend keeps its handle, so queue it as
-above.
+backend. Each key goes only to its own backend:
 
 <!-- no-run: it sends requests to Etherscan, which the recorded answers of the docs test do not cover -->
 
-```ts no-run
-import { formatHandle, verifyEach } from "explorer-verify";
+```ts no-run [verify-each.ts]
+import { readFile } from "node:fs/promises";
 
+import { formatHandle, validateInput, verifyEach } from "explorer-verify";
+
+const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
 const { outcomes } = await verifyEach(input, {
   backends: ["etherscan-v2", "sourcify"],
   apiKeys: { "etherscan-v2": process.env["ETHERSCAN_API_KEY"] },
@@ -154,93 +213,59 @@ for (const outcome of outcomes) {
 One backend's error never hides another's result: read `ok` on each outcome. See
 [Several backends in one call](../reference/verify.md#several-backends-in-one-call).
 
-## Resume from a job queue
-
-The queue job polls the handle with `checkStatus()`, which never submits. Pass the same `apiKeys`
-and `route` the submit used: the handle names the backend, and the route must resolve to it, or the
-call throws `invalid-input` before any request. The job returns `again` while the explorer is still
-checking, so your queue runs it later.
-
-```ts
-import { ExplorerVerifyError, checkStatus } from "explorer-verify";
-import type { VerifyOptions } from "explorer-verify";
-
-type ApiKeys = NonNullable<VerifyOptions["apiKeys"]>;
-
-/** The same keys as the submit used. */
-function apiKeysFrom(env: Readonly<Record<string, string | undefined>>): ApiKeys {
-  const etherscan = env["ETHERSCAN_API_KEY"] ?? "";
-  return etherscan === "" ? {} : { "etherscan-v2": etherscan };
-}
-
-export async function statusJob(handle: string): Promise<"done" | "again"> {
-  try {
-    const result = await checkStatus(handle, {
-      apiKeys: apiKeysFrom(process.env),
-      timeoutMs: 60_000,
-    });
-    console.log(`${result.status} on ${result.backend}`);
-    return "done";
-  } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-      return "again";
-    }
-    throw error;
-  }
-}
-
-console.log(
-  await statusJob(
-    "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718",
-  ),
-);
-```
-
-When the job has ended with a match, it prints:
-
-```text
-verified on sourcify
-done
-```
-
-Limit how often a handle is retried. A job that gives `again` for hours, or ends with an error that
-is not `not-confirmed`, needs a person: log the handle, the code and the hint.
-
 ## Errors
 
-| Code                                                                            | What the service does                                                                                            |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [`not-confirmed`](../reference/errors/not-confirmed.md)                         | Queue `details.handle` and poll it later with `checkStatus()`                                                    |
-| [`missing-api-key`](../reference/errors/missing-api-key.md)                     | The route needs a key that `apiKeys` lacks. Set the variable; nothing was sent                                   |
-| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                   | The explorer refused the key. Replace it; do not retry with the same key                                         |
-| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                       | The key's daily limit is spent. Retry after the reset                                                            |
-| [`rate-limited`](../reference/errors/rate-limited.md)                           | Retries ran out. Slow down the queue                                                                             |
-| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md) | The job ended without a verdict. Call `verify()` again later, once                                               |
-| [`job-not-found`](../reference/errors/job-not-found.md)                         | The explorer forgot the job and the contract is not verified. Log it for a person; do not resubmit automatically |
+| Code                                                                            | What the service does                                              |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`not-confirmed`](../reference/errors/not-confirmed.md)                         | Queue `details.handle` and poll it later with `checkStatus()`      |
+| [`missing-api-key`](../reference/errors/missing-api-key.md)                     | The route needs a key that `apiKeys` lacks. Nothing was sent       |
+| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                   | The explorer refused the key. Replace it; do not retry with it     |
+| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                       | The key's daily limit is spent. Retry after the reset              |
+| [`rate-limited`](../reference/errors/rate-limited.md)                           | Retries ran out. Slow down the queue                               |
+| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md) | The job ended without a verdict. Call `verify()` again later, once |
+| [`job-not-found`](../reference/errors/job-not-found.md)                         | The explorer forgot the job. Log it for a person; do not resubmit  |
 
-[Errors](../reference/errors/index.md) lists every code and its exit code. The `toEnvelope()` and
-`exitCodeOf()` functions of `explorer-verify/envelope` turn an outcome into the CLI's JSON envelope and exit code
-([JSON output](../reference/json-output.md)); pass your keys in `secrets` when you log the envelope.
+[Errors](../reference/errors/index.md) lists every code and its exit code. `toEnvelope()` and
+`exitCodeOf()` from `explorer-verify/envelope` turn an outcome into the CLI's JSON envelope and
+exit code ([JSON output](../reference/json-output.md)). Pass your keys in `secrets` when you log
+the envelope.
 
 ## Deno and Bun
 
 The core uses only web-platform globals, so the code above runs in Deno and Bun unchanged, except
-where it reads the environment.
+where it reads the environment or a file:
 
-- Deno: import `npm:explorer-verify@<version>`, or install it from `package.json`
-  ([Deno, Node and npm](https://docs.deno.com/runtime/fundamentals/node/), read on 2026-11-04, page
-  updated 2026-07-30). Read the key with `Deno.env.get("ETHERSCAN_API_KEY")`, and run with
-  `--allow-env=ETHERSCAN_API_KEY` and `--allow-net` limited to the explorer hosts you use, such as
-  `--allow-net=sourcify.dev,api.etherscan.io`. Deno reads a `.env` file only with `--env-file`
-  ([Deno environment variables](https://docs.deno.com/runtime/reference/env_variables/), read on
-  2026-11-04, page updated 2026-07-02).
-- Bun: `process.env` works as in Node.js. Bun loads `.env` files on its own, so keep them out of
-  git, or pass `--no-env-file`
-  ([Bun environment variables](https://bun.com/docs/runtime/environment-variables), read on
-  2026-11-04).
+| Runtime | Import                                         | Read the key                        | `.env` files                                                       |
+| ------- | ---------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| Deno    | `npm:explorer-verify@0.1.0`, or `package.json` | `Deno.env.get("ETHERSCAN_API_KEY")` | Read only with `--env-file`                                        |
+| Bun     | `explorer-verify`                              | `process.env`, as in Node.js        | Loaded on their own; keep them out of git, or pass `--no-env-file` |
 
-Not tested: the repository's tests run on Node.js and, for the browser, in Chromium. No test runs
-in Deno or Bun.
+In Deno, run with `--allow-env=ETHERSCAN_API_KEY`, `--allow-read` for the input file, and
+`--allow-net` limited to the explorer hosts you use, such as `--allow-net=sourcify.dev`.
+
+> [!NOTE]
+> The repository's tests run on Node.js and, for the browser, in Chromium. No test runs in Deno or
+> Bun.
 
 The Etherscan plan rule applies to a backend too: a business, protocol, foundation or DAO needs an
 Advanced plan or higher. See [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md).
+
+## Sources
+
+- Node.js, [`--env-file`](https://nodejs.org/api/cli.html#--env-filefile): loads variables from a
+  file. v26 docs, read on 2026-11-04.
+- Deno, [Node and npm](https://docs.deno.com/runtime/fundamentals/node/): `npm:` specifiers and
+  `package.json`. Read on 2026-11-04 (page updated 2026-07-30).
+- Deno, [Environment variables](https://docs.deno.com/runtime/reference/env_variables/): `.env`
+  only with `--env-file`. Read on 2026-11-04 (page updated 2026-07-02).
+- Bun, [Environment variables](https://bun.com/docs/runtime/environment-variables): loads `.env`
+  files by default; `--no-env-file` turns it off. Read on 2026-11-04.
+
+## Next steps
+
+- [Verify a contract from a Foundry project](verify-from-a-foundry-project.md) or
+  [from a Hardhat project](verify-from-a-hardhat-project.md): build the input from your own build.
+- [Resume from a job queue](../advanced/resume-from-a-job-queue.md): finish a queued handle with
+  `checkStatus()`.
+- [API keys](../reference/api-keys.md): which host gets each key.
+- [verify()](../reference/verify.md): every option, result and error.

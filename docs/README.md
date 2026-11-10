@@ -19,9 +19,11 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Verify from deployed bytecode](user/guides/verify-from-deployed-bytecode.md)                       | Build the input from the metadata hash in a deployed contract's bytecode                      |
 | [Verify a proxy](user/guides/verify-a-proxy.md)                                                     | Verify the implementation and the proxy, then link them with `linkProxy()`                    |
 | [Run the server handler](user/guides/run-the-server-handler.md)                                     | The handler in a Next.js route and a Cloudflare Worker, keys and CORS                         |
-| [Verify from a browser](user/guides/verify-from-a-browser.md)                                       | Bundler or CDN, keyless explorers, the handle across a reload, size                           |
-| [Verify from Node.js](user/guides/verify-from-node.md)                                              | Keys from the environment, logger, events, `checkStatus()` from a queue                       |
-| [Verify from an edge function](user/guides/verify-from-an-edge-function.md)                         | Submit in one request, resume in later ones, keys from Worker secrets                         |
+| [Verify from a browser](user/guides/verify-from-a-browser.md)                                       | Dry run, then verify with a bundler or a CDN, the handle across a reload                      |
+| [Verify from Node.js](user/guides/verify-from-node.md)                                              | Dry run, then verify with keys from the environment, a service with a queue                   |
+| [Verify from an edge function](user/guides/verify-from-an-edge-function.md)                         | Dry run, then a Worker that submits in one request and resumes in later ones                  |
+| [Bundle size](user/advanced/bundle-size.md)                                                         | What `verify()` adds to a page, by explorer client, with measured sizes                       |
+| [Resume from a job queue](user/advanced/resume-from-a-job-queue.md)                                 | A backend job that finishes a queued handle with `checkStatus()`                              |
 | [Verify from CI with the CLI](user/guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets                      |
 | [Wrap explorer-verify behind your tool's API](user/guides/wrap-explorer-verify-in-your-tool.md)     | Call it inside your tool's API, map every error code, replay tests                            |
 | [verify()](user/reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                                          |
