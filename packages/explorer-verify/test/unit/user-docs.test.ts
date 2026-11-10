@@ -94,6 +94,7 @@ const TUTORIAL = "tutorials/deploy-and-verify-from-a-dapp.md";
 const BROWSER = "guides/verify-from-a-browser.md";
 const NODE = "guides/verify-from-node.md";
 const EDGE = "guides/verify-from-an-edge-function.md";
+const QUEUE = "advanced/resume-from-a-job-queue.md";
 const WRAPPER = "guides/wrap-explorer-verify-in-your-tool.md";
 /** The key variables every run starts with: empty, which the examples read as unset. */
 const NO_KEYS: Readonly<Record<string, string>> = { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" };
@@ -430,49 +431,74 @@ const RUNS: readonly DocRun[] = [
       "2026-11-02-job-exact-match",
     ],
   },
+  ...[BROWSER, NODE, EDGE].map((page): DocRun => ({
+    page,
+    example: 0,
+    what: "the dry run on the sample request: Sourcify, as no key is set",
+    fixtures: ALREADY_VERIFIED,
+    // The Node guide shows the command to run between the block and its output.
+    stdout: "dry-run sourcify sourcify.dev exact\n",
+  })),
   {
     page: BROWSER,
-    example: 0,
-    what: "the lazily loaded verify() submits and ends verified: nothing to resume",
-    fixtures: VERIFIED,
+    example: 1,
+    what: "the lazily loaded verify() finds the sample verified: nothing to resume",
+    fixtures: ALREADY_VERIFIED,
   },
   {
     page: BROWSER,
-    example: 0,
+    example: 1,
+    what: "a contract Sourcify does not hold: verify() submits and ends verified",
+    fixtures: VERIFIED,
+    stdout: "verified on sourcify\nnothing to resume\n",
+  },
+  {
+    page: BROWSER,
+    example: 1,
     what: "verify() ends not-confirmed: the saved handle is resumed with checkStatus()",
     fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match"],
     stdout: "still checking: the handle stays saved\nverified\n",
   },
+  ...[1, 2].flatMap((example): DocRun[] => [
+    {
+      page: NODE,
+      example,
+      what: "no key in the environment: Sourcify already holds the sample",
+      fixtures: ALREADY_VERIFIED,
+      stdout: "already-verified on sourcify\n",
+    },
+    {
+      page: NODE,
+      example,
+      what: "ETHERSCAN_API_KEY in the environment: Etherscan already holds the sample",
+      fixtures: ETHERSCAN_VERIFIED,
+      env: ETHERSCAN_KEY_ENV,
+      stdout: "already-verified on etherscan-v2\n",
+    },
+  ]),
   {
     page: NODE,
-    example: 0,
-    what: "no key in the environment: Sourcify verifies the contract",
+    example: 2,
+    what: "a contract Sourcify does not hold: the service submits and ends verified",
     fixtures: VERIFIED,
+    stdout: "verified on sourcify\n",
   },
   {
     page: NODE,
-    example: 0,
-    what: "ETHERSCAN_API_KEY in the environment: Etherscan already holds the contract",
-    fixtures: ETHERSCAN_VERIFIED,
-    env: ETHERSCAN_KEY_ENV,
-    stdout: "already-verified on etherscan-v2\n",
-  },
-  {
-    page: NODE,
-    example: 0,
+    example: 2,
     what: "the budget runs out: the handle is queued",
     fixtures: NOT_CONFIRMED,
     stdout: `queued ${RECORDED_HANDLE}\nqueued for a status check\n`,
   },
   {
-    page: NODE,
-    example: 2,
+    page: QUEUE,
+    example: 0,
     what: "the queue job resumes the handle with checkStatus()",
     fixtures: ["2026-11-02-job-exact-match"],
   },
   {
     page: EDGE,
-    example: 0,
+    example: 1,
     what: "the Worker: 401 without a token, 500 without its secret, 400 for a body that is not JSON, then a submit and a status poll on Etherscan",
     fixtures: [
       ...ETHERSCAN_VERIFIED,

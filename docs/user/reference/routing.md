@@ -312,7 +312,7 @@ verifies on Sourcify does not download the other clients. esbuild does the same 
 `explorer-verify/core` takes the clients and the table from the caller instead, with no dynamic
 `import()`, so a one-file bundle holds only the clients it imports
 ([ship only the clients your tool uses](../guides/wrap-explorer-verify-in-your-tool.md#ship-only-the-clients-your-tool-uses)).
-[Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide lists the size
+[Bundle size](../advanced/bundle-size.md) lists the size
 of each client.
 
 The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
@@ -347,8 +347,7 @@ even when the table would have routed the call to another backend. A table that 
 to load rejects the call with [`network`](errors/network.md#a-module-that-fails-to-load), naming
 the same backend; in `verifyEach()` with a list, it is the outcome
 of each entry that needs the table, and the other entries run. A table that loaded is kept for
-later calls. [Bundle size](../guides/verify-from-a-browser.md#bundle-size) in the browser guide
-lists its size.
+later calls. [Bundle size](../advanced/bundle-size.md) lists its size.
 
 ## Errors
 
