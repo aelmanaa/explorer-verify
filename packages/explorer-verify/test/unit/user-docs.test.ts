@@ -360,15 +360,9 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "reference/routing.md",
-    example: 0,
+    example: 1,
     what: "route.backend blockscout on a chain whose row lists an instance (#169)",
     fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
-  },
-  {
-    page: "reference/routing.md",
-    example: 1,
-    what: "allowSourcifyFallback on a listed chain",
-    fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/server-handler.md",
@@ -566,13 +560,18 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/core.md",
     example: 0,
-    what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
+    what: "explorer-verify/core dry run with one client and the table",
     fixtures: ALREADY_VERIFIED,
-    stdout: "already-verified sourcify\n",
   },
   {
     page: "reference/core.md",
     example: 1,
+    what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "reference/core.md",
+    example: 2,
     what: "explorer-verify/core ends not-confirmed: the error class and the handle from their subpaths",
     fixtures: NOT_CONFIRMED,
     stdout: `${RECORDED_HANDLE}\n`,
