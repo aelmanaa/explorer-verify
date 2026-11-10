@@ -369,15 +369,22 @@ export type ErrorDetails =
       reason: "prefix-mismatch" | "bad-length";
     }
   | {
-      // References: R-FLOW-8.
+      // References: R-FLOW-8, decision 0065.
       /**
        * `linkProxy()` asked the explorer to link a proxy, and the link was still pending when the
        * time budget ran out, or the status requests kept failing. There is no handle:
-       * calling `linkProxy()` again starts a new link, which is safe.
+       * `linkProxy()` with `resumeJobId` set to `jobId` checks the same link without a new
+       * request. Calling `linkProxy()` without it starts a new link, which is also safe.
        */
       code: "proxy-link-pending";
       /** The backend that is linking the proxy. */
       backend: BackendName;
+      /**
+       * The job id the explorer gave for the link request, redacted as a handle's job id is.
+       * Every error this release creates sets it; it is absent from an error of an earlier
+       * release.
+       */
+      jobId?: string;
     }
   | {
       // References: R-FLOW-4, R-FLOW-8.
@@ -857,9 +864,10 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
     code: "constructor-args-unavailable",
     reason: oneOf(details.reason, ["prefix-mismatch", "bad-length"]),
   }),
-  "proxy-link-pending": (details) => ({
+  "proxy-link-pending": (details, secrets) => ({
     code: "proxy-link-pending",
     backend: backendOf(details.backend),
+    ...jobIdOf(details.jobId, secrets),
   }),
   "proxy-link-unknown-state": (details, secrets) => ({
     code: "proxy-link-unknown-state",
@@ -971,6 +979,14 @@ function numberOf(value: unknown): number {
 /** A string, or `""` for anything else. */
 function stringOf(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+/**
+ * `{ jobId }` for a string, cut to {@link MAX_TEXT} characters and redacted as a handle's job id
+ * is, or no field for anything else.
+ */
+function jobIdOf(value: unknown, secrets: readonly string[]): { jobId?: string } {
+  return typeof value === "string" ? { jobId: redactJobId(value.slice(0, MAX_TEXT), secrets) } : {};
 }
 
 /** A string, redacted, or `""` for anything else. */
@@ -1199,9 +1215,10 @@ const FROM_JSON: { readonly [C in ErrorCode]: FromJson<C> } = {
     code: "constructor-args-unavailable",
     reason: oneOf(read("reason"), ["prefix-mismatch", "bad-length"]),
   }),
-  "proxy-link-pending": (read) => ({
+  "proxy-link-pending": (read, secrets) => ({
     code: "proxy-link-pending",
     backend: backendOf(read("backend")),
+    ...jobIdOf(read("jobId"), secrets),
   }),
   "proxy-link-unknown-state": (read, secrets) => ({
     code: "proxy-link-unknown-state",

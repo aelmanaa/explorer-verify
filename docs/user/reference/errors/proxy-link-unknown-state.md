@@ -20,6 +20,9 @@ A link request answered in a form the library does not know throws
 Fix: do not retry automatically. Open the proxy's page on the explorer, check which implementation
 it shows, then report `details.excerpt` in an issue.
 
+After a call with `resumeJobId`, `Error!` or `Unknown UID` means the explorer no longer knows the
+job. Call `linkProxy()` again without `resumeJobId` to send a new link request.
+
 Default hint: Do not retry automatically. Check the proxy's page on the explorer and report
 details.excerpt.
 

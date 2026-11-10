@@ -16,7 +16,7 @@
 
 import { tryParseHandle } from "../flow/check-handle.ts";
 import { runDryRun } from "../flow/dry-run.ts";
-import { runLinkProxy } from "../flow/link-proxy.ts";
+import { linkProxyOptionKeys, runLinkProxy } from "../flow/link-proxy.ts";
 import { runCheckStatus } from "../flow/status.ts";
 import { eachOptionKeys, runVerifyEach } from "../flow/verify-each.ts";
 import { runVerify, verifyOptionKeys } from "../flow/verify.ts";
@@ -257,6 +257,6 @@ export async function linkProxy(
   target: LinkProxyTarget,
   options: CoreLinkProxyOptions,
 ): Promise<LinkProxyResult> {
-  const { rest, dependencies } = linkOptions(options, verifyOptionKeys());
+  const { rest, dependencies } = linkOptions(options, linkProxyOptionKeys());
   return await runLinkProxy(target, rest, dependencies);
 }

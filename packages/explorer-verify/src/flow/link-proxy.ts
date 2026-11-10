@@ -1,13 +1,20 @@
-// References: R-FLOW-8, R-RUN-5, decision 0033.
+// References: R-FLOW-8, R-RUN-5, decisions 0033 and 0065.
 /**
  * `linkProxy()`: links a verified proxy to its implementation on the explorer the route names. It
  * is a separate export from `verify()`, and each explorer's proxy-link code loads
  * with a dynamic `import()` only when a call is routed to it, so a caller who imports only
- * `verify` does not bundle any of it.
+ * `verify` does not bundle any of it. With `resumeJobId`, the call sends no link request: it checks
+ * the link that job started.
  */
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
-import type { Context, LinkTarget, LinkVerdict, ProxyLinker } from "../backends/backend.ts";
+import type {
+  Context,
+  LinkEnd,
+  LinkTarget,
+  LinkVerdict,
+  ProxyLinker,
+} from "../backends/backend.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
@@ -28,6 +35,7 @@ import {
   tableFor,
   apiHostOf,
   choiceKeys,
+  verifyOptionKeys,
   withHandler,
 } from "./verify.ts";
 import type { HandlerLoader, LinkMissing, Settings } from "./verify.ts";
@@ -70,8 +78,14 @@ const CHECK_FAILURES: readonly ExplorerVerifyError["code"][] = [
   "unexpected-response",
 ];
 
+// A job id a caller may pass as resumeJobId: letters and digits, as every explorer's job id is.
+// Each linker then checks its own form.
+const JOB_ID = /^[0-9A-Za-z]{1,100}$/;
+
 /** What one call shares once its route and its linker are known. */
 interface LinkCall {
+  /** The caller's `resumeJobId`: the call sends no link request and checks this job. */
+  readonly resumeJobId: string | undefined;
   readonly backend: BackendName;
   readonly linker: ProxyLinker;
   readonly target: LinkTarget;
@@ -80,6 +94,20 @@ interface LinkCall {
   readonly observer: Observer;
   readonly settings: Settings;
   readonly budget: Budget;
+}
+
+// References: decisions 0047 and 0065.
+/**
+ * The option keys `linkProxy()` accepts: those of `verify()`, plus `resumeJobId`.
+ *
+ * @returns The keys.
+ * @example
+ * ```ts
+ * linkProxyOptionKeys().includes("resumeJobId"); // true
+ * ```
+ */
+export function linkProxyOptionKeys(): readonly string[] {
+  return [...verifyOptionKeys(), "resumeJobId"];
 }
 
 /**
@@ -101,9 +129,10 @@ export async function runLinkProxy(
   options: LinkProxyOptions | undefined,
   dependencies: LinkDependencies,
 ): Promise<LinkProxyResult> {
-  const read = settingsOf(options);
+  const read = settingsOf(options, linkProxyOptionKeys());
   read.signal?.throwIfAborted();
   const target = checkTarget(value);
+  const resumeJobId = jobIdOf(options);
   // Before routing: a backend named in route.backend that cannot link is refused with no lookup
   // of the routing table and no request.
   const named = readFields(read.route)?.get("backend");
@@ -166,6 +195,9 @@ export async function runLinkProxy(
             budget,
           )
         : load;
+    if (resumeJobId !== undefined && linker.acceptsJobId?.(resumeJobId, target) !== true) {
+      throw notResumable(route.backend, linker, settings);
+    }
     const { ctx, observer } = openContext(
       settings,
       route,
@@ -175,6 +207,7 @@ export async function runLinkProxy(
       budget,
     );
     const call: LinkCall = {
+      resumeJobId,
       backend: route.backend,
       linker,
       target,
@@ -209,14 +242,73 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
   );
 }
 
-/** Sends the link request, checks it until it ends, and maps the end to a result. */
+const RESUME_HINT =
+  "Pass resumeJobId as the details.jobId of a proxy-link-pending error for the same proxy and backend, or leave it out to send a new link request.";
+
+// References: decision 0065.
+/**
+ * The caller's `resumeJobId`, read once as an own property: `undefined` when absent, else 1 to
+ * 100 letters and digits.
+ *
+ * @throws ExplorerVerifyError `invalid-input` naming `resumeJobId`, never its value.
+ */
+function jobIdOf(options: LinkProxyOptions | undefined): string | undefined {
+  const value = readFields(options)?.get("resumeJobId");
+  if (value === undefined || (typeof value === "string" && JOB_ID.test(value))) {
+    return value;
+  }
+  throw newError(
+    {
+      code: "invalid-input",
+      issues: [{ field: "resumeJobId", message: "must be 1 to 100 letters and digits" }],
+    },
+    "The resumeJobId option is invalid: it must be 1 to 100 letters and digits.",
+    {
+      hint: RESUME_HINT,
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issues name only the field, never the text Stryker puts here.
+      secrets: [],
+    },
+  );
+}
+
+/**
+ * `invalid-input` on `resumeJobId` for a backend that starts no link job, as Sourcify, or for a
+ * job id that is not of the form the backend gives for this proxy.
+ */
+function notResumable(
+  backend: BackendName,
+  linker: ProxyLinker,
+  settings: Settings,
+): ExplorerVerifyError {
+  const why =
+    linker.acceptsJobId === undefined
+      ? `${backend} starts no link job, so there is none to resume`
+      : `is not a link job id that ${backend} gives for this proxy`;
+  return newError(
+    { code: "invalid-input", issues: [{ field: "resumeJobId", message: why }] },
+    `The resumeJobId option is invalid: ${linker.acceptsJobId === undefined ? "" : "it "}${why}.`,
+    { hint: RESUME_HINT, secrets: settings.keySecrets() },
+  );
+}
+
+/**
+ * Sends the link request, or with `resumeJobId` sends none, checks the link until it ends, and
+ * maps the end to a result.
+ */
 async function link(call: LinkCall): Promise<LinkProxyResult> {
-  const { backend, linker, target, ctx, observer } = call;
+  const { backend, linker, target, ctx, observer, resumeJobId } = call;
   observer.emit({ type: "proxy.routed", backend, apiHost: apiHostOf(ctx) });
   observer.log.debug(
     `Linking proxy ${target.address} on chain ${String(target.chainId)} on ${backend}`,
     { backend, chainId: target.chainId, api: ctx.route.redactedApiUrl },
   );
+  if (resumeJobId !== undefined) {
+    observer.log.info(
+      `Checking the ${backend} proxy link of job ${resumeJobId}; no new link request`,
+      { backend },
+    );
+    return await finish(call, await checkUntilDone(call, resumeJobId));
+  }
   const step = await linker.request(target, ctx);
   if (step.state === "submitted") {
     observer.log.info(`${backend} accepted the proxy link request (job ${step.jobId})`, {
@@ -228,24 +320,23 @@ async function link(call: LinkCall): Promise<LinkProxyResult> {
 }
 
 /**
- * Checks the link every `pollIntervalMs` until it ends. A check that fails with `network`,
- * `rate-limited` or `unexpected-response` is logged at `warn` and checking goes on. When the
- * budget runs out, or {@link MAX_POLL_FAILURES} checks in a row fail, it throws
- * `proxy-link-pending`.
+ * Checks the link every `pollIntervalMs` until it ends. A resumed link is checked at once: it may
+ * have ended while no one checked. A check that fails with `network`, `rate-limited` or
+ * `unexpected-response` is logged at `warn` and checking goes on. When the budget runs out, or
+ * {@link MAX_POLL_FAILURES} checks in a row fail, it throws `proxy-link-pending` with `jobId`.
  */
-async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdict> {
+async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkEnd> {
   const { backend, linker, target, ctx, observer, settings } = call;
   const { deadline } = call.budget;
   let attempt = 0;
   let failures = 0;
   let cause: ExplorerVerifyError | undefined;
+  let wait = call.resumeJobId === undefined ? settings.pollIntervalMs : 0;
   for (;;) {
-    await sleep(
-      Math.max(0, Math.min(settings.pollIntervalMs, deadline - Date.now())),
-      settings.signal,
-    );
+    await sleep(Math.max(0, Math.min(wait, deadline - Date.now())), settings.signal);
+    wait = settings.pollIntervalMs;
     if (deadline - Date.now() <= 0) {
-      throw pending(call, "the time budget ran out", cause);
+      throw pending(call, jobId, "the time budget ran out", cause);
     }
     attempt += 1;
     let verdict: LinkVerdict;
@@ -257,7 +348,7 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdic
         throw error;
       }
       if (error.code === "timeout") {
-        throw pending(call, "the time budget ran out", error);
+        throw pending(call, jobId, "the time budget ran out", error);
       }
       if (!CHECK_FAILURES.includes(error.code)) {
         throw error;
@@ -269,7 +360,12 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdic
         { backend, attempt, code: error.code, failures },
       );
       if (failures >= MAX_POLL_FAILURES) {
-        throw pending(call, `${String(MAX_POLL_FAILURES)} status checks in a row failed`, cause);
+        throw pending(
+          call,
+          jobId,
+          `${String(MAX_POLL_FAILURES)} status checks in a row failed`,
+          cause,
+        );
       }
       continue;
     }
@@ -286,12 +382,8 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkVerdic
 }
 
 /** Maps how the link ended to a result. */
-async function finish(call: LinkCall, verdict: LinkVerdict): Promise<LinkProxyResult> {
+async function finish(call: LinkCall, verdict: LinkEnd): Promise<LinkProxyResult> {
   const { backend, linker, target, ctx, observer, route } = call;
-  if (verdict.state === "pending") {
-    // Only `check` answers pending, and checkUntilDone never returns it.
-    throw pending(call, "the explorer answered that the link is pending", undefined);
-  }
   if (verdict.state === "not-linked") {
     return notLinked(observer, backend, verdict.reason);
   }
@@ -359,11 +451,14 @@ function notLinked(observer: Observer, backend: BackendName, reason: string): Li
   return { status: "not-linked", backend, reason };
 }
 
-/** `proxy-link-pending`: the explorer had not finished, and calling again is safe. */
-function pending(call: LinkCall, why: string, cause: unknown): ExplorerVerifyError {
+/**
+ * `proxy-link-pending`: the explorer had not finished. `jobId` resumes the same link; a new
+ * request is safe too.
+ */
+function pending(call: LinkCall, jobId: string, why: string, cause: unknown): ExplorerVerifyError {
   const { backend, target, ctx } = call;
   return newError(
-    { code: "proxy-link-pending", backend },
+    { code: "proxy-link-pending", backend, jobId },
     `The link of proxy ${target.address} on ${backend} is not confirmed: ${why} before the explorer finished.`,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },
   );

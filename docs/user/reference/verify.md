@@ -90,13 +90,13 @@ Every field is optional. A field set to `undefined` counts as absent.
 Each options type lists only what its function reads. All share
 `CallOptions`: every option above except `pollIntervalMs` and `rpcUrl`.
 
-| Function        | Options type         | Besides `CallOptions`                  |
-| --------------- | -------------------- | -------------------------------------- |
-| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `rpcUrl`             |
-| `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked but sent no request  |
-| `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                       |
-| `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`                       |
-| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `rpcUrl`, `backends` |
+| Function        | Options type         | Besides `CallOptions`                                                                        |
+| --------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `rpcUrl`                                                                   |
+| `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked but sent no request                                                        |
+| `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                                                                             |
+| `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`, `resumeJobId` ([guide](../guides/verify-a-proxy.md#resume-a-pending-link)) |
+| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `rpcUrl`, `backends`                                                       |
 
 At run time each function accepts every key of `VerifyOptions`, so one
 object typed `VerifyOptions` can go to all of them, as in the dry run.

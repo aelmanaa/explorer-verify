@@ -134,22 +134,66 @@ holds none or the lookup fails.
 
 ## Errors
 
-| Error                                                                         | When                                                                           |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)             | The link is still pending when `timeoutMs` runs out. Call again later          |
-| [`unexpected-response`](../reference/errors/unexpected-response.md)           | The link request or a lookup got an answer in a form the library does not know |
-| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md) | A status check gave a state the library cannot classify, or not one address    |
+| Error                                                                         | When                                                                                |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)             | The link is still pending when `timeoutMs` runs out. Resume it with `details.jobId` |
+| [`unexpected-response`](../reference/errors/unexpected-response.md)           | The link request or a lookup got an answer in a form the library does not know      |
+| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md) | A status check gave a state the library cannot classify, or not one address         |
 
-A new call after `proxy-link-pending` is safe: it undoes nothing. After `unexpected-response` on
+A new call after `proxy-link-pending` is safe: it undoes nothing. To check the same link instead,
+see [Resume a pending link](#resume-a-pending-link). After `unexpected-response` on
 the link request, nothing started. `proxy-link-unknown-state` has no handle, and the proxy is
 never reported as linked from such an answer.
 
 `linkProxy()` also throws the errors of `verify()`, such as `invalid-input` and
 `missing-api-key`. See [Errors](../reference/errors/index.md).
 
+## Resume a pending link
+
+`proxy-link-pending` carries `details.jobId`, the job id the explorer gave for the link request.
+An error of an earlier release has none. Pass it as `resumeJobId`, with the same target and route.
+The call then sends only `checkproxyverification`: at once, then every `pollIntervalMs`.
+
+An IDE or another tool that shows progress can store the job id and resume after a reload. On
+Blockscout, resuming also avoids the refusal of a second link request within its interval. To
+store the job id and resume:
+
+<!-- no-run: it sends requests to Etherscan with a real key. -->
+
+```ts no-run [resume.ts]
+import { ExplorerVerifyError, linkProxy } from "explorer-verify";
+import type { LinkProxyTarget } from "explorer-verify";
+
+const options = { apiKeys: { "etherscan-v2": etherscanKey } };
+const target: LinkProxyTarget = {
+  chainId: 11155111,
+  address: "0xed5b8413e605598ef86cd7617f12701f74ca255c",
+  expectedImplementation: "0x75038a8c55f5ec7196b54384fdbcffb1f2ce9920",
+};
+try {
+  await linkProxy(target, options);
+} catch (error) {
+  if (ExplorerVerifyError.is(error, "proxy-link-pending")) {
+    // Store error.details.jobId; later, or after a reload:
+    const result = await linkProxy(target, { ...options, resumeJobId: error.details.jobId });
+    console.log(result.status);
+  }
+}
+```
+
+`resumeJobId` takes 1 to 100 letters and digits, of the form the backend gives for this proxy: 50
+lowercase letters and digits on Etherscan, the proxy's 40 hex digits and a hex timestamp on
+Blockscout. Sourcify starts no job and takes none.
+
+Any other value throws `invalid-input` on `resumeJobId` before any request, and the error never
+repeats it. When the explorer no longer knows the job, it answers `Error!` (Etherscan) or
+`Unknown UID` (Blockscout): the call throws `proxy-link-unknown-state`. Call again without
+`resumeJobId` to send a new link request.
+
 ## Options and events
 
-`linkProxy()` takes the options of `verify()` except `rpcUrl`; its type is `LinkProxyOptions`.
+`linkProxy()` takes the options of `verify()` except `rpcUrl`, plus `resumeJobId`. Its type is
+`LinkProxyOptions`.
 
 It emits `verify.routed`, then one `verify.poll` for each pending status check, and
 `verify.retry` for an HTTP retry. It emits no `verify.validated` and no `verify.result`. See
@@ -186,7 +230,8 @@ its REST lookup. It returns `linked`, `mismatch` or `not-linked` from that.
 
 Etherscan needs your key, so a browser links through the
 [server handler](../reference/server-handler.md), as it verifies. Create the handler with
-`allowProxyLink: true` to forward `verifyproxycontract` and `checkproxyverification`.
+`allowProxyLink: true` to forward `verifyproxycontract` and `checkproxyverification`. A call with
+`resumeJobId` needs it too.
 
 After a mismatch, `linkProxy()` also sends one `getsourcecode` through the handler, which forwards
 that lookup reduced, `Implementation` included. Pass the same `fetch` and `route` you pass to

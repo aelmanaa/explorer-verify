@@ -869,8 +869,9 @@ export interface CheckStatusOptions extends CallOptions {
 
 /**
  * Options for `linkProxy()`: the {@link CallOptions}, plus `pollIntervalMs`, the wait between two
- * checks of the link. The type leaves out `rpcUrl`; at run time `linkProxy()` accepts and checks
- * it, so an object built for `verify()` works.
+ * checks of the link, and `resumeJobId`, which checks a pending link without a new request. The
+ * type leaves out `rpcUrl`; at run time `linkProxy()` accepts and checks it, so an object built
+ * for `verify()` works.
  *
  * @example
  * ```ts
@@ -886,6 +887,14 @@ export interface LinkProxyOptions extends CallOptions {
    * value below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
    */
   pollIntervalMs?: number | undefined;
+  // References: R-FLOW-8, decision 0065.
+  /**
+   * The `details.jobId` of a `proxy-link-pending` error for the same proxy and backend. With it,
+   * the call sends no link request: it checks the link that job started, at once and then every
+   * `pollIntervalMs`. 1 to 100 letters and digits, of the form the backend gives; Sourcify starts
+   * no job and takes none. Anything else throws `invalid-input` before any request.
+   */
+  resumeJobId?: string | undefined;
 }
 
 /**

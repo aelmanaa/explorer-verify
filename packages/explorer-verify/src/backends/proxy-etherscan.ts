@@ -13,7 +13,14 @@ import type { BackendName } from "../backend-names.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
-import type { Context, LinkStep, LinkTarget, LinkVerdict, ProxyLinker } from "./backend.ts";
+import type {
+  Context,
+  LinkEnd,
+  LinkStep,
+  LinkTarget,
+  LinkVerdict,
+  ProxyLinker,
+} from "./backend.ts";
 import { REASON_LENGTH, send, unexpected } from "./common.ts";
 import type { Answer } from "./common.ts";
 import { knownAnswer, post } from "./etherscan.ts";
@@ -103,12 +110,7 @@ function etherscanLinker(name: BackendName, label: string): ProxyLinker {
   }
 
   /** The step a final `checkproxyverification` text gives. `Error!` and every unknown text throw. */
-  function readResult(
-    ctx: Context,
-    answer: Answer,
-    result: string,
-    target: LinkTarget,
-  ): LinkVerdict {
+  function readResult(ctx: Context, answer: Answer, result: string, target: LinkTarget): LinkEnd {
     const found = foundImplementation(result, target.address);
     if (found?.kind === "one") {
       if (found.rest === LINKED) {
@@ -139,7 +141,7 @@ function etherscanLinker(name: BackendName, label: string): ProxyLinker {
    * malformed one leaves it absent. The refusal is definitive, so a lookup that fails, or answers
    * in another form, also leaves it absent and is logged at `warn`. An abort still rejects.
    */
-  async function mismatch(target: LinkTarget, ctx: Context): Promise<LinkVerdict> {
+  async function mismatch(target: LinkTarget, ctx: Context): Promise<LinkEnd> {
     try {
       const answer = await send(
         ctx,
@@ -167,11 +169,16 @@ function etherscanLinker(name: BackendName, label: string): ProxyLinker {
     }
   }
 
-  return { request, check };
+  return { request, check, acceptsJobId };
+}
+
+/** Whether `jobId` is a guid of the form `verifyproxycontract` answers. */
+function acceptsJobId(jobId: string): boolean {
+  return GUID.test(jobId);
 }
 
 /** `not-linked` with the explorer's text, redacted and cut, when the text is a known refusal. */
-function refusal(ctx: Context, result: string): LinkVerdict | undefined {
+function refusal(ctx: Context, result: string): LinkEnd | undefined {
   return REFUSALS.some((pattern) => pattern.test(result))
     ? { state: "not-linked", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) }
     : undefined;

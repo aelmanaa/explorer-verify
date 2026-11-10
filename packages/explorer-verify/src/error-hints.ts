@@ -69,7 +69,7 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
   "constructor-args-unavailable":
     "Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.",
   "proxy-link-pending":
-    "Call linkProxy() again later: the explorer had not finished linking the proxy. A new call is safe.",
+    "Call linkProxy() again later with resumeJobId set to details.jobId: it checks the same link and sends no new request. A call without it sends a new request, which is also safe.",
   "proxy-link-unknown-state":
     "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
   "handler-refused":
