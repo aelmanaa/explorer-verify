@@ -9,7 +9,13 @@
  * - `ts fragment`: the block is neither type-checked nor run, such as a function signature.
  *
  * A flagged block needs its reason in an HTML comment on the nearest non-blank line before it:
- * `<!-- no-run: the reason -->` or `<!-- fragment: the reason -->`.
+ * `<!-- no-run: the reason -->` or `<!-- fragment: the reason -->`. A title in brackets may follow
+ * the language and the flag, as in `ts [verify.ts]` or `ts no-run [verify.ts]`.
+ *
+ * A page with the line `<!-- docs-style: legacy -->` has not been rewritten to the style guide
+ * (`docs/contributor/docs-style.md`) yet. Its examples may use `input` and `built` without
+ * defining them. On every other page an example defines all it uses but the keys, the deployer
+ * address and the request.
  */
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -44,6 +50,10 @@ export const DOC_GLOBALS: Readonly<Record<string, string>> = {
   built: "api.BuiltVerifyInput",
   request: "Request",
 };
+/** The names of {@link DOC_GLOBALS} that only an example on a legacy page may use. */
+export const LEGACY_GLOBALS: readonly string[] = ["input", "built"];
+/** The line that marks a page not yet rewritten to the style guide. */
+export const LEGACY_MARKER = "<!-- docs-style: legacy -->";
 
 const PACKAGES_DIR = fileURLToPath(new URL("../../../", import.meta.url));
 const BUILD_FORMATS = path.join(PACKAGES_DIR, "explorer-verify/test/fixtures/build-formats");
@@ -61,6 +71,10 @@ export interface DocExample {
   /** The 1-based line of the opening fence. */
   readonly line: number;
   readonly flags: readonly string[];
+  /** The title in brackets after the language and the flag, or `undefined`. */
+  readonly title: string | undefined;
+  /** Whether the page holds the legacy marker, so the block may use {@link LEGACY_GLOBALS}. */
+  readonly legacy: boolean;
   readonly code: string;
   /** The `text` block after it, which holds its output, or `undefined`. */
   readonly output: string | undefined;
@@ -84,6 +98,7 @@ export function docExamples(
   markdown: string,
 ): { examples: DocExample[]; problems: string[] } {
   const lines = markdown.split("\n");
+  const legacy = lines.some((line) => line.trim() === LEGACY_MARKER);
   const problems: string[] = [];
   const found = examples(markdown).map((example, index) => {
     const where = `${page}:${String(example.line)}`;
@@ -111,7 +126,7 @@ export function docExamples(
         problems.push(`${where}: a ${flag} block has an output block that no run checks`);
       }
     }
-    return { page, index, ...example };
+    return { page, index, legacy, ...example };
   });
   return { examples: found, problems: [...untestedFences(page, lines), ...problems] };
 }
@@ -178,11 +193,14 @@ export function exampleFile(example: DocExample): string {
   return `${example.page.replace(/\.md$/, "").replaceAll("/", "__")}--l${String(example.line)}.ts`;
 }
 
-/** A module that declares {@link DOC_GLOBALS} for the type-check. */
-export function globalsModule(): string {
-  const declarations = Object.entries(DOC_GLOBALS).map(
-    ([name, type]) => `  const ${name}: ${type};`,
-  );
+/**
+ * A module that declares {@link DOC_GLOBALS} for the type-check. With `legacy` false, it leaves
+ * out {@link LEGACY_GLOBALS}, so an example that uses `input` without defining it fails.
+ */
+export function globalsModule(legacy = true): string {
+  const declarations = Object.entries(DOC_GLOBALS)
+    .filter(([name]) => legacy || !LEGACY_GLOBALS.includes(name))
+    .map(([name, type]) => `  const ${name}: ${type};`);
   return [
     'import type * as api from "explorer-verify";',
     "declare global {",
@@ -267,12 +285,12 @@ function writePinoStub(dir: string): void {
 /**
  * A new temporary project for user-docs examples: the core, the Foundry and Hardhat helpers and a
  * pino stub in `node_modules`, the DOM library for browser examples, the globals module, and the
- * files of `setup`.
+ * files of `setup`. With `legacy` false, the globals module leaves out {@link LEGACY_GLOBALS}.
  */
-export function createDocsProject(setup: DocSetup): string {
+export function createDocsProject(setup: DocSetup, legacy = true): string {
   const dir = createProject({ bare: true, dom: true, workspacePackages: WORKSPACE_PACKAGES });
   writePinoStub(dir);
-  writeFileSync(path.join(dir, "doc-globals.d.ts"), globalsModule());
+  writeFileSync(path.join(dir, "doc-globals.d.ts"), globalsModule(legacy));
   const foundry = path.join(PACKAGES_DIR, "foundry/test/fixtures");
   const hardhat = path.join(PACKAGES_DIR, "hardhat/test/fixtures");
   switch (setup) {

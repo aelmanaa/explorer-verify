@@ -1,5 +1,7 @@
 # Verify from CI with the CLI
 
+<!-- docs-style: legacy -->
+
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -54,7 +56,9 @@ never submits. It needs no key:
 
 ```sh
 # exit code 0
-explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run --json
+npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
+  --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
+  --backend sourcify --dry-run --json
 ```
 
 ```text

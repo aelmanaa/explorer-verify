@@ -31,8 +31,10 @@ maintainer's.
 7. [docs/contributor/research/](docs/contributor/research/): dated evidence behind the decisions
    (explorer APIs, Etherscan terms, existing packages, agent readiness, CLI output and logging).
 8. [docs/contributor/testing.md](docs/contributor/testing.md): test layers and fixture rules.
-9. [docs/contributor/tooling.md](docs/contributor/tooling.md): toolchain and the type-checking layout.
-10. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
+9. [docs/contributor/docs-style.md](docs/contributor/docs-style.md): the density and style rules
+   of the user docs, which `pnpm run check` enforces.
+10. [docs/contributor/tooling.md](docs/contributor/tooling.md): toolchain and the type-checking layout.
+11. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/README.md](docs/README.md). The tutorial,
