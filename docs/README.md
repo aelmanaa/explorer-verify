@@ -11,6 +11,9 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 | Page                                                                                                | What it covers                                                                                |
 | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [Quickstart: the CLI](user/start/quickstart-cli.md)                                                 | Dry run the sample request with `npx`, then a project, then verify                            |
+| [Quickstart: a Foundry project](user/start/quickstart-foundry.md)                                   | Dry run and verify a Foundry contract with `--foundry .`                                      |
+| [Quickstart: a Hardhat project](user/start/quickstart-hardhat.md)                                   | Dry run and verify a Hardhat contract with `--hardhat .`; not a plugin                        |
 | [Deploy a contract from a dapp and verify it](user/tutorials/deploy-and-verify-from-a-dapp.md)      | Tutorial: deploy from a browser wallet, verify on Sourcify, resume                            |
 | [Verify a contract shipped in an npm package](user/guides/verify-a-contract-from-an-npm-package.md) | Build the input from build-info, artifacts or metadata of unknown origin                      |
 | [Verify contracts your package ships](user/guides/verify-contracts-your-package-ships.md)           | Ship the Standard JSON input and a manifest, verify after a deployment                        |
