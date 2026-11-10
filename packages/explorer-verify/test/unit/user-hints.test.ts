@@ -38,10 +38,26 @@ function codeOf(text: string): string {
 const HINT_LITERAL =
   /(?:\b[A-Z_]*HINT\s*=|\bhint\s*(?:\?\?=|=|:))\s*(?:"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)/g;
 
+// Stryker's mutation run instruments the files it mutates in place: each string becomes
+// `stryMutAct_x("14") ? "" : (stryCov_x("14"), "the original")`. Removing the wrapper up to the
+// original literal gives back the text the scan reads in a normal run.
+const STRYKER_WRAPPER =
+  /stryMutAct_\w+\([^)]*\)\s*\?\s*(?:""|``|'')\s*:\s*\(stryCov_\w+\([^)]*\),\s*/g;
+
+/** A module's code without its comments and without Stryker's instrumentation of its strings. */
+function scannedCode(text: string): string {
+  return codeOf(text).replaceAll(STRYKER_WRAPPER, "");
+}
+
+/** The hint literals of one module's text, as written. */
+function hintsIn(text: string): string[] {
+  return [...scannedCode(text).matchAll(HINT_LITERAL)].map((match) => match[1] ?? match[2] ?? "");
+}
+
 /** Each hint literal of the core's source, with the file it is in. Template parts become `X`. */
 function specificHints(): { file: string; hint: string }[] {
   return sources().flatMap((file) =>
-    [...codeOf(readFileSync(file, "utf8")).matchAll(HINT_LITERAL)].map((match) => ({
+    [...scannedCode(readFileSync(file, "utf8")).matchAll(HINT_LITERAL)].map((match) => ({
       file: path.relative(PACKAGE, file),
       hint: (match[1] ?? match[2] ?? "").replaceAll(/\$\{[^}]*\}/g, "X"),
     })),
@@ -160,6 +176,15 @@ describe("hint wording without field names (R-DX-3, R-AX-10, #286)", () => {
         `${file}: ${hint}`,
       );
     }
+  });
+
+  it("reads a hint from a file that Stryker instrumented, as from the original", () => {
+    const original = 'const X_HINT = "Pass details.path.";\nthrow e({ hint: `Use ${a}.` });';
+    const instrumented =
+      'const X_HINT = stryMutAct_9fa48("14") ? "" : (stryCov_9fa48("14"), "Pass details.path.");\n' +
+      'throw e({ hint: stryMutAct_9fa48("15") ? `` : (stryCov_9fa48("15", "16"), `Use ${a}.`) });';
+    assert.deepEqual(hintsIn(instrumented), ["Pass details.path.", "Use ${a}."]);
+    assert.deepEqual(hintsIn(instrumented), hintsIn(original));
   });
 
   it("finds the hints that the rule rewrote", () => {
