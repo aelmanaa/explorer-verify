@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:09:43.975Z: the lookup before the submit for the MatchGrade287 probe built with bytecodeHash \"none\" at 0xd6f4ed540d68798effeb7937f3894f8e51dc0444 on Ethereum Sepolia (issue #287).",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xd6f4ed540d68798effeb7937f3894f8e51dc0444"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=2592000",
+      "content-length": "131",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:09:45 GMT",
+      "etag": "W/\"83-9fzduAIgcB4g3HY5plA09B9aZm4\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "3a390077f8cebe5287aff38054e8189b",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "match": null,
+      "creationMatch": null,
+      "runtimeMatch": null,
+      "chainId": "11155111",
+      "address": "0xd6F4eD540D68798eFFeb7937F3894F8E51dc0444"
+    }
+  },
+  "recordedAt": "2026-11-10T14:09:43.975Z"
+}

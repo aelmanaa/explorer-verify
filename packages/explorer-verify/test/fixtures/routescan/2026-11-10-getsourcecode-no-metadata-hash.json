@@ -1,0 +1,56 @@
+{
+  "source": "Live response from api.routescan.io to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:10:33.205Z: getsourcecode after the submit passed for the MatchGrade287 probe built with bytecodeHash \"none\" at 0x83f6c8a7ae518eb4a0a460d6119184f3639f568b on Ethereum Sepolia (issue #287). The real key is replaced by [redacted].",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api?module=contract&action=getsourcecode&address=0x83f6c8a7ae518eb4a0a460d6119184f3639f568b&nocache=69vcc9ynpci",
+    "headers": {
+      "apikey": "[redacted]"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "MISS",
+      "cf-ray": "a585a4368c800da4-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:10:35 GMT",
+      "last-modified": "Tue, 10 Nov 2026 14:10:35 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "transfer-encoding": "chunked",
+      "vary": "accept-encoding",
+      "x-ratelimit-rpd-limit": "100000",
+      "x-ratelimit-rpd-remaining": "99988",
+      "x-ratelimit-rpd-reset": "86351",
+      "x-ratelimit-rpm-limit": "300",
+      "x-ratelimit-rpm-remaining": "288",
+      "x-ratelimit-rpm-reset": "11",
+      "x-request-id": "01a1c5cb-de85-742c-a65c-02f31e9a8770"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "{{\"language\":\"Solidity\",\"sources\":{\"src/MatchGrade287.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity 0.8.24;\\n\\n// explorer-verify issue 287 probe, 2026-11-10, build nohash, explorer routescan\\ncontract MatchGrade287 {\\n    uint256 public constant TAG = 2552211238906501945;\\n    uint256 public count;\\n\\n    function bump() external returns (uint256) {\\n        count += 1;\\n        return count + TAG;\\n    }\\n}\\n\"}},\"settings\":{\"optimizer\":{\"enabled\":true,\"runs\":200},\"metadata\":{\"useLiteralContent\":false,\"bytecodeHash\":\"none\",\"appendCBOR\":true},\"outputSelection\":{\"src/MatchGrade287.sol\":{\"MatchGrade287\":[\"*\"]}},\"evmVersion\":\"cancun\",\"viaIR\":false,\"libraries\":{}}}}",
+          "ABI": "[{\"inputs\":[],\"name\":\"TAG\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bump\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+          "ContractName": "MatchGrade287",
+          "CompilerVersion": "v0.8.24+commit.e11b9ed9",
+          "OptimizationUsed": "1",
+          "Runs": "200",
+          "EVMVersion": "cancun",
+          "Library": "",
+          "LicenseType": "",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": ""
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-10T14:10:33.205Z"
+}

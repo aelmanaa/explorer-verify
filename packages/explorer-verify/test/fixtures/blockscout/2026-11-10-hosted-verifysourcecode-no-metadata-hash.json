@@ -1,0 +1,53 @@
+{
+  "source": "Live response from api.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:08:03.953Z: verifysourcecode for the MatchGrade287 probe built with bytecodeHash \"none\" at 0x21daa94317e22dc667f5b3088fc7905187ac6813 on Ethereum Sepolia (issue #287). The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.blockscout.com/11155111/api",
+    "headers": {
+      "authorization": "[redacted]",
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "sourceCode": "[923 characters: the Standard JSON input]",
+        "contractaddress": "0x21daa94317e22dc667f5b3088fc7905187ac6813",
+        "contractname": "src/MatchGrade287.sol:MatchGrade287",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a585a091cc07c611-MRS",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "101",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:08:05 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=qFRd%2Bd9bvlwtAJKTIZgzXLsd5yjOukeaAJyrhbfzfmdzzTlTYIk6hwmAXHs2BP%2B6iDTz9zSRyPoqEcCC%2Bhkn7r1MuvPMXfUxubcrg1hLeNTnK1FlTbGvYgt0m62VD%2F6K2Nnsqg%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99960",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "4",
+      "x-ratelimit-reset": "568",
+      "x-request-id": "5dadda0442d45a184b5854aa4d6d58a7"
+    },
+    "body": {
+      "message": "OK",
+      "result": "21daa94317e22dc667f5b3088fc7905187ac68136af32545",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-10T14:08:03.953Z"
+}

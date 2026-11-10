@@ -1,0 +1,50 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:06:30.610Z: the first checkverifystatus for the MatchGrade287 probe built with bytecodeHash \"none\" at 0xea02aff76e67b89aea47c4fa0e6639e4eece1d32 on Ethereum Sepolia (issue #287).",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "ea02aff76e67b89aea47c4fa0e6639e4eece1d326af324e3"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a5859e4afddc1f90-MRS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:06:32 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=lZOAfpCPQIURmehYJbprmOa6O4JuATrkBwE4MQ%2F%2Bus2DsmIrk4fQMLKS2GVXLcyvnEUGxqyoQF7GOvToJ144BrtI7vc13wqGB4VnTglMK0Y%2BrRsTI8P%2BVzUI7ndpwDaRr9goTbukOFWtm7QO\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "8",
+      "x-ratelimit-reset": "3207824",
+      "x-request-id": "4d19999c63dd8ceb4f7e3e9454ee1543"
+    },
+    "body": {
+      "message": "OK",
+      "result": "Pending in queue",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-10T14:06:30.610Z"
+}
