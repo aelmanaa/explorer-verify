@@ -328,6 +328,10 @@ config file, read them in the tool and pass them in `apiKeys`. Etherscan's terms
 Etherscan key in browser code: in a browser, set `handlerUrl` to a
 [server handler](run-the-server-handler.md) that holds the key.
 
+When your tool builds one options object for `verify()` and `dryRun()`, as `toOptions()` above does,
+type it as `VerifyOptions`. [Options of each function](../reference/verify.md#options-of-each-function)
+shows why an object literal written for `verify()` does not compile in a `dryRun()` call.
+
 ## Behaviour that changes
 
 Some of what `verify()` does may differ from what your tool did before. Keep the old behaviour as
@@ -483,6 +487,90 @@ export { ERROR_CODES, ExplorerVerifyError } from "explorer-verify/errors";
 export { formatHandle, parseHandle } from "explorer-verify/handle";
 export { verify } from "explorer-verify";
 ```
+
+## Make verification an optional feature
+
+When verification is one opt-in feature of your tool, declare `explorer-verify` as an optional peer
+dependency. Users who never verify then do not install it:
+
+```json
+{
+  "name": "deploykit",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./verify": "./dist/verify.js"
+  },
+  "peerDependencies": { "explorer-verify": "^0.1.0" },
+  "peerDependenciesMeta": { "explorer-verify": { "optional": true } }
+}
+```
+
+Load explorer-verify with `import()` in a subpath of your tool, `deploykit/verify` here, and never
+import that subpath from the root entry. Put the `import()` inside `try`, and turn a failed load
+into an error of your tool:
+
+```ts
+// deploykit/src/verify.ts, published as "deploykit/verify". The root entry never imports it.
+import type { VerifyInput, VerifyOptions, VerifyResult } from "explorer-verify";
+
+/** Thrown when explorer-verify is not installed or does not load. */
+export class VerificationUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super("Verification needs explorer-verify: npm install explorer-verify", { cause });
+    this.name = "VerificationUnavailableError";
+  }
+}
+
+async function loadExplorerVerify(): Promise<typeof import("explorer-verify")> {
+  // Inside try, esbuild and webpack leave a missing package to run time instead of failing the build.
+  try {
+    return await import("explorer-verify");
+  } catch (cause) {
+    throw new VerificationUnavailableError(cause);
+  }
+}
+
+export async function verifyContract(
+  input: VerifyInput,
+  options: VerifyOptions = {},
+): Promise<VerifyResult> {
+  const { verify } = await loadExplorerVerify();
+  return await verify(input, options);
+}
+
+// What a user of deploykit writes.
+try {
+  const result = await verifyContract(input);
+  console.log(result.status);
+} catch (error) {
+  if (!(error instanceof VerificationUnavailableError)) {
+    throw error;
+  }
+  console.log(error.message);
+}
+```
+
+With explorer-verify installed, the example prints the status. Without it:
+
+```text
+Verification needs explorer-verify: npm install explorer-verify
+```
+
+An app that imports only `deploykit` never reaches the `import()`: each bundler below builds it
+with no warning. The table shows what happens on 2026-11-10, with Node 24.21.0, when an app imports
+`deploykit/verify` and explorer-verify is not installed:
+
+| Bundler                                                 | `import()` inside `try`, or with `.catch()`                                                                                                    | `import()` with neither                      |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| esbuild 0.28.2, `--bundle`                              | Builds with no warning. The `import()` stays and fails at run time                                                                             | Fails: `Could not resolve "explorer-verify"` |
+| Rollup 4.67.4 with `@rollup/plugin-node-resolve` 16.0.3 | Warns `Unresolved dependencies` and keeps `import("explorer-verify")`, which fails at run time                                                 | The same                                     |
+| webpack 5.112.2, `--mode production`                    | Warns `Module not found`. The `import()` fails at run time                                                                                     | Fails: `Module not found`                    |
+| Vite 8.3.7 (Rolldown 1.2.18)                            | Builds, and replaces explorer-verify with a module that throws `Could not resolve "explorer-verify" imported by "deploykit". Is it installed?` | The same                                     |
+
+Vite builds only because `peerDependenciesMeta` marks the peer optional. With a plain peer
+dependency, Vite 8.3.7 fails the build with `Rolldown failed to resolve import "explorer-verify"`.
+In every case, the failed load reaches your `catch` and becomes `VerificationUnavailableError`.
 
 ## Test with recorded answers
 

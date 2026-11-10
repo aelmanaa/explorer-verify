@@ -173,6 +173,10 @@ export async function run(): Promise<unknown[]> {
     await dryRun(input, dry),
     await checkStatus(handle, status),
     await linkProxy(target, link),
+    // One VerifyOptions value goes to each function: only a literal gets the excess-property check.
+    await dryRun(input, options),
+    await checkStatus(handle, options),
+    await linkProxy(target, options),
     await verifyEach(input, each),
     buildVerifyInput([], build),
     await buildVerifyInputFromBytecode({ chainId: 1, address: base.address }, resolve),

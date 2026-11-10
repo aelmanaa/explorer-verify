@@ -208,7 +208,33 @@ At run time, `verify()`, `dryRun()`, `checkStatus()` and `linkProxy()` all accep
 ignore, such as `rpcUrl` for `checkStatus()`, is still checked. `verifyEach()` accepts those keys
 and `backends`.
 
-Any other key throws `invalid-input` before any request. The issue names the key and, when one
+TypeScript checks for extra properties only in an object literal written where the type is
+expected. `dryRun(input, { pollIntervalMs: 5_000 })` therefore fails with `TS2353: Object literal
+may only specify known properties`, because `DryRunOptions` has no `pollIntervalMs`. A variable
+typed `VerifyOptions` is not a literal, so the same value passes to `dryRun()`, `checkStatus()` and
+`linkProxy()`. To build one object for several functions, type it as `VerifyOptions`:
+
+```ts
+import { dryRun, verify } from "explorer-verify";
+import type { VerifyOptions } from "explorer-verify";
+
+const shared: VerifyOptions = { timeoutMs: 60_000, pollIntervalMs: 5_000 };
+
+const plan = await dryRun(input, shared);
+console.log(plan.lookup);
+const result = await verify(input, shared);
+console.log(result.status);
+```
+
+```text
+exact
+already-verified
+```
+
+`dryRun()` checks `pollIntervalMs` and does not use it. Type the object as `DryRunOptions` instead
+when it only ever goes to `dryRun()`, so TypeScript refuses an option that call does not read.
+
+A key outside `VerifyOptions` throws `invalid-input` before any request. The issue names the key and, when one
 matches it ignoring case or by prefix, the option it may mean. The error never repeats the key's
 value, and does not repeat a key longer than 32 characters or with 8 or more digits.
 

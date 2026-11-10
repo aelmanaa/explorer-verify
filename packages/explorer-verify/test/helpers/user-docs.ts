@@ -11,7 +11,7 @@
  * A flagged block needs its reason in an HTML comment on the nearest non-blank line before it:
  * `<!-- no-run: the reason -->` or `<!-- fragment: the reason -->`.
  */
-import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -195,6 +195,7 @@ export function globalsModule(): string {
 /**
  * The files a run starts from: `core` has none, the others hold the build output a guide reads,
  * from the fixtures of the core, the Foundry helper and the Hardhat helper.
+ * `without-explorer-verify` is `core` with no `explorer-verify` in `node_modules`.
  */
 export type DocSetup =
   | "core"
@@ -203,7 +204,8 @@ export type DocSetup =
   | "foundry-multi"
   | "hardhat-3"
   | "hardhat-2"
-  | "shipped-contracts";
+  | "shipped-contracts"
+  | "without-explorer-verify";
 
 /**
  * The files a package ships to verify its Greeter, written as the guide "Verify contracts your
@@ -321,6 +323,10 @@ export function createDocsProject(setup: DocSetup): string {
     case "shipped-contracts":
       // The verification files next to the package's own module, which imports them.
       writeFiles(dir, shippedContractFiles());
+      break;
+    case "without-explorer-verify":
+      // A user of a wrapper that declares explorer-verify an optional peer and did not install it.
+      rmSync(path.join(dir, "node_modules/explorer-verify"));
       break;
   }
   return dir;
