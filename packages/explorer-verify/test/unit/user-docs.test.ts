@@ -273,8 +273,8 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/check-status.md",
     example: 1,
-    what: "verify() ends not-confirmed, then checkStatus() on the stored handle",
-    fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match"],
+    what: "checkStatus() resumes a stored handle whose job ended with a match",
+    fixtures: ["2026-11-02-job-exact-match"],
   },
   {
     page: "reference/check-status.md",
@@ -328,21 +328,40 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/verify.md",
     example: 1,
-    what: "verify() finds the contract verified",
+    what: "verify() on the sample request finds the contract verified",
     fixtures: ALREADY_VERIFIED,
-  },
-  {
-    page: "reference/verify.md",
-    example: 1,
-    what: "verify() ends not-confirmed: the handle is stored",
-    fixtures: NOT_CONFIRMED,
-    stdout: "",
   },
   {
     page: "reference/verify.md",
     example: 2,
-    what: "linked libraries: verify() finds the contract verified",
+    what: "a VerifyOptions object goes to dryRun(); the match means no submit (R-DX-4)",
     fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "reference/verify.md",
+    example: 3,
+    what: "linked libraries: verify() finds the contract verified",
+    setup: "linked-library",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "advanced/abort-and-resume.md",
+    example: 0,
+    what: "abort after the submit, then checkStatus() on the kept handle",
+    fixtures: VERIFIED,
+  },
+  {
+    page: "advanced/abort-and-resume.md",
+    example: 1,
+    what: "verify() finds the contract verified: no handle to keep",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "advanced/abort-and-resume.md",
+    example: 1,
+    what: "verify() ends not-confirmed: the handle is stored",
+    fixtures: NOT_CONFIRMED,
+    stdout: "",
   },
   {
     page: TUTORIAL,
@@ -402,34 +421,6 @@ const RUNS: readonly DocRun[] = [
     example: 6,
     what: "verify() reaches Etherscan through the handler, which passes the origin check",
     fixtures: ETHERSCAN_VERIFIED,
-  },
-  {
-    page: "reference/verify.md",
-    example: 3,
-    what: "one VerifyOptions object goes to dryRun() and verify() (R-DX-4)",
-    fixtures: [...ALREADY_VERIFIED, ...ALREADY_VERIFIED],
-  },
-  {
-    page: "reference/verify.md",
-    example: 4,
-    what: "an unknown option throws invalid-input before any request (R-IN-6)",
-    fixtures: [],
-  },
-  {
-    page: "reference/verify.md",
-    example: 5,
-    what: "dryRun() finds the contract verified and submits nothing",
-    fixtures: ALREADY_VERIFIED,
-  },
-  {
-    page: "reference/verify.md",
-    example: 7,
-    what: "keep the handle from verify.submitted",
-    fixtures: [
-      "2026-11-02-lookup-not-verified",
-      "2026-11-02-submit-accepted",
-      "2026-11-02-job-exact-match",
-    ],
   },
   ...[BROWSER, NODE, EDGE].map((page): DocRun => ({
     page,

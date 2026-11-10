@@ -29,8 +29,10 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Resume from a job queue](user/advanced/resume-from-a-job-queue.md)                                 | A backend job that finishes a queued handle with `checkStatus()`                              |
 | [Verify from CI with the CLI](user/guides/verify-from-ci-with-the-cli.md)                           | Dry run, `--json` and `jq`, exit codes in a `case`, keys from CI secrets                      |
 | [Wrap explorer-verify behind your tool's API](user/guides/wrap-explorer-verify-in-your-tool.md)     | Call it inside your tool's API, map every error code, replay tests                            |
-| [verify()](user/reference/verify.md)                                                                | The steps, options, results and errors of `verify()`                                          |
+| [verify()](user/reference/verify.md)                                                                | `verify()` and `dryRun()`: options, results, errors and the steps                             |
 | [checkStatus()](user/reference/check-status.md)                                                     | Resume a submitted verification from its handle                                               |
+| [Verify on several explorers](user/advanced/verify-on-several-explorers.md)                         | `verifyEach()`: one call, several explorers, one outcome each                                 |
+| [Abort and resume](user/advanced/abort-and-resume.md)                                               | Stop a call, keep the handle, resume with `checkStatus()`                                     |
 | [API keys](user/reference/api-keys.md)                                                              | `apiKeys` and `route.apiKey`, which host gets each key, Etherscan plans                       |
 | [Routing](user/reference/routing.md)                                                                | How a chain resolves to a backend, the routing table and its options                          |
 | [Core entry](user/reference/core.md)                                                                | `explorer-verify/core`, the clients and the table, for a bundle with only the clients you use |

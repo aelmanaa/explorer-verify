@@ -223,7 +223,8 @@ export type DocSetup =
   | "hardhat-3"
   | "hardhat-2"
   | "shipped-contracts"
-  | "without-explorer-verify";
+  | "without-explorer-verify"
+  | "linked-library";
 
 /**
  * The files a package ships to verify its Greeter, written as the guide "Verify contracts your
@@ -344,6 +345,11 @@ export function createDocsProject(setup: DocSetup, legacy = true): string {
     case "shipped-contracts":
       // The verification files next to the package's own module, which imports them.
       writeFiles(dir, shippedContractFiles());
+      break;
+    case "linked-library":
+      // The Standard JSON input of a contract that calls an external library, for the verify()
+      // reference's linked-libraries example.
+      copy(dir, path.join(BUILD_FORMATS, "solc-0.8.24-library/input.json"), "counter-input.json");
       break;
     case "without-explorer-verify":
       // A user of a wrapper that declares explorer-verify an optional peer and did not install it.
