@@ -40,7 +40,7 @@ catalog:
   "c8": "12.0.0"
   "esbuild": "0.28.2"
   "eslint-plugin-jsdoc": "65.4.2"
-  "knip": "6.43.0"
+  "knip": "6.44.1"
   "lefthook": "2.2.2"
   "oxfmt": "0.75.0"
   "oxlint": "1.90.0"
