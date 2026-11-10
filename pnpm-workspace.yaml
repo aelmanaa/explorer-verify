@@ -33,7 +33,7 @@ catalog:
   "@changesets/changelog-github": "1.0.1"
   "@changesets/cli": "3.0.3"
   "@changesets/parse": "1.0.0"
-  "@stryker-mutator/core": "10.0.0"
+  "@stryker-mutator/core": "10.1.1"
   "@stryker-mutator/tap-runner": "10.1.1"
   "@types/node": "^22.18.0"
   "ajv": "8.20.0"
