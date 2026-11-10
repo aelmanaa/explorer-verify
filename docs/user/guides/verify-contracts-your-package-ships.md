@@ -1,46 +1,46 @@
 # Verify contracts your package ships
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: authors of an SDK or library that deploys its own contracts, who want each deployment
+For: authors of an SDK or library that deploys its own contracts, who want each deployment
 verified right after it lands.
 
-The package ships two JSON files per contract: the Standard JSON input of the compile and a
+You need: Node.js 22.18 or later, and a Foundry or Hardhat project for the contracts your package
+deploys. A dry run needs no API key.
+
+The package ships two JSON files per contract: the Standard JSON input of the compile, and a
 manifest with the contract name and the full compiler version. After a deployment, the package
-loads both files, builds the verification input and calls `verify()`. The files load only when
-verification runs. An application that never verifies does not load them, and a browser does not
-fetch them.
+loads both, builds the input and calls `verify()`. An application that never verifies never loads
+them. For build files of unknown origin, see
+[Verify a contract shipped in an npm package](verify-a-contract-from-an-npm-package.md).
 
-[Verify a contract shipped in an npm package](verify-a-contract-from-an-npm-package.md) covers the
-other side: build files of unknown origin, in a package you did not write.
+## Install
 
-## Steps
+The package depends on the core, and its build script on the Foundry helper:
 
-1. When you build the package, write the Standard JSON input and the manifest of each contract it
-   deploys.
-2. Publish them in the package.
-3. In the deploy function, after the creation transaction is mined, load the two files with
-   `import()`, build the input and call `verify()`.
+```bash
+npm install explorer-verify
+npm install --save-dev @explorer-verify/foundry
+```
+
+For Hardhat, install `@explorer-verify/hardhat` instead. Its `buildVerifyInputFromHardhat`
+returns the same shape.
 
 ## Write the files when you build the package
 
-Build the contracts, then run a script that writes the two files. This one reads a Foundry build
-with `@explorer-verify/foundry`; for Hardhat, `buildVerifyInputFromHardhat` from
-`@explorer-verify/hardhat` returns the same shape. See
-[Verify a contract from a Foundry project](verify-from-a-foundry-project.md) and
-[Verify a contract from a Hardhat project](verify-from-a-hardhat-project.md).
+After `forge build --build-info`, run this script in the root of the contracts project:
 
-```ts
+```ts [write-verification-files.ts]
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
-// After `forge build --build-info`, in the root of the contracts project.
-const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+const built = await buildVerifyInputFromFoundry({
+  root: ".",
+  contract: "src/Greeter.sol:Greeter",
+});
 
 const standardJson = JSON.stringify(built.compiler.input);
 const manifest = JSON.stringify({
@@ -52,68 +52,85 @@ await mkdir("verification", { recursive: true });
 await writeFile("verification/Greeter.input.json", standardJson);
 await writeFile("verification/Greeter.manifest.json", manifest);
 
+const bytes = new TextEncoder().encode(standardJson).length;
 console.log(manifest);
-console.log(`Greeter.input.json: ${String(new TextEncoder().encode(standardJson).length)} bytes`);
+console.log(`Greeter.input.json: ${String(bytes)} bytes`);
 ```
 
-This project's Foundry test fixture compiles seven source files in one build, and `Greeter`
-imports only two of them. The script prints:
+On this project's Foundry test fixture, it prints:
 
 ```text
 {"contract":"src/Greeter.sol:Greeter","compilerVersion":"0.8.24+commit.e11b9ed9"}
 Greeter.input.json: 2267 bytes
 ```
 
-All seven files are in the input; the size section below explains why, and how to keep them
-out.
+The manifest keys are options of `buildVerifyInput`: `contract` is `path:Name`, and
+`compilerVersion` the full version with the commit. A Standard JSON input names neither.
 
-The manifest keys are the options of `buildVerifyInput`: `contract` is the fully qualified name,
-`path:Name`, and `compilerVersion` is the full version with the commit. A Standard JSON input names
-neither, so `buildVerifyInput` needs both.
+Write the files from the builder's result, not by copying a build-info file. The builder keeps
+only `language`, `sources` and `settings`, and drops fields such as Foundry's `basePath`, which
+holds a local path. Keep each source's exact bytes: do not run the files through a formatter.
 
-Write the files from the builder's result, not by copying a build-info file. The builder keeps only
-`language`, `sources` and `settings`, and only `content` and `keccak256` of each source. It drops
-fields such as Foundry's `basePath`, which holds an absolute path on the build machine, and it
-rejects an input that still holds a local path. Each source keeps its exact bytes: do not run the
-files through a formatter.
+## Dry run the shipped files
+
+Before you publish, check that the files load and route. This dry run builds the input from them
+for the sample Greeter on Sepolia:
+
+```ts [dry-run.ts]
+import { buildVerifyInput, dryRun } from "explorer-verify";
+
+import standardJson from "./verification/Greeter.input.json" with { type: "json" };
+import manifest from "./verification/Greeter.manifest.json" with { type: "json" };
+
+const built = buildVerifyInput([standardJson], manifest);
+const result = await dryRun({
+  chainId: 11155111,
+  address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+  ...built,
+});
+console.log(result.status, result.backend, result.lookup);
+```
+
+```text
+dry-run sourcify exact
+```
+
+`lookup` is `exact`: Sourcify holds this contract, so `verify()` would submit nothing. `none`
+means `verify()` would submit the input.
 
 ## Ship the files
 
-Put the folder where the deploy module's relative `import()` finds it after your own build. If
-your build does not emit the imported JSON files to `dist/`, copy the folder there. The `files`
-field of `package.json` must include it.
+Put the `verification` folder where the deploy module's relative `import()` finds it after your
+build. If your build does not copy JSON files to `dist/`, copy the folder there. The `files` field
+of `package.json` must include it.
 
-Measure the size. The Standard JSON input holds the full text of every source in the compile, not
-only the files of the contract you deploy, so a contract that imports a large library ships that
-library's sources too. A build that compiles more files than the deployed
-contracts adds those files as well: tests, scripts, or other contracts, as in the fixture above,
-where five of the seven files are not part of `Greeter`. Two ways keep the input to what the
-contract needs:
+Measure the size. The Standard JSON input holds every source of the compile, not only the
+contract's own files. In the fixture above, five of the seven files are not part of `Greeter`.
+Two ways keep the input to what the contract needs:
 
-- Compile the contracts you deploy in a build of their own. Ship the bytecode of that build, and
-  write the files from it.
-- Ship the contract's Solidity metadata and the source files it lists instead.
-  `buildVerifyInput` rebuilds the Standard JSON input from them. See
+- Compile the contracts you deploy in a build of their own, and write the files from it.
+- Ship the contract's Solidity metadata and its source files instead. `buildVerifyInput` rebuilds
+  the input from them: see
   [Rebuild the input from Solidity metadata](verify-a-contract-from-an-npm-package.md#rebuild-the-input-from-solidity-metadata).
 
-Each verification input is sent to the explorer and published there with the verified contract.
+The explorer publishes each verification input with the verified contract.
 
 ## Verify after a deployment
 
-The deploy function knows the chain, the deployed address and the creation transaction hash. Pass
-all three. Backends that support it use the creation transaction hash to match the creation
-bytecode; Sourcify receives it as `creationTransactionHash`.
+The deploy function knows the chain, the address and the creation transaction hash. Pass all
+three. Sourcify receives the hash as `creationTransactionHash` and uses it to match the creation
+bytecode:
 
-```ts
+```ts [verify-greeter.ts]
 import { buildVerifyInput, verify } from "explorer-verify";
 import type { Hex, VerifyOptions, VerifyResult } from "explorer-verify";
 
-/** Verifies a Greeter that this package deployed. The application chooses the options. */
+/** Verifies a Greeter this package deployed. The application picks the options. */
 export async function verifyGreeter(
   deployment: { chainId: number; address: Hex; creationTxHash: Hex },
   options?: VerifyOptions,
 ): Promise<VerifyResult> {
-  // Loaded only when verification runs: an application that never verifies never loads them.
+  // Loaded only when verification runs.
   const [{ default: standardJson }, { default: manifest }] = await Promise.all([
     import("./verification/Greeter.input.json", { with: { type: "json" } }),
     import("./verification/Greeter.manifest.json", { with: { type: "json" } }),
@@ -135,51 +152,59 @@ if (result.status === "failed") {
 }
 ```
 
-When Sourcify already has the contract, `verify()` submits nothing. It prints:
+When Sourcify already has the contract, `verify()` submits nothing:
 
 ```text
 already-verified exact https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
 ```
 
-When Sourcify does not have it, `verify()` submits the input, waits for the job and prints
-`verified exact` with the same URL. The project's tests run this example against recorded Sourcify
-answers for this deployment, both ways.
+When Sourcify lacks it, `verify()` submits, waits for the job and prints `verified exact` with
+the same URL.
 
-Call it after the creation transaction is mined. Right after a deployment, the explorer may not see
-the contract yet. Sourcify then ends the job with `contract_not_deployed`, and `verify()` throws
-[`verification-inconclusive`](../reference/errors/verification-inconclusive.md): wait a minute and
-call it again. A verification that does not finish in time throws `not-confirmed` with a handle;
-[checkStatus()](../reference/check-status.md) resumes it. Decide whether a failed verification
-fails the deployment: the contract is deployed either way.
+> [!WARNING]
+> A submit publishes the source on the explorer and cannot be undone. When an agent deploys with
+> your package, see [Using explorer-verify from an agent](using-from-an-agent.md).
 
-The submit is outward and permanent: the explorer publishes the source. When an agent deploys with
-your package, see [Using explorer-verify from an agent](using-from-an-agent.md).
+## Handle a slow explorer
+
+Call `verifyGreeter` after the creation transaction is mined. Right after a deployment, the
+explorer may not see the contract yet:
+
+- Sourcify ends the job with `contract_not_deployed`, and `verify()` throws
+  [`verification-inconclusive`](../reference/errors/verification-inconclusive.md). Wait a minute
+  and call it again.
+- A verification that does not finish in time throws `not-confirmed` with a handle.
+  [checkStatus()](../reference/check-status.md) resumes it.
+
+Decide whether a failed verification fails the deployment: the contract is deployed either way.
 
 ## Where it runs
 
-`buildVerifyInput` and `verify()` use no Node API, so the same deploy function runs
-on a backend and in a browser.
+`buildVerifyInput` and `verify()` use no Node API, so the same deploy function runs on a backend
+and in a browser:
 
-- On a backend, Node 22.18 or later reads each JSON file when `import()` runs.
-- In a browser, bundlers put a module that is loaded only through `import()` in a separate chunk.
-  The browser fetches it the first time `verifyGreeter` runs. Check that your bundler accepts the
-  `with { type: "json" }` import attribute.
-- In TypeScript, the JSON import needs `resolveJsonModule`. With `module: "nodenext"`, it also
-  needs the `with { type: "json" }` attribute shown above.
+- On a backend, Node.js reads each JSON file when `import()` runs.
+- In a browser, bundlers put a module loaded only through `import()` in its own chunk, fetched the
+  first time `verifyGreeter` runs. Check that your bundler accepts `with { type: "json" }`.
+- TypeScript needs `resolveJsonModule`. With `module: "nodenext"`, it also needs the
+  `with { type: "json" }` attribute.
 
-`verifyGreeter` passes its options through to `verify()`, so the application that uses your
-package chooses the explorer, the key and the `fetch`. Without `route`, `verify()` uses the
-routing table: the call goes to the first backend in the chain's row that works with the keys
-passed. On Sepolia the row lists Etherscan v2 first and Sourcify second. With no key, the call
-goes to Sourcify, as in the example above. [Routing](../reference/routing.md#how-a-chain-resolves) gives
-the full rule.
+## Let the application choose the explorer
 
-On a backend, pass the Etherscan key in `apiKeys`. The routing table then sends the Sepolia call to
-Etherscan. This call passes the same options that the application passes to `verifyGreeter`:
+`verifyGreeter` passes its options to `verify()`, so the application picks the explorer, the key
+and the `fetch`. Without `route`, the routing table picks the first backend in the chain's row
+that works with the keys passed. On Sepolia the row lists Etherscan v2, then Sourcify, so with no
+key the call goes to Sourcify. [Routing](../reference/routing.md#how-a-chain-resolves) gives the
+full rule.
 
-```ts
-import { verify } from "explorer-verify";
-import type { VerifyOptions } from "explorer-verify";
+On a backend, pass the Etherscan key in `apiKeys`, and the Sepolia call goes to Etherscan:
+
+```ts [verify-with-etherscan.ts]
+import { buildVerifyInput, verify } from "explorer-verify";
+import type { VerifyInput, VerifyOptions } from "explorer-verify";
+
+import standardJson from "./verification/Greeter.input.json" with { type: "json" };
+import manifest from "./verification/Greeter.manifest.json" with { type: "json" };
 
 // On a backend. Never ship an Etherscan key to a browser.
 const options: VerifyOptions = {
@@ -189,6 +214,11 @@ const options: VerifyOptions = {
       console.log(`routed to ${event.backend} by ${event.routedBy}`);
     }
   },
+};
+const input: VerifyInput = {
+  chainId: 11155111,
+  address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+  ...buildVerifyInput([standardJson], manifest),
 };
 const result = await verify(input, options);
 console.log(result.status, result.backend);
@@ -203,10 +233,16 @@ already-verified etherscan-v2
 
 In a browser, never ship the key. Pass `handlerUrl`, the URL of the
 [server handler](../reference/server-handler.md) on your own server, which adds the key.
-[Run the server handler](run-the-server-handler.md) shows it in a Next.js route and a Cloudflare
-Worker.
+[Run the server handler](run-the-server-handler.md) shows it in Next.js and a Cloudflare Worker.
 
-[Etherscan](../reference/etherscan.md) lists what the client sends and how it reads each answer,
-and [API keys](../reference/api-keys.md) says which host gets each key. A public dapp, or any use
-by a business, needs an Etherscan Advanced plan or higher: see the
-[Etherscan plan rule](../reference/api-keys.md#etherscan-plan-rule).
+> [!IMPORTANT]
+> A public dapp, or any use by a business, needs an Etherscan Advanced plan or higher. See the
+> [Etherscan plan rule](../reference/api-keys.md#etherscan-plan-rule).
+
+## Next steps
+
+- [Etherscan](../reference/etherscan.md): what the client sends and how it reads each answer.
+- [API keys](../reference/api-keys.md): which host gets each key.
+- [checkStatus()](../reference/check-status.md): resume a verification that did not finish.
+- [Wrap explorer-verify in your tool](wrap-explorer-verify-in-your-tool.md): expose verification
+  in your own API.
