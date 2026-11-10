@@ -56,6 +56,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [Prior art](contributor/prior-art.md)        | The two implementations to port from                                                                                     |
 | [Research](contributor/research/README.md)   | Dated evidence: explorer APIs, Etherscan terms, landscape, agent readiness, CLI output and logging, live explorer probes |
 | [Testing](contributor/testing.md)            | Test layers and rules                                                                                                    |
+| [Docs style](contributor/docs-style.md)      | Density and style rules of the user docs, and what the docs check enforces                                               |
 | [Agent eval](../test/agent-eval/README.md)   | The R-AX-13 agent task set, how to run it and where the dated results go                                                 |
 | [Tooling](contributor/tooling.md)            | Toolchain and type-checking layout                                                                                       |
 | [Releasing](contributor/releasing.md)        | Release plan and first publish                                                                                           |

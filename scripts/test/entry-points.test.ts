@@ -70,6 +70,21 @@ describe("check-agent-docs.ts", () => {
     );
   });
 
+  it("prints the density of each user page, and fails a page that breaks a style rule", () => {
+    const passing = run("check-agent-docs.ts", root);
+    assert.match(
+      passing.stdout,
+      /^docs style: words per paragraph, list item or quote\n {2}README\.md: 4 blocks, average 3 words, longest 7\n {2}guides\/using-from-an-agent\.md: .*, legacy\n/,
+    );
+    writeFiles(root, {
+      "docs/user/tutorials/x.md": "# X\n\nRun it:\n\n```sh\nexplorer-verify --help\n```\n",
+    });
+    const result = run("check-agent-docs.ts", root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /^docs\/user\/tutorials\/x\.md:6: a bare explorer-verify command/m);
+    assert.match(result.stderr, /^docs\/user\/tutorials\/x\.md:1: a guide needs a "For:" line/m);
+  });
+
   it("sets the version lines with --write-versions", () => {
     edit(root, README, "explorer-verify 1.2.3", "explorer-verify 1.0.0");
     const result = run("check-agent-docs.ts", "--write-versions", root);

@@ -1,5 +1,7 @@
 # Routing
 
+<!-- docs-style: legacy -->
+
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.

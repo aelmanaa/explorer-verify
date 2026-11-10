@@ -36,6 +36,8 @@ const BUILD_FORMATS = path.join(PACKAGE_DIR, "test/fixtures/build-formats");
 export const EXAMPLE_LANGUAGES: readonly string[] = ["ts", "text", "sh"];
 
 const FENCE_OPEN = /^(`{3,}|~{3,})[ \t]*([^\s`]*)([^`]*)$/;
+/** A title in brackets at the end of an info string, after the language and any flags. */
+const FENCE_TITLE = /^(.*?)\s*\[([^\]]+)\]\s*$/;
 const API_SPAN = /^([A-Za-z_$][\w$]*)(\(.*\)|\[[^\]]*\])?$/;
 const MEMBER_PATH = /^(result|error)(\.[A-Za-z_$][\w$]*)+$/;
 const EVENT_NAME = /^verify\.[a-z-]+$/;
@@ -46,6 +48,8 @@ export interface CodeBlock {
   readonly lang: string;
   /** The other words of the info string, such as `no-run` in `ts no-run`. */
   readonly flags: readonly string[];
+  /** The title in brackets at the end of the info string, such as `verify.ts` in `ts [verify.ts]`. */
+  readonly title: string | undefined;
   /** The block's lines, joined with `\n`, with a final newline. */
   readonly code: string;
   /** The 1-based line of the opening fence. */
@@ -55,8 +59,10 @@ export interface CodeBlock {
 /** A `ts` block of the skill and the `text` block that follows it, which holds its output. */
 export interface Example {
   readonly line: number;
-  /** The words after `ts` in the info string. */
+  /** The words after `ts` in the info string, without the title. */
   readonly flags: readonly string[];
+  /** The title in brackets, such as `verify.ts` in `ts [verify.ts]`, or `undefined`. */
+  readonly title: string | undefined;
   readonly code: string;
   /** The documented stdout, or `undefined` when no `text` block follows. */
   readonly output: string | undefined;
@@ -80,19 +86,28 @@ export interface ApiName {
 export function codeBlocks(markdown: string): CodeBlock[] {
   const blocks: CodeBlock[] = [];
   let open:
-    | { fence: string; lang: string; flags: string[]; line: number; lines: string[] }
+    | {
+        fence: string;
+        lang: string;
+        flags: string[];
+        title: string | undefined;
+        line: number;
+        lines: string[];
+      }
     | undefined;
   for (const [index, line] of markdown.split("\n").entries()) {
     if (open === undefined) {
       const match = FENCE_OPEN.exec(line);
       if (match !== null) {
-        const flags = String(match[3])
+        const titled = FENCE_TITLE.exec(String(match[3]));
+        const flags = (titled === null ? String(match[3]) : String(titled[1]))
           .split(/\s+/)
           .filter((word) => word !== "");
         open = {
           fence: String(match[1]),
           lang: String(match[2]),
           flags,
+          title: titled === null ? undefined : String(titled[2]),
           line: index + 1,
           lines: [],
         };
@@ -101,6 +116,7 @@ export function codeBlocks(markdown: string): CodeBlock[] {
       blocks.push({
         lang: open.lang,
         flags: open.flags,
+        title: open.title,
         code: `${open.lines.join("\n")}\n`,
         line: open.line,
       });
@@ -127,6 +143,7 @@ export function examples(markdown: string): Example[] {
       {
         line: block.line,
         flags: block.flags,
+        title: block.title,
         code: block.code,
         output: next?.lang === "text" ? next.code : undefined,
       },

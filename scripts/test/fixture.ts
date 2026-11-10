@@ -79,6 +79,8 @@ Agents: [llms.txt](../../../llms.txt).
 ## Notes
 
 Back to the [index](../README.md#user-docs), [this section](#notes), the [top](#) and [a host](//example.com/x.md).
+
+<!-- docs-style: legacy -->
 `,
   "docs/contributor/notes.md": "# Notes\n\n[Requirements](requirements.md)\n",
   "docs/contributor/requirements.md": "# Requirements\n",

@@ -4,6 +4,7 @@
   "include": [
     "scripts/agent-docs.ts",
     "scripts/declaration-docs.ts",
+    "scripts/docs-style.ts",
     "scripts/check-declaration-docs.ts",
     "scripts/blockscout-deprecation.ts",
     "scripts/bundle.ts",

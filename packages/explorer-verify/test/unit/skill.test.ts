@@ -376,9 +376,17 @@ describe("the skill checks catch a stale skill", () => {
   it("pairs each ts block with the text block after it, and rejects an unclosed fence", () => {
     const text = ["```ts", "a();", "```", "", "```text", "out", "```", "```ts  no-run x ", "b();"];
     assert.deepEqual(examples([...text, "```", ""].join("\n")), [
-      { line: 1, flags: [], code: "a();\n", output: "out\n" },
-      { line: 8, flags: ["no-run", "x"], code: "b();\n", output: undefined },
+      { line: 1, flags: [], title: undefined, code: "a();\n", output: "out\n" },
+      { line: 8, flags: ["no-run", "x"], title: undefined, code: "b();\n", output: undefined },
     ]);
+    // A title in brackets follows the language and the flags, with or without a space inside.
+    assert.deepEqual(
+      codeBlocks("```ts no-run [src/my file.ts]\nc();\n```\n").map(({ flags, title }) => ({
+        flags,
+        title,
+      })),
+      [{ flags: ["no-run"], title: "src/my file.ts" }],
+    );
     assert.equal(examples("```ts\na();\n```\n\n```json\n{}\n```\n")[0]?.output, undefined);
     assert.throws(() => codeBlocks("```ts\na();\n"), /line 1 is never closed/);
   });

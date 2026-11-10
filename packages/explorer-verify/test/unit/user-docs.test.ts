@@ -25,6 +25,8 @@ import {
   DOCS_PRELOAD,
   exampleFile,
   globalsModule,
+  LEGACY_GLOBALS,
+  LEGACY_MARKER,
   runs,
   shippedContractFiles,
   typeChecked,
@@ -607,12 +609,26 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
   });
 
   it("type-checks every block that is not a fragment against the build", async () => {
-    // The files a block imports, besides the packages: the verification files a package ships.
-    const files: Record<string, string> = shippedContractFiles();
-    for (const example of all.filter(typeChecked)) {
-      files[exampleFile(example)] = example.code;
+    // A block on a legacy page may use `input` and `built` without defining them; a block on any
+    // other page is checked in a project that does not declare them.
+    const diagnostics: string[] = [];
+    for (const legacy of [true, false]) {
+      // The files a block imports, besides the packages: the verification files a package ships.
+      const files: Record<string, string> = shippedContractFiles();
+      const checked = all.filter((example) => typeChecked(example) && example.legacy === legacy);
+      for (const example of checked) {
+        files[exampleFile(example)] = example.code;
+      }
+      if (checked.length === 0) {
+        continue;
+      }
+      const dir = createDocsProject("core", legacy);
+      try {
+        diagnostics.push(...typeCheck(dir, files));
+      } finally {
+        removeProject(dir);
+      }
     }
-    const diagnostics = await withProjects((projectOf) => typeCheck(projectOf("core"), files));
     assert.deepEqual(diagnostics.map(brief), []);
   });
 
@@ -693,14 +709,14 @@ describe("the user-docs checks catch a broken example", () => {
   it("reads each block's page, index and flags, and reports a flag without its reason", () => {
     const { examples, problems } = docExamples("guides/x.md", page);
     assert.deepEqual(
-      examples.map(({ index, line, flags }) => ({ index, line, flags })),
+      examples.map(({ index, line, flags, legacy }) => ({ index, line, flags, legacy })),
       [
-        { index: 0, line: 5, flags: ["no-run"] },
-        { index: 1, line: 9, flags: ["fragment"] },
-        { index: 2, line: 14, flags: ["no-run"] },
-        { index: 3, line: 22, flags: ["skip", "fragment"] },
-        { index: 4, line: 26, flags: ["no-run", "fragment"] },
-        { index: 5, line: 30, flags: [] },
+        { index: 0, line: 5, flags: ["no-run"], legacy: false },
+        { index: 1, line: 9, flags: ["fragment"], legacy: false },
+        { index: 2, line: 14, flags: ["no-run"], legacy: false },
+        { index: 3, line: 22, flags: ["skip", "fragment"], legacy: false },
+        { index: 4, line: 26, flags: ["no-run", "fragment"], legacy: false },
+        { index: 5, line: 30, flags: [], legacy: false },
       ],
     );
     assert.deepEqual(problems, [
@@ -726,6 +742,73 @@ describe("the user-docs checks catch a broken example", () => {
     assert.ok(last);
     assert.equal(exampleFile(last), "guides__x--l30.ts");
     assert.deepEqual(Object.keys(DOC_FLAGS), ["no-run", "fragment"]);
+  });
+
+  it("reads a title after the language and the flag, and marks a legacy page", () => {
+    const titled = [
+      "# Page",
+      "",
+      LEGACY_MARKER,
+      "",
+      "Write the file:",
+      "",
+      "```ts [verify.ts]",
+      'console.log("ok");',
+      "```",
+      "",
+      "```text",
+      "ok",
+      "```",
+      "",
+      "<!-- no-run: it needs a live explorer -->",
+      "",
+      "```ts no-run [submit.ts]",
+      "await verify(input);",
+      "```",
+      "",
+    ].join("\n");
+    const { examples, problems } = docExamples("guides/t.md", titled);
+    assert.deepEqual(problems, []);
+    assert.deepEqual(
+      examples.map(({ flags, title, legacy, output }) => ({ flags, title, legacy, output })),
+      [
+        { flags: [], title: "verify.ts", legacy: true, output: "ok\n" },
+        { flags: ["no-run"], title: "submit.ts", legacy: true, output: undefined },
+      ],
+    );
+    assert.deepEqual(
+      examples.map((example) => [typeChecked(example), runs(example)]),
+      [
+        [true, true],
+        [true, false],
+      ],
+    );
+  });
+
+  it("runs a titled block and prints its documented output", async () => {
+    const { examples } = docExamples(
+      "guides/t.md",
+      [
+        "Run it:",
+        "",
+        "```ts [hello.ts]",
+        'console.log("hello");',
+        "```",
+        "",
+        "```text",
+        "hello",
+        "```",
+        "",
+      ].join("\n"),
+    );
+    const [example] = examples;
+    assert.ok(example);
+    const run = await withProjects((projectOf) => {
+      const dir = projectOf("core");
+      writeFiles(dir, { [exampleFile(example)]: example.code });
+      return runExample(dir, exampleFile(example), [], [DOCS_PRELOAD]);
+    });
+    assert.equal(run.stdout, example.output, run.stderr);
   });
 
   it("reports code the test would skip: an indented fence or another language name", () => {
@@ -783,6 +866,9 @@ describe("the user-docs checks catch a broken example", () => {
 
   it("fails a block that does not compile, and declares only the documented globals", async () => {
     assert.match(globalsModule(), /const input: api\.VerifyInput;/);
+    assert.doesNotMatch(globalsModule(false), /const (?:input|built):/);
+    assert.match(globalsModule(false), /const apiKey: string;/);
+    assert.deepEqual(LEGACY_GLOBALS, ["input", "built"]);
     assert.deepEqual(Object.keys(DOC_GLOBALS), [
       "input",
       "apiKey",
@@ -812,6 +898,26 @@ describe("the user-docs checks catch a broken example", () => {
     );
   });
 
+  it("fails a block that uses input without defining it on a page without the legacy marker", () => {
+    const code = ['import { verify } from "explorer-verify";', "", "await verify(input);", ""].join(
+      "\n",
+    );
+    const strictDir = createDocsProject("core", false);
+    const legacyDir = createDocsProject("core");
+    try {
+      const strict = typeCheck(strictDir, { "strict--l1.ts": code });
+      assert.deepEqual(
+        strict.map((line) => /^strict--l1\.ts\((\d+),\d+\): error /.exec(brief(line))?.[1]),
+        ["3"],
+        strict.join("\n"),
+      );
+      assert.deepEqual(typeCheck(legacyDir, { "legacy--l1.ts": code }), []);
+    } finally {
+      removeProject(strictDir);
+      removeProject(legacyDir);
+    }
+  });
+
   it("defines the globals for a run: input for the recorded contract, dummy keys, localStorage", async () => {
     const run = await withProjects((projectOf) => {
       const dir = projectOf("core");
@@ -838,6 +944,8 @@ describe("the user-docs checks catch a broken example", () => {
       index: 0,
       line: 3,
       flags: [],
+      title: undefined,
+      legacy: false,
       code: "",
       output: "ok\n",
     };
