@@ -50,6 +50,18 @@ Pages land with the features they describe, in four kinds (the Diátaxis layout 
 | `reference/`   | Exact facts       | Supported chains and explorers                          |
 | `explanation/` | Background        | In place: match types; Etherscan plans and attribution  |
 
+`start/` holds files the quickstarts use. [start/greeter-sepolia.json](start/greeter-sepolia.json)
+is a verify request for the docs' Greeter at `0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc` on
+Sepolia, which Sourcify already holds as an exact match. It sets no backend, so the routing table
+picks one. A dry run needs no key, no deploy and no project, and submits nothing:
+
+```sh
+npx @explorer-verify/cli verify --input-json greeter-sepolia.json --dry-run --json
+```
+
+With no Etherscan key set, the envelope has `status: "dry-run"`, `backend: "sourcify"` and
+`lookup: "exact"`. With `ETHERSCAN_API_KEY` set, the routing table picks Etherscan instead.
+
 Each user page states the version it describes in a `Version:` line and links
 [llms.txt](../../llms.txt) near the top. The npm package ships these pages
 under `docs/` with its own `llms.txt`, so an agent working in `node_modules` reads the docs of the
