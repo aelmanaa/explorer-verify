@@ -1,6 +1,6 @@
-// The dapp example and its tutorial, docs/user/tutorials/deploy-and-verify-from-a-dapp.md, show
-// the same code: each module the tutorial shows is an example file, unchanged, so the code a reader
-// copies is the code CI type-checks and tests (R-AX-2). The build files the example ships come
+// The dapp example and its two tutorials, docs/user/tutorials/verify-from-a-dapp.md and
+// deploy-and-verify-from-a-dapp.md, show the same code: each module a tutorial shows is an example
+// file, unchanged, so the code a reader copies is the code CI type-checks and tests (R-AX-2). The build files the example ships come
 // from its own Solidity sources, the export script writes them from a Foundry build, and the
 // bundle splits the explorer clients into chunks of their own.
 import assert from "node:assert/strict";
@@ -23,24 +23,47 @@ import { validateInput } from "explorer-verify";
 
 const root = new URL("../../", import.meta.url);
 const dapp = new URL("examples/dapp/", root);
-const TUTORIAL = "docs/user/tutorials/deploy-and-verify-from-a-dapp.md";
-const tutorial = readFileSync(new URL(TUTORIAL, root), "utf8");
+/** A tutorial and the example file each of its ts blocks shows, by the block's index. */
+interface Tutorial {
+  readonly page: string;
+  /**
+   * A block that the tutorial runs on its own ends with a call of the module's function, which
+   * the file leaves to the page.
+   */
+  readonly shown: readonly { block: number; file: string; call?: string }[];
+}
 
-/** The ts blocks of the tutorial, in order. */
-const blocks = [...tutorial.matchAll(/^```ts[^\n]*\n([\s\S]*?)^```$/gm)].map((m) => m[1] ?? "");
+const RUN_ON_SAMPLE = [
+  "// Runs the module once on the sample. In the page, call it from a button.",
+  'const { validateInput } = await import("explorer-verify");',
+  'const sample = await import("./greeter-sepolia.json", { with: { type: "json" } });',
+  "await verifyOnSourcify(validateInput(sample.default), console.log);",
+  "",
+].join("\n");
 
-/**
- * The example file each block shows, by the block's index. A block that the tutorial runs on its
- * own ends with a call of the module's function, which the file leaves to the page.
- */
-const SHOWN: readonly { block: number; file: string; call?: string }[] = [
-  { block: 0, file: "scripts/export-contracts.ts" },
-  { block: 1, file: "src/deploy.ts" },
-  { block: 2, file: "src/load-input.ts" },
-  { block: 3, file: "src/verify.ts", call: "await verifyOnSourcify(input, console.log);\n" },
-  { block: 5, file: "src/resume.ts", call: "await resumeVerification(console.log);\n" },
-  { block: 7, file: "src/verify-etherscan.ts" },
+const TUTORIALS: readonly Tutorial[] = [
+  {
+    page: "docs/user/tutorials/verify-from-a-dapp.md",
+    shown: [
+      { block: 1, file: "src/verify.ts", call: RUN_ON_SAMPLE },
+      { block: 2, file: "src/resume.ts", call: "await resumeVerification(console.log);\n" },
+    ],
+  },
+  {
+    page: "docs/user/tutorials/deploy-and-verify-from-a-dapp.md",
+    shown: [
+      { block: 0, file: "scripts/export-contracts.ts" },
+      { block: 1, file: "src/deploy.ts" },
+      { block: 2, file: "src/load-input.ts" },
+      { block: 5, file: "src/verify-etherscan.ts" },
+    ],
+  },
 ];
+
+/** The ts blocks of a page, in order. */
+function tsBlocks(markdown: string): string[] {
+  return [...markdown.matchAll(/^```ts[^\n]*\n([\s\S]*?)^```$/gm)].map((m) => m[1] ?? "");
+}
 
 function read(file: string): string {
   return readFileSync(new URL(file, dapp), "utf8");
@@ -50,17 +73,22 @@ function json(file: string): unknown {
   return JSON.parse(read(file));
 }
 
-describe(TUTORIAL, () => {
-  for (const { block, file, call } of SHOWN) {
-    it(`shows examples/dapp/${file} unchanged`, () => {
-      assert.equal(blocks[block], `${read(file)}${call === undefined ? "" : `\n${call}`}`);
-    });
-  }
+for (const { page, shown } of TUTORIALS) {
+  const markdown = readFileSync(new URL(page, root), "utf8");
+  const blocks = tsBlocks(markdown);
 
-  it("links the example", () => {
-    assert.match(tutorial, /\]\(\.\.\/\.\.\/\.\.\/examples\/dapp\/src\/main\.ts\)/);
+  describe(page, () => {
+    for (const { block, file, call } of shown) {
+      it(`shows examples/dapp/${file} unchanged`, () => {
+        assert.equal(blocks[block], `${read(file)}${call === undefined ? "" : `\n${call}`}`);
+      });
+    }
+
+    it("links the example", () => {
+      assert.match(markdown, /\]\(\.\.\/\.\.\/\.\.\/examples\/dapp\/src\/main\.ts\)/);
+    });
   });
-});
+}
 
 describe("examples/dapp build files", () => {
   it("the verify file holds the example's Solidity sources, as the tutorial prints them", () => {

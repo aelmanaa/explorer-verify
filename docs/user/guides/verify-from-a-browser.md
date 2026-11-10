@@ -133,7 +133,7 @@ chain where `handlerUrl` makes Etherscan the choice, resumes only with
 A browser tab has no fixed limit on how long a call may run, but the user can close it. Keep the
 default budget of 120 seconds (`timeoutMs`) or shorter, and rely on the saved handle for the rest.
 [checkStatus()](../reference/check-status.md) describes the handle, and step 5 of the
-[tutorial](../tutorials/deploy-and-verify-from-a-dapp.md#step-5-resume-after-a-page-reload) shows a
+[tutorial](../tutorials/verify-from-a-dapp.md#step-5-resume-after-a-page-reload) shows a
 resume that also handles `not-confirmed`.
 
 ## Choose the explorer

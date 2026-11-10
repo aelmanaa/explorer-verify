@@ -1,5 +1,5 @@
 // The dapp's server: it serves `public/` and forwards the browser's Etherscan requests at
-// POST /api/verify through the explorer-verify server handler, which adds the key (step 7 of the
+// POST /api/verify through the explorer-verify server handler, which adds the key (step 5 of the
 // tutorial docs/user/tutorials/deploy-and-verify-from-a-dapp.md). Any server works; this one uses
 // only Node's `http` module, so the example needs no framework.
 //

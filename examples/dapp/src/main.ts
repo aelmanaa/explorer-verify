@@ -1,6 +1,7 @@
 // The page's entry module: the button code of step 4 of the tutorial
-// docs/user/tutorials/deploy-and-verify-from-a-dapp.md, with the resume step (step 5) on load and
-// the Etherscan step (step 7) when the user ticks the box with the id `etherscan`.
+// docs/user/tutorials/deploy-and-verify-from-a-dapp.md, with the resume step of
+// docs/user/tutorials/verify-from-a-dapp.md on load and the Etherscan step (step 5) when the user
+// ticks the box with the id `etherscan`.
 import { deployGreeter, resumeDeployment } from "./deploy.ts";
 import type { Deployment } from "./deploy.ts";
 import { loadVerifyInput } from "./load-input.ts";
