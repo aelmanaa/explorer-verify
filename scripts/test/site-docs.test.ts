@@ -1,19 +1,29 @@
-// The docs site helpers (R-AX-10, R-AX-17, decision 0015): site paths, link rewriting, the site's
-// llms.txt, the sidebar, the Markdown copies, the build check (test 3) and the smoke check
-// (test 4).
+// The docs site helpers (R-AX-10, R-AX-17, decisions 0015 and 0062): site paths, site-only pages,
+// link rewriting, the header lines, the site's llms.txt, the sidebar and the nav, the Markdown
+// copies, the build check (test 3) and the smoke check (test 4).
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { RAW_MAIN } from "../agent-docs.ts";
 import {
   API_SECTION,
+  codeTitleOf,
   docsUrlsOf,
+  dropHeaderLines,
+  hasSiteHome,
+  inCodeGroup,
   rewriteForSite,
+  SIDEBAR,
+  sidebarProblems,
   SITE_URL,
+  siteAssets,
   siteLlmsTxt,
+  siteNav,
+  sitePages,
   sitePath,
   siteProblems,
   siteRewrites,
@@ -21,10 +31,23 @@ import {
   siteSidebar,
   SMOKE_TIMEOUT_MS,
   smokeProblems,
+  withCodeTitle,
   writeSiteCopies,
 } from "../site-docs.ts";
-import type { Fetch } from "../site-docs.ts";
-import { AGENT, IMAGE, makeFixture, read, README, removeFixture, writeFiles } from "./fixture.ts";
+import type { Fetch, SidebarItem } from "../site-docs.ts";
+import {
+  AGENT,
+  IMAGE,
+  makeFixture,
+  read,
+  README,
+  removeFixture,
+  SKILL,
+  writeFiles,
+} from "./fixture.ts";
+
+/** The root of this repository. */
+const REPOSITORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 let root = "";
 
@@ -42,6 +65,34 @@ describe("sitePath", () => {
     assert.equal(sitePath("guides/README.md"), "guides/index.md");
     assert.equal(sitePath("guides/a.md"), "guides/a.md");
     assert.equal(sitePath("reference/errors/index.md"), "reference/errors/index.md");
+  });
+
+  it("serves the top README.md as overview.md once the site has its own home page", () => {
+    assert.equal(sitePath("README.md", true), "overview.md");
+    assert.equal(sitePath("start/README.md", true), "start/index.md");
+    assert.equal(sitePath("guides/a.md", true), "guides/a.md");
+  });
+});
+
+describe("sitePages, hasSiteHome and siteAssets", () => {
+  it("find nothing in a tree without site/pages", () => {
+    assert.deepEqual(sitePages(root), []);
+    assert.equal(hasSiteHome(root), false);
+  });
+
+  it("list the site-only pages and see the home page", () => {
+    writeFiles(root, {
+      "site/pages/index.md": "---\nlayout: home\n---\n",
+      "site/pages/extra/about.md": "# About\n",
+      "site/pages/logo.svg": "<svg/>",
+    });
+    assert.deepEqual(sitePages(root), ["extra/about.md", "index.md"]);
+    assert.equal(hasSiteHome(root), true);
+  });
+
+  it("list the files under docs/user that are not pages, by their site path", () => {
+    writeFiles(root, { "docs/user/start/sample.json": "{}" });
+    assert.deepEqual(siteAssets(root), ["img/logo.png", "start/sample.json"]);
   });
 });
 
@@ -61,6 +112,27 @@ describe("siteRewrites", () => {
     });
   });
 
+  it("serves the site-only pages at their paths, and the user index at overview.md", () => {
+    writeFiles(root, {
+      "site/pages/index.md": "---\nlayout: home\n---\n",
+      "site/pages/about.md": "# About\n",
+    });
+    assert.deepEqual(siteRewrites(root), {
+      "docs/user/README.md": "overview.md",
+      "docs/user/guides/using-from-an-agent.md": "guides/using-from-an-agent.md",
+      "site/pages/about.md": "about.md",
+      "site/pages/index.md": "index.md",
+    });
+  });
+
+  it("throws when a site-only page takes the path of a user page", () => {
+    writeFiles(root, { "site/pages/guides/using-from-an-agent.md": "# Clash\n" });
+    assert.throws(
+      () => siteRewrites(root),
+      /^Error: docs\/user\/guides\/using-from-an-agent\.md and site\/pages\/guides\/using-from-an-agent\.md would both be guides\/using-from-an-agent\.md$/,
+    );
+  });
+
   it("throws when a folder holds both README.md and index.md", () => {
     writeFiles(root, { "docs/user/index.md": "# Index\n" });
     assert.throws(
@@ -71,7 +143,7 @@ describe("siteRewrites", () => {
 });
 
 describe("siteSourceExcludes", () => {
-  it("hides every Markdown file outside docs/user and site/api, and skips hidden entries", () => {
+  it("hides every Markdown file outside docs/user, site/api and site/pages, and skips hidden entries", () => {
     writeFiles(root, {
       "README.md": "# Repository\n",
       "notes.txt": "",
@@ -83,6 +155,7 @@ describe("siteSourceExcludes", () => {
       "site/api/index.md": "# API reference\n",
       "site/dist/index.md": "",
       "site/notes.md": "",
+      "site/pages/index.md": "---\nlayout: home\n---\n",
     });
     assert.deepEqual(siteSourceExcludes(root), [
       "AGENTS.md",
@@ -140,6 +213,75 @@ describe("rewriteForSite", () => {
   it("leaves code alone", () => {
     const text = "`[a](../../../AGENTS.md)`\n\n```md\n[a](../../../AGENTS.md)\n```\n";
     assert.equal(rewriteForSite(page, text, "1.2.3"), text);
+  });
+
+  it("points a link to the user index at overview.md once the site has its own home page", () => {
+    assert.equal(
+      rewriteForSite(page, "[i](../README.md#user-docs) [j](README.md)\n", "1.2.3", true),
+      "[i](../overview.md#user-docs) [j](index.md)\n",
+    );
+    assert.equal(
+      rewriteForSite(README, "[a](guides/a.md) [i](README.md)\n", "1.2.3", true),
+      "[a](guides/a.md) [i](overview.md)\n",
+    );
+  });
+
+  it("rewrites the skill's links for its copy at the same path on the site", () => {
+    assert.equal(
+      rewriteForSite(
+        SKILL,
+        "[l](../../llms.txt) [g](../../docs/user/guides/a.md#notes) [i](../../docs/user/README.md) [s](#stop) [a](../../AGENTS.md)\n",
+        "1.2.3",
+      ),
+      "[l](../../llms.txt) [g](../../guides/a.md#notes) [i](../../index.md) [s](#stop) [a](https://github.com/aelmanaa/explorer-verify/blob/v1.2.3/AGENTS.md)\n",
+    );
+  });
+});
+
+describe("code block titles", () => {
+  it("reads the title in brackets from the info string", () => {
+    assert.equal(codeTitleOf("ts [verify.ts]"), "verify.ts");
+    assert.equal(codeTitleOf("sh [Terminal window]"), "Terminal window");
+    assert.equal(codeTitleOf("ts"), undefined);
+    assert.equal(codeTitleOf("ts [ ]"), undefined);
+  });
+
+  it("knows a fence inside a code group from one outside", () => {
+    const types = [
+      "fence",
+      "container_code-group_open",
+      "fence",
+      "container_code-group_close",
+      "fence",
+    ];
+    assert.equal(inCodeGroup(types, 0), false);
+    assert.equal(inCodeGroup(types, 2), true);
+    assert.equal(inCodeGroup(types, 4), false);
+  });
+
+  it("puts an escaped title bar above the block", () => {
+    assert.equal(
+      withCodeTitle("<pre></pre>", '<a> & "b" {{ c }}'),
+      '<div class="ev-code-title"><div class="ev-code-title-text" v-pre>&lt;a&gt; &amp; &quot;b&quot; {{ c }}</div><pre></pre></div>',
+    );
+  });
+});
+
+describe("dropHeaderLines", () => {
+  it("drops the Version and Agents lines of the header and the blank line after each", () => {
+    assert.equal(
+      dropHeaderLines(
+        "# Title\n\nVersion: explorer-verify 1.2.3\n\nAgents: [llms.txt](../llms.txt).\n\nAudience: you.\n",
+      ),
+      "# Title\n\nAudience: you.\n",
+    );
+  });
+
+  it("keeps such lines after the first H2 or inside code, and a line at the end", () => {
+    const text =
+      "# T\n\n```text\nAgents: in code\n```\n\n## Section\n\nVersion: explorer-verify 1.2.3\n";
+    assert.equal(dropHeaderLines(text), text);
+    assert.equal(dropHeaderLines("# T\n\nAgents: last"), "# T\n");
   });
 });
 
@@ -221,59 +363,180 @@ Generated from the TSDoc of each package entry point. The \`.d.ts\` files in the
     );
   });
 
+  it("links the skill's copy, and the user index as overview.md with a site home page", () => {
+    const text = `# explorer-verify
+
+> Verifies contract source.
+
+## User docs
+
+- [Index](${RAW_MAIN}docs/user/README.md): the index
+- [Skill](${RAW_MAIN}${SKILL}): the skill
+- [Other skill](${RAW_MAIN}skills/other/SKILL.md): dropped
+`;
+    assert.match(
+      siteLlmsTxt(text, "1.2.3", [], true),
+      new RegExp(
+        `- \\[Index\\]\\(${SITE_URL}overview\\.md\\): the index\n- \\[Skill\\]\\(${SITE_URL}skills/explorer-verify/SKILL\\.md\\): the skill\n$`,
+      ),
+    );
+  });
+
   it("throws without a summary blockquote", () => {
     assert.throws(() => siteLlmsTxt("# explorer-verify\n", "1.2.3"), /has no summary blockquote/);
   });
 });
 
 describe("siteSidebar", () => {
-  it("groups the pages by folder, the folder index first and the error codes collapsed", () => {
+  it("lists the curated groups in order, skipping pages and groups that do not exist yet", () => {
     writeFiles(root, {
-      "docs/user/reference/b.md": "# B page\n",
+      "docs/user/start/quickstart-node.md": "# Quickstart: Node.js\n",
+      "docs/user/reference/verify.md": "# verify()\n",
+      "docs/user/reference/sourcify.md": "# Sourcify\n",
       "docs/user/reference/errors/zeta.md": "# zeta\n",
       "docs/user/reference/errors/index.md": "# Errors\n",
-      "docs/user/explanation/untitled.md": "No heading.\n",
+      "docs/user/reference/errors/untitled.md": "No heading.\n",
     });
     assert.deepEqual(siteSidebar(root), [
       {
-        text: "Guides",
+        text: "Get started",
         collapsed: false,
         items: [
-          { text: "Using explorer-verify from an agent", link: "/guides/using-from-an-agent" },
+          { text: "Overview", link: "/" },
+          {
+            text: "Quickstarts",
+            collapsed: false,
+            items: [{ text: "Node.js", link: "/start/quickstart-node" }],
+          },
         ],
       },
       {
-        text: "Errors",
-        collapsed: true,
-        items: [
-          { text: "Errors", link: "/reference/errors/" },
-          { text: "zeta", link: "/reference/errors/zeta" },
-        ],
-      },
-      { text: "Reference", collapsed: false, items: [{ text: "B page", link: "/reference/b" }] },
-      {
-        text: "Explanation",
+        text: "Advanced",
         collapsed: false,
-        items: [{ text: "explanation/untitled.md", link: "/explanation/untitled" }],
+        items: [{ text: "From an agent", link: "/guides/using-from-an-agent" }],
+      },
+      {
+        text: "Reference",
+        collapsed: false,
+        items: [
+          { text: "verify()", link: "/reference/verify" },
+          {
+            text: "Explorers",
+            collapsed: true,
+            items: [{ text: "Sourcify", link: "/reference/sourcify" }],
+          },
+          {
+            text: "Errors",
+            collapsed: true,
+            items: [
+              { text: "Errors", link: "/reference/errors/" },
+              { text: "reference/errors/untitled.md", link: "/reference/errors/untitled" },
+              { text: "zeta", link: "/reference/errors/zeta" },
+            ],
+          },
+        ],
       },
     ]);
   });
 
-  it("ends with the API reference, its index first, once site/api holds pages", () => {
+  it("links the user index at /overview once the site has its own home page", () => {
+    writeFiles(root, { "site/pages/index.md": "---\nlayout: home\n---\n" });
+    assert.deepEqual(siteSidebar(root)[0]?.items?.[0], { text: "Overview", link: "/overview" });
+  });
+
+  it("ends with the API reference, collapsed, its index first, once site/api holds pages", () => {
     writeFiles(root, {
       "site/api/core.md": "# core\n",
       "site/api/core-server.md": "# core/server\n",
       "site/api/index.md": "# API reference\n",
     });
     assert.deepEqual(siteSidebar(root).at(-1), {
-      text: "API reference",
-      collapsed: false,
+      text: "API",
+      collapsed: true,
       items: [
         { text: "API reference", link: "/api/" },
         { text: "core", link: "/api/core" },
         { text: "core/server", link: "/api/core-server" },
       ],
     });
+  });
+
+  it("gives every page of this repository's docs exactly one place", () => {
+    assert.deepEqual(sidebarProblems(REPOSITORY), []);
+  });
+
+  it("names each listed page once in SIDEBAR", () => {
+    const pages: string[] = [];
+    const visit = (entries: readonly (typeof SIDEBAR)[number][]): void => {
+      for (const entry of entries) {
+        if ("page" in entry) {
+          pages.push(entry.page);
+        } else if ("items" in entry) {
+          visit(entry.items);
+        }
+      }
+    };
+    visit(SIDEBAR);
+    assert.deepEqual(
+      pages.filter((page, index) => pages.indexOf(page) !== index),
+      [],
+    );
+  });
+});
+
+describe("sidebarProblems", () => {
+  it("reports a user page in no group", () => {
+    writeFiles(root, { "docs/user/notes/unlisted.md": "# Unlisted\n" });
+    assert.deepEqual(sidebarProblems(root), [
+      "docs/user/notes/unlisted.md is in no sidebar group; add it to SIDEBAR in scripts/site-docs.ts",
+    ]);
+  });
+
+  it("reports a page that two entries list, and skips a listed page that does not exist", () => {
+    writeFiles(root, { "docs/user/reference/errors/a.md": "# a\n" });
+    assert.deepEqual(
+      sidebarProblems(root, [
+        { text: "Index", page: "README.md" },
+        { text: "Agent", page: "guides/using-from-an-agent.md" },
+        { text: "Planned", page: "guides/planned.md" },
+        { text: "A", page: "reference/errors/a.md" },
+        { text: "Errors", collapsed: true, folder: "reference/errors" },
+      ]),
+      ["docs/user/reference/errors/a.md is in 2 sidebar entries; keep one"],
+    );
+  });
+});
+
+describe("siteNav", () => {
+  const sidebar: SidebarItem[] = [
+    {
+      text: "Get started",
+      collapsed: false,
+      items: [
+        { text: "Quickstarts", items: [{ text: "Node.js", link: "/start/quickstart-node" }] },
+      ],
+    },
+    { text: "Guides by setup", collapsed: false, items: [{ text: "Node.js", link: "/guides/n" }] },
+    { text: "Reference", collapsed: false, items: [] },
+    { text: "API", collapsed: true, items: [{ text: "API reference", link: "/api/" }] },
+  ];
+
+  it("links the first page of each group, skips an empty group and ends with the version", () => {
+    assert.deepEqual(siteNav(sidebar, "1.2.3"), [
+      { text: "Get started", link: "/start/quickstart-node" },
+      { text: "Guides", link: "/guides/n" },
+      { text: "API", link: "/api/" },
+      {
+        text: "1.2.3",
+        items: [
+          {
+            text: "Changelog",
+            link: "https://github.com/aelmanaa/explorer-verify/blob/v1.2.3/packages/explorer-verify/CHANGELOG.md",
+          },
+          { text: "npm", link: "https://www.npmjs.com/package/explorer-verify/v/1.2.3" },
+        ],
+      },
+    ]);
   });
 });
 
@@ -284,8 +547,15 @@ describe("writeSiteCopies", () => {
       "index.md",
       "guides/using-from-an-agent.md",
       "img/logo.png",
+      SKILL,
       "llms.txt",
     ]);
+    assert.match(read(out, "index.md"), /^Version: explorer-verify 1\.2\.3$/m);
+    assert.match(
+      read(out, SKILL),
+      /\[the agent page\]\(\.\.\/\.\.\/guides\/using-from-an-agent\.md#notes\)/,
+    );
+    assert.match(read(out, "llms.txt"), new RegExp(`\\(${SITE_URL}${SKILL}\\)`));
     assert.match(read(out, "index.md"), /\[llms\.txt\]\(llms\.txt\)/);
     assert.match(
       read(out, "index.md"),
@@ -301,6 +571,24 @@ describe("writeSiteCopies", () => {
       new RegExp(`\\(${SITE_URL}guides/using-from-an-agent\\.md\\)`),
     );
     assert.ok(existsSync(path.join(out, path.relative("docs/user", AGENT))));
+  });
+
+  it("writes the user index as overview.md once the site has its own home page", () => {
+    writeFiles(root, { "site/pages/index.md": "---\nlayout: home\n---\n" });
+    rmSync(path.join(root, SKILL));
+    const out = path.join(root, "out");
+    assert.deepEqual(writeSiteCopies(root, out, "1.2.3"), [
+      "overview.md",
+      "guides/using-from-an-agent.md",
+      "img/logo.png",
+      "llms.txt",
+    ]);
+    assert.match(
+      read(out, "guides/using-from-an-agent.md"),
+      /\[index\]\(\.\.\/overview\.md#user-docs\)/,
+    );
+    assert.match(read(out, "llms.txt"), new RegExp(`\\(${SITE_URL}overview\\.md\\)`));
+    assert.ok(!existsSync(path.join(out, "index.md")));
   });
 
   it("copies the API reference pages under api/ and lists them in llms.txt", () => {
@@ -412,6 +700,20 @@ describe("siteProblems", () => {
     ]);
   });
 
+  it("accepts a site-only page without a copy, and reports an asset the build lacks", () => {
+    writeFiles(out, { "about.html": "", "data/sample.json": "{}" });
+    assert.deepEqual(
+      siteProblems(out, [url], {
+        siteOnly: ["about.md"],
+        assets: ["data/sample.json", "img/logo.png"],
+      }),
+      ["the built site has no img/logo.png, a file under docs/user/ (R-AX-17)"],
+    );
+    assert.deepEqual(siteProblems(out, [url]), [
+      "about.html has no Markdown copy about.md (R-AX-17)",
+    ]);
+  });
+
   it("reports a missing llms.txt", () => {
     rmSync(path.join(out, "llms.txt"));
     assert.deepEqual(siteProblems(out, []), [
@@ -515,6 +817,38 @@ describe("smokeProblems", () => {
     assert.deepEqual(await smokeProblems(site, "1.2.3", urls, fetchUrl), [
       `${site}reference/errors/a: TypeError: fetch failed`,
       `${site}reference/errors/a.md: status 404`,
+    ]);
+  });
+
+  it("fetches each asset first, and parses a JSON asset", async () => {
+    const seen: string[] = [];
+    const bodies: Record<string, string> = {
+      [`${site}start/good.json`]: '{"a":1}',
+      [`${site}start/bad.json`]: "<!doctype html>",
+      [`${site}llms.txt`]: LLMS_BODY,
+    };
+    const fetchUrl: Fetch = async (target) => {
+      seen.push(target);
+      return {
+        status: target.endsWith("missing.png") ? 404 : 200,
+        text: async () => bodies[target] ?? "",
+      };
+    };
+    assert.deepEqual(
+      await smokeProblems(site, "1.2.3", [], fetchUrl, [
+        "start/good.json",
+        "start/bad.json",
+        "img/logo.png",
+        "img/missing.png",
+      ]),
+      [`${site}start/bad.json: the body is not JSON`, `${site}img/missing.png: status 404`],
+    );
+    assert.deepEqual(seen.slice(0, 5), [
+      `${site}start/good.json`,
+      `${site}start/bad.json`,
+      `${site}img/logo.png`,
+      `${site}img/missing.png`,
+      `${site}llms.txt`,
     ]);
   });
 

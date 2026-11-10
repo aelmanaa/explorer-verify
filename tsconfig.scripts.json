@@ -12,6 +12,7 @@
   "include": [
     "scripts",
     "site/.vitepress/config.ts",
+    "site/.vitepress/theme",
     "site/api-reference.ts",
     "packages/cli/src",
     "packages/explorer-verify/src",

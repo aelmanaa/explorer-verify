@@ -1,0 +1,47 @@
+/*
+ * Overrides of VitePress's default theme for the docs site (#307).
+ *
+ * The language label in the corner of a code block is 12px text. VitePress gives it
+ * --vp-c-text-3, which measured 2.87:1 in the light theme and 3.37:1 in the dark theme against
+ * the code block background, below the 4.5:1 that WCAG 2.2 AA asks for (audit finding F18).
+ * --vp-c-text-2 passes in both themes.
+ */
+:root {
+  --vp-code-lang-color: var(--vp-c-text-2);
+}
+
+/*
+ * The title bar of a code block outside a code group, such as ```ts [verify.ts]. The site config
+ * wraps the block in .ev-code-title (withCodeTitle in scripts/site-docs.ts). The bar uses the
+ * colours of a code group's tab bar, and the block below it loses its own margin and top corners.
+ */
+.vp-doc .ev-code-title {
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--vp-code-block-bg);
+}
+
+.vp-doc .ev-code-title-text {
+  padding: 0 24px;
+  border-bottom: 1px solid var(--vp-code-tab-divider);
+  background-color: var(--vp-code-tab-bg);
+  color: var(--vp-code-tab-active-text-color);
+  font-family: var(--vp-font-family-mono);
+  font-size: 14px;
+  line-height: 40px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.vp-doc .ev-code-title > div[class*="language-"] {
+  margin: 0;
+  border-radius: 0;
+}
+
+@media (max-width: 639px) {
+  .vp-doc .ev-code-title {
+    margin: 16px -24px;
+    border-radius: 0;
+  }
+}

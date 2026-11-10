@@ -330,7 +330,8 @@ Docs:
   examples against the built package, so a release cannot ship a stale skill.
 - **R-AX-17** A docs site serves the user docs of the version on npm `latest` before 1.0, and of
   each major from 1.0, built from release tags, never from `main`. It serves `/llms.txt` and a
-  `.md` copy of each page (decision 0015).
+  `.md` copy of each user page and of the agent skill (decision 0015). Site-only pages, such as
+  the home page, have no copy (decision 0062).
 
 CLI:
 

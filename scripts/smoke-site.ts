@@ -1,8 +1,11 @@
 // Checks the deployed docs site over HTTPS (R-AX-10 and R-AX-17, decision 0015, test 4): the
 // `docsUrl` of every error code and its `.md` copy, the site's `llms.txt` and every link in it
 // return 200, each within 10 seconds, and the site's `llms.txt` names the version of the core
-// package, so a site still serving an older version fails. It reads the codes and their URLs from
-// the built core package. The deploy workflow runs it on the version's tag after the deploy, so a failure fails the workflow and stops a caller that waits on it.
+// package, so a site still serving an older version fails. Every file under `docs/user/` that is
+// not a page, such as the sample verify request, must return 200, and a JSON file must parse as
+// JSON. It reads the codes and their URLs from the built core package. The deploy workflow runs it
+// on the version's tag after the deploy, so a failure fails the workflow and stops a caller that
+// waits on it.
 //
 // A new deployment can take a short time to reach every edge, so the check runs up to `--attempts`
 // times (default 5), `--delay` seconds apart (default 15), and fails with the problems of the last
@@ -16,7 +19,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import { CORE_ENTRY, packageVersion } from "./agent-docs.ts";
-import { docsUrlsOf, SITE_URL, smokeProblems } from "./site-docs.ts";
+import { docsUrlsOf, siteAssets, SITE_URL, smokeProblems } from "./site-docs.ts";
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -37,10 +40,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ..
 const core: unknown = await import(pathToFileURL(path.join(root, CORE_ENTRY)).href);
 const urls = docsUrlsOf(core, CORE_ENTRY);
 const version = packageVersion(root);
+const assets = siteAssets(root);
 
 let problems: string[] = [];
 for (let attempt = 1; attempt <= attempts; attempt += 1) {
-  problems = await smokeProblems(site, version, urls, fetch);
+  problems = await smokeProblems(site, version, urls, fetch, assets);
   if (problems.length === 0) {
     break;
   }
@@ -56,5 +60,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 process.stdout.write(
-  `site smoke: ${site} serves the page and Markdown copy of ${urls.length} error codes, llms.txt and every page it lists\n`,
+  `site smoke: ${site} serves the page and Markdown copy of ${urls.length} error codes, ${assets.length} other files, llms.txt and every page it lists\n`,
 );

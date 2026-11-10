@@ -4,14 +4,23 @@
 // scripts/smoke-site.ts.
 //
 // The site is the third link target of the docs, after GitHub and the npm package:
-// - A page keeps its path under `docs/user/`, except `README.md`, which becomes `index.md`.
+// - A page keeps its path under `docs/user/`, except `README.md`, which becomes `index.md`. When
+//   the site has its own home page, `site/pages/index.md`, the top `README.md` becomes
+//   `overview.md` instead. Any other file under `docs/user/`, such as an image or a JSON sample,
+//   is served as it is, at the same path.
 // - A link inside `docs/user/` stays relative. A link to the root `llms.txt` points to the site's
 //   `llms.txt`. Any other link into the repository points to the file on GitHub at the version's
 //   tag, because the site is built from that tag.
-// - The site's `llms.txt` is the root one with only the user pages, each linked as its Markdown
-//   copy on the site, plus a line that names the version and a section that lists the pages of
-//   the API reference.
+// - The HTML pages drop the `Version:` and `Agents:` lines of the page header, and the nav shows
+//   the version. The Markdown copies keep both lines.
+// - The site's `llms.txt` is the root one with only the user pages and the skill, each linked as
+//   its Markdown copy on the site, plus a line that names the version and a section that lists the
+//   pages of the API reference.
 // - The API reference (scripts/site-api.ts) is generated into `site/api/` and served under `api/`.
+// - A Markdown file in `site/pages/` is a site-only page, served at its path (decision 0062). It
+//   may use frontmatter and Vue, and it has no Markdown copy.
+// - The sidebar is one curated list of groups and pages (`SIDEBAR`). A page that does not exist
+//   yet is skipped, and `sidebarProblems` reports a user page that is in no group or in two.
 import {
   copyFileSync,
   existsSync,
@@ -50,8 +59,41 @@ export const GITHUB_BLOB = "https://github.com/aelmanaa/explorer-verify/blob/";
 /** The URL of the docs of one published version on jsDelivr, with `<version>` to fill in. */
 const JSDELIVR_LLMS = "https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt";
 
-/** The path on the site of a page under `docs/user/`: `README.md` becomes `index.md`. */
-export function sitePath(page: string): string {
+/** The folder of the site-only pages, relative to the repository root (decision 0062). */
+export const SITE_PAGES = "site/pages";
+/** The site path of `docs/user/README.md` when the site has its own home page. */
+export const OVERVIEW = "overview.md";
+/** The agent skill. The site serves a Markdown copy at the same path, and its `llms.txt` links it. */
+export const SITE_SKILL = "skills/explorer-verify/SKILL.md";
+
+/** The site-only pages: the Markdown files under `site/pages/`, relative to that folder. */
+export function sitePages(root: string): string[] {
+  return listFiles(root, SITE_PAGES, ".md").map((file) => path.posix.relative(SITE_PAGES, file));
+}
+
+/** Whether the site has its own home page, `site/pages/index.md`. */
+export function hasSiteHome(root: string): boolean {
+  return existsSync(path.join(root, SITE_PAGES, "index.md"));
+}
+
+/**
+ * The files under `docs/user/` that are not pages, such as images and JSON samples, by their path
+ * on the site, which is their path under `docs/user/`. The site serves each as it is.
+ */
+export function siteAssets(root: string): string[] {
+  return listFiles(root, USER_DOCS)
+    .filter((file) => !file.endsWith(".md"))
+    .map((file) => path.posix.relative(USER_DOCS, file));
+}
+
+/**
+ * The path on the site of a page under `docs/user/`: `README.md` becomes `index.md`. With `home`
+ * set, the site has its own home page, and the top `README.md` becomes `overview.md`.
+ */
+export function sitePath(page: string, home = false): string {
+  if (page === "README.md" && home) {
+    return OVERVIEW;
+  }
   return path.posix.basename(page) === "README.md"
     ? path.posix.join(path.posix.dirname(page), "index.md")
     : page;
@@ -60,8 +102,9 @@ export function sitePath(page: string): string {
 /**
  * The VitePress `rewrites` map, from each page's path under the repository root, VitePress's
  * `srcDir`, to its path on the site: a page under `docs/user/` goes to the site root (`README.md`
- * as `index.md`), and a page of the API reference in `site/api/` goes under `api/`. Throws when
- * two pages would get the same path.
+ * as `index.md`, or as `overview.md` when the site has its own home page), a page of the API
+ * reference in `site/api/` goes under `api/`, and a site-only page in `site/pages/` goes to its
+ * path under that folder. Throws when two pages would get the same path.
  */
 export function siteRewrites(root: string): Record<string, string> {
   const rewrites: Record<string, string> = {};
@@ -74,23 +117,27 @@ export function siteRewrites(root: string): Record<string, string> {
     sources.set(target, source);
     rewrites[source] = target;
   };
+  const home = hasSiteHome(root);
   for (const file of listFiles(root, USER_DOCS, ".md")) {
-    add(file, sitePath(path.posix.relative(USER_DOCS, file)));
+    add(file, sitePath(path.posix.relative(USER_DOCS, file), home));
   }
   for (const { page } of apiPages(path.join(root, API_OUT))) {
     add(path.posix.join(API_OUT, page), path.posix.join(API_SITE_DIR, page));
+  }
+  for (const page of sitePages(root)) {
+    add(path.posix.join(SITE_PAGES, page), page);
   }
   return rewrites;
 }
 
 /**
  * The VitePress `srcExclude` patterns. VitePress reads the pages from the repository root, so it
- * sees both `docs/user/` and the generated `site/api/`; these patterns hide every other Markdown
- * file: each top-level file, and each folder that holds neither of the two. Hidden entries are
- * left out, because VitePress skips them already.
+ * sees `docs/user/`, the generated `site/api/` and the site-only `site/pages/`; these patterns
+ * hide every other Markdown file: each top-level file, and each folder that holds none of the
+ * three. Hidden entries are left out, because VitePress skips them already.
  */
 export function siteSourceExcludes(root: string): string[] {
-  const kept = [USER_DOCS, API_OUT];
+  const kept = [USER_DOCS, API_OUT, SITE_PAGES];
   const excludes: string[] = [];
   const visit = (directory: string): void => {
     const entries = readdirSync(path.join(root, directory), { withFileTypes: true })
@@ -115,11 +162,14 @@ export function siteSourceExcludes(root: string): string[] {
 }
 
 /**
- * Rewrites the relative links of a user page for the site. `file` is the page's repository path,
- * under `docs/user/`, and `version` the version the site is built from.
+ * Rewrites the relative links of a user page, or of the skill, for the site. `file` is the
+ * repository path of the page, under `docs/user/`, or `SITE_SKILL`; `version` is the version the
+ * site is built from; and `home` says that the site has its own home page, which moves
+ * `docs/user/README.md` to `overview.md`.
  */
-export function rewriteForSite(file: string, text: string, version: string): string {
-  const here = path.posix.dirname(path.posix.relative(USER_DOCS, file));
+export function rewriteForSite(file: string, text: string, version: string, home = false): string {
+  const inDocs = file.startsWith(`${USER_DOCS}/`);
+  const here = path.posix.dirname(inDocs ? path.posix.relative(USER_DOCS, file) : file);
   return rewriteLinks(text, (target) => {
     if (isExternalOrFragment(target)) {
       return target;
@@ -129,8 +179,8 @@ export function rewriteForSite(file: string, text: string, version: string): str
     const relative = resolveLink(file, linked);
     if (relative.startsWith(`${USER_DOCS}/`)) {
       const page = path.posix.relative(USER_DOCS, relative);
-      const moved = sitePath(page);
-      return moved === page ? target : `${path.posix.relative(here, moved)}${rest}`;
+      const moved = sitePath(page, home);
+      return moved === page && inDocs ? target : `${path.posix.relative(here, moved)}${rest}`;
     }
     if (relative === "llms.txt") {
       return `${path.posix.relative(here, "llms.txt")}${rest}`;
@@ -139,17 +189,93 @@ export function rewriteForSite(file: string, text: string, version: string): str
   });
 }
 
+/** The header lines the HTML pages drop: the version line and the `llms.txt` line. */
+const HEADER_LINE = /^(?:Version: explorer-verify |Agents: )/;
+
+/**
+ * A user page without the `Version:` and `Agents:` lines of its header, for the HTML site. Only
+ * lines before the first H2 or code fence count, and the blank line after a dropped line goes
+ * with it. The Markdown copies keep both lines.
+ */
+export function dropHeaderLines(text: string): string {
+  const lines = text.split("\n");
+  const kept: string[] = [];
+  let header = true;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (/^(?:## |```|~~~)/.test(line)) {
+      header = false;
+    }
+    if (header && HEADER_LINE.test(line)) {
+      if (lines[index + 1] === "") {
+        index += 1;
+      }
+      continue;
+    }
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
+
+/**
+ * The title of a fenced code block, from its info string: `ts [verify.ts]` has the title
+ * `verify.ts`. VitePress 1.6.4 reads the same brackets, but shows the title only inside a code
+ * group, so the site config adds a title bar to a block outside one (`withCodeTitle`).
+ */
+export function codeTitleOf(info: string): string | undefined {
+  const title = /\[(.*)\]/.exec(info)?.[1]?.trim();
+  return title === undefined || title === "" ? undefined : title;
+}
+
+/**
+ * Whether the token at `index` sits inside a VitePress code group, given the type of each token
+ * of the page, as markdown-it names them.
+ */
+export function inCodeGroup(types: readonly string[], index: number): boolean {
+  let depth = 0;
+  for (const type of types.slice(0, index)) {
+    if (type === "container_code-group_open") {
+      depth += 1;
+    } else if (type === "container_code-group_close") {
+      depth -= 1;
+    }
+  }
+  return depth > 0;
+}
+
+/**
+ * The HTML of a rendered code block with a title bar above it. The title is HTML-escaped and
+ * marked `v-pre`, so Vue shows `{{` in it as written.
+ */
+export function withCodeTitle(html: string, title: string): string {
+  const escaped = title
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+  return `<div class="ev-code-title"><div class="ev-code-title-text" v-pre>${escaped}</div>${html}</div>`;
+}
+
 /** The H2 section of the site's `llms.txt` that lists the pages of the API reference. */
 export const API_SECTION = "## API reference";
 
 /**
- * The site's `llms.txt`, from the root one: links to user pages point to their Markdown copies on
- * the site, list items that link anything else are dropped, and so are sections left empty. A
- * line after the summary names the version and where the docs of other versions are. When `api`
- * lists pages of the API reference, a last section links their Markdown copies.
+ * The site's `llms.txt`, from the root one: links to user pages and to the skill point to their
+ * Markdown copies on the site, list items that link anything else are dropped, and so are sections
+ * left empty. A line after the summary names the version and where the docs of other versions
+ * are. When `api` lists pages of the API reference, a last section links their Markdown copies.
+ * With `home` set, the site has its own home page, and the user index is `overview.md`.
  */
-export function siteLlmsTxt(text: string, version: string, api: readonly ApiPage[] = []): string {
+export function siteLlmsTxt(
+  text: string,
+  version: string,
+  api: readonly ApiPage[] = [],
+  home = false,
+): string {
   const userDocs = `${RAW_MAIN}${USER_DOCS}/`;
+  const skill = `${RAW_MAIN}${SITE_SKILL}`;
+  const copied = (target: string): boolean =>
+    target.startsWith(userDocs) || target === skill || target.startsWith(`${skill}#`);
   const kept: string[] = [];
   let dropping = false;
   for (const line of text.split("\n")) {
@@ -159,15 +285,17 @@ export function siteLlmsTxt(text: string, version: string, api: readonly ApiPage
     dropping = false;
     if (/^\s*[-*] /.test(line)) {
       const targets = markdownLinks(line).map(({ target }) => target);
-      if (targets.length === 0 || !targets.every((target) => target.startsWith(userDocs))) {
+      if (targets.length === 0 || !targets.every(copied)) {
         dropping = true;
         continue;
       }
       kept.push(
-        line.replaceAll(
-          new RegExp(`${userDocs.replaceAll(/[.*+?^${}()|[\]\\/]/g, "\\$&")}([^)>\\s]+)`, "g"),
-          (_whole, page: string) => `${SITE_URL}${sitePath(page)}`,
-        ),
+        line
+          .replaceAll(
+            new RegExp(`${escapeRegExp(userDocs)}([^)>\\s]+)`, "g"),
+            (_whole, page: string) => `${SITE_URL}${sitePath(page, home)}`,
+          )
+          .replaceAll(skill, `${SITE_URL}${SITE_SKILL}`),
       );
       continue;
     }
@@ -198,6 +326,11 @@ export function siteLlmsTxt(text: string, version: string, api: readonly ApiPage
     );
   }
   return lines.join("\n");
+}
+
+/** `text` with every character a regular expression treats as special escaped. */
+function escapeRegExp(text: string): string {
+  return text.replaceAll(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 }
 
 /** The sentence of the site's `llms.txt` that names the version; the smoke check looks for it. */
@@ -231,61 +364,190 @@ function dropEmptySections(lines: readonly string[]): string[] {
   return [...result, ""];
 }
 
-/** One group of the site's sidebar. */
-export interface SidebarGroup {
+/** One item of the site's sidebar: a page, or a group of items. */
+export interface SidebarItem {
   text: string;
-  collapsed: boolean;
-  items: { text: string; link: string }[];
-}
-
-/** The groups of the sidebar, by the first folder under `docs/user/`. */
-const GROUPS: readonly { folder: string; text: string; collapsed: boolean }[] = [
-  { folder: "tutorials", text: "Tutorials", collapsed: false },
-  { folder: "guides", text: "Guides", collapsed: false },
-  { folder: "reference/errors", text: "Errors", collapsed: true },
-  { folder: "reference", text: "Reference", collapsed: false },
-  { folder: "explanation", text: "Explanation", collapsed: false },
-];
-
-/** The site link of a page path: no `.md`, and a folder index as the folder. */
-function siteLink(page: string): string {
-  const link = `/${sitePath(page).replace(/\.md$/, "")}`;
-  return link.endsWith("/index") ? link.slice(0, -"index".length) : link;
+  link?: string;
+  collapsed?: boolean;
+  items?: SidebarItem[];
 }
 
 /**
- * The sidebar: one group per folder that has pages, in Diátaxis order, each page under its first
- * heading. The error codes form their own group, after the folder index.
+ * One entry of the curated sidebar: a page under `docs/user/` with its label, a group of entries,
+ * or a group that lists every page of a folder, its `index.md` first, each under its first heading.
  */
-export function siteSidebar(root: string): SidebarGroup[] {
+export type SidebarEntry =
+  | { readonly text: string; readonly page: string }
+  | { readonly text: string; readonly collapsed: boolean; readonly items: readonly SidebarEntry[] }
+  | { readonly text: string; readonly collapsed: boolean; readonly folder: string };
+
+/** The text of the generated API reference group, the last group of the sidebar. */
+export const API_GROUP = "API";
+
+/**
+ * The sidebar, in order (#307, audit finding F4). Each page is listed by its path under
+ * `docs/user/`, with a short label. A page that does not exist yet is skipped, so a pull request
+ * that adds a planned page needs no change here. A user page that is in no entry, or in two,
+ * fails `sidebarProblems`.
+ */
+export const SIDEBAR: readonly SidebarEntry[] = [
+  {
+    text: "Get started",
+    collapsed: false,
+    items: [
+      { text: "Overview", page: "README.md" },
+      { text: "Which package", page: "start/which-package.md" },
+      {
+        text: "Quickstarts",
+        collapsed: false,
+        items: [
+          { text: "All quickstarts", page: "start/README.md" },
+          { text: "Browser dapp", page: "start/quickstart-browser.md" },
+          { text: "Node.js", page: "start/quickstart-node.md" },
+          { text: "CLI", page: "start/quickstart-cli.md" },
+          { text: "Foundry", page: "start/quickstart-foundry.md" },
+          { text: "Hardhat", page: "start/quickstart-hardhat.md" },
+          { text: "SDK wrapper", page: "start/quickstart-sdk-wrapper.md" },
+          { text: "AI agent", page: "start/quickstart-agent.md" },
+        ],
+      },
+      { text: "Tutorial: verify from a dapp", page: "tutorials/verify-from-a-dapp.md" },
+      { text: "Tutorial: deploy and verify", page: "tutorials/deploy-and-verify-from-a-dapp.md" },
+    ],
+  },
+  {
+    text: "Guides by setup",
+    collapsed: false,
+    items: [
+      { text: "Node.js", page: "guides/verify-from-node.md" },
+      { text: "Browser", page: "guides/verify-from-a-browser.md" },
+      { text: "Edge function", page: "guides/verify-from-an-edge-function.md" },
+      { text: "CI with the CLI", page: "guides/verify-from-ci-with-the-cli.md" },
+      { text: "Foundry project", page: "guides/verify-from-a-foundry-project.md" },
+      { text: "Hardhat project", page: "guides/verify-from-a-hardhat-project.md" },
+      { text: "Server handler", page: "guides/run-the-server-handler.md" },
+    ],
+  },
+  {
+    text: "Guides by task",
+    collapsed: false,
+    items: [
+      { text: "Proxy", page: "guides/verify-a-proxy.md" },
+      { text: "From deployed bytecode", page: "guides/verify-from-deployed-bytecode.md" },
+      { text: "From an npm package", page: "guides/verify-a-contract-from-an-npm-package.md" },
+      {
+        text: "Contracts your package ships",
+        page: "guides/verify-contracts-your-package-ships.md",
+      },
+    ],
+  },
+  {
+    text: "Advanced",
+    collapsed: false,
+    items: [
+      { text: "Wrap in your tool", page: "guides/wrap-explorer-verify-in-your-tool.md" },
+      { text: "From an agent", page: "guides/using-from-an-agent.md" },
+      { text: "Core entry", page: "reference/core.md" },
+      { text: "Bundle size", page: "advanced/bundle-size.md" },
+      { text: "Several explorers", page: "advanced/verify-on-several-explorers.md" },
+      { text: "Abort and resume", page: "advanced/abort-and-resume.md" },
+      { text: "Resume from a job queue", page: "advanced/resume-from-a-job-queue.md" },
+      { text: "Logging and events", page: "reference/logging-and-events.md" },
+    ],
+  },
+  {
+    text: "Reference",
+    collapsed: false,
+    items: [
+      { text: "verify()", page: "reference/verify.md" },
+      { text: "checkStatus()", page: "reference/check-status.md" },
+      { text: "CLI", page: "reference/cli.md" },
+      { text: "CLI output", page: "reference/cli-output.md" },
+      { text: "JSON output and exit codes", page: "reference/json-output.md" },
+      { text: "API keys", page: "reference/api-keys.md" },
+      { text: "Routing", page: "reference/routing.md" },
+      { text: "Server handler", page: "reference/server-handler.md" },
+      {
+        text: "Explorers",
+        collapsed: true,
+        items: [
+          { text: "Sourcify", page: "reference/sourcify.md" },
+          { text: "Etherscan", page: "reference/etherscan.md" },
+          { text: "Routescan", page: "reference/routescan.md" },
+          { text: "Blockscout", page: "reference/blockscout.md" },
+          { text: "Etherscan-compatible", page: "reference/etherscan-compatible.md" },
+        ],
+      },
+      { text: "Errors", collapsed: true, folder: "reference/errors" },
+    ],
+  },
+  {
+    text: "Concepts",
+    collapsed: false,
+    items: [
+      { text: "Match types", page: "explanation/match-types.md" },
+      { text: "Etherscan plans", page: "explanation/etherscan-plans-and-attribution.md" },
+      { text: "Glossary", page: "explanation/glossary.md" },
+    ],
+  },
+];
+
+/** The site link of a site path: no `.md`, and a folder index as the folder. */
+function siteLink(sitePage: string): string {
+  const link = `/${sitePage.replace(/\.md$/, "")}`;
+  return link.endsWith("/index") ? link.slice(0, -"index".length) : link;
+}
+
+/** The pages under `docs/user/` that each entry lists, by their path under that folder. */
+function entryPages(entry: SidebarEntry, pages: readonly string[]): string[] {
+  if ("page" in entry) {
+    return pages.includes(entry.page) ? [entry.page] : [];
+  }
+  if ("items" in entry) {
+    return entry.items.flatMap((item) => entryPages(item, pages));
+  }
+  return pages
+    .filter((page) => page.startsWith(`${entry.folder}/`))
+    .toSorted((a, b) => Number(b.endsWith("/index.md")) - Number(a.endsWith("/index.md")));
+}
+
+/** The sidebar item of an entry, or undefined when none of its pages exists yet. */
+function sidebarItem(
+  root: string,
+  entry: SidebarEntry,
+  pages: readonly string[],
+  home: boolean,
+): SidebarItem | undefined {
+  if ("page" in entry) {
+    return pages.includes(entry.page)
+      ? { text: entry.text, link: siteLink(sitePath(entry.page, home)) }
+      : undefined;
+  }
+  const items =
+    "items" in entry
+      ? entry.items.flatMap((item) => sidebarItem(root, item, pages, home) ?? [])
+      : entryPages(entry, pages).map((page) => ({
+          text: headings(readFileSync(path.join(root, USER_DOCS, page), "utf8"))[0] ?? page,
+          link: siteLink(sitePath(page, home)),
+        }));
+  return items.length > 0 ? { text: entry.text, collapsed: entry.collapsed, items } : undefined;
+}
+
+/**
+ * The sidebar: the groups of `SIDEBAR` with the pages that exist, then the generated API
+ * reference, collapsed, once `site/api/` holds pages.
+ */
+export function siteSidebar(root: string): SidebarItem[] {
   const pages = listFiles(root, USER_DOCS, ".md").map((file) =>
     path.posix.relative(USER_DOCS, file),
   );
-  const groups: SidebarGroup[] = [];
-  for (const group of GROUPS) {
-    const items = pages
-      .filter(
-        (page) =>
-          page.startsWith(`${group.folder}/`) &&
-          !GROUPS.some(
-            (other) =>
-              other.folder.length > group.folder.length && page.startsWith(`${other.folder}/`),
-          ),
-      )
-      .map((page) => ({
-        text: headings(readFileSync(path.join(root, USER_DOCS, page), "utf8"))[0] ?? page,
-        link: siteLink(page),
-      }))
-      .toSorted((a, b) => Number(b.link.endsWith("/")) - Number(a.link.endsWith("/")));
-    if (items.length > 0) {
-      groups.push({ text: group.text, collapsed: group.collapsed, items });
-    }
-  }
+  const home = hasSiteHome(root);
+  const groups = SIDEBAR.flatMap((entry) => sidebarItem(root, entry, pages, home) ?? []);
   const api = apiPages(path.join(root, API_OUT));
   if (api.length > 0) {
     groups.push({
-      text: "API reference",
-      collapsed: false,
+      text: API_GROUP,
+      collapsed: true,
       items: api.map(({ page, title }) => ({
         text: title,
         link: siteLink(path.posix.join(API_SITE_DIR, page)),
@@ -296,26 +558,102 @@ export function siteSidebar(root: string): SidebarGroup[] {
 }
 
 /**
+ * Problems with the sidebar: a user page that no entry of `entries`, by default `SIDEBAR`, lists,
+ * or that two entries list. A page entry for a page that does not exist yet is no problem.
+ */
+export function sidebarProblems(
+  root: string,
+  entries: readonly SidebarEntry[] = SIDEBAR,
+): string[] {
+  const pages = listFiles(root, USER_DOCS, ".md").map((file) =>
+    path.posix.relative(USER_DOCS, file),
+  );
+  const listed = entries.flatMap((entry) => entryPages(entry, pages));
+  const problems: string[] = [];
+  for (const page of pages) {
+    const count = listed.filter((other) => other === page).length;
+    if (count === 0) {
+      problems.push(
+        `${USER_DOCS}/${page} is in no sidebar group; add it to SIDEBAR in scripts/site-docs.ts`,
+      );
+    } else if (count > 1) {
+      problems.push(`${USER_DOCS}/${page} is in ${count} sidebar entries; keep one`);
+    }
+  }
+  return problems;
+}
+
+/** The first link of a sidebar item, depth first. */
+function firstLink(item: SidebarItem): string | undefined {
+  return item.link ?? item.items?.map(firstLink).find((link) => link !== undefined);
+}
+
+/** One item of the site's nav bar: a link, or a menu of links. */
+export type NavItem =
+  | { text: string; link: string }
+  | { text: string; items: { text: string; link: string }[] };
+
+/** The nav entries: their text, and the sidebar group whose first page each links. */
+const NAV: readonly { text: string; group: string }[] = [
+  { text: "Get started", group: "Get started" },
+  { text: "Guides", group: "Guides by setup" },
+  { text: "Reference", group: "Reference" },
+  { text: "API", group: API_GROUP },
+];
+
+/**
+ * The nav bar: Get started, Guides, Reference and API, each linking the first page of its sidebar
+ * group and skipped while the group is empty, then a menu named after the version with the
+ * changelog at the release tag and the package on npm.
+ */
+export function siteNav(sidebar: readonly SidebarItem[], version: string): NavItem[] {
+  const nav: NavItem[] = NAV.flatMap(({ text, group }) => {
+    const item = sidebar.find((candidate) => candidate.text === group);
+    const link = item === undefined ? undefined : firstLink(item);
+    return link === undefined ? [] : [{ text, link }];
+  });
+  nav.push({
+    text: version,
+    items: [
+      {
+        text: "Changelog",
+        link: `${GITHUB_BLOB}v${version}/packages/explorer-verify/CHANGELOG.md`,
+      },
+      { text: "npm", link: `https://www.npmjs.com/package/explorer-verify/v/${version}` },
+    ],
+  });
+  return nav;
+}
+
+/**
  * Writes the Markdown copy of every user page next to its HTML in `outDir`, with its links
- * rewritten for the site, copies every other file under `docs/user/` as is, copies each page of
- * the API reference to `api/`, its links being relative already, and writes the site's
- * `llms.txt`. Returns the paths written, relative to `outDir`.
+ * rewritten for the site, copies every other file under `docs/user/` as is, writes the copy of the
+ * skill, copies each page of the API reference to `api/`, its links being relative already, and
+ * writes the site's `llms.txt`. Returns the paths written, relative to `outDir`.
  */
 export function writeSiteCopies(root: string, outDir: string, version: string): string[] {
   const written: string[] = [];
+  const home = hasSiteHome(root);
+  const writeCopy = (file: string, destination: string): void => {
+    mkdirSync(path.join(outDir, path.posix.dirname(destination)), { recursive: true });
+    writeFileSync(
+      path.join(outDir, destination),
+      rewriteForSite(file, readFileSync(path.join(root, file), "utf8"), version, home),
+    );
+    written.push(destination);
+  };
   for (const file of listFiles(root, USER_DOCS)) {
     const page = path.posix.relative(USER_DOCS, file);
-    const destination = sitePath(page);
-    mkdirSync(path.join(outDir, path.posix.dirname(destination)), { recursive: true });
     if (file.endsWith(".md")) {
-      writeFileSync(
-        path.join(outDir, destination),
-        rewriteForSite(file, readFileSync(path.join(root, file), "utf8"), version),
-      );
+      writeCopy(file, sitePath(page, home));
     } else {
-      copyFileSync(path.join(root, file), path.join(outDir, destination));
+      mkdirSync(path.join(outDir, path.posix.dirname(page)), { recursive: true });
+      copyFileSync(path.join(root, file), path.join(outDir, page));
+      written.push(page);
     }
-    written.push(destination);
+  }
+  if (existsSync(path.join(root, SITE_SKILL))) {
+    writeCopy(SITE_SKILL, SITE_SKILL);
   }
   const api = apiPages(path.join(root, API_OUT));
   for (const { page } of api) {
@@ -326,7 +664,7 @@ export function writeSiteCopies(root: string, outDir: string, version: string): 
   }
   writeFileSync(
     path.join(outDir, "llms.txt"),
-    siteLlmsTxt(readFileSync(path.join(root, "llms.txt"), "utf8"), version, api),
+    siteLlmsTxt(readFileSync(path.join(root, "llms.txt"), "utf8"), version, api, home),
   );
   written.push("llms.txt");
   return written;
@@ -382,11 +720,21 @@ function sitePathOf(url: string, site: string): string | undefined {
 /**
  * Problems with a built site in `outDir` (decision 0015, test 3): each `docsUrl` must map to an
  * HTML page with its Markdown copy next to it; each link in the site's `llms.txt` must be a
- * Markdown copy in the build; and each HTML page other than `404.html` must have a Markdown copy
- * that `llms.txt` lists.
+ * Markdown copy in the build; each HTML page other than `404.html` and the site-only pages must
+ * have a Markdown copy that `llms.txt` lists; and each file of `assets` must be in the build.
+ * `siteOnly` and `assets` are site paths, as `sitePages` and `siteAssets` give them.
  */
-export function siteProblems(outDir: string, docsUrls: readonly string[]): string[] {
+export function siteProblems(
+  outDir: string,
+  docsUrls: readonly string[],
+  { siteOnly = [], assets = [] }: { siteOnly?: readonly string[]; assets?: readonly string[] } = {},
+): string[] {
   const problems: string[] = [];
+  for (const asset of assets) {
+    if (!existsSync(path.join(outDir, asset))) {
+      problems.push(`the built site has no ${asset}, a file under ${USER_DOCS}/ (R-AX-17)`);
+    }
+  }
   for (const url of docsUrls) {
     const page = sitePathOf(url, SITE_URL);
     if (page === undefined) {
@@ -421,10 +769,10 @@ export function siteProblems(outDir: string, docsUrls: readonly string[]): strin
   }
   for (const html of listFiles(outDir, ".", ".html")) {
     const file = path.posix.normalize(html);
-    if (file === "404.html") {
+    const copy = file.replace(/\.html$/, ".md");
+    if (file === "404.html" || siteOnly.includes(copy)) {
       continue;
     }
-    const copy = file.replace(/\.html$/, ".md");
     if (!existsSync(path.join(outDir, copy))) {
       problems.push(`${file} has no Markdown copy ${copy} (R-AX-17)`);
     } else if (!listed.has(copy)) {
@@ -467,14 +815,30 @@ async function get(fetchUrl: Fetch, url: string): Promise<{ body: string } | { p
  * Problems with the deployed site at `site` (decision 0015, test 4): each `docsUrl` with the base
  * swapped for `site`, its `.md` copy, the site's `llms.txt` and each link in it must return 200
  * within `SMOKE_TIMEOUT_MS`, and the `llms.txt` must name `version`, so an older deploy fails.
+ * Each file of `assets`, a site path as `siteAssets` gives it, must return 200 too, and a `.json`
+ * file must parse as JSON, so the site serves it as it is and not as a page.
  */
 export async function smokeProblems(
   site: string,
   version: string,
   docsUrls: readonly string[],
   fetchUrl: Fetch,
+  assets: readonly string[] = [],
 ): Promise<string[]> {
   const problems: string[] = [];
+  for (const asset of assets) {
+    const url = `${site}${asset}`;
+    const result = await get(fetchUrl, url);
+    if ("problem" in result) {
+      problems.push(result.problem);
+    } else if (asset.endsWith(".json")) {
+      try {
+        JSON.parse(result.body);
+      } catch {
+        problems.push(`${url}: the body is not JSON`);
+      }
+    }
+  }
   const urls = docsUrls.flatMap((url) => [onSite(url, site), `${onSite(url, site)}.md`]);
   const llmsUrl = `${site}llms.txt`;
   const llms = await get(fetchUrl, llmsUrl);
