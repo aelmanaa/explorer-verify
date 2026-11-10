@@ -23,8 +23,8 @@ it shows, then report `details.excerpt` in an issue.
 After a call with `resumeJobId`, `Error!` or `Unknown UID` means the explorer no longer knows the
 job. Call `linkProxy()` again without `resumeJobId` to send a new link request.
 
-Default hint: Do not retry automatically. Check the proxy's page on the explorer and report the
-start of its answer (details.excerpt).
+Default hint: Do not retry automatically. Check the proxy's page on the explorer and report its
+answer (details.excerpt).
 
 For end users: The explorer gave an answer about the proxy that could not be read. Check the proxy's
 page on the explorer before you try again.

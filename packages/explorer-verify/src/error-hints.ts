@@ -37,14 +37,14 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
     "Check the chain ID, or pick a backend that serves this chain with the route option.",
   network: "Check the network connection and the explorer's status page, then call again.",
   "rate-limited":
-    "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds when it did not say, then call again.",
+    "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds, then call again.",
   timeout: "Call again, or raise timeoutMs. The explorer had not accepted the submission yet.",
   "unexpected-response":
-    "Call again later. If the error persists, check the explorer's status page and report the HTTP status and the start of the answer (details.status, details.excerpt).",
+    "Call again later. If the error persists, check the explorer's status page and report the status and the answer (details.status, details.excerpt).",
   "in-progress":
     "Wait for the explorer to finish its current verification of this contract, then call again.",
   "unknown-state":
-    "Do not retry automatically. Check the contract on the explorer and report the start of its answer (details.excerpt).",
+    "Do not retry automatically. Check the contract on the explorer and report its answer (details.excerpt).",
   "job-not-found":
     "Do not retry automatically. Check the contract on the explorer; if it is not verified, call verify() again.",
   cancelled:
@@ -75,7 +75,7 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
   "proxy-link-pending":
     "Call linkProxy() again later with resumeJobId set to details.jobId: it checks the same link and sends no new request. A call without it sends a new request, which is also safe.",
   "proxy-link-unknown-state":
-    "Do not retry automatically. Check the proxy's page on the explorer and report the start of its answer (details.excerpt).",
+    "Do not retry automatically. Check the proxy's page on the explorer and report its answer (details.excerpt).",
   "handler-refused":
     "Do not retry. Fix the createVerifyHandler option or the request that the handler's refusal code names (details.handlerCode).",
 };

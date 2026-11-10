@@ -16,8 +16,8 @@ that got an unexpected answer, the excerpt is that answer; otherwise it is empty
 Fix: do not retry automatically. Check the contract on the explorer, then report `details.excerpt`
 in an issue.
 
-Default hint: Do not retry automatically. Check the contract on the explorer and report the start of
-its answer (details.excerpt).
+Default hint: Do not retry automatically. Check the contract on the explorer and report its answer
+(details.excerpt).
 
 For end users: The explorer gave a final answer that could not be read. Check the contract's page on
 the explorer before you try again.

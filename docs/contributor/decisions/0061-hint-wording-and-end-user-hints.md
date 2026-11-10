@@ -69,7 +69,7 @@ in bytes gzipped.
 | `errors` (`export *` from the subpath) | 5,269        | 6,686       | 6,278   | 8,024       |
 | `index` (`export *` from the main)     | 28,969       | 30,460      | 31,510  | 31,510      |
 | `verify`                               | 17,643       | 17,741      | 19,738  | 19,738      |
-| `createVerifyHandler`                  | 14,277       | 14,358      | 14,429  | 14,429      |
+| `createVerifyHandler`                  | 14,277       | 14,336      | 14,429  | 14,429      |
 
 `hintFor` alone is 1,942 bytes gzipped, one file, from `explorer-verify/errors`. A bundle that
 does not import it holds none of its text: `import { verify }` and `import { ERROR_HINTS }` grow
@@ -77,7 +77,7 @@ only by the longer default hints, about 100 bytes. The `export *` entries grow b
 table. By the rule of [decision 0014](0014-measured-bundle-ceilings.md), the `errors` ceiling
 becomes the measured size plus 20%. `name-budget.json` gains a row for `hintFor` from each entry.
 
-`createVerifyHandler` keeps 71 bytes under its ceiling. The server handler bundles `ERROR_HINTS`,
+`createVerifyHandler` keeps 93 bytes under its ceiling, and `dryRun` from `explorer-verify`, esbuild one file, 18 bytes (31,427 of 31,445); four default hints were shortened to stay under it. The server handler bundles `ERROR_HINTS`,
 so a later change that lengthens a default hint by a sentence or two can pass it. That change then
 trims the hint or resets the ceiling by decision 0014's rule.
 

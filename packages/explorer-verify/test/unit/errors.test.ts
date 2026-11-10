@@ -149,7 +149,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "rate-limited": {
-    hint: "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds when it did not say, then call again.",
+    hint: "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds, then call again.",
     retryable: true,
     exitCode: 5,
   },
@@ -159,7 +159,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "unexpected-response": {
-    hint: "Call again later. If the error persists, check the explorer's status page and report the HTTP status and the start of the answer (details.status, details.excerpt).",
+    hint: "Call again later. If the error persists, check the explorer's status page and report the status and the answer (details.status, details.excerpt).",
     retryable: true,
     exitCode: 5,
   },
@@ -169,7 +169,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "unknown-state": {
-    hint: "Do not retry automatically. Check the contract on the explorer and report the start of its answer (details.excerpt).",
+    hint: "Do not retry automatically. Check the contract on the explorer and report its answer (details.excerpt).",
     retryable: false,
     exitCode: 6,
   },
@@ -249,7 +249,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 4,
   },
   "proxy-link-unknown-state": {
-    hint: "Do not retry automatically. Check the proxy's page on the explorer and report the start of its answer (details.excerpt).",
+    hint: "Do not retry automatically. Check the proxy's page on the explorer and report its answer (details.excerpt).",
     retryable: false,
     exitCode: 6,
   },

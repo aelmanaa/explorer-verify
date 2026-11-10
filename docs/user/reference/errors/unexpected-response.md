@@ -18,7 +18,7 @@ Fix: call again later. If the error persists, check the explorer's status page a
 `details.status` and `details.excerpt` in an issue.
 
 Default hint: Call again later. If the error persists, check the explorer's status page and report
-the HTTP status and the start of the answer (details.status, details.excerpt).
+the status and the answer (details.status, details.excerpt).
 
 For end users: The explorer gave an answer that could not be read. Try again later; if it keeps
 failing, check the explorer's status page.

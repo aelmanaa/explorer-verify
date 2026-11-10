@@ -14,8 +14,8 @@ the library gave up after retries. The library stops at once when the wait asked
 Fix: wait `details.retryAfterMs`, or a few seconds when it is not set, then call again. Lower the
 request rate if this happens often.
 
-Default hint: Wait as long as the explorer asked (details.retryAfterMs), or a few seconds when it
-did not say, then call again.
+Default hint: Wait as long as the explorer asked (details.retryAfterMs), or a few seconds, then call
+again.
 
 For end users: The explorer is limiting requests. Wait a few seconds, then try again.
 

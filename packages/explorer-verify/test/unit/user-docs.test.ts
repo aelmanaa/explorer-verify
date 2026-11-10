@@ -595,14 +595,14 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: WRAPPER,
-    example: 4,
+    example: 5,
     what: "the optional peer is installed: the lazy import loads it and verify() runs",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified\n",
   },
   {
     page: WRAPPER,
-    example: 4,
+    example: 5,
     what: "the optional peer is missing: the lazy import throws the wrapper's own error",
     setup: "without-explorer-verify",
   },
