@@ -35,7 +35,8 @@ jobs:
 
   test:
     # Node 22.18.0 is the declared floor (packages/explorer-verify/package.json engines); keep the
-    # first leg equal to it.
+    # first leg equal to it. The supported lines follow Node's LTS schedule:
+    # docs/contributor/decisions/0060-supported-node-versions-follow-lts.md.
     name: Test (Linux, Node ${{ matrix.node }})
     runs-on: ubuntu-26.04
     timeout-minutes: 15

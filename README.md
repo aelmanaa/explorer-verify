@@ -7,7 +7,8 @@ Status: experimental. The API may change before 1.0.
 
 ## CLI
 
-The command ships in `@explorer-verify/cli` and needs Node.js 22.18 or later.
+The command ships in `@explorer-verify/cli` and needs Node.js 22.18 or later. Supported Node.js
+versions follow Node's LTS schedule ([decision 0060](docs/contributor/decisions/0060-supported-node-versions-follow-lts.md)).
 
 In a Foundry project, first run `forge build --build-info`. These commands use its Greeter
 build and the deployed address on Sepolia; replace the address and contract with your deployment.

@@ -521,7 +521,9 @@ Measurement:
 - **R-RUN-1** The core runs unchanged in current browsers, Node 22.18 and later, Deno, Bun and edge
   runtimes. It uses only web-platform globals (`fetch`, `URL`, `AbortSignal`, `TextEncoder`,
   `crypto.subtle`). Enforced by lint (`import/no-nodejs-modules`), a build without Node types and
-  the browser smoke test, which runs the default entry and `explorer-verify/core`.
+  the browser smoke test, which runs the default entry and `explorer-verify/core`. The supported
+  Node lines follow Node's LTS schedule
+  ([decision 0060](decisions/0060-supported-node-versions-follow-lts.md)).
 - **R-RUN-2** ESM only, tree-shakeable (`sideEffects: false`), types included.
 - **R-RUN-3** Bundle budget for `import { verify } from "explorer-verify"` in a browser build:
   minified and gzipped size at or below the ceiling in `size-budget.json`, checked in CI.

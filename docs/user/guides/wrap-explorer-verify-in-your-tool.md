@@ -13,7 +13,9 @@ error classes. The examples use a made-up tool, `deployKit`, with a function
 
 ## Setup
 
-Node.js 22.18 or later, or any runtime with `fetch`. Install the core package:
+Node.js 22.18 or later, or any runtime with `fetch`. Supported Node.js versions follow Node's LTS
+schedule ([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)).
+Install the core package:
 
 ```sh
 npm install explorer-verify

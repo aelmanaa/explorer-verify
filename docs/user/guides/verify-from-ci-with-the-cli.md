@@ -14,7 +14,9 @@ variable, never from a flag. The [CLI reference](../reference/cli.md) describes 
 
 ## Setup
 
-Node.js 22.18 or later. Add the CLI as a development dependency:
+Node.js 22.18 or later. Supported Node.js versions follow Node's LTS schedule
+([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)). Add the
+CLI as a development dependency:
 
 ```bash
 npm install --save-dev @explorer-verify/cli

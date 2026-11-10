@@ -10,6 +10,10 @@ pnpm install       # also installs the git hooks
 pnpm run check && pnpm test
 ```
 
+The packages support Node's active and maintenance LTS lines and drop a line at end of life
+([decision 0060](docs/contributor/decisions/0060-supported-node-versions-follow-lts.md)).
+[Releasing](docs/contributor/releasing.md#supported-node-versions) lists the next scheduled change.
+
 ## Issues first
 
 Every change starts from a GitHub issue. Open one with the bug, feature or question template, or ask
