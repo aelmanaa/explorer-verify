@@ -273,7 +273,10 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   out of the core entry point. Both take the same option names and return the same result shape,
   and the builders share one name family: `buildVerifyInput`, `buildVerifyInputFrom<Source>`.
 - **R-DX-3** Typed errors from one catalogue, each with a stable code, a fix hint and a docs URL.
-  The CLI and the library share the catalogue (R-AX-10).
+  The CLI and the library share the catalogue (R-AX-10). A library hint names each value in words;
+  a field path follows only in parentheses. `hintFor(error, "user")` gives a hint for a tool's end
+  users that names no function, option, field or command, and never throws (decision 0061). Hint
+  text may change in any release; callers switch on `code`.
 - **R-DX-4** TSDoc on every export, with an example that compiles.
 - **R-DX-5** `VerifyOptions.logger` takes four methods, `debug`, `info`, `warn` and `error`, each
   `(message: string, fields?: LogFields) => void`. `LogFields` is a flat record whose values are

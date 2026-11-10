@@ -15,8 +15,11 @@ Fix: pass the file exactly as it was compiled, byte for byte. A changed line end
 newline or a formatter run changes the hash. Take the file from the same package version or commit
 as the metadata.
 
-Default hint: Pass the source file named in details.path exactly as it was compiled, byte for byte,
-line endings included.
+Default hint: Pass the source file that the error names (details.path) exactly as it was compiled,
+byte for byte, line endings included.
+
+For end users: A source file differs from the one the contract was compiled from. Use the exact
+source files of the deployed build.
 
 From the CLI: Pass the source file `<path>` exactly as it was compiled, byte for byte, line endings
 included, or pass the build-info of the same build with --input.

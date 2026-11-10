@@ -14,7 +14,14 @@ the library gave up after retries. The library stops at once when the wait asked
 Fix: wait `details.retryAfterMs`, or a few seconds when it is not set, then call again. Lower the
 request rate if this happens often.
 
-Default hint: Wait details.retryAfterMs, or a few seconds when it is not set, then call again.
+Default hint: Wait as long as the explorer asked (details.retryAfterMs), or a few seconds when it
+did not say, then call again.
+
+For end users: The explorer is limiting requests. Wait a few seconds, then try again.
+
+When the explorer said how long to wait, `hintFor(error, "user")` names the wait instead of "a few
+seconds": in seconds below 2 minutes, in minutes up to one hour, and as "Try again later" above
+that.
 
 From the CLI: The explorer limited the requests. Wait a few seconds, then run the command again.
 

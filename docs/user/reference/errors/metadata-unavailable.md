@@ -25,8 +25,10 @@ gateway, the metadata is not pinned where the gateway can find it. For `hash-mis
 `not-metadata`, the copy belongs to another build. For `unavailable`, call again later. For
 `timeout`, raise `timeoutMs`.
 
-Default hint: Read details.attempts. Call again later, or pass an ipfsGateway that holds the
-metadata.
+Default hint: The error lists each source tried (details.attempts). Call again later, or pass an
+ipfsGateway that holds the metadata.
+
+For end users: The contract's published metadata could not be fetched. Try again later.
 
 From the CLI: Run the command again later. --json lists each source tried and what it answered.
 

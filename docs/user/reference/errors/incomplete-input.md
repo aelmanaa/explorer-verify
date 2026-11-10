@@ -29,8 +29,12 @@ contract metadata, or pass `options.compilerVersion`. For `contract`, pass `opti
 `path:Name` or as a name that matches one entry of `details.candidates`. For `sources`, pass each
 path in `details.candidates` as a key of `options.sources`, with the file's content.
 
-Default hint: Add what details.field names: a build-info with its input, the full compiler version,
-the contract as path:Name, or the source files listed in details.candidates.
+Default hint: Add what is missing (details.field): a build-info with its input, the full compiler
+version, the contract as path:Name, or the missing source files (details.candidates).
+
+For end users: The build output lacks something the explorer needs: the compiler input, the full
+compiler version, the choice of contract or some source files. Compile the project again and pick
+the contract, then try again.
 
 From the CLI: Pass --contract with one of: `<names>`.
 

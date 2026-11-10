@@ -31,7 +31,7 @@ const SUBPATHS = [
     subpath: "./errors",
     source: "entries/errors.ts",
     module: errors,
-    names: ["ERROR_CODES", "ERROR_HINTS", "ExplorerVerifyError"],
+    names: ["ERROR_CODES", "ERROR_HINTS", "ExplorerVerifyError", "hintFor"],
   },
   {
     subpath: "./backends",

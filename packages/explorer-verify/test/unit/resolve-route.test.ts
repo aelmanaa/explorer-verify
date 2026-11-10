@@ -11,7 +11,7 @@ import { resolveRoute } from "../helpers/route.ts";
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const ADDRESS: Hex = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const SCHEME_MESSAGE = "must use https, or http on localhost, 127.0.0.1 or [::1]";
-const DEFAULT_HINT = "Fix the fields listed in details.issues, then call again.";
+const DEFAULT_HINT = "Fix the fields that the issues list (details.issues), then call again.";
 const BACKEND_HINT = "Leave out route.backend, or name one of: sourcify.";
 const NO_CLIENT = "has no client in this version";
 const ROUTE_HINT =

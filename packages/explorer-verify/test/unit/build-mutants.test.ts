@@ -13,9 +13,9 @@ const PATH = "src/A.sol";
 const SOURCE = "contract A {}";
 const HASH = keccak256(new TextEncoder().encode(SOURCE));
 
-const INVALID_HINT = "Fix the fields listed in details.issues, then call again.";
+const INVALID_HINT = "Fix the fields that the issues list (details.issues), then call again.";
 const CONTRACT_HINT =
-  "Pass options.contract as path:Name, or as a Name that matches one entry of details.candidates.";
+  "Pass the contract (options.contract) as path:Name, or as a Name that matches one of the candidates (details.candidates).";
 const METADATA_ONLY_HINT =
   "Pass the build-info of the same build, or Solidity metadata with language, compiler.version, settings.compilationTarget and a keccak256 hash for each source.";
 const METADATA_TARGET_HINT =
@@ -439,7 +439,7 @@ describe("buildVerifyInput: picking the version and the contract (#202, R-IN-7)"
       {
         field: "contract",
         message: "The documents list no contracts, so a bare contract name cannot be resolved.",
-        hint: "Pass options.contract as path:Name, with a path that is a key of the compiler input's sources.",
+        hint: "Pass the contract (options.contract) as path:Name, with a path that is a key of the compiler input's sources.",
       },
       { contract: "A", compilerVersion: VERSION },
     );
@@ -480,7 +480,11 @@ describe("buildVerifyInput: picking the version and the contract (#202, R-IN-7)"
   it("says when the documents name no contract", () => {
     assertIncomplete(
       [standardJson()],
-      { field: "contract", message: "The documents name no contract.", hint: CONTRACT_HINT },
+      {
+        field: "contract",
+        message: "The documents name no contract.",
+        hint: "Pass the contract (options.contract) as path:Name.",
+      },
       { compilerVersion: VERSION },
     );
   });

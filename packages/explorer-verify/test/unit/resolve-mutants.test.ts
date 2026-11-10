@@ -89,7 +89,10 @@ describe("resolveRoute: the route key is a secret of the error (#158, R-SEC-1)",
       }),
     );
     assert.equal(error.message, `The route is invalid: ${REDACTED}`);
-    assert.equal(error.hint, "Fix the fields listed in details.issues, then call again.");
+    assert.equal(
+      error.hint,
+      "Fix the fields that the issues list (details.issues), then call again.",
+    );
   });
 });
 

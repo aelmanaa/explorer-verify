@@ -589,7 +589,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
     const error = rejection({ ...withCompiler({ version: "0.8.24", kind: "x" }), chainId: 0 });
     assert.equal(
       error.hint,
-      'Set compiler.kind to "solc", or "zksolc" for EraVM. Then fix the other fields in details.issues.',
+      'Set compiler.kind to "solc", or "zksolc" for EraVM. Then fix the other fields that the issues list (details.issues).',
     );
   });
 
@@ -1302,7 +1302,10 @@ describe("rule: each libraries entry says why it is invalid and what to pass (R-
       },
       ["libraries.2", "libraries.3"],
     );
-    assert.equal(error.hint, `${ADDRESS_HINT} Then fix the other fields in details.issues.`);
+    assert.equal(
+      error.hint,
+      `${ADDRESS_HINT} Then fix the other fields that the issues list (details.issues).`,
+    );
   });
 
   it("refuses an address that conflicts with settings.libraries, with a hint", () => {

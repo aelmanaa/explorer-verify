@@ -581,14 +581,14 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: WRAPPER,
-    example: 1,
+    example: 2,
     what: "explorer-verify/core with the Sourcify client and the table: already verified",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified sourcify\n",
   },
   {
     page: WRAPPER,
-    example: 2,
+    example: 3,
     what: "explorer-verify/core with route.apiUrl and no table: already verified",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified\n",

@@ -21,8 +21,11 @@ a key on a paid plan, or to verify on Sourcify, which needs no key, with
 Fix: check the key on the explorer's account page, then pass a valid key in `apiKeys` or
 `route.apiKey` and call again. [API keys](../api-keys.md) describes where each key goes.
 
-Default hint: Check the key on the explorer's account page: it may be mistyped, revoked or issued
-by another explorer. Pass a valid key, then call again.
+Default hint: Check the key on the explorer's account page: it may be mistyped, revoked or issued by
+another explorer. Pass a valid key, then call again.
+
+For end users: The explorer refused the API key. Check the key: it may be mistyped, revoked or
+issued by another explorer.
 
 From the CLI: etherscan-v2 refused the key. Check the key in ETHERSCAN_API_KEY on the explorer's
 account page: it may be mistyped, revoked or issued by another explorer.

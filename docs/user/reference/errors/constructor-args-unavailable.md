@@ -23,7 +23,12 @@ Fix: check that `creationBytecode` and the compiler input come from the build th
 or pass `constructorArgs`, the ABI-encoded arguments without a selector, such as the output of
 `cast abi-encode`.
 
-Default hint: Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the deployed build.
+Default hint: Pass constructorArgs, the ABI-encoded arguments, or check creationBytecode against the
+deployed build.
+
+For end users: The build does not match the creation code of the deployed contract, so its
+constructor arguments cannot be read. Use the build output of the deployed contract, or enter the
+constructor arguments.
 
 From the CLI: Pass --constructor-args with the ABI-encoded arguments, or check the --input files
 against the deployed build.

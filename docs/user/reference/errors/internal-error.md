@@ -12,8 +12,11 @@ and the error carries no handle.
 Fix: do not retry automatically. Report the bug in an issue with the command you ran and the
 message. Leave out your API key.
 
-Default hint: This is a bug in explorer-verify. Report it with the command you ran, without your
-API key.
+Default hint: This is a bug in explorer-verify. Report it with the command you ran, without your API
+key.
+
+For end users: Something went wrong inside the tool. Report it to the tool's maintainer, without
+your API key.
 
 From the CLI: This is a bug in explorer-verify. Report it with the command you ran, without your API
 key.

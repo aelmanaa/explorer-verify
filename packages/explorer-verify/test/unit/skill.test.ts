@@ -105,7 +105,7 @@ const RUNS: readonly RunSpec[] = [
       "2026-11-02-lookup-not-verified",
     ],
     exitCode: 4,
-    stdout: `not-confirmed ${HANDLE} Call checkStatus with details.handle later to continue polling.\n`,
+    stdout: `not-confirmed ${HANDLE} Call checkStatus later with the error's handle (details.handle) to continue polling.\n`,
     handleAfter: HANDLE,
   },
   {

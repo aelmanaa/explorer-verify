@@ -129,12 +129,12 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
 const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: ExitCode }> = {
   "invalid-input": {
-    hint: "Fix the fields listed in details.issues, then call again.",
+    hint: "Fix the fields that the issues list (details.issues), then call again.",
     retryable: false,
     exitCode: 2,
   },
   "not-confirmed": {
-    hint: "Call checkStatus with details.handle later to continue polling.",
+    hint: "Call checkStatus later with the error's handle (details.handle) to continue polling.",
     retryable: true,
     exitCode: 4,
   },
@@ -149,7 +149,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "rate-limited": {
-    hint: "Wait details.retryAfterMs, or a few seconds when it is not set, then call again.",
+    hint: "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds when it did not say, then call again.",
     retryable: true,
     exitCode: 5,
   },
@@ -159,7 +159,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "unexpected-response": {
-    hint: "Call again later. If the error persists, check the explorer's status page and report details.status and details.excerpt.",
+    hint: "Call again later. If the error persists, check the explorer's status page and report the HTTP status and the start of the answer (details.status, details.excerpt).",
     retryable: true,
     exitCode: 5,
   },
@@ -169,7 +169,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 5,
   },
   "unknown-state": {
-    hint: "Do not retry automatically. Check the contract on the explorer and report details.excerpt.",
+    hint: "Do not retry automatically. Check the contract on the explorer and report the start of its answer (details.excerpt).",
     retryable: false,
     exitCode: 6,
   },
@@ -179,12 +179,12 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 6,
   },
   cancelled: {
-    hint: "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
+    hint: "The run was cancelled. If the error holds handles (error.handle, error.handles), resume each one with checkStatus instead of submitting again.",
     retryable: false,
     exitCode: 130,
   },
   "incomplete-input": {
-    hint: "Add what details.field names: a build-info with its input, the full compiler version, the contract as path:Name, or the source files listed in details.candidates.",
+    hint: "Add what is missing (details.field): a build-info with its input, the full compiler version, the contract as path:Name, or the missing source files (details.candidates).",
     retryable: false,
     exitCode: 2,
   },
@@ -204,12 +204,12 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 4,
   },
   "source-mismatch": {
-    hint: "Pass the source file named in details.path exactly as it was compiled, byte for byte, line endings included.",
+    hint: "Pass the source file that the error names (details.path) exactly as it was compiled, byte for byte, line endings included.",
     retryable: false,
     exitCode: 2,
   },
   "missing-api-key": {
-    hint: "Pass the key in apiKeys under the backend named in details.backend, or as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.",
+    hint: "Pass the key in apiKeys under the backend that the error names (details.backend), or as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.",
     retryable: false,
     exitCode: 3,
   },
@@ -234,7 +234,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 2,
   },
   "metadata-unavailable": {
-    hint: "Read details.attempts. Call again later, or pass an ipfsGateway that holds the metadata.",
+    hint: "The error lists each source tried (details.attempts). Call again later, or pass an ipfsGateway that holds the metadata.",
     retryable: true,
     exitCode: 5,
   },
@@ -249,12 +249,12 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 4,
   },
   "proxy-link-unknown-state": {
-    hint: "Do not retry automatically. Check the proxy's page on the explorer and report details.excerpt.",
+    hint: "Do not retry automatically. Check the proxy's page on the explorer and report the start of its answer (details.excerpt).",
     retryable: false,
     exitCode: 6,
   },
   "handler-refused": {
-    hint: "Do not retry. Fix the createVerifyHandler option or the request that details.handlerCode names.",
+    hint: "Do not retry. Fix the createVerifyHandler option or the request that the handler's refusal code names (details.handlerCode).",
     retryable: false,
     exitCode: 2,
   },
@@ -298,7 +298,10 @@ describe("ExplorerVerifyError", () => {
     assert.equal(error.code, "invalid-input");
     assert.equal(error.details.code, "invalid-input");
     assert.equal(error.message, "The input is invalid: chainId.");
-    assert.equal(error.hint, "Fix the fields listed in details.issues, then call again.");
+    assert.equal(
+      error.hint,
+      "Fix the fields that the issues list (details.issues), then call again.",
+    );
     assert.equal(error.retryable, false);
     assert.equal(error.docsUrl, docsUrlOf("invalid-input"));
     assert.equal(String(error), "ExplorerVerifyError: The input is invalid: chainId.");
@@ -308,7 +311,10 @@ describe("ExplorerVerifyError", () => {
     const error = notConfirmed();
     assert.equal(error.code, "not-confirmed");
     assert.equal(error.retryable, true);
-    assert.equal(error.hint, "Call checkStatus with details.handle later to continue polling.");
+    assert.equal(
+      error.hint,
+      "Call checkStatus later with the error's handle (details.handle) to continue polling.",
+    );
     assert.equal(error.docsUrl, docsUrlOf("not-confirmed"));
   });
 
@@ -522,7 +528,7 @@ describe("ExplorerVerifyError.toJSON", () => {
     const expected: ErrorJson = {
       code: "invalid-input",
       message: "The input is invalid: chainId.",
-      hint: "Fix the fields listed in details.issues, then call again.",
+      hint: "Fix the fields that the issues list (details.issues), then call again.",
       docsUrl: docsUrlOf("invalid-input"),
       retryable: false,
       details: {
@@ -1115,7 +1121,7 @@ describe("cancelled (R-AX-7)", () => {
     assert.equal(error.retryable, false);
     assert.equal(
       error.hint,
-      "The run was cancelled. If error.handle or error.handles is set, resume each handle with explorer-verify status instead of submitting again.",
+      "The run was cancelled. If the error holds handles (error.handle, error.handles), resume each one with checkStatus instead of submitting again.",
     );
     assert.equal(error.docsUrl, docsUrlOf("cancelled"));
   });
