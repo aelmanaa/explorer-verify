@@ -112,7 +112,10 @@ export interface BuildFromBytecodeOptions {
   fetch?: typeof fetch | undefined;
   /** Cancels the call. The call rejects with `signal.reason` unchanged. */
   signal?: AbortSignal | undefined;
-  /** Time budget for the whole call, in milliseconds. Defaults to 120000. */
+  /**
+   * Time budget for the whole call, in milliseconds. Defaults to 120000. A positive number; a
+   * value above 2147483647, `Infinity` included, is lowered to it.
+   */
   timeoutMs?: number | undefined;
   /**
    * Receives log lines with secrets removed. Nothing is logged when it is absent. Every request
@@ -301,14 +304,9 @@ function checkKinds(read: ReadOptions, issues: InputIssue[]): void {
     issues.push({ field: "signal", message: "must be an AbortSignal" });
   }
   const timeoutMs: unknown = read.timeoutMs;
-  if (
-    timeoutMs !== undefined &&
-    (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
-  ) {
-    issues.push({
-      field: "timeoutMs",
-      message: "must be a positive finite number of milliseconds",
-    });
+  // `!(timeoutMs > 0)` also refuses NaN and -Infinity. Infinity passes and is clamped later.
+  if (timeoutMs !== undefined && (typeof timeoutMs !== "number" || !(timeoutMs > 0))) {
+    issues.push({ field: "timeoutMs", message: "must be a positive number of milliseconds" });
   }
   const logger: unknown = read.logger;
   if (logger !== undefined && (logger === null || typeof logger !== "object")) {

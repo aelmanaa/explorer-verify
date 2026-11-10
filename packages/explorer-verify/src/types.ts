@@ -706,7 +706,8 @@ export interface CallOptions {
   signal?: AbortSignal | undefined;
   /**
    * Time budget for the whole call, polling included, in milliseconds. Defaults to 120000. A
-   * positive number; a value above 2147483647 is lowered to it.
+   * positive number; a value above 2147483647, `Infinity` included, is lowered to it. 2147483647
+   * ms is about 24.8 days, the longest delay `setTimeout` takes.
    */
   timeoutMs?: number | undefined;
   // References: R-DX-5.

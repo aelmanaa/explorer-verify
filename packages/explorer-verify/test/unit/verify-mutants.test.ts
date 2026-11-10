@@ -196,7 +196,7 @@ describe("settingsOf(): options of the wrong kind (R-DX-3)", () => {
       (error: unknown) => {
         const checked = errorOf(error, "invalid-input");
         assert.deepEqual(checked.details.code === "invalid-input" && checked.details.issues, [
-          { field: "timeoutMs", message: "must be a positive finite number of milliseconds" },
+          { field: "timeoutMs", message: "must be a positive number of milliseconds" },
         ]);
         return true;
       },
@@ -486,11 +486,11 @@ describe("settingsOf(): the invalid-input error for bad options (R-DX-3, R-SEC-1
     assert.match(error.hint, /^Pass options as a plain object: timeoutMs and pollIntervalMs/);
   });
 
-  for (const value of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+  for (const value of [0, -1, Number.NaN, Number.NEGATIVE_INFINITY]) {
     it(`refuses a timeoutMs of ${String(value)}`, () => {
       const error = issuesOf({ timeoutMs: value });
       assert.deepEqual(error.details.code === "invalid-input" && error.details.issues, [
-        { field: "timeoutMs", message: "must be a positive finite number of milliseconds" },
+        { field: "timeoutMs", message: "must be a positive number of milliseconds" },
       ]);
     });
   }

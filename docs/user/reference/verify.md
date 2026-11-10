@@ -182,7 +182,9 @@ may be `undefined`, such as `rpcUrl: process.env.RPC_URL`, without a conditional
 
 `timeoutMs` and `pollIntervalMs` must be positive numbers of milliseconds; anything else throws
 `invalid-input`. A value above 2147483647, the largest delay `setTimeout` takes, is lowered to it.
-A `pollIntervalMs` below 1000 is raised to 1000.
+`timeoutMs` also takes `Infinity`, lowered the same way, so `timeoutMs: Infinity` gives the
+longest budget, about 24.8 days. `pollIntervalMs` must be finite. A `pollIntervalMs` below 1000 is
+raised to 1000.
 
 `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, `logger` an object, and
 `apiKeys` a plain object of key strings by backend name. Only the

@@ -846,6 +846,16 @@ describe("verify(): time budget (R-FLOW-2, R-FLOW-4, R-FLOW-5)", () => {
     assert.ok(error.message.includes(`${String(MAX_TIMER_MS / 1_000)} s`), error.message);
     assert.ok(r.elapsed >= MAX_TIMER_MS);
   });
+
+  it("clamps a timeoutMs of Infinity the same way, and names the clamped budget (#289)", async (t) => {
+    const r = await run(t, [fixture("lookup-not-verified"), fixture("submit-accepted"), "hang"], {
+      options: { timeoutMs: Number.POSITIVE_INFINITY, pollIntervalMs: 2 ** 40 },
+    });
+    const error = errorOf(r.outcome, "not-confirmed");
+    assert.ok(error.message.includes(`${String(MAX_TIMER_MS / 1_000)} s`), error.message);
+    assert.ok(!error.message.includes("Infinity"), error.message);
+    assert.ok(r.elapsed >= MAX_TIMER_MS);
+  });
 });
 
 // --- abort ---------------------------------------------------------------------------------------
@@ -1122,8 +1132,8 @@ describe("verify(): input and options (R-IN-6)", () => {
     assert.equal(r.sent.length, 0);
   });
 
-  it("rejects timeoutMs and pollIntervalMs that are not positive finite numbers", async (t) => {
-    for (const value of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+  it("rejects timeoutMs and pollIntervalMs that are not positive numbers", async (t) => {
+    for (const value of [0, -1, Number.NaN, Number.NEGATIVE_INFINITY]) {
       t.mock.timers.reset();
       const r = await run(t, [], { options: { timeoutMs: value, pollIntervalMs: value } });
       const error = errorOf(r.outcome, "invalid-input");
