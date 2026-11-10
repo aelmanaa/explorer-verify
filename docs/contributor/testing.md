@@ -478,20 +478,20 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/flow/status.ts`                   | `checkStatus()` (R-FLOW-4)                                                                                     | 100   | 100         | 1 undetected |
 | `src/http/fetch.ts`                    | Retry, timeout and abort rules (R-FLOW-6)                                                                      | 99.67 | 98.20       | 97           |
 | `src/http/api-keys.ts`                 | Which key goes to which host (R-SEC-1)                                                                         | 99.04 | 98.08       | 97           |
-| `src/routing/resolve.ts`               | Which backend and URL a chain gets, so where a key goes                                                        | 95.55 | 93.53       | 92           |
+| `src/routing/resolve.ts`               | Which backend and URL a chain gets, so where a key goes                                                        | 95.90 | 92.93       | 91           |
 | `src/errors.ts`                        | The error catalogue and its redaction (R-SEC-1)                                                                | 100   | 100         | 99           |
 | `src/observe.ts`                       | The logger and event guard (R-DX-5, R-DX-6, R-SEC-1)                                                           | 100   | 100         | 99           |
 | `src/redact.ts`                        | Key redaction (R-SEC-1)                                                                                        | 98.30 | 98.30       | 97           |
-| `src/flow/verify-each.ts`              | `verifyEach()`: entries, routes and one outcome per backend (R-RT-4)                                           | 94.31 | 94.31       | 93           |
+| `src/flow/verify-each.ts`              | `verifyEach()`: entries, routes and one outcome per backend (R-RT-4)                                           | 93.51 | 93.51       | 92           |
 | `src/flow/link-proxy.ts`               | `linkProxy()`: target, route, checks and time budget (R-FLOW-8)                                                | 99.64 | 98.22       | 97           |
 | `src/backends/proxy-common.ts`         | The implementation an Etherscan or Blockscout answer names (R-FLOW-8)                                          | 100   | 100         | 99           |
 | `src/backends/proxy-etherscan.ts`      | Etherscan proxy-link answers mapped to link states (R-FLOW-8)                                                  | 99.27 | 99.27       | 98           |
-| `src/backends/proxy-blockscout.ts`     | Blockscout proxy-link answers mapped to link states (R-FLOW-8)                                                 | 98.93 | 98.93       | 98           |
+| `src/backends/proxy-blockscout.ts`     | Blockscout proxy-link answers mapped to link states (R-FLOW-8)                                                 | 98.93 | 98.93       | 97           |
 | `src/backends/proxy-sourcify.ts`       | Sourcify's proxy resolution mapped to link states (R-FLOW-8)                                                   | 100   | 100         | 99           |
 | `src/backends/etherscan.ts`            | Etherscan answers mapped to results and errors (R-FLOW-4)                                                      | 100   | 99.44       | 98           |
 | `src/backends/etherscan-compatible.ts` | The requests of a standalone Etherscan-compatible explorer (R-BE-2)                                            | 100   | 100         | 1 undetected |
 | `src/backends/routescan.ts`            | Routescan's requests (R-BE-5)                                                                                  | 100   | 100         | 1 undetected |
-| `src/backends/blockscout.ts`           | Blockscout answers mapped to results and errors (R-FLOW-4)                                                     | 99.07 | 99.07       | 99           |
+| `src/backends/blockscout.ts`           | Blockscout answers mapped to results and errors (R-FLOW-4)                                                     | 99.07 | 99.07       | 98           |
 | `src/server/handler.ts`                | The server handler's guards, forwarding and redaction (R-SRV-3, R-SRV-4, R-SEC-1, R-SEC-2)                     | 98.15 | 95.62       | 94           |
 | `src/envelope.ts`                      | The JSON envelope and exit codes, and their checks (R-AX-5, R-AX-7, R-SEC-1)                                   | 97.87 | 97.87       | 96           |
 | `src/http/rpc.ts`                      | The JSON-RPC request and answer, and the `rpcUrl` parts redacted (R-SEC-1)                                     | 98.08 | 98.08       | 97           |
@@ -499,7 +499,7 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/flow/handle.ts`                   | `parseHandle()`, which throws (R-FLOW-5, R-SEC-2)                                                              | 100   | 100         | 1 undetected |
 | `src/flow/format-handle.ts`            | The one-line handle and its redaction (R-FLOW-5, R-SEC-1)                                                      | 97.73 | 97.73       | 1 undetected |
 | `src/flow/check-handle.ts`             | The handle checks, `tryParseHandle()` and `isHandleString()` (R-FLOW-5, R-SEC-2)                               | 100   | 100         | 1 undetected |
-| `src/input/validate.ts`                | `validateInput()`: every rule an input passes before a request (R-IN-1, R-IN-6)                                | 95.77 | 94.51       | 93           |
+| `src/input/validate.ts`                | `validateInput()`: every rule an input passes before a request (R-IN-1, R-IN-6)                                | 98.57 | 95.97       | 94           |
 | `src/input/constructor-args.ts`        | Constructor arguments derived from the creation code (R-IN-3)                                                  | 100   | 100         | 99           |
 | `src/input/build.ts`                   | `buildVerifyInput()`: document shapes, local paths, version and contract (R-IN-7)                              | 98.62 | 98.62       | 97           |
 | `src/input/metadata.ts`                | The Standard JSON input rebuilt from Solidity metadata (R-IN-7)                                                | 98.24 | 98.24       | 97           |
@@ -544,15 +544,33 @@ below its score; counting killed mutants only keeps such a run from failing the 
 [The research note](research/2026-11-03-mutation-testing.md) explains the tool choice and the
 run times.
 
-The five rows for `routing/resolve.ts`, `flow/verify-each.ts`, the two Blockscout clients and
-`input/validate.ts` were remeasured on 2026-11-07 with StrykerJS 10.0.0 and Node 24.21.0,
-concurrency 2. The incremental run started with the report from PR #253 and reused 10055 of
-10297 results; no source file changed. Nine new regression tests killed three routing mutants,
-four proxy-client mutants and six Blockscout-client mutants. The remaining routing, multi-backend
-and validation floors had been above the whole-file baseline. Their new floors use the killed-only
-rule above; timeouts receive no credit in setting them. Validation guards and Object.keys-only
-boolean values account for many equivalent survivors. The focused changed-line scores recorded
-earlier are not whole-file scores. Issue #202 retains the remaining mutation work.
+The rows of `routing/resolve.ts`, `flow/verify-each.ts`, the two Blockscout clients and
+`input/validate.ts` were measured on 2026-11-10 on commit `7764f33` with
+StrykerJS 10.0.0 and Node 24.21.0: one forced run per file
+(`pnpm exec stryker run --force --mutate <file> --concurrency 2`). The weekly full run of the
+`Mutation` workflow on the same commit, on CI's 4-core runner, killed the same number of mutants
+in four of the five files. In `resolve.ts` it killed 662, five more than the local run, where
+those five timed out on a heavily loaded machine; the killed-only rule keeps that difference out
+of the floor. For `validate.ts`, 18 of the 20 local timeouts survive on CI, which scores it 96.23; the
+killed-only score, 95.97, is the same in both runs.
+
+Earlier rows of `validate.ts` (99.14, then 95.77) and `verify-each.ts` (94.31) came from
+incremental runs, which reuse the result of a mutant whose code and covering tests did not change.
+PR #239 recorded 99.14 for `validate.ts` from such runs: 686 killed, 2 timed out and 6 survived
+of 694. A forced run on commit `f7c12bf`, where `validate.ts`, its tests and its disable comments
+were the same as in #239, gave 657 killed, 2 timed out and 35 survived of the same 694 mutants
+(94.96). Most of the 35 are the `=== undefined` checks of `validateInput()`, `checkCompiler()`
+and `checkStandardJson()` that #239 itself listed as equivalent survivors, so its count of 6
+survivors could not include them: those mutants kept results from runs before #239 changed the
+file. The 95.77 of 2026-11-07 came from an incremental run that reused 10055 of 10297 results.
+The floors of the two Blockscout clients, 99 and 98, were one point above the rule; they are now
+98 and 97. Floors set from an incremental run can sit above the score of a full run. Measure a row with
+`--force`, or check it against the latest full run of the `Mutation` workflow.
+
+Most survivors in these five files are listed as equivalent below: the defence-in-depth check of
+`validateInput()` and its narrowing guards, and the booleans of `eachOptionKeys()` that only
+`Object.keys` reads. `mutation-baseline-regressions.test.ts` kills the routing, proxy-link and
+Blockscout mutants that the full report showed. Issue #202 holds the remaining mutation work.
 
 ### Keep the floors current
 
@@ -791,6 +809,7 @@ or cannot reach them:
 | `src/flow/verify-each.ts`          | `entryError`: `error.details.code !== "invalid-input"` always false                                           | Only an `invalid-input` or an error that is not an `ExplorerVerifyError` reaches it                                                        |
 | `src/flow/verify-each.ts`          | `everyListed`: `name !== undefined` always true                                                               | `dependencies.backends[undefined]` is `undefined`, so the next check skips the entry                                                       |
 | `src/flow/verify-each.ts`          | `entryError`: the secrets condition always false for an entry with `apiKey`                                   | The message and the issues name only fields, and the hint is fixed text, so no key can appear in them                                      |
+| `src/flow/verify-each.ts`          | `eachOptionKeys`: a `true` value replaced by `false`, twelve mutants                                          | `Object.keys` reads only the keys                                                                                                          |
 | `src/flow/link-proxy.ts`           | `pending`: the options of an error without cause replaced by `{}`                                             | The message holds only the proxy's address and the backend's name                                                                          |
 | `src/backends/proxy-etherscan.ts`  | `request`: `result !== undefined` always true                                                                 | Neither the guid pattern, the mismatch text nor a refusal matches the text `undefined`                                                     |
 | `src/backends/proxy-blockscout.ts` | `readRequest`: `result !== undefined` always true                                                             | The uid pattern starts with the proxy's 40 hex digits, which the text `undefined` does not hold                                            |
