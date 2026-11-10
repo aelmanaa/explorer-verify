@@ -1,9 +1,12 @@
 // References: decision 0052.
 /**
- * `explorer-verify/clients/routescan`: the Routescan client for `explorer-verify/core`. Routescan
- * has no proxy-link client: what its `verifyproxycontract` does is not
- * known.
+ * The Routescan client for `explorer-verify/core`.
+ *
+ * Routescan has no proxy-link client: what its `verifyproxycontract` does is not known.
+ *
+ * @packageDocumentation
  */
+
 import { routescan as routescanBackend } from "../backends/routescan.ts";
 import { defineClient } from "../core/parts.ts";
 import type { ExplorerClient } from "../core/parts.ts";

@@ -28,6 +28,7 @@ import {
   siteSourceExcludes,
   withCodeTitle,
 } from "../../scripts/site-docs.ts";
+import { boostDocument, processTerm } from "../../scripts/site-search.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const version = packageVersion(root);
@@ -83,32 +84,14 @@ const config: UserConfig<DefaultTheme.Config> = defineConfig({
       provider: "local",
       options: {
         // VitePress sends these functions to the browser as their source text, so each must use
-        // nothing outside its own body.
+        // nothing outside its own body (scripts/site-search.ts).
         miniSearch: {
-          options: {
-            // Lower case, and a plural word as its singular, so "key" also finds "API keys". The
-            // index and the query both go through it.
-            processTerm: (term: string): string => {
-              const lower = term.toLowerCase();
-              return lower.length > 3 && lower.endsWith("s") && !lower.endsWith("ss")
-                ? lower.slice(0, -1)
-                : lower;
-            },
-          },
+          options: { processTerm },
           searchOptions: {
             // VitePress's defaults are title 4, text 2 and titles 1. A section whose own heading
             // holds the word counts more.
             boost: { title: 8, text: 1, titles: 2 },
-            // A section of a page whose title holds the word counts three times, so "etherscan
-            // key" lists the API keys page before sections that only mention a key. The
-            // generated API reference ranks below the pages people write.
-            boostDocument: (id: string, term: string, stored?: Record<string, unknown>): number => {
-              const titles: unknown = stored?.["titles"];
-              const first: unknown =
-                Array.isArray(titles) && titles.length > 0 ? titles[0] : stored?.["title"];
-              const page = typeof first === "string" ? first.toLowerCase() : "";
-              return (id.includes("/api/") ? 0.5 : 1) * (page.includes(term) ? 3 : 1);
-            },
+            boostDocument,
           },
         },
       },

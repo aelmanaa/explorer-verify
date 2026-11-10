@@ -1,8 +1,10 @@
 // References: decision 0052.
 /**
- * `explorer-verify/clients/etherscan-compatible`: the clients of a standalone
- * Etherscan-compatible explorer for `explorer-verify/core`.
+ * The clients of a standalone Etherscan-compatible explorer for `explorer-verify/core`.
+ *
+ * @packageDocumentation
  */
+
 import { etherscanCompatible as compatibleBackend } from "../backends/etherscan-compatible.ts";
 import { compatibleProxyLinker } from "../backends/proxy-etherscan.ts";
 import { defineClient, defineProxyLink } from "../core/parts.ts";

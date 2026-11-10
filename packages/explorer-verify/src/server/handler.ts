@@ -1,9 +1,10 @@
 // References: R-SRV-1, R-SRV-5, decisions 0003, 0008, 0016 and 0021, R-RUN-1, R-SRV-3, R-SEC-1.
 /**
- * `createVerifyHandler`, the handler an operator runs on their own server with their own Etherscan
- * key. It accepts the requests the
- * Etherscan v2 client sends, checks them against its guards, adds the key and forwards them to
- * Etherscan. It is the `explorer-verify/server` entry point.
+ * A request handler for your own server that adds your Etherscan key to the requests of the
+ * Etherscan v2 client.
+ *
+ * `createVerifyHandler` accepts the requests the Etherscan v2 client sends, checks them against
+ * its guards, adds the key and forwards them to Etherscan.
  *
  * It uses no Node built-in, only web-platform globals (`Request`, `Response`, `URL`,
  * `URLSearchParams`, `TextDecoder`, `setTimeout` and `fetch`), so it runs in Node, edge runtimes
@@ -20,7 +21,10 @@
  * - follow a redirect: every upstream request has `redirect: "manual"`, and a 3xx is refused;
  * - return a key: refusals are fixed sentences, and every string of an upstream answer is
  *   redacted.
+ *
+ * @packageDocumentation
  */
+
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";

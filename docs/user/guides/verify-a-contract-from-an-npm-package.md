@@ -1,64 +1,83 @@
 # Verify a contract shipped in an npm package
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers who deploy a contract that an SDK ships compiled, and want it verified.
+For: developers who deploy a contract that an SDK ships compiled, and want it verified.
 
-An SDK often ships compiled contracts as JSON files in its npm package. You may not know whether
-Hardhat 2, Hardhat 3 or Foundry produced them. `buildVerifyInput` takes the parsed files, works out
-what each one is from its shape, and returns the `compiler` part of the verification input and the
-fully qualified contract name. If you write the package and deploy its contracts, see
+You need: Node.js 22.18 or later, the SDK's build files in `node_modules`, and the deployed
+address and chain ID. A dry run needs no API key.
+
+An SDK often ships compiled contracts as JSON files, and you may not know whether Hardhat 2,
+Hardhat 3 or Foundry wrote them. `buildVerifyInput` works out what each file is from its shape.
+If you write the package and deploy its contracts, see
 [Verify contracts your package ships](verify-contracts-your-package-ships.md).
 
-## Steps
+## Install
 
-1. Find the build-info file of the build in the package, and the artifact of your contract. The SDK
-   documents where they are.
-2. Parse them and pass them to `buildVerifyInput`, in any order.
-3. Add the chain ID and the deployed address. The result is a `VerifyInput`.
-4. Pass the input to [`verify`](../reference/verify.md).
+Install the core:
 
-```ts
+```bash
+npm install explorer-verify
+```
+
+## Dry run
+
+Find the build-info file and your contract's artifact in the package; the SDK documents where
+they are. Parse both, pass them to `buildVerifyInput` in any order, then dry run the result:
+
+```ts [dry-run.ts]
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
-import { buildVerifyInput } from "explorer-verify";
-import type { VerifyInput } from "explorer-verify";
+import { buildVerifyInput, dryRun } from "explorer-verify";
 
 const require = createRequire(import.meta.url);
-// The SDK documents where its build-info and artifacts live in the package.
 const read = async (file: string): Promise<unknown> =>
   JSON.parse(await readFile(require.resolve(`some-sdk/${file}`), "utf8"));
-// The address your deployment returned.
-const deployedAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const built = buildVerifyInput([
   await read("artifacts/build-info/solc-0_8_24-e2aa41ca9499e8400cb1090c69ef55b1cafafa86.json"),
   await read("artifacts/contracts/Greeter.sol/Greeter.json"),
 ]);
-console.log(built.contractName); // the Hardhat 3 input source name
+console.log(built.contractName);
 
-const input: VerifyInput = { chainId: 11155111, address: deployedAddress, ...built };
-
-// verify() looks the contract up and submits the input only when the explorer lacks it.
-// const result = await verify(input);
+const result = await dryRun(
+  {
+    chainId: 11155111,
+    address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+    ...built,
+  },
+  { route: { backend: "sourcify" } },
+);
+console.log(result.status, result.backend, result.lookup);
 ```
 
-It prints:
+The contract name is the Hardhat 3 input source name:
 
 ```text
 project/contracts/Greeter.sol:Greeter
+dry-run sourcify exact
 ```
 
-When the chain ID or the address comes from untyped data, such as parsed JSON, check the whole
-input with `validateInput` before you pass it to `verify`.
+The address is the sample Greeter on Sepolia, which Sourcify already holds. Put the address your
+deployment returned in its place. `lookup` tells what `verify()` will do:
 
-The file reads are yours. `buildVerifyInput` itself takes parsed objects and uses no Node API, so it
-also runs in a browser, for example on JSON your dapp bundles. It sends nothing.
+- `exact` or `partial`: the explorer holds the contract, so nothing is submitted.
+- `none`: `verify()` will submit the input.
+
+## Verify
+
+Pass the same input and options to [`verify()`](../reference/verify.md). It submits only when
+the lookup finds no match.
+
+> [!WARNING]
+> A submit publishes the source on the explorer and cannot be undone.
+
+When the chain ID or the address comes from untyped data, such as parsed JSON, check the whole
+input with `validateInput` first. `buildVerifyInput` takes parsed objects, uses no Node API and
+sends nothing, so it also runs in a browser on JSON your dapp bundles.
 
 ## What to pass
 
@@ -73,22 +92,24 @@ also runs in a browser, for example on JSON your dapp bundles. It sends nothing.
 | Solidity metadata, as an object or a string      | The metadata                     | `sources`, unless the metadata embeds them       |
 | Only artifacts with ABI and bytecode             | Not enough: see below            |                                                  |
 
-`options.contract` is `path:Name`, or a bare `Name` when exactly one contract in the documents has
-that name. A bare Standard JSON input lists no contracts, so it needs `path:Name`. For Hardhat 3, the user source name (`contracts/Greeter.sol:Greeter`) also works: it is
-mapped to the input source name (`project/contracts/Greeter.sol:Greeter`). `options.compilerVersion`
-is the full version, such as `0.8.24+commit.e11b9ed9`. It is used only when the documents hold no
-full version. `options.sources` maps each source path, as the metadata lists it, to the file's
-content. It is used only when the input is rebuilt from metadata.
+The options:
+
+- `contract`: `path:Name`, or a bare `Name` when one contract in the documents has it. A Standard
+  JSON input lists no contracts, so it needs `path:Name`. For Hardhat 3, the user source name
+  `contracts/Greeter.sol:Greeter` maps to `project/contracts/Greeter.sol:Greeter`.
+- `compilerVersion`: the full version, such as `0.8.24+commit.e11b9ed9`. Used only when the
+  documents hold no full version.
+- `sources`: each source path, as the metadata lists it, mapped to the file's content. Used only
+  when the input is rebuilt from metadata.
 
 ## Rebuild the input from Solidity metadata
 
-Some packages ship the Solidity metadata of a contract instead of its build-info: a Foundry
-artifact holds it in `rawMetadata` and `metadata`, and a build-info output holds it as a string per
-contract. The metadata is the JSON whose hash solc appends to the bytecode. It records the compiler
-version, the settings, the contract and the keccak-256 hash of each source file. With the source
-files, the builder rebuilds the Standard JSON input that produced the bytecode.
+Some packages ship a contract's Solidity metadata instead of its build-info. A Foundry artifact
+holds it in `rawMetadata` and `metadata`. The metadata records the compiler version, the
+settings, the contract and the keccak-256 hash of each source. With the source files, the builder
+rebuilds the Standard JSON input:
 
-```ts
+```ts [rebuild.ts]
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
@@ -98,7 +119,8 @@ const require = createRequire(import.meta.url);
 const text = async (file: string): Promise<string> =>
   readFile(require.resolve(`some-sdk/${file}`), "utf8");
 
-const built = buildVerifyInput([JSON.parse(await text("out/Greeter.sol/Greeter.json"))], {
+const artifact = JSON.parse(await text("out/Greeter.sol/Greeter.json"));
+const built = buildVerifyInput([artifact], {
   sources: {
     "src/Base.sol": await text("src/Base.sol"),
     "src/Greeter.sol": await text("src/Greeter.sol"),
@@ -108,109 +130,86 @@ console.log(built.contractName); // from settings.compilationTarget
 console.log(built.compiler.version); // from compiler.version
 ```
 
-It prints:
-
 ```text
 src/Greeter.sol:Greeter
 0.8.24+commit.e11b9ed9
 ```
 
-Pass each file exactly as it was compiled. The builder hashes each source's UTF-8 bytes with
-keccak-256 and compares the hash with the metadata before it returns. A file with other line
-endings, or one run through a formatter, fails with `source-mismatch`. When the metadata was built
-with `useLiteralContent` (Foundry's `use_literal_content = true`), it embeds the sources and
-`options.sources` is not needed.
+Pass each file exactly as it was compiled. The builder compares each source's keccak-256 hash
+with the metadata, so a file with other line endings, or one run through a formatter, fails with
+`source-mismatch`. Metadata built with `useLiteralContent` embeds the sources, and `sources` is
+not needed.
+
+## What the rebuilt input holds
 
 The rebuilt input:
 
 - takes `language` from the metadata;
-- copies every setting from the metadata (`optimizer`, `evmVersion`, `remappings`, `metadata`,
-  `viaIR`, `debug`) except `compilationTarget`, with three changes so solc accepts the input:
-  - with `metadata.appendCBOR: false`, it drops `metadata.bytecodeHash`, which solc records but
-    rejects in an input;
-  - for solc 0.8.2 to 0.8.4, it moves `optimizer.details.inliner` to `optimizer.enabled`: those
-    versions record the key but reject it;
-  - when a source embeds its content and `metadata.useLiteralContent` is unset, as solc 0.5.0 and
-    earlier write it, it sets `useLiteralContent` to `true`;
-- turns `libraries` from `{ "path:Name": address }` into `{ path: { Name: address } }`. A bare
-  `Name`, as solc 0.7.4 and earlier write it, goes under the empty path `""`;
+- copies every setting except `compilationTarget`, with three changes so solc accepts it:
+  - with `metadata.appendCBOR: false`, it drops `metadata.bytecodeHash`;
+  - for solc 0.8.2 to 0.8.4, it moves `optimizer.details.inliner` to `optimizer.enabled`;
+  - when a source embeds its content and `useLiteralContent` is unset, it sets it to `true`;
+- turns `libraries` from `{ "path:Name": address }` into `{ path: { Name: address } }`;
 - adds an `outputSelection` for the ABI, the bytecode and the metadata;
-- takes each source's content from the metadata when it embeds it, else from `options.sources`.
-  Embedded content wins over `options.sources`.
+- takes each source's content from the metadata when it embeds it, else from `sources`.
 
-The version comes from `compiler.version` and the contract from `settings.compilationTarget`,
-which must name exactly one contract. When you pass the metadata of several contracts, choose one
-with `options.contract`. In a rebuild, `options.contract` must name that target, as `path:Name` or
-as `Name`. Metadata documents for one contract must list the same sources with the same hashes.
-When a build-info with its input is passed too, the build-info's input is used and
-`options.sources` is ignored.
+The version comes from `compiler.version`, and the contract from `settings.compilationTarget`.
+With the metadata of several contracts, choose one with `contract`. Metadata for one contract must
+list the same sources and hashes. A build-info with its input wins over the metadata.
 
-Tested with metadata from solc 0.5.0, 0.7.0, 0.8.3 and 0.8.24: the rebuilt input compiled with the
-same version gave the original bytecode and metadata. Metadata from solc before 0.5.0 is read the
-same way but is not tested. On 2026-11-03, a contract on Base Sepolia was verified on Sourcify
-from an input rebuilt from its metadata alone, with an exact match.
-
-## What the builder does
+## How the builder reads the files
 
 It classifies each document by its shape, never by file name or tool name:
 
-| Shape                          | Recognised by                                                                                             | Gives                                                                 |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Build-info                     | An `input` object with `language`, `sources`, `settings`                                                  | The compiler input; the version from `solcLongVersion`                |
-| Build-info stub                | `source_id_to_path` and no `input`                                                                        | Nothing: the error says to rebuild with build-info                    |
-| Build-info output              | An `output.contracts` object and no `input`                                                               | The contract list; the version from contract metadata                 |
-| Standard JSON input            | `language`, `sources` and `settings` at the top level                                                     | The compiler input                                                    |
-| Solidity metadata              | A top-level `compiler` or `output` object, or `settings.compilationTarget`, in an object or a JSON string | The contract and the version; without a build-info, the rebuilt input |
-| Artifact with metadata         | `metadata` or `rawMetadata` (read first)                                                                  | The contract and the version; without a build-info, the rebuilt input |
-| Artifact with ABI and bytecode | `abi` and `bytecode`, none of the above                                                                   | The contract (`inputSourceName` or `sourceName`)                      |
+| Shape                          | Recognised by                                                       | Gives                                      |
+| ------------------------------ | ------------------------------------------------------------------- | ------------------------------------------ |
+| Build-info                     | An `input` object with `language`, `sources`, `settings`            | The compiler input; the version            |
+| Build-info stub                | `source_id_to_path` and no `input`                                  | Nothing: the error says to rebuild         |
+| Build-info output              | An `output.contracts` object and no `input`                         | The contract list; the version             |
+| Standard JSON input            | `language`, `sources` and `settings` at the top level               | The compiler input                         |
+| Solidity metadata              | A top-level `compiler` or `output`, or `settings.compilationTarget` | The contract, the version, a rebuilt input |
+| Artifact with metadata         | `metadata` or `rawMetadata`                                         | The contract, the version, a rebuilt input |
+| Artifact with ABI and bytecode | `abi` and `bytecode`, none of the above                             | The contract                               |
 
-Then it:
+Then it checks and cleans the result:
 
-- keeps only `language`, `sources` and `settings` of the compiler input. Foundry adds `version`,
-  `allowPaths`, `basePath` and `includePaths`; `basePath` is an absolute path on the build
-  machine, so publishing it would leak a local path. The input reproduces the bytecode without them.
-- keeps only `content`, and `keccak256` when present, of each source. Other fields, such as
-  `urls`, may hold a local path.
-- rejects a local path, for the same reason: an absolute, home, drive or file-URL path, or a
-  path whose `..` segments climb above the project root. It checks the source paths, both sides
-  of each remapping, and the keys of `settings.libraries` and `settings.outputSelection`. The
-  error gives the position, never the path.
-- checks that the documents come from one build: every build id they carry (a build-info's or
-  output file's `id`, an artifact's `buildInfoId`) and every full compiler version must match.
-  A document passed twice counts once.
-- takes the version from `solcLongVersion` when it holds the commit, else from the contract
-  metadata, else from `options.compilerVersion`. Foundry writes only `0.8.24` in `solcLongVersion`;
-  the full version is in the metadata of its build-info output and of its artifacts.
-- takes the contract from `options.contract`, else from the one contract an artifact points at,
-  else from the one contract the documents list. Hardhat 3 prefixes input source names with
-  `project/`; its artifact's `inputSourceName` holds that name and `sourceName` does not, so the
-  builder uses `inputSourceName`.
-- returns a copy checked by `validateInput`. The order of the documents does not change the result.
+- It keeps only `language`, `sources` and `settings` of the compiler input. Foundry's
+  `basePath` holds an absolute path on the build machine, so it is dropped.
+- It keeps only `content` and `keccak256` of each source.
+- It rejects a local path: absolute, home, drive, file URL, or climbing above the project root.
+  The error gives the position, never the path.
+- It checks that the documents come from one build: every build ID and full compiler version
+  must match. A document passed twice counts once.
+- It takes the version from `solcLongVersion` when it holds the commit, else from the metadata,
+  else from `compilerVersion`.
+- It returns a copy checked by `validateInput`. The order of the documents does not matter.
 
 ## When the files are not enough
 
-The builder throws an `ExplorerVerifyError` that says what is missing. See
-[Errors](../reference/errors/index.md) for each code.
+The builder throws an `ExplorerVerifyError` that says what is missing.
+[Errors](../reference/errors/index.md) describes each code.
 
-| Code                    | Meaning                                                                                                                                             |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `incomplete-input`      | `details.field` names what is missing: `input`, `compilerVersion`, `contract` or `sources`, with the names or paths in `details.candidates`         |
-| `source-mismatch`       | A source file does not match the keccak-256 hash in the metadata. `details.path` names it; `details.expected` and `details.actual` hold the hashes  |
-| `insufficient-artifact` | Only ABI and bytecode: no compiler input or settings. The hint lists the routes left                                                                |
-| `unsupported-compiler`  | A compiler other than solc, or a language other than Solidity                                                                                       |
-| `invalid-input`         | A document of no known shape, documents of different builds or versions, a path not in the sources, a local path, or an input that fails validation |
+| Code                    | Meaning                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| `incomplete-input`      | `details.field` names what is missing: `input`, `compilerVersion`, `contract` or `sources`   |
+| `source-mismatch`       | A source does not match its keccak-256 hash. `details.path` names it                         |
+| `insufficient-artifact` | Only ABI and bytecode: no compiler input or settings                                         |
+| `unsupported-compiler`  | A compiler other than solc, or a language other than Solidity                                |
+| `invalid-input`         | An unknown shape, files of different builds, a local path, or an input that fails validation |
 
 ABI and bytecode alone cannot be verified: the explorer needs the sources and the exact settings.
-Three routes remain: ask the publisher to ship build-info or metadata; use the bytecode-metadata
-resolver (planned), when the bytecode carries a metadata hash and the metadata is published; or rely
-on the explorer's own matching (Etherscan Similar Match, Sourcify similarity; see
-[automatic matching](../../contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)),
-when an identical contract is already verified.
+Three routes remain:
+
+- Ask the publisher to ship build-info or metadata.
+- When the bytecode carries a metadata hash and the metadata is published, use
+  [Verify from deployed bytecode](verify-from-deployed-bytecode.md).
+- When an identical contract is already verified, rely on the explorer's own matching
+  ([automatic matching](../../contributor/research/2026-11-02-explorer-apis.md#automatic-matching-no-submission-needed)).
 
 ## Sources
 
-The format facts above were checked on 2026-11-02 against these type definitions and against
-output of Foundry 1.8.1, Hardhat 2.29.1 and Hardhat 3.21.2 built from one two-file contract:
+The format facts were checked on 2026-11-02 against these type definitions, and against the
+output of Foundry 1.8.1, Hardhat 2.29.1 and Hardhat 3.21.2 for one two-file contract:
 
 - Foundry build-info: [`crates/compilers/src/buildinfo.rs` at foundry-rs/compilers@18b51786](https://github.com/foundry-rs/compilers/blob/18b5178625cdd92e47264410d6597c4179dd1d04/crates/compilers/src/buildinfo.rs),
   read 2026-11-02.
@@ -221,8 +220,20 @@ output of Foundry 1.8.1, Hardhat 2.29.1 and Hardhat 3.21.2 built from one two-fi
 - Hardhat 2 build-info and artifact: `types/artifacts.d.ts` in the
   [`hardhat@2.29.1`](https://www.npmjs.com/package/hardhat/v/2.29.1) npm package, read 2026-11-02.
 - Solidity metadata: [Contract Metadata](https://docs.soliditylang.org/en/v0.8.24/metadata.html)
-  in the Solidity 0.8.24 documentation, read 2026-11-03. On 2026-11-03, the input rebuilt from the
-  metadata of the Foundry, Hardhat 2 and linked-library fixtures was compiled again with solc-js
-  0.8.24; the bytecode and the metadata equaled the original build's.
+  in the Solidity 0.8.24 documentation, read 2026-11-03. The input rebuilt from the metadata of
+  the test fixtures, compiled again with solc-js 0.8.24, gave the original bytecode and metadata.
+- Rebuilt inputs: tested with metadata from solc 0.5.0, 0.7.0, 0.8.3 and 0.8.24. Metadata from
+  solc before 0.5.0 is read the same way but is not tested. On 2026-11-03, a contract on Base
+  Sepolia was verified on Sourcify from an input rebuilt from its metadata alone, with an exact
+  match.
 - The test fixtures, with the tool versions and build commands, are in
   `packages/explorer-verify/test/fixtures/build-formats/` in the repository.
+
+## Next steps
+
+- [Verify contracts your package ships](verify-contracts-your-package-ships.md): the publisher's
+  side.
+- [Verify from deployed bytecode](verify-from-deployed-bytecode.md): when the package ships no
+  build files.
+- [verify()](../reference/verify.md): every option, and the dry run.
+- [Errors](../reference/errors/index.md): each code and its fix.

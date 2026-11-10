@@ -150,8 +150,9 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-a-contract-from-an-npm-package.md",
     example: 0,
-    what: "build the input from Hardhat 3 files in a package",
+    what: "build the input from Hardhat 3 files in a package, then dry run it",
     setup: "npm-package",
+    fixtures: ALREADY_VERIFIED,
   },
   {
     page: "guides/verify-a-contract-from-an-npm-package.md",
@@ -168,13 +169,20 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-contracts-your-package-ships.md",
     example: 1,
+    what: "dry run the shipped files: Sourcify holds the Greeter",
+    setup: "shipped-contracts",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "guides/verify-contracts-your-package-ships.md",
+    example: 2,
     what: "verify the recorded Greeter deployment from the shipped files: already verified",
     setup: "shipped-contracts",
     fixtures: ALREADY_VERIFIED,
   },
   {
     page: "guides/verify-contracts-your-package-ships.md",
-    example: 1,
+    example: 2,
     what: "verify the recorded Greeter deployment from the shipped files: submitted and verified",
     setup: "shipped-contracts",
     fixtures: [
@@ -187,8 +195,9 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "guides/verify-contracts-your-package-ships.md",
-    example: 2,
+    example: 3,
     what: "an Etherscan key in apiKeys: the Sepolia row picks Etherscan, which finds the Greeter verified",
+    setup: "shipped-contracts",
     fixtures: ETHERSCAN_VERIFIED,
   },
   {
@@ -207,31 +216,43 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-from-a-foundry-project.md",
     example: 0,
-    what: "buildVerifyInputFromFoundry in a Foundry project",
+    what: "buildVerifyInputFromFoundry in a Foundry project, then a dry run",
     setup: "foundry",
+    fixtures: ALREADY_VERIFIED,
   },
   {
     page: "guides/verify-from-a-foundry-project.md",
     example: 1,
+    what: "buildVerifyInputFromFoundry, then verify() finds the Greeter verified",
+    setup: "foundry",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "guides/verify-from-a-foundry-project.md",
+    example: 2,
     what: "buildVerifyInputFromFoundry picks one of two compiler versions",
     setup: "foundry-multi",
   },
   {
     page: "guides/verify-from-a-foundry-project.md",
-    example: 2,
+    example: 3,
     what: "findFoundryBuild in a Foundry project",
     setup: "foundry",
   },
   {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
-    what: "buildVerifyInputFromHardhat on Hardhat 3",
+    what: "buildVerifyInputFromHardhat on Hardhat 3, then a dry run",
     setup: "hardhat-3",
+    fixtures: ALREADY_VERIFIED,
   },
-  {
+  ...[
+    "resolve the Sepolia Greeter from its bytecode, then a dry run finds it verified",
+    "resolve the Sepolia Greeter from its bytecode, then verify() finds it verified",
+  ].map((what, example): DocRun => ({
     page: "guides/verify-from-deployed-bytecode.md",
-    example: 0,
-    what: "resolve the Sepolia Greeter from its bytecode, then find it verified",
+    example,
+    what,
     fixtures: [
       "rpc/2026-11-04-eth-chainid-sepolia",
       "rpc/2026-11-04-eth-getcode-greeter",
@@ -239,23 +260,31 @@ const RUNS: readonly DocRun[] = [
       "2026-11-04-contract-metadata-sources",
       ...ALREADY_VERIFIED,
     ],
-  },
+  })),
   {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
-    what: "buildVerifyInputFromHardhat on Hardhat 2",
+    what: "buildVerifyInputFromHardhat on Hardhat 2, then a dry run",
     setup: "hardhat-2",
-    stdout: "contracts/Greeter.sol:Greeter\n",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "contracts/Greeter.sol:Greeter\ndry-run sourcify exact\n",
   },
   {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 1,
+    what: "buildVerifyInputFromHardhat on Hardhat 3, then verify() finds the Greeter verified",
+    setup: "hardhat-3",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "guides/verify-from-a-hardhat-project.md",
+    example: 2,
     what: "findHardhatBuild on Hardhat 3",
     setup: "hardhat-3",
   },
   {
     page: "guides/verify-from-a-hardhat-project.md",
-    example: 2,
+    example: 3,
     what: "libraries for a Hardhat 3 contract that links Tally",
     setup: "hardhat-3",
   },
