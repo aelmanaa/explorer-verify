@@ -174,7 +174,7 @@ jobs:
             tarball="$(cd "packages/$dir" && pnpm pack --json --pack-destination "$out" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).filename')"
             # The same checks as pkg:check, on the tarball that is published.
             pnpm exec publint run --strict "$tarball"
-            pnpm exec attw "$tarball" --profile esm-only
+            pnpm exec attw "$tarball" --ignore-rules cjs-resolves-to-esm
             (cd "$out" && sha256sum "$(basename "$tarball")") >> "$sums"
           done
           node scripts/check-tarballs.ts --dir "$out" --sums "$sums" --version "$VERSION" --commit "$COMMIT"

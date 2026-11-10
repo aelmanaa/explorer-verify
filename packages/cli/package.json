@@ -32,6 +32,16 @@
   "bin": {
     "explorer-verify": "./dist/src/bin.js"
   },
+  "typesVersions": {
+    "*": {
+      "help.schema.json": [
+        "./schema/help.schema.json"
+      ],
+      "version.schema.json": [
+        "./schema/version.schema.json"
+      ]
+    }
+  },
   "exports": {
     "./help.schema.json": "./schema/help.schema.json",
     "./version.schema.json": "./schema/version.schema.json",
@@ -61,7 +71,7 @@
     "test:integration": "node ../../scripts/node-test.ts integration \"test/integration/**/*.test.ts\"",
     "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\"",
     "coverage": "tsc -b tsconfig.build.json && c8 --check-coverage node --test \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\"",
-    "pkg:check": "publint --strict && attw --pack . --profile esm-only"
+    "pkg:check": "publint --strict && attw --pack . --ignore-rules cjs-resolves-to-esm"
   },
   "dependencies": {
     "@explorer-verify/foundry": "workspace:*",
