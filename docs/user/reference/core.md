@@ -125,3 +125,35 @@ Each of these throws before any request, with a hint that names the fix.
 
 An unknown option key is named in the same error as these. `explorer-verify` refuses `clients` and
 `table` as unknown keys, with a hint that points here.
+
+## TypeScript setup
+
+explorer-verify ships ES modules only. Its entries, such as `explorer-verify/core` and
+`explorer-verify/clients/sourcify`, are listed in the `exports` field of `package.json`. These
+`moduleResolution` settings find their types:
+
+| `moduleResolution`            | Supported | How TypeScript finds the types                                   |
+| ----------------------------- | --------- | ---------------------------------------------------------------- |
+| `bundler`                     | Yes       | `exports`                                                        |
+| `node16`, `nodenext`          | Yes       | `exports`                                                        |
+| `node` (also called `node10`) | Yes       | `typesVersions`, which maps each entry to the same `.d.ts` files |
+| `classic`                     | No        |                                                                  |
+
+Use `bundler`, `node16` or `nodenext`. TypeScript 6.0 deprecates `node10` and reports an error
+unless `ignoreDeprecations` is set; TypeScript 7.0 removes it
+([microsoft/TypeScript#62200](https://github.com/microsoft/TypeScript/issues/62200), read on
+2026-11-10). A project that still sets `"moduleResolution": "node"` can switch as that issue shows:
+
+```jsonc
+{
+  "compilerOptions": {
+    // A web project that a bundler builds
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // A Node.js project: "module": "nodenext" instead
+  },
+}
+```
+
+`typesVersions` changes type resolution only. The package still ships ES modules and no CommonJS
+build.

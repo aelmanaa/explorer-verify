@@ -68,6 +68,12 @@ already-verified
 For Etherscan in a browser, host the [server handler](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/run-the-server-handler.md)
 and pass `handlerUrl`; the key stays on your server.
 
+## TypeScript setup
+
+Use `moduleResolution` `bundler`, `node16` or `nodenext`. `node` (also called `node10`) also finds
+the types of every entry. TypeScript 6 deprecates `node10`, and TypeScript 7 removes it. See
+[TypeScript setup](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/reference/core.md#typescript-setup).
+
 ## Guides
 
 - [Browser](https://github.com/aelmanaa/explorer-verify/blob/main/docs/user/guides/verify-from-a-browser.md)

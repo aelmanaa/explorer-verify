@@ -32,6 +32,58 @@
   "type": "module",
   "sideEffects": false,
   "types": "./dist/src/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "handle": [
+        "./dist/src/entries/handle.d.ts"
+      ],
+      "errors": [
+        "./dist/src/entries/errors.d.ts"
+      ],
+      "backends": [
+        "./dist/src/entries/backends.d.ts"
+      ],
+      "envelope": [
+        "./dist/src/entries/envelope.d.ts"
+      ],
+      "server": [
+        "./dist/src/server/handler.d.ts"
+      ],
+      "resolve": [
+        "./dist/src/input/resolvers/bytecode.d.ts"
+      ],
+      "core": [
+        "./dist/src/core/index.d.ts"
+      ],
+      "table": [
+        "./dist/src/core/table.d.ts"
+      ],
+      "clients/sourcify": [
+        "./dist/src/clients/sourcify.d.ts"
+      ],
+      "clients/etherscan-v2": [
+        "./dist/src/clients/etherscan-v2.d.ts"
+      ],
+      "clients/etherscan-compatible": [
+        "./dist/src/clients/etherscan-compatible.d.ts"
+      ],
+      "clients/routescan": [
+        "./dist/src/clients/routescan.d.ts"
+      ],
+      "clients/blockscout": [
+        "./dist/src/clients/blockscout.d.ts"
+      ],
+      "envelope.schema.json": [
+        "./schema/envelope.schema.json"
+      ],
+      "event.schema.json": [
+        "./schema/event.schema.json"
+      ],
+      "input.schema.json": [
+        "./schema/input.schema.json"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
@@ -123,7 +175,7 @@
     "test:mutation": "pnpm run build && stryker run --force && pnpm run mutation:check",
     "test:mutation:incremental": "pnpm run build && stryker run && pnpm run mutation:check",
     "mutation:check": "node ../../scripts/check-mutation-score.ts mutation-floors.json reports/mutation/mutation.json",
-    "pkg:check": "publint --strict && attw --pack . --profile esm-only && node ../../scripts/check-packed-files.ts"
+    "pkg:check": "publint --strict && attw --pack . --ignore-rules cjs-resolves-to-esm && node ../../scripts/check-packed-files.ts"
   },
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",

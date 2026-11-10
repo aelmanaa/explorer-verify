@@ -58,7 +58,7 @@
     "test:unit": "node ../../scripts/node-test.ts unit \"test/unit/**/*.test.ts\"",
     "test:randomize": "node ../../scripts/node-test.ts unit --test-randomize \"test/unit/**/*.test.ts\"",
     "coverage": "c8 --check-coverage node --test \"test/unit/**/*.test.ts\"",
-    "pkg:check": "publint --strict && attw --pack . --profile esm-only"
+    "pkg:check": "publint --strict && attw --pack . --ignore-rules cjs-resolves-to-esm"
   },
   "peerDependencies": {
     "explorer-verify": "workspace:^"
