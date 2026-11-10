@@ -15,6 +15,7 @@ Start here. A submit publishes the source on a public explorer and cannot be und
 ## User docs
 
 - [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages
+- [Which package do I need](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/which-package.md): the four packages and the entries of `explorer-verify`, with the task, install command and runtime of each
 - [Quickstart: browser dapp](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/quickstart-browser.md): a Vite page that runs `dryRun()` on the sample request with no key, prints `dry-run sourcify exact`, then calls `verify()`
 - [Quickstart: Node.js script](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/quickstart-node.md): a TypeScript script run by Node.js 22.18 or later that runs `dryRun()` on the sample request with no key, then calls `verify()`
 - [Quickstart: SDK wrapper](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/quickstart-sdk-wrapper.md): a wrapper function on `explorer-verify/core` with the Sourcify client only, which maps `invalid-input` onto its own error class and runs a dry run
@@ -76,6 +77,7 @@ Start here. A submit publishes the source on a public explorer and cannot be und
 - [Etherscan-compatible explorers](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/etherscan-compatible.md): what is sent to a standalone explorer that serves Etherscan's API on its own host, the key in `route.apiKey`, no `chainid`, and the retired Etherscan host answer
 - [Match types](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/match-types.md): what `exact` and `partial` mean per explorer, the metadata hash, builds that can only reach `partial`, automatic matching and why `verify()` looks up first
 - [Etherscan plans and attribution](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/etherscan-plans-and-attribution.md): which Etherscan plan a use needs, the "Powered by Etherscan.io APIs" rule, keys off the client and the server handler's position
+- [Glossary](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/explanation/glossary.md): one-line definitions of backend, route, `routedBy`, routing table, handle, envelope, lookup, match grade, dry run and server handler
 - [Logging and events](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/reference/logging-and-events.md): the logger, the typed stage events, the event JSON Schema, and what happens when a callback throws
 - [API reference](https://aelmanaa.github.io/explorer-verify/api/index.md): every export of each package, generated from TSDoc, for the version on npm `latest`; the `.d.ts` files of an installed package carry the same comments
 
