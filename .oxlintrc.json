@@ -103,7 +103,7 @@
     "jsdoc/check-tag-names": [
       "error",
       {
-        "definedTags": ["experimental"]
+        "definedTags": ["experimental", "packageDocumentation"]
       }
     ],
     "typescript/no-non-null-assertion": "error",

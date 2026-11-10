@@ -1,3 +1,11 @@
+/**
+ * Verifies a deployed contract's source on Etherscan, Blockscout, Sourcify or Routescan, and
+ * checks the status of a submitted verification.
+ *
+ * Start with `verify()`, or with `dryRun()` to see where a call would go without submitting.
+ *
+ * @packageDocumentation
+ */
 export { BACKEND_NAMES, toBackendName } from "./backend-names.ts";
 export type { BackendName, KeyedBackendName } from "./backend-names.ts";
 export { ERROR_HINTS } from "./error-hints.ts";

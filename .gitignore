@@ -25,3 +25,6 @@ site/api/
 packages/explorer-verify/reports/
 .stryker-tmp/
 packages/explorer-verify/stryker-output-*.json
+
+# Logs and snapshots that browser tooling writes in the repository root
+.playwright-mcp/

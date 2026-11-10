@@ -1,16 +1,20 @@
-import { tryParseHandle } from "../flow/check-handle.ts";
 // References: decision 0052.
 /**
- * `explorer-verify/core`: the five flow functions of the default entry, which take the explorer
- * clients and the routing table from the caller instead of loading them. No module
- * this entry imports holds a dynamic `import()`, so a bundler that does not split code, or a
- * wrapper SDK that bundles this package, ships only the clients the caller imports, and the rows
- * only when the caller imports `explorer-verify/table`.
+ * The five flow functions of the default entry, taking the explorer clients and the routing table
+ * from the caller instead of loading them.
+ *
+ * No module this entry imports holds a dynamic `import()`, so a bundler that does not split code,
+ * or a wrapper SDK that bundles this package, ships only the clients the caller imports, and the
+ * rows only when the caller imports `explorer-verify/table`.
  *
  * Each function runs the same engine as the default entry and gives the same result for the same
  * explorer answers. It reads `clients` and `table`, and every other option as the default entry
  * does.
+ *
+ * @packageDocumentation
  */
+
+import { tryParseHandle } from "../flow/check-handle.ts";
 import { runDryRun } from "../flow/dry-run.ts";
 import { runLinkProxy } from "../flow/link-proxy.ts";
 import { runCheckStatus } from "../flow/status.ts";

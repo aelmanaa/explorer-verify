@@ -219,18 +219,28 @@ reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
 ### API reference
 
 The API reference on the site is generated from TSDoc (R-AX-2, R-DX-4, decision 0015).
-`site/api-reference.ts` runs TypeDoc with typedoc-plugin-markdown and writes one Markdown page per
-package entry point into `site/api/`, plus an index. `site/api/` is gitignored build output. It is
-never written to `docs/user/`, so the npm packages do not ship it; their `.d.ts` files carry the
-same TSDoc.
+`site/api-reference.ts` runs TypeDoc with typedoc-plugin-markdown and writes an index, a page per
+package entry point and a page per exported member into `site/api/`. `site/api/` is gitignored
+build output. It is never written to `docs/user/`, so the npm packages do not ship it; their
+`.d.ts` files carry the same TSDoc.
 
 - The entry points come from the `exports` of each `packages/*/package.json`: every export with a
-  `types` condition, mapped from `dist/` back to its source (`scripts/site-api.ts`). Each page is
-  titled as users import it, such as `explorer-verify/server`. Its file name is flat, without the
-  scope and with `-` for `/`, such as `api/explorer-verify-server`. A page and a folder must never
-  share a name, because a link to the page would reach the folder; the script fails if they do.
-  The CLI exports no types, so it has no page; its reference is generated from its help
-  ([CLI reference](#cli-reference)).
+  `types` condition, mapped from `dist/` back to its source (`scripts/site-api.ts`). Each entry
+  point's page is titled as users import it, such as `explorer-verify/server`. Its folder name is
+  flat, without the scope and with `-` for `/`, such as `api/explorer-verify-server/`. A page and
+  a folder must never share a name, because a link to the page would reach the folder; the script
+  fails if they do. The CLI exports no types, so it has no page; its reference is generated from
+  its help ([CLI reference](#cli-reference)).
+- The page of an entry point starts with the one-line summary of its `@packageDocumentation`
+  comment, which the index also shows, then lists its members in tables: functions first, with
+  `verify`, `dryRun`, `checkStatus`, `verifyEach` and `linkProxy` leading, then classes,
+  interfaces, type aliases and variables. Each member has its own page, such as
+  `api/explorer-verify/functions/verify`. The sidebar lists the index and the entry points only.
+- No page is taller than ten desktop screens. A member inherited from a type outside the
+  repository, such as `captureStackTrace` from `Error`, is left out, and nothing links into
+  `node_modules`. A union of all the error codes shows as `ErrorCode`, and one of
+  `ExplorerVerifyError` of each code as `AnyExplorerVerifyError`. Parameters, class properties and
+  the members of a union are tables.
 - TypeDoc reads `site/tsconfig.api.json`: the sources of every entry point, with `explorer-verify`
   mapped to the core's sources, so a type that a helper package takes from the core links to the
   core's page.
