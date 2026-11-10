@@ -26,6 +26,7 @@ import type { Handle } from "../types.ts";
 import type {
   Backend,
   Context,
+  Found,
   Match,
   PollOutcome,
   ResolvedInput,
@@ -36,6 +37,7 @@ import {
   attemptSubmit,
   checkHandle,
   explorerUrl,
+  foundOf,
   lookupAfterUnclear,
   REASON_LENGTH,
   resultOf,
@@ -119,11 +121,13 @@ export const blockscoutHosted: Backend = /* @__PURE__ */ client(HOSTED);
 function client(name: Name): Backend {
   /**
    * Asks the instance's REST API whether the contract is verified. A 200 with `is_verified` `true`
-   * gives `exact` (`is_fully_verified`) or `partial` (`is_partially_verified`). A 200 with
+   * gives `exact` (`is_fully_verified`) or `partial` (`is_partially_verified`), with `name` and
+   * `compiler_version` as the stored contract. `file_path` is not read: a source from the bytecode
+   * database carries a path of its own, such as `project/contracts/…`. A 200 with
    * `is_verified` `false`, or with no verification fields and the contract's bytecode, and a 404
    * `Not found` mean not verified. Every other answer throws.
    */
-  async function lookup(target: Target, ctx: Context): Promise<Match | undefined> {
+  async function lookup(target: Target, ctx: Context): Promise<Found | undefined> {
     const answer = await ask(ctx, name, lookupRequest(ctx, name, target.address), target.chainId);
     const { status, fields } = answer;
     if (status === 404 && fields?.get("message") === "Not found") {
@@ -131,12 +135,14 @@ function client(name: Name): Backend {
     }
     if (status === 200 && fields !== undefined) {
       const verified = fields.get("is_verified");
+      const found = (match: Match): Found =>
+        foundOf(ctx, match, fields.get("name"), fields.get("compiler_version"));
       if (verified === true) {
         if (fields.get("is_fully_verified") === true) {
-          return "exact";
+          return found("exact");
         }
         if (fields.get("is_partially_verified") === true) {
-          return "partial";
+          return found("partial");
         }
       } else if (
         verified === false ||
@@ -168,7 +174,6 @@ function client(name: Name): Backend {
       fields["constructorArguments"] = `0x${args}`;
     }
     const req = form(ctx, name, fields, "submit");
-    const target: Target = { chainId: input.chainId, address: input.address };
     const unconfirmed = (answer: Answer): AnyExplorerVerifyError | undefined =>
       UNCONFIRMED_STATUSES.includes(answer.status) ||
       (answer.status === 200 && answer.fields === undefined)
@@ -180,7 +185,7 @@ function client(name: Name): Backend {
         ctx,
         name,
         LABEL,
-        target,
+        input,
         async () => await attemptSubmit(ctx, req, unconfirmed),
         async (answer) => {
           if (!emptyAnswer(answer)) {
@@ -195,10 +200,10 @@ function client(name: Name): Backend {
             until,
           });
           // The empty answer may hide a submit Blockscout accepted: look first.
-          const match = await lookupAfterUnclear(ctx, target, lookup);
-          return match === undefined
+          const found = await lookupAfterUnclear(ctx, input, lookup);
+          return found === undefined
             ? await once(attempt + 1)
-            : { state: "already-verified", match };
+            : { state: "already-verified", ...found };
         },
         lookup,
       );
@@ -230,9 +235,9 @@ function client(name: Name): Backend {
     }
     if (result === ALREADY_VERIFIED) {
       // Blockscout says this only for a full match, and the outcome needs the grade: one lookup.
-      const match = await lookup({ chainId: input.chainId, address: input.address }, ctx);
-      if (match !== undefined) {
-        return { state: "already-verified", match };
+      const found = await lookup(input, ctx);
+      if (found !== undefined) {
+        return { state: "already-verified", ...found };
       }
       throw unexpected(
         ctx,
@@ -278,9 +283,10 @@ function client(name: Name): Backend {
       return { state: "pending" };
     }
     if (result === PASS) {
-      const match = await lookup(handle, ctx);
-      if (match !== undefined) {
-        return { state: "verified", match };
+      // The lookup reads the grade and names the stored contract, which `verify()` compares.
+      const found = await lookup(handle, ctx);
+      if (found !== undefined) {
+        return { state: "verified", ...found };
       }
     } else if (result === FAIL) {
       return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };

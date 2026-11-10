@@ -36,6 +36,8 @@ const API = "https://api.etherscan.io/v2/api";
 // Probe D1 of 2026-11-03: verified on Arbitrum Sepolia; its recorded submit gave GUID.
 const D1 = "0x80798fEd44d6ec40d283bD44DDb08A6Eb2d30BE5";
 const GUID = "cqmxkhtaudvs5yhbzgv5nryiczguab4g3ppjj6mb3gakhzxjcn";
+// The contract the recorded lookups name: `ContractName` and `CompilerVersion` (decision 0063).
+const CHILD = { name: "ProbeDChild", compilerVersion: "v0.8.24+commit.e11b9ed9" };
 // Fake keys. Never real ones (R-SEC-1).
 const KEY = "DUMMYETHERSCANKEYq7w3e9r1t5y";
 const TABLE: RoutingTable = {
@@ -239,18 +241,18 @@ describe("etherscan lookup (R-BE-1, R-FLOW-1, R-FLOW-4)", () => {
   });
 
   it("maps a non-empty SourceCode with an empty SimilarMatch to exact (recorded 2026-11-03)", async () => {
-    assert.equal(await etherscan.lookup(TARGET, setup([EXACT()]).ctx), "exact");
+    assert.equal((await etherscan.lookup(TARGET, setup([EXACT()]).ctx))?.match, "exact");
   });
 
   it("maps a non-empty SimilarMatch to partial (recorded 2026-11-03, R-FLOW-3)", async () => {
-    assert.equal(await etherscan.lookup(TARGET, setup([SIMILAR()]).ctx), "partial");
+    assert.equal((await etherscan.lookup(TARGET, setup([SIMILAR()]).ctx))?.match, "partial");
   });
 
   it("maps a first result without SimilarMatch, as the server handler may relay it, to exact", async () => {
     const reduced = answer("2026-11-03-getsourcecode-factory-child-verified", (body) => {
       body["result"] = [{ SourceCode: "[source not relayed by explorer-verify/server]" }];
     });
-    assert.equal(await etherscan.lookup(TARGET, setup([reduced]).ctx), "exact");
+    assert.equal((await etherscan.lookup(TARGET, setup([reduced]).ctx))?.match, "exact");
   });
 
   it("throws unexpected-response for a SimilarMatch that is present but not text, never exact (R-FLOW-4)", async () => {
@@ -275,7 +277,7 @@ describe("etherscan lookup (R-BE-1, R-FLOW-1, R-FLOW-4)", () => {
       ];
     });
     const asSource = setup([quoted]);
-    assert.equal(await etherscan.lookup(TARGET, asSource.ctx), "exact");
+    assert.equal((await etherscan.lookup(TARGET, asSource.ctx))?.match, "exact");
     assert.equal(asSource.calls.length, 1);
     const html = setup([
       new Response("<p>Max calls per sec rate limit reached</p>", { status: 200 }),
@@ -458,6 +460,7 @@ describe("etherscan submit (R-BE-1, R-FLOW-2, R-FLOW-7)", () => {
     assert.deepEqual(await etherscan.submit(input(), s.ctx), {
       state: "already-verified",
       match: "exact",
+      ...CHILD,
     });
     assert.equal(form(s.calls[1]).get("action"), "getsourcecode");
   });
@@ -467,6 +470,7 @@ describe("etherscan submit (R-BE-1, R-FLOW-2, R-FLOW-7)", () => {
     assert.deepEqual(await etherscan.submit(input(), s.ctx), {
       state: "already-verified",
       match: "partial",
+      ...CHILD,
     });
   });
 
@@ -608,6 +612,7 @@ describe("etherscan submit (R-BE-1, R-FLOW-2, R-FLOW-7)", () => {
     assert.deepEqual(await etherscan.submit(input(), s.ctx), {
       state: "already-verified",
       match: "exact",
+      ...CHILD,
     });
     assert.equal(s.calls.length, 2);
     assert.ok(s.lines.some((line) => line.includes("Looking the contract up")));
@@ -657,7 +662,11 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
 
   it("Fail - Unable to verify with an exact lookup returns verified (documented 2026-11-02)", async () => {
     const s = setup([FAIL(), EXACT()]);
-    assert.deepEqual(await etherscan.poll(handle(), s.ctx), { state: "verified", match: "exact" });
+    assert.deepEqual(await etherscan.poll(handle(), s.ctx), {
+      state: "verified",
+      match: "exact",
+      ...CHILD,
+    });
     assert.equal(form(s.calls[1]).get("action"), "getsourcecode");
   });
 
@@ -666,6 +675,7 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
     assert.deepEqual(await etherscan.poll(handle(), s.ctx), {
       state: "already-verified",
       match: "partial",
+      ...CHILD,
     });
   });
 

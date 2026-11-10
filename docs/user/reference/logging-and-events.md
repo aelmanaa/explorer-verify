@@ -113,7 +113,10 @@ the verification goes on.
 - `verify.validated` arrives once the input, the options and the route have all passed their
   checks, so a call that fails any of them emits no event.
 - `verify.lookup` reports the check before the submit. The lookup after the time budget, described
-  in [verify()](verify.md#what-it-does), emits no event.
+  in [verify()](verify.md#what-it-does), emits no event. The event gives the grade the explorer
+  states and compares no names: it can say `exact` for another contract's match. The final
+  result compares them and carries `storedContract`
+  ([Another contract's source](verify.md#another-contracts-source)).
 
 ```ts
 import type { VerifyEvent } from "explorer-verify";

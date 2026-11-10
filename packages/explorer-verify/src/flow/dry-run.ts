@@ -2,11 +2,14 @@
 /**
  * `dryRun()`: the steps of `verify()` before the submit. It validates, resolves the route
  * and looks the contract up through the same helpers as `verify()`, then stops. It never submits.
+ * A match whose stored contract is not the input's is reported with `storedContract`, as
+ * `verify()` would submit over it.
  */
 import type { Target } from "../backends/backend.ts";
 import { keyMissing } from "../http/api-keys.ts";
 import { validateInput } from "../input/validate.ts";
 import type { DryRunOptions, DryRunResult, VerifyInput } from "../types.ts";
+import { heldText, otherContract } from "./stored.ts";
 import {
   abortWins,
   announceRoute,
@@ -75,19 +78,27 @@ export async function runDryRun(
       return { ...base, lookup: "skipped", ...chosen };
     }
     const found = await backend.lookup(target, ctx);
-    observer.emit({ type: "verify.lookup", backend: backend.name, lookup: found ?? "none" });
+    observer.emit({ type: "verify.lookup", backend: backend.name, lookup: found?.match ?? "none" });
+    // References: decision 0063.
+    const other = found === undefined ? undefined : otherContract(found, checked);
     observer.log.info(
       found === undefined
         ? `Dry run: ${backend.name} holds no match, so a verification would submit the source. Nothing was submitted.`
-        : `Dry run: ${backend.name} already holds the contract (${found} match), so a verification would not submit.`,
+        : other === undefined
+          ? `Dry run: ${backend.name} already holds the contract (${found.match} match), so a verification would not submit.`
+          : `Dry run: ${heldText(backend.name, other)}, so a verification would submit. Nothing was submitted.`,
       fields,
     );
     if (found === undefined) {
       return { ...base, lookup: "none", ...chosen };
     }
     const explorerUrl = backend.explorerUrl(target, ctx);
-    return explorerUrl === undefined
-      ? { ...base, lookup: found, ...chosen }
-      : { ...base, lookup: found, explorerUrl, ...chosen };
+    return {
+      ...base,
+      lookup: found.match,
+      ...(explorerUrl === undefined ? {} : { explorerUrl }),
+      ...chosen,
+      ...(other === undefined ? {} : { storedContract: other }),
+    };
   });
 }

@@ -174,8 +174,8 @@ job it does not know.
 | Step   | Answer                                                    | Outcome                                                                                                                                          |
 | ------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Any    | HTTP 429                                                  | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop                                                             |
-| Lookup | 200, `is_verified` `true`, `is_fully_verified` `true`     | Verified, `exact`                                                                                                                                |
-| Lookup | 200, `is_verified` `true`, `is_partially_verified` `true` | Verified, `partial`                                                                                                                              |
+| Lookup | 200, `is_verified` `true`, `is_fully_verified` `true`     | Verified, `exact`. `name` and `compiler_version` name the stored contract                                                                        |
+| Lookup | 200, `is_verified` `true`, `is_partially_verified` `true` | Verified, `partial`. `name` and `compiler_version` name the stored contract                                                                      |
 | Lookup | 200, `is_verified` `true` and neither flag `true`         | [`unexpected-response`](errors/unexpected-response.md)                                                                                           |
 | Lookup | 200, `is_verified` `false`                                | Not verified                                                                                                                                     |
 | Lookup | 200 with the contract's code and no verification fields   | Not verified                                                                                                                                     |
@@ -206,12 +206,25 @@ reports `verified` with `partial`. For that build, it is the best outcome, not a
 Blockscout's bytecode database can also verify a contract on its own when its code, without the
 metadata part, matches a contract verified before. On 2026-11-04, a contract with the same code as
 one verified a minute earlier showed a partial match after its first lookup, with
-`is_verified_via_eth_bytecode_db` `true`. `verify()` then returns `already-verified` with `partial`
-and sends no submit.
+`is_verified_via_eth_bytecode_db` `true`.
+
+Such a match can hold another project's source. On 2026-11-10, on Ethereum Sepolia, the lookup of
+a contract deployed as `EvProxy` showed a partial match from the bytecode database named
+`AuctionProxy`, with the file path `project/contracts/AuctionProxy.sol`. The lookup reads `name`
+and `compiler_version`. `verify()` compares `name` with the part of `contractName` after its last
+`:`, and `compiler_version` with `compiler.version`; see
+[Match types](../explanation/match-types.md). The file path is not compared, because a source from
+the bytecode database carries a path of its own.
+
+- The match is of this source: `verify()` returns `already-verified` with that match and sends no
+  submit.
+- The match is another contract's: `verify()` submits. Blockscout accepts a submit over a partial
+  match. When it answers `Smart-contract already verified.` instead, the result is
+  `already-verified` with `partial` and `storedContract`.
 
 Blockscout answers `Smart-contract already verified.` only for a full match. A contract with a
-partial match takes a new submit, but `verify()` does not send one: its first lookup returns
-`already-verified` with `partial`.
+partial match of its own source takes a new submit, but `verify()` does not send one: its first
+lookup returns `already-verified` with `partial`.
 
 ## The empty answer right after a deployment
 

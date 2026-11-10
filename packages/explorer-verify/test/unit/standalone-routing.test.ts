@@ -395,7 +395,8 @@ describe("a standalone entry that needs a key (#170, decision 0039)", () => {
 
     const fake = replay(etherscan("2026-11-03-getsourcecode-factory-child-verified"));
     const result = await runVerify(
-      input(KEYED_CHAIN),
+      // The recorded lookup names ProbeDChild, so the input names it too (decision 0063).
+      { ...input(KEYED_CHAIN), contractName: "src/A.sol:ProbeDChild" },
       { fetch: fake.fetch, route: { backend: "etherscan-compatible", apiKey: ROUTE_KEY } },
       { ...DEFAULT_DEPENDENCIES, table: TABLE },
     );

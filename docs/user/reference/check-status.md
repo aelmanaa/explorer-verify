@@ -65,6 +65,12 @@ for `verify()`, `rpcUrl` included
 The results of [verify()](verify.md#results): `verified`,
 `already-verified` or `failed`, with the same fields and exit codes.
 
+`checkStatus()` has the handle, not the input, so it compares no contract
+name or compiler version. A lookup after the job can find another
+contract's match and report it as `verified` or `already-verified`, without
+`storedContract` ([Another contract's source](verify.md#another-contracts-source)).
+To check whose source the explorer holds, call `dryRun()` with the input.
+
 ## Errors
 
 `checkStatus()` throws the errors of [verify()](verify.md#errors), except

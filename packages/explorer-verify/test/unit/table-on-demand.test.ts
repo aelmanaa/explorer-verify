@@ -73,7 +73,7 @@ function exact(name: BackendName): Backend {
   return {
     ...sourcify,
     name,
-    lookup: async () => "exact",
+    lookup: async () => ({ match: "exact" }),
     poll: async () => ({ state: "verified", match: "exact" }),
   };
 }

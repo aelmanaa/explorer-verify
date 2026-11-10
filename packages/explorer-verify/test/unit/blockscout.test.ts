@@ -46,6 +46,8 @@ const ADDRESS = "0x0d7ba9133629d6732a3ef5a3f5f09c68dac4be65";
 const GUID = "0d7ba9133629d6732a3ef5a3f5f09c68dac4be656aeaee3f";
 // A made-up secret of the call: no request may carry it, and no output may show it (R-SEC-1).
 const SECRET = "DUMMYSECRETb92k4m7p0q3";
+// The contract the recorded lookups name: `name` and `compiler_version` (decision 0063).
+const GREETER = { name: "Greeter", compilerVersion: "v0.8.24+commit.e11b9ed9" };
 const TABLE: RoutingTable = {
   schemaVersion: 2,
   checked: "2026-11-04",
@@ -231,15 +233,15 @@ describe("blockscout lookup (R-BE-3, R-FLOW-1, R-FLOW-4)", () => {
   });
 
   it("maps is_fully_verified to exact (recorded 2026-11-04)", async () => {
-    assert.equal(await blockscout.lookup(TARGET, setup([FULL()]).ctx), "exact");
+    assert.equal((await blockscout.lookup(TARGET, setup([FULL()]).ctx))?.match, "exact");
   });
 
   it("maps is_partially_verified to partial: a build without a metadata hash (recorded 2026-11-04, R-FLOW-7)", async () => {
-    assert.equal(await blockscout.lookup(TARGET, setup([PARTIAL()]).ctx), "partial");
+    assert.equal((await blockscout.lookup(TARGET, setup([PARTIAL()]).ctx))?.match, "partial");
   });
 
   it("maps a partial match from the bytecode database to partial (recorded 2026-11-04)", async () => {
-    assert.equal(await blockscout.lookup(TARGET, setup([BYTECODE_DB()]).ctx), "partial");
+    assert.equal((await blockscout.lookup(TARGET, setup([BYTECODE_DB()]).ctx))?.match, "partial");
   });
 
   it("maps a 200 with only the contract's code to not verified (recorded 2026-11-04)", async () => {
@@ -315,7 +317,7 @@ describe("blockscout lookup (R-BE-3, R-FLOW-1, R-FLOW-4)", () => {
   it("retries a 429 and then reads the answer (recorded 2026-11-04, R-FLOW-6)", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
     const s = setup([RATE_LIMIT(), FULL()], { budgetMs: 60_000 });
-    assert.equal(await drive(t, blockscout.lookup(TARGET, s.ctx)), "exact");
+    assert.equal((await drive(t, blockscout.lookup(TARGET, s.ctx)))?.match, "exact");
     assert.equal(s.calls.length, 2);
     assert.ok(s.events.some((event) => event.type === "verify.retry"));
   });
@@ -421,6 +423,7 @@ describe("blockscout submit (R-BE-3, R-FLOW-2, R-FLOW-7)", () => {
     assert.deepEqual(await blockscout.submit(input(), s.ctx), {
       state: "already-verified",
       match: "exact",
+      ...GREETER,
     });
     assert.equal(s.calls[1]?.method, "GET");
   });
@@ -473,6 +476,7 @@ describe("blockscout submit (R-BE-3, R-FLOW-2, R-FLOW-7)", () => {
     assert.deepEqual(await blockscout.submit(input(), s.ctx), {
       state: "already-verified",
       match: "partial",
+      ...GREETER,
     });
     assert.equal(s.calls.length, 2);
   });
@@ -527,6 +531,7 @@ describe("blockscout submit: the empty answer right after a deployment (R-FLOW-7
     assert.deepEqual(await drive(t, blockscout.submit(input(), s.ctx)), {
       state: "already-verified",
       match: "partial",
+      ...GREETER,
     });
     // 3000 ms without a pollIntervalMs.
     assert.equal(Date.now(), 3_000);
@@ -643,17 +648,19 @@ describe("blockscout poll (R-BE-3, R-FLOW-2, R-FLOW-4)", () => {
     assertKeyless(s.calls);
   });
 
-  it("maps Pass - Verified to verified with the grade a lookup reads (recorded 2026-11-04)", async () => {
+  it("maps Pass - Verified to verified with the grade and the stored contract a lookup reads (recorded 2026-11-04)", async () => {
     const exact = setup([PASS(), FULL()]);
     assert.deepEqual(await blockscout.poll(handle(), exact.ctx), {
       state: "verified",
       match: "exact",
+      ...GREETER,
     });
     assert.equal(exact.calls[1]?.url, `${API}/v2/smart-contracts/${ADDRESS}`);
     // A build without a metadata hash: partial is the best outcome, never failed (R-FLOW-7).
     assert.deepEqual(await blockscout.poll(handle(), setup([PASS(), PARTIAL()]).ctx), {
       state: "verified",
       match: "partial",
+      ...GREETER,
     });
   });
 

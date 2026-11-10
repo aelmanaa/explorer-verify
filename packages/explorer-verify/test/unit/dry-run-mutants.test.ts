@@ -42,7 +42,7 @@ function fail(): Promise<never> {
 function keyed(found: "exact" | "partial" | undefined): Backend {
   return {
     name: "etherscan-v2",
-    lookup: async () => await Promise.resolve(found),
+    lookup: async () => await Promise.resolve(found === undefined ? undefined : { match: found }),
     submit: fail,
     poll: fail,
     explorerUrl: () => undefined,

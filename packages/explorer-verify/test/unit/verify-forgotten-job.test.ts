@@ -33,7 +33,7 @@ const SEPOLIA = 11155111;
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const GREETER_JOB = "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const GREETER_PAGE = `https://repo.sourcify.dev/${String(SEPOLIA)}/${GREETER}`;
-const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`;
+const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`;
 const SUBMIT_URL = `https://sourcify.dev/server/v2/verify/${String(SEPOLIA)}/${GREETER}`;
 const POLL_URL = `https://sourcify.dev/server/v2/verify/${GREETER_JOB}`;
 const LINE = `ev1:sourcify:${String(SEPOLIA)}:${GREETER}:${GREETER_JOB}`;

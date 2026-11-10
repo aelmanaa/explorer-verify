@@ -111,14 +111,15 @@ Routescan answers with HTTP 200 and the Etherscan fields `status`, `message` and
 client reads them as the [Etherscan](etherscan.md#how-answers-are-read) client does, with these
 additions:
 
-| Step   | Answer                                                                                | Outcome                                                                                                                         |
-| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Any    | `message` `chain not supported`, `result` `null`                                      | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                              |
-| Any    | HTTP 429, `code` `rate-limit`                                                         | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop. See [Rate limits](#rate-limits)           |
-| Lookup | `SourceCode` not empty                                                                | Verified, `exact`. Routescan's lookup has no `SimilarMatch` field, so it never gives `partial`                                  |
-| Status | `Verification not found`                                                              | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below |
-| Status | `Missing guid`                                                                        | [`unexpected-response`](errors/unexpected-response.md)                                                                          |
-| Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, with the text as `reason`; no lookup                                                                                  |
+| Step   | Answer                                                                                | Outcome                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Any    | `message` `chain not supported`, `result` `null`                                      | [`unsupported-chain`](errors/unsupported-chain.md); never `failed`                                                                |
+| Any    | HTTP 429, `code` `rate-limit`                                                         | Retried with backoff; [`rate-limited`](errors/rate-limited.md) once the retries stop. See [Rate limits](#rate-limits)             |
+| Lookup | `SourceCode` not empty                                                                | Verified, `partial`: no field shows that the metadata hash matched. `ContractName` and `CompilerVersion` name the stored contract |
+| Status | `Pass - Verified`                                                                     | `verified`, `partial`: Routescan states no grade                                                                                  |
+| Status | `Verification not found`                                                              | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below   |
+| Status | `Missing guid`                                                                        | [`unexpected-response`](errors/unexpected-response.md)                                                                            |
+| Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, with the text as `reason`; no lookup                                                                                    |
 
 `Missing guid` means the status request was malformed. In `verify()` and `checkStatus()` it counts
 as a failed poll, as any `unexpected-response` does: polling goes on, and after 3 failed polls in a
@@ -169,6 +170,19 @@ client does. Any other answer throws an error and is never read as a result.
   gives `verified`; otherwise the call throws `job-not-found` with the handle.
 - When the time budget runs out while the status still says `Pending in queue`, one more lookup
   decides, as for every backend: a match gives `verified`.
+- Routescan can hold another contract's source for an address. On 2026-11-10, on Ethereum Sepolia,
+  it held `SimpleStorage` compiled with `v0.8.33` for a contract the caller deployed as `EvBox`
+  with `v0.8.34`, within two minutes of the deployment. `verify()` compares `ContractName` with the
+  part of `contractName` after its last `:`, and `CompilerVersion` with `compiler.version`, and
+  submits when either differs; see [Match types](../explanation/match-types.md).
+- Routescan states no grade, so every match is `partial`: a lookup's and `Pass - Verified`. On
+  2026-11-10 it answered `Pass - Verified` for a build without a metadata hash, which Sourcify and
+  Blockscout graded partial, and it held copies of Sourcify and Blockscout submits seconds after
+  them.
+- `Fail - Unable to verify` followed by a lookup that finds the source, even your own, now gives
+  `already-verified` with `partial`, where 0.1.0 gave `verified` with `exact`: the
+  lookup's grade is `partial`, and a `partial` lookup after a failed job reads as a match that
+  was there before.
 - The job id is a UUID, such as `f111a4c8-368c-51d2-8163-c7ab477a1d91`.
 - On 2026-11-04, a status request without a key confirmed the network of each of the 24 chains
   that Routescan's supported-chains page listed on 2026-11-03; see the

@@ -66,8 +66,11 @@ let requests = 0;
 let answered = false;
 
 /**
- * `url` without its `nocache` query parameter, lower-cased. A URL that does not parse is compared
- * as it is, so a bad fixture fails with the mismatch message below, not a TypeError.
+ * `url` without its `nocache` query parameter and without Sourcify's `fields=compilation`,
+ * lower-cased. The lookup asks for `compilation` since decision 0063; a lookup recorded before
+ * has no `compilation` in its answer, so the client reads no stored contract from it. A URL that
+ * does not parse is compared as it is, so a bad fixture fails with the mismatch message below,
+ * not a TypeError.
  */
 const comparable = (url: string): string => {
   if (!URL.canParse(url)) {
@@ -75,6 +78,7 @@ const comparable = (url: string): string => {
   }
   const parsed = new URL(url);
   parsed.searchParams.delete("nocache");
+  parsed.searchParams.delete("fields", "compilation");
   return parsed.href.toLowerCase();
 };
 

@@ -355,7 +355,7 @@ describe("blackbox #16: lookup mapping (R-BE-4, R-FLOW-4)", () => {
   for (const { wire, expected } of cases) {
     it(`200 ${String(wire)} -> ${expected}`, async () => {
       const h = harness([json(200, lookupBody(wire), { "cache-control": "public,max-age=3600" })]);
-      assert.equal(await backend.lookup(TARGET, h.ctx), expected);
+      assert.equal((await backend.lookup(TARGET, h.ctx))?.match, expected);
     });
   }
 
@@ -604,16 +604,19 @@ describe("blackbox #16: poll mapping", () => {
 });
 
 describe("blackbox #16: request shapes", () => {
-  it("lookup is GET {api}/v2/contract/{chainId}/{address} with no body and no fields=all", async () => {
+  it("lookup is GET {api}/v2/contract/{chainId}/{address}?fields=compilation with no body and no fields=all", async () => {
     const h = harness([json(200, lookupBody("exact_match"))]);
     await backend.lookup(TARGET, h.ctx);
     assert.equal(h.calls.length, 1);
     const call = h.calls[0];
     assert.ok(call !== undefined);
     assert.equal(call.method, "GET");
-    assert.equal(lower(call.url), lower(`${API}/v2/contract/${String(CHAIN_ID)}/${ADDRESS}`));
+    assert.equal(
+      lower(call.url),
+      lower(`${API}/v2/contract/${String(CHAIN_ID)}/${ADDRESS}?fields=compilation`),
+    );
     assert.equal(call.body, undefined);
-    assert.ok(!call.url.includes("fields"));
+    assert.ok(!call.url.includes("fields=all"));
     assert.equal(call.headers.get("authorization"), null);
   });
 
@@ -739,7 +742,7 @@ describe("blackbox #16: answers about another contract (R-SEC)", () => {
 
   it("lookup 200 with the same address in lower case is accepted", async () => {
     const h = harness([json(200, lookupBody("exact_match", { address: ADDRESS.toLowerCase() }))]);
-    assert.equal(await backend.lookup(TARGET, h.ctx), "exact");
+    assert.equal((await backend.lookup(TARGET, h.ctx))?.match, "exact");
   });
 
   it("poll with another chainId -> unexpected-response", async () => {
@@ -890,7 +893,7 @@ describe("blackbox #16: rate limits and server errors", () => {
       json(200, lookupBody("match")),
     ]);
     const started = Date.now();
-    assert.equal(await backend.lookup(TARGET, h.ctx), "partial");
+    assert.equal((await backend.lookup(TARGET, h.ctx))?.match, "partial");
     assert.ok(Date.now() - started >= 950, "did not wait for Retry-After");
     assert.equal(h.calls.length, 2);
     assert.equal(h.retries.length, 1);

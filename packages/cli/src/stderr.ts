@@ -307,7 +307,7 @@ export function createStderr(options: StderrOptions): Stderr {
   const textLine = (lineLevel: LineLevel, message: string, fields: LogFields): string => {
     const prefix = PREFIXES[lineLevel];
     const parts = prefix === undefined ? [] : [paint(prefix.style, prefix.text)];
-    parts.push(message);
+    parts.push(visible(message));
     for (const [name, value] of Object.entries(fields)) {
       parts.push(`${name}=${textValue(value)}`);
     }

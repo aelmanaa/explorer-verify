@@ -204,23 +204,24 @@ describe("the grade of a build without a metadata hash, per explorer (#287, R-FL
     assert.equal(r.calls.length, 4);
   });
 
-  it("Routescan: a fresh submit that passes is verified exact", async (t) => {
+  // Routescan states no grade, so every match it reports is partial (decision 0063).
+  it("Routescan: a fresh submit that passes is verified partial", async (t) => {
     const r = await verifyWith(t, ROUTESCAN, { backend: "routescan" }, [
       recorded("routescan", "getsourcecode-no-metadata-hash-not-verified"),
       recorded("routescan", "verifysourcecode-no-metadata-hash"),
       recorded("routescan", "checkverifystatus-no-metadata-hash-pass"),
     ]);
-    assert.deepEqual(r.result, { status: "verified", backend: "routescan", match: "exact" });
+    assert.deepEqual(r.result, { status: "verified", backend: "routescan", match: "partial" });
     assert.equal(r.calls.length, 3);
   });
 
-  it("Routescan: the lookup after that submit, which has no grade field, reads exact", async (t) => {
+  it("Routescan: the lookup after that submit, which has no grade field, reads partial", async (t) => {
     const r = await lookupWith(
       t,
       ROUTESCAN,
       { backend: "routescan" },
       recorded("routescan", "getsourcecode-no-metadata-hash"),
     );
-    assert.equal(r.lookup, "exact");
+    assert.equal(r.lookup, "partial");
   });
 });

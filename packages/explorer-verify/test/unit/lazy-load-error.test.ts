@@ -55,7 +55,7 @@ function recordingFetch(): { readonly fetch: typeof fetch; readonly urls: string
 /** Sourcify's client, answering every lookup with an exact match and no request. */
 const exactSourcify: Backend = {
   ...sourcify,
-  lookup: async () => await Promise.resolve("exact"),
+  lookup: async () => ({ match: "exact" }),
 };
 
 /** The rejection of `promise`, which must be an ExplorerVerifyError. */

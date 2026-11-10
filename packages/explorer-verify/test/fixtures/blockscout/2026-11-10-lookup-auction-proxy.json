@@ -1,0 +1,25 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-10T13:17:13.720Z, read only: the lookup of 0xFb56a32956Ab007ea2a02C67609740A10f9ED362 on Ethereum Sepolia, issue #293. Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://eth-sepolia.blockscout.com/api/v2/smart-contracts/0xFb56a32956Ab007ea2a02C67609740A10f9ED362"
+  },
+  "recordedAt": "2026-11-10T13:17:13.720Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "is_verified": true,
+      "is_fully_verified": false,
+      "is_partially_verified": true,
+      "is_verified_via_eth_bytecode_db": true,
+      "is_verified_via_sourcify": false,
+      "name": "AuctionProxy",
+      "file_path": "project/contracts/AuctionProxy.sol",
+      "compiler_version": "v0.8.34+commit.80d5c536",
+      "verified_at": "2026-11-10T08:07:34.535732Z"
+    }
+  }
+}

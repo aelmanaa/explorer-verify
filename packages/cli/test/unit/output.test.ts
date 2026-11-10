@@ -46,6 +46,52 @@ describe("stdoutText", () => {
       "not-linked on blockscout: refused\n",
     );
   });
+  // Decision 0063: the summary names the other contract whose source the explorer holds.
+  it("names another contract's source in an already-verified result and a dry run", () => {
+    const storedContract = { name: "SimpleStorage", compilerVersion: "0.8.33+commit.64118f21" };
+    assert.equal(
+      stdoutText(
+        toEnvelope({
+          status: "already-verified",
+          backend: "sourcify",
+          match: "partial",
+          explorerUrl: URL,
+          storedContract,
+        }),
+        false,
+        false,
+      ),
+      `already-verified: partial match on sourcify, from another contract's source (SimpleStorage, compiler 0.8.33+commit.64118f21)\n${URL}\n`,
+    );
+    assert.equal(
+      stdoutText(
+        toEnvelope({
+          status: "dry-run",
+          backend: "blockscout",
+          apiHost: "eth-sepolia.blockscout.com",
+          lookup: "partial",
+          storedContract: { name: "Auction\u001bProxy" },
+        }),
+        false,
+        false,
+      ),
+      "dry run on blockscout at eth-sepolia.blockscout.com: partial match from another contract's source (Auction\\u001bProxy, compiler not given), so a run without --dry-run would submit. Nothing was submitted.\n",
+    );
+    assert.equal(
+      stdoutText(
+        toEnvelope({
+          status: "already-verified",
+          backend: "routescan",
+          match: "partial",
+          storedContract: { compilerVersion: "v0.8.27+commit.40a35a09" },
+        }),
+        false,
+        false,
+      ),
+      "already-verified: partial match on routescan, from another contract's source (no name given, compiler v0.8.27+commit.40a35a09)\n",
+    );
+  });
+
   it("prints the envelope as one JSON line with --json", () => {
     const envelope = toEnvelope({ status: "verified", backend: "sourcify", match: "exact" });
     assert.equal(stdoutText(envelope, true, true), `${JSON.stringify(envelope)}\n`);

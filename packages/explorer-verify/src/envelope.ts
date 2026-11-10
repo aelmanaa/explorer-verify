@@ -31,6 +31,7 @@ import type {
   BackendOutcome,
   DryRunResult,
   LinkProxyResult,
+  StoredContract,
   VerifyEachResult,
   VerifyResult,
 } from "./types.ts";
@@ -335,6 +336,42 @@ function explorerUrlOf(
         null);
 }
 
+// References: R-FLOW-3, decision 0063.
+/**
+ * The `storedContract` field, copied with only `name` and `compilerVersion`, each redacted:
+ * `undefined` when absent, `null` when present but not an object whose two fields are strings
+ * when present, which adds an issue.
+ */
+function storedOf(
+  fields: Map<string, unknown>,
+  problems: Problems,
+  secrets: readonly string[],
+): StoredContract | null | undefined {
+  const value = fields.get("storedContract");
+  if (value === undefined) {
+    return undefined;
+  }
+  const stored = readFields(value);
+  const name = stored?.get("name");
+  const version = stored?.get("compilerVersion");
+  if (
+    stored === undefined ||
+    (name !== undefined && typeof name !== "string") ||
+    (version !== undefined && typeof version !== "string")
+  ) {
+    return (
+      problems.add(
+        "outcome.storedContract",
+        "must be an object whose name and compilerVersion are strings when present",
+      ) ?? null
+    );
+  }
+  return {
+    ...(name === undefined ? {} : { name: redact(name, secrets) }),
+    ...(version === undefined ? {} : { compilerVersion: redact(version, secrets) }),
+  };
+}
+
 /** A new `DryRunResult`, its fields in a fixed order, each string redacted. */
 function copyDryRun(
   fields: Map<string, unknown>,
@@ -359,12 +396,14 @@ function copyDryRun(
           "must be caller, table, fallback or api-url when present",
         ) ??
         null);
+  const storedContract = storedOf(fields, problems, secrets);
   if (
     backend === undefined ||
     apiHost === undefined ||
     lookup === undefined ||
     explorerUrl === null ||
-    routedBy === null
+    routedBy === null ||
+    storedContract === null
   ) {
     throw invalid(problems.issues);
   }
@@ -375,6 +414,7 @@ function copyDryRun(
     lookup,
     ...(explorerUrl === undefined ? {} : { explorerUrl: redact(explorerUrl, secrets) }),
     ...(routedBy === undefined ? {} : { routedBy }),
+    ...(storedContract === undefined ? {} : { storedContract }),
   };
 }
 
@@ -483,17 +523,22 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
     problems.add("outcome.match", "must be exact or partial");
   // `null` stands for an explorerUrl that is present but not a string.
   const explorerUrl = explorerUrlOf(fields, problems);
+  // Only an already-verified result declares storedContract.
+  const storedContract =
+    status === "already-verified" ? storedOf(fields, problems, secrets) : undefined;
   if (
     status === undefined ||
     backend === undefined ||
     match === undefined ||
-    explorerUrl === null
+    explorerUrl === null ||
+    storedContract === null
   ) {
     throw invalid(problems.issues);
   }
-  return explorerUrl === undefined
-    ? { status, backend, match }
-    : { status, backend, match, explorerUrl: redact(explorerUrl, secrets) };
+  const page = explorerUrl === undefined ? {} : { explorerUrl: redact(explorerUrl, secrets) };
+  return storedContract === undefined
+    ? { status, backend, match, ...page }
+    : { status: "already-verified", backend, match, ...page, storedContract };
 }
 
 /** Validates and redacts the result of linkProxy(). */

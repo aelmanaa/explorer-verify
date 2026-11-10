@@ -28,7 +28,7 @@ const HANDLE: Handle = {
   jobId: GREETER_JOB,
 };
 const SUBMIT_URL = `POST https://sourcify.dev/server/v2/verify/${String(SEPOLIA)}/${GREETER}`;
-const LOOKUP_URL = `GET https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`;
+const LOOKUP_URL = `GET https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`;
 
 function fixture(name: string): Fixture {
   return loadFixture("sourcify", `2026-11-02-${name}`);

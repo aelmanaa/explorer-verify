@@ -43,7 +43,7 @@
       "backend": "routescan",
       "chainId": 43113,
       "address": "0xc4376f48419e244154d1dd117bffe2c3e177494c",
-      "match": "exact",
+      "match": "partial",
       "cors": true
     },
     {
@@ -51,7 +51,7 @@
       "backend": "routescan",
       "chainId": 11155111,
       "address": "0x1484e53a8ec20f989aaa552380f4dbb94feaf0a5",
-      "match": "exact"
+      "match": "partial"
     },
     {
       "label": "SrcSep1",

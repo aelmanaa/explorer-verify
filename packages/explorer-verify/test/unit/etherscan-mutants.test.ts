@@ -142,7 +142,7 @@ function none(http: number): Response {
 describe("the Etherscan lookup (R-BE-1, R-FLOW-4)", () => {
   it("sends the lookup again after a 502, as a safe request (R-FLOW-6)", async (t) => {
     const r = await lookup(t, [HTML(502), VERIFIED()]);
-    assert.equal(r.outcome, "exact");
+    assert.equal(Reflect.get(Object(r.outcome), "match"), "exact");
     assert.equal(r.calls.length, 2);
   });
 

@@ -89,8 +89,11 @@ function recorded(backend: string, name: string): () => Response {
   return () => responseOf(loadFixture(backend, name));
 }
 
-/** The status and JSON body of a recorded answer, as a new Response each time it is called. */
-function recordedBody(backend: string, name: string): () => Response {
+/**
+ * The status and JSON body of a recorded answer, as a new Response each time it is called. With
+ * `contractName`, the body's `ContractName` is replaced by it.
+ */
+function recordedBody(backend: string, name: string, contractName?: string): () => Response {
   return () => {
     const url = new URL(`../fixtures/${backend}/${name}.json`, import.meta.url);
     const parsed: unknown = JSON.parse(readFileSync(url, "utf8"));
@@ -99,7 +102,15 @@ function recordedBody(backend: string, name: string): () => Response {
     assert.ok(typeof response === "object" && response !== null);
     const status: unknown = Reflect.get(response, "status");
     assert.ok(typeof status === "number");
-    return json(status, Reflect.get(response, "body"));
+    const body = JSON.stringify(Reflect.get(response, "body"));
+    return json(
+      status,
+      JSON.parse(
+        contractName === undefined
+          ? body
+          : body.replace(/"ContractName":"[^"]*"/u, `"ContractName":"${contractName}"`),
+      ),
+    );
   };
 }
 
@@ -127,7 +138,13 @@ const UNLISTED_LOOKUP = (): Response =>
     chainId: "999999",
     address: GREETER,
   });
-const ROUTESCAN_VERIFIED = recordedBody("routescan", "2026-11-03-getsourcecode-verified");
+// Routescan's recorded lookup names ProbeBRoutescan. The copy names the Greeter of the input, so
+// the lookup finds this source rather than another contract's (decision 0063).
+const ROUTESCAN_VERIFIED = recordedBody(
+  "routescan",
+  "2026-11-03-getsourcecode-verified",
+  "Greeter",
+);
 const BLOCKSCOUT_GREETER = recorded("blockscout", "2026-11-04-lookup-sepolia-greeter");
 
 interface Sent {

@@ -617,12 +617,14 @@ function replay(recordings: readonly Recording[]): typeof fetch {
 
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 
-// Sourcify's lookup answer for the Sepolia Greeter, recorded on 2026-11-02.
+// Sourcify's lookup answer for the Sepolia Greeter, recorded on 2026-11-02 before the library
+// asked for `fields=compilation`. Without that field the answer names no contract, so the library
+// compares none.
 const verified = await verify(input, {
   fetch: replay([
     {
       method: "GET",
-      url: `https://sourcify.dev/server/v2/contract/11155111/${GREETER}`,
+      url: `https://sourcify.dev/server/v2/contract/11155111/${GREETER}?fields=compilation`,
       status: 200,
       body: {
         matchId: "58142236",
@@ -653,7 +655,7 @@ await assert.rejects(
       fetch: replay([
         {
           method: "GET",
-          url: `https://sourcify.dev/server/v2/contract/9429413/${GREETER}`,
+          url: `https://sourcify.dev/server/v2/contract/9429413/${GREETER}?fields=compilation`,
           status: 400,
           body: { customCode: "unsupported_chain", message: "Chain 9429413 not found" },
         },

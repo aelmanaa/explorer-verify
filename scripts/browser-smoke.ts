@@ -162,12 +162,20 @@ function field(value: unknown, name: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, name) : undefined;
 }
 
-/** The path of a recorded URL below the API base. The client sends the address in lower case. */
+/**
+ * The path the client sends for a recorded URL below the API base. The client sends the address in
+ * lower case. Its lookup asks for `fields=compilation` (decision 0063); a lookup recorded before
+ * that has no query and no `compilation` in its answer, so the client compares no stored contract
+ * with it, and the run expects the lookup with that query.
+ */
 function pathOf(url: string): string {
   assert.ok(url.startsWith(`${SOURCIFY_API}/`), `${url} is not below ${SOURCIFY_API}`);
-  return url
+  const relative = url
     .slice(SOURCIFY_API.length)
     .replace(/\/0x[0-9a-fA-F]{40}(?=\/|\?|$)/, (address) => address.toLowerCase());
+  return relative.startsWith("/v2/contract/") && !relative.includes("?")
+    ? `${relative}?fields=compilation`
+    : relative;
 }
 
 /** Reads `test/fixtures/sourcify/<name>.json`. */

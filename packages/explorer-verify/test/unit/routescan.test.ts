@@ -352,7 +352,7 @@ describe("routescan requests (R-BE-5, R-SEC-1, R-SEC-2)", () => {
       route,
       http: { backend: "etherscan-v2", fetch: fake.fetch, secrets: [], random: () => 0 },
     };
-    assert.equal(await drive(t, etherscan.lookup(TARGET, ctx)), "exact");
+    assert.equal((await drive(t, etherscan.lookup(TARGET, ctx)))?.match, "exact");
     assert.equal(fake.calls.length, 2);
     assert.equal(call(fake.calls, 0).url, call(fake.calls, 1).url);
     assert.equal(call(fake.calls, 0).body, call(fake.calls, 1).body);
@@ -363,7 +363,7 @@ describe("routescan requests (R-BE-5, R-SEC-1, R-SEC-2)", () => {
     const s = setup([VERIFIED()], {
       route: { backend: "routescan", apiUrl: `${API}?team=a` },
     });
-    assert.equal(await routescan.lookup(TARGET, s.ctx), "exact");
+    assert.equal((await routescan.lookup(TARGET, s.ctx))?.match, "partial");
     const url = new URL(call(s.calls, 0).url);
     assert.equal(`${url.origin}${url.pathname}`, API);
     assert.equal(url.searchParams.get("team"), "a");
@@ -415,8 +415,8 @@ describe("routescan requests (R-BE-5, R-SEC-1, R-SEC-2)", () => {
 // --- answers -----------------------------------------------------------------------------------
 
 describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
-  it("maps a non-empty SourceCode to exact and an empty one to not verified (recorded 2026-11-04)", async () => {
-    assert.equal(await routescan.lookup(TARGET, setup([VERIFIED()]).ctx), "exact");
+  it("maps a non-empty SourceCode to partial and an empty one to not verified (recorded 2026-11-04, decision 0063)", async () => {
+    assert.equal((await routescan.lookup(TARGET, setup([VERIFIED()]).ctx))?.match, "partial");
     assert.equal(await routescan.lookup(TARGET, setup([NOT_VERIFIED()]).ctx), undefined);
   });
 
@@ -425,11 +425,11 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
     assert.deepEqual(outcome, { state: "submitted", handle: handle() });
   });
 
-  it("maps Pending in queue to pending and Pass - Verified to verified exact (recorded 2026-11-03)", async () => {
+  it("maps Pending in queue to pending and Pass - Verified to verified partial: Routescan states no grade (recorded 2026-11-03, decision 0063)", async () => {
     assert.deepEqual(await routescan.poll(handle(), setup([PENDING()]).ctx), { state: "pending" });
     assert.deepEqual(await routescan.poll(handle(), setup([PASS()]).ctx), {
       state: "verified",
-      match: "exact",
+      match: "partial",
     });
   });
 
@@ -521,9 +521,9 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
       const s = setup([limit(), PASS(), limit(), limit(), VERIFIED()]);
       assert.deepEqual(await drive(t, routescan.poll(handle(), s.ctx)), {
         state: "verified",
-        match: "exact",
+        match: "partial",
       });
-      assert.equal(await drive(t, routescan.lookup(TARGET, s.ctx)), "exact");
+      assert.equal((await drive(t, routescan.lookup(TARGET, s.ctx)))?.match, "partial");
       const retries = s.events.filter((event) => event.type === "verify.retry");
       assert.equal(retries.length, 3);
       for (const event of retries) {
@@ -537,9 +537,9 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
 // --- rate limit ----------------------------------------------------------------------------------
 
 describe("routescan rate-limit answers (R-BE-5, R-FLOW-6, recorded 2026-11-05)", () => {
-  it("the recorded keyed lookup reads as exact, with the key sent in the apikey header only (R-SEC-1)", async () => {
+  it("the recorded keyed lookup reads as partial, with the key sent in the apikey header only (R-SEC-1)", async () => {
     const s = setup([KEYED_LOOKUP()], { keyed: true });
-    assert.equal(await routescan.lookup(TARGET, s.ctx), "exact");
+    assert.equal((await routescan.lookup(TARGET, s.ctx))?.match, "partial");
     const sent = call(s.calls, 0);
     assert.equal(sent.headers.get("apikey"), KEY);
     assert.equal(new URL(sent.url).searchParams.has("apikey"), false);
@@ -567,7 +567,7 @@ describe("routescan rate-limit answers (R-BE-5, R-FLOW-6, recorded 2026-11-05)",
     const s = setup([RATE_LIMIT_KEYLESS(), RATE_LIMIT_KEYLESS(), PASS()]);
     assert.deepEqual(await drive(t, routescan.poll(handle(), s.ctx)), {
       state: "verified",
-      match: "exact",
+      match: "partial",
     });
     const retries = s.events.filter((event) => event.type === "verify.retry");
     assert.deepEqual(
@@ -654,7 +654,7 @@ describe("routescan rate-limit answers (R-BE-5, R-FLOW-6, recorded 2026-11-05)",
       route,
       http: { backend: "etherscan-v2", fetch: fake.fetch, secrets: [], random: () => 0 },
     };
-    assert.equal(await drive(t, etherscan.lookup(TARGET, ctx)), "exact");
+    assert.equal((await drive(t, etherscan.lookup(TARGET, ctx)))?.match, "exact");
     assert.equal(fake.calls.length, 2);
   });
 });
@@ -691,9 +691,9 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
     assert.equal(typeof client === "function" ? await client() : client, routescan);
   });
 
-  it("runs lookup, submit and polls to verified exact without a key (recorded 2026-11-03)", async (t) => {
+  it("runs lookup, submit and polls to verified partial without a key (recorded 2026-11-03, decision 0063)", async (t) => {
     const r = await runFlow(t, [NOT_VERIFIED(), SUBMITTED(), PENDING(), PASS()]);
-    assert.deepEqual(r.outcome, { status: "verified", backend: "routescan", match: "exact" });
+    assert.deepEqual(r.outcome, { status: "verified", backend: "routescan", match: "partial" });
     assert.deepEqual(r.calls.map(action), [
       "getsourcecode",
       "verifysourcecode",
@@ -704,7 +704,7 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
 
   it("Verification not found with a verified lookup returns verified (R-FLOW-2, recorded 2026-11-03)", async (t) => {
     const r = await runFlow(t, [NOT_VERIFIED(), SUBMITTED(), NOT_FOUND(), VERIFIED()]);
-    assert.deepEqual(r.outcome, { status: "verified", backend: "routescan", match: "exact" });
+    assert.deepEqual(r.outcome, { status: "verified", backend: "routescan", match: "partial" });
     assert.equal(action(call(r.calls, 3)), "getsourcecode");
   });
 
@@ -757,7 +757,7 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
         { backends: { routescan }, table: TABLE, random: () => 0 },
       ),
     );
-    assert.deepEqual(outcome, { status: "verified", backend: "routescan", match: "exact" });
+    assert.deepEqual(outcome, { status: "verified", backend: "routescan", match: "partial" });
     assert.equal(actions.at(-1), "getsourcecode");
     assert.equal(actions.filter((name) => name === "getsourcecode").length, 2);
     assert.ok(actions.filter((name) => name === "checkverifystatus").length >= 2);
@@ -774,6 +774,6 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
         { backends: { routescan }, table: TABLE, random: () => 0 },
       ),
     );
-    assert.deepEqual(result, { status: "verified", backend: "routescan", match: "exact" });
+    assert.deepEqual(result, { status: "verified", backend: "routescan", match: "partial" });
   });
 });

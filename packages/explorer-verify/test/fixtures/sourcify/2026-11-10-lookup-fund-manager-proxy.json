@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-10T13:17:13.648Z, read only: the lookup of 0xFb56a32956Ab007ea2a02C67609740A10f9ED362 on Ethereum Sepolia, issue #293. Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xFb56a32956Ab007ea2a02C67609740A10f9ED362?fields=compilation"
+  },
+  "recordedAt": "2026-11-10T13:17:13.648Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "compilation": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.27+commit.40a35a09",
+        "name": "FundManagerProxy",
+        "fullyQualifiedName": "src/FundManagerProxy.sol:FundManagerProxy"
+      },
+      "matchId": "58987106",
+      "creationMatch": null,
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-10T08:06:56Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0xFb56a32956Ab007ea2a02C67609740A10f9ED362"
+    }
+  }
+}

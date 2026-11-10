@@ -215,15 +215,18 @@ describe("sourcify backend", () => {
   describe("lookup", () => {
     it("reads a 200 exact_match as exact, without fields=all (R-BE-4, R-FLOW-3)", async () => {
       const { ctx, calls } = setup([fixture("lookup-exact-match")]);
-      assert.equal(await sourcify.lookup(target(), ctx), "exact");
+      assert.equal((await sourcify.lookup(target(), ctx))?.match, "exact");
       assert.equal(calls.length, 1);
       assert.equal(calls[0]?.method, "GET");
-      assert.equal(calls[0]?.url, `${API}/v2/contract/${String(SEPOLIA)}/${GREETER}`);
+      assert.equal(
+        calls[0]?.url,
+        `${API}/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
+      );
     });
 
     it("reads a 200 match as partial (R-BE-4, R-FLOW-3)", async () => {
       const { ctx } = setup([fixture("lookup-match")]);
-      assert.equal(await sourcify.lookup(target(OTHER), ctx), "partial");
+      assert.equal((await sourcify.lookup(target(OTHER), ctx))?.match, "partial");
     });
 
     it("reads a 404 with null match fields as not verified (R-BE-4)", async () => {
@@ -308,13 +311,13 @@ describe("sourcify backend", () => {
         b.address = GREETER.toUpperCase().replace("0X", "0x");
       });
       const { ctx } = setup([response]);
-      assert.equal(await sourcify.lookup(target(), ctx), "exact");
+      assert.equal((await sourcify.lookup(target(), ctx))?.match, "exact");
     });
 
     it("retries a network error, then reads the answer (R-FLOW-6)", async (t) => {
       t.mock.timers.enable({ apis: ["setTimeout"] });
       const { ctx, calls } = setup([new TypeError("fetch failed"), fixture("lookup-exact-match")]);
-      assert.equal(await drive(t, sourcify.lookup(target(), ctx)), "exact");
+      assert.equal((await drive(t, sourcify.lookup(target(), ctx)))?.match, "exact");
       assert.equal(calls.length, 2);
     });
 
@@ -325,7 +328,7 @@ describe("sourcify backend", () => {
       assert.equal(await sourcify.lookup(target(), ctx), undefined);
       assert.equal(
         calls[0]?.url,
-        `http://127.0.0.1:5555/server/v2/contract/${String(SEPOLIA)}/${GREETER}?token=abc`,
+        `http://127.0.0.1:5555/server/v2/contract/${String(SEPOLIA)}/${GREETER}?token=abc&fields=compilation`,
       );
     });
   });

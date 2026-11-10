@@ -1,0 +1,40 @@
+{
+  "source": "Live response from api.etherscan.io to a POST request sent with the fetch of Node.js 24.21.0, recorded 2026-11-10T13:17:15.176Z, read only: the getsourcecode of 0xFb56a32956Ab007ea2a02C67609740A10f9ED362 on Ethereum Sepolia, issue #293. Body reduced to the match, name and compiler fields; the SourceCode text is replaced by its length and the other result fields are dropped. The key was in the form body; it is not recorded.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xFb56a32956Ab007ea2a02C67609740A10f9ED362",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "recordedAt": "2026-11-10T13:17:15.176Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "[32566 characters of source removed]",
+          "ContractName": "EvProxy",
+          "CompilerVersion": "v0.8.34+commit.80d5c536",
+          "SimilarMatch": "",
+          "Proxy": "1",
+          "Implementation": "0xa67a1256b513afa0cbd89671bd0eca062117a3d9"
+        }
+      ]
+    }
+  }
+}

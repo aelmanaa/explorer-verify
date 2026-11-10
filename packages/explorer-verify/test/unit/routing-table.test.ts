@@ -452,7 +452,7 @@ function matchingClient(name: BackendName, seen: string[]): Backend {
     name,
     lookup: async (_target, ctx) => {
       seen.push(`${ctx.route.backend} ${ctx.route.requestUrl("")}`);
-      return "exact";
+      return { match: "exact" };
     },
     submit: () => Promise.reject(new Error("no submit expected")),
     poll: () => Promise.reject(new Error("no poll expected")),
@@ -562,7 +562,8 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
   it("sends a call with an Etherscan key to api.etherscan.io, the key in the POST body only (R-RT-1, R-SEC-2, #122)", async () => {
     const fake = replay(loadFixture("etherscan", "2026-11-04-getsourcecode-sepolia-greeter"));
     const result = await runVerify(
-      { ...input(SEPOLIA), address: GREETER },
+      // The recorded lookup names Greeter, so the input names it too (decision 0063).
+      { ...input(SEPOLIA), address: GREETER, contractName: "src/A.sol:Greeter" },
       { fetch: fake.fetch, apiKeys: { "etherscan-v2": ETHERSCAN_KEY } },
       DEFAULT_DEPENDENCIES,
     );
@@ -593,7 +594,7 @@ describe("routing table: the shipped file (R-RT-1, R-SEC-2)", () => {
     const [call] = fake.calls;
     assert.equal(
       call?.url,
-      `${SOURCIFY_API_URL}/v2/contract/${String(SEPOLIA)}/${GREETER.toLowerCase()}`,
+      `${SOURCIFY_API_URL}/v2/contract/${String(SEPOLIA)}/${GREETER.toLowerCase()}?fields=compilation`,
     );
     assert.equal(call.body, undefined);
     assert.ok(!call.url.includes("apikey"));

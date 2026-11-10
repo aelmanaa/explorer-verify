@@ -392,7 +392,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
             secrets: [],
           });
         },
-        async () => "exact",
+        async () => ({ match: "exact" }),
       ),
       { logger },
     );
@@ -419,7 +419,7 @@ describe("verify(): the route and result lines of the log (R-DX-5)", () => {
         backends: {
           sourcify: scripted(
             () => Promise.reject(new Error("no poll expected")),
-            async () => "partial",
+            async () => ({ match: "partial" }),
           ),
         },
         random: () => 0,

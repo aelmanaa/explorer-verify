@@ -55,7 +55,7 @@ was deployed on Ethereum Sepolia and submitted for the first time with explorer-
 | Etherscan v2                        | `Pass - Verified`; the lookup has an empty `SimilarMatch`        | `exact`                         |
 | Sourcify                            | `match` for the creation and the runtime code, not `exact_match` | `partial`                       |
 | Blockscout, instance and hosted API | `is_fully_verified` `false`, `is_partially_verified` `true`      | `partial`                       |
-| Routescan                           | `Pass - Verified`; the lookup has no field that grades the match | `exact`                         |
+| Routescan                           | `Pass - Verified`; the lookup has no field that grades the match | `partial`                       |
 
 The same contract built with the default `"ipfs"` hash got `exact` on all four in the same probe.
 Blockscout gave the same partial grade on Base Sepolia on 2026-11-04
@@ -65,9 +65,9 @@ On Sourcify and Blockscout, partial is the best such a build can get; it is not 
 Etherscan's `exact` fits its own definition of an Exact Match, "the exact contract code that was
 deployed"
 ([Types of contract verification](https://info.etherscan.com/types-of-contract-verification/),
-read 2026-11-04), which does not depend on a metadata hash. Routescan states no grade. So
-explorer-verify reports every Routescan match as `exact`, which there means "verified", not a
-checked grade.
+read 2026-11-04), which does not depend on a metadata hash. Routescan states no grade, so
+explorer-verify reports every Routescan match as `partial` (decision 0063): its verified state is
+not a checked grade.
 
 Linked libraries can lower the grade too. On 2026-11-03, a contract compiled without library
 addresses and linked afterwards, as Foundry does, got an exact match on Sourcify when submitted
@@ -117,18 +117,38 @@ Explorers verify some contracts on their own:
   verified after the Sourcify submit alone ([Sourcify](../reference/sourcify.md#behaviour-to-know)).
 
 So a contract can be verified before anyone submits it. This is why `verify()` looks the contract
-up first (R-FLOW-1): when the explorer already has a match, it returns `already-verified` with that
-match and sends no source.
+up first (R-FLOW-1): when the explorer already has a match of this source, it returns
+`already-verified` with that match and sends no source.
+
+The match can also come from another contract's source. On Ethereum Sepolia on 2026-11-10, Sourcify,
+Blockscout and Routescan held a match for two new contracts 56 to 94 seconds after each deployment,
+under other contract names and compiler versions. Such a match covers the bytecode, not the
+caller's source. So `verify()` compares the contract name and the compiler version that the
+explorer stores with the input, and submits when either differs (decision 0063):
+
+- The name: a stored `path:Name`, as Sourcify gives it, is compared with the whole `contractName`.
+  A stored `Name`, as Etherscan, Routescan and Blockscout give it, is compared with the part of
+  `contractName` after its last `:`.
+- The compiler version: compared without a leading `v` and in lower case. When one of the two has
+  no `+commit.` part, only the release before the `+` is compared.
+- An answer that names neither keeps the earlier rule: the match ends the call.
 
 ## What explorer-verify reports
 
-| Case                                                       | Result                                      |
-| ---------------------------------------------------------- | ------------------------------------------- |
-| The lookup finds an exact or partial match                 | `already-verified`, with that match         |
-| The submit or the job ends with a match                    | `verified`, with that match                 |
-| The explorer answers that the contract is already verified | `already-verified`                          |
-| The explorer rejects the source                            | `failed`, with the explorer's reason        |
-| An answer explorer-verify cannot classify                  | A typed error; never `verified` or `failed` |
+| Case                                                          | Result                                               |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| The lookup finds an exact or partial match of this source     | `already-verified`, with that match                  |
+| The lookup finds a match of another contract's source         | A submit, then one of the rows below                 |
+| The submit or the job ends with a match                       | `verified`, with that match                          |
+| The explorer answers that the contract is already verified    | `already-verified`                                   |
+| The explorer refuses the submit over another contract's match | `already-verified`, `partial`, with `storedContract` |
+| The explorer rejects the source                               | `failed`, with the explorer's reason                 |
+| An answer explorer-verify cannot classify                     | A typed error; never `verified` or `failed`          |
+
+A result of `verify()` never says `verified` or `exact` for a match whose stored name or compiler
+version differs from the input. `dryRun()` reports such a match with `storedContract`, because
+`verify()` would submit. `checkStatus()` has no input to compare, so a resumed handle can report
+another contract's match ([checkStatus()](../reference/check-status.md)).
 
 In this release, Sourcify and Etherscan v2 have a client. On Sourcify, `exact_match` becomes
 `exact` and `match` becomes `partial` ([Sourcify](../reference/sourcify.md#how-answers-are-read)).
@@ -146,11 +166,17 @@ On Blockscout, `is_fully_verified` becomes `exact` and `is_partially_verified` b
 On 2026-11-04, a build without a metadata hash gave `verified` with `partial`, never `failed`
 ([Blockscout](../reference/blockscout.md#partial-matches)).
 
+On Routescan, every match is `partial`, from a lookup or from `Pass - Verified`. Routescan states
+no grade: its `getsourcecode` has no `SimilarMatch` field, and on 2026-11-10 it passed a build
+without a metadata hash that Sourcify and Blockscout graded partial, and took copies forwarded from
+Sourcify and Blockscout submits ([Routescan](../reference/routescan.md#behaviour-to-know)).
+
 ## Which match to aim for
 
 - Compile with a metadata hash, the default, and submit the Standard JSON input of that build. That
   build can reach `exact`.
 - Submit `settings.libraries` as it was at compile time, not with addresses added afterwards.
 - A build without a metadata hash reaches only `partial` on Sourcify and Blockscout, and `exact` on
-  Etherscan v2 and Routescan. On Sourcify and Blockscout, `partial` is the correct result for it.
+  Etherscan v2. Routescan reports `partial` for every match. On Sourcify and Blockscout, `partial`
+  is the correct result for it.
   See [Builds without a metadata hash](#builds-without-a-metadata-hash).

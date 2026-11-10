@@ -1,0 +1,27 @@
+{
+  "source": "Live response from api.routescan.io to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-10T13:17:14.309Z, read only: the getsourcecode of 0xFb56a32956Ab007ea2a02C67609740A10f9ED362 on Ethereum Sepolia, issue #293. Body reduced to the match, name and compiler fields; the SourceCode text is replaced by its length and the other result fields are dropped.",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api?module=contract&action=getsourcecode&address=0xFb56a32956Ab007ea2a02C67609740A10f9ED362&nocache=1794316634309"
+  },
+  "recordedAt": "2026-11-10T13:17:14.309Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "[25357 characters of source removed]",
+          "ContractName": "FundManagerProxy",
+          "CompilerVersion": "v0.8.27+commit.40a35a09",
+          "Proxy": "1",
+          "Implementation": "0xA67A1256B513AfA0cBD89671bD0eca062117A3D9"
+        }
+      ]
+    }
+  }
+}

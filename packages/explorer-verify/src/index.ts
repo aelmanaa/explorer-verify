@@ -53,6 +53,7 @@ export type {
   RouteOverride,
   SolcCompiler,
   SolidityStandardJsonInput,
+  StoredContract,
   VerifyEachOptions,
   VerifyEachResult,
   VerifyEvent,

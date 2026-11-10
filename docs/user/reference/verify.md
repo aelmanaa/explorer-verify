@@ -103,15 +103,21 @@ object typed `VerifyOptions` can go to all of them, as in the dry run.
 
 ## Results
 
-| `status`           | When                                         | Fields                            | Exit code |
-| ------------------ | -------------------------------------------- | --------------------------------- | --------- |
-| `already-verified` | The explorer had the contract verified       | `backend`, `match`, `explorerUrl` | 0         |
-| `verified`         | This call's submission verified the contract | `backend`, `match`, `explorerUrl` | 0         |
-| `failed`           | The explorer rejected the source             | `backend`, `reason`               | 1         |
+| `status`           | When                                         | Fields                                              | Exit code |
+| ------------------ | -------------------------------------------- | --------------------------------------------------- | --------- |
+| `already-verified` | The explorer had the contract verified       | `backend`, `match`, `explorerUrl`, `storedContract` | 0         |
+| `verified`         | This call's submission verified the contract | `backend`, `match`, `explorerUrl`                   | 0         |
+| `failed`           | The explorer rejected the source             | `backend`, `reason`                                 | 1         |
 
 `match` is `exact` or `partial` ([Match types](../explanation/match-types.md)).
 `explorerUrl` is absent when `route` points at another server. `reason` is
 the explorer's message, keys removed, at most 300 characters.
+
+`storedContract` is present when the explorer holds another contract's
+source for the address. Your source is then not on the explorer, yet the
+exit code stays 0 and the envelope says `ok: true`. To require your own
+source, check `result.storedContract === undefined`
+([Another contract's source](#another-contracts-source)).
 
 ## Errors
 
@@ -134,30 +140,70 @@ After the explorer accepts a submission, a spent budget gives
 
 1. Validates the input and options, and resolves the route. A problem throws
    `invalid-input`, and nothing is sent.
-2. Looks the contract up. An `exact` or `partial` match returns
-   `already-verified`, and nothing is submitted.
+2. Looks the contract up. An `exact` or `partial` match of this source
+   returns `already-verified`, and nothing is submitted. A match of
+   [another contract's source](#another-contracts-source) is logged at
+   `info`, and the call goes on.
 3. Derives [constructor arguments](#constructor-arguments) when the backend
    needs them, then submits the source.
 4. Polls the job every `pollIntervalMs` until it ends. A failed poll is
    logged at `warn`, and polling goes on.
 5. When the budget runs out, 3 polls in a row fail, or the explorer forgets
-   the job, it looks the contract up once more. A match returns `verified`;
-   otherwise it throws `not-confirmed` or `job-not-found`.
+   the job, it looks the contract up once more. A match of this source
+   returns `verified`; otherwise it throws `not-confirmed` or
+   `job-not-found`.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`. Each
 step emits a [stage event](logging-and-events.md#events), and
 `verify.result` comes last.
 
+## Another contract's source
+
+An explorer can hold a match for the address made from another contract's
+source. On Ethereum Sepolia on 2026-11-10, Sourcify, Blockscout and
+Routescan held such matches within two minutes of a deployment. The lookup
+reads the contract name and the compiler version the explorer stores, and
+`verify()` compares them with the input:
+
+| Backend                        | Name compared                                                     | Version compared              |
+| ------------------------------ | ----------------------------------------------------------------- | ----------------------------- |
+| Sourcify                       | `compilation.fullyQualifiedName` with the whole `contractName`    | `compilation.compilerVersion` |
+| Etherscan v2, Routescan        | `ContractName` with the part of `contractName` after its last `:` | `CompilerVersion`             |
+| Etherscan-compatible explorers | `ContractName`, as for Etherscan, when the answer has it          | `CompilerVersion`             |
+| Blockscout                     | `name` with the part of `contractName` after its last `:`         | `compiler_version`            |
+
+| Rule                        | What happens                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| Versions                    | Compared without a leading `v`, in lower case; only the release when one side has no `+commit.` |
+| zksolc input                | Its `solcVersion` is compared                                                                   |
+| Answer names neither field  | The match counts as this source; an `info` line says the answer names no contract               |
+| Either field differs        | `verify()` submits the source                                                                   |
+| Explorer refuses the submit | `already-verified`, `partial`, with `storedContract`, and a `warn` line                         |
+| Stored text                 | Cut to 300 characters, control characters replaced, your keys removed                           |
+
+No `verify()` path returns `verified` or `exact` for a match whose stored
+name or version differs from the input. `verifyEach()` and
+`explorer-verify/core` follow the same rule. Sourcify's `409`, an
+Etherscan-compatible explorer without `ContractName` and a Sourcify server
+that ignores `fields=compilation` give answers that name no contract.
+
+The comparison uses the name and the version only. A partial match of
+another source with the same contract name and compiler version counts as
+yours. The planned option to submit over a partial match
+([#294](https://github.com/aelmanaa/explorer-verify/issues/294)) will let you
+replace it.
+
 ## Dry run results
 
-| Field         | Value                                                                  |
-| ------------- | ---------------------------------------------------------------------- |
-| `status`      | Always `dry-run`                                                       |
-| `backend`     | The backend `verify()` would use                                       |
-| `apiHost`     | The host `verify()` would send to, with a port that is not the default |
-| `lookup`      | `exact`, `partial`, `none` or `skipped`                                |
-| `explorerUrl` | The contract's public page, for a match                                |
-| `routedBy`    | `caller`, `table`, `fallback` or `api-url`                             |
+| Field            | Value                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `status`         | Always `dry-run`                                                                                                        |
+| `backend`        | The backend `verify()` would use                                                                                        |
+| `apiHost`        | The host `verify()` would send to, with a port that is not the default                                                  |
+| `lookup`         | `exact`, `partial`, `none` or `skipped`                                                                                 |
+| `explorerUrl`    | The contract's public page, for a match                                                                                 |
+| `routedBy`       | `caller`, `table`, `fallback` or `api-url`                                                                              |
+| `storedContract` | The other contract's `name` and `compilerVersion`, when the match is another contract's source: `verify()` would submit |
 
 A dry run needs no key: where `verify()` would throw `missing-api-key`, it
 returns `lookup: "skipped"`. It throws what `verify()` throws before its
@@ -280,5 +326,9 @@ handle from the `verify.submitted` event, then resume with `checkStatus()`:
   ([probe E](../../contributor/research/2026-11-03-m2-live-probes.md#e-a-contract-linked-to-an-external-library)).
 - Constructor arguments, Sepolia, 2026-11-04: `getcontractcreation`
   returned the contract's own creation code, also for a factory deploy.
+- Matches from another contract's source, Ethereum Sepolia, 2026-11-10:
+  Sourcify, Blockscout and Routescan stored them 56 to 94 s after each
+  deployment ([research](../../contributor/research/2026-11-10-foreign-matches.md),
+  [decision 0063](../../contributor/decisions/0063-submit-over-another-contracts-match.md)).
 - Public Sourcify, 2026-11-03: on Base Sepolia, `verify()` verified
   `0x616dc0f820416e46841d2e1122ff7ca615a740fe` in 2.5 s.

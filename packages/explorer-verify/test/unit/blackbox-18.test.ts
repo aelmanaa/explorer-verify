@@ -604,7 +604,7 @@ describe("checkStatus(): the forgotten job", () => {
     );
     assert.equal(
       fake.calls[1]?.url,
-      `https://sourcify.dev/server/v2/contract/${CHAIN_ID}/${ADDRESS}`,
+      `https://sourcify.dev/server/v2/contract/${CHAIN_ID}/${ADDRESS}?fields=compilation`,
     );
   });
 

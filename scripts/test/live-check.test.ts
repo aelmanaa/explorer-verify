@@ -288,7 +288,7 @@ function targetsText(overrides: Record<string, unknown> = {}): string {
         backend: "routescan",
         chainId: 43113,
         address: KNOWN,
-        match: "exact",
+        match: "partial",
         apiUrl: `${base}/routescan/api`,
         cors: true,
       },

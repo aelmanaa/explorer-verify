@@ -16,6 +16,11 @@
       "floor": 97
     },
     {
+      "file": "src/flow/stored.ts",
+      "measured": 100.0,
+      "floor": 99
+    },
+    {
       "file": "src/flow/status.ts",
       "measured": 100.0,
       "maxUndetected": 1

@@ -55,7 +55,11 @@ export interface ExitCodeHelp {
 // References: R-AX-7.
 /** Every exit code of the CLI, in order. The tests check it against the catalogue. */
 export const EXIT_CODES: readonly ExitCodeHelp[] = [
-  { code: 0, meaning: "Verified: verified or already-verified. Help and the version also exit 0" },
+  {
+    code: 0,
+    meaning:
+      "Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours. Help and the version also exit 0",
+  },
   { code: 1, meaning: "Failed: the explorer definitively rejected the submission" },
   { code: 2, meaning: "Usage or input error: nothing was submitted for verification" },
   { code: 3, meaning: "API key: missing, invalid or under-privileged" },

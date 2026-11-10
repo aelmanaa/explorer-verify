@@ -16,6 +16,7 @@ import type { Handle } from "../types.ts";
 import type {
   Backend,
   Context,
+  Found,
   Match,
   PollOutcome,
   ResolvedInput,
@@ -26,6 +27,7 @@ import {
   attemptSubmit,
   checkHandle,
   explorerUrl,
+  foundOf,
   REASON_LENGTH,
   send,
   submitOnce,
@@ -128,16 +130,15 @@ export const sourcify: Backend = {
 };
 
 /**
- * Asks Sourcify whether the contract is verified. A 200 gives the match, a 404 whose body has a
- * `null` match means not verified, and a 400 `unsupported_chain` throws `unsupported-chain`. Every
- * other answer throws `unexpected-response`.
+ * Asks Sourcify whether the contract is verified, with `fields=compilation`. A 200 gives the
+ * match, and `compilation` names the stored contract: `fullyQualifiedName`, else `name`, and
+ * `compilerVersion`. A 404 whose body has a `null` match means not verified, and a 400
+ * `unsupported_chain` throws `unsupported-chain`. Every other answer throws `unexpected-response`.
  */
-async function lookup(target: Target, ctx: Context): Promise<Match | undefined> {
-  const answer = await send(ctx, {
-    url: ctx.route.requestUrl(contractPath("contract", target)),
-    method: "GET",
-    retry: "safe",
-  });
+async function lookup(target: Target, ctx: Context): Promise<Found | undefined> {
+  const url = new URL(ctx.route.requestUrl(contractPath("contract", target)));
+  url.searchParams.set("fields", "compilation");
+  const answer = await send(ctx, { url: url.href, method: "GET", retry: "safe" });
   const { status, fields } = answer;
   if ((status === 200 || status === 404) && fields?.has("match") === true) {
     if (sameContract(fields, target, true)) {
@@ -145,7 +146,16 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
       if (status === 200) {
         const grade = toMatch(match);
         if (grade !== undefined) {
-          return grade;
+          const compilation = readFields(fields.get("compilation"));
+          const qualified = compilation?.get("fullyQualifiedName");
+          return foundOf(
+            ctx,
+            grade,
+            typeof qualified === "string" && qualified !== ""
+              ? qualified
+              : compilation?.get("name"),
+            compilation?.get("compilerVersion"),
+          );
         }
       } else if (match === null) {
         return undefined;
@@ -161,12 +171,12 @@ async function lookup(target: Target, ctx: Context): Promise<Match | undefined> 
  * Submits the source. A submit may have reached Sourcify without the client learning its job id:
  * no response, a 500, 502 or 504, a 2xx whose body failed or stalled, or a 202 that is not JSON.
  * The client
- * then looks the contract up, and submits once more only when the lookup finds it not verified.
+ * then looks the contract up, and submits once more only when the lookup finds no match of this
+ * source.
  */
 async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {
-  const target: Target = { chainId: input.chainId, address: input.address };
   const req: HttpRequest = {
-    url: ctx.route.requestUrl(contractPath("verify", target)),
+    url: ctx.route.requestUrl(contractPath("verify", input)),
     method: "POST",
     body: JSON.stringify(submitBody(input)),
     headers: { "content-type": "application/json" },
@@ -182,7 +192,7 @@ async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome
     ctx,
     NAME,
     LABEL,
-    target,
+    input,
     async () => await attemptSubmit(ctx, req, unconfirmed),
     (answer) => readSubmit(input, ctx, answer),
     lookup,

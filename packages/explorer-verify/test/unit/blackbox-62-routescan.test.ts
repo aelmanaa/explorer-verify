@@ -302,7 +302,7 @@ function assertNoKey(run: Run, ...values: unknown[]): void {
 // ---------------------------------------------------------------------------------------------
 
 describe("#62 Routescan: submit, poll, lookup (R-BE-5, R-FLOW-2)", () => {
-  it("lookup none, submit, pending, pass gives verified exact with the routescan backend", async () => {
+  it("lookup none, submit, pending, pass gives verified partial with the routescan backend (decision 0063)", async () => {
     const run = setup({
       getsourcecode: [LOOKUP_NONE],
       verifysourcecode: [SUBMIT_OK],
@@ -311,7 +311,7 @@ describe("#62 Routescan: submit, poll, lookup (R-BE-5, R-FLOW-2)", () => {
     const result = await drive(verify(makeInput(), run.options));
     assert.equal(result.status, "verified");
     assert.equal(result.backend, "routescan");
-    assert.ok("match" in result && result.match === "exact");
+    assert.ok("match" in result && result.match === "partial");
     assert.ok(!("explorerUrl" in result) || result.explorerUrl === undefined);
     assert.deepEqual(actions(run), [
       "getsourcecode",
@@ -356,11 +356,11 @@ describe("#62 Routescan: submit, poll, lookup (R-BE-5, R-FLOW-2)", () => {
     assertRequestsSafe(run);
   });
 
-  it("lookup with SourceCode gives already-verified exact, no submit", async () => {
+  it("lookup with SourceCode gives already-verified partial, no submit (decision 0063)", async () => {
     const run = setup({ getsourcecode: [LOOKUP_EXACT] });
     const result = await drive(verify(makeInput(), run.options));
     assert.equal(result.status, "already-verified");
-    assert.ok("match" in result && result.match === "exact");
+    assert.ok("match" in result && result.match === "partial");
     assert.deepEqual(actions(run), ["getsourcecode"]);
     assertRequestsSafe(run);
   });
@@ -382,7 +382,7 @@ describe("#62 Routescan: submit, poll, lookup (R-BE-5, R-FLOW-2)", () => {
     });
     const result = await drive(verify(makeInput(), run.options));
     assert.equal(result.status, "already-verified");
-    assert.ok("match" in result && result.match === "exact");
+    assert.ok("match" in result && result.match === "partial");
     assertRequestsSafe(run);
   });
 
@@ -414,13 +414,13 @@ describe("#62 Routescan: submit, poll, lookup (R-BE-5, R-FLOW-2)", () => {
     assertRequestsSafe(run);
   });
 
-  it("Fail with an exact lookup gives verified (R-FLOW-4)", async () => {
+  it("Fail with a lookup that finds the source gives already-verified partial (R-FLOW-4, decision 0063)", async () => {
     const run = setup({
       getsourcecode: [LOOKUP_EXACT],
       checkverifystatus: [notok(FAIL_TEXT)],
     });
     const result = await drive(checkStatus(HANDLE, run.options));
-    assert.equal(result.status, "verified");
+    assert.equal(result.status, "already-verified");
   });
 });
 

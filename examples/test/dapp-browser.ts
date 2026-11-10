@@ -192,9 +192,15 @@ function sourcifyAnswer(name: string): SourcifyAnswer {
   return { method, url, status, body: Reflect.get(Object(response), "body") };
 }
 
-/** Whether a request is the recorded one. Sourcify takes the address in any case. */
+/**
+ * Whether a request is the recorded one. Sourcify takes the address in any case. The lookup asks
+ * for `fields=compilation` since decision 0063; a lookup recorded before has no `compilation` in
+ * its answer, so the library compares no stored contract with it.
+ */
 function matches(recorded: SourcifyAnswer, method: string, url: string): boolean {
-  return recorded.method === method && recorded.url.toLowerCase() === url.toLowerCase();
+  const sent = new URL(url);
+  sent.searchParams.delete("fields", "compilation");
+  return recorded.method === method && recorded.url.toLowerCase() === sent.href.toLowerCase();
 }
 
 /** The browser's network. */
