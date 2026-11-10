@@ -1,7 +1,5 @@
 # Routescan
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,36 +7,48 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who need to know what explorer-verify sends to Routescan and how it
 reads each answer.
 
-Routescan serves an Etherscan-compatible API for Avalanche and other chains. Each chain has its own
-API URL, with the network (`mainnet` or `testnet`) and the chain id in the path:
+Routescan serves an Etherscan-compatible API for Avalanche and other chains.
+[verify()](verify.md) and [checkStatus()](check-status.md) use this client.
+
+| Fact         | Value                                                             |
+| ------------ | ----------------------------------------------------------------- |
+| Server       | One URL per chain, with the network and the chain id in the path  |
+| API key      | Optional ([API keys](api-keys.md))                                |
+| Browsers     | Answers them directly, with or without a key                      |
+| Chains       | 38 in the routing table ([Routing](routing.md#routescan-entries)) |
+| Explorer URL | None in the result                                                |
+
+Each chain's API URL has this shape, where the network is `mainnet` or `testnet`:
 
 ```text
 https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api
 ```
 
-The free tier needs no key and sends CORS headers, so a page in a browser can verify through it
-directly. [verify()](verify.md) and [checkStatus()](check-status.md) use this client.
+## When the call goes to Routescan
 
-The routing table lists Routescan for the 38 chains whose API answered a keyless probe on
-2026-11-05, and derives each chain's URL from its network ([Routing](routing.md#routescan-entries)).
-Routescan comes last in a row:
+Routescan comes last in a row of the routing table. The table derives each chain's URL from its
+network.
 
-- On a chain whose row lists only Routescan, such as Henesys (68414), a call goes to Routescan
-  with no option.
-- On a chain whose row also lists Sourcify or Etherscan v2, such as Avalanche Fuji (43113), pass
-  `route: { backend: "routescan" }`. No `route.apiUrl` is needed.
-- On any other chain, pass `route.backend` `routescan` with `route.apiUrl` set to the chain's URL.
+| Chain                                                                       | What to pass                                   |
+| --------------------------------------------------------------------------- | ---------------------------------------------- |
+| Its row lists only Routescan, such as Henesys (68414)                       | Nothing                                        |
+| Its row also lists Sourcify or Etherscan v2, such as Avalanche Fuji (43113) | `route: { backend: "routescan" }`              |
+| Any other chain                                                             | `route.backend` `routescan` and `route.apiUrl` |
 
-A result from Routescan has no `explorerUrl`. This call resumes a job on Avalanche Fuji (43113)
-that Routescan has since forgotten; the lookup that follows finds the contract verified:
+## A minimal call
 
-```ts
+This call resumes a job on Avalanche Fuji (43113) that Routescan has since forgotten. The lookup
+that follows finds the contract verified:
+
+```ts [resume.ts]
 import { checkStatus } from "explorer-verify";
 
-const result = await checkStatus(
-  "ev1:routescan:43113:0x636522c3785337399aa9105498d2bd95dc01d749:f111a4c8-368c-51d2-8163-c7ab477a1d91",
-  { route: { backend: "routescan" } },
-);
+const handle =
+  "ev1:routescan:43113:0x636522c3785337399aa9105498d2bd95dc01d749:" +
+  "f111a4c8-368c-51d2-8163-c7ab477a1d91";
+const result = await checkStatus(handle, {
+  route: { backend: "routescan" },
+});
 console.log(`${result.status} ${result.backend}`);
 ```
 
@@ -46,17 +56,22 @@ console.log(`${result.status} ${result.backend}`);
 verified routescan
 ```
 
-`verify()` takes the same `route`. On a chain the table does not list for Routescan, add the URL:
+`verify()` takes the same `route`. On a chain the table does not list for Routescan, add the URL.
+Replace `43114` with your chain's id:
 
 <!-- no-run: a live submit to Routescan; the example above runs. -->
 
-```ts no-run
-import { verify } from "explorer-verify";
+```ts no-run [verify-routescan.ts]
+import { readFile } from "node:fs/promises";
 
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("verify-input.json", "utf8");
+const input = validateInput(JSON.parse(text));
 const result = await verify(input, {
   route: {
     backend: "routescan",
-    apiUrl: "https://api.routescan.io/v2/network/mainnet/evm/<chain id>/etherscan/api",
+    apiUrl: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api",
   },
 });
 console.log(result.status);
@@ -64,29 +79,29 @@ console.log(result.status);
 
 ## API key
 
-A key is optional. It goes in the `apikey` request header, never in the URL or the body
-([API keys](api-keys.md)). Where it may go depends on where you set it:
+A key is optional. It goes in the `apikey` request header, never in the URL or the body. Where it
+may go depends on where you set it:
 
-- `route.apiKey` is bound to the host of your `route.apiUrl`, whatever that host is. Set
-  `apiUrl` to a Routescan URL to send the key to `api.routescan.io`.
-- `apiKeys.routescan` goes only to `api.routescan.io`, and only on a route the routing table
-  lists: a chain with a Routescan entry, without `route.apiUrl`. It does not move a call to
-  Routescan on a row that lists Sourcify or Etherscan v2 first; pass `route.backend` for that.
+| Option              | Sent to                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `route.apiKey`      | The host of your `route.apiUrl`, whatever that host is                             |
+| `apiKeys.routescan` | `api.routescan.io`, only on a chain with a Routescan entry, without `route.apiUrl` |
 
-Without a key, requests go out with no `apikey` header, on the keyless tier. Routescan documents 2
-requests per second and 10,000 calls per day for that tier
-([rate limits](https://docs.routescan.io/plans-and-limits/rate-limits), read 2026-11-03).
+`apiKeys.routescan` does not move a call to Routescan on a row that lists Sourcify or Etherscan v2
+first. Pass `route.backend` for that.
 
-Routescan reads a key in the `apikey` header: on 2026-11-05 a keyed answer carried the
-`x-ratelimit-*` headers of the registered free plan, 300 requests a minute and 100,000 a day, and a
-keyless answer carried none. A key Routescan does not know is not refused: the answer is the keyless
-one, so a wrong key goes unnoticed and the call runs on the keyless tier.
+| Tier    | Limits                                  | How Routescan reads it                 |
+| ------- | --------------------------------------- | -------------------------------------- |
+| Keyless | 2 requests a second, 10,000 calls a day | No `apikey` header                     |
+| Free    | 300 requests a minute, 100,000 a day    | A key it knows, in the `apikey` header |
 
-Keyed use from a browser works. The `apikey` header makes the browser send a CORS preflight first;
-Routescan allows that header from any origin, and its answers, a 429 included, carry
-`access-control-allow-origin: *`. On 2026-11-05 a `fetch()` with a key from a Chromium page was
-answered. A key in a page is readable by everyone who loads the page, so keep a key you need to
-protect on a server, or use the keyless tier from the browser.
+A key Routescan does not know is not refused. The answer is the keyless one, so a wrong key goes
+unnoticed and the call runs on the keyless tier.
+
+> [!IMPORTANT]
+> A keyed call from a browser works: Routescan allows the `apikey` header from any origin. But a
+> key in a page is readable by everyone who loads it. Keep a key you need to protect on a server,
+> or use the keyless tier from the browser.
 
 ## Requests
 
@@ -100,10 +115,12 @@ No request sends a `chainid` parameter: the chain is in the URL.
 
 The submit fields are the ones the [Etherscan](etherscan.md#requests) client sends.
 
-`nocache` holds random characters, drawn again for every attempt, retries included. Routescan's CDN answers a repeated GET URL from its cache: on
-2026-11-03 it served a cached `Pending in queue` 51 minutes after the job had passed. A lookup is a
-GET because Routescan answers `getsourcecode` sent as a form POST with
-`Invalid querystring request` (live, 2026-11-04).
+`nocache` holds random characters, drawn again for every attempt, retries included. Routescan's
+CDN answers a repeated GET URL from its cache, and once served a cached `Pending in queue` 51
+minutes after the job had passed.
+
+A lookup is a GET because Routescan answers `getsourcecode` sent as a form POST with
+`Invalid querystring request`.
 
 ## How answers are read
 
@@ -121,23 +138,23 @@ additions:
 | Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, with the text as `reason`; no lookup                                                                                  |
 
 `Missing guid` means the status request was malformed. In `verify()` and `checkStatus()` it counts
-as a failed poll, as any `unexpected-response` does: polling goes on, and after 3 failed polls in a
-row one more lookup decides ([verify()](verify.md), steps 4 and 6).
+as a failed poll, as any `unexpected-response` does. Polling goes on, and after 3 failed polls in
+a row one more lookup decides ([verify()](verify.md), steps 4 and 6).
 
 Routescan gives the bytecode answer, with `status` `0` and `message` `NOTOK`, when the source
 compiles but its bytecode differs from the deployed bytecode. The full text ends with
-`for address <address>, please check your parameters`. It was recorded on Avalanche Fuji and on
-Sepolia without a key on 2026-11-04. The client matches the text before the address. Any other
-status text still gives [`unknown-state`](errors/unknown-state.md). The Etherscan client does not
-map this text, because Etherscan has not been recorded giving it.
+`for address <address>, please check your parameters`. The client matches the text before the
+address.
+
+Any other status text still gives [`unknown-state`](errors/unknown-state.md). The Etherscan client
+does not map the bytecode text, because Etherscan has not been recorded giving it.
 
 `chain not supported` also comes back for a chain Routescan serves when the URL names the wrong
 network, such as `mainnet` for Fuji.
 
 ## Rate limits
 
-Over its limit Routescan answers HTTP 429 with this body, with or without a key (live,
-2026-11-05):
+Over its limit Routescan answers HTTP 429 with this body, with or without a key:
 
 ```json
 {
@@ -148,32 +165,49 @@ Over its limit Routescan answers HTTP 429 with this body, with or without a key 
 }
 ```
 
-| Tier  | Limit seen on 2026-11-05     | Wait header on the 429                    | What the library does                                                                                                                 |
-| ----- | ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| None  | About 120 requests a minute  | None                                      | Retries with backoff, at most 5 attempts, then throws `rate-limited`                                                                  |
-| Keyed | 300 requests a minute (free) | `x-ratelimit-rpm-retry-after`, in seconds | Reads the wait as `Retry-After`. A wait above 30 s throws `rate-limited` at once with `details.retryAfterMs`; a shorter one is waited |
+| Tier    | Limit seen                  | What the library does                                         |
+| ------- | --------------------------- | ------------------------------------------------------------- |
+| Keyless | About 120 requests a minute | Retries with backoff, at most 5 attempts, then `rate-limited` |
+| Keyed   | 300 requests a minute       | Reads `x-ratelimit-rpm-retry-after` as `Retry-After`          |
+
+A keyed 429 has no `Retry-After` header; its wait is in `x-ratelimit-rpm-retry-after`, in
+seconds. A wait above 30 s throws `rate-limited` at once with `details.retryAfterMs`. A shorter
+one is waited.
 
 The keyed limit counts per minute: 300 requests sent within 2.6 s were all answered, and the next
-ones got the 429 with a wait of 58 seconds. The 429 has no `Retry-After` header. In a browser the
-page cannot read the `x-ratelimit-*` headers, because Routescan does not expose them to CORS, so
-there a keyed 429 is retried with backoff, as a keyless one is.
+ones got the 429 with a wait of 58 seconds.
+
+In a browser the page cannot read the `x-ratelimit-*` headers, because Routescan does not expose
+them to CORS. There a keyed 429 is retried with backoff, as a keyless one is.
 
 The client also retries Etherscan's `Max calls per sec rate limit reached` text, as the Etherscan
 client does. Any other answer throws an error and is never read as a result.
 
 ## Behaviour to know
 
-- Routescan forgets a job. On 2026-11-03 a job answered `Pass - Verified`, then
-  `Verification not found` 51 minutes after the submit, while the contract stayed verified. On
-  `Verification not found`, `verify()` and `checkStatus()` look the contract up once: verified
+- Routescan forgets a job. A job answered `Pass - Verified`, then `Verification not found` 51
+  minutes after the submit, while the contract stayed verified.
+- On `Verification not found`, `verify()` and `checkStatus()` look the contract up once. Verified
   gives `verified`; otherwise the call throws `job-not-found` with the handle.
 - When the time budget runs out while the status still says `Pending in queue`, one more lookup
   decides, as for every backend: a match gives `verified`.
 - The job id is a UUID, such as `f111a4c8-368c-51d2-8163-c7ab477a1d91`.
-- On 2026-11-04, a status request without a key confirmed the network of each of the 24 chains
-  that Routescan's supported-chains page listed on 2026-11-03; see the
+- Routescan's explorer lists name chains its API does not serve, among them OP Mainnet (10) and
+  OP Sepolia (11155420). The table has no Routescan entry for them.
+
+## Sources
+
+- The 38 chains whose API answered a keyless probe: live run on 2026-11-05.
+- Keyless limits:
+  [Routescan rate limits](https://docs.routescan.io/plans-and-limits/rate-limits), read
+  2026-11-03.
+- The free plan's `x-ratelimit-*` headers, the CORS preflight from a Chromium page, the 429 body
+  and the limits seen: live runs on 2026-11-05.
+- The cached `Pending in queue` and the forgotten job: live run on 2026-11-03.
+- `getsourcecode` as a form POST, and the bytecode answer on Avalanche Fuji and Sepolia: live runs
+  on 2026-11-04.
+- The network of each of the 24 chains on Routescan's supported-chains page: live run on
+  2026-11-04,
   [research note](../../contributor/research/2026-11-04-routescan-client.md#chains-confirmed-on-2026-11-04).
-- Routescan's explorer lists name chains its API does not serve. On 2026-11-05, 7 of the 45
-  chains they named answered `chain not supported`, among them OP Mainnet (10) and OP Sepolia
-  (11155420), so the table has no Routescan entry for them; see the
-  [research note](../../contributor/research/2026-11-05-routescan-rows.md).
+- 7 of 45 chains named in the explorer lists answering `chain not supported`: live run on
+  2026-11-05, [research note](../../contributor/research/2026-11-05-routescan-rows.md).

@@ -1,7 +1,5 @@
 # Logging and events
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,21 +7,46 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers who want progress lines from explorer-verify, or who want a program to react
 to each stage of a verification.
 
-explorer-verify has two optional outputs, set in `VerifyOptions`:
+explorer-verify has two optional outputs, set in `VerifyOptions`. Both are off by default.
 
-- `logger` receives log lines: a message and flat fields. Log text is for people and may change in
-  any release.
-- `onEvent` receives typed stage events. A program reads events, not log text.
+| Option    | Receives                          | Read by  | Stable                       |
+| --------- | --------------------------------- | -------- | ---------------------------- |
+| `logger`  | Log lines: a message, flat fields | People   | No: text may change any time |
+| `onEvent` | Typed stage events                | Programs | Yes, within a schema version |
 
-Both are off by default. Without them the library writes nothing, in every runtime, and never calls
-`console` on its own. API keys are removed from every message, field and event before your code
-sees it.
+Without them the library writes nothing, in every runtime, and never calls `console` on its own.
+`verify()`, [checkStatus()](check-status.md) and `linkProxy()` log and emit events as described
+here.
 
-`verify()`, [checkStatus()](check-status.md) and `linkProxy()` log and emit events as described here.
+> [!IMPORTANT]
+> API keys are removed from every message, field and event before your code sees it
+> ([API keys](#api-keys)).
+
+## A minimal call
+
+This script prints the library's log lines and each event type for the sample request,
+[greeter-sepolia.json](../start/greeter-sepolia.json):
+
+<!-- no-run: it calls Sourcify; the examples below type-check the same options. -->
+
+```ts no-run [log.ts]
+import { readFile } from "node:fs/promises";
+
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("greeter-sepolia.json", "utf8");
+const input = validateInput(JSON.parse(text));
+await verify(input, {
+  logger: console,
+  onEvent: (event) => console.log("event", event.type),
+});
+```
 
 ## Logger
 
-```ts
+A logger has one method per level. Its type:
+
+```ts [logger.d.ts]
 type LogValue = string | number | boolean | null;
 type LogFields = Readonly<Record<string, LogValue>>;
 
@@ -39,25 +62,38 @@ interface Logger {
 that reads only the message also fits. When a line has no fields, the method gets one argument, so
 `console` prints no `undefined`.
 
-| Level   | What the library logs there                                                                                                                                                                            |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `debug` | The first line, `Verifying <address> on chain <id>`, with `backend`, `chainId` and `api` (the API URL, query replaced by `?REDACTED`); each request: method, URL and attempt number; each pending poll |
-| `info`  | The handle once the explorer accepts the submission, and the result                                                                                                                                    |
-| `warn`  | A retry, with the reason and the wait; a status poll that failed; an `onEvent` callback that threw                                                                                                     |
-| `error` | A failure the library recovers from. Never a failure it throws to you                                                                                                                                  |
+| Level   | What the library logs there                                                                        |
+| ------- | -------------------------------------------------------------------------------------------------- |
+| `debug` | The first line, each request, and each pending poll                                                |
+| `info`  | The handle once the explorer accepts the submission, and the result                                |
+| `warn`  | A retry, with the reason and the wait; a status poll that failed; an `onEvent` callback that threw |
+| `error` | A failure the library recovers from. Never a failure it throws to you                              |
+
+The first line is `Verifying <address> on chain <id>`, with `backend`, `chainId` and `api`. `api`
+is the API URL with its query replaced by `?REDACTED`.
 
 A failure that ends the call is thrown as an `ExplorerVerifyError`, which carries the message. It
 is not also logged at `error`, so a program that logs the thrown error shows each failure once.
 
-The fields of a request line are `backend`, `method`, `url` and `attempt`. A retry line adds
-`reason`, `status` (`null` when no response arrived) and `delayMs`. A URL shows its origin and path
-only; a query string becomes `?REDACTED`. A request to your `rpcUrl` or `ipfsGateway` is not a
-request to a backend: its lines carry `label`, `rpc` or `ipfs`, in place of `backend`. Field names
-are diagnostics, like messages, and may change in any release.
+### Log fields
+
+| Line      | Fields                                                    |
+| --------- | --------------------------------------------------------- |
+| A request | `backend`, `method`, `url`, `attempt`                     |
+| A retry   | The request fields, plus `reason`, `status` and `delayMs` |
+
+- `status` is `null` when no response arrived.
+- A URL shows its origin and path only; a query string becomes `?REDACTED`.
+- A request to your `rpcUrl` or `ipfsGateway` is not a request to a backend. Its lines carry
+  `label`, `rpc` or `ipfs`, in place of `backend`.
+
+Field names are diagnostics, like messages, and may change in any release.
+
+### pino
 
 pino takes the fields first. Wrap it in one line per method:
 
-```ts
+```ts [pino-logger.ts]
 import type { Logger } from "explorer-verify";
 import pino from "pino";
 
@@ -87,35 +123,63 @@ the verification goes on.
 | `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                                |
 | `verify.result`    | The call is about to return a result               | `backend`, `status`, `match` unless failed, and `explorerUrl` when known |
 
-- `verify.routed` `routedBy` is `caller`, `table`, `fallback` or `api-url`, as for a
-  [dry run](verify.md#dry-run). `skipped` is present when the routing table passed over backends
-  listed before `backend` because each needs an API key and none is set: their names, joined
-  with `,`, such as `etherscan-v2`.
-- `verify.retry` `reason` is `rate-limited`, `network`, `server-error`, `duplicate-submission`,
-  `not-indexed` or `empty-submit`. `not-indexed` means Etherscan found no contract code at the
-  address yet, and the submit is sent again ([Etherscan](etherscan.md#how-answers-are-read)).
-  `empty-submit` means Blockscout gave an empty answer to the submit, and the submit is sent again
-  after a lookup ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment)).
-  `attempt` is the number of the attempt after the wait, so the first retry is attempt 2.
-  `verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits
-  none. Its retries are logged at `warn`, with `label` set to `rpc`.
-- `verify()` emits events in stage order. `checkStatus()` emits only `verify.routed`, `verify.poll`,
-  `verify.retry` and `verify.result`. `linkProxy()` emits `proxy.routed`, one `proxy.poll` per pending check,
-  `proxy.retry` when a request retries, and `proxy.result` before returning. A result event has
-  the fields of the returned `LinkProxyResult`. Proxy calls emit no `verify.*` events.
-- Every event from `verifyEach()` has `entry`, the zero-based index into `backends`. Each entry
-  emits its own `verify.validated`; events within an entry keep stage order while entries run
-  concurrently.
-- A call that throws emits no `verify.result`. The thrown error is the outcome.
-- `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
-  if the call is aborted or the process stops, the handle resumes the verification. `verify()` also
-  logs the handle at `info`.
+### Field values
+
+| Field                      | Values                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| `verify.routed` `routedBy` | `caller`, `table`, `fallback` or `api-url`, as for a [dry run](verify.md#dry-run) |
+| `verify.routed` `skipped`  | The backends the table passed over for want of a key, joined with `,`             |
+| `verify.retry` `attempt`   | The attempt after the wait, so the first retry is attempt 2                       |
+
+`skipped` is present only when the routing table passed over backends listed before `backend`,
+because each needs an API key and none is set. An example value is `etherscan-v2`.
+
+The values of `verify.retry` `reason`:
+
+| `reason`               | Meaning                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `rate-limited`         | A 429, or an answer the client reads as a rate limit                                                                |
+| `network`              | A network error or a request timeout                                                                                |
+| `server-error`         | A 502, 503 or 504; for a submit, a 503 only                                                                         |
+| `duplicate-submission` | Listed in the type and the schema; this release does not emit it                                                    |
+| `not-indexed`          | Etherscan found no contract code yet ([Etherscan](etherscan.md#how-answers-are-read))                               |
+| `empty-submit`         | Blockscout answered the submit with nothing ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment)) |
+
+`verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits none.
+Its retries are logged at `warn`, with `label` set to `rpc`.
+
+### Which calls emit which events
+
+| Call            | Events                                                                          |
+| --------------- | ------------------------------------------------------------------------------- |
+| `verify()`      | All the `verify.*` types, in stage order                                        |
+| `checkStatus()` | `verify.routed`, `verify.poll`, `verify.retry`, `verify.result`                 |
+| `linkProxy()`   | `proxy.routed`, `proxy.poll`, `proxy.retry`, `proxy.result`                     |
+| `verifyEach()`  | The `verify.*` types, each with `entry` ([Several backends](#several-backends)) |
+
+- `linkProxy()` emits one `proxy.poll` per pending check, and `proxy.retry` when a request
+  retries. `proxy.result` arrives before it returns, with the fields of the `LinkProxyResult`.
+  Proxy calls emit no `verify.*` events.
+- In `verifyEach()`, `entry` is the zero-based index into `backends`. Each entry emits its own
+  `verify.validated`. Events within an entry keep stage order while entries run concurrently.
+
+### When each event arrives
+
 - `verify.validated` arrives once the input, the options and the route have all passed their
   checks, so a call that fails any of them emits no event.
 - `verify.lookup` reports the check before the submit. The lookup after the time budget, described
   in [verify()](verify.md#what-it-does), emits no event.
+- `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
+  if the call is aborted or the process stops, the handle resumes the verification. `verify()`
+  also logs the handle at `info`.
+- A call that throws emits no `verify.result`. The thrown error is the outcome.
 
-```ts
+### Handle each event type
+
+This callback keeps the handle and prints retries. Its `never` check fails to compile when a
+release adds a type:
+
+```ts [on-event.ts]
 import type { VerifyEvent } from "explorer-verify";
 
 // Your code: keep the handle, print retries, and fail to compile when a release adds a type.
@@ -183,7 +247,9 @@ The package ships a JSON Schema (draft 2020-12) for the events as
 schema change. Within a schema version, a release adds event types and fields and never removes or
 changes one, so a reader ignores fields it does not know.
 
-```ts
+Import it as JSON:
+
+```ts [schema.ts]
 import schema from "explorer-verify/event.schema.json" with { type: "json" };
 ```
 
@@ -206,7 +272,12 @@ A handle's job id keeps the shape of a key, so a valid handle still resumes. It 
 when it equals a key the call knows. See [Errors](errors/index.md#api-keys-in-errors) for the same
 rules on thrown errors.
 
-Event fields with a fixed set of values, `type`, `backend`, `match`, `state`, `reason` and
-`status`, are copied as they are. They hold words the library chose, such as `sourcify` or
-`rate-limited`, never your input. A key equal to one of these words is not redacted there; a key
-is long and random, so this does not happen with a real one.
+These event fields have a fixed set of values and are copied as they are:
+
+- `type` and `backend`;
+- `match`, `state` and `reason`;
+- `status`.
+
+They hold words the library chose, such as `sourcify` or `rate-limited`, never your input. A key
+equal to one of these words is not redacted there; a key is long and random, so this does not
+happen with a real one.

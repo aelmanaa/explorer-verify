@@ -1,7 +1,5 @@
 # Blockscout
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,25 +7,50 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who need to know what explorer-verify sends to a Blockscout
 explorer and how it reads each answer.
 
-A Blockscout explorer serves one chain from its own host, with its API at `<origin>/api`, such as
-`https://eth-sepolia.blockscout.com/api`. explorer-verify talks to one such instance at a time. It
-sends no API key, and a Blockscout instance answers browsers directly. [verify()](verify.md) and
-[checkStatus()](check-status.md) use this client. Blockscout's hosted API at
-`api.blockscout.com` serves many chains and needs a key: it is the separate backend
-`blockscout-hosted` ([The hosted API](#the-hosted-api)).
+A Blockscout explorer serves one chain from its own host, with its API at `<origin>/api`.
+explorer-verify talks to one such instance at a time. [verify()](verify.md) and
+[checkStatus()](check-status.md) use this client.
 
-The routing table lists a Blockscout instance for 111 chains
-([Blockscout rows](routing.md#blockscout-rows)). On those, `route: { backend: "blockscout" }`
-reaches the instance with no `apiUrl`, and the result has the contract page
-`https://<instance>/address/<address>?tab=contract`. Sourcify comes first in a row that has it, so
-name the backend to verify on Blockscout. On another chain, or another instance, set `route.apiUrl`
-to the instance's `/api` ([Routing](routing.md#route)):
+| Fact         | Value                                                                    |
+| ------------ | ------------------------------------------------------------------------ |
+| Server       | An instance's `/api`, such as `https://eth-sepolia.blockscout.com/api`   |
+| API key      | None; a key throws `invalid-input`                                       |
+| Browsers     | An instance answers them directly                                        |
+| Chains       | 111 in the routing table ([Blockscout rows](routing.md#blockscout-rows)) |
+| Explorer URL | `https://<instance>/address/<address>?tab=contract`                      |
+| Match type   | [`exact` or `partial`](../explanation/match-types.md)                    |
 
-```ts
-import { verify } from "explorer-verify";
+Blockscout's hosted API at `api.blockscout.com` serves many chains and needs a key. It is the
+separate backend `blockscout-hosted` ([The hosted API](#the-hosted-api)).
 
+## When the call goes to Blockscout
+
+Sourcify comes first in a row that has it, so name the backend to verify on Blockscout:
+
+| Chain                              | What to pass                                                    |
+| ---------------------------------- | --------------------------------------------------------------- |
+| Its row lists an instance          | `route: { backend: "blockscout" }`                              |
+| Another chain, or another instance | `route.backend` and `route.apiUrl` set to the instance's `/api` |
+
+[Routing](routing.md#route) describes `route`.
+
+## A minimal call
+
+This script verifies the sample request, [greeter-sepolia.json](../start/greeter-sepolia.json), on
+the Sepolia instance. The Greeter is already verified there:
+
+```ts [blockscout.ts]
+import { readFile } from "node:fs/promises";
+
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("greeter-sepolia.json", "utf8");
+const input = validateInput(JSON.parse(text));
 const result = await verify(input, {
-  route: { backend: "blockscout", apiUrl: "https://eth-sepolia.blockscout.com/api" },
+  route: {
+    backend: "blockscout",
+    apiUrl: "https://eth-sepolia.blockscout.com/api",
+  },
 });
 console.log(`${result.status} ${result.backend}`);
 ```
@@ -36,115 +59,25 @@ console.log(`${result.status} ${result.backend}`);
 already-verified blockscout
 ```
 
-A `route.apiUrl` that does not end in `/api` throws [`invalid-input`](errors/invalid-input.md)
-naming `route.apiUrl`. Trailing slashes are removed first, so `https://eth-sepolia.blockscout.com/api/`
-is accepted. A path before `/api` is kept: with `https://example.org/explorer/api`, the lookup goes
-to `https://example.org/explorer/api/v2/smart-contracts/<address>`. A key in `route.apiKey` or `apiKeys.blockscout` also throws `invalid-input`
-([API keys](api-keys.md)). So does a `route.apiUrl` on `api.blockscout.com`: the hosted API is
-`blockscout-hosted`. A result has no `explorerUrl` when `route.apiUrl` names an instance
-other than the one the chain's row lists.
+## The `route.apiUrl` rules
 
-## ZKsync compiler input
-
-On ZKsync Era (324) and ZKsync Sepolia (300), `kind: "zksolc"` sends the upstream long
-`solcVersion` as `compilerversion=v<solcVersion>` and `version` as `zksolcVersion=v<version>`.
-The Standard JSON input stays in `sourceCode`, and supplied constructor arguments are preserved.
-`solcFork` describes the build and is not an extra form field. The library does not derive
-constructor arguments from EraVM creation code. Other backend and chain pairs refuse this kind
-before requests; the hosted API is not enabled for it.
-
-The lookup can include `zk_compiler_version`. Verification is still decided by `is_verified`,
-`is_fully_verified` and `is_partially_verified`, as for solc. A compiler version alone does not
-prove verification. Recorded lookups cover both instances. A live zksolc submission remains
-unmeasured; see [issue #208](https://github.com/aelmanaa/explorer-verify/issues/208).
-
-## The hosted API
-
-Blockscout's docs say the per-instance API "has been deprecated", with no removal date, and point
-to the hosted API instead ([Blockscout APIs](https://docs.blockscout.com/devs/apis), read
-2026-11-05). The hosted API serves each chain it indexes at
-`https://api.blockscout.com/<chainId>/api`, with the same requests and the same answers as an
-instance. It needs a key on every plan, the free one included; get one at
-[dev.blockscout.com](https://dev.blockscout.com/).
-
-explorer-verify reaches it as the backend `blockscout-hosted`. Name it in `route.backend`, and
-pass the key as `apiKeys["blockscout-hosted"]`:
-
-```ts
-import { verify } from "explorer-verify";
-
-// On a server: the hosted API cannot be used from a browser.
-const result = await verify(input, {
-  route: { backend: "blockscout-hosted" },
-  apiKeys: { "blockscout-hosted": blockscoutKey },
-});
-console.log(`${result.status} ${result.backend}`);
-```
-
-```text
-already-verified blockscout-hosted
-```
-
-- The routing table never picks `blockscout-hosted`: a call reaches it only when `route.backend`
-  or a `verifyEach()` entry names it. `backends: "all"` leaves it out, even with its key, because
-  a contract verified there shows on the chain's instance too.
-- The chain needs no row. A chain the hosted API does not serve answers HTTP 404
-  `Network not supported`, which throws [`unsupported-chain`](errors/unsupported-chain.md).
-- The result's `explorerUrl` is the contract page of the instance that the chain's row lists, when
-  it lists one. On 2026-11-05 a contract verified through the hosted API showed as verified on
-  `eth-sepolia.blockscout.com` right after.
-- The key goes in the `authorization` request header, as `Bearer <key>`, on every request, never
-  in a URL. It goes only to `api.blockscout.com` ([API keys](api-keys.md#apikeys)). The
-  `blockscout` backend, an instance, never gets it.
-- A handle is `ev1:blockscout-hosted:<chainId>:<address>:<jobId>`, so
-  [checkStatus()](check-status.md) and the CLI's `status` resume on the hosted API.
-- `linkProxy()` sends the instance's proxy-link requests with the key. They were not run against
-  the hosted API.
-- From the CLI: `--backend blockscout-hosted`, with the key in `BLOCKSCOUT_API_KEY`, a key file or
-  stdin ([CLI](cli.md#api-keys-and-route-options)).
-
-Not from a browser: the hosted API sends no CORS headers, so a browser cannot read its answers,
-and the [server handler](server-handler.md) forwards only Etherscan. In a browser, use the
-`blockscout` backend, which needs no key.
-
-### Key answers
-
-Without a key and without `fetch`, the call throws [`missing-api-key`](errors/missing-api-key.md)
-before any request. With `fetch` set, the request goes out, and the answer decides. The key errors
-exit with code 3, `unsupported-chain` with code 2, and none is retryable. No error holds the key or
-the explorer's text.
-
-| Answer                                                                           | Error                                              |
-| -------------------------------------------------------------------------------- | -------------------------------------------------- |
-| HTTP 401 `Unauthorized`, a key the API does not know                             | [`api-key-rejected`](errors/api-key-rejected.md)   |
-| HTTP 402 to a request that carried a key                                         | [`api-key-rejected`](errors/api-key-rejected.md)   |
-| HTTP 402 `Featured chain <id> requires one of the following plans: ...`          | [`api-key-rejected`](errors/api-key-rejected.md)   |
-| Any other HTTP 402, as `Proceed with API key or make a X402 payment to continue` | [`missing-api-key`](errors/missing-api-key.md)     |
-| HTTP 404 `Network not supported`                                                 | [`unsupported-chain`](errors/unsupported-chain.md) |
-
-A free-plan key was refused for Base Sepolia (84532) with the `Featured chain` answer, and accepted
-for Sepolia (11155111). Blockscout's docs say a free plan is refused once its daily credits are
-spent, without the answer's text; such a 402 to a keyed request reads as `api-key-rejected`. The
-hint of that error names the `blockscout` backend, which needs no key.
-
-### Hosted rate limits
-
-The free plan allows 5 requests per second and 100,000 credits a day; a request costs 20 credits
-by default ([API general info, pricing, and routes](https://docs.blockscout.com/devs/pro-api-routes),
-read 2026-11-05). Each answer carries `x-ratelimit-limit`, `x-ratelimit-remaining`,
-`x-ratelimit-reset` (milliseconds) and `x-credits-remaining`. Over the limit, the hosted API
-answers HTTP 429 `{"error":"Too Many Requests"}` with no `Retry-After`; explorer-verify retries it
-with backoff, as for an instance. On 2026-11-05, 12 requests sent at once got 5 answers and 7
-HTTP 429.
+- It must end in `/api`, or the call throws [`invalid-input`](errors/invalid-input.md) naming
+  `route.apiUrl`. Trailing slashes are removed first, so `.../api/` is accepted.
+- A path before `/api` is kept. With `https://example.org/explorer/api`, the lookup goes to
+  `https://example.org/explorer/api/v2/smart-contracts/<address>`.
+- A URL on `api.blockscout.com` throws `invalid-input`: the hosted API is `blockscout-hosted`.
+- A key in `route.apiKey` or `apiKeys.blockscout` throws `invalid-input`
+  ([API keys](api-keys.md)).
+- A result has no `explorerUrl` when `route.apiUrl` names an instance other than the one the
+  chain's row lists.
 
 ## Requests
 
-The lookup goes to the instance's REST API, which tells a full match from a partial one. The submit
-and the status request go to its Etherscan-compatible API, as a POST with a form-encoded body
-(`application/x-www-form-urlencoded`) that holds `module=contract`, the action and its fields. All
-three are built from the instance's `/api` URL, `<api>` below, and none carries a key.
-`blockscout-hosted` sends the same requests to `https://api.blockscout.com/<chainId>/api`, each
-with the key in the `authorization` header.
+The lookup goes to the instance's REST API, which tells a full match from a partial one. The
+submit and the status request go to its Etherscan-compatible API, as a form-encoded POST that
+holds `module=contract`, the action and its fields.
+
+All three are built from the instance's `/api` URL, `<api>` below, and none carries a key:
 
 | Step   | Request                                                       | Sends                                                      |
 | ------ | ------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -154,12 +87,14 @@ with the key in the `authorization` header.
 
 The submit fields:
 
-- `codeformat`: `solidity-standard-json-input`.
-- `sourceCode`: the JSON text of `compiler.input` with only `language`, `sources` and `settings`.
-- `contractaddress`: `address`.
-- `contractname`: `contractName`, as `contracts/Greeter.sol:Greeter`.
-- `compilerversion`: `compiler.version` with one leading `v`, as `v0.8.24+commit.e11b9ed9`.
-- `constructorArguments`: `constructorArgs` with a `0x` prefix. Left out when the input has none.
+| Field                  | Value                                                                |
+| ---------------------- | -------------------------------------------------------------------- |
+| `codeformat`           | `solidity-standard-json-input`                                       |
+| `sourceCode`           | The JSON text of `compiler.input`: `language`, `sources`, `settings` |
+| `contractaddress`      | `address`                                                            |
+| `contractname`         | `contractName`, as `contracts/Greeter.sol:Greeter`                   |
+| `compilerversion`      | `compiler.version` with one leading `v`                              |
+| `constructorArguments` | `constructorArgs` with a `0x` prefix; absent when the input has none |
 
 Library addresses are not sent as fields: for Standard JSON input, Blockscout reads them from
 `settings.libraries` only. To send them there, call `linkLibraries` first
@@ -198,16 +133,14 @@ error is redacted and cut the same way.
 ## Partial matches
 
 A build compiled with `bytecodeHash` `"none"` (Foundry's `bytecode_hash = "none"`) carries no
-metadata hash, so Blockscout can only reach a partial match for it. On 2026-11-04, such a build
-answered `Pass - Verified`, and the lookup then gave `is_partially_verified` `true`. explorer-verify
-reports `verified` with `partial`. For that build, it is the best outcome, not a failure
-([Match types](../explanation/match-types.md)).
+metadata hash, so Blockscout can only reach a partial match for it. Such a build answers
+`Pass - Verified`, and the lookup then gives `is_partially_verified` `true`. explorer-verify
+reports `verified` with `partial`: for that build, the best outcome, not a failure.
 
 Blockscout's bytecode database can also verify a contract on its own when its code, without the
-metadata part, matches a contract verified before. On 2026-11-04, a contract with the same code as
-one verified a minute earlier showed a partial match after its first lookup, with
-`is_verified_via_eth_bytecode_db` `true`. `verify()` then returns `already-verified` with `partial`
-and sends no submit.
+metadata part, matches a contract verified before. The lookup then shows a partial match with
+`is_verified_via_eth_bytecode_db` `true`. `verify()` returns `already-verified` with `partial` and
+sends no submit.
 
 Blockscout answers `Smart-contract already verified.` only for a full match. A contract with a
 partial match takes a new submit, but `verify()` does not send one: its first lookup returns
@@ -215,25 +148,32 @@ partial match takes a new submit, but `verify()` does not send one: its first lo
 
 ## The empty answer right after a deployment
 
-Right after a deployment, an instance can answer a submit with `status` `"1"`, `message` `OK` and
-an empty `result`, with no job id. Polling cannot help, because there is no job; a new submit a few
-seconds later succeeds. explorer-verify reads any 200 answer with `status` `"1"` and an empty,
-`null` or absent `result` this way; it does not check `message`. It then:
+Right after a deployment, an instance can answer a submit with `status` `"1"` but an empty
+`result` and no job id. Polling cannot help, because there is no job; a new submit a
+few seconds later succeeds.
+
+explorer-verify reads any 200 answer with `status` `"1"` and no `result` this way: empty, `null`
+or absent. It does not check `message`. It then:
 
 1. logs at `warn` and emits `verify.retry` with `reason` `empty-submit`
    ([Logging and events](logging-and-events.md));
 2. waits `pollIntervalMs`, 3000 ms by default, but never past 30 seconds after the first submit;
-3. looks the contract up, since the empty answer may hide a submit Blockscout accepted. A match ends
-   the submit as `already-verified` with that match. If the lookup fails, the call throws its error,
-   and the message says the submit may already have been accepted;
+3. looks the contract up, since the empty answer may hide a submit Blockscout accepted. A match
+   ends the submit as `already-verified`. A failed lookup throws its error, whose message says the
+   submit may already have been accepted;
 4. otherwise submits again.
 
 It sends at most 4 submits, the first included, all within 30 seconds of the first. The cap is low
-because an instance's `/api` allowed only 10 requests in about 22 minutes on 2026-11-04 (see
-[Rate limits](#rate-limits)). With a `pollIntervalMs` of 30 seconds or more, it waits until the 30
-seconds are up, submits once more, and stops. When it stops, it throws
-[`unexpected-response`](errors/unexpected-response.md); when the next submit would pass the time
-budget, [`timeout`](errors/timeout.md). The hint of both says to call `verify()` again later.
+because an instance's `/api` allows few requests ([Rate limits](#rate-limits)). With a
+`pollIntervalMs` of 30 seconds or more, it waits until the 30 seconds are up, submits once more,
+and stops.
+
+| When it stops                              | The call throws                                        |
+| ------------------------------------------ | ------------------------------------------------------ |
+| After the last submit                      | [`unexpected-response`](errors/unexpected-response.md) |
+| The next submit would pass the time budget | [`timeout`](errors/timeout.md)                         |
+
+The hint of both says to call `verify()` again later.
 
 ## A submit without a clear answer
 
@@ -245,19 +185,146 @@ the call throws that error.
 
 ## Rate limits
 
-On 2026-11-04, `base-sepolia.blockscout.com` allowed 10 requests to its `/api` and 150 to its REST
-API per window and IP address, reported in the `x-ratelimit-limit`, `x-ratelimit-remaining` and
-`x-ratelimit-reset` headers. Over the limit it answered HTTP 429. One `verify()` call sends one
-submit and one status request per `pollIntervalMs` to `/api`; its lookups go to the REST API. A few
-calls in a row can reach the `/api` limit. The reset came after about 22 minutes, longer than a
-call's time budget, so the call then ends with [`rate-limited`](errors/rate-limited.md). Requests
-refused in the meantime seemed to move the reset later, so wait for it before you call `verify()`
-again. Each instance sets its own limits.
+Each instance sets its own limits, per window and IP address. One measured instance allowed:
+
+| API      | Requests per window | Window           |
+| -------- | ------------------- | ---------------- |
+| `/api`   | 10                  | About 22 minutes |
+| REST API | 150                 | The same window  |
+
+The headers `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` report them. Over
+the limit the instance answers HTTP 429.
+
+One `verify()` call sends one submit and one status request per `pollIntervalMs` to `/api`; its
+lookups go to the REST API. A few calls in a row can reach the `/api` limit. The reset comes later
+than a call's time budget, so the call then ends with [`rate-limited`](errors/rate-limited.md).
+
+Requests refused in the meantime seemed to move the reset later. Wait for it before you call
+`verify()` again.
+
+## ZKsync compiler input
+
+On ZKsync Era (324) and ZKsync Sepolia (300), `kind: "zksolc"` sends two compiler fields:
+
+| Field             | Value                                    |
+| ----------------- | ---------------------------------------- |
+| `compilerversion` | `v<solcVersion>`, the upstream long form |
+| `zksolcVersion`   | `v<version>`                             |
+
+The Standard JSON input stays in `sourceCode`, and supplied constructor arguments are kept.
+`solcFork` describes the build and is not a form field. The library does not derive constructor
+arguments from EraVM creation code. Other backend and chain pairs refuse this kind before any
+request; the hosted API is not enabled for it.
+
+The lookup can include `zk_compiler_version`. Verification is still decided by `is_verified`,
+`is_fully_verified` and `is_partially_verified`, as for solc. Recorded lookups cover both
+instances. A live zksolc submission remains unmeasured; see
+[issue #208](https://github.com/aelmanaa/explorer-verify/issues/208).
+
+## The hosted API
+
+Blockscout's docs call the per-instance API deprecated, with no removal date, and point to the
+hosted API instead. The hosted API serves each chain it indexes at
+`https://api.blockscout.com/<chainId>/api`, with the same requests and answers as an instance.
+
+It needs a key on every plan, the free one included; get one at
+[dev.blockscout.com](https://dev.blockscout.com/). explorer-verify reaches it as the backend
+`blockscout-hosted`. Name it in `route.backend`, and pass the key as
+`apiKeys["blockscout-hosted"]`:
+
+```ts [blockscout-hosted.ts]
+import { readFile } from "node:fs/promises";
+
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("greeter-sepolia.json", "utf8");
+const input = validateInput(JSON.parse(text));
+// On a server: the hosted API cannot be used from a browser.
+const result = await verify(input, {
+  route: { backend: "blockscout-hosted" },
+  apiKeys: { "blockscout-hosted": blockscoutKey },
+});
+console.log(`${result.status} ${result.backend}`);
+```
+
+```text
+already-verified blockscout-hosted
+```
+
+> [!IMPORTANT]
+> The key goes in the `authorization` header, as `Bearer <key>`, on every request, never in a
+> URL. It goes only to `api.blockscout.com` ([API keys](api-keys.md#apikeys)). The hosted API
+> sends no CORS headers, so a browser cannot use it.
+
+- The routing table never picks `blockscout-hosted`. A call reaches it only when `route.backend`
+  or a `verifyEach()` entry names it.
+- `backends: "all"` leaves it out, even with its key, because a contract verified there shows on
+  the chain's instance too.
+- The chain needs no row. A chain the hosted API does not serve answers HTTP 404
+  `Network not supported`, which throws [`unsupported-chain`](errors/unsupported-chain.md).
+- The result's `explorerUrl` is the contract page of the instance that the chain's row lists,
+  when it lists one.
+- A handle is `ev1:blockscout-hosted:<chainId>:<address>:<jobId>`, so
+  [checkStatus()](check-status.md) and the CLI's `status` resume on the hosted API.
+- `linkProxy()` sends the instance's proxy-link requests with the key. They were not run against
+  the hosted API.
+- From the CLI: `--backend blockscout-hosted`, with the key in `BLOCKSCOUT_API_KEY`, a key file
+  or stdin ([CLI](cli.md#api-keys-and-route-options)).
+- The [server handler](server-handler.md) forwards only Etherscan. In a browser, use the
+  `blockscout` backend, which needs no key.
+
+### Key answers
+
+Without a key and without `fetch`, the call throws [`missing-api-key`](errors/missing-api-key.md)
+before any request. With `fetch` set, the request goes out, and the answer decides:
+
+| Answer                                                                           | Error                                              |
+| -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| HTTP 401 `Unauthorized`, a key the API does not know                             | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| HTTP 402 to a request that carried a key                                         | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| HTTP 402 `Featured chain <id> requires one of the following plans: ...`          | [`api-key-rejected`](errors/api-key-rejected.md)   |
+| Any other HTTP 402, as `Proceed with API key or make a X402 payment to continue` | [`missing-api-key`](errors/missing-api-key.md)     |
+| HTTP 404 `Network not supported`                                                 | [`unsupported-chain`](errors/unsupported-chain.md) |
+
+The key errors exit with code 3 and `unsupported-chain` with code 2. None is retryable, and no
+error holds the key or the explorer's text.
+
+A free-plan key was refused for Base Sepolia (84532) with the `Featured chain` answer, and
+accepted for Sepolia (11155111). A free plan is also refused once its daily credits are spent;
+such a 402 to a keyed request reads as `api-key-rejected`. The hint of that error names the
+`blockscout` backend, which needs no key.
+
+### Hosted rate limits
+
+| Free plan           | Value         |
+| ------------------- | ------------- |
+| Requests per second | 5             |
+| Credits per day     | 100,000       |
+| Credits per request | 20 by default |
+
+Each answer carries `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` and
+`x-credits-remaining`. The reset is in milliseconds.
+
+Over the limit, the hosted API answers HTTP 429 `{"error":"Too Many Requests"}` with no
+`Retry-After`. explorer-verify retries it with backoff, as for an instance. Of 12 requests sent at
+once, 5 got answers and 7 got HTTP 429.
 
 ## Behaviour to know
 
-- On Base Sepolia on 2026-11-04, most jobs had passed by their first status request, a few seconds
-  after the submit. One was still pending after 12 seconds.
-- A form-encoded and a multipart submit both worked on 2026-11-04. explorer-verify sends the
-  form-encoded one.
+- Most jobs pass by their first status request, a few seconds after the submit. One was still
+  pending after 12 seconds.
+- A form-encoded and a multipart submit both work. explorer-verify sends the form-encoded one.
 - The job id is the address without `0x`, followed by 8 more hex digits.
+
+## Sources
+
+- The per-instance API deprecated, and the hosted API's address:
+  [Blockscout APIs](https://docs.blockscout.com/devs/apis), read 2026-11-05.
+- Hosted plan limits and credits:
+  [API general info, pricing, and routes](https://docs.blockscout.com/devs/pro-api-routes), read
+  2026-11-05.
+- The hosted API's 429 on 12 parallel requests, and a contract verified there showing on
+  `eth-sepolia.blockscout.com` right after: live runs on 2026-11-05.
+- `bytecodeHash` `"none"` builds, the bytecode database match, the empty submit answer, the rate
+  limits of `base-sepolia.blockscout.com`, job timing on Base Sepolia, and form-encoded and
+  multipart submits: live runs on 2026-11-04.
