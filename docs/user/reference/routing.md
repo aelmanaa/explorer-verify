@@ -1,7 +1,5 @@
 # Routing
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,63 +7,125 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who need to know which explorer a call goes to, and how to change
 it.
 
-Every `verify()` and `checkStatus()` call resolves a route before it sends anything: the backend,
-its API URL and the public page of the contract. The route comes from the routing table shipped
-with the package and from the call's options, never from a handle or from an explorer's answer.
+Before it sends anything, every `verify()` and `checkStatus()` call resolves a route: the backend,
+its API URL and the contract's public page. The route comes from the routing table shipped with
+the package and from the call's options, never from a handle or an explorer's answer.
 
 ## How a chain resolves
 
-Without `route.apiUrl`:
+Without `route.apiUrl`, the first rule that applies picks the backend. The `verify.routed` event's
+`routedBy` names it:
 
-1. The routing table has a row for the chain: the call goes to the row's first backend that works
-   with the keys you passed. A backend that needs a key is skipped when `apiKeys` has none for it.
-   Only `etherscan-v2` needs a key; Routescan, Blockscout and Sourcify do not, and a standalone
-   Etherscan-compatible entry needs one only when it says so. When no backend in the row works
-   without a key, the call takes the first one, and fails with `missing-api-key` before it sends a
-   request.
-2. `route.backend` picks another backend that the row lists. A backend the row does not list
-   throws `unsupported-chain` naming the chain and the backend.
-3. The chain has no row: with `allowSourcifyFallback: true`, the call goes to the public Sourcify
-   API. Without it, the call throws `unsupported-chain` before any request. Its hint names
-   `allowSourcifyFallback` and the `route` override.
+1. `caller`: `route.backend` is set and the chain's row lists it. A backend the row does not list
+   throws `unsupported-chain`.
+2. `table`: the row's first backend that works with the keys you passed. A backend that needs a
+   key is skipped when `apiKeys` has none for it, and the event's `skipped` lists it.
+3. `fallback`: the chain has no row and `allowSourcifyFallback` is `true`, so the call goes to the
+   public Sourcify API. Without the option, the call throws `unsupported-chain`.
 
-With `route.apiUrl`, the call goes to that URL, for any chain, with or without a row. The backend
-is `route.backend`, or `sourcify` when you leave it out. See [`route`](#route) below.
+With `route.apiUrl` (`routedBy: "api-url"`), the call goes to that URL for any chain. The backend
+is `route.backend`, or `sourcify` when you leave it out.
 
-The result's `backend` and the `verify.routed` event name the backend the call used. The event's
-`routedBy` says which rule chose it: `caller` (`route.backend`), `table` (step 1), `fallback`
-(step 3) or `api-url`, and its `skipped` lists the backends step 1 passed over for lack of a key.
+Only `etherscan-v2` needs a key, and a standalone Etherscan-compatible entry when its row says so.
+When no backend in the row works without a key, the call takes the first one and throws
+`missing-api-key` before any request.
 
-The library follows these rules for any call. The CLI's `verify` submits only to a backend the
-caller names: `--backend <name>`, or `--backend auto` for step 1's pick. Without one it exits 2
-before any request ([CLI: where verify submits](cli.md#where-verify-submits)).
+> [!NOTE]
+> The CLI's `verify` submits only to a backend you name: `--backend <name>`, or `--backend auto`
+> for rule 2's pick ([CLI: where verify submits](cli.md#where-verify-submits)).
+
+## `routesFor()`
+
+`routesFor(chainId, { apiKeys, allowSourcifyFallback })` tells where a call without `route` would
+go. It reads the table and sends no request. Only whether `apiKeys` holds a key counts. It is
+`@experimental`. This script prints Sepolia's backends and the pick without a key:
+
+```ts [routes.ts]
+import { routesFor } from "explorer-verify";
+
+const { listed, pick } = await routesFor(11155111);
+console.log(listed.join(", "));
+if (pick instanceof Error) {
+  console.log(pick.message);
+} else {
+  const skipped = pick.skipped.join(", ") || "none";
+  console.log(`${pick.backend} (${pick.routedBy}), skipped: ${skipped}`);
+}
+```
+
+```text
+etherscan-v2, sourcify, blockscout, routescan
+sourcify (table), skipped: etherscan-v2
+```
+
+`listed` is the row's backends in order, empty without a row. `pick` holds the backend, the rule
+and the skipped backends. Its `keyMissing` is true when `verify()` would throw `missing-api-key`. For a
+chain without a row and no fallback, `pick` is the `unsupported-chain` error. A chain id that is
+not a positive safe integer, or an unknown options key, throws `invalid-input`.
+
+## `allowSourcifyFallback`
+
+`VerifyOptions.allowSourcifyFallback: true` sends a chain the table does not list to the public
+Sourcify API. It defaults to `false` and has no effect on a listed chain. From the CLI, pass
+`--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routing-table-does-not-list)).
+
+## `route`
+
+`VerifyOptions.route` is `{ backend?, apiUrl?, apiKey? }`:
+
+- `backend` without `apiUrl` picks a backend from the chain's row.
+- `apiUrl` sends the call to another server, such as a self-hosted Sourcify or a local fake. It
+  must be `https:`. On `localhost`, `127.0.0.1` or `[::1]`, it may be `http:`. It may not hold a user
+  name, password or fragment.
+- `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it. The exception is a
+  [standalone entry with `needsKey`](#standalone-etherscan-compatible-entries).
+
+A query in `apiUrl` is sent with every request and logged as `?REDACTED`. A result has no
+`explorerUrl` unless `apiUrl` is the row's own API URL, such as `https://api.etherscan.io/v2/api`.
+
+`route: { backend: "blockscout-hosted" }` is the one backend no row lists. It goes to
+`https://api.blockscout.com/<chainId>/api` for any chain, with `apiKeys["blockscout-hosted"]`
+([The hosted API](blockscout.md#the-hosted-api)).
+
+A key from `apiKeys` goes only to the host the table lists for the route, over `https:`. A route
+with your own `apiUrl` gets no key from `apiKeys`, except Etherscan's own API: pass `route.apiKey`
+([API keys](api-keys.md#etherscans-own-api-as-routeapiurl)).
+
+## Resuming
+
+`checkStatus()` resolves the route again from the handle's chain id and its options; a handle never
+names a host. Pass the same `route`, `apiKeys` and `allowSourcifyFallback` as the submission. A
+route to another backend than the handle's throws `invalid-input` and sends nothing.
+
+## Request URLs
+
+- **Etherscan v2** serves every chain from one URL. The route adds `chainid=<chain id>` to each
+  request and drops any `chainid` in your `route.apiUrl`.
+- **Routescan** holds the network and chain id in the path, so the route adds no query.
+- **A standalone Etherscan-compatible explorer** serves one chain. The route adds no `chainid` and
+  keeps your query ([Etherscan-compatible](etherscan-compatible.md)).
+- **Blockscout** serves one chain at `<origin>/api`. A `route.apiUrl` that does not end in `/api`
+  throws `invalid-input`. The lookup goes to `<apiUrl>/v2/smart-contracts/<address>`
+  ([Blockscout](blockscout.md)).
+
+## Errors
+
+Each is thrown before any request, except the explorer's own answer:
+
+| Code                | When                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| `unsupported-chain` | No row and no `allowSourcifyFallback`, or `route.backend` not in the row |
+| `unsupported-chain` | The explorer answered that it does not serve the chain                   |
+| `invalid-input`     | A `route` field or `allowSourcifyFallback` is invalid                    |
+| `missing-api-key`   | The route needs a key, none is bound to its host, and no `fetch` is set  |
+
+`details.backend` names the backend ([unsupported-chain](errors/unsupported-chain.md)).
 
 ## The routing table
 
-The table is `src/routing/table.json` in the package. In this release it lists 326 chains. 288
-rows have Sourcify, the 55 chains of the Etherscan chainlist also have Etherscan v2, 111 rows have
-a Blockscout instance, 11 of them alone, 38 rows have Routescan, 25 of them alone, and Bitlayer
-(200901) has a standalone Etherscan-compatible explorer alone. A chain has a row when
-[Sourcify's chain list](https://sourcify.dev/server/chains) marks it as supported, when it is in
-the [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), when its Blockscout instance
-answered the API, when Routescan's API serves it, or when its standalone Etherscan-compatible API
-answered without a key. The row has Sourcify when Sourcify supports
-the chain, so every chain that Sourcify serves resolves without `allowSourcifyFallback`. A
-chainlist chain also has Etherscan v2, and one that Sourcify does not support has Etherscan v2
-alone; in this release there is none. Both lists were read on 2026-11-05.
-
-A row lists its backends in this order: Etherscan v2 on a free-tier chain, Sourcify, Blockscout,
-Etherscan v2 on a paid-plan chain, a standalone Etherscan-compatible explorer, then Routescan. A row holds only the backends that serve the
-chain.
-
-The rows include Ethereum Mainnet (1), Ethereum Sepolia (11155111), Avalanche Fuji (43113) and
-C-Chain (43114), Polygon Amoy (80002), Base Sepolia (84532), Arbitrum Sepolia (421614), ZKsync Era
-(324), Scroll (534352), Rootstock (30), Zora (7777777) and Henesys (68414). To see
-whether a chain has a row, search `table.json` for its chain id. Verify on a chain without a row
-with `allowSourcifyFallback: true`.
-
-The rows are the list under the table's top-level `chains` key. Each row holds the chain id and its
-backends, in order of preference. An entry holds the backend name and only what varies per chain:
+The table is `src/routing/table.json` in the package. Its `chains` key holds one row per chain. A
+row lists the chain's backends in order of preference, and each entry holds only what varies per
+chain:
 
 ```json
 {
@@ -77,102 +137,79 @@ backends, in order of preference. An entry holds the backend name and only what 
 }
 ```
 
-| Field      | Meaning                                                                                                  |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| `chainId`  | The EVM chain id. Rows are in ascending order, one per chain                                             |
-| `backends` | The chain's backends, in order of preference. A chain with no backend has no row                         |
-| `backend`  | A name in `BACKEND_NAMES`                                                                                |
-| `network`  | `routescan` only, required: `mainnet` or `testnet`                                                       |
-| `explorer` | `etherscan-v2` and `etherscan-compatible`, optional: the explorer's host, such as `sepolia.etherscan.io` |
-| `instance` | `blockscout` only, required: the instance's host, such as `eth-sepolia.blockscout.com`                   |
-| `api`      | `etherscan-compatible` only, required: the API's host and path, such as `api.btrscan.com/scan/api`       |
-| `needsKey` | `etherscan-compatible` only, optional: `true` when the API refuses a request without a key               |
+A row holds only the backends that serve the chain, in this order: Etherscan v2 on a free-tier
+chain, Sourcify, Blockscout, Etherscan v2 on a paid-plan chain, a standalone Etherscan-compatible
+explorer, then Routescan. Every chain Sourcify serves has Sourcify in its row.
 
-The table also has `schemaVersion`, 3, and `checked`, the date its rows were last checked. Schema
-3 adds the `etherscan-compatible` entry to schema 2; the library reads a schema 2 table too.
-`routingTableDate()` returns a promise of that date, because it loads the table
-([table chunk](#table-chunk)): `await routingTableDate()` gives a `YYYY-MM-DD` string. The CLI
-prints it with `explorer-verify --version --json`.
+To see whether a chain has a row, call [`routesFor()`](#routesfor) or search `table.json` for its
+id. `await routingTableDate()` returns the date the rows were checked, and
+`npx @explorer-verify/cli --version --json` prints it. An entry may hold these fields:
 
-The library derives every URL from the entry:
+| Field      | Backend                  | Value                               |
+| ---------- | ------------------------ | ----------------------------------- |
+| `network`  | `routescan`              | `mainnet` or `testnet`, required    |
+| `explorer` | Etherscan v2, compatible | The explorer's host, optional       |
+| `instance` | `blockscout`             | The instance's host, required       |
+| `api`      | Etherscan-compatible     | The API's host and path, required   |
+| `needsKey` | Etherscan-compatible     | `true` if keyless calls are refused |
 
-| Backend                | API base                                                                     | Contract page                                                           |
-| ---------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `sourcify`             | `https://sourcify.dev/server`                                                | `https://repo.sourcify.dev/<chain id>/<address>`                        |
-| `etherscan-v2`         | `https://api.etherscan.io/v2/api`                                            | `https://<explorer>/address/<address>#code`, or none without `explorer` |
-| `routescan`            | `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api` | None yet                                                                |
-| `blockscout`           | `https://<instance>/api`                                                     | `https://<instance>/address/<address>?tab=contract`                     |
-| `etherscan-compatible` | `https://<api>`                                                              | `https://<explorer>/address/<address>#code`, or none without `explorer` |
+### URLs derived from an entry
 
-A chain without a row that goes to Sourcify through `allowSourcifyFallback` gets the same Sourcify
-page. `<address>` is the address in lower case, as `verify()` uses it (see
-[verify](verify.md)), and percent-encoded. The EIP-55 checksum is not checked.
+`<address>` is the address in lower case and percent-encoded:
 
-The unit tests check every row: the fields of each backend, the backend names, the date, and the
-API host and path of each derived URL. The table decides which hosts receive a key, so a malformed
-row fails CI.
+- **`sourcify`**: API `https://sourcify.dev/server`; page
+  `https://repo.sourcify.dev/<chain id>/<address>`.
+- **`etherscan-v2`**: API `https://api.etherscan.io/v2/api`; page
+  `https://<explorer>/address/<address>#code`.
+- **`routescan`**: API
+  `https://api.routescan.io/v2/network/<network>/evm/<chain id>/etherscan/api`; no page.
+- **`blockscout`**: API `https://<instance>/api`; page
+  `https://<instance>/address/<address>?tab=contract`.
+- **`etherscan-compatible`**: API `https://<api>`; page
+  `https://<explorer>/address/<address>#code`.
+
+An entry without `explorer` gives no page. The unit tests check every row and derived URL, so a
+malformed row fails CI.
 
 ### Etherscan rows and paid plans
 
-Each Etherscan entry names the explorer host the chainlist gives for the chain, so an Etherscan
-result has an `explorerUrl`, such as `https://sepolia.etherscan.io/address/<address>#code`.
+On a chain of Etherscan's free tier, Etherscan v2 comes first: a call with
+`apiKeys["etherscan-v2"]` goes to Etherscan, and a call without it goes to Sourcify.
 
-Etherscan's free tier covers 45 of the 55 chains. On those, Etherscan v2 comes first: a call with
-`apiKeys["etherscan-v2"]` goes to `api.etherscan.io` with the key, and a call without it goes to
-Sourcify and sends no key.
+These 10 chains need a paid Etherscan plan, so Sourcify comes first:
 
-The other 10 chains need a paid Etherscan plan: 10 (OP Mainnet), 56 (BNB Smart Chain Mainnet), 97
-(BNB Smart Chain Testnet), 100 (Gnosis), 4663 (Robinhood Chain), 5042 (Arc Mainnet), 8453 (Base
-Mainnet), 43114 (Avalanche C-Chain), 84532 (Base Sepolia) and 11155420 (OP Sepolia). On those, Sourcify comes first, so a free-plan key does not turn a call that Sourcify
-serves into an Etherscan refusal. With a paid plan, set `route: { backend: "etherscan-v2" }` and
-pass the key in `apiKeys`; from the CLI, pass `--backend etherscan-v2`. The plan rule of
-[API keys](api-keys.md#etherscan-plan-rule) is separate from this list and applies to every chain:
-a public dapp, or any use by a business, protocol, foundation or DAO, needs an Advanced plan or
-higher.
+| Chain id | Chain                   | Chain id | Chain             |
+| -------- | ----------------------- | -------- | ----------------- |
+| 10       | OP Mainnet              | 5042     | Arc Mainnet       |
+| 56       | BNB Smart Chain Mainnet | 8453     | Base Mainnet      |
+| 97       | BNB Smart Chain Testnet | 43114    | Avalanche C-Chain |
+| 100      | Gnosis                  | 84532    | Base Sepolia      |
+| 4663     | Robinhood Chain         | 11155420 | OP Sepolia        |
+
+With a paid plan, set `route: { backend: "etherscan-v2" }`, or `--backend etherscan-v2` in the
+CLI. The [plan rule](api-keys.md#etherscan-plan-rule) applies to every chain.
 
 ### Routescan entries
 
-A chain has a Routescan entry when Routescan's API answered for it on 2026-11-05. Routescan's
-explorer lists name more chains than its API serves, so each chain they named was sent one keyless
-request; 38 answered. The entry holds the network the request used, `mainnet` or `testnet`, and
-the API URL is derived from it:
-
-```json
-{
-  "chainId": 68414,
-  "backends": [{ "backend": "routescan", "network": "mainnet" }]
-}
-```
-
-Routescan comes last in each row, after Sourcify, Blockscout and Etherscan v2:
-
-- On the 25 chains whose row lists only Routescan, such as Henesys (68414), Beam (4337) and Chiliz
-  (88888), a call with no option goes to Routescan. Numine (8021) lists Blockscout, then
-  Routescan, so a call goes to Blockscout.
-- On the other 12, such as Ethereum (1), Sepolia (11155111), Avalanche Fuji (43113) and C-Chain
-  (43114), Metis (1088) and Hemi (43111), a call goes to Sourcify, or to Etherscan v2 with an
-  Etherscan key where the row lists it first. A Routescan key in `apiKeys` does not change that.
-  Pass `route: { backend: "routescan" }`, or `--backend routescan` from the CLI, to use Routescan.
-
-On a chain with a Routescan entry, `route.backend` `routescan` needs no `route.apiUrl`, and a key
-in `apiKeys.routescan` goes to `api.routescan.io` ([Routescan](routescan.md#api-key)). A result
-from Routescan has no `explorerUrl`.
+Routescan comes last in a row. On a chain with Routescan alone, such as Henesys (68414), a call
+with no option goes there. Elsewhere, such as on Sepolia, a Routescan key does not change the pick:
+pass `route: { backend: "routescan" }` or `--backend routescan`. A key in `apiKeys.routescan` goes
+to `api.routescan.io` ([Routescan](routescan.md#api-key)).
 
 ### Blockscout rows
 
-A chain has a Blockscout entry when its instance answered the API on 2026-11-05, without a key
-and without a redirect. The instances come from
-[Blockscout's chain registry](https://chains.blockscout.com/api/chains), the list Hardhat's
-verify plugin reads, and from Hardhat's built-in chain list. The entry holds the host that
-answered: some registry hosts redirect, and the library never follows a redirect, so OP Mainnet
-(10) lists `explorer.optimism.io` and Gnosis (100) lists `gnosisscan.io`.
+An entry holds the instance host that answered the API without a redirect, such as
+`explorer.optimism.io` for OP Mainnet (10). Blockscout comes after Sourcify, so name it to use it.
+On a chain with Blockscout alone, such as Derive Mainnet (957), a call goes there by default. This
+script verifies the sample Greeter on Blockscout, as `--backend blockscout` does in the CLI:
 
-In a row, Blockscout comes after Sourcify, after Etherscan v2 on a free-tier chain, and before
-Etherscan v2 on a paid-plan chain and before Routescan. So a call without `route.backend` still goes to Sourcify, or
-to Etherscan v2 with a key on a free-tier chain. To verify on Blockscout, name it:
+```ts [blockscout.ts]
+import { readFile } from "node:fs/promises";
 
-```ts
-import { verify } from "explorer-verify";
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("greeter-sepolia.json", "utf8");
+const input = validateInput(JSON.parse(text));
 
 const result = await verify(input, { route: { backend: "blockscout" } });
 if (result.status !== "failed") {
@@ -184,217 +221,47 @@ if (result.status !== "failed") {
 https://eth-sepolia.blockscout.com/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc?tab=contract
 ```
 
-From the CLI, pass `--backend blockscout`. On the 11 chains where Blockscout is the only backend,
-such as Derive Mainnet (957) and Harmony Testnet (1666700000), a call goes to Blockscout by
-default.
-
-These listed instances have no entry, from what they answered on 2026-11-05:
-
-- Polygon PoS (137), Robinhood Chain (4663), Arc Mainnet (5042), Base (8453), Immutable zkEVM
-  (13371) and its testnet (13473), Arbitrum One (42161) and Arbitrum Sepolia (421614) sent a
-  bot-check page (HTTP 403) to Node.js `fetch`.
-- KiteAI Mainnet (2366) answered the API request with HTTP 400, Orderly Testnet (4460) with HTTP
-  500 and Aurora Testnet (1313161555) with HTTP 404.
-- The hosts Hardhat lists for Polygon zkEVM (1101) answered HTTP 404, and those for Linea (59144)
-  and Linea Sepolia (59141) redirect to `lineascan.build` and `sepolia.lineascan.build`.
-
-Reach a Blockscout instance without an entry with `route.apiUrl`, as [Blockscout](blockscout.md)
-shows.
+Reach an instance without an entry with `route.apiUrl` ([Blockscout](blockscout.md)).
 
 ### Standalone Etherscan-compatible entries
 
-A chain has an `etherscan-compatible` entry when its own Etherscan-style API, as Foundry's chain
-list names it, answered a keyless request as Etherscan does on 2026-11-05. One chain qualifies,
-Bitlayer (200901):
+One chain has one: Bitlayer (200901), with `api` `api.btrscan.com/scan/api` and `explorer`
+`www.btrscan.com`. A call on 200901 goes there with no route option.
 
-```json
-{
-  "chainId": 200901,
-  "backends": [
-    {
-      "backend": "etherscan-compatible",
-      "api": "api.btrscan.com/scan/api",
-      "explorer": "www.btrscan.com"
-    }
-  ]
-}
-```
-
-A call on 200901 goes to `https://api.btrscan.com/scan/api` with no route option, and a result
-carries `https://www.btrscan.com/address/<address>#code`. Core (1116) and Kaia (8217) answered
-HTTP 401 without a key and have no entry ([Etherscan-compatible](etherscan-compatible.md)).
-
-An entry with `needsKey: true` is skipped by a call without a key when the row lists another
-backend. A call that reaches it without `route.apiKey` throws `missing-api-key` before any
-request, whether `fetch` is set or not. Pass its key as `route: { backend: "etherscan-compatible",
-apiKey }`; the key goes only to the entry's host ([API keys](api-keys.md#routeapikey)). For an
-entry without `needsKey`, such as Bitlayer's, that form throws `invalid-input` naming
-`route.apiKey`. `verifyEach()` with `backends: "all"` leaves out an entry with `needsKey` when
-the row lists another backend, as a single call does, and `linkProxy()` refuses a standalone
-entry of the table.
-
-## Request URLs
-
-- Etherscan v2 serves every chain from one URL. The route adds `chainid=<chain id>` to the query
-  of every Etherscan v2 request, in one place. A `chainid` in the query of your `route.apiUrl`, in
-  any letter case, is dropped, so a request never goes to another chain than the call's.
-- Routescan URLs hold the network and the chain id in the path, so the route adds no query.
-- A standalone Etherscan-compatible explorer serves one chain, so the route adds no `chainid`. A
-  query in your `route.apiUrl` is kept as you wrote it. A lookup or a status request without a key
-  adds its fields to the query as a GET ([Etherscan-compatible](etherscan-compatible.md)).
-- A Blockscout instance serves one chain at `<origin>/api`. Its `route.apiUrl` must end in `/api`
-  once trailing slashes are removed, or the call throws `invalid-input` naming `route.apiUrl`. The
-  client derives the lookup URL, `<apiUrl>/v2/smart-contracts/<address>`, from it, so a path
-  before `/api`, as in `https://example.org/explorer/api`, is kept ([Blockscout](blockscout.md)).
-
-## Options
-
-### `allowSourcifyFallback`
-
-`VerifyOptions.allowSourcifyFallback` lets a chain that the table does not list go to the public
-Sourcify API. It defaults to `false`. A value that is not a boolean throws `invalid-input`. It has
-no effect on a chain the table lists.
-
-```ts
-import { verify } from "explorer-verify";
-
-const result = await verify(input, { allowSourcifyFallback: true });
-```
-
-The CLI sets it with `--allow-sourcify-fallback` ([CLI](cli.md#chains-the-routing-table-does-not-list)).
-
-### `route`
-
-`VerifyOptions.route` is `{ backend?, apiUrl?, apiKey? }`:
-
-- `backend` without `apiUrl` picks a backend from the chain's row. Every backend name has a
-  client in this release, and one that the row does not list throws `unsupported-chain`.
-  Only Bitlayer's row (200901) lists `etherscan-compatible`; other standalone explorers need
-  `apiUrl` ([Etherscan-compatible](etherscan-compatible.md)).
-- `apiUrl` sends the call to another server, such as a self-hosted Sourcify server or a local fake
-  in tests. It must be `https:`, or `http:` on `localhost`, `127.0.0.1` or `[::1]`, with no user
-  name, password or fragment. A query string is sent with every request and shown as `?REDACTED`
-  in logs. Results have no `explorerUrl` unless `apiUrl` is the table's own URL for the backend
-  and chain, such as `https://api.etherscan.io/v2/api` for a chain with an Etherscan row.
-- `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it, except with
-  `backend` `etherscan-compatible` on a chain whose row lists a standalone explorer with
-  `needsKey`: the key then goes to that explorer's host. See [API keys](api-keys.md).
-
-`route: { backend: "blockscout-hosted" }` is the one backend that no row lists: without `apiUrl`
-it goes to `https://api.blockscout.com/<chainId>/api` for any chain, with the key from
-`apiKeys["blockscout-hosted"]`. The table never picks it, and `verifyEach()` with
-`backends: "all"` leaves it out ([The hosted API](blockscout.md#the-hosted-api)).
-
-## Keys and hosts
-
-A key from `apiKeys` goes only to the host the routing table lists for the route's backend and
-chain, over `https:` on the default port, and only when the route comes from the table. One
-exception: an `etherscan-v2` route whose `apiUrl` is Etherscan's own API, `https://api.etherscan.io`,
-takes `apiKeys["etherscan-v2"]`, because the key still goes only to that host. Any other route
-whose `apiUrl` you set gets no key from `apiKeys`: pass `route.apiKey` for it.
-[API keys](api-keys.md#etherscans-own-api-as-routeapiurl) has the full rule.
-
-## Resuming
-
-`checkStatus()` resolves the route again from the handle's chain id and its options. A handle never
-names a host. Pass the same `route`, `apiKeys` and `allowSourcifyFallback` the submission used, so
-the route resolves to the same backend. When it resolves to another backend than the handle names,
-`checkStatus()` throws `invalid-input` naming `backend` and sends nothing.
+An entry with `needsKey: true` is skipped by a keyless call when the row lists another backend.
+Reached without a key, it throws `missing-api-key`. Pass the key as
+`route: { backend: "etherscan-compatible", apiKey }`; it goes only to the entry's host
+([API keys](api-keys.md#routeapikey)). `linkProxy()` refuses a standalone entry.
 
 ## Client chunks
 
-Each backend's client is a module of its own. A call loads only the client of the backend its
-route resolves to, with a dynamic `import()`, after the input and the options pass their checks.
+Each backend's client is a module of its own. A call loads only the client its route needs, with a
+dynamic `import()`, after the input and options pass their checks. Bundlers that split code put
+each client in its own chunk ([Bundle size](../advanced/bundle-size.md)). For a one-file bundle,
+use the [core entry](core.md).
 
-Vite, Rollup and webpack put each client in a chunk of its own by default, so a page that only
-verifies on Sourcify does not download the other clients. esbuild does the same with
-`--splitting --format=esm`; without `--splitting`, every client is in the one output file.
-`explorer-verify/core` takes the clients and the table from the caller instead, with no dynamic
-`import()`, so a one-file bundle holds only the clients it imports
-([ship only the clients your tool uses](../guides/wrap-explorer-verify-in-your-tool.md#ship-only-the-clients-your-tool-uses)).
-[Bundle size](../advanced/bundle-size.md) lists the size
-of each client.
-
-The load counts against `timeoutMs`: a client that has not loaded when the budget runs out throws
-`timeout`. An abort of `signal` during the load rejects with `signal.reason`. A client that fails
-to load, such as a chunk the page cannot fetch, rejects the call with
-[`network`](errors/network.md#a-module-that-fails-to-load) before any request to an explorer;
-the next call tries again. A client that loaded is kept, so later
-calls on the same backend do not wait for it.
+The load counts against `timeoutMs` and stops on an abort. A client that fails to load rejects
+with [`network`](errors/network.md#a-module-that-fails-to-load) before any request, and the next
+call tries again. A loaded client is kept.
 
 ## Table chunk
 
-The routing table's rows are a module of their own too. A call loads them with a dynamic
-`import()` only when its route needs them, after the input and the options pass their checks:
+The rows are a chunk too, loaded the same way. A call without `route.apiUrl` loads them. A call
+with one loads them only when the URL may be a row's own API URL: Etherscan's API, or an `https`
+URL for `blockscout` or `etherscan-compatible`. A local server or proxy URL loads nothing.
 
-| Route                                                          | Loads the table |
-| -------------------------------------------------------------- | --------------- |
-| No `route`, or `route.backend` without `route.apiUrl`          | Yes             |
-| `etherscan-v2` with `apiUrl` `https://api.etherscan.io/v2/api` | Yes             |
-| `blockscout` with an `https` `apiUrl` whose path is `/api`     | Yes             |
-| `etherscan-compatible` with an `https` `apiUrl`                | Yes             |
-| Any other `route.apiUrl`, such as a local server or a proxy    | No              |
+A table that does not load in time throws `timeout`. One that fails to load rejects with
+`network`, as a client does.
 
-The three cases with `apiUrl` load the table only to read what the row says about its own API
-URL: the result keeps its `explorerUrl`, and a standalone entry with `needsKey` still needs
-`route.apiKey`, when `apiUrl` is the row's own API URL. `verifyEach()` loads the table when
-one of its entries needs it, or for `backends: "all"`. `checkStatus()` and `linkProxy()` follow the
-same rule as `verify()`.
+## Sources
 
-The load counts against `timeoutMs` and ends on an abort, as a client's does. A load that does
-not end in time throws `timeout` naming `route.backend`, or `sourcify` when no backend is named,
-even when the table would have routed the call to another backend. A table that fails
-to load rejects the call with [`network`](errors/network.md#a-module-that-fails-to-load), naming
-the same backend; in `verifyEach()` with a list, it is the outcome
-of each entry that needs the table, and the other entries run. A table that loaded is kept for
-later calls. [Bundle size](../advanced/bundle-size.md) lists its size.
+The rows were checked on 2026-11-05. The release lists 326 chains: 288 with Sourcify, 55 with
+Etherscan v2 (45 free-tier), 111 with Blockscout, 38 with Routescan and 1 standalone explorer.
 
-## Errors
-
-| Code                | When                                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| `unsupported-chain` | The chain has no row and `allowSourcifyFallback` is not set. `details.backend` is `sourcify`       |
-| `unsupported-chain` | `route.backend` names a backend that the chain's row does not list. `details.backend` names it     |
-| `unsupported-chain` | The table chose a backend this version has no client for. `details.backend` names it               |
-| `unsupported-chain` | The explorer answered that it does not serve the chain                                             |
-| `invalid-input`     | `route`, `route.backend`, `route.apiUrl`, `route.apiKey` or `allowSourcifyFallback` is invalid     |
-| `missing-api-key`   | The route needs a key, none is bound to its host, and `fetch` is not set ([API keys](api-keys.md)) |
-
-Each is thrown before any request, except the explorer's own answer. See
-[unsupported-chain](errors/unsupported-chain.md).
-
-## `routesFor()`
-
-`routesFor(chainId, { apiKeys, allowSourcifyFallback })` tells where a call would go without
-`route`, and which backends `route.backend` can name. It reads the routing table and sends no
-request; only whether `apiKeys` has a key for a backend counts, and no key is checked or sent. It
-is `@experimental`. Another options key, or an options value that is not a plain object, throws
-`invalid-input`, as for `verify()` ([Options of each function](verify.md#options-of-each-function)).
-
-```ts
-import { routesFor } from "explorer-verify";
-
-const { listed, pick } = await routesFor(11155111);
-console.log(listed.join(", "));
-if (pick instanceof Error) {
-  console.log(pick.message);
-} else {
-  console.log(`${pick.backend} (${pick.routedBy}), skipped: ${pick.skipped.join(", ") || "none"}`);
-}
-```
-
-On Sepolia with no key, it prints:
-
-```text
-etherscan-v2, sourcify, blockscout, routescan
-sourcify (table), skipped: etherscan-v2
-```
-
-- `listed`: the backends of the chain's row, in order of preference. Empty for a chain without a
-  row.
-- `pick`: the backend, `routedBy` (`table`, or `fallback` for a chain without a row with
-  `allowSourcifyFallback: true`), the backends `skipped` for lack of a key, and `keyMissing`, true
-  when every backend of the row needs a key and none is set, so `verify()` would throw
-  `missing-api-key`. For a chain without a row and no fallback, `pick` is the `unsupported-chain`
-  error that `verify()` would throw.
-- A chain id that is not a positive safe integer throws `invalid-input`.
+- [Sourcify's chain list](https://sourcify.dev/server/chains) and
+  [Etherscan's chainlist](https://api.etherscan.io/v2/chainlist), read 2026-11-05.
+- [Routescan rows](../../contributor/research/2026-11-05-routescan-rows.md), probed 2026-11-05.
+- [Blockscout instances](../../contributor/research/2026-11-05-blockscout-instances.md), probed
+  2026-11-05, with the instances left out and why.
+- [Etherscan-compatible hosts](../../contributor/research/2026-11-05-etherscan-compatible-hosts.md),
+  probed 2026-11-05.
