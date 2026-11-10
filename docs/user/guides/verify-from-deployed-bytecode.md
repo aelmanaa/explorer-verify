@@ -91,7 +91,7 @@ keccak-256 hash.
 | `sources`             | Source contents by path, for files no source holds                                                                                    |
 | `fetch`               | The `fetch` every request goes through. Defaults to `globalThis.fetch`                                                                |
 | `signal`              | Cancels the call; it rejects with `signal.reason`                                                                                     |
-| `timeoutMs`           | Time budget for the whole call, in milliseconds. Defaults to 120000                                                                   |
+| `timeoutMs`           | Time budget for the whole call, in milliseconds. Defaults to 120000. `Infinity` and values above 2147483647 are lowered to 2147483647 |
 | `logger`              | Receives log lines, with the URLs' keys removed                                                                                       |
 | `onEvent`             | Receives a `verify.retry` event before each retry of a Sourcify request; see [Logging and events](../reference/logging-and-events.md) |
 

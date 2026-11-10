@@ -141,7 +141,7 @@ describe("R-IN-6: verify() refuses an unknown option before any request", () => 
     assert.deepEqual(issuesOf(error), [
       { field: "signa", message: "is not a known option; did you mean signal?" },
       { field: "pollIntervalms", message: "is not a known option; did you mean pollIntervalMs?" },
-      { field: "timeoutMs", message: "must be a positive finite number of milliseconds" },
+      { field: "timeoutMs", message: "must be a positive number of milliseconds" },
     ]);
     assert.equal(fake.calls(), 0);
   });

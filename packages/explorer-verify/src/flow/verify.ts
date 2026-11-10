@@ -834,8 +834,8 @@ export async function settle(
  * name, never its value. An option set to `undefined`
  * counts as absent.
  *
- * - `timeoutMs` must be a positive finite number; one above {@link MAX_TIMER_MS} is clamped to it,
- *   because a longer `setTimeout` fires at once.
+ * - `timeoutMs` must be a positive number; one above {@link MAX_TIMER_MS}, `Infinity` included, is
+ *   clamped to it, because a longer `setTimeout` fires at once.
  * - `pollIntervalMs` must be a positive finite number; it is clamped to between
  *   {@link MIN_POLL_INTERVAL_MS} and {@link MAX_TIMER_MS}.
  * - `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object.
@@ -890,7 +890,14 @@ export function settingsOf(
       // Checked by withHandler(), which loads the check only when the option is set.
       handlerUrl: own(options, "handlerUrl"),
       allowSourcifyFallback: own(options, "allowSourcifyFallback"),
-      timeoutMs: duration(own(options, "timeoutMs"), DEFAULT_TIMEOUT_MS, 1, "timeoutMs", issues),
+      timeoutMs: duration(
+        own(options, "timeoutMs"),
+        DEFAULT_TIMEOUT_MS,
+        1,
+        "timeoutMs",
+        issues,
+        true,
+      ),
       pollIntervalMs: duration(
         own(options, "pollIntervalMs"),
         DEFAULT_POLL_INTERVAL_MS,
@@ -964,7 +971,8 @@ function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
 
 /**
  * A duration option clamped to `[floor, MAX_TIMER_MS]`, the fallback when it is absent, or an
- * issue when it is not a positive finite number.
+ * issue when it is not a positive number. `Infinity` is clamped like any value above
+ * {@link MAX_TIMER_MS} when `unbounded` is set, and is an issue otherwise.
  */
 function duration(
   value: unknown,
@@ -972,13 +980,23 @@ function duration(
   floor: number,
   field: string,
   issues: InputIssue[],
+  unbounded = false,
 ): number {
   if (value === undefined) {
     return fallback;
   }
-  // `!(value > 0)` also refuses NaN.
-  if (typeof value !== "number" || !(value > 0) || value === Number.POSITIVE_INFINITY) {
-    issues.push({ field, message: "must be a positive finite number of milliseconds" });
+  // `!(value > 0)` also refuses NaN and -Infinity.
+  if (
+    typeof value !== "number" ||
+    !(value > 0) ||
+    (!unbounded && value === Number.POSITIVE_INFINITY)
+  ) {
+    issues.push({
+      field,
+      message: unbounded
+        ? "must be a positive number of milliseconds"
+        : "must be a positive finite number of milliseconds",
+    });
     return fallback;
   }
   return Math.min(Math.max(value, floor), MAX_TIMER_MS);

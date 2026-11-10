@@ -1226,8 +1226,10 @@ describe("buildVerifyInputFromBytecode: input checks (R-IN-6, R-SEC-2)", () => {
     ["sources", "src/A.sol", "must be an object of source contents by path"],
     ["fetch", "https://example.org", "must be a function"],
     ["signal", { aborted: false }, "must be an AbortSignal"],
-    ["timeoutMs", 0, "must be a positive finite number of milliseconds"],
-    ["timeoutMs", "100", "must be a positive finite number of milliseconds"],
+    ["timeoutMs", 0, "must be a positive number of milliseconds"],
+    ["timeoutMs", "100", "must be a positive number of milliseconds"],
+    ["timeoutMs", Number.NaN, "must be a positive number of milliseconds"],
+    ["timeoutMs", Number.NEGATIVE_INFINITY, "must be a positive number of milliseconds"],
     ["logger", null, "must be an object"],
     ["logger", "console", "must be an object"],
   ];

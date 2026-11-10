@@ -991,7 +991,7 @@ describe("verify(): invalid input, options and route", () => {
     ["timeoutMs 0", makeInput(), { timeoutMs: 0 }],
     ["timeoutMs -1", makeInput(), { timeoutMs: -1 }],
     ["timeoutMs NaN", makeInput(), { timeoutMs: Number.NaN }],
-    ["timeoutMs Infinity", makeInput(), { timeoutMs: Number.POSITIVE_INFINITY }],
+    ["timeoutMs -Infinity", makeInput(), { timeoutMs: Number.NEGATIVE_INFINITY }],
     ["pollIntervalMs 0", makeInput(), { pollIntervalMs: 0 }],
     ["pollIntervalMs -5", makeInput(), { pollIntervalMs: -5 }],
     [
