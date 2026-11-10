@@ -45,3 +45,14 @@
     border-radius: 0;
   }
 }
+
+/*
+ * An output block, ```text, wraps its long lines instead of scrolling (#314). The CLI prints a
+ * JSON envelope on one line, and an explorer URL is wider than the column, so a scrolled output
+ * hides its end. Commands keep their own line breaks, ending in \.
+ */
+.vp-doc div.language-text pre,
+.vp-doc div.language-text code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

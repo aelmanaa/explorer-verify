@@ -31,6 +31,21 @@ const SCRIPT = blocks(PAGE).filter(
   (block) => block.lang === "bash" && block.code.startsWith("#!/usr/bin/env bash\n"),
 );
 
+/**
+ * The commands of the page's workflow: each `run: >-` step folded onto one line, as YAML folds it,
+ * with the test's address in place of `"$CONTRACT_ADDRESS"`.
+ */
+const WORKFLOW_RUNS = blocks(PAGE)
+  .filter((block) => block.lang === "yaml")
+  .flatMap((block) => [...block.code.matchAll(/^ +(?:- )?run: >-\n((?: {10}\S.*\n)+)/gm)])
+  .map((match) =>
+    String(match[1])
+      .trim()
+      .split(/\s*\n\s*/)
+      .join(" ")
+      .replaceAll('"$CONTRACT_ADDRESS"', ADDRESS),
+  );
+
 /** Whether `bash` and `jq` can run here; the script needs both. */
 const hasTools = ["bash", "jq"].every(
   (tool) => spawnSync(tool, ["--version"], { stdio: "ignore" }).status === 0,
@@ -41,16 +56,22 @@ after(() => {
   rmSync(DIR, { recursive: true, force: true });
 });
 
-/** The `explorer-verify` of most runs: the built bin behind the fake explorer. */
-const BIN_SHIM = `#!/bin/sh\nexec "${process.execPath}" --import "${PRELOAD}" "${BIN}" "$@"\n`;
-
 /**
- * A folder with an `explorer-verify` that runs `body`, put first on the PATH as
- * `node_modules/.bin` is in the workflow.
+ * The `npx` of most runs: for `npx @explorer-verify/cli`, the built bin behind the fake explorer,
+ * as npx runs the copy the lockfile installed.
  */
+const BIN_SHIM = [
+  "#!/bin/sh",
+  '[ "$1" = "@explorer-verify/cli" ] || exit 99',
+  "shift",
+  `exec "${process.execPath}" --import "${PRELOAD}" "${BIN}" "$@"`,
+  "",
+].join("\n");
+
+/** A folder with an `npx` that runs `body`, put first on the PATH. */
 function shimDir(name: string, body: string): string {
   const dir = join(DIR, `bin-${name}`);
-  const shim = join(dir, "explorer-verify");
+  const shim = join(dir, "npx");
   mkdirSync(dir, { recursive: true });
   writeFileSync(shim, body);
   chmodSync(shim, 0o755);
@@ -118,7 +139,8 @@ async function runScript(
 }
 
 describe("the CI guide's command-line examples (R-AX-2)", () => {
-  const examples = shellExamples(PAGE, PAGE_NAME);
+  // The page's status example reads the handle from `HANDLE`, as a job's step does.
+  const examples = shellExamples(PAGE.replaceAll('"$HANDLE"', HANDLE), PAGE_NAME);
 
   it("has a dry run, a verify with --json and a status", () => {
     const lines = examples.map(({ args }) => args.join(" "));
@@ -134,6 +156,34 @@ describe("the CI guide's command-line examples (R-AX-2)", () => {
       assert.equal(result.stdout, example.stdout);
     });
   }
+});
+
+describe("the CI guide's workflow commands (R-AX-2)", () => {
+  it("has the dry run and the script", () => {
+    assert.equal(WORKFLOW_RUNS.length, 2);
+    assert.ok(WORKFLOW_RUNS[0]?.startsWith(`npx @explorer-verify/cli verify ${ADDRESS} `));
+    assert.ok(WORKFLOW_RUNS[1]?.startsWith(`bash scripts/verify.sh ${ADDRESS} `));
+  });
+
+  it("the dry run step prints a dry-run envelope", TIMEOUT, async () => {
+    const [step] = WORKFLOW_RUNS;
+    const args = String(step).split(" ").slice(2);
+    assert.ok(args.includes("--dry-run"));
+    const result = await runBin(args, { cwd: PROJECT, fake: {} });
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /^\{"schemaVersion":1,"ok":true,"result":\{"status":"dry-run",/);
+  });
+
+  it(
+    "the verify step runs the script to exit code 0",
+    { ...TIMEOUT, skip: hasTools ? false : "needs bash and jq" },
+    async () => {
+      const args = String(WORKFLOW_RUNS[1]).split(" ").slice(2);
+      const run = await runScript("workflow", args, "verified");
+      assert.equal(run.code, 0);
+      assert.equal(run.stdout, "already-verified on sourcify\n");
+    },
+  );
 });
 
 describe(
@@ -183,7 +233,7 @@ describe(
         assert.equal(run.code, 0);
         assert.equal(
           run.stdout,
-          `::warning::No verdict yet. Resume with: explorer-verify status ${HANDLE}\n`,
+          `::warning::No verdict yet. Resume with: npx @explorer-verify/cli status ${HANDLE}\n`,
         );
         assert.equal(run.output, `handle=${HANDLE}\n`);
       },
@@ -193,7 +243,7 @@ describe(
       "escapes %, CR and LF in explorer text, so it cannot start a workflow command",
       TIMEOUT,
       async () => {
-        // An explorer-verify that prints an envelope whose hint holds the three characters.
+        // An npx that prints an envelope whose hint holds the three characters.
         const envelope = JSON.stringify({
           schemaVersion: 1,
           ok: false,

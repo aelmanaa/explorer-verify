@@ -1,6 +1,6 @@
 // Black-box tests for help, the version, suggestions and the generated CLI reference (#103). They
-// read only the public contract: docs/user/reference/cli.md, the skill, the shipped JSON Schemas
-// and the built bin's own output.
+// read only the public contract: docs/user/reference/cli.md and cli-output.md, the skill, the
+// shipped JSON Schemas and the built bin's own output.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -15,6 +15,7 @@ const TIMEOUT = { timeout: 30_000 };
 const EXAMPLES_TIMEOUT = { timeout: 90_000 };
 const ROOT = new URL("../../../../", import.meta.url);
 const CLI_MD = readFileSync(new URL("docs/user/reference/cli.md", ROOT), "utf8");
+const CLI_OUTPUT_MD = readFileSync(new URL("docs/user/reference/cli-output.md", ROOT), "utf8");
 const SKILL_MD = readFileSync(new URL("skills/explorer-verify/SKILL.md", ROOT), "utf8");
 const ESC = "\u001B";
 // A made-up value; no provider uses this shape, so secret scanners leave it alone.
@@ -70,12 +71,12 @@ const PACKAGE_VERSIONS = {
   ),
 };
 
-/** The part of cli.md between the generated markers. */
-function generatedSection(): string {
-  const start = CLI_MD.indexOf("<!-- Generated");
-  const end = CLI_MD.indexOf("<!-- End of the generated part. -->");
-  assert.ok(start >= 0 && end > start, "cli.md has the generated markers");
-  return CLI_MD.slice(start, end);
+/** The part of a page between the generated markers: cli.md's by default. */
+function generatedSection(page: string = CLI_MD): string {
+  const start = page.indexOf("<!-- Generated");
+  const end = page.indexOf("<!-- End of the generated part. -->");
+  assert.ok(start >= 0 && end > start, "the page has the generated markers");
+  return page.slice(start, end);
 }
 
 /** The body under `## heading` (or `### heading`) up to the next heading of that level or higher. */
@@ -106,17 +107,16 @@ function tableRows(markdown: string): string[][] {
     );
 }
 
+/** The usage lines of the first `text` block, each folded line joined to the one before it. */
 function codeBlock(markdown: string): string[] {
   const match = /```text\n([\s\S]*?)\n```/.exec(markdown);
   assert.ok(match?.[1] !== undefined);
-  return match[1].split("\n");
-}
-
-function exampleBullets(markdown: string): { command: string; description: string }[] {
-  return [...markdown.matchAll(/^- `(explorer-verify [^`]*)`: (.*)$/gm)].map((m) => ({
-    command: m[1] ?? "",
-    description: m[2] ?? "",
-  }));
+  // The reference folds a long usage line; a continuation line starts with two spaces.
+  const lines = match[1].split("\n");
+  for (const line of lines) {
+    assert.ok(line.length <= 72, `a usage line of ${String(line.length)} characters`);
+  }
+  return match[1].replaceAll("\n  ", " ").split("\n");
 }
 
 function optionCell(option: Record<string, unknown>): string {
@@ -311,7 +311,7 @@ describe(
       assert.equal(json["topic"], null);
     });
 
-    // cli.md: "A usage error wins over both: `explorer-verify --help --colour` exits 2."
+    // cli-output.md: "A usage error wins over both: `--help --colour` exits 2."
     it(
       "a usage error in an option name or a global value wins over help and the version",
       TIMEOUT,
@@ -328,7 +328,7 @@ describe(
       },
     );
 
-    // cli.md: help does not check a command's own option values; the command checks them.
+    // cli-output.md: help does not check a command's own option values; the command checks them.
     it("a bad value of a command's own option does not beat help", TIMEOUT, async () => {
       for (const args of [
         ["status", "--timeout", "soon", "--help"],
@@ -497,14 +497,6 @@ describe(
       assert.ok(seen.length >= 4);
     });
 
-    it("the examples in cli.md", EXAMPLES_TIMEOUT, async () => {
-      const examples = exampleBullets(generatedSection());
-      assert.ok(examples.length >= 4);
-      for (const { command, description } of examples) {
-        await runExample(command, description);
-      }
-    });
-
     it("the skill's mistyped --color example prints the documented envelope", TIMEOUT, async () => {
       const block =
         /```sh\n# exit code (\d+)\n(explorer-verify [^\n]*)\n```\n\nIt prints:\n\n```text\n([^\n]*)\n```/.exec(
@@ -516,9 +508,8 @@ describe(
       assert.equal(result.stdout, `${block[3]}\n`);
     });
 
-    it("the --version --json sample in cli.md has the bin's shape", TIMEOUT, async () => {
-      const sample =
-        /```text\n\s*(\{"schemaVersion":1,"ok":true,"result":\{"cli"[^\n]*)\n\s*```/.exec(CLI_MD);
+    it("the --version --json sample in cli-output.md has the bin's shape", TIMEOUT, async () => {
+      const sample = /```json\n(\{[^`]*"routingTableDate"[^`]*\})\n```/.exec(CLI_OUTPUT_MD);
       assert.ok(sample?.[1] !== undefined);
       assert.deepEqual(versionProblems(JSON.parse(sample[1])), []);
     });
@@ -526,40 +517,37 @@ describe(
 );
 
 describe(
-  "blackbox #103: cli.md's generated section matches the bin's help",
+  "blackbox #103: the generated parts of cli.md and cli-output.md match the bin's help",
   { concurrency: true },
   () => {
     it("usage, examples, options, variables and exit codes", TIMEOUT, async () => {
       const json = await helpJson(["help"]);
       const generated = generatedSection();
       assert.deepEqual(codeBlock(sectionBody(generated, "## Usage")), list(json["usage"]));
+      // The examples are on the page above the generated part, and run in cli-pages.test.ts.
+      assert.doesNotMatch(generated, /^## Examples$/m);
+      // The global options, the variables and the exit codes are on cli-output.md.
+      const output = generatedSection(CLI_OUTPUT_MD);
       assert.deepEqual(
-        exampleBullets(sectionBody(generated, "## Examples")),
-        list(json["examples"]).map((e) => ({
-          command: text(record(e)["command"]),
-          description: text(record(e)["description"]),
-        })),
-      );
-      assert.deepEqual(
-        tableRows(sectionBody(generated, "## Global options")),
+        tableRows(sectionBody(output, "## Global options")),
         optionRows(json["globalOptions"]),
       );
       assert.deepEqual(
-        tableRows(sectionBody(generated, "## Environment variables")),
+        tableRows(sectionBody(output, "## Environment variables")),
         list(json["environment"]).map((v) => [
           `\`${text(record(v)["name"])}\``,
           text(record(v)["description"]),
         ]),
       );
       assert.deepEqual(
-        tableRows(sectionBody(generated, "## Exit codes")),
+        tableRows(sectionBody(output, "## Exit codes")),
         list(json["exitCodes"]).map((c) => [String(record(c)["code"]), text(record(c)["meaning"])]),
       );
       const plain = (await runBin(["--help"])).stdout;
       if (list(json["commands"]).length === 0) {
         const message = "This version has no public commands yet.";
         assert.ok(plain.includes(`Commands:\n  ${message}`));
-        assert.ok(sectionBody(generated, "## Commands").includes(message));
+        assert.ok(sectionBody(generated, "## Usage").includes(message));
       }
     });
 
@@ -573,15 +561,10 @@ describe(
         const json = await helpJson(["help", name]);
         const command = record(list(json["commands"])[0]);
         const body = sectionBody(generated, `### \`${name}\``);
-        assert.ok(body.includes(text(command["summary"])), `${name} summary`);
+        // A public command's summary is in the table of commands; a hidden one's in its section.
+        const summaries = listed.includes(name) ? sectionBody(generated, "## Usage") : body;
+        assert.ok(summaries.includes(text(command["summary"])), `${name} summary`);
         assert.deepEqual(codeBlock(body), [text(command["usage"])]);
-        assert.deepEqual(
-          exampleBullets(body),
-          list(command["examples"]).map((e) => ({
-            command: text(record(e)["command"]),
-            description: text(record(e)["description"]),
-          })),
-        );
         assert.deepEqual(tableRows(body), optionRows(command["options"]));
         // A hidden command's section sits under "## Hidden commands", after the public ones.
         const hiddenAt = generated.indexOf("## Hidden commands");
