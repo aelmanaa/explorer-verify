@@ -1168,9 +1168,12 @@ describe("new error codes (api-keys.md, error pages, json-output.md, verify.md)"
   });
 
   it("verify.md lists each code with exit code 3", () => {
+    // The errors table groups the codes by exit code, one row per exit code.
     const page = readRepo("docs/user/reference/verify.md");
     for (const code of NEW_CODES) {
-      const cells = rowOf(page, code)
+      const cells = page
+        .split("\n")
+        .find((line) => line.startsWith("| ") && line.includes(`[\`${code}\`]`))
         ?.split("|")
         .map((cell) => cell.trim());
       assert.equal(cells?.at(-2), "3");

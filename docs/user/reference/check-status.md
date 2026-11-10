@@ -1,21 +1,21 @@
 # checkStatus()
 
-<!-- docs-style: legacy -->
+Resume a submitted verification from its handle. It never submits, so it is
+safe to call without asking.
 
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers and agents who resume a verification that `verify()` submitted.
+The signatures:
 
-`checkStatus()` continues polling a submitted verification from its handle. Use it after a
-`not-confirmed` error, an abort, a page reload or a process restart. It never submits, so it is safe
-to call without asking.
-
-<!-- fragment: signatures only; the example below runs. -->
+<!-- fragment: signatures only; the examples below run. -->
 
 ```ts fragment
-function checkStatus(handle: Handle | string, options?: CheckStatusOptions): Promise<VerifyResult>;
+function checkStatus(
+  handle: Handle | string, // the handle object or its one-line form
+  options?: CheckStatusOptions,
+): Promise<VerifyResult>;
 function formatHandle(handle: Handle): HandleString;
 function parseHandle(value: unknown): Handle;
 function tryParseHandle(value: unknown): Handle | undefined;
@@ -23,155 +23,161 @@ function isHandleString(value: unknown): value is HandleString;
 type HandleString = `ev1:${BackendName}:${number}:${Hex}:${string}`;
 ```
 
+Use it after a `not-confirmed` error, an abort, a page reload or a process
+restart. [Abort and resume](../advanced/abort-and-resume.md) shows the whole
+flow.
+
 ## Example
 
-Store the one-line form, then resume it later:
+Pass the handle that `verify()` gave, in its one-line form:
 
-```ts
-import { ExplorerVerifyError, checkStatus, formatHandle, verify } from "explorer-verify";
+```ts [resume.ts]
+import { checkStatus } from "explorer-verify";
 
-try {
-  await verify(input);
-} catch (error) {
-  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-    localStorage.setItem("pending-verification", formatHandle(error.details.handle));
-  } else {
-    throw error;
-  }
-}
+// The handle of a Sourcify job, as stored after verify().
+const handle =
+  "ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:" +
+  "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 
-// Later, after a page reload:
-const stored = localStorage.getItem("pending-verification");
-if (stored !== null) {
-  const result = await checkStatus(stored, { timeoutMs: 60_000 });
-  localStorage.removeItem("pending-verification");
-  console.log(result.status);
-}
+const result = await checkStatus(handle, { timeoutMs: 60_000 });
+console.log(result.status, result.backend);
 ```
 
-When the job ends with an exact match, it prints:
+When the job has ended with a match, it prints:
 
 ```text
-verified
+verified sourcify
 ```
+
+## Options
+
+The options of [verify()](verify.md#options) without `rpcUrl`, with the same
+defaults and checks. The type is `CheckStatusOptions`.
+
+Pass the same `route`, `apiKeys`, `allowSourcifyFallback` and `handlerUrl`
+the submit used, so the route resolves to the same backend
+([Routing](routing.md#resuming)). At run time it also accepts an object built
+for `verify()`, `rpcUrl` included
+([Options of each function](verify.md#options-of-each-function)).
+
+## Results
+
+The results of [verify()](verify.md#results): `verified`,
+`already-verified` or `failed`, with the same fields and exit codes.
+
+## Errors
+
+`checkStatus()` throws the errors of [verify()](verify.md#errors), except
+`timeout`, because the job id exists. These codes differ:
+
+| Code                        | When `checkStatus()` throws it                                                      | Exit code |
+| --------------------------- | ----------------------------------------------------------------------------------- | --------- |
+| `invalid-input`             | The options or the handle are invalid, or the handle's backend is not the route's   | 2         |
+| `not-confirmed`             | The budget ran out, or 3 polls in a row failed. `details.handle` is the same handle | 4         |
+| `verification-inconclusive` | The job ended without a verdict. Call `verify()` again                              | 4         |
+| `job-not-found`             | The explorer forgot the job, and a lookup did not find the contract verified        | 6         |
+
+The `job-not-found` hint says to call `verify()` again when the lookup found
+the contract not verified. When the lookup failed, it says to check the
+explorer first, and its `cause` is the lookup's error.
+[Errors](errors/index.md) has the fix for every code.
 
 ## The handle
 
-A handle is plain JSON with no URL: `{ version: 1, backend, chainId, address, jobId }`. Its one-line
-form is `ev1:<backend>:<chainId>:<address>:<jobId>`, for example
-`ev1:sourcify:84532:0x616dc0f820416e46841d2e1122ff7ca615a740fe:c2ecf68c-2f91-436f-8670-3210387bb3ea`.
-It holds no spaces or shell characters, so it can be pasted into a shell without quotes. Store a
-handle in the one-line form.
+A handle is plain JSON with no URL:
+`{ version: 1, backend, chainId, address, jobId }`. Store it in its one-line
+form, `ev1:<backend>:<chainId>:<address>:<jobId>`. That form holds no spaces
+or shell characters, so a shell takes it without quotes.
 
-- `formatHandle(handle)` writes the one-line form, typed `HandleString`. The `handle` field of an
-  error's `toJSON()` and the `verify.submitted` event carry the same form, with the same type.
-- `parseHandle(value)` reads either form from untrusted input and returns a new handle. The
-  one-line form must split on `:` into exactly five parts, because a job id never holds a `:`. A
-  job id is 1 to 128 characters from `A-Z`, `a-z`, `0-9`, `_` and `-`, starting with a letter or
-  digit. The address keeps its case. Surrounding whitespace is not trimmed, and JSON text is not
-  read: store the one-line form, not `JSON.stringify(handle)`. `checkStatus` reads the handle the
-  same way.
-- `tryParseHandle(value)` reads both forms and returns `undefined` instead of throwing. It loads
-  none of the error code, so it stays small in a bundle.
-- `isHandleString(value)` is `true` when `value` is a valid handle in the one-line form, and
-  narrows it to `HandleString`. It is `false` for the handle object.
-- `parseHandle(formatHandle(h))` and `parseHandle(h)` both equal `h`.
+| Function                | What it does                                                         |
+| ----------------------- | -------------------------------------------------------------------- |
+| `formatHandle(handle)`  | Writes the one-line form, typed `HandleString`                       |
+| `parseHandle(value)`    | Reads either form from untrusted input, or throws `invalid-input`    |
+| `tryParseHandle(value)` | Reads either form, or returns `undefined`                            |
+| `isHandleString(value)` | `true` for a valid one-line form, which it narrows to `HandleString` |
 
-When a job id equals one of your keys, the handle in an error's `toJSON()`, an event or a log line
-ends in `:[redacted]`. It keeps the `HandleString` type but cannot resume: `isHandleString` gives
-`false` and `parseHandle` throws.
+`parseHandle(formatHandle(h))` and `parseHandle(h)` both equal `h`. The
+`handle` of an error's `toJSON()` and of the `verify.submitted` event has the
+one-line form and the `HandleString` type.
 
-`parseHandle` throws `invalid-input` and names each bad field in `details.issues`: `version`,
-`backend`, `chainId`, `address`, `jobId`, or `handle` for a value of neither form or for an object
-with fields a handle does not have, such as `apiUrl`. The hint names both forms. For a value of
-neither form, such as JSON text, a line with a leading space or a `String` object, the message
-names them too:
+## Handle rules
 
-```text
-The handle is invalid: handle. It must be a handle object or its one-line form ev1:<backend>:<chainId>:<address>:<jobId>.
-```
+- The one-line form splits on `:` into exactly five parts.
+- A job id is 1 to 128 letters, digits, `_` or `-`, starting with a letter
+  or digit.
+- The address keeps its case. Whitespace is not trimmed.
+- JSON text is not read: store the one-line form, not
+  `JSON.stringify(handle)`.
 
-Messages never repeat a value.
+`parseHandle` throws `invalid-input` and names each bad field in
+`details.issues`. The field is `handle` for a value of neither form, and
+the message then names both forms, the handle object and
+`ev1:<backend>:<chainId>:<address>:<jobId>`. Messages never repeat a value. When a job id equals one of your keys, the
+handle in an error, event or log line ends in `:[redacted]`. It cannot
+resume: `isHandleString` gives `false` and `parseHandle` throws.
 
-These four functions and the `Handle` and `HandleString` types are also exported from
-`explorer-verify/handle`. A page that only stores or checks a handle imports them from there: that
-entry never reaches the verification code, so any bundler emits one file for it, with or without
-code splitting. `formatHandle` is about 100 bytes minified, and `tryParseHandle` and
-`isHandleString` about 2 KB each. `parseHandle` also loads the error class and its hints, about
-15.7 KB, so a page that only checks a stored value uses `tryParseHandle` or `isHandleString`.
+## A page that only stores the handle
 
-```ts
+The four functions and the `Handle` and `HandleString` types are also
+exported from `explorer-verify/handle`. That entry never reaches the
+verification code, so a page that only stores or checks a handle stays
+small:
+
+```ts [stored-handle.ts]
 import { formatHandle, tryParseHandle } from "explorer-verify/handle";
 
-const handle = tryParseHandle(localStorage.getItem("pending-verification"));
+const stored = localStorage.getItem("pending-verification");
+const handle = tryParseHandle(stored);
 if (handle !== undefined) {
   console.log(formatHandle(handle));
 }
 ```
 
+| Function                            | Minified size |
+| ----------------------------------- | ------------- |
+| `formatHandle`                      | about 100 B   |
+| `tryParseHandle`, `isHandleString`  | about 2 KB    |
+| `parseHandle`, with the error class | about 15.7 KB |
+
+A page that only checks a stored value uses `tryParseHandle` or
+`isHandleString`.
+
 ## What it does
 
-1. Reads the options as `verify()` does, then reads the handle with `parseHandle`. A problem
-   throws `invalid-input`, and nothing is sent.
-2. Resolves the route from the handle's chain id and the `route` option. The handle never chooses a
-   host. Its backend must be the backend that route names; otherwise the call throws
-   `invalid-input` naming `backend`, and nothing is sent.
-3. Polls the job at once, then every `pollIntervalMs`, until the job ends or `timeoutMs` is spent.
-   Failed polls, the cap of 3 failed polls in a row, the last lookup and the result mapping are the
-   same as in [verify()](verify.md#what-it-does).
-4. When the explorer no longer knows the job, it looks the contract up once. A match returns
-   `verified`. Otherwise it throws `job-not-found`.
-
-Pass the same `route`, `apiKeys` and `allowSourcifyFallback` the submit used, so the route
-resolves to the same backend ([Routing](routing.md#resuming)). A handle from a self-hosted Sourcify
-server, resumed without its `route`, is polled on the public server, which does not know the job.
-Pass `handlerUrl` too when the submit used it. A Sourcify handle from `verifyEach()`, on a chain
-where `handlerUrl` makes Etherscan the choice, resumes only with `route: { backend: "sourcify" }`.
+1. Reads the options as `verify()` does, then the handle with `parseHandle`.
+   A problem throws `invalid-input`, and nothing is sent.
+2. Resolves the route from the handle's chain id and the `route` option. The
+   handle never chooses a host. When its backend is not the route's, the call
+   throws `invalid-input` naming `backend`.
+3. Polls the job at once, then every `pollIntervalMs`, until the job ends or
+   `timeoutMs` is spent, as [verify()](verify.md#what-it-does) does.
+4. When the explorer no longer knows the job, it looks the contract up once.
+   A match returns `verified`; otherwise it throws `job-not-found`.
 
 The call ends within `timeoutMs` plus `min(pollIntervalMs, 30000)`.
 
-## Options
-
-The options of [verify()](verify.md#options) without `rpcUrl`, with the same defaults and checks
-(`CheckStatusOptions`). `checkStatus()` polls a job that was already submitted, so it derives no
-constructor arguments. At run time it accepts an options object built for `verify()`, `rpcUrl`
-included, and checks it. See [Options of each function](verify.md#options-of-each-function).
-
-## Results and errors
-
-The results are those of [verify()](verify.md#results), with the same exit codes. The errors
-differ in these cases:
-
-| Code                        | When `checkStatus()` throws it                                                                                        | Exit code |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------- |
-| `invalid-input`             | The options or the handle are invalid, or the handle's backend is not the route's. Nothing was sent                   | 2         |
-| `not-confirmed`             | The budget ran out, or 3 polls in a row failed, before the job ended. `details.handle` is the same handle: call again | 4         |
-| `verification-inconclusive` | The job ended without a verdict. No handle: call `verify()` again                                                     | 4         |
-| `job-not-found`             | The explorer no longer knows the job, and a lookup found the contract not verified, or failed. The hint says which    | 6         |
-
-When the lookup finds the contract not verified, the `job-not-found` hint says to call `verify()`
-again. When the lookup fails, the hint says to check the contract on the explorer first. Its
-`cause` is the lookup's error.
-
-`checkStatus()` never throws `timeout`: the job id exists. [Errors](errors/index.md) links the
-page of every code, with its fix.
+A handle from a self-hosted Sourcify server, resumed without its `route`, is
+polled on the public server, which does not know the job. A Sourcify handle
+from `verifyEach()`, on a chain where `handlerUrl` makes Etherscan the
+choice, resumes only with `route: { backend: "sourcify" }`.
 
 ## Events
 
-`checkStatus()` emits `verify.routed`, one `verify.poll` per pending poll, `verify.retry` before
-each retry wait, and `verify.result` last. It emits no `verify.validated`, `verify.lookup` or
-`verify.submitted`. A call that throws emits no `verify.result`. See
+`checkStatus()` emits `verify.routed`, then one `verify.poll` per pending
+poll, and `verify.result` last. `verify.retry` comes before each retry wait.
+It emits no `verify.validated`, `verify.lookup` or `verify.submitted`. A
+call that throws emits no `verify.result`. See
 [Logging and events](logging-and-events.md#events).
 
-## Tested live
+## Sources
 
-On 2026-11-03, with Node.js and the public Sourcify server, no key:
-
-- Base Sepolia (chain id 84532), contract `0x37e6e91f168c4aafd405444596b42de58dfc84ef`, deployed in
-  transaction `0xa285187bcc6a93710dc959182433cad02802c1fe0e47bfd53ee2c2b2d766c580`. A `verify()`
-  submit got job `1e5c597f-643c-4133-b088-2499daf81600`. Its handle was stored, then passed to
-  `checkStatus()` twice. Both calls returned `verified` with `exact` after one GET request each.
-- Base Sepolia, the handle
+- Tested live on 2026-11-03 with Node.js and public Sourcify, no key, on
+  Base Sepolia (84532). A `verify()` submit of
+  `0x37e6e91f168c4aafd405444596b42de58dfc84ef` got job
+  `1e5c597f-643c-4133-b088-2499daf81600`. Its stored handle, passed to
+  `checkStatus()` twice, returned `verified` with `exact` after one GET
+  request each time.
+- The same day, the handle
   `ev1:sourcify:84532:0x616dc0f820416e46841d2e1122ff7ca615a740fe:c2ecf68c-2f91-436f-8670-3210387bb3ea`
-  from the `verify()` run in [verify()](verify.md#tested-live): `checkStatus()` returned `verified`
-  with `exact` after one GET request.
+  from the run in [verify()](verify.md#sources) returned `verified` with
+  `exact` after one GET request.
