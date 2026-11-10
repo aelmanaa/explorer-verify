@@ -10,12 +10,15 @@ import { fileURLToPath } from "node:url";
 import { buildVerifyInput, validateInput } from "explorer-verify";
 
 import { envelopeProblems, inputProblems, oneEnvelope } from "../helpers/schema.ts";
+import { shellExamples } from "../helpers/shell-examples.ts";
 import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
 
 const TIMEOUT = { timeout: 30_000 };
 const SAMPLE = fileURLToPath(
   new URL("../../../../docs/user/start/greeter-sepolia.json", import.meta.url),
 );
+const START = fileURLToPath(new URL("../../../../docs/user/start/", import.meta.url));
+const PACKAGES_PAGE = "which-package.md";
 const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const SEPOLIA = 11155111;
 
@@ -75,4 +78,23 @@ describe("sample request greeter-sepolia.json", { concurrency: true }, () => {
     assert.equal(field(output, "lookup"), "exact", result.stdout);
     assert.equal(field(output, "routedBy"), "table", result.stdout);
   });
+});
+
+describe("the dry run on start/which-package.md", { concurrency: true }, () => {
+  const examples = shellExamples(readFileSync(`${START}${PACKAGES_PAGE}`, "utf8"), PACKAGES_PAGE);
+
+  it("is one dry run of the sample request", () => {
+    assert.deepEqual(
+      examples.map(({ args }) => args.join(" ")),
+      ["verify --input-json greeter-sepolia.json --dry-run --json"],
+    );
+  });
+
+  for (const example of examples) {
+    it(`line ${String(example.line)} prints what the page shows`, TIMEOUT, async () => {
+      const result = await runBin(example.args, { cwd: START, fake: { scenario: "verified" } });
+      assert.equal(result.code, example.exitCode, result.stderr);
+      assert.equal(result.stdout, example.stdout);
+    });
+  }
 });

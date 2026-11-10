@@ -11,6 +11,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 | Page                                                                                                | What it covers                                                                                |
 | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [Which package do I need](user/start/which-package.md)                                              | The four packages and the entries of `explorer-verify`: task, install, runtime                |
 | [Quickstart: browser dapp](user/start/quickstart-browser.md)                                        | A dry run from a Vite page, no key, then `verify()`                                           |
 | [Quickstart: Node.js script](user/start/quickstart-node.md)                                         | A dry run from a TypeScript script, no key, then `verify()`                                   |
 | [Quickstart: SDK wrapper](user/start/quickstart-sdk-wrapper.md)                                     | One client from `explorer-verify/core`, one error code mapped                                 |
@@ -50,6 +51,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | [API reference](https://aelmanaa.github.io/explorer-verify/api/)                                    | Every export of each package, generated from TSDoc, on the docs site                          |
 | [Match types](user/explanation/match-types.md)                                                      | What `exact` and `partial` mean, and matches made without a submit                            |
 | [Etherscan plans and attribution](user/explanation/etherscan-plans-and-attribution.md)              | Which plan a use needs, the attribution text, keys off the client                             |
+| [Glossary](user/explanation/glossary.md)                                                            | Backend, route, handle, envelope, lookup, match grade and other terms                         |
 | [Agent skill](../skills/explorer-verify/SKILL.md)                                                   | The skill shipped in the package, with examples tested against the build                      |
 
 ## Contributors
