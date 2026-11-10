@@ -1,0 +1,52 @@
+{
+  "source": "Live response from api.routescan.io to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:09:44.784Z: verifysourcecode for the MatchGrade287 probe built with bytecodeHash \"none\" at 0x83f6c8a7ae518eb4a0a460d6119184f3639f568b on Ethereum Sepolia (issue #287). The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api",
+    "headers": {
+      "apikey": "[redacted]",
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "sourceCode": "[925 characters: the Standard JSON input]",
+        "contractaddress": "0x83f6c8a7ae518eb4a0a460d6119184f3639f568b",
+        "contractname": "src/MatchGrade287.sol:MatchGrade287",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a585a307e9f2d92d-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:09:46 GMT",
+      "server": "cloudflare",
+      "transfer-encoding": "chunked",
+      "vary": "accept-encoding",
+      "x-ratelimit-rpd-limit": "100000",
+      "x-ratelimit-rpd-remaining": "99997",
+      "x-ratelimit-rpd-reset": "86400",
+      "x-ratelimit-rpm-limit": "300",
+      "x-ratelimit-rpm-remaining": "297",
+      "x-ratelimit-rpm-reset": "60",
+      "x-request-id": "01a1c5cb-21b7-7182-ae62-29770133c497"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": "e6f3e6b9-f787-5ae3-96d8-85d4d06d6404"
+    }
+  },
+  "recordedAt": "2026-11-10T14:09:44.784Z"
+}

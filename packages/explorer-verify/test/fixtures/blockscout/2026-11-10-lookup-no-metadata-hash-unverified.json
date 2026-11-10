@@ -1,0 +1,42 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:06:24.172Z: the lookup before the submit, on eth-sepolia.blockscout.com for the MatchGrade287 probe built with bytecodeHash \"none\" at 0xea02aff76e67b89aea47c4fa0e6639e4eece1d32 on Ethereum Sepolia (issue #287).",
+  "request": {
+    "method": "GET",
+    "url": "https://eth-sepolia.blockscout.com/api/v2/smart-contracts/0xea02aff76e67b89aea47c4fa0e6639e4eece1d32"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "temporary_token",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a5859e23a871526e-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:06:26 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=Pdz6goPFpfriG83YWxJSXn3H%2BmNsrw1Y%2F6avsHF9iO7kOswj%2FOqSNkGPDtcQ5f3ihp2viHaFsV%2B03E5E2wr7%2F4BjEmoWFcHric55QdPjrz9G7ZJAZB6SgQ%2FNFzw64pvHEcsTm537bTsTWLCa\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "180",
+      "x-ratelimit-remaining": "179",
+      "x-ratelimit-reset": "34028",
+      "x-request-id": "c3749a76637b071583998042a4d05e7c"
+    },
+    "body": {
+      "conflicting_implementations": null,
+      "creation_bytecode": "0x608060405234801561000f575f80fd5b5060c58061001c5f395ff3fe6080604052348015600e575f80fd5b5060043610603a575f3560e01c806306661abd14603e57806347221ac714605757806368110b2f146065575b5f80fd5b60455f5481565b60405190815260200160405180910390f35b6045674404d0bfab7b72a381565b60455f60015f80828254607791906094565b90915550505f54608f90674404d0bfab7b72a3906094565b905090565b8082018082111560b257634e487b7160e01b5f52601160045260245ffd5b9291505056fea164736f6c6343000818000a",
+      "creation_status": "success",
+      "deployed_bytecode": "0x6080604052348015600e575f80fd5b5060043610603a575f3560e01c806306661abd14603e57806347221ac714605757806368110b2f146065575b5f80fd5b60455f5481565b60405190815260200160405180910390f35b6045674404d0bfab7b72a381565b60455f60015f80828254607791906094565b90915550505f54608f90674404d0bfab7b72a3906094565b905090565b8082018082111560b257634e487b7160e01b5f52601160045260245ffd5b9291505056fea164736f6c6343000818000a",
+      "implementations": [],
+      "proxy_type": null
+    }
+  },
+  "recordedAt": "2026-11-10T14:06:24.172Z"
+}

@@ -1,0 +1,54 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:06:25.520Z: verifysourcecode for the MatchGrade287 probe built with bytecodeHash \"none\" at 0xea02aff76e67b89aea47c4fa0e6639e4eece1d32 on Ethereum Sepolia (issue #287).",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input",
+        "sourceCode": "[926 characters: the Standard JSON input]",
+        "contractaddress": "0xea02aff76e67b89aea47c4fa0e6639e4eece1d32",
+        "contractname": "src/MatchGrade287.sol:MatchGrade287",
+        "compilerversion": "v0.8.24+commit.e11b9ed9"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "bypass-429-option,x-ratelimit-reset,x-ratelimit-limit,x-ratelimit-remaining,api-v2-temp-token",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "bypass-429-option": "no_bypass",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a5859e2a89f4526e-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:06:27 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=Hj5gR8nycAAwY7HfTKSGYLSCRQfiLZ7OEh6rf%2BPBT9M4LCUs1cPEDXkU27dEHl6J9aqar7NMe%2FhpWZXEyBetipvRcr058YHtuOqENcA1065vfU83AugRZdXgsA9kwM6SvHH%2FBLK5bDO4DTma\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "9",
+      "x-ratelimit-reset": "3212998",
+      "x-request-id": "bbe95621887391208ce85cdbc9b362a1"
+    },
+    "body": {
+      "message": "OK",
+      "result": "ea02aff76e67b89aea47c4fa0e6639e4eece1d326af324e3",
+      "status": "1"
+    }
+  },
+  "recordedAt": "2026-11-10T14:06:25.520Z"
+}

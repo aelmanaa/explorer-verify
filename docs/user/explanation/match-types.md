@@ -37,16 +37,35 @@ explorer-verify uses Sourcify's terms
 A partial match still shows that the published sources compile to the deployed code. It does not
 show that they are the exact files the deployer compiled.
 
-## Why a build can reach only a partial match
+## Builds without a metadata hash
 
 A build compiled with `bytecodeHash` set to `"none"` carries no metadata hash
 ([Solidity compiler input](https://docs.soliditylang.org/en/v0.8.24/using-the-compiler.html),
 read 2026-11-04). Foundry sets it with `bytecode_hash = "none"`; its default is `"ipfs"`
 ([Foundry compiler config](https://getfoundry.sh/reference/config/solidity-compiler), read
 2026-11-04). With no hash to compare, a match cannot show that the sources are the exact files
-compiled, and Blockscout reports such a build as a partial match
-([prior art](../../contributor/prior-art.md#behaviour-both-implementations-learned)). For that
-build, partial is the best result, not a failure.
+compiled. Explorers grade such a build differently. On 2026-11-10, one such contract per explorer
+was deployed on Ethereum Sepolia and submitted for the first time with explorer-verify 0.1.0
+([live probe](../../contributor/research/2026-11-10-no-metadata-hash-grades.md#results)):
+
+| Explorer                            | Its answer                                                       | `match` explorer-verify reports |
+| ----------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
+| Etherscan v2                        | `Pass - Verified`; the lookup has an empty `SimilarMatch`        | `exact`                         |
+| Sourcify                            | `match` for the creation and the runtime code, not `exact_match` | `partial`                       |
+| Blockscout, instance and hosted API | `is_fully_verified` `false`, `is_partially_verified` `true`      | `partial`                       |
+| Routescan                           | `Pass - Verified`; the lookup has no field that grades the match | `exact`                         |
+
+The same contract built with the default `"ipfs"` hash got `exact` on all four in the same probe.
+Blockscout gave the same partial grade on Base Sepolia on 2026-11-04
+([Blockscout](../reference/blockscout.md#partial-matches)).
+
+On Sourcify and Blockscout, partial is the best such a build can get; it is not a failure.
+Etherscan's `exact` fits its own definition of an Exact Match, "the exact contract code that was
+deployed"
+([Types of contract verification](https://info.etherscan.com/types-of-contract-verification/),
+read 2026-11-04), which does not depend on a metadata hash. Routescan states no grade. So
+explorer-verify reports every Routescan match as `exact`, which there means "verified", not a
+checked grade.
 
 Linked libraries can lower the grade too. On 2026-11-03, a contract compiled without library
 addresses and linked afterwards, as Foundry does, got an exact match on Sourcify when submitted
@@ -130,4 +149,6 @@ On 2026-11-04, a build without a metadata hash gave `verified` with `partial`, n
 - Compile with a metadata hash, the default, and submit the Standard JSON input of that build. That
   build can reach `exact`.
 - Submit `settings.libraries` as it was at compile time, not with addresses added afterwards.
-- A build without a metadata hash can only reach `partial`. That result is correct for it.
+- A build without a metadata hash reaches only `partial` on Sourcify and Blockscout, and `exact` on
+  Etherscan v2 and Routescan. On Sourcify and Blockscout, `partial` is the correct result for it.
+  See [Builds without a metadata hash](#builds-without-a-metadata-hash).

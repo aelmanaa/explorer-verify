@@ -1,0 +1,59 @@
+{
+  "source": "Live response from api.routescan.io to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:09:43.977Z: getsourcecode before the submit for the MatchGrade287 probe built with bytecodeHash \"none\" at 0x83f6c8a7ae518eb4a0a460d6119184f3639f568b on Ethereum Sepolia (issue #287). The real key is replaced by [redacted].",
+  "request": {
+    "method": "GET",
+    "url": "https://api.routescan.io/v2/network/testnet/evm/11155111/etherscan/api?module=contract&action=getsourcecode&address=0x83f6c8a7ae518eb4a0a460d6119184f3639f568b&nocache=n2quw1uoqsj",
+    "headers": {
+      "apikey": "[redacted]"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "MISS",
+      "cf-ray": "a585a303bf3bd92d-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:09:46 GMT",
+      "last-modified": "Tue, 10 Nov 2026 14:09:46 GMT",
+      "server": "cloudflare",
+      "speculation-rules": "\"/cdn-cgi/speculation\"",
+      "transfer-encoding": "chunked",
+      "vary": "accept-encoding",
+      "x-ratelimit-rpd-limit": "100000",
+      "x-ratelimit-rpd-remaining": "99999",
+      "x-ratelimit-rpd-reset": "86400",
+      "x-ratelimit-rpm-limit": "300",
+      "x-ratelimit-rpm-remaining": "299",
+      "x-ratelimit-rpm-reset": "60",
+      "x-request-id": "01a1c5cb-1ed7-737b-b952-5bd97117e6a5"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "",
+          "ABI": "Contract source code not verified",
+          "ContractName": "",
+          "CompilerVersion": "",
+          "CompilerType": "",
+          "OptimizationUsed": "",
+          "Runs": "",
+          "ConstructorArguments": "",
+          "EVMVersion": "Default",
+          "Library": "",
+          "LicenseType": "Unknown",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": ""
+        }
+      ]
+    }
+  },
+  "recordedAt": "2026-11-10T14:09:43.977Z"
+}

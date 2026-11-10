@@ -1,0 +1,37 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:09:44.541Z: the submit for the MatchGrade287 probe built with bytecodeHash \"none\" at 0xd6f4ed540d68798effeb7937f3894f8e51dc0444 on Ethereum Sepolia (issue #287).",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0xd6f4ed540d68798effeb7937f3894f8e51dc0444",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "encoding": "application/json",
+      "json": {
+        "stdJsonInput": "[925 characters: the Standard JSON input]",
+        "compilerVersion": "0.8.24+commit.e11b9ed9",
+        "contractIdentifier": "src/MatchGrade287.sol:MatchGrade287"
+      }
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=2592000",
+      "content-length": "57",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:09:46 GMT",
+      "etag": "W/\"39-ckoxqPXeqCJCBGA66HxB5T5mUKE\"",
+      "server": "Google Frontend",
+      "via": "1.1 google",
+      "x-cloud-trace-context": "c02e071b895499953bf119454ce44761",
+      "x-powered-by": "Express"
+    },
+    "body": {
+      "verificationId": "9684864b-161f-4cc0-b7f7-67210c60baf4"
+    }
+  },
+  "recordedAt": "2026-11-10T14:09:44.541Z"
+}

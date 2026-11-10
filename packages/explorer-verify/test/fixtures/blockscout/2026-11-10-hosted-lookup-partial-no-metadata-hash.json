@@ -1,0 +1,130 @@
+{
+  "source": "Live response from api.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify 0.1.0, recorded 2026-11-10T14:09:01.002Z: the lookup after the job passed for the MatchGrade287 probe built with bytecodeHash \"none\" at 0x21daa94317e22dc667f5b3088fc7905187ac6813 on Ethereum Sepolia (issue #287). The real key is replaced by [redacted].",
+  "request": {
+    "method": "GET",
+    "url": "https://api.blockscout.com/11155111/api/v2/smart-contracts/0x21daa94317e22dc667f5b3088fc7905187ac6813",
+    "headers": {
+      "authorization": "[redacted]"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "max-age=0, private, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a585a1f64c148672-LIS",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-length": "1101",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Nov 2026 14:09:02 GMT",
+      "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=LYq0sZnP9EwQAFtw%2Bt%2FMTqmGA%2FNN9%2BH09rl6xBOa68bdWPTmL%2FRbhHX%2BGGdJjBEYgxWMCd9dM%2BEBpNWHFmgMbgVQJymFmY8MAt%2BSrAN9uelzgJ3q7N0nmDcPk6ZOgZ%2Fnavc2qw%3D%3D\"}]}",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "vary": "accept-encoding",
+      "x-credits-remaining": "99720",
+      "x-ratelimit-limit": "5",
+      "x-ratelimit-remaining": "3",
+      "x-ratelimit-reset": "520",
+      "x-request-id": "32133b7a9d5d8b531b1fd9bbc88a5208"
+    },
+    "body": {
+      "constructor_args": null,
+      "is_partially_verified": true,
+      "is_changed_bytecode": false,
+      "abi": [
+        {
+          "inputs": [],
+          "name": "TAG",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "bump",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "count",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      "conflicting_implementations": null,
+      "certified": false,
+      "additional_sources": [],
+      "is_verified_via_sourcify": false,
+      "can_be_visualized_via_sol2uml": true,
+      "evm_version": "cancun",
+      "language": "solidity",
+      "is_verified_via_eth_bytecode_db": false,
+      "is_fully_verified": false,
+      "license_type": "none",
+      "is_blueprint": false,
+      "name": "MatchGrade287",
+      "creation_bytecode": "0x608060405234801561000f575f80fd5b5060c58061001c5f395ff3fe6080604052348015600e575f80fd5b5060043610603a575f3560e01c806306661abd14603e57806347221ac714605757806368110b2f146065575b5f80fd5b60455f5481565b60405190815260200160405180910390f35b604567ae3a8c3465386d6981565b60455f60015f80828254607791906094565b90915550505f54608f9067ae3a8c3465386d69906094565b905090565b8082018082111560b257634e487b7160e01b5f52601160045260245ffd5b9291505056fea164736f6c6343000818000a",
+      "external_libraries": [],
+      "proxy_type": null,
+      "implementations": [],
+      "verified_at": "2026-11-10T14:09:00.137042Z",
+      "is_verified_via_verifier_alliance": false,
+      "compiler_version": "v0.8.24+commit.e11b9ed9",
+      "decoded_constructor_args": null,
+      "sourcify_repo_url": null,
+      "optimization_runs": 200,
+      "compiler_settings": {
+        "evmVersion": "cancun",
+        "libraries": {},
+        "metadata": {
+          "appendCBOR": true,
+          "bytecodeHash": "none",
+          "useLiteralContent": false
+        },
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "outputSelection": {
+          "*": {
+            "": ["*"],
+            "*": ["*"]
+          }
+        },
+        "viaIR": false
+      },
+      "is_verified": true,
+      "verified_twin_address_hash": null,
+      "optimization_enabled": true,
+      "deployed_bytecode": "0x6080604052348015600e575f80fd5b5060043610603a575f3560e01c806306661abd14603e57806347221ac714605757806368110b2f146065575b5f80fd5b60455f5481565b60405190815260200160405180910390f35b604567ae3a8c3465386d6981565b60455f60015f80828254607791906094565b90915550505f54608f9067ae3a8c3465386d69906094565b905090565b8082018082111560b257634e487b7160e01b5f52601160045260245ffd5b9291505056fea164736f6c6343000818000a",
+      "source_code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.24;\n\n// explorer-verify issue 287 probe, 2026-11-10, build nohash, explorer hosted\ncontract MatchGrade287 {\n    uint256 public constant TAG = 12554501067913063785;\n    uint256 public count;\n\n    function bump() external returns (uint256) {\n        count += 1;\n        return count + TAG;\n    }\n}\n",
+      "creation_status": "success",
+      "file_path": "src/MatchGrade287.sol"
+    }
+  },
+  "recordedAt": "2026-11-10T14:09:01.002Z"
+}

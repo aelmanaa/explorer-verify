@@ -348,7 +348,8 @@ the default, and let your users opt in, where the table says how.
 | `already-verified`    | `already-verified` | The same. Nothing was submitted                                     |
 | `failed`              | `failed`           | `backend`, `reason`: the explorer's code and message                |
 
-`match` is `partial` when the explorer matched the code but not the metadata hash. The example
+`match` is `partial` when the explorer matched the code but not the metadata hash. For a build
+without a metadata hash, a partial match is the best result Sourcify and Blockscout give. The example
 counts a partial match as success and carries `match` on the report, so its users can tell the
 two apart. If your tool reports only success or failure, decide whether a partial match counts as
 success, and say so in your docs. See [Match types](../explanation/match-types.md).
