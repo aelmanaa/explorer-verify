@@ -11,6 +11,9 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 | Page                                                                                                | What it covers                                                                                |
 | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [Quickstart: browser dapp](user/start/quickstart-browser.md)                                        | A dry run from a Vite page, no key, then `verify()`                                           |
+| [Quickstart: Node.js script](user/start/quickstart-node.md)                                         | A dry run from a TypeScript script, no key, then `verify()`                                   |
+| [Quickstart: SDK wrapper](user/start/quickstart-sdk-wrapper.md)                                     | One client from `explorer-verify/core`, one error code mapped                                 |
 | [Quickstart: the CLI](user/start/quickstart-cli.md)                                                 | Dry run the sample request with `npx`, then a project, then verify                            |
 | [Quickstart: a Foundry project](user/start/quickstart-foundry.md)                                   | Dry run and verify a Foundry contract with `--foundry .`                                      |
 | [Quickstart: a Hardhat project](user/start/quickstart-hardhat.md)                                   | Dry run and verify a Hardhat contract with `--hardhat .`; not a plugin                        |

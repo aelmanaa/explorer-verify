@@ -96,6 +96,11 @@ const NODE = "guides/verify-from-node.md";
 const EDGE = "guides/verify-from-an-edge-function.md";
 const QUEUE = "advanced/resume-from-a-job-queue.md";
 const WRAPPER = "guides/wrap-explorer-verify-in-your-tool.md";
+const QUICKSTARTS = [
+  "start/quickstart-browser.md",
+  "start/quickstart-node.md",
+  "start/quickstart-sdk-wrapper.md",
+];
 /** The key variables every run starts with: empty, which the examples read as unset. */
 const NO_KEYS: Readonly<Record<string, string>> = { ETHERSCAN_API_KEY: "", ROUTESCAN_API_KEY: "" };
 /** A dummy Etherscan key in the environment, for the examples that read it from there. */
@@ -124,6 +129,23 @@ const RUNS: readonly DocRun[] = [
     setup: "hardhat-3",
     fixtures: ALREADY_VERIFIED,
   },
+
+  // Each quickstart's dry run reads the sample request and finds the Greeter on Sourcify. The
+  // browser and Node quickstarts then call verify(), which finds it verified and submits nothing.
+  ...QUICKSTARTS.map((page): DocRun => ({
+    page,
+    example: 0,
+    what: "quickstart dry run on the sample request",
+    fixtures: ALREADY_VERIFIED,
+    // The page shows this output after the command that runs the block.
+    stdout: "dry-run sourcify exact\n",
+  })),
+  ...QUICKSTARTS.slice(0, 2).map((page): DocRun => ({
+    page,
+    example: 1,
+    what: "quickstart verify() on the sample request: already verified",
+    fixtures: ALREADY_VERIFIED,
+  })),
 
   {
     page: "guides/verify-a-contract-from-an-npm-package.md",
@@ -309,15 +331,9 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "reference/routing.md",
-    example: 0,
+    example: 1,
     what: "route.backend blockscout on a chain whose row lists an instance (#169)",
     fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
-  },
-  {
-    page: "reference/routing.md",
-    example: 1,
-    what: "allowSourcifyFallback on a listed chain",
-    fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/server-handler.md",
@@ -506,13 +522,18 @@ const RUNS: readonly DocRun[] = [
   {
     page: "reference/core.md",
     example: 0,
-    what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
+    what: "explorer-verify/core dry run with one client and the table",
     fixtures: ALREADY_VERIFIED,
-    stdout: "already-verified sourcify\n",
   },
   {
     page: "reference/core.md",
     example: 1,
+    what: "explorer-verify/core with two clients and the table: Sourcify, as no key is set",
+    fixtures: ALREADY_VERIFIED,
+  },
+  {
+    page: "reference/core.md",
+    example: 2,
     what: "explorer-verify/core ends not-confirmed: the error class and the handle from their subpaths",
     fixtures: NOT_CONFIRMED,
     stdout: `${RECORDED_HANDLE}\n`,
