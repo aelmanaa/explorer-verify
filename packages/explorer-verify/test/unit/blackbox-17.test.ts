@@ -928,7 +928,7 @@ describe("verify(): time budget", () => {
         ok: false,
         error: {
           code: "not-confirmed",
-          hint: "Call checkStatus with details.handle later to continue polling.",
+          hint: "Call checkStatus later with the error's handle (details.handle) to continue polling.",
           docsUrl: docsUrlOf("not-confirmed"),
           retryable: true,
           handle:

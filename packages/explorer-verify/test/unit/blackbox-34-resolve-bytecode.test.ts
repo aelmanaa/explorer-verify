@@ -1635,7 +1635,10 @@ describe("#34 feeding verify()", () => {
     assert.ok(
       ea.error !== undefined && ea.error.hint.startsWith("Build the input from the build files"),
     );
-    assert.ok(eb.error !== undefined && eb.error.hint.startsWith("Read details.attempts"));
+    assert.ok(
+      eb.error !== undefined &&
+        eb.error.hint.startsWith("The error lists each source tried (details.attempts)."),
+    );
     // json-output.md: the envelope holds the details, redacted.
     assert.ok(eb.error !== undefined);
     assert.deepEqual(eb.error.details, { code: "metadata-unavailable", hash: "", attempts: [] });

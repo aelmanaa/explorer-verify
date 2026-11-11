@@ -735,7 +735,8 @@ function invalid({ issues, hints }: Problems): ExplorerVerifyError {
   const head = first === undefined ? "" : `${first.field} ${first.message}`;
   const rest = others.length === 0 ? "" : `; also ${others.map((issue) => issue.field).join(", ")}`;
   const [hint] = hints;
-  const more = issues.length > 1 ? " Then fix the other fields in details.issues." : "";
+  const more =
+    issues.length > 1 ? " Then fix the other fields that the issues list (details.issues)." : "";
   return newError({ code: "invalid-input", issues }, `The input is invalid: ${head}${rest}.`, {
     ...(hint === undefined ? {} : { hint: `${hint}${more}` }),
     // Stryker disable next-line ArrayDeclaration: equivalent. The message and the issues name only fields, never the text Stryker puts here.

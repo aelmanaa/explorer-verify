@@ -22,6 +22,9 @@ build-info or metadata; (2) the bytecode-metadata resolver, when the bytecode ca
 hash and the metadata is published; (3) the explorer's own matching (Etherscan Similar Match,
 Sourcify similarity), when an identical contract is already verified.
 
+For end users: The build output holds only the ABI and the bytecode, which is not enough for
+verification. Use the full build output of the compiler.
+
 From the CLI: ABI and bytecode are not enough to verify. Pass the build-info or the Solidity
 metadata of the same build with --input.
 

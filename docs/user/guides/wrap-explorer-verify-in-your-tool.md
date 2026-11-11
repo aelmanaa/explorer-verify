@@ -411,6 +411,42 @@ the example's choice, from `KIND` above.
 code columns of this table against the library, so the table changes when a release adds a code.
 The [error reference](../reference/errors/index.md) has a page per code with the cause and the fix.
 
+## Show errors to your tool's users
+
+`error.hint` is for the developer who calls explorer-verify. It can name a function or an option,
+such as "Call checkStatus later with the error's handle (details.handle) to continue polling". It
+names field paths only in parentheses, so it still reads correctly when your error class keeps the
+details under another name. A developer who uses your tool can act on it when your error carries
+the details: keep `error.toJSON().details` on your error, as `cause.details` or `context.details`,
+for example.
+
+The people who use your tool, in an IDE, a dapp or a verification receipt, cannot call
+`checkStatus()` or raise `timeoutMs`. Show them `hintFor(error, "user")` instead. It names no
+function, option, field or command, and reads the error's details, such as the wait the explorer
+asked for. `error.message` is developer text too: it can name a field, such as `chainId`. Show the
+user hint alone, or after a summary in your tool's own words, and keep `error.message` for your
+logs:
+
+<!-- no-run: it defines a function and calls nothing, so there is no output to check. -->
+
+```ts no-run
+import { hintFor } from "explorer-verify/errors";
+import type { AnyExplorerVerifyError } from "explorer-verify/errors";
+
+/** The line an IDE terminal shows for a failed verification. */
+function terminalLine(error: AnyExplorerVerifyError): string {
+  console.debug(error.message, error.hint);
+  return `Verification failed. ${hintFor(error, "user")}`;
+}
+```
+
+For a `rate-limited` error whose explorer asked for 3 seconds, `hintFor(error, "user")` returns
+"The explorer is limiting requests. Wait 3 seconds, then try again." `hintFor(error, "developer")`
+returns `error.hint`. Both also take the JSON form, from `error.toJSON()` or an envelope. Each
+code's page in the [error reference](../reference/errors/index.md) gives its end-user hint. To
+write your own words, as the CLI does for its flags, switch on `error.code` and read
+`error.details`.
+
 ## Ship only the clients your tool uses
 
 How much of explorer-verify reaches your users depends on how your tool is built.
@@ -469,12 +505,12 @@ minified, gzip from the zlib of Node 24.21.0, on 2026-11-06:
 
 When your tool re-exports names of explorer-verify, re-export each one from its smallest entry:
 
-| Names                                                                   | Entry                      |
-| ----------------------------------------------------------------------- | -------------------------- |
-| `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS` and the error types | `explorer-verify/errors`   |
-| `formatHandle`, `parseHandle`, `tryParseHandle`, `isHandleString`       | `explorer-verify/handle`   |
-| `BACKEND_NAMES`, `toBackendName`                                        | `explorer-verify/backends` |
-| `toEnvelope`, `exitCodeOf`, `ERROR_EXIT_CODES`, for a CLI               | `explorer-verify/envelope` |
+| Names                                                                              | Entry                      |
+| ---------------------------------------------------------------------------------- | -------------------------- |
+| `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS`, `hintFor` and the error types | `explorer-verify/errors`   |
+| `formatHandle`, `parseHandle`, `tryParseHandle`, `isHandleString`                  | `explorer-verify/handle`   |
+| `BACKEND_NAMES`, `toBackendName`                                                   | `explorer-verify/backends` |
+| `toEnvelope`, `exitCodeOf`, `ERROR_EXIT_CODES`, for a CLI                          | `explorer-verify/envelope` |
 
 These entries never reach the verification code. A user of your tool who imports only an error
 code or a handle function then gets one file. Under esbuild with `splitting: true`, the same

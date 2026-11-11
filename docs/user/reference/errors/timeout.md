@@ -12,6 +12,8 @@ may report the contract as verified or in progress.
 
 Default hint: Call again, or raise timeoutMs. The explorer had not accepted the submission yet.
 
+For end users: The explorer did not accept the submission in time. Try again.
+
 From the CLI: Run the command again, or raise --timeout. The explorer had not accepted the
 submission, so nothing is pending.
 

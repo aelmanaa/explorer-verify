@@ -160,7 +160,7 @@ describe("checkSourceHashes (#202, R-IN-7)", () => {
       );
       assert.equal(
         error.hint,
-        "Pass the source file exactly as it was compiled, byte for byte, line endings included. details.path names the file; details.expected is the hash the metadata records.",
+        "Pass the source file exactly as it was compiled, byte for byte, line endings included. The error names the file (details.path) and the hash that the metadata records for it (details.expected).",
       );
       assert.deepEqual(error.details, {
         code: "source-mismatch",

@@ -28,8 +28,11 @@ for an explorer on its own host. For `etherscan-v2` in a browser, set `handlerUr
 `etherscan-v2`, the message of the error thrown before any request names `handlerUrl`.
 [API keys](../api-keys.md) describes where each key goes.
 
-Default hint: Pass the key in apiKeys under the backend named in details.backend, or as
-route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.
+Default hint: Pass the key in apiKeys under the backend that the error names (details.backend), or
+as route.apiKey for an explorer on its own host, then call again. Keep the key out of browser code.
+
+For end users: The explorer needs an API key and none is set. Add a key for this explorer in the
+tool's settings, or ask the tool's maintainer to set one.
 
 From the CLI: etherscan-v2 needs an API key: set ETHERSCAN_API_KEY, or pass --api-key-file `<path>`
 or --api-key-stdin with --backend etherscan-v2. --backend sourcify needs no key.

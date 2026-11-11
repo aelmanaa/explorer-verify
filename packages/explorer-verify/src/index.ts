@@ -10,6 +10,7 @@ export { BACKEND_NAMES, toBackendName } from "./backend-names.ts";
 export type { BackendName, KeyedBackendName } from "./backend-names.ts";
 export { ERROR_HINTS } from "./error-hints.ts";
 export { ERROR_CODES, ExplorerVerifyError } from "./errors.ts";
+export { hintFor } from "./user-hints.ts";
 export type {
   AnyExplorerVerifyError,
   DetailsByCode,

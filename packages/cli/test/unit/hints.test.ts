@@ -579,6 +579,37 @@ describe("the CLI's own hints (R-AX-10, D3)", () => {
     );
   });
 
+  it("rewrites the contract hints of buildVerifyInput, which name fields in parentheses (#286)", () => {
+    assert.equal(
+      inCliWords(
+        "Pass the contract (options.contract) as path:Name, with a path that is a key of the compiler input's sources.",
+      ),
+      "Pass --contract as path:Name, with a path that is a key of the compiler input's sources.",
+    );
+    assert.equal(
+      inCliWords(
+        "Pass the contract (options.contract) as path:Name, or as a Name that matches one of the candidates (details.candidates).",
+      ),
+      "Pass --contract as path:Name, or as a Name that matches one of the paths listed.",
+    );
+    assert.equal(
+      inCliWords("Pass the contract (options.contract) as path:Name."),
+      "Pass --contract as path:Name.",
+    );
+  });
+
+  it("names the --input files, not options.sources, when sources are missing", () => {
+    const error = new ExplorerVerifyError(
+      { code: "incomplete-input", field: "sources", candidates: ["a.sol"] },
+      "The documents and options.sources lack 1 of the source files the Solidity metadata lists.",
+      { hint: "h", secrets: [] },
+    );
+    assert.equal(
+      cliErrorJson(error.toJSON()).message,
+      "The --input files lack 1 of the source files the Solidity metadata lists.",
+    );
+  });
+
   it("keeps a usage error's hint, which has none of the library's words", async () => {
     const fake = fakeIo(["verify", "--nope", "--json"]);
     assert.equal(await main(fake.io), 2);

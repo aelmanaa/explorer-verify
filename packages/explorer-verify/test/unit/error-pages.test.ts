@@ -8,16 +8,24 @@ import { describe, it } from "node:test";
 
 import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
 import { newError } from "../../src/error-hints.ts";
-import { ERROR_CODES } from "../../src/index.ts";
+import { ERROR_CODES, hintFor } from "../../src/index.ts";
 import type { ErrorCode, ExplorerVerifyError } from "../../src/index.ts";
 import { docsFileOf, docsUrlOf } from "../helpers/docs-url.ts";
-import { SAMPLE_DETAILS } from "../helpers/sample-details.ts";
+import { pageDetails, SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 
 const REPOSITORY = new URL("../../../../", import.meta.url);
 const PAGES = new URL("docs/user/reference/errors/", REPOSITORY);
 const RELEASED = new URL("../../released-error-codes.json", import.meta.url);
 // The labelled lines of a code page, in the order they appear. The CLI tests check "From the CLI:".
-const LABELS = ["Cause:", "Fix:", "Default hint:", "From the CLI:", "Retryable:", "Exit code:"];
+const LABELS = [
+  "Cause:",
+  "Fix:",
+  "Default hint:",
+  "For end users:",
+  "From the CLI:",
+  "Retryable:",
+  "Exit code:",
+];
 
 const codes: readonly string[] = ERROR_CODES;
 
@@ -103,6 +111,13 @@ describe("error pages (R-AX-10)", () => {
   it("states the catalogue's default hint on each page", () => {
     for (const code of ERROR_CODES) {
       assert.equal(paragraph(page(code), "Default hint:"), error(code).hint, code);
+    }
+  });
+
+  it("states the end-user hint of hintFor on each page (#298)", () => {
+    for (const code of ERROR_CODES) {
+      const hint = hintFor(newError(pageDetails(code), "m", { secrets: [] }), "user");
+      assert.equal(paragraph(page(code), "For end users:"), hint, code);
     }
   });
 

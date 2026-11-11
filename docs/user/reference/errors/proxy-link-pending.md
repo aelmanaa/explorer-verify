@@ -21,8 +21,12 @@ A call without `resumeJobId` sends a new request, which is also safe: it undoes 
 refuses a new request within its interval for the proxy, so resuming is quicker there. If the error
 keeps coming back on Blockscout, check that the address is a proxy.
 
-Default hint: Call linkProxy() again later with resumeJobId set to details.jobId: it checks the
-same link and sends no new request. A call without it sends a new request, which is also safe.
+Default hint: Call linkProxy() again later with resumeJobId set to the job id (details.jobId): it
+checks the same link and sends no new request. A call without it sends a new request, which is
+also safe.
+
+For end users: The explorer has not finished linking the proxy. Try again later; repeating the
+request is safe.
 
 From the CLI: The explorer had not finished linking the proxy. Link it again later; a new request is
 safe.

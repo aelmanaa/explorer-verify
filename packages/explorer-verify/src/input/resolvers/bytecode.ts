@@ -154,7 +154,7 @@ const CID_V0 = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/;
 const DWEB_PREFIX = "dweb:/ipfs/";
 
 const OPTIONS_HINT =
-  "Fix the fields in details.issues. Pass bytecode or rpcUrl, and https URLs for rpcUrl and ipfsGateway.";
+  "Fix the fields that the issues list (details.issues). Pass bytecode or rpcUrl, and https URLs for rpcUrl and ipfsGateway.";
 
 /** The checked options. */
 interface Settings {

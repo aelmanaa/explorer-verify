@@ -532,7 +532,7 @@ describe("linkProxy() on Etherscan v2 (R-FLOW-8)", () => {
     assert.equal(error.retryable, true);
     assert.equal(error.toJSON().handle, undefined);
     assert.match(error.message, /time budget ran out/);
-    assert.ok(error.hint.includes("resumeJobId set to details.jobId"));
+    assert.ok(error.hint.includes("resumeJobId set to the job id (details.jobId)"));
     // 10 s budget, a check every 3 s: three checks.
     assert.equal(r.calls.length, 4);
   });

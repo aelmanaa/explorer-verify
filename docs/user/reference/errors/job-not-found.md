@@ -17,6 +17,9 @@ not verified, and then the hint says to call `verify()` again, or when the looku
 Default hint: Do not retry automatically. Check the contract on the explorer; if it is not verified,
 call verify() again.
 
+For end users: The explorer no longer knows this verification. Check the contract's page on the
+explorer; if the contract is not verified, start a new verification.
+
 From the CLI: Do not retry automatically. Check the contract on the explorer; if it is not verified,
 run verify again.
 

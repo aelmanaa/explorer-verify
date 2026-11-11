@@ -22,7 +22,10 @@ Fix: correct each field listed in `details.issues` (`field` and `message`), then
 handle, pass the handle object or its one-line form, as `verify()` or a `not-confirmed` error
 returned it.
 
-Default hint: Fix the fields listed in details.issues, then call again.
+Default hint: Fix the fields that the issues list (details.issues), then call again.
+
+For end users: The verification request is not valid. Check the contract, the chain and the address,
+then try again; if it keeps failing, report the error to the tool's maintainer.
 
 From the CLI: Fix what the message names, and each issue listed under it, then run the command
 again. explorer-verify --help lists every option.

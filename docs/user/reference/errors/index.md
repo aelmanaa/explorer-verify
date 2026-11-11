@@ -28,8 +28,8 @@ one-line form when there is one, and `details`, redacted, with each handle in it
 never prints `cause`, the stack or an API key. Its type, `ErrorJson`, is a union keyed by `code`, so
 checking `code` narrows `details` there too.
 
-`ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS` and the error types are also exported from
-`explorer-verify/errors`. Code that only checks or maps errors imports them from there: that entry
+`ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS`, `hintFor` and the error types are also
+exported from `explorer-verify/errors`. Code that only checks or maps errors imports them from there: that entry
 never reaches the verification code, so any bundler emits one file for it.
 
 ```ts
@@ -96,6 +96,40 @@ const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper f
   hint: ERROR_HINTS["internal-error"],
   secrets: [],
 });
+```
+
+### Hints for your tool's users
+
+`error.hint` is written for the developer who calls the library. It may name a function, such as
+`checkStatus`, or an option, such as `timeoutMs`. It names each value in words; a field path such as
+`details.retryAfterMs` follows only in parentheses, so the hint still reads correctly where your
+tool gives the error's fields other names.
+
+`hintFor(error, "user")` returns a hint for the people who use your tool, such as an IDE, a dapp or
+a verification service. It names no function, option, field or command, and reads the error's
+details: it gives the wait the explorer asked for, says when an explorer with an Etherscan-style
+API has not indexed the contract yet, and tells a cancelled run with a handle to check the explorer
+before submitting again. `hintFor(error, "developer")` returns `error.hint`. Both take the error or
+its JSON form. `hintFor` never throws: a value it cannot read, or a code it does not know, gets a
+general hint. Each code's page gives its end-user hint on its "For end users" line.
+
+<!-- no-run: it calls a terminal function of the host tool, which a test run does not have. -->
+
+```ts no-run
+import { ExplorerVerifyError, hintFor, verify } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
+
+declare const input: VerifyInput;
+declare function showInTerminal(text: string): void;
+
+try {
+  await verify(input);
+} catch (error) {
+  if (ExplorerVerifyError.is(error)) {
+    showInTerminal(`Verification failed. ${hintFor(error, "user")}`);
+  }
+  throw error;
+}
 ```
 
 ### From the CLI
@@ -210,8 +244,8 @@ Some answers end the call at once with `unexpected-response`, without a retry:
 
 ## Codes
 
-Each code has its own page with the cause, the fix, the default hint, whether to retry and the exit
-code. `docsUrl` links that page.
+Each code has its own page with the cause, the fix, the default hint, the end-user hint, whether to
+retry and the exit code. `docsUrl` links that page.
 
 - [`invalid-input`](invalid-input.md)
 - [`not-confirmed`](not-confirmed.md)

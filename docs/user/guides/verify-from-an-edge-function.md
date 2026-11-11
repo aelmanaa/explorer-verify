@@ -264,7 +264,7 @@ and the Arbitrum Sepolia job has passed:
 ```text
 401 Unauthorized
 500 The Worker is not configured.
-400 {"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The input is invalid: input must be a plain object whose fields can be read.","hint":"Fix the fields listed in details.issues, then call again.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"input","message":"must be a plain object whose fields can be read"}]}}}
+400 {"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The input is invalid: input must be a plain object whose fields can be read.","hint":"Fix the fields that the issues list (details.issues), then call again.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"input","message":"must be a plain object whose fields can be read"}]}}}
 200 {"schemaVersion":1,"ok":true,"result":{"status":"already-verified","backend":"etherscan-v2","match":"exact","explorerUrl":"https://sepolia.etherscan.io/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc#code"}}
 200 {"schemaVersion":1,"ok":true,"result":{"status":"verified","backend":"etherscan-v2","match":"exact","explorerUrl":"https://sepolia.arbiscan.io/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc#code"}}
 ```

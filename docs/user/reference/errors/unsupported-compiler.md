@@ -27,8 +27,11 @@ with `kind: "zksolc"` on Blockscout for ZKsync Era (324) or Sepolia (300). Build
 refuse zksolc build documents; extract the input and versions with the compiler's tooling.
 Use the compiler's own verification tooling for other compilers.
 
-Default hint: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia
-(300). Verify other compilers with their own tooling.
+Default hint: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or
+Sepolia (300). Verify other compilers with their own tooling.
+
+For end users: This contract was built with a compiler or language that cannot be verified here. Use
+Solidity built with solc, or with zksolc on ZKsync Era or ZKsync Sepolia through Blockscout.
 
 From the CLI: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia
 (300). Verify other compilers with their own tooling.

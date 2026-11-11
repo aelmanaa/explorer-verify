@@ -105,15 +105,18 @@ const STUB_HINT =
 const METADATA_ONLY_HINT =
   "Pass the build-info of the same build, or Solidity metadata with language, compiler.version, settings.compilationTarget and a keccak256 hash for each source.";
 const SOURCES_HINT =
-  "Pass each path in details.candidates as a key of options.sources, with the file's exact content, or pass the build-info of the same build.";
+  "Pass each missing source file (details.candidates) in the sources (options.sources), keyed by its path, with its exact content, or pass the build-info of the same build.";
 const METADATA_TARGET_HINT =
   "Pass the metadata of one contract: settings.compilationTarget must name exactly one contract.";
 const OUTPUT_ONLY_HINT =
   "Pass the build-info that holds the compiler input, next to its output file or artifact.";
 const VERSION_HINT =
-  "Pass options.compilerVersion with the full version, such as 0.8.24+commit.e11b9ed9, or add an artifact or build-info output that holds the contract metadata.";
+  "Pass the full compiler version (options.compilerVersion), such as 0.8.24+commit.e11b9ed9, or add an artifact or build-info output that holds the contract metadata.";
 const CONTRACT_HINT =
-  "Pass options.contract as path:Name, or as a Name that matches one entry of details.candidates.";
+  "Pass the contract (options.contract) as path:Name, or as a Name that matches one of the candidates (details.candidates).";
+const NO_CONTRACTS_HINT =
+  "Pass the contract (options.contract) as path:Name, with a path that is a key of the compiler input's sources.";
+const CONTRACT_PATH_HINT = "Pass the contract (options.contract) as path:Name.";
 const ZKSOLC_HINT =
   "zksolc (EraVM) builds are not supported. A contract compiled with plain solc verifies with the solc build-info; a zksolc contract needs the ZKsync tooling.";
 const ABSOLUTE_HINT =
@@ -793,7 +796,7 @@ function pickContract(
     throw incomplete(
       "contract",
       "The documents list no contracts, so a bare contract name cannot be resolved.",
-      "Pass options.contract as path:Name, with a path that is a key of the compiler input's sources.",
+      NO_CONTRACTS_HINT,
     );
   }
   const identities = [...findings.identities];
@@ -815,7 +818,7 @@ function pickContract(
     candidates.length > 0
       ? `The documents hold ${String(candidates.length)} contracts and none was chosen.`
       : "The documents name no contract.",
-    CONTRACT_HINT,
+    candidates.length > 0 ? CONTRACT_HINT : CONTRACT_PATH_HINT,
     candidates,
   );
 }

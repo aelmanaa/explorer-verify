@@ -57,14 +57,14 @@ const WORDS: readonly (readonly [RegExp, string | undefined])[] = [
     "Pass --allow-sourcify-fallback to verify on the public Sourcify API, or pass --api-url with --backend.",
   ],
   [/\b(?:options\.)?outDir\b/g, "--out-dir"],
+  [/\bthe contract \(options\.contract\)/g, "--contract"],
   [/\boptions\.contract\b/g, "--contract"],
   [/\b([Pp]ass) contract as\b/g, "$1 --contract as"],
   [/\b([Pp]ass) artifact with\b/g, "$1 --artifact with"],
   [/\bunder root\b/g, "under the project folder"],
   [/\bproject root\b/g, "project folder"],
   [/\bone entry of details\.candidates\b/g, "one of the paths listed"],
-  [/\blisted in details\.candidates\b/g, "listed"],
-  [/\bwhat details\.field names\b/g, "what the message names"],
+  [/\bone of the candidates \(details\.candidates\)/g, "one of the paths listed"],
   [/\bcall again\b/g, "run the command again"],
   [/\(\)/, undefined],
   [/\bdetails\./, undefined],
@@ -322,7 +322,10 @@ export function cliErrorJson(error: ErrorJson, context: HintContext = {}): Error
   const message =
     error.code === "missing-api-key" && LIBRARY_KEY_MESSAGE.test(error.message)
       ? `${error.details.backend} needs an API key${forUrl} and none is set.`
-      : error.message;
+      : error.message.replace(
+          /^The documents and options\.sources lack\b/,
+          "The --input files lack",
+        );
   if (context.own === true) {
     return error;
   }

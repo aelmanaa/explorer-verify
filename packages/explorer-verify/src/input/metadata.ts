@@ -19,7 +19,7 @@ const HASH = /^0x[0-9a-f]{64}$/;
 const INLINER_VERSIONS = /^v?0\.8\.[234](?!\d)/;
 
 const MISMATCH_HINT =
-  "Pass the source file exactly as it was compiled, byte for byte, line endings included. details.path names the file; details.expected is the hash the metadata records.";
+  "Pass the source file exactly as it was compiled, byte for byte, line endings included. The error names the file (details.path) and the hash that the metadata records for it (details.expected).";
 
 /** One source the metadata lists. */
 interface MetadataSource {

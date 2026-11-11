@@ -21,6 +21,8 @@ or pick a backend that serves the chain with the `route` option. In the CLI, pas
 
 Default hint: Check the chain ID, or pick a backend that serves this chain with the route option.
 
+For end users: This explorer does not support this chain. Check the chain, or pick another explorer.
+
 From the CLI: Check --chain, or pass a --backend that serves the chain. --backend auto lets the
 routing table pick one.
 

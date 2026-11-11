@@ -76,3 +76,18 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
       '{"status":"0","message":"NOTOK","result":"This chain is not served here.","code":"chain-not-allowed"}',
   },
 };
+
+/**
+ * The details an error page's "For end users:" line is written for: the sample details, without
+ * the optional fields that change the end-user hint. That is a rate limit without a wait, and a
+ * cancel before any explorer accepted the submission.
+ */
+export function pageDetails(code: ErrorCode): ErrorDetails {
+  if (code === "rate-limited") {
+    return { code, backend: "sourcify" };
+  }
+  if (code === "cancelled") {
+    return { code };
+  }
+  return SAMPLE_DETAILS[code];
+}

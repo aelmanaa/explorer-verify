@@ -17,6 +17,9 @@ Foundry or Hardhat helper. For `no-code`, check the chain ID, the address and th
 
 Default hint: Build the input from the build files with buildVerifyInput instead.
 
+For end users: The deployed bytecode does not say where its source is published, so the source
+cannot be found from the address alone. Use the build output instead.
+
 From the CLI: Pass the build files with --input instead.
 
 Retryable: no. Nothing was sent to an explorer.

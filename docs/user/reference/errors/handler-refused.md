@@ -28,8 +28,11 @@ The client maps a code only when it comes with the status in the table.
 Fix: change the `createVerifyHandler` option that the table names, redeploy the handler, then call
 again. For the first four codes, the error's hint names the option.
 
-Default hint: Do not retry. Fix the createVerifyHandler option or the request that
-details.handlerCode names.
+Default hint: Do not retry. Fix the createVerifyHandler option or the request that the handler's
+refusal code names (details.handlerCode).
+
+For end users: The verification server refused the request. Report it to the tool's maintainer;
+trying again will not help.
 
 From the CLI: The server handler refused the request with `<handler code>`. Do not retry: change the
 handler's createVerifyHandler options for it, redeploy the handler, then run the command again.

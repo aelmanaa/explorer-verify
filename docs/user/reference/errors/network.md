@@ -17,6 +17,9 @@ Fix: check the network connection and the explorer's status page, then call agai
 
 Default hint: Check the network connection and the explorer's status page, then call again.
 
+For end users: The explorer could not be reached. Check the network connection and the explorer's
+status page, then try again.
+
 From the CLI: Check the network connection and the explorer's status page, then run the command
 again.
 

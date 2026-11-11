@@ -14,6 +14,9 @@ Fix: wait for the explorer to finish that verification, then call again.
 Default hint: Wait for the explorer to finish its current verification of this contract, then call
 again.
 
+For end users: The explorer is already verifying this contract. Wait for it to finish, then check
+the contract's page on the explorer.
+
 From the CLI: Wait for the explorer to finish its current verification of this contract, then run
 the command again.
 

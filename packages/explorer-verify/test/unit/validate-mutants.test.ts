@@ -108,7 +108,10 @@ describe("validateInput: compiler.version messages (#202, R-IN-6)", () => {
 
   it("adds the pointer to the other issues only when there are other issues (R-DX-3)", () => {
     const error = rejection({ ...withCompiler({ version: "0.8.24" }), chainId: 0 });
-    assert.equal(error.hint, `${SHORT_HINT} Then fix the other fields in details.issues.`);
+    assert.equal(
+      error.hint,
+      `${SHORT_HINT} Then fix the other fields that the issues list (details.issues).`,
+    );
   });
 });
 

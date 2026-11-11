@@ -15,8 +15,13 @@ handle with `explorer-verify status <handle>` (from the `status` command on, #10
 `checkStatus()` in code, instead of submitting again. If it has `error.handles`, resume each
 `handle` in the list the same way. Otherwise run the command again.
 
-Default hint: The run was cancelled. If error.handle or error.handles is set, resume each handle
-with explorer-verify status instead of submitting again.
+Default hint: The run was cancelled. If the error holds handles (error.handle, error.handles),
+resume each one with checkStatus instead of submitting again.
+
+For end users: The verification was cancelled before the explorer accepted it. Try again.
+
+When the error holds a handle, `hintFor(error, "user")` says instead that the explorer accepted the
+submission, and asks the user to check the contract's page before submitting again.
 
 From the CLI: Resume the accepted submission with explorer-verify status
 `ev1:sourcify:11155111:0x<address>:<job>` instead of submitting again.

@@ -18,6 +18,8 @@ job.
 Default hint: Wait a minute, then call verify() again: it looks the contract up first and submits
 only when the contract is not verified.
 
+For end users: The explorer ended the verification without a verdict. Wait a minute, then try again.
+
 From the CLI: Wait a minute, then run verify again: it looks the contract up first and submits only
 when the contract is not verified.
 

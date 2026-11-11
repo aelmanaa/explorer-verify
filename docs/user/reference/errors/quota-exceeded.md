@@ -15,8 +15,11 @@ retry. `details.backend` names the backend. The error never holds the key.
 Fix: call again after the explorer resets the limit, or use a key on a plan with a higher limit.
 [API keys](../api-keys.md) describes the Etherscan plan rules.
 
-Default hint: The key's daily limit is spent. Call again after the explorer resets the limit, or
-use a key on a plan with a higher limit.
+Default hint: The key's daily limit is spent. Call again after the explorer resets the limit, or use
+a key on a plan with a higher limit.
+
+For end users: The API key has used up its daily limit. Try again after the explorer resets it, or
+use a key with a higher limit.
 
 From the CLI: The key's daily limit is spent. Run the command again after the explorer resets the
 limit, or use a key on a plan with a higher limit.

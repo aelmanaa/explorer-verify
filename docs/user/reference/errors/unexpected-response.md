@@ -18,7 +18,15 @@ Fix: call again later. If the error persists, check the explorer's status page a
 `details.status` and `details.excerpt` in an issue.
 
 Default hint: Call again later. If the error persists, check the explorer's status page and report
-details.status and details.excerpt.
+the status and the answer (details.status, details.excerpt).
+
+For end users: The explorer gave an answer that could not be read. Try again later; if it keeps
+failing, check the explorer's status page.
+
+When an explorer with an Etherscan-style API (Etherscan, Routescan or an Etherscan-compatible
+explorer) found no contract code at the address after its tries, `hintFor(error, "user")` says
+instead that the explorer has not found the contract yet, and asks the user to check the chain and
+the address, or to try again in a minute.
 
 From the CLI: Run the command again later. If it persists, check the explorer's status page and
 report the status and excerpt that --json prints.

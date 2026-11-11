@@ -19,6 +19,7 @@ import { JOB_ID } from "../flow/check-handle.ts";
 import { keyErrorOf, withKey } from "../http/api-keys.ts";
 import type { HttpRequest, RetryMode } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
+import { NOT_INDEXED_ANSWER } from "../not-indexed.ts";
 import { redactExcerpt } from "../redact.ts";
 import type { Handle } from "../types.ts";
 import type {
@@ -53,7 +54,7 @@ const NOT_INDEXED_HINT =
 
 // The `result` texts the client knows, matched at the start. Sources: the research notes above.
 const RATE_LIMIT = "Max calls per sec rate limit reached";
-const NOT_INDEXED = "Unable to locate ContractCode at";
+const NOT_INDEXED = NOT_INDEXED_ANSWER;
 const NO_CHAIN = "Missing or unsupported chainid parameter";
 // Routescan's answer for a chain or network it does not serve, in `message`, with `result` null.
 const CHAIN_NOT_SUPPORTED = "chain not supported";
