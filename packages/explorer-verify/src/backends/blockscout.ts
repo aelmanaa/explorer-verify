@@ -195,7 +195,7 @@ function client(name: Name): Backend {
             backend: name,
             reason: "empty-submit",
             what: "Blockscout gave no job id",
-            hint: "If the contract was deployed moments ago, call verify() again later.",
+            hint: "If the contract was deployed moments ago, try again later.",
             maxTries: MAX_EMPTY_SUBMITS,
             until,
           });

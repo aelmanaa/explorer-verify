@@ -84,7 +84,7 @@ never reads as "not verified", as `failed` or as success.
 | Lookup | Anything else, a `result` that is not an array included       | [`unexpected-response`](errors/unexpected-response.md)                                                                                                           |
 | Submit | `status` `"1"` and a job id                                   | A job to poll                                                                                                                                                    |
 | Submit | `Contract source code already verified` or `Already Verified` | `already-verified`, with the match a lookup reads; [`unexpected-response`](errors/unexpected-response.md) when that lookup finds it not verified                 |
-| Submit | `Unable to locate ContractCode at …`                          | Sent again every `pollIntervalMs`, at most 10 submits; see below                                                                                                 |
+| Submit | `Unable to locate ContractCode at …`                          | Sent again every `pollIntervalMs` for `indexWaitMs`, or at most 10 submits; then [`not-indexed`](errors/not-indexed.md); see below                               |
 | Submit | Anything else                                                 | [`unexpected-response`](errors/unexpected-response.md)                                                                                                           |
 | Status | `Pending in queue`                                            | Still pending                                                                                                                                                    |
 | Status | `Pass - Verified`                                             | `verified`, `exact`                                                                                                                                              |
@@ -100,12 +100,39 @@ attempt limit and time budget, and a `verify.retry` event with `reason` `rate-li
 A `failed` reason is redacted with the call's keys and cut to 300 characters.
 
 `Unable to locate ContractCode at …` means Etherscan finds no contract code at the address on that
-chain. Right after a deployment, Etherscan may not have indexed the contract yet, so the submit is
+chain. Right after a deployment, Etherscan may not have indexed the contract yet. So the submit is
 sent again every `pollIntervalMs`, with a `verify.retry` event whose `reason` is `not-indexed`
-before each wait. After 10 submits the call throws
-[`unexpected-response`](errors/unexpected-response.md); when the next submit would pass the time
-budget, [`timeout`](errors/timeout.md). The hint of both says to check that `chainId` and `address`
-name a contract deployed on that chain: a wrong chain id or address gives the same answer.
+before each wait, for as long as the `indexWaitMs` option allows:
+
+- Without `indexWaitMs`, the call sends at most 10 submits, about 27 seconds with the default
+  `pollIntervalMs`.
+- With `indexWaitMs`, it sends the submit again while a whole `pollIntervalMs` still fits in the
+  `indexWaitMs` milliseconds since the first submit. It never cuts a wait short, so no two submits
+  go out less than `pollIntervalMs` apart.
+
+The call also stops when the next submit would pass `timeoutMs`. When it stops, it throws
+[`not-indexed`](errors/not-indexed.md), which is retryable, with the number of submits and the time
+since the first one in `details`. A wrong chain id or address gives the same answer, so the hint
+says to check both first.
+
+Right after a deployment, pass a longer wait and a budget that holds it:
+
+<!-- no-run: it posts to /api/verify on the page's own origin, which a test run does not serve. -->
+
+```ts no-run
+import { verify } from "explorer-verify";
+
+const result = await verify(input, {
+  handlerUrl: "/api/verify",
+  indexWaitMs: 120_000,
+  timeoutMs: 300_000,
+});
+console.log(result.status);
+```
+
+Routescan and standalone Etherscan-compatible explorers that give the same answer get the same
+loop. A server handler whose `deployers` option is set answers the lookup with 503
+`address-not-indexed` before any submit, so `indexWaitMs` has no effect there.
 
 ## A submit without a clear answer
 

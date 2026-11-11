@@ -106,12 +106,18 @@ const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper f
 tool gives the error's fields other names.
 
 `hintFor(error, "user")` returns a hint for the people who use your tool, such as an IDE, a dapp or
-a verification service. It names no function, option, field or command, and reads the error's
-details: it gives the wait the explorer asked for, says when an explorer with an Etherscan-style
-API has not indexed the contract yet, and tells a cancelled run with a handle to check the explorer
-before submitting again. `hintFor(error, "developer")` returns `error.hint`. Both take the error or
-its JSON form. `hintFor` never throws: a value it cannot read, or a code it does not know, gets a
-general hint. Each code's page gives its end-user hint on its "For end users" line.
+a verification service. It names no function, option, field or command. It reads the error's
+details, so it can:
+
+- give the wait the explorer asked for;
+- say when an explorer with an Etherscan-style API has not indexed the contract yet;
+- say when Blockscout, hosted or not, gave no job id for each submit, as it can right after a
+  deployment;
+- tell a cancelled run with a handle to check the explorer before submitting again.
+
+`hintFor(error, "developer")` returns `error.hint`. Both take the error or its JSON form. `hintFor`
+never throws: a value it cannot read, or a code it does not know, gets a general hint. Each code's
+page gives its end-user hint on its "For end users" line.
 
 <!-- no-run: it calls a terminal function of the host tool, which a test run does not have. -->
 
@@ -202,7 +208,7 @@ each error code to its exit code.
 | 1         | `failed`: the explorer definitively rejected the submission                                                                                                      | None. A `failed` result is not an error                                                                                                                                                                                               |
 | 2         | Usage or input error, including a chain the backend does not support, or a refusal of your server handler in the library; nothing was submitted for verification | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler`, `source-mismatch`, `no-metadata-hash`, `constructor-args-unavailable`, `handler-refused` (library only, with `handlerUrl`) |
 | 3         | Missing, invalid or under-privileged API key                                                                                                                     | `missing-api-key`, `api-key-rejected`, `quota-exceeded`                                                                                                                                                                               |
-| 4         | No verdict yet: still pending at the time budget (the output carries the handle), or the job ended without one                                                   | `not-confirmed`, `verification-inconclusive`, `proxy-link-pending` (no handle: call `linkProxy()` with `resumeJobId`)                                                                                                                 |
+| 4         | No verdict yet: still pending at the time budget (the output carries the handle), the job ended without one, or the explorer has not indexed the contract yet    | `not-confirmed`, `verification-inconclusive`, `proxy-link-pending` (no handle: call `linkProxy()` with `resumeJobId`), `not-indexed` (no handle: call `verify()` again)                                                               |
 | 5         | Network or explorer unavailable after retries; call again later                                                                                                  | `network`, `rate-limited`, `timeout`, `unexpected-response`, `in-progress`, `metadata-unavailable`                                                                                                                                    |
 | 6         | Unknown state; the output carries the handle of a verification. Or a bug in the CLI, with no handle. A person checks it                                          | `unknown-state`, `job-not-found`, `proxy-link-unknown-state` (no handle), `internal-error` (created by the CLI)                                                                                                                       |
 | 130       | Cancelled                                                                                                                                                        | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                                                                                                                                                |
@@ -273,3 +279,4 @@ retry and the exit code. `docsUrl` links that page.
 - [`proxy-link-pending`](proxy-link-pending.md)
 - [`proxy-link-unknown-state`](proxy-link-unknown-state.md)
 - [`handler-refused`](handler-refused.md)
+- [`not-indexed`](not-indexed.md)

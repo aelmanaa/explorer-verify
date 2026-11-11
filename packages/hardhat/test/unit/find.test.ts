@@ -226,6 +226,10 @@ describe("R-DX-2: choosing the contract", () => {
       assert.equal(error.message, "The contract name matches 26 artifacts.");
       assert.ok(error.details.code === "incomplete-input");
       assert.equal(error.details.candidates.length, 20);
+      assert.equal(
+        error.hint,
+        "Pass the contract (options.contract) as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one of the candidates (details.candidates).",
+      );
     });
   });
 
@@ -352,7 +356,10 @@ describe("R-DX-2: the artifacts folder", () => {
         field: "outDir",
         message: "names no folder: artifacts does not exist",
       });
-      assert.match(error.hint, /paths\.artifacts/);
+      assert.equal(
+        error.hint,
+        "Compile the project first, or pass outDir with the artifacts folder of the Hardhat config (paths.artifacts).",
+      );
       // A path:Name contract gets the same error.
       const named = await rejection(
         findHardhatBuild({ root, contract: "contracts/Greeter.sol:Greeter" }),

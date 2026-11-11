@@ -483,7 +483,10 @@ describe("settingsOf(): the invalid-input error for bad options (R-DX-3, R-SEC-1
       { field: "onEvent", message: "must be a function" },
     ]);
     assert.equal(error.message, "The options are invalid: signal, fetch, logger, onEvent.");
-    assert.match(error.hint, /^Pass options as a plain object: timeoutMs and pollIntervalMs/);
+    assert.match(
+      error.hint,
+      /^Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs/,
+    );
   });
 
   for (const value of [0, -1, Number.NaN, Number.NEGATIVE_INFINITY]) {

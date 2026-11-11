@@ -422,11 +422,21 @@ module, and call `verifyOnEtherscan(input)` with the input of step 3:
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-/** Verifies on Etherscan through the dapp's server at /api/verify, which adds the key. */
+/**
+ * Verifies on Etherscan through the dapp's server at /api/verify, which adds the key. Etherscan
+ * may need a minute to index a contract deployed moments ago: indexWaitMs waits for it.
+ */
 export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResult> {
-  return await verify(input, { handlerUrl: "/api/verify" });
+  return await verify(input, { handlerUrl: "/api/verify", indexWaitMs: 60_000 });
 }
 ```
+
+Etherscan may not have indexed a contract deployed seconds ago, and then answers that it finds no
+contract code at the address. `verify()` sends the submit again every `pollIntervalMs`, and
+`indexWaitMs: 60_000` lets it go on for a minute, within the default `timeoutMs` of two minutes.
+If the contract is still not indexed, the call throws
+[`not-indexed`](../reference/errors/not-indexed.md): show it to the user, and try again a minute
+later.
 
 The routing table still decides the route, so the result carries the Etherscan page as
 `explorerUrl`. A redirect from your server ends the call with `unexpected-response`.

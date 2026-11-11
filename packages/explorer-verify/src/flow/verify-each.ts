@@ -74,6 +74,7 @@ export function eachOptionKeys(): readonly string[] {
     signal: true,
     timeoutMs: true,
     pollIntervalMs: true,
+    indexWaitMs: true,
     logger: true,
     onEvent: true,
     route: true,

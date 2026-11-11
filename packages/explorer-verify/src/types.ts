@@ -843,6 +843,24 @@ export interface VerifyOptions extends CallOptions {
    * below 1000 is raised to 1000, and one above 2147483647 is lowered to it.
    */
   pollIntervalMs?: number | undefined;
+  // References: R-FLOW-7, decision 0066.
+  /**
+   * How long to keep sending the submit again, every `pollIntervalMs`, while the explorer finds
+   * no contract code at the address, in milliseconds from the first submit. Etherscan, Routescan
+   * and standalone Etherscan-compatible explorers answer so for a contract they have not indexed
+   * yet. The wait stays within `timeoutMs`. When it ends, `verify()` throws `not-indexed`.
+   * Without it, `verify()` sends at most 10 submits. A positive number; a value above
+   * 2147483647, `Infinity` included, is lowered to it.
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * // Right after a deployment: wait up to two minutes for the explorer to index the contract.
+   * const options: VerifyOptions = { indexWaitMs: 120_000, timeoutMs: 300_000 };
+   * ```
+   */
+  indexWaitMs?: number | undefined;
   // References: R-IN-3.
   /**
    * A JSON-RPC endpoint of the contract's chain. `verify()` uses it only to derive missing

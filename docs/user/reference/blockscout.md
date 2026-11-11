@@ -246,7 +246,12 @@ because an instance's `/api` allowed only 10 requests in about 22 minutes on 202
 [Rate limits](#rate-limits)). With a `pollIntervalMs` of 30 seconds or more, it waits until the 30
 seconds are up, submits once more, and stops. When it stops, it throws
 [`unexpected-response`](errors/unexpected-response.md); when the next submit would pass the time
-budget, [`timeout`](errors/timeout.md). The hint of both says to call `verify()` again later.
+budget, [`timeout`](errors/timeout.md). Both hints say to try again later.
+
+The `unexpected-response` holds the number of submits sent in `details.attempts`. For it,
+`hintFor(error, "user")` gives a tool's users their own hint. It says the explorer did not start the
+verification, and asks them to check the contract's page on the explorer, then to try again in a
+minute.
 
 ## A submit without a clear answer
 

@@ -26,6 +26,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   signal: true,
   timeoutMs: true,
   pollIntervalMs: true,
+  indexWaitMs: true,
   logger: true,
   onEvent: true,
   route: true,
@@ -55,12 +56,13 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has the M1 fields, apiKeys, allowSourcifyFallback, rpcUrl and handlerUrl (decisions 0009, 0010, 0016 and 0046, R-RT-3, R-IN-3)", () => {
+  it("VerifyOptions has the M1 fields, indexWaitMs, apiKeys, allowSourcifyFallback, rpcUrl and handlerUrl (decisions 0009, 0010, 0016, 0046 and 0066, R-RT-3, R-IN-3)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
       "timeoutMs",
       "pollIntervalMs",
+      "indexWaitMs",
       "logger",
       "onEvent",
       "route",
@@ -138,6 +140,7 @@ describe("public entry point", () => {
       "proxy-link-pending",
       "proxy-link-unknown-state",
       "handler-refused",
+      "not-indexed",
     ]);
   });
 

@@ -6,6 +6,9 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { toEnvelope } from "../../src/envelope.ts";
+import { eachOptionKeys } from "../../src/flow/verify-each.ts";
+import { settingsOf } from "../../src/flow/verify.ts";
+import { MAX_TIMER_MS } from "../../src/http/fetch.ts";
 import {
   buildVerifyInput,
   checkStatus,
@@ -388,6 +391,7 @@ describe("R-IN-6: an option set to undefined counts as absent", () => {
       signal: undefined,
       timeoutMs: undefined,
       pollIntervalMs: undefined,
+      indexWaitMs: undefined,
       logger: undefined,
       onEvent: undefined,
       route: { backend: "sourcify", apiUrl: undefined, apiKey: undefined },
@@ -612,5 +616,62 @@ describe("ownKeys() (R-IN-6)", () => {
     ]) {
       assert.equal(ownKeys(value), undefined);
     }
+  });
+});
+
+describe("R-IN-6: indexWaitMs is checked like the other durations (decision 0066)", () => {
+  for (const [value, label] of [
+    [-1, "-1"],
+    [0, "0"],
+    [Number.NaN, "NaN"],
+    ["60000", "a string"],
+  ] as const) {
+    it(`verify() and verifyEach() refuse an indexWaitMs of ${label} before any request`, async () => {
+      const fake = noFetch();
+      const expected = [
+        { field: "indexWaitMs", message: "must be a positive number of milliseconds" },
+      ];
+      const one = await rejection(
+        untyped(verify, input(), { fetch: fake.fetch, indexWaitMs: value }),
+      );
+      assert.deepEqual(issuesOf(one), expected);
+      const each = await rejection(
+        untyped(verifyEach, input(), {
+          fetch: fake.fetch,
+          backends: ["sourcify"],
+          indexWaitMs: value,
+        }),
+      );
+      assert.deepEqual(issuesOf(each), expected);
+      assert.equal(fake.calls(), 0);
+    });
+  }
+
+  it("names indexWaitMs for a misspelled key", async () => {
+    const fake = noFetch();
+    const error = await rejection(untyped(verify, input(), { fetch: fake.fetch, indexWait: 1 }));
+    assert.deepEqual(issuesOf(error), [
+      { field: "indexWait", message: "is not a known option; did you mean indexWaitMs?" },
+    ]);
+  });
+
+  it("settingsOf() keeps a value, raises it to 1, lowers Infinity to 2147483647, and leaves it undefined when absent", () => {
+    assert.equal(settingsOf({ indexWaitMs: 60_000 }).indexWaitMs, 60_000);
+    assert.equal(settingsOf({ indexWaitMs: 0.5 }).indexWaitMs, 1);
+    assert.equal(settingsOf({ indexWaitMs: Number.POSITIVE_INFINITY }).indexWaitMs, MAX_TIMER_MS);
+    assert.equal(settingsOf({ timeoutMs: 1_000 }).indexWaitMs, undefined);
+    assert.equal(settingsOf(undefined).indexWaitMs, undefined);
+    assert.equal(settingsOf({ indexWaitMs: 5_000 }, eachOptionKeys()).indexWaitMs, 5_000);
+  });
+
+  it("dryRun() accepts it, as it accepts every verify() option", async () => {
+    const fake = replay(loadFixture("sourcify", "2026-11-02-lookup-exact-match"));
+    const options: VerifyOptions = {
+      indexWaitMs: 60_000,
+      fetch: fake.fetch,
+      route: { backend: "sourcify" },
+    };
+    const dry = await dryRun(input(), options);
+    assert.equal(dry.backend, "sourcify");
   });
 });

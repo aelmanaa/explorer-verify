@@ -69,34 +69,35 @@ dry-run sourcify sourcify.dev exact
 
 Every field is optional. A field set to `undefined` counts as absent.
 
-| Option                  | Default            | What it does                                                                 |
-| ----------------------- | ------------------ | ---------------------------------------------------------------------------- |
-| `fetch`                 | `globalThis.fetch` | Sends every request; must not follow redirects                               |
-| `signal`                | none               | Cancels the call, which rejects with `signal.reason`                         |
-| `timeoutMs`             | `120000`           | Time budget for the whole call, retries included                             |
-| `pollIntervalMs`        | `3000`             | Wait before each status poll, at least 1000                                  |
-| `logger`                | none               | Receives [log lines](logging-and-events.md), keys removed                    |
-| `onEvent`               | none               | Receives the [stage events](logging-and-events.md#events)                    |
-| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey? }`, see [Routing](routing.md#route)            |
-| `allowSourcifyFallback` | `false`            | Sends a chain the table does not list to public Sourcify                     |
-| `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)         |
-| `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)        |
-| `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key |
+| Option                  | Default            | What it does                                                                                                   |
+| ----------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `fetch`                 | `globalThis.fetch` | Sends every request; must not follow redirects                                                                 |
+| `signal`                | none               | Cancels the call, which rejects with `signal.reason`                                                           |
+| `timeoutMs`             | `120000`           | Time budget for the whole call, retries included                                                               |
+| `pollIntervalMs`        | `3000`             | Wait before each status poll, at least 1000                                                                    |
+| `indexWaitMs`           | none, 10 submits   | How long to resubmit while the explorer finds no contract code: [Etherscan](etherscan.md#how-answers-are-read) |
+| `logger`                | none               | Receives [log lines](logging-and-events.md), keys removed                                                      |
+| `onEvent`               | none               | Receives the [stage events](logging-and-events.md#events)                                                      |
+| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey? }`, see [Routing](routing.md#route)                                              |
+| `allowSourcifyFallback` | `false`            | Sends a chain the table does not list to public Sourcify                                                       |
+| `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)                                           |
+| `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                          |
+| `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key                                   |
 
 [Option checks](#option-checks) lists the values each option accepts.
 
 ### Options of each function
 
 Each options type lists only what its function reads. All share
-`CallOptions`: every option above except `pollIntervalMs` and `rpcUrl`.
+`CallOptions`: every option above except `pollIntervalMs`, `indexWaitMs` and `rpcUrl`.
 
 | Function        | Options type         | Besides `CallOptions`                                                                        |
 | --------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `rpcUrl`                                                                   |
+| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`                                                    |
 | `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked but sent no request                                                        |
 | `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                                                                             |
 | `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`, `resumeJobId` ([guide](../guides/verify-a-proxy.md#resume-a-pending-link)) |
-| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `rpcUrl`, `backends`                                                       |
+| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `backends`                                        |
 
 At run time each function accepts every key of `VerifyOptions`, so one
 object typed `VerifyOptions` can go to all of them, as in the dry run.
@@ -128,7 +129,7 @@ a page with its fix in [Errors](errors/index.md).
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------- |
 | [`invalid-input`](errors/invalid-input.md), [`unsupported-chain`](errors/unsupported-chain.md), [`unsupported-compiler`](errors/unsupported-compiler.md), [`constructor-args-unavailable`](errors/constructor-args-unavailable.md) | Fix the input; nothing was sent | 2         |
 | [`missing-api-key`](errors/missing-api-key.md), [`api-key-rejected`](errors/api-key-rejected.md), [`quota-exceeded`](errors/quota-exceeded.md)                                                                                     | Fix the key or the plan         | 3         |
-| [`not-confirmed`](errors/not-confirmed.md), [`verification-inconclusive`](errors/verification-inconclusive.md)                                                                                                                     | Resume, or call again later     | 4         |
+| [`not-confirmed`](errors/not-confirmed.md), [`verification-inconclusive`](errors/verification-inconclusive.md), [`not-indexed`](errors/not-indexed.md)                                                                             | Resume, or call again later     | 4         |
 | [`timeout`](errors/timeout.md), [`in-progress`](errors/in-progress.md), [`network`](errors/network.md), [`rate-limited`](errors/rate-limited.md), [`unexpected-response`](errors/unexpected-response.md)                           | Retry later                     | 5         |
 | [`unknown-state`](errors/unknown-state.md), [`job-not-found`](errors/job-not-found.md)                                                                                                                                             | Check the explorer by hand      | 6         |
 
@@ -212,8 +213,9 @@ code 0.
 
 ## Option checks
 
-- `timeoutMs` and `pollIntervalMs` are positive milliseconds, capped at
-  2147483647. `timeoutMs` also takes `Infinity`.
+- `timeoutMs`, `pollIntervalMs` and `indexWaitMs` are positive milliseconds,
+  capped at 2147483647. `timeoutMs` and `indexWaitMs` also take `Infinity`.
+  `indexWaitMs` never extends `timeoutMs`.
 - `pollIntervalMs` is finite, and raised to at least 1000.
 - `signal` is an `AbortSignal`, and `fetch` and `onEvent` are functions.
 - `apiKeys` is a plain object of strings.

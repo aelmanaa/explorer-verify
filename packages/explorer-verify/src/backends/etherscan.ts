@@ -47,10 +47,11 @@ import {
 } from "./common.ts";
 import type { Answer, SubmitAttempt } from "./common.ts";
 
-/** The most submits sent while the explorer finds no contract code at the address, the first included. */
+/**
+ * The most submits sent while the explorer finds no contract code at the address, the first
+ * included, when the call has no `indexWaitMs`.
+ */
 export const MAX_NOT_INDEXED_TRIES = 10;
-const NOT_INDEXED_HINT =
-  "Check that chainId and address name a contract deployed on that chain. If it was deployed moments ago, call verify() again once the explorer shows it.";
 
 // The `result` texts the client knows, matched at the start. Sources: the research notes above.
 const RATE_LIMIT = "Max calls per sec rate limit reached";
@@ -231,42 +232,51 @@ export function etherscanStyle(dialect: Dialect): Backend {
       (answer.status === 200 && answer.fields === undefined)
         ? unexpected(ctx, answer, "the submit")
         : undefined;
+    // References: R-FLOW-7, decision 0066.
+    // Sends the submit, and sends it again every `pollIntervalMs` while the explorer answers that
+    // it finds no contract code at the address, as Etherscan does right after a deployment it has
+    // not indexed yet. Each wait emits `verify.retry` with `reason` `not-indexed`. It goes on while
+    // a whole `pollIntervalMs` fits in `indexWaitMs` from the first submit, or for
+    // MAX_NOT_INDEXED_TRIES answers without it, and never past the budget's deadline. Then it
+    // throws `not-indexed`. `since` and `submits` are shared by both tries of submitOnce, so a
+    // submit sent again after one without a clear answer keeps the wait and the count. `submits`
+    // counts those answers, not requests.
+    const since = Date.now();
+    let submits = 0;
+    const untilIndexed = async (): Promise<SubmitAttempt> => {
+      const sent = await attemptSubmit(ctx, req, unconfirmed);
+      if (sent.kind === "unconfirmed" || resultOf(sent.answer)?.startsWith(NOT_INDEXED) !== true) {
+        return sent;
+      }
+      const wait = ctx.indexWaitMs;
+      const count = ++submits;
+      await waitToResubmit(ctx, sent.answer, count, {
+        backend: name,
+        reason: "not-indexed",
+        what: `${label} found no contract code at the address`,
+        // Stryker disable next-line StringLiteral: equivalent. end builds the error, with its own hint.
+        hint: "",
+        maxTries: wait === undefined ? MAX_NOT_INDEXED_TRIES : Infinity,
+        until: since + (wait ?? Infinity),
+        end: (message) =>
+          newError(
+            { code: "not-indexed", backend: name, submits: count, elapsedMs: Date.now() - since },
+            message,
+            // Stryker disable next-line ObjectLiteral: equivalent. The message holds only the explorer's label and the number of submits.
+            { secrets: ctx.http.secrets },
+          ),
+      });
+      return await untilIndexed();
+    };
     return await submitOnce(
       ctx,
       name,
       label,
       input,
-      async () => await untilIndexed(ctx, req, unconfirmed),
+      untilIndexed,
       async (answer) => await readSubmit(input, ctx, answer),
       lookup,
     );
-  }
-
-  /**
-   * Sends the submit, and sends it again every `pollIntervalMs` while the explorer answers that
-   * it finds no contract code at the address, as Etherscan does right after a deployment it has
-   * not indexed yet. Each wait emits `verify.retry` with `reason` `not-indexed`. After
-   * {@link MAX_NOT_INDEXED_TRIES} submits it throws `unexpected-response`; when the next try would
-   * pass the budget's deadline, `timeout`. Both hints say to check the chain id and the address.
-   */
-  async function untilIndexed(
-    ctx: Context,
-    req: HttpRequest,
-    unconfirmed: (answer: Answer) => AnyExplorerVerifyError | undefined,
-    attempt = 1,
-  ): Promise<SubmitAttempt> {
-    const sent = await attemptSubmit(ctx, req, unconfirmed);
-    if (sent.kind === "unconfirmed" || resultOf(sent.answer)?.startsWith(NOT_INDEXED) !== true) {
-      return sent;
-    }
-    await waitToResubmit(ctx, sent.answer, attempt, {
-      backend: name,
-      reason: "not-indexed",
-      what: `${label} found no contract code at the address`,
-      hint: NOT_INDEXED_HINT,
-      maxTries: MAX_NOT_INDEXED_TRIES,
-    });
-    return await untilIndexed(ctx, req, unconfirmed, attempt + 1);
   }
 
   /** Maps a submit answer to its outcome. */

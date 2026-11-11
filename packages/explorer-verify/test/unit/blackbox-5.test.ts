@@ -43,6 +43,7 @@ const ERROR_TABLE: Record<ErrorCode, { exit: ExitCode; retryable: boolean }> = {
   "proxy-link-pending": { exit: 4, retryable: true },
   "proxy-link-unknown-state": { exit: 6, retryable: false },
   "handler-refused": { exit: 2, retryable: false },
+  "not-indexed": { exit: 4, retryable: true },
 };
 
 const HANDLE: Handle = {
@@ -122,6 +123,12 @@ const DETAILS: { [C in ErrorCode]: (text: string) => DetailsOf<C> } = {
     status: 403,
     handlerCode: text,
     excerpt: text,
+  }),
+  "not-indexed": () => ({
+    code: "not-indexed",
+    backend: "routescan",
+    submits: 2,
+    elapsedMs: 3_000,
   }),
 };
 

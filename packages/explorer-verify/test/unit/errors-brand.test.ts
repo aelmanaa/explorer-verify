@@ -88,6 +88,7 @@ function summary(error: unknown): string {
     case "proxy-link-pending":
     case "proxy-link-unknown-state":
     case "handler-refused":
+    case "not-indexed":
       break;
   }
   return error.code;

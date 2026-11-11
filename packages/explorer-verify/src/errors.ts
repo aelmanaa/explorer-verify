@@ -52,6 +52,7 @@ export const ERROR_CODES = [
   "proxy-link-pending",
   "proxy-link-unknown-state",
   "handler-refused",
+  "not-indexed",
 ] as const;
 
 /**
@@ -202,7 +203,10 @@ export type ErrorDetails =
       excerpt: string;
       /** How long the backend asked to wait, when it sent `Retry-After` with its last answer. */
       retryAfterMs?: number;
-      /** How many requests were tried, when the HTTP layer gave up after retries. */
+      /**
+       * How many requests were tried, when the HTTP layer gave up after retries, or how many
+       * submits were sent, when the explorer kept answering a submit without a job id.
+       */
       attempts?: number;
     }
   | {
@@ -420,6 +424,25 @@ export type ErrorDetails =
       handlerCode: string;
       /** The start of the handler's answer, redacted, at most 300 characters. */
       excerpt: string;
+    }
+  | {
+      // References: R-FLOW-7, decision 0066.
+      /**
+       * The explorer still found no contract code at the address when `verify()` stopped sending
+       * the submit again: after `indexWaitMs`, after 10 submits without it, or when the next
+       * submit would pass `timeoutMs`. Nothing was submitted for verification, so there is no
+       * handle.
+       */
+      code: "not-indexed";
+      /** The backend that found no contract code. */
+      backend: BackendName;
+      /**
+       * How many answers said there is no contract code, the first included. It counts those
+       * answers, not HTTP requests: a request retried after a rate limit is not counted.
+       */
+      submits: number;
+      /** Milliseconds from the first submit to the last answer. */
+      elapsedMs: number;
     };
 
 /**
@@ -724,6 +747,7 @@ const RETRYABLE: readonly ErrorCode[] = [
   "verification-inconclusive",
   "metadata-unavailable",
   "proxy-link-pending",
+  "not-indexed",
 ];
 
 /** Builds the redacted copy of one code's details. */
@@ -882,6 +906,12 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
       handlerCode: HANDLER_CODE.test(handlerCode) ? handlerCode : "",
     };
   },
+  "not-indexed": (details) => ({
+    code: "not-indexed",
+    backend: backendOf(details.backend),
+    submits: numberOf(details.submits),
+    elapsedMs: numberOf(details.elapsedMs),
+  }),
 };
 
 /** The backend, status and excerpt of an answer, checked and redacted. */
@@ -1237,6 +1267,13 @@ const FROM_JSON: { readonly [C in ErrorCode]: FromJson<C> } = {
           excerpt: excerptOf(read("excerpt"), secrets),
           handlerCode: HANDLER_CODE.test(handlerCode) ? handlerCode : "",
         };
+  },
+  "not-indexed": (read) => {
+    const submits = finiteOf(read("submits"));
+    const elapsedMs = finiteOf(read("elapsedMs"));
+    return submits === undefined || elapsedMs === undefined
+      ? undefined
+      : { code: "not-indexed", backend: backendOf(read("backend")), submits, elapsedMs };
   },
 };
 

@@ -75,6 +75,7 @@ export const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     excerpt:
       '{"status":"0","message":"NOTOK","result":"This chain is not served here.","code":"chain-not-allowed"}',
   },
+  "not-indexed": { code: "not-indexed", backend: "etherscan-v2", submits: 10, elapsedMs: 27_000 },
 };
 
 /**

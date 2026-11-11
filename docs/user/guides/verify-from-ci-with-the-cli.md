@@ -156,16 +156,16 @@ esac
 exit "$code"
 ```
 
-| Exit code | Outcome                                                       | What the script does                                                        |
-| --------- | ------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                              | Prints the status and the backend                                           |
-| 1         | `failed`: the explorer rejected the source                    | Fails with the reason. Fix the build, not the job                           |
-| 2         | Usage or input error; nothing was submitted                   | Fails with the code, the message and the hint                               |
-| 3         | API key missing, rejected or out of quota                     | Fails with the hint. Check the secret                                       |
-| 4         | `not-confirmed` with a handle, or `verification-inconclusive` | With a handle: passes, warns and writes the `handle` output. Without: fails |
-| 5         | Network or explorer unavailable after retries                 | Fails. Re-run the job later: `verify` looks the contract up first           |
-| 6         | `unknown-state`, `job-not-found` or `internal-error`          | Fails. Do not re-run automatically; read the hint                           |
-| 130       | Cancelled                                                     | Fails. If the log shows a `Submitted` line, resume its handle               |
+| Exit code | Outcome                                                                     | What the script does                                                        |
+| --------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 0         | `verified` or `already-verified`                                            | Prints the status and the backend                                           |
+| 1         | `failed`: the explorer rejected the source                                  | Fails with the reason. Fix the build, not the job                           |
+| 2         | Usage or input error; nothing was submitted                                 | Fails with the code, the message and the hint                               |
+| 3         | API key missing, rejected or out of quota                                   | Fails with the hint. Check the secret                                       |
+| 4         | `not-confirmed` with a handle, `verification-inconclusive` or `not-indexed` | With a handle: passes, warns and writes the `handle` output. Without: fails |
+| 5         | Network or explorer unavailable after retries                               | Fails. Re-run the job later: `verify` looks the contract up first           |
+| 6         | `unknown-state`, `job-not-found` or `internal-error`                        | Fails. Do not re-run automatically; read the hint                           |
+| 130       | Cancelled                                                                   | Fails. If the log shows a `Submitted` line, resume its handle               |
 
 The script leaves `set -e` off on purpose. With it, the failing command substitution would end the
 script before `case`, and the envelope would go unread.

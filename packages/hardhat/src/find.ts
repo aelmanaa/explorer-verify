@@ -96,9 +96,9 @@ const MAX_FILE_BYTES = 256 * 1024 * 1024;
 const COMPILE_HINT =
   "Compile the project (npx hardhat compile on Hardhat 2, npx hardhat build on Hardhat 3), then try again.";
 const ARTIFACTS_HINT =
-  "Compile the project first, or pass options.outDir with the paths.artifacts value of the Hardhat config.";
+  "Compile the project first, or pass outDir with the artifacts folder of the Hardhat config (paths.artifacts).";
 const CONTRACT_HINT =
-  "Pass options.contract as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one entry of details.candidates.";
+  "Pass the contract (options.contract) as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one of the candidates (details.candidates).";
 
 /** `invalid-input` with one issue. The message repeats the issue, which holds no secret. */
 function invalid(
