@@ -37,7 +37,9 @@ maintainer's.
 11. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
-[docs/README.md](docs/README.md). The tutorial,
+[docs/README.md](docs/README.md).
+[docs/user/start/README.md](docs/user/start/README.md) lists the seven quickstarts, one per
+reader; the docs site's home page, `site/pages/index.md`, routes to them (decision 0062). The tutorial,
 [docs/user/tutorials/deploy-and-verify-from-a-dapp.md](docs/user/tutorials/deploy-and-verify-from-a-dapp.md),
 deploys a contract from a browser and verifies it on Sourcify, then on Etherscan
 through the server handler.

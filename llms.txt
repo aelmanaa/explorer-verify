@@ -14,7 +14,8 @@ Start here. A submit publishes the source on a public explorer and cannot be und
 
 ## User docs
 
-- [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): index of the user pages
+- [User documentation](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/README.md): what explorer-verify does, a dry run with no key, a start table by reader, the four packages and every page grouped by kind
+- [Quickstarts](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/README.md): the seven quickstarts, one line each: browser dapp, Node.js, the CLI, Foundry, Hardhat, SDK wrapper and AI agent
 - [Which package do I need](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/which-package.md): the four packages and the entries of `explorer-verify`, with the task, install command and runtime of each
 - [Quickstart: browser dapp](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/quickstart-browser.md): a Vite page that runs `dryRun()` on the sample request with no key, prints `dry-run sourcify exact`, then calls `verify()`
 - [Quickstart: Node.js script](https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/quickstart-node.md): a TypeScript script run by Node.js 22.18 or later that runs `dryRun()` on the sample request with no key, then calls `verify()`

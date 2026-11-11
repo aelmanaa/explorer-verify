@@ -91,3 +91,38 @@ the page, before "Next steps" in a guide:
 
 The check fails a dated citation, such as "read 2026-11-04" or "fetched on 2026-11-04", outside
 that H2. The research notes under `docs/contributor/research/` hold the full evidence.
+
+## Folders
+
+The user docs follow the Diátaxis layout, as in
+[hardhat-kms](https://github.com/aelmanaa/hardhat-kms). A page lands with the feature it describes.
+
+| Folder         | Kind               | Holds                                                           |
+| -------------- | ------------------ | --------------------------------------------------------------- |
+| `start/`       | First success      | One quickstart per reader, the package page and the sample      |
+| `tutorials/`   | Learning by doing  | Verify from a dapp; deploy from a dapp, then verify             |
+| `guides/`      | Task how-tos       | One per runtime or setup, the CLI in CI, and one per task       |
+| `advanced/`    | Beyond the default | Bundle size, several explorers, abort and resume, job queues    |
+| `reference/`   | Exact facts        | Functions, CLI, JSON output, errors, explorers; planned: chains |
+| `explanation/` | Background         | Match types, Etherscan plans and attribution, the glossary      |
+
+`start/greeter-sepolia.json` is the sample request every quickstart dry runs: the docs' Greeter at
+`0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc` on Sepolia, which Sourcify holds as an exact match.
+It sets no backend, so the routing table picks one.
+
+## Versions and copies
+
+- Each user page states the version it describes in a `Version:` line and links `llms.txt` near
+  the top. The site drops both lines; its nav shows the version.
+- The npm package ships the user pages under `docs/` with its own `llms.txt`, so an agent in
+  `node_modules` reads the docs of the installed version.
+- The site, <https://aelmanaa.github.io/explorer-verify/>, shows the docs of the version on npm
+  `latest` only. jsDelivr serves the docs of any published version:
+  `https://cdn.jsdelivr.net/npm/explorer-verify@<version>/llms.txt`.
+- On the site, a page's URL with `.md` appended is its Markdown copy. The site's `llms.txt` lists
+  every copy.
+- The site's home page is `site/pages/index.md`, a site-only page
+  ([decision 0062](decisions/0062-site-only-pages.md)). It repeats the routing of
+  `docs/user/README.md`, which the site serves at `/overview`.
+- The API reference on the site is generated from TSDoc. It is not in `docs/user/` or the package;
+  the `.d.ts` files of an installed package carry the same comments.
