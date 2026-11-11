@@ -350,7 +350,11 @@ export interface DryRunResult {
   backend: BackendName;
   /** The API host `verify()` would send to, such as `sourcify.dev`. Never a scheme or a path. */
   apiHost: string;
-  /** What the already-verified check found, or `skipped` when the backend has no key. */
+  /**
+   * What the already-verified check found, or `skipped` when the backend has no key. A Sourcify
+   * match can be up to an hour old: its shared cache keeps a lookup for an hour, so a match that
+   * changed within the hour can show the earlier grade.
+   */
   lookup: "exact" | "partial" | "none" | "skipped";
   /** The public page of the contract, for a match the library knows a page for. */
   explorerUrl?: string;

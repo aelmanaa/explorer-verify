@@ -1,0 +1,32 @@
+{
+  "source": "Constructed, not recorded as one answer: the body comes from a live lookup of sourcify.dev recorded 2026-11-11T07:42:14.885Z with the fetch of Node.js 24.21.0, which answered match for this contract on Ethereum Sepolia, and the headers come from the probe in issue #356 on 2026-11-11: the shared cache answered the earlier match with age 2684 after a job had upgraded the contract to exact_match. Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1?fields=compilation"
+  },
+  "recordedAt": "2026-11-11T07:42:14.885Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public,max-age=3600",
+      "age": "2684"
+    },
+    "body": {
+      "compilation": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.30+commit.73712a01",
+        "name": "Probe294S",
+        "fullyQualifiedName": "src/Probe294S.sol:Probe294S"
+      },
+      "matchId": "59092005",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-11T07:41:35Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1"
+    }
+  }
+}

@@ -23,6 +23,8 @@ export interface Call {
   readonly method: string;
   readonly body: string | undefined;
   readonly headers: Headers;
+  /** The `cache` mode the request asked for, such as `no-store`, or `undefined`. */
+  readonly cache: RequestCache | undefined;
 }
 
 /** What the fake does on one call: answer with a fixture or a response, or reject. */
@@ -70,6 +72,7 @@ export function replay(...steps: Step[]): { fetch: typeof fetch; calls: Call[] }
             ? body.toString()
             : undefined,
       headers: new Headers(init?.headers),
+      cache: init?.cache,
     });
     const step = steps[calls.length - 1];
     if (step === undefined) {

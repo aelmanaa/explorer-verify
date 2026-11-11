@@ -121,8 +121,20 @@ at once, with no lookup.
 
 ## Behaviour to know
 
-- A 200 lookup can be up to an hour old: Sourcify sends `cache-control: public,max-age=3600`. A
-  "not verified" answer is not cached. After a submit, the job's answer is newer than a lookup.
+- A 200 lookup can be up to an hour old. Sourcify sends `cache-control: public,max-age=3600`, and a
+  shared cache in front of the server keeps the answer. On 2026-11-11 a lookup still answered
+  `match` 44 minutes after a submit upgraded the contract to `exact_match`, while the same lookup
+  without the query answered `exact_match`. No request header reaches that cache. A "not verified"
+  answer is not cached.
+- After a submit, the job's answer is newer than a lookup and wins over it. A `partial` from the
+  lookup, in a `verify()` result or a `dryRun()` `lookup`, can be an hour behind; check the
+  contract's page after that hour.
+- Through the platform's `fetch`, the lookup goes with `cache: "no-store"`, so a browser's own
+  cache adds no second hour. A runtime whose `Request` refuses the field, as Cloudflare Workers
+  before compatibility date 2024-11-11 do, sends the lookup without it. An injected `fetch` never
+  gets the field: your `fetch` handles caching, and the lookup can be up to an hour old, or more if
+  your `fetch` caches it too. [The cache probes](../../contributor/research/2026-11-11-sourcify-lookup-cache.md)
+  record each request tried and its answer.
 - The lookup names the stored contract from `compilation`: `fullyQualifiedName`, else `name`, and
   `compilerVersion`.
 - Sourcify can hold another contract's source for an address. On Ethereum Sepolia, within two
@@ -135,7 +147,8 @@ at once, with no lookup.
 - Two Sourcify answers name no contract: the `409` to a submit, and the lookup of a server that
   ignores `fields=compilation`. `verify()` then takes the match as your source, and logs at `info`
   that the answer names no contract. After a `409` that follows another contract's match, the
-  result keeps that contract in `storedContract`.
+  result keeps that contract in `storedContract`, with `match` `partial`. That contract comes from
+  a lookup up to an hour old, so it may be out of date; `verify()` logs this at `warn`.
 - A submit can verify the contract on other explorers too. Completed jobs carry
   `externalVerifications`, one entry per explorer: a job id, an "already verified" answer or an
   error such as a daily limit. A later Etherscan submit can then answer that the contract is
@@ -144,9 +157,6 @@ at once, with no lookup.
   match. `verify()` sends it only with `submitOverPartial`. On Ethereum Sepolia on 2026-11-11, the
   job ended with `exact_match`. The same partial sources again started a job that ended with the
   code `already_verified` ([Submit over a partial match](verify.md#submit-over-a-partial-match)).
-- The lookup answer carries `cache-control: public,max-age=3600`. On 2026-11-11 the lookup with
-  `fields=compilation` still answered `match` 44 minutes after a job upgraded the contract to
-  `exact_match`, while the same lookup without the query answered `exact_match`.
 - Linked libraries: for a contract linked to a library after compiling, as Foundry and Hardhat do,
   submit `settings.libraries` as it was at compile time. Adding the library addresses gives only
   a partial match, because the addresses change the metadata hash. `verify()` sends the input

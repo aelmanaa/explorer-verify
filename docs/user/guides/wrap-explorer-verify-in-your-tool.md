@@ -363,16 +363,16 @@ queue](../advanced/resume-from-a-job-queue.md) polls it later.
 
 ## Map the settings onto VerifyOptions
 
-| deployKit setting    | `VerifyOptions` field     | Notes                                               |
-| -------------------- | ------------------------- | --------------------------------------------------- |
-| `etherscanApiKey`    | `apiKeys["etherscan-v2"]` | Sent only to Etherscan's host. Without it, Sourcify |
-| `waitTimeoutSeconds` | `timeoutMs`               | The budget for the whole call, polls included       |
-| `signal`             | `signal`                  | An abort rejects with `signal.reason` unchanged     |
-| `onSubmitted`        | `onEvent`                 | Read the handle from `verify.submitted`             |
-| A `fetch`            | `fetch`                   | Every request goes through it. It must not redirect |
-| A fixed explorer     | `route`                   | See [Routing](../reference/routing.md#route)        |
-| A logger             | `logger`, `onEvent`       | See [Logging](../reference/logging-and-events.md)   |
-| A server with a key  | `handlerUrl`              | See [Server handler](run-the-server-handler.md)     |
+| deployKit setting    | `VerifyOptions` field     | Notes                                                                                                |
+| -------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `etherscanApiKey`    | `apiKeys["etherscan-v2"]` | Sent only to Etherscan's host. Without it, Sourcify                                                  |
+| `waitTimeoutSeconds` | `timeoutMs`               | The budget for the whole call, polls included                                                        |
+| `signal`             | `signal`                  | An abort rejects with `signal.reason` unchanged                                                      |
+| `onSubmitted`        | `onEvent`                 | Read the handle from `verify.submitted`                                                              |
+| A `fetch`            | `fetch`                   | Every request goes through it. It must not redirect. It gets no `cache` field, so it handles caching |
+| A fixed explorer     | `route`                   | See [Routing](../reference/routing.md#route)                                                         |
+| A logger             | `logger`, `onEvent`       | See [Logging](../reference/logging-and-events.md)                                                    |
+| A server with a key  | `handlerUrl`              | See [Server handler](run-the-server-handler.md)                                                      |
 
 The library never reads `process.env`: read keys in your tool and pass them in `apiKeys`. In a
 browser, use `handlerUrl` instead; Etherscan's terms forbid its key in browser code. Type one

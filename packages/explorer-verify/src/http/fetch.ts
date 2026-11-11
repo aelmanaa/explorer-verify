@@ -222,6 +222,15 @@ export interface HttpRequest {
    * query changes, never the host.
    */
   readonly freshQuery?: () => string;
+  // References: R-RUN-1, issue #356.
+  /**
+   * When `true`, each attempt asks the runtime's own HTTP cache neither to serve nor to store the
+   * answer: `cache: "no-store"` on the fetch. Only the platform's fetch gets the field: an
+   * injected fetch handles caching itself, and may refuse a field it does not know. A runtime whose
+   * `Request` refuses or ignores the field, as some edge runtimes do, gets none either. It does not
+   * reach a shared cache in front of the server.
+   */
+  readonly noStore?: boolean;
 }
 
 /**
@@ -251,6 +260,7 @@ interface Call {
   readonly rateLimited: ((body: string) => boolean) | undefined;
   readonly retryAfterHeader: string | undefined;
   readonly freshQuery: (() => string) | undefined;
+  readonly noStore: boolean | undefined;
 }
 
 /** The result of one attempt. */
@@ -510,6 +520,7 @@ function readCall(ctx: HttpContext, req: HttpRequest): Call {
     rateLimited: optional(req, "rateLimited", "request"),
     retryAfterHeader: optional(req, "retryAfterHeader", "request"),
     freshQuery: optional(req, "freshQuery", "request"),
+    noStore: optional(req, "noStore", "request"),
   };
 }
 
@@ -692,6 +703,20 @@ function networkFailure(cause: unknown): Failure {
   };
 }
 
+// References: R-RUN-1, issue #356.
+/**
+ * Whether this runtime's `Request` keeps `cache: "no-store"` for `url`. A runtime without
+ * `Request`, one that throws on the field, as Cloudflare Workers did before compatibility date
+ * 2024-11-11, or one that drops it gets `false`, and the request goes without the field.
+ */
+function takesNoStore(url: string): boolean {
+  try {
+    return new Request(url, { cache: "no-store" }).cache === "no-store";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The fetch and the body read, classified. Throws only when no response arrived; once the
  * headers arrived, every problem is a {@link Fatal}.
@@ -717,6 +742,10 @@ async function exchange(call: Call, signal: AbortSignal, progress: Progress): Pr
     freshQuery === undefined
       ? call.url
       : `${call.url}${call.url.includes("?") ? "&" : "?"}${freshQuery()}`;
+  // Only the platform fetch gets the field: an injected fetch may refuse fields it does not know.
+  if (call.noStore === true && call.sameOrigin && takesNoStore(url)) {
+    init.cache = "no-store";
+  }
   const response = await send(url, init);
   const { status } = response;
   progress.status = status;

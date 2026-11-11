@@ -208,7 +208,8 @@ export async function verify(input: VerifyInput, options?: VerifyOptions): Promi
  * 2. When the route's backend needs an API key and none is set, it sends no request: the result
  *    says `lookup: "skipped"`. `verify()` would throw `missing-api-key` here. With `handlerUrl`,
  *    whose server handler adds the key, it looks the contract up.
- * 3. Otherwise it looks the contract up once and returns what it found.
+ * 3. Otherwise it looks the contract up once and returns what it found. A Sourcify lookup can be up
+ *    to an hour old, so a grade that changed within the hour can show the earlier one.
  *
  * It emits `verify.validated`, `verify.routed` and `verify.lookup`, whose `match` is `skipped`
  * when no request was sent. It emits no `verify.submitted` and no `verify.result`.

@@ -247,6 +247,12 @@ describe("verify() submits over a recorded match of another contract's source (R
       );
       assert.ok(warn !== undefined, "the warn line names the other contract");
       assert.ok(warn[1].includes(String(row.stored.compilerVersion)), warn[1]);
+      // Issue #356: only a refusal that names no contract, Sourcify's 409, keeps the first
+      // lookup's contract, and only then does a warn line say it may be out of date.
+      const stale = log.seen.filter(
+        ([level, message]) => level === "warn" && message.includes("may be out of date"),
+      );
+      assert.equal(stale.length, row.backend === "sourcify" ? 1 : 0, row.backend);
     });
   }
 
