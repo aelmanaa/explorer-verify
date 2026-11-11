@@ -176,10 +176,24 @@ export function stageText(event: VerifyEvent): string {
  * of its message and a field it always sets: the `verify.submitted` and `verify.result` events'
  * lines, and the dry run's lookup line, which the `verify.routed` line and stdout state.
  */
-const REPEATED_LINES: readonly { readonly marker: RegExp; readonly field: string }[] = [
-  { marker: / accepted the submission\. Resume it with this handle: /, field: "handle" },
-  { marker: /^Result: /, field: "status" },
-  { marker: /^Dry run: /, field: "routedBy" },
+const REPEATED_LINES: readonly {
+  readonly marker: RegExp;
+  readonly field: string;
+  readonly level: "info" | "warn";
+}[] = [
+  {
+    marker: / accepted the submission\. Resume it with this handle: /,
+    field: "handle",
+    level: "info",
+  },
+  { marker: /^Result: /, field: "status", level: "info" },
+  { marker: /^Dry run: /, field: "routedBy", level: "info" },
+  // The verify.retry event's line says the same before each new submit.
+  {
+    marker: / found no contract code at the address yet; submitting again /,
+    field: "reason",
+    level: "warn",
+  },
 ];
 
 // References: R-AX-14.
@@ -190,11 +204,17 @@ const REPEATED_LINES: readonly { readonly marker: RegExp; readonly field: string
  *
  * @param message - The log line's message.
  * @param fields - The log line's fields.
+ * @param level - The log line's level: each marker repeats lines of one level.
  * @returns Whether the line repeats one the CLI prints.
  */
-export function repeats(message: string, fields: LogFields | undefined): boolean {
+export function repeats(
+  message: string,
+  fields: LogFields | undefined,
+  level: LineLevel = "info",
+): boolean {
   return REPEATED_LINES.some(
-    ({ marker, field }) => marker.test(message) && fields?.[field] !== undefined,
+    (line) =>
+      line.level === level && line.marker.test(message) && fields?.[line.field] !== undefined,
   );
 }
 
@@ -388,11 +408,11 @@ export function createStderr(options: StderrOptions): Stderr {
     writeLine(lines.join("\n"));
   };
 
-  // A logger line: an `info` line that repeats an event or the result drops to `debug` in text.
-  // The library's option name becomes the CLI flag.
+  // A logger line: an `info` or `warn` line that repeats an event or the result drops to `debug`
+  // in text. The library's option name becomes the CLI flag.
   const logged = (lineLevel: LineLevel, message: string, fields?: LogFields): void => {
     const text = message.replace(/\bsubmitOverPartial\b/g, "--submit-over-partial");
-    const repeated = lineLevel === "info" && format === "text" && repeats(text, fields);
+    const repeated = format === "text" && repeats(text, fields, lineLevel);
     log(repeated ? "debug" : lineLevel, text, fields);
   };
 

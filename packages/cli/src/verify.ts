@@ -60,6 +60,22 @@ export const POLL_INTERVAL_OPTION: OptionSpec = {
     "The wait between two status polls of a submitted job, in whole seconds, at least 1. Default 3.",
 };
 
+// References: R-FLOW-7, decision 0066.
+/** `--index-wait`, `verify` only: a resumed handle sends no submit. */
+const INDEX_WAIT_OPTION: OptionSpec = {
+  type: "string",
+  value: "<seconds>",
+  description:
+    "etherscan-v2, routescan and etherscan-compatible only: how long to keep sending the submit while the explorer finds no contract code at the address, as right after a deployment. Whole seconds from 1 to 2147483, counted from the first submit, and capped by --timeout. Default: at most 10 submits, about 27 s at the default --poll-interval, so a value under about 30 waits less.",
+};
+
+/** The backends that send the submit again while the explorer finds no contract code. */
+const INDEX_WAIT_BACKENDS: readonly string[] = [
+  "etherscan-v2",
+  "routescan",
+  "etherscan-compatible",
+];
+
 /** `--input-json`, shared by `verify` and `status`. */
 export function inputJsonOption(command: string): OptionSpec {
   return {
@@ -150,6 +166,21 @@ export function pollIntervalOf(
   issues: InputIssue[],
 ): number | undefined {
   return millisecondsOf(values, "poll-interval", issues);
+}
+
+/**
+ * How long `--index-wait` keeps sending the submit, in milliseconds, `undefined` when it is
+ * absent, or an issue.
+ *
+ * @param values - The checked option values.
+ * @param issues - Receives the issue.
+ * @returns The wait.
+ */
+function indexWaitOf(
+  values: ReadonlyMap<string, OptionValue>,
+  issues: InputIssue[],
+): number | undefined {
+  return millisecondsOf(values, "index-wait", issues);
 }
 
 /** A whole number of seconds from 1 to the longest timer, in milliseconds, or an issue. */
@@ -415,12 +446,15 @@ async function inputFromFlags(context: PrepareContext): Promise<VerifyInput> {
 }
 
 /**
- * What a run sends besides the input: whether it is a dry run, the budget, the RPC URL, the target
+ * What a run sends besides the input: whether it is a dry run, the budget, the wait for the
+ * explorer to index the contract, the RPC URL, the target
  * the caller named, and the field that names it, `--backend` or `route.backend`.
  */
 interface SendSettings {
   readonly dry: boolean;
   readonly timing: Timing;
+  /** The wait of `--index-wait`, when given. */
+  readonly indexWaitMs: number | undefined;
   readonly rpcUrl: string | undefined;
   readonly target: Target;
   readonly field: string;
@@ -435,11 +469,12 @@ async function send(
   input: VerifyInput,
   settings: SendSettings,
 ): Promise<CommandResult> {
-  const { dry, timing, rpcUrl, target } = settings;
+  const { dry, timing, indexWaitMs, rpcUrl, target } = settings;
   // When the routing table chooses the backend, the routed line says which one and why, at info.
   const tableChooses = target === AUTO || target === undefined;
   const options: VerifyOptions = {
     ...callOptions(context, timing),
+    ...(indexWaitMs === undefined ? {} : { indexWaitMs }),
     ...(rpcUrl === undefined ? {} : { rpcUrl }),
     ...(context.values.get("submit-over-partial") === true ? { submitOverPartial: true } : {}),
     ...(tableChooses
@@ -450,7 +485,17 @@ async function send(
         }
       : {}),
   };
-  const { backends } = context.routeOptions();
+  const { backends, route } = context.routeOptions();
+  const named = backends ?? (route?.backend === undefined ? [] : [route.backend]);
+  if (
+    settings.indexWaitMs !== undefined &&
+    target === "named" &&
+    !named.some((name) => INDEX_WAIT_BACKENDS.includes(name))
+  ) {
+    context.logger.warn(
+      `--index-wait has no effect on ${named.join(", ")}: only etherscan-v2, routescan and etherscan-compatible send the submit again while the explorer finds no contract code.`,
+    );
+  }
   if (target === ALL) {
     if (dry) {
       throw await allDryRunRefusal(input, settings.field);
@@ -541,6 +586,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
     timeoutMs: timeoutOf(values, issues),
     pollIntervalMs: pollIntervalOf(values, issues),
   };
+  const indexWaitMs = indexWaitOf(values, issues);
   const rpc = await readRpcUrl(context);
   if (rpc.issues !== undefined) {
     throw usageError([...issues, ...rpc.issues]);
@@ -555,7 +601,7 @@ async function prepare(context: PrepareContext): Promise<Prepared> {
   if (issues.length > 0) {
     throw usageError(issues);
   }
-  const sent = { dry, timing, rpcUrl: rpc.rpcUrl };
+  const sent = { dry, timing, indexWaitMs, rpcUrl: rpc.rpcUrl };
   const path = stringOption(values, "input-json");
   if (path === undefined) {
     checkFallback(values, new Map());
@@ -636,6 +682,7 @@ const OPTIONS: OptionSpecs = {
   },
   timeout: TIMEOUT_OPTION,
   "poll-interval": POLL_INTERVAL_OPTION,
+  "index-wait": INDEX_WAIT_OPTION,
   ...RPC_URL_OPTIONS,
   "allow-sourcify-fallback": FALLBACK_OPTION,
   "submit-over-partial": {

@@ -233,7 +233,7 @@ const FIXED: Readonly<
   "proxy-link-unknown-state":
     "Do not retry automatically. Check the proxy's page on the explorer, and report the excerpt that --json prints.",
   "not-indexed":
-    "Check the chain and the address (--chain and --address, or chainId and address in the request). If the contract was deployed in the last few minutes, run the command again in a minute.",
+    "Check --chain and the address argument, or the chain and the address in the --input-json request (chainId, address). If the contract was deployed in the last few minutes, run the command again in a minute. To wait longer, raise --index-wait and --timeout, which caps it.",
 };
 
 /**

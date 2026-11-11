@@ -21,6 +21,8 @@ import { readFileSync } from "node:fs";
  * - `offline`: not verified; the submit and the job status requests get no response.
  * - `flaky`: like `pending`, except that the first job status request gets no response, so the
  *   run retries it once with a `verify.retry` warning.
+ * - `not-indexed`: Etherscan and Routescan answer every submit that they find no contract code at
+ *   the address, as right after a deployment.
  */
 export type Scenario =
   | "verified"
@@ -34,7 +36,8 @@ export type Scenario =
   | "inconclusive"
   | "unclassified"
   | "offline"
-  | "flaky";
+  | "flaky"
+  | "not-indexed";
 
 /** The scenarios, for checking a name read from the environment. */
 export const SCENARIOS: readonly Scenario[] = [
@@ -50,6 +53,7 @@ export const SCENARIOS: readonly Scenario[] = [
   "unclassified",
   "offline",
   "flaky",
+  "not-indexed",
 ];
 
 /** The recorded job answer of each scenario whose job ends with an error. */
@@ -237,6 +241,9 @@ export function fakeExplorer(
       }
       if (action === "getcontractcreation") {
         return recorded("etherscan/2026-11-04-getcontractcreation-no-contract");
+      }
+      if (action === "verifysourcecode" && scenario === "not-indexed") {
+        return recorded("etherscan/2026-11-04-verifysourcecode-no-code");
       }
       if (action === "checkverifystatus") {
         return recorded("etherscan/2026-11-03-checkverifystatus-factory-child-02-pass");

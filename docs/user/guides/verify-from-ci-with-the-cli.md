@@ -173,6 +173,12 @@ script before `case`, and the envelope would go unread.
 `${VERIFY_TIMEOUT:-300}` gives the run five minutes. A run that ends pending exits 4 with the
 handle, and the script writes it as the step output `handle`.
 
+A job that verifies right after the deploy can reach Etherscan before it has indexed the contract.
+Etherscan then answers that it finds no contract code at the address, and `verify` sends the
+submit again at most 10 times, about 27 seconds at the default `--poll-interval` of 3 seconds.
+Pass `--index-wait <seconds>` to keep sending it longer, such as `--index-wait 120`. The wait stays
+within `--timeout`. When it ends, the run exits 4 with `not-indexed` and no handle.
+
 `escape` encodes text from an explorer. `%` becomes `%25`, and CR and LF become `%0D` and `%0A`.
 So a reason or a hint cannot end the `::error::` line and start another workflow command. GitHub's own
 `@actions/core` applies the same escapes. [Errors](../reference/errors/index.md#exit-codes) lists

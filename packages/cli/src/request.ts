@@ -25,6 +25,7 @@ export const MAX_JSON_BYTES: number = 64 * 1024 * 1024;
 /** The library options a verify request may not hold, each with the flag that sets it. */
 const FLAG_FIELDS: readonly (readonly [string, string])[] = [
   ["submitOverPartial", "--submit-over-partial"],
+  ["indexWaitMs", "--index-wait"],
 ];
 
 /** The options that may accompany `--input-json`, besides help and the version. */
@@ -45,6 +46,7 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "rpc-url-stdin",
   "timeout",
   "poll-interval",
+  "index-wait",
 ];
 
 /** A JSON value read from a file or stdin, or the issue that stopped it. */

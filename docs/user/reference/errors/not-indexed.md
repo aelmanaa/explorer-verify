@@ -14,8 +14,12 @@ it. [Etherscan](../etherscan.md#how-answers-are-read) describes the wait.
 
 A tool that shows the error to a person tells them to try again in a minute.
 
-From the CLI: Check the chain and the address (--chain and --address, or chainId and address in the
-request). If the contract was deployed in the last few minutes, run the command again in a minute.
+From the CLI: Check --chain and the address argument, or the chain and the address in the
+--input-json request (chainId, address). If the contract was deployed in the last few minutes, run
+the command again in a minute. To wait longer, raise --index-wait and --timeout, which caps it.
+
+On the command line, `verify` takes the wait in seconds, such as `--index-wait 120` with
+`--timeout 300`.
 
 ## Facts
 

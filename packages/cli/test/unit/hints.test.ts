@@ -8,7 +8,9 @@ import { ERROR_CODES, ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 import type { ErrorCode, ErrorDetails, ErrorJson, Handle, HandleString } from "explorer-verify";
 import type { Envelope } from "explorer-verify/envelope";
 
+import { GLOBAL_OPTIONS, commandOptions } from "../../src/arguments.ts";
 import type { Command } from "../../src/command.ts";
+import { COMMANDS } from "../../src/commands.ts";
 import {
   MAX_LISTED,
   cliErrorJson,
@@ -185,6 +187,38 @@ describe("CLI hints (R-AX-10)", () => {
       assert.ok(error.hint.trim().length > 0);
     });
   }
+
+  // References: R-AX-10, issue #352.
+  it("names only flags that the CLI's parser accepts, in every hint and in the hint sources", () => {
+    const known = new Set(
+      [GLOBAL_OPTIONS, ...COMMANDS.map((command) => commandOptions(command))].flatMap((specs) =>
+        Object.keys(specs).map((name) => `--${name}`),
+      ),
+    );
+    const texts = ERROR_CODES.flatMap((code) => [
+      cliHint(sampleError(code)),
+      cliHint(sampleError(code), { keyFlag: true }),
+      cliErrorJson(sampleError(code)).hint,
+    ]);
+    // The hint tables themselves, so a hint that only some details reach is checked too.
+    for (const file of ["hints.ts", "project.ts"]) {
+      texts.push(readFileSync(new URL(`../../src/${file}`, import.meta.url), "utf8"));
+    }
+    const flags = new Set(
+      texts.flatMap((text) =>
+        // forge's own flag, in the advice to run forge build --build-info.
+        [...text.replaceAll("forge build --build-info", "").matchAll(/--[a-z][a-z0-9-]*/g)].map(
+          ([flag]) => flag,
+        ),
+      ),
+    );
+    assert.ok(flags.size >= 10, [...flags].join(" "));
+    for (const flag of flags) {
+      assert.ok(known.has(flag), `${flag} is not an option of the CLI`);
+    }
+    assert.ok(!flags.has("--address"));
+    assert.match(cliHint(sampleError("not-indexed")), /--index-wait/);
+  });
 
   it("replaces every default hint of the library that names its API (R-AX-10)", () => {
     for (const code of ERROR_CODES) {

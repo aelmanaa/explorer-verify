@@ -749,6 +749,25 @@ describe("--submit-over-partial (R-FLOW-1, R-FLOW-7, decision 0067)", () => {
     assert.equal(result.seen.length, 0);
   });
 
+  it("refuses indexWaitMs in the --input-json request and names --index-wait (#352)", async (t) => {
+    const path = file(
+      "index-wait-field.json",
+      JSON.stringify({ ...REQUEST, route: { backend: "sourcify" }, indexWaitMs: 60_000 }),
+    );
+    const result = await run(t, ["verify", "--input-json", path, "--json"], "partial");
+    assert.equal(result.code, 2, result.stdout);
+    assert.deepEqual(part(result, "error")["details"], {
+      code: "invalid-input",
+      issues: [
+        {
+          field: "indexWaitMs",
+          message: "is a flag: pass --index-wait with --input-json instead",
+        },
+      ],
+    });
+    assert.equal(result.seen.length, 0);
+  });
+
   it("a budget that runs out gives a handle that ends with :over-partial", async (t) => {
     const result = await run(
       t,

@@ -433,7 +433,8 @@ Keys on the command line:
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
   optional `route` of `backend` and `apiUrl`; a real run needs `route.backend`, a name or
   `"auto"`. It holds no key. Only the output, log, `--dry-run`,
-  `--timeout`, `--poll-interval` and key flags may go with it, not `--foundry` or `--hardhat`.
+  `--timeout`, `--poll-interval`, `--index-wait` and key flags may go with it, not `--foundry` or
+  `--hardhat`.
 - A run that ends pending exits 4 with the handle in the error. Resume with
   `explorer-verify status <handle>`, never with a new `verify`. With `--json`, its envelope
   also holds `nextCommand`, that `status` command as an argument array: run it as it is. It never
@@ -455,8 +456,8 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
   again unless the person asks.
 - Right after a deployment, Sourcify may answer `contract_not_deployed`, as
   `verification-inconclusive`, until its node sees the contract. Etherscan answers that it finds no
-  contract code, and `verify()` throws `not-indexed` when its wait ends; pass a longer `indexWaitMs`
-  to wait more. Wait for the deployment to be indexed, then try once more.
+  contract code, and `verify()` throws `not-indexed` when its wait ends; pass a longer `indexWaitMs`,
+  or `--index-wait <seconds>` to the CLI, to wait more. Wait for the deployment to be indexed, then try once more.
 
 ## Keys and redaction
 
