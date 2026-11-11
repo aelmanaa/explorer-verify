@@ -14,6 +14,7 @@ import {
   bundleApart,
   bundleChunks,
   bundleForBrowser,
+  externalSpecifier,
   filesSize,
   gzipSize,
 } from "../bundle.ts";
@@ -310,16 +311,19 @@ describe("check-size.ts", () => {
  * Writes an entry that loads two clients with a dynamic `import()`, as the flow engine does. Both
  * clients import `shared.ts`, which the entry imports too, and `common.ts`, which it does not.
  */
-function withClients(): string {
-  mkdirSync(path.join(dir, "clients"));
-  writeFileSync(path.join(dir, "shared.ts"), 'export const SHARED = "shared-code-in-the-entry";\n');
+function withClients(folder = dir): string {
+  mkdirSync(path.join(folder, "clients"), { recursive: true });
   writeFileSync(
-    path.join(dir, "clients", "common.ts"),
+    path.join(folder, "shared.ts"),
+    'export const SHARED = "shared-code-in-the-entry";\n',
+  );
+  writeFileSync(
+    path.join(folder, "clients", "common.ts"),
     'export const COMMON = "common-code-of-the-clients";\n',
   );
   for (const name of ["alpha", "beta"]) {
     writeFileSync(
-      path.join(dir, "clients", `${name}.ts`),
+      path.join(folder, "clients", `${name}.ts`),
       'import { SHARED } from "../shared.ts";\nimport { COMMON } from "./common.ts";\n' +
         `export const client = [SHARED, COMMON, "${name}-client-code"];\n`,
     );
@@ -452,6 +456,23 @@ describe("bundleApart (decision 0031)", () => {
     );
   });
 
+  it("measures the same code at any checkout path (R-RUN-3)", async () => {
+    const short = path.join(dir, "s");
+    const long = path.join(dir, "a-much-longer-folder-name-for-the-same-checkout");
+    const near = await bundleApart({ contents: withClients(short), resolveDir: short });
+    const far = await bundleApart({ contents: withClients(long), resolveDir: long });
+    assert.equal(gzipSize(far.entry), gzipSize(near.entry));
+    assert.deepEqual(
+      [...far.chunks].map(([name, code]) => [name, gzipSize(code)]),
+      [...near.chunks].map(([name, code]) => [name, gzipSize(code)]),
+    );
+    for (const code of [near.entry, ...near.chunks.values()]) {
+      assert.ok(!code.includes(dir), "no absolute path in the measured code");
+    }
+    assert.match(near.entry, /import\("\.\/clients\/alpha\.ts"\)/);
+    assert.match(near.chunks.get("alpha") ?? "", /from"\.\/shared\.ts"/);
+  });
+
   it("refuses two dynamically imported modules with the same file name", async () => {
     await assert.rejects(
       bundleApart({ contents: twoNamedClient(), resolveDir: dir }),
@@ -464,6 +485,17 @@ describe("bundleApart (decision 0031)", () => {
 function chunk(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { name: "sourcify", measuredBytes: 100, ceilingBytes: 120, ...overrides };
 }
+
+describe("externalSpecifier (R-RUN-3)", () => {
+  it("gives a path relative to the root with / separators", () => {
+    const root = path.join(dir, "pkg");
+    assert.equal(
+      externalSpecifier(root, path.join(root, "dist", "src", "a.js")),
+      "./dist/src/a.js",
+    );
+    assert.equal(externalSpecifier(root, path.join(dir, "other", "b.js")), "../other/b.js");
+  });
+});
 
 describe("parseChunks (decision 0031)", () => {
   it("reads every chunk in file order, and none when the file has no chunks", () => {
