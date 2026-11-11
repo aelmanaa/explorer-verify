@@ -1,9 +1,9 @@
 // The style rules of the user docs (docs/contributor/docs-style.md), used by
 // scripts/check-agent-docs.ts, which `pnpm run check` runs.
 //
-// A page under `docs/user/` that holds the line `<!-- docs-style: legacy -->` skips these rules
-// until it is rewritten. On every other page the check fails:
+// On every page under `docs/user/` the check fails:
 // - a paragraph, list item or quote over 80 words;
+// - a page whose paragraphs, list items and quotes average over 30 words;
 // - a sentence with more than 4 code spans;
 // - a code block whose introducing line does not end with a colon;
 // - a paragraph that starts with "Note:" or a similar label instead of a GitHub alert;
@@ -11,18 +11,21 @@
 // - a shell block line that starts with a bare `explorer-verify` instead of
 //   `npx @explorer-verify/cli`;
 // - a guide or quickstart (`guides/`, `start/`, `tutorials/`) without a "For:" and a
-//   "You need:" line in its first 15 lines, or whose last H2 is not "Next steps".
+//   "You need:" line in its first 15 lines, or whose last H2 is not "Next steps";
+// - the line `<!-- docs-style: legacy -->`, which once exempted a page from these rules.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { forEachProseLine, listFiles, USER_DOCS } from "./agent-docs.ts";
 
-/** The line that exempts a page from the style rules until it is rewritten. */
+/** The line that once exempted a page from the style rules. The check now fails it. */
 export const LEGACY_MARKER = "<!-- docs-style: legacy -->";
 /** The style guide that the problems point to. */
 export const STYLE_GUIDE = "docs/contributor/docs-style.md";
 /** The most words a paragraph, list item or quote may have. The guide asks for about 50. */
 export const MAX_WORDS = 80;
+/** The highest average word count of a page's paragraphs, list items and quotes. */
+export const MAX_AVERAGE = 30;
 /** The most code spans one sentence may have. */
 export const MAX_CODE_SPANS = 4;
 /** How many lines from the top of a guide may hold its "For:" and "You need:" lines. */
@@ -77,9 +80,10 @@ interface Page {
   readonly bare: ReadonlyMap<number, string>;
 }
 
-/** Whether a page holds the legacy marker on a line of its own. */
-export function isLegacy(text: string): boolean {
-  return text.split("\n").some((line) => line.trim() === LEGACY_MARKER);
+/** The 1-based line of the legacy marker on a line of its own, or `undefined`. */
+export function legacyLine(text: string): number | undefined {
+  const index = text.split("\n").findIndex((line) => line.trim() === LEGACY_MARKER);
+  return index === -1 ? undefined : index + 1;
 }
 
 /** Whether a page, relative to `docs/user/`, is a guide or quickstart. */
@@ -187,15 +191,24 @@ export function codeSpansPerSentence(text: string): number {
   );
 }
 
-/** How dense a page is: its paragraphs, list items and quotes, and their average word count. */
-export function pageDensity(text: string): { blocks: number; average: number; longest: number } {
-  const counts = parse(text).blocks.map((block) => wordCount(block.text));
+/** The density of a list of blocks: their number, average and longest word count. */
+function densityOf(blocks: readonly TextBlock[]): {
+  blocks: number;
+  average: number;
+  longest: number;
+} {
+  const counts = blocks.map((block) => wordCount(block.text));
   const total = counts.reduce((sum, count) => sum + count, 0);
   return {
     blocks: counts.length,
     average: counts.length === 0 ? 0 : Math.round(total / counts.length),
     longest: Math.max(0, ...counts),
   };
+}
+
+/** How dense a page is: its paragraphs, list items and quotes, and their average word count. */
+export function pageDensity(text: string): { blocks: number; average: number; longest: number } {
+  return densityOf(parse(text).blocks);
 }
 
 /** The H2 a 0-based line falls under, or `undefined` before the first one. */
@@ -226,18 +239,22 @@ function introProblem(page: Page, fence: Fence): string | undefined {
 
 /**
  * The style problems of one user page. `file` is the repository path, such as
- * `docs/user/guides/x.md`, and `page` the path under `docs/user/`. A page with the legacy marker
- * has none.
+ * `docs/user/guides/x.md`, and `page` the path under `docs/user/`.
  */
 export function styleProblems(file: string, page: string, text: string): string[] {
-  if (isLegacy(text)) {
-    return [];
-  }
   const parsed = parse(text);
   const problems: string[] = [];
   const report = (line: number, message: string): void => {
     problems.push(`${file}:${line}: ${message} (${STYLE_GUIDE})`);
   };
+  const legacy = legacyLine(text);
+  if (legacy !== undefined) {
+    report(legacy, "the legacy marker no longer exempts a page; remove it and fix the page");
+  }
+  const { average } = densityOf(parsed.blocks);
+  if (average > MAX_AVERAGE) {
+    report(1, `an average of ${average} words per block; keep it at most ${MAX_AVERAGE}`);
+  }
   for (const block of parsed.blocks) {
     const words = wordCount(block.text);
     if (words > MAX_WORDS) {
@@ -311,13 +328,12 @@ export function checkDocsStyle(root: string): string[] {
 }
 
 /**
- * One line per user page under `root`: its paragraphs, list items and quotes, their average and
- * longest word count, and whether it is legacy.
+ * One line per user page under `root`: its paragraphs, list items and quotes, and their average and
+ * longest word count.
  */
 export function densityReport(root: string): string[] {
   return userPages(root).map(({ page, text }) => {
     const { blocks, average, longest } = pageDensity(text);
-    const legacy = isLegacy(text) ? ", legacy" : "";
-    return `${page}: ${blocks} blocks, average ${average} words, longest ${longest}${legacy}`;
+    return `${page}: ${blocks} blocks, average ${average} words, longest ${longest}`;
   });
 }
