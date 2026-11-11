@@ -9,8 +9,8 @@ The explorer kept answering that it finds no contract code at the address.
 ## How to fix
 
 Fix: check that `chainId` and `address` name the deployed contract. If it was deployed in the last
-few minutes, call `verify()` again in a minute, or pass a longer `indexWaitMs` and a `timeoutMs`
-that holds it. [Etherscan](../etherscan.md#how-answers-are-read) describes the wait.
+few minutes, call again in a minute, or pass a longer `indexWaitMs` and a `timeoutMs` that holds
+it. [Etherscan](../etherscan.md#how-answers-are-read) describes the wait.
 
 A tool that shows the error to a person tells them to try again in a minute.
 
@@ -19,7 +19,7 @@ request). If the contract was deployed in the last few minutes, run the command 
 
 ## Facts
 
-Retryable: yes, with a new `verify()`.
+Retryable: yes, with a new call.
 
 Exit code: 4
 
@@ -31,6 +31,10 @@ deployed, call again in a minute, or wait longer with indexWaitMs.
 
 For end users: The explorer has not found the contract at this address yet. Check the chain and the
 address; if the contract was deployed moments ago, try again in a minute.
+
+Through a server handler, the default hint is: Etherscan has no creation record for the address
+yet, so your server handler cannot check its deployer. Check the chain and the address (chainId,
+address); if the contract was just deployed, call again in a minute.
 
 ## Why
 
@@ -49,9 +53,15 @@ first submit when that option is set, otherwise at most 10 times, and never past
 | `details.submits`   | The answers that found no code; a request retried after a 429 is not one |
 | `details.elapsedMs` | The time from the first submit to the last answer                        |
 
-A server handler whose `deployers` option is set refuses the lookup with 503 before any submit.
-That call ends with [`unexpected-response`](unexpected-response.md), and `indexWaitMs` has no effect
-there.
+A server handler whose `deployers` option is set refuses a request with 503 `address-not-indexed`
+when Etherscan has no creation record for the address yet, so `verify()` and `linkProxy()` can both
+throw this code through it. The client retries the request as `Retry-After` asks, then throws
+([server handler](../server-handler.md#how-the-client-reads-a-refusal)).
+
+On that path the details count differently. `details.submits` counts HTTP attempts, not answers:
+the attempts of the refused request when it was the submit, and `0` when the handler refused the
+lookup or another request. `details.elapsedMs` runs from the first attempt of the refused request
+to its last answer. `indexWaitMs` has no effect there.
 
 ## In code
 

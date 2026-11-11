@@ -134,11 +134,12 @@ holds none or the lookup fails.
 
 ## Errors
 
-| Error                                                                         | When                                                                                |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)             | The link is still pending when `timeoutMs` runs out. Resume it with `details.jobId` |
-| [`unexpected-response`](../reference/errors/unexpected-response.md)           | The link request or a lookup got an answer in a form the library does not know      |
-| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md) | A status check gave a state the library cannot classify, or not one address         |
+| Error                                                                         | When                                                                                                                        |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)             | The link is still pending when `timeoutMs` runs out. Resume it with `details.jobId`                                         |
+| [`unexpected-response`](../reference/errors/unexpected-response.md)           | The link request or a lookup got an answer in a form the library does not know                                              |
+| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md) | A status check gave a state the library cannot classify, or not one address                                                 |
+| [`not-indexed`](../reference/errors/not-indexed.md)                           | Through a server handler with `deployers` set, Etherscan has no creation record for the address yet. Call again in a minute |
 
 A new call after `proxy-link-pending` is safe: it undoes nothing. To check the same link instead,
 see [Resume a pending link](#resume-a-pending-link). After `unexpected-response` on

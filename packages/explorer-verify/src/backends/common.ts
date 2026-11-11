@@ -90,12 +90,13 @@ export interface Answer {
  */
 export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
   let response: Response;
+  const started = Date.now();
   try {
     response = await request(ctx.http, req);
   } catch (error: unknown) {
     throw ctx.handler === undefined
       ? error
-      : ctx.handler.annotate(error, ctx.http.secrets, req.body);
+      : ctx.handler.annotate(error, ctx.http.secrets, req.body, Date.now() - started);
   }
   const text = await response.text();
   let parsed: unknown;
@@ -265,8 +266,9 @@ export interface Resubmit {
 /**
  * Before submit `attempt + 1`: stops when it would pass the budget's deadline, after `maxTries`
  * submits, or once `until` has passed, or with `end`, when a whole `pollIntervalMs` no longer
- * fits before `until`. It then throws the error `end` builds, or else `timeout` at the deadline
- * and `unexpected-response`, with the number of submits sent as `attempts`, for the other two.
+ * fits before `until`. It then throws the error `end` builds, or else `timeout` at the deadline,
+ * with `reason` `empty-submit` for that loop, and `unexpected-response`, with the number of
+ * submits sent as `attempts`, for the other two.
  * When it goes on, it logs at `warn`, emits `verify.retry` and waits `pollIntervalMs`, without
  * `end` cut to what is left before `until`.
  *
@@ -298,7 +300,13 @@ export async function waitToResubmit(
       loop.end?.(message) ??
       newError(
         late
-          ? { code: "timeout", backend, timeoutMs: budget.timeoutMs }
+          ? {
+              code: "timeout",
+              backend,
+              timeoutMs: budget.timeoutMs,
+              // Stryker disable next-line ConditionalExpression: equivalent. The error keeps only an empty-submit reason, so another one is dropped either way.
+              ...(reason === "empty-submit" ? { reason } : {}),
+            }
           : {
               code: "unexpected-response",
               backend,

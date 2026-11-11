@@ -97,6 +97,7 @@ interface SubmitBody {
   creationTransactionHash?: string;
 }
 
+// References: issue #356 for the lookup's cache.
 /**
  * The Sourcify API v2 client.
  *
@@ -106,8 +107,9 @@ interface SubmitBody {
  * | submit | `POST /v2/verify/{chainId}/{address}` with a JSON body         |
  * | poll   | `GET /v2/verify/{verificationId}`                              |
  *
- * A 200 lookup can be up to an hour old (`cache-control: public,max-age=3600`); a job result is
- * newer and wins over it.
+ * A 200 lookup can be up to an hour old (`cache-control: public,max-age=3600`, served by a shared
+ * cache in front of the server); a job result is newer and wins over it. The lookup goes with
+ * `cache: "no-store"` through the platform fetch, so a browser's own cache adds no second hour.
  *
  * @example
  * ```ts
@@ -134,11 +136,13 @@ export const sourcify: Backend = {
  * match, and `compilation` names the stored contract: `fullyQualifiedName`, else `name`, and
  * `compilerVersion`. A 404 whose body has a `null` match means not verified, and a 400
  * `unsupported_chain` throws `unsupported-chain`. Every other answer throws `unexpected-response`.
+ * A 200 can come from Sourcify's shared cache and be up to an hour old; no request field reaches
+ * that cache, so the request only keeps the runtime's own cache out with `noStore`.
  */
 async function lookup(target: Target, ctx: Context): Promise<Found | undefined> {
   const url = new URL(ctx.route.requestUrl(contractPath("contract", target)));
   url.searchParams.set("fields", "compilation");
-  const answer = await send(ctx, { url: url.href, method: "GET", retry: "safe" });
+  const answer = await send(ctx, { url: url.href, method: "GET", retry: "safe", noStore: true });
   const { status, fields } = answer;
   if ((status === 200 || status === 404) && fields?.has("match") === true) {
     if (sameContract(fields, target, true)) {

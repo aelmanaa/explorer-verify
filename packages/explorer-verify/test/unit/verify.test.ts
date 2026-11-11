@@ -1975,3 +1975,119 @@ describe("verify(): live, keyless, read-only", () => {
     },
   );
 });
+
+// R-BE-4, R-FLOW-1, R-QA-1, issue #356: Sourcify's shared cache can serve a lookup up to an hour
+// old. The recorded pair is the same contract before and after a job upgraded it to exact_match.
+const PROBE = "0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1";
+const PROBE_PAGE = `https://repo.sourcify.dev/${String(SEPOLIA)}/${PROBE}`;
+
+function cachedLookup(): Fixture {
+  return loadFixture("sourcify", "2026-11-11-lookup-cached-match");
+}
+
+function freshLookup(): Fixture {
+  return loadFixture("sourcify", "2026-11-11-lookup-fresh-exact-match");
+}
+
+/** The input of the recorded contract, as the job that upgraded it compiled it. */
+function probeInput(): VerifyInput {
+  const base = input(PROBE);
+  return {
+    ...base,
+    compiler: {
+      kind: "solc",
+      version: "0.8.30+commit.73712a01",
+      input: {
+        language: "Solidity",
+        sources: { "src/Probe294S.sol": { content: "contract Probe294S {}" } },
+        settings: {},
+      },
+    },
+    contractName: "src/Probe294S.sol:Probe294S",
+  };
+}
+
+describe("verify(): a Sourcify lookup from the shared cache (#356)", () => {
+  it("records the cache headers: the cached answer has an age, the fresh one none", () => {
+    assert.equal(cachedLookup().response.headers["cache-control"], "public,max-age=3600");
+    assert.equal(cachedLookup().response.headers.age, "2684");
+    assert.equal(freshLookup().response.headers["cache-control"], "public,max-age=3600");
+    assert.equal(freshLookup().response.headers.age, undefined);
+  });
+
+  it("reports partial from the cached lookup, the explorer's answer to this call", async (t) => {
+    const r = await run(t, [cachedLookup()], { input: probeInput() });
+    assertResult(
+      r.outcome,
+      {
+        status: "already-verified",
+        backend: "sourcify",
+        match: "partial",
+        explorerUrl: PROBE_PAGE,
+      },
+      0,
+    );
+  });
+
+  it("reports exact from the fresh lookup", async (t) => {
+    const r = await run(t, [freshLookup()], { input: probeInput() });
+    assertResult(
+      r.outcome,
+      { status: "already-verified", backend: "sourcify", match: "exact", explorerUrl: PROBE_PAGE },
+      0,
+    );
+  });
+
+  // Issue #356's acceptance case, with decision 0067: the cached lookup says partial, the submit
+  // over it gets Sourcify's recorded 409, and the result takes the 409's grade.
+  it("submits over a cached partial with submitOverPartial, and the 409 gives already-verified exact", async (t) => {
+    const r = await run(
+      t,
+      [cachedLookup(), loadFixture("sourcify", "2026-11-11-submit-exact-already-verified")],
+      { input: probeInput(), options: { submitOverPartial: true } },
+    );
+    assert.deepEqual(
+      r.sent.map((sent) => sent.method),
+      ["GET", "POST"],
+    );
+    assertResult(
+      r.outcome,
+      { status: "already-verified", backend: "sourcify", match: "exact", explorerUrl: PROBE_PAGE },
+      0,
+    );
+  });
+
+  // The 409 names no contract, so decision 0063 keeps the other contract and reports partial.
+  it("submits over a cached match of another contract, and keeps it after the 409 (decision 0063)", async (t) => {
+    const r = await run(t, [cachedLookup(), fixture("submit-already-verified")], {
+      input: input(PROBE),
+    });
+    assert.deepEqual(
+      r.sent.map((sent) => sent.method),
+      ["GET", "POST"],
+    );
+    assert.equal(
+      r.lines.filter(
+        (line) =>
+          line.level === "warn" &&
+          line.message ===
+            "That contract comes from a lookup that can be up to an hour old, so it may be out of date.",
+      ).length,
+      1,
+    );
+    assertResult(
+      r.outcome,
+      {
+        status: "already-verified",
+        backend: "sourcify",
+        match: "partial",
+        explorerUrl: PROBE_PAGE,
+        storedContract: {
+          name: "src/Probe294S.sol:Probe294S",
+          compilerVersion: "0.8.30+commit.73712a01",
+        },
+      },
+      0,
+    );
+  });
+});

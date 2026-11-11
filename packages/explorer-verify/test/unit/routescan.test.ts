@@ -747,6 +747,7 @@ describe("verify() and checkStatus() with the Routescan client (R-BE-5, R-FLOW-2
         method: init?.method ?? "GET",
         body: body instanceof URLSearchParams ? body.toString() : undefined,
         headers: new Headers(init?.headers),
+        cache: init?.cache,
       });
     };
     const outcome = await drive(

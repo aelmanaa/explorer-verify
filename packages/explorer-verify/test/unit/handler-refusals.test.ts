@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
+import { exitCodeOf } from "../../src/envelope.ts";
 import { ERROR_HINTS } from "../../src/error-hints.ts";
-import { ERROR_CODES, ExplorerVerifyError, linkProxy, verify } from "../../src/index.ts";
+import { ERROR_CODES, ExplorerVerifyError, hintFor, linkProxy, verify } from "../../src/index.ts";
 import type { VerifyInput } from "../../src/index.ts";
 import { createVerifyHandler } from "../../src/server/handler.ts";
 import type { HandlerRefusal, VerifyHandlerOptions } from "../../src/server/handler.ts";
@@ -321,29 +322,64 @@ describe("the handler's transient refusals stay retryable (R-SRV-4, decision 004
     assert.match(error.message, /answered the lookup with request-timeout \(status 408\)/);
   });
 
-  it("address-not-indexed: the client waits as Retry-After asks, then throws a retryable unexpected-response", async (t) => {
+  // R-SRV-5, R-AX-7, R-FLOW-7, decision 0066 (amendment of 2026-11-11), issue #354.
+  it("address-not-indexed: the client waits as Retry-After asks, then throws a retryable not-indexed", async (t) => {
     const explorer = upstream(() => json({ status: "1", message: "OK", result: [] }));
     const net = throughHandler({ deployers: [DEPLOYER], fetch: explorer.fetch });
     const error = await driven(
       t,
       async () => await verify(input(), { fetch: net.fetch, handlerUrl: HANDLER }),
     );
-    assert.ok(
-      ExplorerVerifyError.is(error, "unexpected-response"),
-      `${error.code}: ${error.message}`,
-    );
+    assert.ok(ExplorerVerifyError.is(error, "not-indexed"), `${error.code}: ${error.message}`);
     assert.equal(error.retryable, true);
-    assert.equal(error.details.status, 503);
-    assert.equal(error.details.retryAfterMs, 5_000);
-    assert.equal(
-      error.details.attempts,
-      net.sent(),
-      "the attempts of the HTTP layer are kept (R1)",
-    );
-    assert.equal(error.details.attempts, 5);
+    assert.equal(net.sent(), 5, "the HTTP layer retried on Retry-After");
+    // The handler refused the lookup, so the client sent no submit.
+    assert.equal(error.details.submits, 0);
+    assert.equal(error.details.backend, "etherscan-v2");
+    // Four waits of at least Retry-After's 5 s, within the 120 s budget.
+    assert.ok(error.details.elapsedMs >= 20_000, String(error.details.elapsedMs));
+    assert.ok(error.details.elapsedMs < 120_000, String(error.details.elapsedMs));
     assert.match(error.message, /answered the lookup with address-not-indexed \(status 503\)/);
-    assert.equal(error.hint, ERROR_HINTS["unexpected-response"]);
+    assert.match(error.hint, /no creation record/);
+    assert.doesNotMatch(error.hint, /indexWaitMs/);
+    assert.ok(error.cause instanceof Error, "the HTTP layer's error is the cause");
+    assert.equal(exitCodeOf(error), 4);
+    // The same end-user hint as a direct call's not-indexed.
+    const direct = new ExplorerVerifyError(
+      { code: "not-indexed", backend: "etherscan-v2", submits: 3, elapsedMs: 9_000 },
+      "m",
+      { secrets: [] },
+    );
+    assert.equal(hintFor(error, "user"), hintFor(direct, "user"));
+    assert.equal(hintFor(error.toJSON(), "user"), hintFor(direct, "user"));
+  });
+
+  // R-SRV-5, R-AX-7, issue #354: linkProxy() through the handler meets the same refusal.
+  it("address-not-indexed: linkProxy() also throws a retryable not-indexed", async (t) => {
+    const explorer = upstream(() => json({ status: "1", message: "OK", result: [] }));
+    const net = throughHandler({
+      deployers: [DEPLOYER],
+      allowProxyLink: true,
+      fetch: explorer.fetch,
+    });
+    const error = await driven(
+      t,
+      async () =>
+        await linkProxy(
+          { chainId: SEPOLIA, address: GREETER },
+          { fetch: net.fetch, handlerUrl: HANDLER },
+        ),
+    );
+    assert.ok(ExplorerVerifyError.is(error, "not-indexed"), `${error.code}: ${error.message}`);
+    assert.equal(error.retryable, true);
     assert.ok(net.sent() > 1, "retried");
+    assert.match(error.message, /address-not-indexed \(status 503\)/);
+    assert.equal(exitCodeOf(error), 4);
+  });
+
+  it("internal-error still maps to unexpected-response, and address-not-indexed to not-indexed", () => {
+    assert.deepEqual(HANDLER_REFUSALS["internal-error"], ["unexpected-response", 500]);
+    assert.deepEqual(HANDLER_REFUSALS["address-not-indexed"], ["not-indexed", 503]);
   });
 
   it("internal-error: the handler failed; a retryable unexpected-response points at its logs", async () => {

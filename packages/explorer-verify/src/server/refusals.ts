@@ -34,6 +34,7 @@ export type HandlerRefusal =
   | "upstream-error"
   | "internal-error";
 
+// References: decisions 0048 and 0066.
 /**
  * The error codes a client that set `handlerUrl` throws for a refusal code:
  *
@@ -41,12 +42,12 @@ export type HandlerRefusal =
  * - `network`: the handler or Etherscan did not answer in time, or Etherscan failed; retryable.
  * - `rate-limited`: the handler's `rateLimit`, or Etherscan's limit. The HTTP layer throws it for
  *   the 429 before the code is read.
- * - `unexpected-response`: Etherscan has not indexed the contract yet, or the handler failed;
- *   retryable.
+ * - `not-indexed`: Etherscan has no creation record for the address yet; retryable.
+ * - `unexpected-response`: the handler failed; retryable.
  */
 export type ClientCode = Extract<
   ErrorCode,
-  "handler-refused" | "network" | "rate-limited" | "unexpected-response"
+  "handler-refused" | "network" | "rate-limited" | "unexpected-response" | "not-indexed"
 >;
 
 /**
@@ -63,7 +64,7 @@ export const HANDLER_REFUSALS: Readonly<Record<HandlerRefusal, readonly [ClientC
   "action-not-allowed": ["handler-refused", 403],
   "chain-not-allowed": ["handler-refused", 403],
   "address-not-allowed": ["handler-refused", 403],
-  "address-not-indexed": ["unexpected-response", 503],
+  "address-not-indexed": ["not-indexed", 503],
   "rate-limited": ["rate-limited", 429],
   "upstream-rate-limited": ["rate-limited", 429],
   "upstream-timeout": ["network", 504],

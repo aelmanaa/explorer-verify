@@ -16,6 +16,8 @@ import {
   blockscout,
 } from "../../src/backends/blockscout.ts";
 import { REASON_LENGTH } from "../../src/backends/common.ts";
+import { toEnvelope } from "../../src/envelope.ts";
+import { ERROR_HINTS } from "../../src/error-hints.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { DEFAULT_DEPENDENCIES } from "../../src/flow/defaults.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
@@ -37,7 +39,7 @@ import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { jsKeys } from "../helpers/js-keys.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import { resolveRoute } from "../helpers/route.ts";
-import { compileStrict } from "./envelope-schema.ts";
+import { compileStrict, validateEnvelope } from "./envelope-schema.ts";
 
 const BASE_SEPOLIA = 84532;
 const INSTANCE = "base-sepolia.blockscout.com";
@@ -591,8 +593,97 @@ describe("blockscout submit: the empty answer right after a deployment (R-FLOW-7
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
     const s = setup([EMPTY()], { budgetMs: 4_000, pollIntervalMs: 5_000 });
     const error = await errorOf(drive(t, blockscout.submit(input(), s.ctx)));
-    assert.deepEqual(error.details, { code: "timeout", backend: "blockscout", timeoutMs: 4_000 });
+    assert.deepEqual(error.details, {
+      code: "timeout",
+      backend: "blockscout",
+      timeoutMs: 4_000,
+      reason: "empty-submit",
+    });
     assert.equal(error.message, "Blockscout gave no job id after 1 submit, within the 4 s budget.");
+  });
+
+  // R-FLOW-7, issue #349: the budget runs out in the lookup that follows the empty answer.
+  it("names empty-submit as the reason of a timeout in the lookup after an empty answer", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const s = setup([EMPTY()], { budgetMs: 4_000, pollIntervalMs: 1_000 });
+    let sent = 0;
+    const hanging: typeof fetch = async (resource, init) => {
+      sent += 1;
+      if (sent === 1) {
+        return (await s.ctx.http.fetch?.(resource, init)) ?? assert.fail("no fetch");
+      }
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new Error("aborted"));
+        });
+      });
+    };
+    const ctx: Context = { ...s.ctx, http: { ...s.ctx.http, fetch: hanging } };
+    const error = await errorOf(drive(t, blockscout.submit(input(), ctx)));
+    assert.equal(sent, 2);
+    assert.deepEqual(error.details, {
+      code: "timeout",
+      backend: "blockscout",
+      timeoutMs: 4_000,
+      reason: "empty-submit",
+    });
+    assert.match(error.message, /may already have been accepted/);
+    assert.equal(error.hint, ERROR_HINTS.timeout);
+    assert.ok(error.cause instanceof Error, "the lookup's timeout is the cause");
+  });
+
+  it("leaves another error after an empty answer as the lookup threw it (#349)", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const s = setup([EMPTY(), new Response("teapot", { status: 418 })], {
+      budgetMs: 60_000,
+      pollIntervalMs: 1_000,
+    });
+    const error = await errorOf(drive(t, blockscout.submit(input(), s.ctx)));
+    assert.equal(error.code, "unexpected-response");
+    assert.ok(error.cause instanceof Error);
+    assert.doesNotMatch(error.cause.message, /may already have been accepted/);
+  });
+
+  it("keeps the timeout of a later empty answer as the loop built it (#349)", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const s = setup([EMPTY(), NOT_FOUND(), EMPTY()], { budgetMs: 5_000, pollIntervalMs: 3_000 });
+    const error = await errorOf(drive(t, blockscout.submit(input(), s.ctx)));
+    assert.deepEqual(error.details, {
+      code: "timeout",
+      backend: "blockscout",
+      timeoutMs: 5_000,
+      reason: "empty-submit",
+    });
+    assert.equal(
+      error.message,
+      "Blockscout gave no job id after 2 submits, within the 5 s budget.",
+    );
+    assert.equal(error.cause, undefined);
+  });
+
+  // R-FLOW-7, R-DX-3, issue #349.
+  it("gives the timeout that ends the empty-submit loop the empty-submit end-user hint, from the error and its JSON forms", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const s = setup([EMPTY()], { budgetMs: 4_000, pollIntervalMs: 5_000 });
+    const error = await errorOf(drive(t, blockscout.submit(input(), s.ctx)));
+    const hint =
+      "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
+    assert.equal(hintFor(error, "user"), hint);
+    assert.equal(hintFor(error.toJSON(), "user"), hint);
+    const envelope = toEnvelope(error);
+    assert.deepEqual(validateEnvelope(JSON.parse(JSON.stringify(envelope))), []);
+    assert.ok(!envelope.ok && "error" in envelope);
+    assert.equal(hintFor(envelope.error, "user"), hint);
+    // A timeout from polling keeps the general timeout hint.
+    const polling = new ExplorerVerifyError(
+      { code: "timeout", backend: "blockscout", timeoutMs: 4_000 },
+      "m",
+      { secrets: [] },
+    );
+    assert.equal(
+      hintFor(polling, "user"),
+      "The explorer did not accept the submission in time. Try again.",
+    );
   });
 
   it("rejects with the signal's reason when aborted during the wait, with no further lookup or submit (R-FLOW-6)", async (t) => {

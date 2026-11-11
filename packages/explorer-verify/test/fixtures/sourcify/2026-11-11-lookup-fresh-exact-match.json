@@ -1,0 +1,32 @@
+{
+  "source": "Live response from sourcify.dev to curl 8.7.1, recorded 2026-11-11T17:36:01Z: the contract of 2026-11-11-lookup-cached-match after its upgrade to exact_match, asked with the address in upper case. That URL is a separate cache entry, so the answer has no age header (issue #356). Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0x6C7FF2CF19865FA06523C01BC76DC4C68F16A7B1?fields=compilation"
+  },
+  "recordedAt": "2026-11-11T17:36:01Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public,max-age=3600",
+      "date": "Wed, 11 Nov 2026 17:36:02 GMT"
+    },
+    "body": {
+      "compilation": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.30+commit.73712a01",
+        "name": "Probe294S",
+        "fullyQualifiedName": "src/Probe294S.sol:Probe294S"
+      },
+      "matchId": "59092005",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "exact_match",
+      "verifiedAt": "2026-11-11T07:42:01Z",
+      "match": "exact_match",
+      "chainId": "11155111",
+      "address": "0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1"
+    }
+  }
+}

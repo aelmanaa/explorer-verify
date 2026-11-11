@@ -69,6 +69,13 @@ const USER_HINTS: Readonly<Record<ErrorCode, string>> = {
 const UNKNOWN_CODE =
   "The verification failed. Try again later; if it keeps failing, report the error to the tool's maintainer.";
 
+/**
+ * The end-user hint when Blockscout's submit loop on its empty answer ends: an
+ * `unexpected-response` after its tries, or a `timeout` with `reason` `empty-submit` at the budget.
+ */
+const EMPTY_SUBMIT =
+  "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
+
 /** The longest wait the end-user hint names: one hour. A longer one reads "later". */
 const MAX_WAIT_MS = 3_600_000;
 
@@ -163,8 +170,12 @@ function userHint(details: unknown): string {
     // An older copy's JSON names this answer as unexpected-response (decision 0066).
     return USER_HINTS["not-indexed"];
   }
-  if (code === "unexpected-response" && emptySubmit(details)) {
-    return "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
+  if (
+    (code === "unexpected-response" && emptySubmit(details)) ||
+    (code === "timeout" && read(details, "reason") === "empty-submit")
+  ) {
+    // Blockscout's submit loop on its empty answer ends either way (issue #349).
+    return EMPTY_SUBMIT;
   }
   if (code === "cancelled" && holdsHandle(details)) {
     return "The verification was cancelled after the explorer accepted it. Check the contract's page on the explorer before you submit it again.";

@@ -172,6 +172,7 @@ function everyCase(): ErrorDetails[] {
       excerpt: EMPTY_SUBMIT,
       attempts: 4,
     },
+    { code: "timeout", backend: "blockscout", timeoutMs: 4_000, reason: "empty-submit" },
   ];
 }
 
@@ -367,6 +368,30 @@ describe("hintFor (R-DX-3, R-AX-10, #298)", () => {
     assert.equal(
       hintFor(errorOf(SAMPLE_DETAILS["unexpected-response"]), "user"),
       "The explorer gave an answer that could not be read. Try again later; if it keeps failing, check the explorer's status page.",
+    );
+  });
+
+  it("gives the empty-submit hint to a timeout with reason empty-submit, and the general one to other timeouts (#349)", () => {
+    const general = "The explorer did not accept the submission in time. Try again.";
+    const timeout = errorOf({
+      code: "timeout",
+      backend: "blockscout",
+      timeoutMs: 4_000,
+      reason: "empty-submit",
+    });
+    assert.equal(hintFor(timeout, "user"), EMPTY_SUBMIT_HINT);
+    assert.equal(hintFor(timeout.toJSON(), "user"), EMPTY_SUBMIT_HINT);
+    assert.equal(hintFor(errorOf(SAMPLE_DETAILS.timeout), "user"), general);
+    assert.equal(
+      userHintOf({
+        details: { code: "timeout", backend: "blockscout", timeoutMs: 4_000, reason: "x" },
+      }),
+      general,
+    );
+    // The reason under another code keeps that code's hint.
+    assert.equal(
+      userHintOf({ details: { code: "network", backend: "blockscout", reason: "empty-submit" } }),
+      hintFor(errorOf(SAMPLE_DETAILS.network), "user"),
     );
   });
 

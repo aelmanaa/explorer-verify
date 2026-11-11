@@ -17,6 +17,7 @@
  */
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
+import { ExplorerVerifyError } from "../errors.ts";
 import type { AnyExplorerVerifyError } from "../errors.ts";
 import { JOB_ID } from "../flow/check-handle.ts";
 import { keyFor, withKey } from "../http/api-keys.ts";
@@ -199,11 +200,15 @@ function client(name: Name): Backend {
             maxTries: MAX_EMPTY_SUBMITS,
             until,
           });
-          // The empty answer may hide a submit Blockscout accepted: look first.
-          const found = await lookupAfterUnclear(ctx, input, lookup);
-          return found === undefined
-            ? await once(attempt + 1)
-            : { state: "already-verified", ...found };
+          try {
+            // The empty answer may hide a submit Blockscout accepted: look first.
+            const found = await lookupAfterUnclear(ctx, input, lookup);
+            return found === undefined
+              ? await once(attempt + 1)
+              : { state: "already-verified", ...found };
+          } catch (error: unknown) {
+            throw emptySubmitTimeout(ctx, error);
+          }
         },
         lookup,
       );
@@ -307,6 +312,21 @@ function client(name: Name): Backend {
   }
 
   return { name, lookup, submit, poll, explorerUrl, takesConstructorArgs: true };
+}
+
+// References: R-FLOW-7, issue #349.
+/**
+ * `error`, with `reason` `empty-submit` when it is a `timeout` without a reason: the budget ran
+ * out in the lookup or a new submit after an empty answer, so the loop on that answer ended it.
+ */
+function emptySubmitTimeout(ctx: Context, error: unknown): unknown {
+  return ExplorerVerifyError.is(error, "timeout") && error.details.reason === undefined
+    ? newError({ ...error.details, reason: "empty-submit" }, error.message, {
+        hint: error.hint,
+        cause: error,
+        secrets: ctx.http.secrets,
+      })
+    : error;
 }
 
 /** Whether a submit answer is a 200 with `status` `"1"` and an empty, `null` or absent `result`. */

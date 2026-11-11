@@ -595,6 +595,7 @@ describe("request: a getter or Proxy trap that throws is invalid-input (R-SEC-1,
     "rateLimited",
     "retryAfterHeader",
     "freshQuery",
+    "noStore",
   ]) {
     it(`rejects a throwing request.${name} getter without its text`, async () => {
       const { fetch, calls } = answering(ok);

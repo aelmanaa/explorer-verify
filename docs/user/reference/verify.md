@@ -69,21 +69,21 @@ dry-run sourcify sourcify.dev exact
 
 Every field is optional. A field set to `undefined` counts as absent.
 
-| Option                  | Default            | What it does                                                                                                   |
-| ----------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `fetch`                 | `globalThis.fetch` | Sends every request; must not follow redirects                                                                 |
-| `signal`                | none               | Cancels the call, which rejects with `signal.reason`                                                           |
-| `timeoutMs`             | `120000`           | Time budget for the whole call, retries included                                                               |
-| `pollIntervalMs`        | `3000`             | Wait before each status poll, at least 1000                                                                    |
-| `indexWaitMs`           | none, 10 submits   | How long to resubmit while the explorer finds no contract code: [Etherscan](etherscan.md#how-answers-are-read) |
-| `logger`                | none               | Receives [log lines](logging-and-events.md), keys removed                                                      |
-| `onEvent`               | none               | Receives the [stage events](logging-and-events.md#events)                                                      |
-| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey? }`, see [Routing](routing.md#route)                                              |
-| `allowSourcifyFallback` | `false`            | Sends a chain the table does not list to public Sourcify                                                       |
-| `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)                                           |
-| `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                          |
-| `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key                                   |
-| `submitOverPartial`     | `false`            | Submits over a [partial match](#submit-over-a-partial-match) of this source                                    |
+| Option                  | Default            | What it does                                                                                                                             |
+| ----------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `fetch`                 | `globalThis.fetch` | Sends every request; must not follow redirects; gets no `cache` field, so it handles caching ([Sourcify](sourcify.md#behaviour-to-know)) |
+| `signal`                | none               | Cancels the call, which rejects with `signal.reason`                                                                                     |
+| `timeoutMs`             | `120000`           | Time budget for the whole call, retries included                                                                                         |
+| `pollIntervalMs`        | `3000`             | Wait before each status poll, at least 1000                                                                                              |
+| `indexWaitMs`           | none, 10 submits   | How long to resubmit while the explorer finds no contract code: [Etherscan](etherscan.md#how-answers-are-read)                           |
+| `logger`                | none               | Receives [log lines](logging-and-events.md), keys removed                                                                                |
+| `onEvent`               | none               | Receives the [stage events](logging-and-events.md#events)                                                                                |
+| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey? }`, see [Routing](routing.md#route)                                                                        |
+| `allowSourcifyFallback` | `false`            | Sends a chain the table does not list to public Sourcify                                                                                 |
+| `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)                                                                     |
+| `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                                                    |
+| `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key                                                             |
+| `submitOverPartial`     | `false`            | Submits over a [partial match](#submit-over-a-partial-match) of this source                                                              |
 
 [Option checks](#option-checks) lists the values each option accepts.
 
@@ -119,7 +119,9 @@ the explorer's message, keys removed, at most 300 characters.
 source for the address. Your source is then not on the explorer, yet the
 exit code stays 0 and the envelope says `ok: true`. To require your own
 source, check `result.storedContract === undefined`
-([Another contract's source](#another-contracts-source)).
+([Another contract's source](#another-contracts-source)). After a
+Sourcify `409`, `storedContract` comes from a lookup that can be up to an hour
+old, so it may be out of date ([Sourcify](sourcify.md#behaviour-to-know)).
 
 ## Errors
 
@@ -260,6 +262,9 @@ What each explorer did on Ethereum Sepolia on 2026-11-11
 | `explorerUrl`    | The contract's public page, for a match                                                                                 |
 | `routedBy`       | `caller`, `table`, `fallback` or `api-url`                                                                              |
 | `storedContract` | The other contract's `name` and `compilerVersion`, when the match is another contract's source: `verify()` would submit |
+
+A Sourcify `lookup` can be up to an hour old: see
+[Sourcify](sourcify.md#behaviour-to-know).
 
 A dry run needs no key: where `verify()` would throw `missing-api-key`, it
 returns `lookup: "skipped"`. It throws what `verify()` throws before its

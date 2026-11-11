@@ -261,7 +261,7 @@ the answer has the status the table above lists for that code. A code with anoth
 | `request-timeout`        | [`network`](errors/network.md)                         | Yes       |
 | `upstream-timeout`       | [`network`](errors/network.md)                         | Yes       |
 | `upstream-error`         | [`network`](errors/network.md)                         | Yes       |
-| `address-not-indexed`    | [`unexpected-response`](errors/unexpected-response.md) | Yes       |
+| `address-not-indexed`    | [`not-indexed`](errors/not-indexed.md)                 | Yes       |
 | `internal-error`         | [`unexpected-response`](errors/unexpected-response.md) | Yes       |
 
 `handler-refused` carries the code in `details.handlerCode`. A `network` error has the code only
@@ -270,6 +270,11 @@ in its message.
 The client retries a 429, 502, 503 and 504 before it reads the code, as it does any answer
 ([retries](errors/index.md#retries)). A 429 then throws `rate-limited` whatever its code. A 502 or
 504 to a submit is not sent again blindly: the client looks the contract up first.
+
+For `address-not-indexed`, `not-indexed` counts HTTP attempts in `details.submits`, unlike a
+direct call, which counts answers: the attempts of the refused request when it was the submit, `0`
+when it was the lookup or another request. `details.elapsedMs` runs from the first attempt of the
+refused request to its last answer.
 
 An answer with no `code`, an unknown code or a code with another status throws
 `unexpected-response`, and its message does not repeat the code. A 4xx other than 408 and 429 is

@@ -197,10 +197,10 @@ and stops.
 
 Both hints say to try again later.
 
-The `unexpected-response` holds the number of submits sent in `details.attempts`. For it,
-`hintFor(error, "user")` gives a tool's users their own hint. It says the explorer did not start the
-verification, and asks them to check the contract's page on the explorer, then to try again in a
-minute.
+The `unexpected-response` holds the number of submits sent in `details.attempts`. The `timeout`
+holds `details.reason` `empty-submit`. For either one, `hintFor(error, "user")` gives a tool's users
+their own hint. It says the explorer did not start the verification, and asks them to check the
+contract's page on the explorer, then to try again in a minute.
 
 ## A submit without a clear answer
 

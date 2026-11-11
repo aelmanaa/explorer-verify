@@ -141,9 +141,12 @@ The values of `verify.retry` `reason`:
 | `rate-limited`         | A 429, or an answer the client reads as a rate limit                                                                            |
 | `network`              | A network error or a request timeout                                                                                            |
 | `server-error`         | A 502, 503 or 504; for a submit, a 503 only                                                                                     |
-| `duplicate-submission` | Listed in the type and the schema; this release does not emit it                                                                |
+| `duplicate-submission` | Reserved: no client emits it                                                                                                    |
 | `not-indexed`          | Etherscan found no contract code yet; sent again within `indexWaitMs` when set ([Etherscan](etherscan.md#how-answers-are-read)) |
 | `empty-submit`         | Blockscout answered the submit with nothing ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment))             |
+
+`duplicate-submission` is reserved: no client emits it. Sourcify's answer to a duplicate request
+ends the call with [`in-progress`](errors/in-progress.md), not a retry.
 
 `verify.retry` names the backend the request goes to, so a retried request to `rpcUrl` emits none.
 Its retries are logged at `warn`, with `label` set to `rpc`.

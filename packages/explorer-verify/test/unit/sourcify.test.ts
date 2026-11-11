@@ -92,6 +92,24 @@ function setup(
   };
 }
 
+/**
+ * A context with no injected fetch, so requests go through the platform fetch, which is
+ * `globalThis.fetch` replaced by a fake that plays `steps` until the test ends (#356).
+ */
+function throughPlatform(
+  t: TestContext,
+  steps: Step[],
+): { ctx: Context; calls: ReturnType<typeof replay>["calls"] } {
+  const fake = replay(...steps);
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  globalThis.fetch = fake.fetch;
+  const { ctx } = setup([]);
+  return { ctx: { ...ctx, http: { ...ctx.http, fetch: undefined } }, calls: fake.calls };
+}
+
 function target(address: string = GREETER, chainId: number = SEPOLIA): Target {
   const checked = validateInput({ ...rawInput(), chainId, address });
   return { chainId: checked.chainId, address: checked.address };
@@ -222,6 +240,97 @@ describe("sourcify backend", () => {
         calls[0]?.url,
         `${API}/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
       );
+    });
+
+    // R-BE-4, R-RUN-1, issue #356.
+    it("asks the platform fetch's cache neither to serve nor to store the lookup", async (t) => {
+      const { ctx, calls } = throughPlatform(t, [fixture("lookup-exact-match")]);
+      await sourcify.lookup(target(), ctx);
+      assert.equal(calls[0]?.cache, "no-store");
+    });
+
+    it("sends no cache field to an injected fetch, which handles caching itself", async () => {
+      const { ctx, calls } = setup([fixture("lookup-exact-match")]);
+      assert.equal((await sourcify.lookup(target(), ctx))?.match, "exact");
+      assert.equal(calls[0]?.cache, undefined);
+    });
+
+    it("works with an injected fetch that refuses init fields it does not know", async () => {
+      const fake = replay(fixture("lookup-exact-match"));
+      const known = new Set(["method", "signal", "redirect", "body", "headers"]);
+      const strict: typeof fetch = async (resource, init) => {
+        for (const key of Object.keys(init ?? {})) {
+          if (!known.has(key)) {
+            throw new TypeError(`unknown init field ${key}`);
+          }
+        }
+        return await fake.fetch(resource, init);
+      };
+      const { ctx } = setup([]);
+      const strictCtx: Context = { ...ctx, http: { ...ctx.http, fetch: strict } };
+      assert.equal((await sourcify.lookup(target(), strictCtx))?.match, "exact");
+      assert.equal(fake.calls.length, 1);
+    });
+
+    it("sends no cache field where the runtime's Request refuses it, as older edge runtimes do", async (t) => {
+      const Platform = globalThis.Request;
+      class Refusing extends Platform {
+        constructor(resource: RequestInfo | URL, init?: RequestInit) {
+          if (init?.cache !== undefined) {
+            throw new TypeError(
+              "The 'cache' field on 'RequestInitializerDict' is not implemented.",
+            );
+          }
+          super(resource, init);
+        }
+      }
+      t.after(() => {
+        globalThis.Request = Platform;
+      });
+      globalThis.Request = Refusing;
+      const { ctx, calls } = throughPlatform(t, [fixture("lookup-exact-match")]);
+      assert.equal((await sourcify.lookup(target(), ctx))?.match, "exact");
+      assert.equal(calls[0]?.cache, undefined);
+    });
+
+    it("sends no cache field where the runtime's Request drops it", async (t) => {
+      const Platform = globalThis.Request;
+      class Dropping extends Platform {
+        override get cache(): RequestCache {
+          return "default";
+        }
+      }
+      t.after(() => {
+        globalThis.Request = Platform;
+      });
+      globalThis.Request = Dropping;
+      const { ctx, calls } = throughPlatform(t, [fixture("lookup-exact-match")]);
+      assert.equal((await sourcify.lookup(target(), ctx))?.match, "exact");
+      assert.equal(calls[0]?.cache, undefined);
+    });
+
+    it("sends no cache field on a submit or a poll", async (t) => {
+      const { ctx, calls } = throughPlatform(t, [
+        fixture("submit-accepted"),
+        fixture("job-pending"),
+      ]);
+      const outcome = await sourcify.submit(input(), ctx);
+      assert.equal(outcome.state, "submitted");
+      await sourcify.poll(handle(GREETER_JOB), ctx);
+      assert.deepEqual(
+        calls.map((call) => call.cache),
+        [undefined, undefined],
+      );
+    });
+
+    it("reads the recorded cached match as partial and the fresh answer as exact (#356, R-QA-1)", async () => {
+      const probe = "0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1";
+      const cached = loadFixture("sourcify", "2026-11-11-lookup-cached-match");
+      const fresh = loadFixture("sourcify", "2026-11-11-lookup-fresh-exact-match");
+      const before = setup([cached]);
+      assert.equal((await sourcify.lookup(target(probe), before.ctx))?.match, "partial");
+      const after = setup([fresh]);
+      assert.equal((await sourcify.lookup(target(probe), after.ctx))?.match, "exact");
     });
 
     it("reads a 200 match as partial (R-BE-4, R-FLOW-3)", async () => {

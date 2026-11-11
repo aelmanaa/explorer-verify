@@ -52,16 +52,21 @@ runs where `Request` and `Response` exist, such as a Next.js route or a Cloudfla
 These entries load none of the verification flow, so a page or a tool that needs only one of them
 stays small:
 
-| Entry                                  | What it holds                                       | Use it when                                        |
-| -------------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
-| `explorer-verify/handle`               | `formatHandle`, `parseHandle`, `tryParseHandle`     | A page stores a handle and reads it after a reload |
-| `explorer-verify/errors`               | `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS` | Your tool maps error codes to its own messages     |
-| `explorer-verify/backends`             | `BACKEND_NAMES`, `toBackendName`                    | A form or a flag lists or checks backend names     |
-| `explorer-verify/envelope`             | `toEnvelope`, `exitCodeOf`                          | Your tool prints the CLI's JSON or its exit codes  |
-| `explorer-verify/resolve`              | `buildVerifyInputFromBytecode`                      | You have only the deployed bytecode                |
-| `explorer-verify/input.schema.json`    | The JSON Schema of a verify request                 | Another language writes the request                |
-| `explorer-verify/envelope.schema.json` | The JSON Schema of the CLI's JSON output            | Another language reads the CLI's output            |
-| `explorer-verify/event.schema.json`    | The JSON Schema of the stage events                 | You store or forward the events                    |
+| Entry                                  | What it holds                                                  | Use it when                                                               |
+| -------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `explorer-verify/handle`               | `formatHandle`, `parseHandle`, `tryParseHandle`                | A page stores a handle and reads it after a reload                        |
+| `explorer-verify/errors`               | `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS`, `hintFor` | Your tool maps error codes to its own messages, or shows errors to people |
+| `explorer-verify/backends`             | `BACKEND_NAMES`, `toBackendName`                               | A form or a flag lists or checks backend names                            |
+| `explorer-verify/envelope`             | `toEnvelope`, `exitCodeOf`                                     | Your tool prints the CLI's JSON or its exit codes                         |
+| `explorer-verify/resolve`              | `buildVerifyInputFromBytecode`                                 | You have only the deployed bytecode                                       |
+| `explorer-verify/input.schema.json`    | The JSON Schema of a verify request                            | Another language writes the request                                       |
+| `explorer-verify/envelope.schema.json` | The JSON Schema of the CLI's JSON output                       | Another language reads the CLI's output                                   |
+| `explorer-verify/event.schema.json`    | The JSON Schema of the stage events                            | You store or forward the events                                           |
+
+Show errors to the people who use your app with `hintFor(error, "user")`: it names no function,
+option or field. `error.hint` and `ERROR_HINTS` are for developers, and can name options such as
+`timeoutMs`. [Show errors to your users](../guides/wrap-explorer-verify-in-your-tool.md#show-errors-to-your-users)
+shows both.
 
 ## The CLI reads Foundry and Hardhat projects
 

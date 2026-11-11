@@ -2,7 +2,7 @@
 // the observer that guards both, the shipped event schema, and the HTTP layer's use of them. No
 // network: every request goes through an injected fetch, and every wait runs on mock timers.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 import { setImmediate } from "node:timers";
@@ -90,6 +90,7 @@ function everyEvent(): VerifyEvent[] {
       type: "verify.retry",
       backend: "sourcify",
       attempt: 2,
+      // Reserved: no client emits it, but the schema still accepts it (#353).
       reason: "duplicate-submission",
       delayMs: 3_000,
     },
@@ -229,6 +230,84 @@ describe("Logger and VerifyEvent types (R-DX-5, R-DX-6)", () => {
       [states, reasons, failedHasNoMatch, onEventMayBeAsync],
       [true, true, true, true],
     );
+  });
+});
+
+// --- the retry reasons ---------------------------------------------------------------------------
+
+/** The retry reasons that no client emits, kept so that a reader that switches on them still compiles. */
+const RESERVED_REASONS = ["duplicate-submission"];
+
+/** Every TypeScript file under `dir`. */
+function sourceFiles(dir: URL): URL[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      return sourceFiles(new URL(`${entry.name}/`, dir));
+    }
+    return entry.name.endsWith(".ts") ? [new URL(entry.name, dir)] : [];
+  });
+}
+
+/**
+ * Whether `code` sets `reason` to the string `value`, in the source as written or as Stryker's
+ * in-place run rewrites it: `reason: stryMutAct_x("1") ? "" : (stryCov_x("1"), "network")`.
+ */
+function emits(code: string, value: string): boolean {
+  const wrapped = String.raw`(?:stryMutAct_\w+\("\d+"\) \? "" : \(stryCov_\w+\([^)]*\), )?`;
+  return new RegExp(`reason: ${wrapped}"${value}"`).test(code);
+}
+
+describe("verify.retry reasons (R-DX-6, #353)", () => {
+  it("finds a reason in a file that Stryker instrumented, as in the original", () => {
+    const instrumented =
+      'emit({ reason: stryMutAct_9fa48("14") ? "" : (stryCov_9fa48("14", "15"), "network") });';
+    assert.equal(emits(instrumented, "network"), true);
+    assert.equal(emits('emit({ reason: "network" });', "network"), true);
+    assert.equal(emits('emit({ reason: "network" });', "rate-limited"), false);
+  });
+
+  it("lists each reason of the schema as emitted by a source file or as reserved, not both", () => {
+    const schema = readFileSync(SCHEMA_URL, "utf8");
+    const lists = [
+      ...schema.matchAll(/"reason": \{\s*"description": "([^"]*)",\s*"enum": \[([^\]]*)\]/g),
+    ];
+    // verify.retry and proxy.retry.
+    assert.equal(lists.length, 2);
+    const reasons = [...(lists[0]?.[2] ?? "").matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+    assert.equal(reasons.length, 6);
+    // Only the modules that emit events: errors.ts also writes `reason: "empty-submit"`, in a
+    // timeout's details, which is not a retry.
+    const code = ["backends", "http", "flow"]
+      .flatMap((dir) => sourceFiles(new URL(`../../src/${dir}/`, import.meta.url)))
+      .map((file) =>
+        readFileSync(file, "utf8")
+          .replaceAll(/\/\*[\s\S]*?\*\//g, "")
+          .replaceAll(/^\s*\/\/.*$/gm, ""),
+      )
+      .join("\n");
+    for (const reason of reasons) {
+      const emitted = emits(code, String(reason));
+      const reserved = RESERVED_REASONS.includes(String(reason));
+      assert.ok(
+        emitted !== reserved,
+        `${String(reason)}: emitted ${String(emitted)}, reserved ${String(reserved)}`,
+      );
+    }
+    for (const list of lists) {
+      assert.equal(list[2], lists[0]?.[2]);
+      for (const reason of RESERVED_REASONS) {
+        assert.ok(list[1]?.includes(`${reason} is reserved`), reason);
+      }
+    }
+    const types = readFileSync(new URL("../../src/types.ts", import.meta.url), "utf8");
+    const page = readFileSync(
+      new URL("../../../../docs/user/reference/logging-and-events.md", import.meta.url),
+      "utf8",
+    );
+    for (const reason of RESERVED_REASONS) {
+      assert.ok(types.includes(`\`${reason}\` is reserved`), reason);
+      assert.ok(page.includes(`\`${reason}\` is reserved`), reason);
+    }
   });
 });
 

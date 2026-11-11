@@ -559,6 +559,14 @@ export async function verifyOnRoute(
           : undefined;
       if (other !== undefined) {
         log.warn(`${heldText(backend.name, other)}, not this one.`, fields);
+        if (!named) {
+          // References: issue #356. The answer named nothing, so the contract comes from the first
+          // lookup, which an explorer can serve from a cache: Sourcify's for up to an hour.
+          log.warn(
+            "That contract comes from a lookup that can be up to an hour old, so it may be out of date.",
+            fields,
+          );
+        }
       } else if (!named && status === "already-verified") {
         log.info(`${backend.name} names no contract; the match is taken as this source.`, fields);
       }

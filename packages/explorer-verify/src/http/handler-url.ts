@@ -48,7 +48,12 @@ export interface ResolvedHandler {
     secrets: readonly string[],
   ) => AnyExplorerVerifyError;
   /** `error` mapped by the handler's refusal code in its excerpt; see {@link annotate}. */
-  readonly annotate: (error: unknown, secrets: readonly string[], body?: unknown) => unknown;
+  readonly annotate: (
+    error: unknown,
+    secrets: readonly string[],
+    body?: unknown,
+    elapsedMs?: number,
+  ) => unknown;
 }
 
 // A code field of the handler's shape, such as `chain-not-allowed`.
@@ -67,9 +72,13 @@ const WHAT = new Map([
   ["verifysourcecode", "the submit"],
   ["getsourcecode", "the lookup"],
   ["checkverifystatus", "the job status request"],
+  ["verifyproxycontract", "the proxy link request"],
 ]);
 const CONFIG_HINT =
   "Your server handler refused the request: check that handlerUrl points at it, and its createVerifyHandler options.";
+// The not-indexed hint for the handler's address-not-indexed: indexWaitMs does not apply to it.
+const NOT_INDEXED_HINT =
+  "Etherscan has no creation record for the address yet, so your server handler cannot check its deployer. Check the chain and the address (chainId, address); if the contract was just deployed, call again in a minute.";
 
 /** What an error of the handler keeps from its answer. */
 interface Seen {
@@ -78,6 +87,8 @@ interface Seen {
   readonly excerpt: string;
   readonly retryAfterMs?: number | undefined;
   readonly attempts?: number | undefined;
+  /** Milliseconds from the first request to the last answer, when the caller measured them. */
+  readonly elapsedMs?: number | undefined;
   readonly secrets: readonly string[];
   readonly cause?: unknown;
 }
@@ -123,6 +134,15 @@ function mapped(
   if (kind === "network") {
     return newError({ code: kind, backend, attempts: seen.attempts ?? 1 }, message, options);
   }
+  if (kind === "not-indexed") {
+    // References: decision 0066, amendment of 2026-11-11. `submits` counts the submits the
+    // handler refused: none when it refused the lookup or another request.
+    const submits = what === WHAT.get("verifysourcecode") ? (seen.attempts ?? 1) : 0;
+    return newError({ code: kind, backend, submits, elapsedMs: seen.elapsedMs ?? 0 }, message, {
+      ...options,
+      hint: NOT_INDEXED_HINT,
+    });
+  }
   if (kind === "unexpected-response") {
     const wait = retryAfterMs === undefined ? {} : { retryAfterMs };
     const tries = seen.attempts === undefined ? {} : { attempts: seen.attempts };
@@ -162,8 +182,15 @@ function answerError(
  * `error` mapped by the handler's refusal code in its excerpt, such as `network` for an
  * `upstream-error` still answered after the retries. The code is read from the excerpt as JSON,
  * so a cut excerpt or a code inside another field maps nothing, and `error` is returned as it is.
+ * `elapsedMs`, the time from the first request to the error, becomes the `elapsedMs` of a
+ * `not-indexed`.
  */
-function annotate(error: unknown, secrets: readonly string[], body?: unknown): unknown {
+function annotate(
+  error: unknown,
+  secrets: readonly string[],
+  body?: unknown,
+  elapsedMs?: number,
+): unknown {
   if (!ExplorerVerifyError.is(error, "unexpected-response")) {
     return error;
   }
@@ -176,7 +203,7 @@ function annotate(error: unknown, secrets: readonly string[], body?: unknown): u
   }
   const action = body instanceof URLSearchParams ? body.get("action") : null;
   const what = (action === null ? undefined : WHAT.get(action)) ?? "the request";
-  return mapped(codeOf(fields), what, { ...details, secrets, cause: error }) ?? error;
+  return mapped(codeOf(fields), what, { ...details, elapsedMs, secrets, cause: error }) ?? error;
 }
 
 /** Whether `value` holds a C0 control, DEL, whitespace or a backslash. */

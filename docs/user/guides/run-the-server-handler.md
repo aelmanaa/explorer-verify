@@ -448,6 +448,8 @@ export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResul
 An injected `fetch` alone does not send a request without its key: without `handlerUrl`, a call
 routed to Etherscan with no key throws `missing-api-key`. Pass `fetch` next to `handlerUrl` for
 your own logging or retries. A redirect from the handler ends the call with `unexpected-response`.
+A 503 `address-not-indexed` ends it with [`not-indexed`](../reference/errors/not-indexed.md) once
+the client's retries end.
 
 ## What the repository checks
 

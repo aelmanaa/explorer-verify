@@ -50,7 +50,9 @@ answer with no `code`, from a proxy in front of the handler, stayed retryable.
 5. `address-not-indexed` stays `unexpected-response`, retryable. The HTTP layer already retries the
    handler's 503 as long as its `Retry-After` asks, which is the not-indexed wait the issue asks
    for; the error comes only once those retries end. `internal-error` stays `unexpected-response`
-   too.
+   too. Amended on 2026-11-11 by
+   [decision 0066](0066-wait-for-the-explorer-to-index.md#amendment-2026-11-11-the-server-handlers-address-not-indexed):
+   `address-not-indexed` maps to `not-indexed`.
 6. `request-timeout` is a 408, which the HTTP layer returns without a retry. It maps to `network`,
    with one attempt. `upstream-timeout` (504) and `upstream-error` (502) map to `network` after the
    HTTP layer's retries. `unexpected-response` gains an optional `details.attempts`, which the HTTP

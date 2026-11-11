@@ -67,7 +67,8 @@ told an end user to call `verify()` again once the explorer shows the contract.
   submits 1 ms apart.
 - Map the server handler's 503 `address-not-indexed`, sent when its `deployers` option is set, to
   `not-indexed`. Left for a later change: the handler refuses at the lookup, before any submit,
-  so `indexWaitMs` has no effect there and the call ends with `unexpected-response`.
+  so `indexWaitMs` has no effect there and the call ends with `unexpected-response`. Adopted on
+  2026-11-11; see the amendment below.
 - Check for code with `eth_getCode` before the submit. Rejected (issue non-goal): the RPC node can
   have the code before the explorer has indexed it.
 - A CLI flag for `indexWaitMs`. Left out of this change; the issue's scope is the library options.
@@ -100,3 +101,46 @@ told an end user to call `verify()` again once the explorer shows the contract.
   as one esbuild file 36927 (36755, now 44313), `verifyEach` split 26065 (26039, now 31278),
   `linkProxy` split 20219 (20148, now 24263), `verify` under Rollup 21923 (21870, now 26308) and
   `dryRun` under Rollup 20140 (20050, now 24168). This change adds 125 to 183 bytes to each.
+
+## Amendment 2026-11-11: the server handler's address-not-indexed
+
+Evidence: issue [#354](https://github.com/aelmanaa/explorer-verify/issues/354), filed 2026-11-11.
+It amends [decision 0048](0048-handler-refusals-map-to-error-codes.md), point 5.
+
+With `deployers` set, `createVerifyHandler` answers 503 `address-not-indexed` with
+`Retry-After: 5` when Etherscan has no creation record for the address yet. A client that set
+`handlerUrl` threw `unexpected-response` for it, while the same cause on a direct call ends in
+`not-indexed`. A dapp that keeps its key on a server got a vaguer error than a backend script.
+
+1. `HANDLER_REFUSALS` maps `address-not-indexed` to `not-indexed`, with status 503. The handler's
+   answer, status and `Retry-After` do not change. `internal-error` stays `unexpected-response`.
+2. The HTTP layer still retries the 503 as `Retry-After` asks. `not-indexed` comes once those
+   retries end, with no new detail field:
+   - `submits` counts the submits the handler refused: the HTTP layer's attempts when the refused
+     request was the submit, `0` when it was the lookup or any other request. `verify()` sends the
+     lookup first, so a refusal from the handler usually gives `0`. Unlike a direct call, which
+     counts answers, this path counts HTTP attempts. It does not count lookups as submits.
+   - `elapsedMs` runs from the first attempt of the refused request to its last answer, measured
+     around the HTTP layer's call. An answer that reaches the client outside those retries gives
+     `0`.
+3. The error gets its own default hint: Etherscan has no creation record yet, so the handler cannot
+   check the deployer; check the chain and the address, then call again in a minute. It does not
+   name `indexWaitMs`, which has no effect on this refusal. The end-user hint is the code's, the
+   same as for a direct call.
+4. The CLI exits 4 for it, as for any `not-indexed`.
+
+A caller that matched `unexpected-response` for this refusal now gets `not-indexed`. The changeset
+marks the change breaking.
+
+Bundle size of the whole pull request that holds this amendment, which also closes #349, #353,
+#356 and #357. It was measured with `pnpm run size` on 2026-11-11 on `d638b33`, the head of #348,
+plus those changes (esbuild 0.28.2, Rollup 4.67.4, Node.js 24.21.0 zlib). The shared submit loop
+sets the `timeout` reason, the Blockscout client tags a timeout after an empty answer, `send`
+measures the time for the handler refusal, and the HTTP layer checks `cache: "no-store"`.
+
+Two rows of `name-budget.json` pass their ceilings. They rise by the
+[decision 0014](0014-measured-bundle-ceilings.md) rule, the measured size plus 20% rounded up:
+`ERROR_CODES` from `explorer-verify` split by esbuild, 5879 gzip bytes (ceiling 5870, now 7055),
+and `linkProxy` from `explorer-verify` under Rollup, 17903 (17844, now 21484). The etherscan and
+proxy-blockscout chunks, 3975 and 4873 bytes, stay under the ceilings #348 set. Local measurements
+run above CI's (issue #355), so CI may show each row a few dozen bytes smaller.

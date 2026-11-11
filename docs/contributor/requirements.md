@@ -268,7 +268,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   ([decision 0046](decisions/0046-handler-url-and-keyed-backend-names.md)). Each refusal code of
   the handler maps to one error code; a refusal that holds until the handler's options change is
   `handler-refused`, not retryable
-  ([decision 0048](decisions/0048-handler-refusals-map-to-error-codes.md)).
+  ([decision 0048](decisions/0048-handler-refusals-map-to-error-codes.md)). `address-not-indexed`
+  is `not-indexed`, as on a direct call
+  ([decision 0066](decisions/0066-wait-for-the-explorer-to-index.md), amended 2026-11-11).
 
 ### Developer experience (R-DX)
 
@@ -318,7 +320,8 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   `verify.routed`, `verify.poll`, `verify.retry` and `verify.result` (decision 0013). A call that
   throws emits no `verify.result`. `verify.poll` `state` is one of `pending`, `queued` or
   `completed`; `verify.retry` `reason` is one of `rate-limited`, `network`, `server-error`,
-  `duplicate-submission`, `not-indexed` or `empty-submit`. `verify.retry` names the backend the
+  `duplicate-submission`, `not-indexed` or `empty-submit`; `duplicate-submission` is reserved, and
+  no client emits it (#353). `verify.retry` names the backend the
   request goes to: a retried request to `rpcUrl` or `ipfsGateway` emits none, and is logged at
   `warn` with a `label` field in place of `backend` (#134). An exception thrown
   by `onEvent` is caught, logged once at `warn` through the logger, and does not change the

@@ -159,7 +159,9 @@ console.log(result.status);
 
 Routescan and standalone Etherscan-compatible explorers that give the same answer get the same
 loop. A server handler whose `deployers` option is set answers the lookup with 503
-`address-not-indexed` before any submit, so `indexWaitMs` has no effect there.
+`address-not-indexed` before any submit. The client retries it as `Retry-After` asks, then throws
+[`not-indexed`](errors/not-indexed.md) with `details.submits` `0`. `indexWaitMs` has no effect
+there.
 
 ## A submit without a clear answer
 
