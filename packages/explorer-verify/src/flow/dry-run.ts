@@ -85,7 +85,9 @@ export async function runDryRun(
       found === undefined
         ? `Dry run: ${backend.name} holds no match, so a verification would submit the source. Nothing was submitted.`
         : other === undefined
-          ? `Dry run: ${backend.name} already holds the contract (${found.match} match), so a verification would not submit.`
+          ? found.match === "partial" && settings.submitOverPartial === true
+            ? `Dry run: ${backend.name} holds a partial match of this source, so a verification with submitOverPartial would submit over it. Nothing was submitted.`
+            : `Dry run: ${backend.name} already holds the contract (${found.match} match), so a verification would not submit${found.match === "partial" ? " unless submitOverPartial is set" : ""}.`
           : `Dry run: ${heldText(backend.name, other)}, so a verification would submit. Nothing was submitted.`,
       fields,
     );

@@ -200,6 +200,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   source, return `already-verified` without submitting. A match counts as this source when the
   contract name and the compiler version the explorer stores, where its answer gives them, equal
   the input's; otherwise `verify()` submits ([decision 0063](decisions/0063-submit-over-another-contracts-match.md)).
+  With `submitOverPartial: true`, a `partial` match of this source does not end the call:
+  `verify()` and `verifyEach()` submit, and an `exact` match still ends it
+  ([decision 0067](decisions/0067-submit-over-a-partial-match.md)).
 - **R-FLOW-2** Submit, then poll until a terminal state, within a time budget the caller sets.
 - **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
   `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
@@ -225,7 +228,11 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   deployment (retry the whole submit); Etherscan's "already verified" answers; Etherscan's "no
   contract code" answer right after a deployment (send the submit again for `indexWaitMs`, or at
   most 10 times without it, within `timeoutMs`, then throw the retryable `not-indexed`;
-  [decision 0066](decisions/0066-wait-for-the-explorer-to-index.md)).
+  [decision 0066](decisions/0066-wait-for-the-explorer-to-index.md)). A submit over a
+  partial match of this source that the explorer refuses as already verified gives
+  `already-verified` with the match a lookup reads. One that the explorer rejects keeps the first
+  lookup's match as `already-verified`, never `failed`, unless a newer lookup finds no match
+  ([decision 0067](decisions/0067-submit-over-a-partial-match.md)).
 - **R-FLOW-8** Proxies: after the implementation verifies, link the proxy to it where the backend
   supports that (Etherscan `verifyproxycontract`). `linkProxy(target, options?)` is a separate
   export, its explorer code loaded only when called (R-RUN-5). It returns `linked`, with the

@@ -129,6 +129,7 @@ explorer stores with the input, and submits when either differs (decision 0063):
 | Case                                                          | Result                                               |
 | ------------------------------------------------------------- | ---------------------------------------------------- |
 | The lookup finds an exact or partial match of this source     | `already-verified`, with that match                  |
+| A partial match of this source, with `submitOverPartial`      | A submit, then one of the rows below                 |
 | The lookup finds a match of another contract's source         | A submit, then one of the rows below                 |
 | The submit or the job ends with a match                       | `verified`, with that match                          |
 | The explorer answers that the contract is already verified    | `already-verified`                                   |
@@ -160,12 +161,15 @@ verified source, not from a source submitted for this address. explorer-verify r
 even where the explorer page shows `Exact Match` next to it.
 
 A partial match of this source found by the lookup is returned as `already-verified`, without a submit
-([verify()](../reference/verify.md)). On Blockscout, a build without a metadata hash gives
+([verify()](../reference/verify.md)), unless `submitOverPartial` is set. On Blockscout, a build without a metadata hash gives
 `verified` with `partial`, never `failed`.
 
 On Sourcify, a submit of exact sources for a contract with only a partial match upgrades it to an
-exact match. explorer-verify does not do that yet: to upgrade, submit the exact sources another
-way. An option for this is planned.
+exact match ([Sourcify](../reference/sourcify.md#behaviour-to-know)). To upgrade, set
+`submitOverPartial`: `verify()` then submits over a partial match of this source. On Ethereum
+Sepolia on 2026-11-11, Sourcify and Blockscout upgraded such matches to exact. When the explorer
+rejects the submit, the partial match stays and the result is `already-verified`, `partial`, not
+`failed` ([Submit over a partial match](../reference/verify.md#submit-over-a-partial-match)).
 
 On Routescan, every match is `partial`, from a lookup or from `Pass - Verified`. Routescan states
 no grade: its `getsourcecode` has no `SimilarMatch` field, and on 2026-11-10 it passed a build

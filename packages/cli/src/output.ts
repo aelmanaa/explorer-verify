@@ -29,7 +29,11 @@ const ROUTED_BY_TEXT: Readonly<Record<RoutedBy, string>> = {
 };
 
 /** The summary line of a dry run. */
-function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): string {
+function dryRunText(
+  result: DryRunResult,
+  paint: ReturnType<typeof painter>,
+  overPartial: boolean,
+): string {
   const why = result.routedBy === undefined ? "" : ROUTED_BY_TEXT[result.routedBy];
   const head = `${paint("green", "dry run")} on ${result.backend} at ${result.apiHost}${why}: `;
   if (result.lookup === "skipped") {
@@ -41,7 +45,10 @@ function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): st
   if (result.storedContract !== undefined) {
     return `${head}${result.lookup} match from another contract's source (${storedText(result.storedContract)}), so a run without --dry-run would submit. Nothing was submitted.\n`;
   }
-  const line = `${head}${result.lookup} match already, so a run without --dry-run would not submit.\n`;
+  if (result.lookup === "partial" && overPartial) {
+    return `${head}partial match of this source, so a run without --dry-run would submit over it (--submit-over-partial). Nothing was submitted.\n`;
+  }
+  const line = `${head}${result.lookup} match already, so a run without --dry-run would not submit${result.lookup === "partial" ? " unless --submit-over-partial is set" : ""}.\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
 
@@ -98,9 +105,15 @@ export function cliEnvelope(envelope: Envelope, context: HintContext): CliEnvelo
  * @param envelope - The envelope of the outcome.
  * @param json - Whether `--json` was given.
  * @param color - Whether stdout is coloured.
+ * @param overPartial - Whether `--submit-over-partial` was given, for a dry run's summary.
  * @returns The text, ending in a newline, or an empty string for an error without `--json`.
  */
-export function stdoutText(envelope: CliEnvelope, json: boolean, color: boolean): string {
+export function stdoutText(
+  envelope: CliEnvelope,
+  json: boolean,
+  color: boolean,
+  overPartial = false,
+): string {
   if (json) {
     return `${JSON.stringify(envelope)}\n`;
   }
@@ -112,16 +125,17 @@ export function stdoutText(envelope: CliEnvelope, json: boolean, color: boolean)
   if ("outcomes" in result) {
     return result.outcomes.map((outcome) => outcomeText(outcome, paint)).join("");
   }
-  return resultText(result, paint);
+  return resultText(result, paint, overPartial);
 }
 
 /** The summary of a result of one backend. */
 function resultText(
   result: VerifyResult | DryRunResult | LinkProxyResult,
   paint: ReturnType<typeof painter>,
+  overPartial: boolean,
 ): string {
   if (result.status === "dry-run") {
-    return dryRunText(result, paint);
+    return dryRunText(result, paint, overPartial);
   }
   if (result.status === "failed") {
     return `${paint("red", "failed")} on ${result.backend}: ${visible(result.reason)}\n`;
@@ -154,7 +168,8 @@ function outcomeText(
   paint: ReturnType<typeof painter>,
 ): string {
   if (!(outcome.error !== undefined)) {
-    return resultText(outcome.result, paint);
+    // A run on several backends is never a dry run.
+    return resultText(outcome.result, paint, false);
   }
   const { error } = outcome;
   const line = `${paint("red", error.code)} on ${outcome.backend}: ${visible(error.message)}\n`;

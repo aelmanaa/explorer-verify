@@ -308,6 +308,7 @@ function finish(
     color: boolean;
     keyFlag: boolean;
     secrets: readonly string[];
+    overPartial?: boolean;
   },
 ): ExitCode {
   // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8). The
@@ -318,7 +319,7 @@ function finish(
     json: options.json,
   });
   const code = exitCodeOf(outcome);
-  const text = stdoutText(envelope, options.json, options.color);
+  const text = stdoutText(envelope, options.json, options.color, options.overPartial === true);
   // The stderr writer never throws, so stdout is written whatever stderr does.
   if (envelope.error !== undefined) {
     stderr.error(envelope.error, envelope.nextCommand);
@@ -438,6 +439,7 @@ async function runCli(
     color: policy.colorStdout,
     keyFlag: KEY_FLAGS.some((flag) => args.values.has(flag)),
     secrets: state.secrets,
+    overPartial: args.values.get("submit-over-partial") === true,
   });
 }
 

@@ -22,6 +22,11 @@ import type { InputStream } from "./keys.ts";
 export const MAX_JSON_BYTES: number = 64 * 1024 * 1024;
 
 // References: R-AX-16.
+/** The library options a verify request may not hold, each with the flag that sets it. */
+const FLAG_FIELDS: readonly (readonly [string, string])[] = [
+  ["submitOverPartial", "--submit-over-partial"],
+];
+
 /** The options that may accompany `--input-json`, besides help and the version. */
 const INPUT_JSON_COMPANIONS: readonly string[] = [
   "input-json",
@@ -32,6 +37,7 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "color",
   "dry-run",
   "allow-sourcify-fallback",
+  "submit-over-partial",
   "api-key-file",
   "api-key-stdin",
   "rpc-url",
@@ -304,7 +310,14 @@ export async function readJsonRequest(
     throw usageError([{ field, message: `must be a JSON object: the ${spec.command} request` }]);
   }
   const issues: InputIssue[] = [];
-  let unknown = unknownCount(fields, [...spec.fields, "route"]);
+  // A library option that the CLI takes as a flag: named, so the caller knows where it goes.
+  const flags = spec.command === "verify" ? FLAG_FIELDS : [];
+  for (const [name, flag] of flags) {
+    if (fields.has(name)) {
+      issues.push({ field: name, message: `is a flag: pass ${flag} with --input-json instead` });
+    }
+  }
+  let unknown = unknownCount(fields, [...spec.fields, "route", ...flags.map(([name]) => name)]);
   for (const [name, known] of Object.entries(spec.nested ?? {})) {
     const nested = objectFields(fields.get(name));
     if (nested !== undefined) {

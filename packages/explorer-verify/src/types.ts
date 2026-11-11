@@ -878,6 +878,25 @@ export interface VerifyOptions extends CallOptions {
    * ```
    */
   rpcUrl?: string | undefined;
+  // References: R-FLOW-1, decision 0067.
+  /**
+   * Submits the source when the lookup finds only a partial match of this contract, so the
+   * explorer can replace it with an exact one. Defaults to `false`: a partial match of this
+   * source ends the call as `already-verified` without a submit. An exact match never submits.
+   * The result follows the explorer's answer: `verified` with the job's grade, or
+   * `already-verified` with the grade a lookup reads when the explorer refuses the submit. Every
+   * Routescan match is `partial`, so on Routescan the option submits over every match, and
+   * Routescan replaces the source it holds: a build that differs only in its metadata can replace
+   * an exact source with a partial one. A value that is not a boolean throws `invalid-input`.
+   *
+   * @example
+   * ```ts
+   * import type { VerifyOptions } from "explorer-verify";
+   *
+   * const options: VerifyOptions = { submitOverPartial: true };
+   * ```
+   */
+  submitOverPartial?: boolean | undefined;
 }
 
 /**
@@ -895,6 +914,12 @@ export interface VerifyOptions extends CallOptions {
  * @experimental
  */
 export interface DryRunOptions extends CallOptions {
+  // References: decision 0067.
+  /**
+   * Whether the `verify()` call would set `submitOverPartial`. `dryRun()` reads it only to say
+   * whether a partial match of this source would be submitted over. It never submits.
+   */
+  submitOverPartial?: boolean | undefined;
   /**
    * The JSON-RPC endpoint a `verify()` call would derive constructor arguments from. `dryRun()`
    * checks it with the rules of `VerifyOptions.rpcUrl` and redacts it the same way, and sends it
@@ -1135,11 +1160,20 @@ export interface Handle {
   address: Hex;
   /** The backend's job id: Sourcify's `verificationId` or Etherscan's `guid`. */
   jobId: string;
+  // References: R-FLOW-5, decision 0067.
+  /**
+   * `true` for a job that `verify()` submitted over a partial match of the input's source, with
+   * `submitOverPartial`. `checkStatus()` then ends it as `verify()` would: the earlier partial
+   * match does not confirm the job, and a failed job keeps it as `already-verified`, `partial`.
+   * The one-line form ends with `:over-partial`. Absent otherwise.
+   */
+  overPartial?: true;
 }
 
 // References: R-FLOW-5.
 /**
- * A handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`: the form to store.
+ * A handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, with
+ * `:over-partial` at the end for a submit over a partial match: the form to store.
  * `formatHandle` writes it, the `verify.submitted` event and an error's `toJSON()`
  * carry it, and `isHandle` checks a string for it. The type checks the shape of each part, not
  * its value: `parseHandle` checks the value.

@@ -1,0 +1,30 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:42:54.980Z: the submit of the partial source again over its own partial match on Ethereum Sepolia (issue #294).",
+  "request": {
+    "method": "POST",
+    "url": "https://eth-sepolia.blockscout.com/api",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "solidity-standard-json-input"
+      }
+    }
+  },
+  "recordedAt": "2026-11-11T07:42:54.980Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "message": "OK",
+      "result": "dce2c184bfa3baecf2fbfc85248563e6b03d53606af41c7f",
+      "status": "1"
+    }
+  }
+}

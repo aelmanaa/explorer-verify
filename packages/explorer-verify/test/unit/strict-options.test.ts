@@ -398,6 +398,7 @@ describe("R-IN-6: an option set to undefined counts as absent", () => {
       allowSourcifyFallback: undefined,
       apiKeys: undefined,
       rpcUrl: undefined,
+      submitOverPartial: undefined,
     };
     const value: VerifyInput = {
       ...input(),

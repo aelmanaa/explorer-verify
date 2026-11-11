@@ -84,6 +84,7 @@ export function verifyOptionKeys(): readonly string[] {
     allowSourcifyFallback: true,
     apiKeys: true,
     rpcUrl: true,
+    submitOverPartial: true,
   } satisfies Record<keyof VerifyOptions, true>);
 }
 /**
@@ -393,6 +394,9 @@ export interface Settings {
   // References: R-RT-3.
   /** Whether a chain missing from the routing table falls back to Sourcify. */
   readonly allowSourcifyFallback: boolean | undefined;
+  // References: R-FLOW-1, decision 0067.
+  /** Whether `verify()` submits over a partial match of the input's own source. */
+  readonly submitOverPartial: boolean | undefined;
   /**
    * Returns the checked `apiKeys`: only valid keys of backends that take one. A function, so
    * `JSON.stringify` of the settings never prints a key.
@@ -425,6 +429,12 @@ export interface Call {
    * so its bundle holds none of the comparison.
    */
   readonly otherOf?: OtherOf;
+  // References: R-FLOW-7, decision 0067.
+  /**
+   * The partial match of the input's source that `submitOverPartial` submitted over. A job that
+   * fails then keeps it: the result is `already-verified` with this match, not `failed`.
+   */
+  readonly partial?: Found;
 }
 
 /**
@@ -530,9 +540,16 @@ export async function verifyOnRoute(
   const fields = { backend: backend.name };
   // The other contract the first lookup found, kept for an answer that names none (decision 0063).
   let first: StoredContract | undefined;
+  // Whether the call submitted over a partial match of this source (decision 0067). That match was
+  // there before the submit, so a partial match found after it does not show the job's work.
+  let over = false;
   const call: Call = {
     ...opened,
-    ctx: { ...opened.ctx, own: (found) => otherContract(found, checked) === undefined },
+    ctx: {
+      ...opened.ctx,
+      own: (found) =>
+        otherContract(found, checked) === undefined && !(over && found.match === "partial"),
+    },
     otherOf: (found, status) => {
       const named = found.name !== undefined || found.compilerVersion !== undefined;
       const other = named
@@ -555,23 +572,37 @@ export async function verifyOnRoute(
 
   const found = await backend.lookup(call.target, call.ctx);
   emit({ type: "verify.lookup", backend: backend.name, lookup: found?.match ?? "none" });
+  let active = call;
   if (found !== undefined) {
     // A match of another contract's source does not verify this one: submit over it.
     first = otherContract(found, checked);
     if (first === undefined) {
-      return finish(call, "already-verified", found);
+      // A partial match of this source ends the call, unless the caller asked to submit over it.
+      if (found.match === "exact" || settings.submitOverPartial !== true) {
+        return finish(call, "already-verified", found);
+      }
+      over = true;
+      active = { ...call, partial: found };
+      log.info(
+        `${backend.name} holds a partial match of this source; submitting over it (submitOverPartial).`,
+        fields,
+      );
+    } else {
+      log.info(`${heldText(backend.name, first)}; submitting this source.`, fields);
     }
-    log.info(`${heldText(backend.name, first)}; submitting this source.`, fields);
   }
 
   const submitted = await backend.submit(
-    await withArgs(call, checked, dependencies.derivation),
+    await withArgs(active, checked, dependencies.derivation),
     call.ctx,
   );
   if (submitted.state === "already-verified") {
-    return finish(call, "already-verified", submitted);
+    return finish(active, "already-verified", submitted);
   }
-  const { handle } = submitted;
+  // The handle says the job is a submit over a partial match, so checkStatus() ends it the same
+  // way (decision 0067).
+  const handle: Handle =
+    active.partial === undefined ? submitted.handle : { ...submitted.handle, overPartial: true };
   const { secrets } = call.ctx.http;
   const line = formatHandle(handle);
   emit({ type: "verify.submitted", backend: backend.name, handle: line });
@@ -582,7 +613,7 @@ export async function verifyOnRoute(
     handle: logged,
   });
 
-  return await settle(call, handle, settings.pollIntervalMs);
+  return await settle(active, handle, settings.pollIntervalMs);
 }
 
 // References: R-IN-3, decision 0032.
@@ -868,14 +899,39 @@ export async function settle(
     return finish(call, "verified", outcome);
   }
   if (outcome.state === "already-verified") {
-    const { match } = outcome;
+    const { match, reason } = outcome;
+    if (reason !== undefined) {
+      rejectedOver(call, reason, "; the partial match stays");
+    }
     return finish(
       call,
       "already-verified",
       match === undefined ? await gradeOf(call, handle) : { ...outcome, match },
     );
   }
-  return failed(call, outcome.reason);
+  const { partial } = call;
+  const { reason } = outcome;
+  if (outcome.notVerified === true) {
+    rejectedOver(call, reason, ", and a lookup then found the contract not verified");
+  } else if (partial !== undefined) {
+    rejectedOver(call, reason, "; the partial match stays");
+    return finish(call, "already-verified", partial);
+  }
+  return failed(call, reason);
+}
+
+// References: R-FLOW-7, decision 0067.
+/**
+ * Logs at `warn` that the explorer rejected the source submitted over a partial match of the
+ * input's source, with its reason. Logs nothing for a call that submitted over no partial match.
+ */
+function rejectedOver(call: Call, reason: string, after: string): void {
+  if (call.partial !== undefined) {
+    call.observer.log.warn(
+      `${call.backend.name} rejected the submit over the partial match (${reason})${after}.`,
+      { backend: call.backend.name },
+    );
+  }
 }
 
 // References: R-IN-6.
@@ -910,6 +966,7 @@ export function settingsOf(
       onEvent: undefined,
       route: undefined,
       allowSourcifyFallback: undefined,
+      submitOverPartial: undefined,
       apiKeys: () => ({}),
       keySecrets: () => [],
       rpcUrl: undefined,
@@ -946,6 +1003,7 @@ export function settingsOf(
       // Checked by withHandler(), which loads the check only when the option is set.
       handlerUrl: own(options, "handlerUrl"),
       allowSourcifyFallback: own(options, "allowSourcifyFallback"),
+      submitOverPartial: own(options, "submitOverPartial"),
       timeoutMs: duration(
         own(options, "timeoutMs"),
         DEFAULT_TIMEOUT_MS,
@@ -1001,15 +1059,23 @@ function own<K extends keyof VerifyOptions>(
   return Object.hasOwn(options, name) ? options[name] : undefined;
 }
 
-/** Adds an issue for each of `signal`, `fetch`, `logger` and `onEvent` of the wrong kind. */
+/**
+ * Adds an issue for each of `signal`, `fetch`, `logger`, `onEvent`, `allowSourcifyFallback` and
+ * `submitOverPartial` of the wrong kind.
+ */
 function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
   const signal: unknown = settings.signal;
   if (signal !== undefined && !(signal instanceof AbortSignal)) {
     issues.push({ field: "signal", message: "must be an AbortSignal" });
   }
-  const fallback: unknown = settings.allowSourcifyFallback;
-  if (fallback !== undefined && typeof fallback !== "boolean") {
-    issues.push({ field: "allowSourcifyFallback", message: "must be a boolean" });
+  const flags: [field: string, value: unknown][] = [
+    ["allowSourcifyFallback", settings.allowSourcifyFallback],
+    ["submitOverPartial", settings.submitOverPartial],
+  ];
+  for (const [field, value] of flags) {
+    if (value !== undefined && typeof value !== "boolean") {
+      issues.push({ field, message: "must be a boolean" });
+    }
   }
   const checks: [field: string, value: unknown, kinds: readonly string[]][] = [
     ["fetch", settings.fetch, ["function"]],
@@ -1506,28 +1572,32 @@ async function lastLookup(
     }
     throw notConfirmed(call, handle, stopped.why, stopped.cause ?? error, "failed");
   }
-  const confirming = confirmed(call, found);
-  if (confirming !== undefined) {
+  const confirming = confirmed(call, found, "found no match");
+  if (typeof confirming !== "string") {
     return finish(call, "verified", confirming);
   }
-  throw notConfirmed(
-    call,
-    handle,
-    stopped.why,
-    stopped.cause,
-    found === undefined ? "found no match" : "found only another contract's source",
-  );
+  throw notConfirmed(call, handle, stopped.why, stopped.cause, confirming);
 }
 
-// References: R-FLOW-4, decision 0063.
+// References: R-FLOW-4, decisions 0063 and 0067.
 /**
- * The match of a lookup after polling when it shows the job's work: any match, but for a
- * `verify()` call only one of the input's contract. The other contract's match that `verify()`
- * submitted over is not.
+ * The match of a lookup after polling when it shows the job's work, or else why not: any match
+ * does, but for a `verify()` call only one of the input's contract, and not the partial match
+ * that `submitOverPartial` submitted over.
+ *
+ * @param none - The text for no match.
  */
-function confirmed(call: Call, found: Found | undefined): Found | undefined {
+function confirmed(call: Call, found: Found | undefined, none: string): Found | string {
+  if (found === undefined) {
+    return none;
+  }
   // Stryker disable next-line StringLiteral: equivalent. Only "already-verified" changes what otherOf does with a match that names nothing.
-  return found === undefined || call.otherOf?.(found, "verified") !== undefined ? undefined : found;
+  if (call.otherOf?.(found, "verified") !== undefined) {
+    return "found only another contract's source";
+  }
+  return call.ctx.own?.(found) === false
+    ? "found only the partial match that was there before the submit"
+    : found;
 }
 
 /**
@@ -1560,13 +1630,13 @@ async function forgottenJob(
       { secrets: ctx.http.secrets, cause: error },
     );
   }
-  const confirming = confirmed(call, found);
-  if (confirming !== undefined) {
+  const confirming = confirmed(call, found, "found the contract not verified");
+  if (typeof confirming !== "string") {
     return finish(call, "verified", confirming);
   }
   throw newError(
     { code: "job-not-found", handle },
-    `${backend.name} does not know job ${handle.jobId}, and a lookup ${found === undefined ? "found the contract not verified" : "found only another contract's source"}.`,
+    `${backend.name} does not know job ${handle.jobId}, and a lookup ${confirming}.`,
     {
       hint: "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.",
       secrets: ctx.http.secrets,

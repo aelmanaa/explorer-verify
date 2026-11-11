@@ -630,6 +630,190 @@ describe("timeout and resume (R-FLOW-5, R-AX-7, R-AX-14)", () => {
   });
 });
 
+describe("--submit-over-partial (R-FLOW-1, R-FLOW-7, decision 0067)", () => {
+  const FLAG = "--submit-over-partial";
+
+  it("submits over a partial match of this source and reports the job's grade", async (t) => {
+    const result = await run(
+      t,
+      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, ...SOURCIFY, FLAG, "--json"],
+      "partial",
+    );
+    assert.equal(result.code, 0, result.stdout);
+    assert.deepEqual(part(result, "result"), {
+      status: "verified",
+      backend: "sourcify",
+      match: "exact",
+      explorerUrl: PAGE,
+    });
+    assert.equal(submits(result), 1);
+  });
+
+  it("without the flag, a partial match ends the run as already-verified with no submit", async (t) => {
+    const result = await run(
+      t,
+      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, ...SOURCIFY, "--json"],
+      "partial",
+    );
+    assert.equal(result.code, 0, result.stdout);
+    assert.deepEqual(part(result, "result"), {
+      status: "already-verified",
+      backend: "sourcify",
+      match: "partial",
+      explorerUrl: PAGE,
+    });
+    assert.equal(submits(result), 0);
+  });
+
+  it("sends no submit over an exact match", async (t) => {
+    const result = await run(t, [
+      "verify",
+      ADDRESS,
+      "--chain",
+      "11155111",
+      ...FOUNDRY,
+      ...SOURCIFY,
+      FLAG,
+      "--json",
+    ]);
+    assert.equal(part(result, "result")["status"], "already-verified");
+    assert.equal(submits(result), 0);
+  });
+
+  it("goes with --input-json", async (t) => {
+    const path = file(
+      "partial-request.json",
+      JSON.stringify({ ...REQUEST, route: { backend: "sourcify" } }),
+    );
+    const result = await run(t, ["verify", "--input-json", path, FLAG, "--json"], "partial");
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(part(result, "result")["status"], "verified");
+    assert.equal(submits(result), 1);
+  });
+
+  it("a dry run says a partial match submits only with the flag", async (t) => {
+    const result = await run(
+      t,
+      [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run"],
+      "partial",
+    );
+    assert.equal(
+      result.stdout,
+      `dry run on sourcify at sourcify.dev, the routing table's pick: partial match already, so a run without --dry-run would not submit unless --submit-over-partial is set.\n${PAGE}\n`,
+    );
+  });
+
+  it("a dry run with the flag says the run would submit over the partial match", async (t) => {
+    const result = await run(
+      t,
+      [ADDRESS, "--chain", "11155111", ...FOUNDRY, "--dry-run", FLAG],
+      "partial",
+    );
+    assert.equal(
+      result.stdout,
+      "dry run on sourcify at sourcify.dev, the routing table's pick: partial match of this source, so a run without --dry-run would submit over it (--submit-over-partial). Nothing was submitted.\n",
+    );
+    assert.equal(submits(result), 0);
+  });
+
+  it("the stderr line names the flag, not the library option", async (t) => {
+    const result = await run(
+      t,
+      ["verify", ADDRESS, "--chain", "11155111", ...FOUNDRY, ...SOURCIFY, FLAG],
+      "partial",
+    );
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(
+      result.stderr,
+      /sourcify holds a partial match of this source; submitting over it \(--submit-over-partial\)\./,
+    );
+    assert.ok(!result.stderr.includes("submitOverPartial"));
+  });
+
+  it("refuses submitOverPartial in the --input-json request and names the flag", async (t) => {
+    const path = file(
+      "partial-field.json",
+      JSON.stringify({ ...REQUEST, route: { backend: "sourcify" }, submitOverPartial: true }),
+    );
+    const result = await run(t, ["verify", "--input-json", path, "--json"], "partial");
+    assert.equal(result.code, 2, result.stdout);
+    assert.deepEqual(part(result, "error")["details"], {
+      code: "invalid-input",
+      issues: [
+        {
+          field: "submitOverPartial",
+          message: "is a flag: pass --submit-over-partial with --input-json instead",
+        },
+      ],
+    });
+    assert.equal(result.seen.length, 0);
+  });
+
+  it("a budget that runs out gives a handle that ends with :over-partial", async (t) => {
+    const result = await run(
+      t,
+      [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        ...FOUNDRY,
+        ...SOURCIFY,
+        FLAG,
+        "--timeout",
+        "5",
+        "--json",
+      ],
+      "partial-pending",
+    );
+    assert.equal(result.code, 4, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["code"], "not-confirmed");
+    assert.equal(error["handle"], `${HANDLE}:over-partial`);
+  });
+});
+
+describe("status resumes a handle from a submit over a partial match (R-FLOW-5, decision 0067)", () => {
+  const OVER = `${HANDLE}:over-partial`;
+
+  it("a rejected job keeps the partial match: already-verified, partial, exit 0", async (t) => {
+    const result = await run(t, ["status", OVER, "--json"], "partial-rejected");
+    assert.equal(result.code, 0, result.stdout);
+    assert.deepEqual(part(result, "result"), {
+      status: "already-verified",
+      backend: "sourcify",
+      match: "partial",
+      explorerUrl: PAGE,
+    });
+    assert.match(result.stderr, /rejected the submit over the partial match/);
+  });
+
+  it("the same job from a handle without the marker is failed, as before", async (t) => {
+    const result = await run(t, ["status", HANDLE, "--json"], "partial-rejected");
+    assert.equal(result.code, 1, result.stdout);
+    assert.equal(part(result, "result")["status"], "failed");
+  });
+
+  it("a forgotten job with only the partial match gives job-not-found, exit 6", async (t) => {
+    const result = await run(t, ["status", OVER, "--json"], "partial-forgotten");
+    assert.equal(result.code, 6, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["code"], "job-not-found");
+    assert.match(
+      String(error["message"]),
+      /found only the partial match that was there before the submit/,
+    );
+  });
+
+  it("a budget that runs out with only the partial match gives not-confirmed, exit 4", async (t) => {
+    const result = await run(t, ["status", OVER, "--timeout", "5", "--json"], "partial-pending");
+    assert.equal(result.code, 4, result.stdout);
+    const error = part(result, "error");
+    assert.equal(error["code"], "not-confirmed");
+    assert.equal(error["handle"], OVER);
+  });
+});
+
 describe("--dry-run (R-AX-8)", () => {
   it("looks the contract up and sends no submit", async (t) => {
     const result = await run(

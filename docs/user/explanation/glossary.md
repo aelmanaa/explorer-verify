@@ -40,8 +40,8 @@ See [Match types](../explanation/match-types.md#exact-and-partial).
 ## Handle
 
 A handle names a submitted verification: its backend, chain, address and job id. Its one-line form
-is `ev1:<backend>:<chainId>:<address>:<jobId>`. Store it, then pass it to `checkStatus()` to
-resume. See [checkStatus(): the handle](../reference/check-status.md#the-handle).
+is `ev1:<backend>:<chainId>:<address>:<jobId>`, with `:over-partial` at the end for a submit over
+a partial match. Store it, then pass it to `checkStatus()` to resume. See [checkStatus(): the handle](../reference/check-status.md#the-handle).
 
 ## Job
 

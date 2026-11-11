@@ -1,0 +1,17 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:42:01.096Z: the submit of the exact source over the partial match on Ethereum Sepolia (issue #294).",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1"
+  },
+  "recordedAt": "2026-11-11T07:42:01.096Z",
+  "response": {
+    "status": 202,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "verificationId": "bcd51e72-394f-4c30-8878-79cca756721f"
+    }
+  }
+}

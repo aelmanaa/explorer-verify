@@ -117,7 +117,8 @@ covers every build format.
 
 `verify()` looks the contract up, submits it when the explorer lacks it, and polls the job. As
 soon as the explorer accepts the submission, it emits the `verify.submitted` event with the handle
-in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. Store it at once: it is the only
+in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, which ends with
+`:over-partial` after a submit over a partial match. Store it whole, at once: it is the only
 way back to the job after an abort, a crash or a timeout. `verify()` does not wait for a promise
 that `onEvent` returns, so write the handle synchronously. If the handle cannot be stored, stop
 and give it to the person.
@@ -232,6 +233,11 @@ state always throws; it never comes back as a result.
 - `result.storedContract` on `already-verified` means the explorer holds another contract's source
   for the address, with that `name` and `compilerVersion`: `verify()` submitted and the explorer
   refused. Tell the person; the explorer page shows the other contract, not theirs.
+- `already-verified` with `partial` and no `storedContract` means the explorer holds a partial
+  match of this source. To replace it with an exact one, the person can ask for a second call with
+  `submitOverPartial: true` (CLI: `--submit-over-partial`). That call submits the source: ask the
+  person first. When the explorer rejects that submit, the result stays `already-verified` with
+  `partial`.
 - `error.code` is a stable code, and checking it narrows `error.details` to that code's data.
   `ExplorerVerifyError.is(error, "not-confirmed")` does both checks in one call and also holds for
   an error from another installed copy of the package. `error.hint` says what to do next,
@@ -364,7 +370,8 @@ key. Run it without asking. Read the `lookup` field of its result:
 
 - `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing,
   unless the result has `storedContract`: then the match is another contract's source and
-  `verify` would submit. Ask the person first.
+  `verify` would submit. Ask the person first. For `partial` without `storedContract`, `verify`
+  submits only with `--submit-over-partial`.
 - `none`: `verify` would submit. Ask the person before you run it without `--dry-run`.
 - `skipped`: the backend needs an API key and none is set, so no request was sent. Do not run
   `verify`: it would exit 3 with `missing-api-key`. Ask the person to set the key.

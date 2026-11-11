@@ -83,21 +83,22 @@ Every field is optional. A field set to `undefined` counts as absent.
 | `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)                                           |
 | `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                          |
 | `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key                                   |
+| `submitOverPartial`     | `false`            | Submits over a [partial match](#submit-over-a-partial-match) of this source                                    |
 
 [Option checks](#option-checks) lists the values each option accepts.
 
 ### Options of each function
 
 Each options type lists only what its function reads. All share
-`CallOptions`: every option above except `pollIntervalMs`, `indexWaitMs` and `rpcUrl`.
+`CallOptions`: every option above except those the table lists for one function.
 
 | Function        | Options type         | Besides `CallOptions`                                                                        |
 | --------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`                                                    |
+| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`                               |
 | `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked but sent no request                                                        |
 | `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                                                                             |
 | `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`, `resumeJobId` ([guide](../guides/verify-a-proxy.md#resume-a-pending-link)) |
-| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `backends`                                        |
+| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`, `backends`                   |
 
 At run time each function accepts every key of `VerifyOptions`, so one
 object typed `VerifyOptions` can go to all of them, as in the dry run.
@@ -141,8 +142,10 @@ After the explorer accepts a submission, a spent budget gives
 
 1. Validates the input and options, and resolves the route. A problem throws
    `invalid-input`, and nothing is sent.
-2. Looks the contract up. An `exact` or `partial` match of this source
-   returns `already-verified`, and nothing is submitted. A match of
+2. Looks the contract up. A match of this source returns
+   `already-verified`, and nothing is submitted. Only a partial match with
+   [`submitOverPartial`](#submit-over-a-partial-match) set goes on to a
+   submit. A match of
    [another contract's source](#another-contracts-source) is logged at
    `info`, and the call goes on.
 3. Derives [constructor arguments](#constructor-arguments) when the backend
@@ -190,9 +193,61 @@ that ignores `fields=compilation` give answers that name no contract.
 
 The comparison uses the name and the version only. A partial match of
 another source with the same contract name and compiler version counts as
-yours. The planned option to submit over a partial match
-([#294](https://github.com/aelmanaa/explorer-verify/issues/294)) will let you
-replace it.
+yours. Set [`submitOverPartial`](#submit-over-a-partial-match) to replace
+it with your source.
+
+## Submit over a partial match
+
+By default, a `partial` match of this source ends the call as
+`already-verified`, and nothing is submitted. With
+`submitOverPartial: true`, `verify()` and `verifyEach()` submit the source,
+so the explorer can replace the partial match with an exact one. An `exact`
+match never submits. A match of another contract's source submits with or
+without the option.
+
+| The explorer's answer to the submit                  | Result                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| It verifies the source                               | `verified`, with the job's match                                        |
+| The contract is already verified                     | `already-verified`, with the match a lookup reads                       |
+| It rejects the source                                | `already-verified`, `partial`, from the first lookup, and a `warn` line |
+| It rejects the source, and its lookup finds no match | `failed`, and a `warn` line                                             |
+
+When the explorer rejects the source, the partial match stays, so the
+result is `already-verified`. Etherscan, Routescan and the
+Etherscan-compatible explorers look the contract up after a rejection. When
+that newer lookup finds no match, the result is `failed`. Each `warn` line
+gives the explorer's reason.
+
+After the submit, a lookup that finds only the `partial` match does not
+confirm the job. When the time budget runs out, or 3 polls in a row fail,
+the call throws `not-confirmed`. When the explorer forgets the job, it
+throws `job-not-found`. On Routescan, whose matches are all `partial`, a
+forgotten job therefore always ends with `job-not-found`.
+
+The handle of such a job ends with `:over-partial`, and its object has
+`overPartial: true`. [checkStatus()](check-status.md#a-submit-over-a-partial-match)
+ends it by the same rules. `dryRun()` with `submitOverPartial: true` says
+that `verify()` would submit over the partial match; without it, that
+`verify()` would not. The CLI flag is [`--submit-over-partial`](cli.md).
+
+What each explorer did on Ethereum Sepolia on 2026-11-11
+([research](../../contributor/research/2026-11-11-submit-over-partial.md)):
+
+| Explorer   | The exact source over its partial match                                              | The partial source again                                             |
+| ---------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Sourcify   | The match became `exact_match`: `verified`, `exact`                                  | The job ended with `already_verified`: `already-verified`, `partial` |
+| Blockscout | The lookup then gave `is_fully_verified`: `verified`, `exact`                        | `Fail - Unable to verify`: `already-verified`, `partial`             |
+| Routescan  | `Pass - Verified`, and the stored source became the exact one: `verified`, `partial` | Not sent                                                             |
+
+- Routescan states no grade, so every Routescan match is `partial`, and the
+  option submits over every match there. Routescan replaces the source it
+  holds on a resubmit, so a build that differs only in its metadata can
+  replace an exact source with a partial one.
+- Sourcify's lookup answer can be cached for up to an hour. A call soon
+  after an upgrade can still read `partial` and submit again. Sourcify then
+  answers `409`, and the result is `already-verified`, `exact`.
+- Etherscan's Similar Match is `partial`; the research note records
+  Etherscan's answer to a submit over it.
 
 ## Dry run results
 
@@ -219,6 +274,7 @@ code 0.
 - `pollIntervalMs` is finite, and raised to at least 1000.
 - `signal` is an `AbortSignal`, and `fetch` and `onEvent` are functions.
 - `apiKeys` is a plain object of strings.
+- `allowSourcifyFallback` and `submitOverPartial` are booleans.
 
 A wrong value or an unknown key throws `invalid-input` before any request.
 For `{ "timeout": 5 }` the issue reads
@@ -332,5 +388,9 @@ handle from the `verify.submitted` event, then resume with `checkStatus()`:
   Sourcify, Blockscout and Routescan stored them 56 to 94 s after each
   deployment ([research](../../contributor/research/2026-11-10-foreign-matches.md),
   [decision 0063](../../contributor/decisions/0063-submit-over-another-contracts-match.md)).
+- Submits over a partial match, Ethereum Sepolia, 2026-11-11: Sourcify and
+  Blockscout upgraded their partial matches to exact, and Routescan replaced
+  its stored source ([research](../../contributor/research/2026-11-11-submit-over-partial.md),
+  [decision 0067](../../contributor/decisions/0067-submit-over-a-partial-match.md)).
 - Public Sourcify, 2026-11-03: on Base Sepolia, `verify()` verified
   `0x616dc0f820416e46841d2e1122ff7ca615a740fe` in 2.5 s.

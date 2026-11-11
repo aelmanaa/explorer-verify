@@ -1,0 +1,32 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:41:53.548Z: the job of that submit, which ended with the code already_verified on Ethereum Sepolia (issue #294).",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/0c153b27-9f67-4132-9b55-a18a81e82773"
+  },
+  "recordedAt": "2026-11-11T07:41:53.548Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "0c153b27-9f67-4132-9b55-a18a81e82773",
+      "jobStartTime": "2026-11-11T07:41:49Z",
+      "jobFinishTime": "2026-11-11T07:41:49Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1"
+      },
+      "error": {
+        "customCode": "already_verified",
+        "message": "The contract is already verified and the job didn't yield a better match.",
+        "errorId": "f15b14be-a1a9-42c0-8e43-36dd27ab7b24"
+      }
+    }
+  }
+}

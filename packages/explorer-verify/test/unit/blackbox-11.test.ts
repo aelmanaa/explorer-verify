@@ -39,6 +39,7 @@ const verifyOptionKeys: Equals<
   | "allowSourcifyFallback"
   | "rpcUrl"
   | "handlerUrl"
+  | "submitOverPartial"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;
@@ -67,8 +68,10 @@ const signalType: Equals<VerifyOptions["signal"], AbortSignal | undefined> = tru
 const fetchType: Equals<VerifyOptions["fetch"], typeof fetch | undefined> = true;
 const loggerKeys: Equals<keyof Logger, "debug" | "info" | "warn" | "error"> = true;
 const routeKeys: Equals<keyof RouteOverride, "backend" | "apiUrl" | "apiKey"> = true;
-const handleKeys: Equals<keyof Handle, "version" | "backend" | "chainId" | "address" | "jobId"> =
-  true;
+const handleKeys: Equals<
+  keyof Handle,
+  "version" | "backend" | "chainId" | "address" | "jobId" | "overPartial"
+> = true;
 const errorJsonKeys: Equals<
   keyof ErrorJson,
   "code" | "message" | "hint" | "docsUrl" | "retryable" | "handle" | "handles" | "details"

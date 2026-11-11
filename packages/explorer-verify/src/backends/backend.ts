@@ -149,8 +149,21 @@ export type SubmitOutcome =
 export type PollOutcome =
   | { readonly state: "pending" }
   | ({ readonly state: "verified" } & Found)
-  | ({ readonly state: "already-verified"; readonly match?: Match } & Stored)
-  | { readonly state: "failed"; readonly reason: string };
+  | ({
+      readonly state: "already-verified";
+      readonly match?: Match;
+      /**
+       * The explorer's reason when it rejected the source and a lookup then found a partial
+       * match, as Etherscan's `Fail - Unable to verify` can be.
+       */
+      readonly reason?: string;
+    } & Stored)
+  | {
+      readonly state: "failed";
+      readonly reason: string;
+      /** A lookup after the rejection found the contract not verified. */
+      readonly notVerified?: true;
+    };
 
 /**
  * One explorer verification API. Each method sends its requests through `ctx.http` and builds
