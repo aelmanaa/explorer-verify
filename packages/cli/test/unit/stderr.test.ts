@@ -183,6 +183,16 @@ describe("text lines", () => {
     );
   });
 
+  // R-SEC-1, decision 0063: a log message can hold explorer text, such as a stored contract name.
+  it("shows control characters in a message as escapes, so none reaches the terminal", () => {
+    const { stderr, text } = writer({ format: "text", level: "debug" });
+    stderr.logger.warn("sourcify holds another contract's source (A\r\u001b[2KB)");
+    assert.equal(
+      text(),
+      "warning: sourcify holds another contract's source (A\\u000d\\u001b[2KB)\n",
+    );
+  });
+
   it("writes each event's message, with the level prefix", () => {
     const { stderr, text } = writer({ format: "text", level: "debug" });
     for (const event of EVENTS) {

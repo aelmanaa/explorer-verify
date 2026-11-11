@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev to a GET request sent with the fetch of Node.js 24.21.0, recorded 2026-11-10T13:17:11.483Z, read only: the lookup of 0xA67A1256B513AfA0cBD89671bD0eca062117A3D9 on Ethereum Sepolia, issue #293. Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xA67A1256B513AfA0cBD89671bD0eca062117A3D9?fields=compilation"
+  },
+  "recordedAt": "2026-11-10T13:17:11.483Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "compilation": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.33+commit.64118f21",
+        "name": "SimpleStorage",
+        "fullyQualifiedName": "simplestorage2.sol:SimpleStorage"
+      },
+      "matchId": "58986795",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-10T08:03:50Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0xA67A1256B513AfA0cBD89671bD0eca062117A3D9"
+    }
+  }
+}

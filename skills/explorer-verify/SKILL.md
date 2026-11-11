@@ -229,6 +229,9 @@ state always throws; it never comes back as a result.
   `result.match` (`exact` or `partial`) and, for a public explorer, `result.explorerUrl`. `failed`
   carries `result.reason`: the explorer rejected the source, for example because the bytecode
   differs.
+- `result.storedContract` on `already-verified` means the explorer holds another contract's source
+  for the address, with that `name` and `compilerVersion`: `verify()` submitted and the explorer
+  refused. Tell the person; the explorer page shows the other contract, not theirs.
 - `error.code` is a stable code, and checking it narrows `error.details` to that code's data.
   `ExplorerVerifyError.is(error, "not-confirmed")` does both checks in one call and also holds for
   an error from another installed copy of the package. `error.hint` says what to do next,
@@ -359,7 +362,9 @@ Before a real `verify`, run the same command line with `--dry-run`. It validates
 resolves the route and looks the contract up, then stops: it never submits, and it needs no API
 key. Run it without asking. Read the `lookup` field of its result:
 
-- `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing.
+- `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing,
+  unless the result has `storedContract`: then the match is another contract's source and
+  `verify` would submit. Ask the person first.
 - `none`: `verify` would submit. Ask the person before you run it without `--dry-run`.
 - `skipped`: the backend needs an API key and none is set, so no request was sent. Do not run
   `verify`: it would exit 3 with `missing-api-key`. Ask the person to set the key.

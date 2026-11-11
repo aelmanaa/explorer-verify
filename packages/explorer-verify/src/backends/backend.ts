@@ -18,6 +18,23 @@ import type { Handle, Hex, VerifyInput } from "../types.ts";
  */
 export type Match = "exact" | "partial";
 
+// References: R-FLOW-1, decision 0063.
+/**
+ * The contract whose source the explorer holds, where its answer names it. Each field is absent
+ * when the answer does not give it.
+ */
+export interface Stored {
+  /** The contract's name, or `path:Name` where the explorer gives the path. */
+  readonly name?: string | undefined;
+  /** The compiler version as the explorer gives it, such as `v0.8.34+commit.80d5c536`. */
+  readonly compilerVersion?: string | undefined;
+}
+
+/** What a lookup found: the grade and, where the explorer names it, the stored contract. */
+export interface Found extends Stored {
+  readonly match: Match;
+}
+
 /**
  * The contract a lookup or an explorer page is about.
  *
@@ -82,6 +99,13 @@ export interface Context {
    * words the errors of the handler's answers. Absent otherwise.
    */
   readonly handler?: ResolvedHandler | undefined;
+  // References: R-FLOW-1, decision 0063.
+  /**
+   * For a `verify()` call: whether a match is of the input's own source. A client's lookup after a
+   * submit without a clear answer sends the submit again over another contract's match. Absent
+   * means every match counts, as for `checkStatus()`.
+   */
+  readonly own?: ((found: Found) => boolean) | undefined;
 }
 
 /**
@@ -98,19 +122,18 @@ export type SubmitOutcome =
       /** Pass it to {@link Backend.poll}. */
       readonly handle: Handle;
     }
-  | {
+  | ({
       /** The explorer refused the submission because the contract is already verified. */
       readonly state: "already-verified";
-      /** The stored match. */
-      readonly match: Match;
-    };
+    } & Found);
 
 // References: R-FLOW-4.
 /**
  * The result of one poll. Anything the backend cannot classify throws instead.
  *
  * - `pending`: the job is still running. Poll again.
- * - `verified`: the job verified the contract with this match.
+ * - `verified`: the job verified the contract with this match. When a lookup read the grade, the
+ *   outcome also names the stored contract, which the flow compares with the input.
  * - `already-verified`: the job found the contract already verified at this grade or better.
  *   `match` is absent when the explorer did not say which; the flow then looks it up.
  * - `failed`: the explorer definitively rejected the source. `reason` is the explorer's code and
@@ -118,8 +141,8 @@ export type SubmitOutcome =
  */
 export type PollOutcome =
   | { readonly state: "pending" }
-  | { readonly state: "verified"; readonly match: Match }
-  | { readonly state: "already-verified"; readonly match?: Match }
+  | ({ readonly state: "verified" } & Found)
+  | ({ readonly state: "already-verified"; readonly match?: Match } & Stored)
   | { readonly state: "failed"; readonly reason: string };
 
 /**
@@ -142,11 +165,12 @@ export interface Backend {
   /**
    * Asks whether the contract is verified. Sends no submission.
    *
-   * @returns The match, or `undefined` when the explorer says the contract is not verified.
+   * @returns The match, with the stored contract where the answer names it, or `undefined` when
+   *   the explorer says the contract is not verified.
    * @throws ExplorerVerifyError for every answer that does not clearly say one or the other. A
    *   failed lookup never reads as "not verified".
    */
-  readonly lookup: (target: Target, ctx: Context) => Promise<Match | undefined>;
+  readonly lookup: (target: Target, ctx: Context) => Promise<Found | undefined>;
   /**
    * Submits the source for verification. Outward and permanent: the explorer publishes it.
    *

@@ -63,7 +63,12 @@ function recordedBody(name: string): string {
 }
 
 const NOT_VERIFIED = recordedBody("2026-11-03-getsourcecode-not-verified");
-const VERIFIED = recordedBody("2026-11-03-getsourcecode-constructor-args-omitted");
+// The recorded lookup names ProbeAOmitted. The copy names the Greeter of this project, so the
+// lookup after the submit finds this source rather than another contract's (decision 0063).
+const VERIFIED = recordedBody("2026-11-03-getsourcecode-constructor-args-omitted").replace(
+  '"ContractName":"ProbeAOmitted"',
+  '"ContractName":"Greeter"',
+);
 
 /** What the server saw for one run, by the run's name in the path. */
 interface Seen {

@@ -10,6 +10,7 @@ import type {
   DryRunResult,
   RoutedBy,
   ErrorJson,
+  StoredContract,
   VerifyResult,
   LinkProxyResult,
 } from "explorer-verify";
@@ -36,6 +37,9 @@ function dryRunText(result: DryRunResult, paint: ReturnType<typeof painter>): st
   }
   if (result.lookup === "none") {
     return `${head}no match, so a run without --dry-run would submit. Nothing was submitted.\n`;
+  }
+  if (result.storedContract !== undefined) {
+    return `${head}${result.lookup} match from another contract's source (${storedText(result.storedContract)}), so a run without --dry-run would submit. Nothing was submitted.\n`;
   }
   const line = `${head}${result.lookup} match already, so a run without --dry-run would not submit.\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
@@ -127,8 +131,18 @@ function resultText(
     return `mismatch on ${result.backend}: expected ${result.expectedImplementation}\n`;
   if (result.status === "not-linked")
     return `not-linked on ${result.backend}: ${visible(result.reason)}\n`;
-  const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}\n`;
+  const stored =
+    result.status === "already-verified" && result.storedContract !== undefined
+      ? `, from another contract's source (${storedText(result.storedContract)})`
+      : "";
+  const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}${stored}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
+}
+
+// References: decision 0063.
+/** A stored contract in a summary: its name and compiler version, as the explorer gives them. */
+function storedText(stored: StoredContract): string {
+  return `${visible(stored.name ?? "no name given")}, compiler ${visible(stored.compilerVersion ?? "not given")}`;
 }
 
 /**

@@ -302,7 +302,10 @@ describe("etherscan-compatible answers (R-BE-2, R-FLOW-4)", () => {
   });
 
   it("a verified lookup is an exact match", async () => {
-    assert.equal(await etherscanCompatible.lookup(TARGET, setup([VERIFIED()]).ctx), "exact");
+    assert.equal(
+      (await etherscanCompatible.lookup(TARGET, setup([VERIFIED()]).ctx))?.match,
+      "exact",
+    );
   });
 });
 

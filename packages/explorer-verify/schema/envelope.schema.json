@@ -264,9 +264,27 @@
         "explorerUrl": {
           "description": "The public page of the contract. Absent when the library knows none.",
           "type": "string"
+        },
+        "storedContract": {
+          "description": "already-verified only: the explorer holds another contract's source for the address. verify submitted this source and the explorer refused it as already verified. match is then partial.",
+          "$ref": "#/$defs/storedContract"
         }
       },
       "required": ["status", "backend", "match"]
+    },
+    "storedContract": {
+      "description": "The contract whose source the explorer holds when it is not the input's: another contract name or compiler version. Each field is absent when the explorer's answer does not give it.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The contract's name as the explorer gives it: Name, or path:Name on Sourcify.",
+          "type": "string"
+        },
+        "compilerVersion": {
+          "description": "The compiler version as the explorer gives it, such as v0.8.33+commit.64118f21.",
+          "type": "string"
+        }
+      }
     },
     "failure": {
       "description": "A VerifyResult whose status is failed.",
@@ -300,8 +318,12 @@
           "type": "string"
         },
         "lookup": {
-          "description": "exact or partial: the explorer holds a match, so verify would not submit. none: it holds none, so verify would submit. skipped: the backend needs an API key and none is set, so no request was sent.",
+          "description": "exact or partial: the explorer holds a match, so verify would not submit, unless storedContract is set. none: it holds none, so verify would submit. skipped: the backend needs an API key and none is set, so no request was sent.",
           "enum": ["exact", "partial", "none", "skipped"]
+        },
+        "storedContract": {
+          "description": "The match is another contract's source, so verify would submit.",
+          "$ref": "#/$defs/storedContract"
         },
         "explorerUrl": {
           "description": "The public page of the contract, for a match. Absent when the library knows none.",

@@ -412,7 +412,7 @@ describe("verify(): already verified", () => {
       );
       assert.equal(
         fake.calls[0]?.url,
-        `${DEFAULT_API}/v2/contract/${CHAIN_ID}/${ADDRESS.toLowerCase()}`,
+        `${DEFAULT_API}/v2/contract/${CHAIN_ID}/${ADDRESS.toLowerCase()}?fields=compilation`,
       );
       assert.deepEqual(types(rec.events), [
         "verify.validated",
@@ -601,7 +601,7 @@ describe("verify(): a submitted job", () => {
       assert.equal(lookupLine?.fields?.attempt, 1);
       assert.equal(
         lookupLine?.fields?.url,
-        `${DEFAULT_API}/v2/contract/${CHAIN_ID}/${ADDRESS.toLowerCase()}`,
+        `${DEFAULT_API}/v2/contract/${CHAIN_ID}/${ADDRESS.toLowerCase()}?REDACTED`,
       );
       assert.ok(rec.lines.every((l) => l.level !== "error"));
       assert.deepEqual(checkEnvelope(result), {

@@ -311,6 +311,29 @@ export function redactExcerpt(text: string, secrets: readonly string[], length: 
   return redacted.slice(0, Math.max(0, Math.min(length, redacted.length - tail)));
 }
 
+// References: R-SEC-1, decision 0063.
+/**
+ * {@link redactExcerpt} of `text` with each control character, C0, DEL and C1 with ESC among
+ * them, replaced by `U+FFFD`: explorer text that a terminal shows as it is.
+ *
+ * @param text - An explorer's text, such as a stored contract's name.
+ * @param secrets - Key values known to the caller.
+ * @param length - The longest text to return.
+ * @returns At most `length` characters, redacted, with no control character.
+ * @example
+ * ```ts
+ * redactLine("Box\u001b[2K", [], 300); // "Box�[2K"
+ * ```
+ */
+export function redactLine(text: string, secrets: readonly string[], length: number): string {
+  let line = "";
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    line += code < 0x20 || (code >= 0x7f && code <= 0x9f) ? "�" : char;
+  }
+  return redactExcerpt(line, secrets, length);
+}
+
 /** `value` as text for a log line. Never throws; a value that cannot be read is `[unloggable]`. */
 function loggable(value: unknown, secrets: readonly string[]): string {
   try {

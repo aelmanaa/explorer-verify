@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
-import type { Context, Target } from "../../src/backends/backend.ts";
+import type { Context, Found, ResolvedInput } from "../../src/backends/backend.ts";
 import {
   attemptSubmit,
   checkHandle,
@@ -21,7 +21,20 @@ import { resolveRoute } from "../helpers/route.ts";
 
 const SEPOLIA = 11155111;
 const ADDRESS = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
-const TARGET: Target = { chainId: SEPOLIA, address: ADDRESS };
+const INPUT: ResolvedInput = {
+  chainId: SEPOLIA,
+  address: ADDRESS,
+  compiler: {
+    kind: "solc",
+    version: "0.8.24+commit.e11b9ed9",
+    input: {
+      language: "Solidity",
+      sources: { "contracts/Greeter.sol": { content: "" } },
+      settings: {},
+    },
+  },
+  contractName: "contracts/Greeter.sol:Greeter",
+};
 const ANSWER: Answer = { status: 200, text: "{}", fields: new Map() };
 
 type Line = [level: string, message: string, fields?: LogFields];
@@ -118,16 +131,66 @@ describe("submitOnce and waitToResubmit: log fields (#158, R-DX-5)", () => {
       ctx,
       "sourcify",
       "Sourcify",
-      TARGET,
+      INPUT,
       () => Promise.resolve({ kind: "unconfirmed", error }),
       () => assert.fail("no answer to read"),
-      () => Promise.resolve("exact"),
+      () => Promise.resolve({ match: "exact" }),
     );
     assert.deepEqual(outcome, { state: "already-verified", match: "exact" });
     assert.deepEqual(
       lines.filter(([level]) => level === "warn").map(([, , fields]) => fields),
       [{ backend: "sourcify", code: "network" }],
     );
+  });
+
+  // R-FLOW-1, decision 0063.
+  it("ends with the lookup's stored contract when it is the input's", async () => {
+    const error = new ExplorerVerifyError(
+      { code: "network", backend: "sourcify", attempts: 1 },
+      "Sourcify got no response.",
+      { secrets: [] },
+    );
+    const found = {
+      match: "exact",
+      name: "contracts/Greeter.sol:Greeter",
+      compilerVersion: "0.8.24+commit.e11b9ed9",
+    } as const satisfies Found;
+    const outcome = await submitOnce(
+      contextOf(noFetch),
+      "sourcify",
+      "Sourcify",
+      INPUT,
+      () => Promise.resolve({ kind: "unconfirmed", error }),
+      () => assert.fail("no answer to read"),
+      () => Promise.resolve(found),
+    );
+    assert.deepEqual(outcome, { state: "already-verified", ...found });
+  });
+
+  // R-FLOW-1, decision 0063.
+  it("submits again when ctx.own refuses the match the lookup finds", async () => {
+    const error = new ExplorerVerifyError(
+      { code: "network", backend: "sourcify", attempts: 1 },
+      "Sourcify got no response.",
+      { secrets: [] },
+    );
+    let attempts = 0;
+    const outcome = await submitOnce(
+      { ...contextOf(noFetch), own: (found) => found.name !== "SimpleStorage" },
+      "sourcify",
+      "Sourcify",
+      INPUT,
+      () => {
+        attempts += 1;
+        return Promise.resolve(
+          attempts === 1 ? { kind: "unconfirmed", error } : { kind: "answer", answer: ANSWER },
+        );
+      },
+      () => ({ state: "already-verified", match: "exact" }),
+      () => Promise.resolve({ match: "partial", name: "SimpleStorage" }),
+    );
+    assert.equal(attempts, 2);
+    assert.deepEqual(outcome, { state: "already-verified", match: "exact" });
   });
 
   it("logs the next submit's number before it waits", async (t: TestContext) => {

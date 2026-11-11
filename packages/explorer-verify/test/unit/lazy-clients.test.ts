@@ -54,7 +54,7 @@ const noFetch: typeof fetch = async () => {
 /** Sourcify's client, answering every lookup and poll with an exact match and no request. */
 const exactSourcify: Backend = {
   ...sourcify,
-  lookup: async () => "exact",
+  lookup: async () => ({ match: "exact" }),
   poll: async () => ({ state: "verified", match: "exact" }),
 };
 

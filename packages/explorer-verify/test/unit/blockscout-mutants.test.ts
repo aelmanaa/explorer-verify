@@ -116,7 +116,7 @@ function sent(calls: Call[]): string[] {
 describe("the Blockscout lookup (R-BE-4, R-FLOW-4)", () => {
   it("sends the lookup again after a 502, as a safe request (R-FLOW-6)", async (t) => {
     const r = await lookup(t, [BAD_GATEWAY(), FULL()]);
-    assert.equal(r.outcome, "exact");
+    assert.equal(Reflect.get(Object(r.outcome), "match"), "exact");
     assert.deepEqual(sent(r.calls), [`GET ${LOOKUP_URL}`, `GET ${LOOKUP_URL}`]);
   });
 

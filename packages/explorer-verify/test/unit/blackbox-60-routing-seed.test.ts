@@ -203,7 +203,10 @@ function assertSourcifyRoute(
   assert.equal(run_.result.backend, "sourcify");
   assert.equal(run_.result.status, "already-verified");
   assert.equal(run_.calls.length, 1);
-  assert.equal(run_.calls[0]?.url, `https://sourcify.dev/server/v2/contract/${chainId}/${address}`);
+  assert.equal(
+    run_.calls[0]?.url,
+    `https://sourcify.dev/server/v2/contract/${chainId}/${address}?fields=compilation`,
+  );
   assert.equal(explorerUrlOf(run_.result), `https://repo.sourcify.dev/${chainId}/${address}`);
   const routed = run_.events.find((event) => event.type === "verify.routed");
   assert.ok(routed !== undefined);
@@ -342,7 +345,10 @@ describe("blackbox #60: unlisted chain and allowSourcifyFallback (routing.md, R-
       const { result, calls, events } = await run(chainId, { allowSourcifyFallback: true });
       assert.equal(result.backend, "sourcify");
       assert.equal(calls.length, 1);
-      assert.equal(calls[0]?.url, `https://sourcify.dev/server/v2/contract/${chainId}/${ADDRESS}`);
+      assert.equal(
+        calls[0]?.url,
+        `https://sourcify.dev/server/v2/contract/${chainId}/${ADDRESS}?fields=compilation`,
+      );
       const routed = events.find((event) => event.type === "verify.routed");
       assert.equal(routed?.backend, "sourcify");
     });
@@ -426,7 +432,7 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
     assert.equal(result.backend, "sourcify");
     assert.equal(
       calls[0]?.url,
-      `https://sourcify.example.org/server/v2/contract/${chainId}/${ADDRESS}`,
+      `https://sourcify.example.org/server/v2/contract/${chainId}/${ADDRESS}?fields=compilation`,
     );
     assert.equal(explorerUrlOf(result), undefined);
   });
@@ -434,7 +440,10 @@ describe("blackbox #60: route overrides (routing.md#route, R-RT-2)", () => {
   it("route.apiUrl on a listed chain overrides the table and drops explorerUrl", async () => {
     const { result, calls } = await run(1, { route: { apiUrl: "http://localhost:5555" } });
     assert.equal(result.backend, "sourcify");
-    assert.equal(calls[0]?.url, `http://localhost:5555/v2/contract/1/${ADDRESS}`);
+    assert.equal(
+      calls[0]?.url,
+      `http://localhost:5555/v2/contract/1/${ADDRESS}?fields=compilation`,
+    );
     assert.equal(explorerUrlOf(result), undefined);
   });
 

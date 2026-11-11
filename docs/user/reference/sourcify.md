@@ -16,11 +16,11 @@ v1 API was switched off on 2026-07-07; explorer-verify does not use it. [verify(
 
 ## Requests
 
-| Step   | Request                                | Sends                                                    |
-| ------ | -------------------------------------- | -------------------------------------------------------- |
-| Lookup | `GET /v2/contract/{chainId}/{address}` | Nothing. Safe to repeat                                  |
-| Submit | `POST /v2/verify/{chainId}/{address}`  | The source. Outward and permanent: Sourcify publishes it |
-| Status | `GET /v2/verify/{verificationId}`      | Nothing. Safe to repeat                                  |
+| Step   | Request                                                   | Sends                                                    |
+| ------ | --------------------------------------------------------- | -------------------------------------------------------- |
+| Lookup | `GET /v2/contract/{chainId}/{address}?fields=compilation` | Nothing. Safe to repeat                                  |
+| Submit | `POST /v2/verify/{chainId}/{address}`                     | The source. Outward and permanent: Sourcify publishes it |
+| Status | `GET /v2/verify/{verificationId}`                         | Nothing. Safe to repeat                                  |
 
 The submit body is JSON:
 
@@ -37,24 +37,24 @@ Constructor arguments are never sent: Sourcify reads them from the creation code
 An answer that this table does not list throws an error. It never reads as "not verified" or as
 success.
 
-| Step   | Answer                                          | Outcome                                                            |
-| ------ | ----------------------------------------------- | ------------------------------------------------------------------ |
-| Lookup | 200 with `match` `exact_match` or `match`       | Verified, `exact` or `partial`                                     |
-| Lookup | 404 with `match` `null`                         | Not verified                                                       |
-| Lookup | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                 |
-| Lookup | Anything else, a 500 included                   | [`unexpected-response`](errors/unexpected-response.md)             |
-| Submit | 202 with a `verificationId`                     | A job to poll                                                      |
-| Submit | 409 `already_verified`                          | `already-verified`, `exact`                                        |
-| Submit | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                 |
-| Submit | 429 `duplicate_verification_request`            | [`in-progress`](errors/in-progress.md)                             |
-| Submit | Anything else, 400 `invalid_parameter` included | [`unexpected-response`](errors/unexpected-response.md)             |
-| Status | `isJobCompleted` `false`                        | Still pending                                                      |
-| Status | Completed with `match` `exact_match` or `match` | `verified`, `exact` or `partial`                                   |
-| Status | Completed with error `already_verified`         | `already-verified`                                                 |
-| Status | Completed with an error that rejects the source | `failed`, with `reason` `<code>: <message>`                        |
-| Status | Completed with an error that may clear up later | [`verification-inconclusive`](errors/verification-inconclusive.md) |
-| Status | Completed with any other error, or with neither | [`unknown-state`](errors/unknown-state.md)                         |
-| Status | 404 `job_not_found`                             | [`job-not-found`](errors/job-not-found.md)                         |
+| Step   | Answer                                          | Outcome                                                              |
+| ------ | ----------------------------------------------- | -------------------------------------------------------------------- |
+| Lookup | 200 with `match` `exact_match` or `match`       | Verified, `exact` or `partial`, with the stored contract (see below) |
+| Lookup | 404 with `match` `null`                         | Not verified                                                         |
+| Lookup | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                   |
+| Lookup | Anything else, a 500 included                   | [`unexpected-response`](errors/unexpected-response.md)               |
+| Submit | 202 with a `verificationId`                     | A job to poll                                                        |
+| Submit | 409 `already_verified`                          | `already-verified`, `exact`                                          |
+| Submit | 400 `unsupported_chain`                         | [`unsupported-chain`](errors/unsupported-chain.md)                   |
+| Submit | 429 `duplicate_verification_request`            | [`in-progress`](errors/in-progress.md)                               |
+| Submit | Anything else, 400 `invalid_parameter` included | [`unexpected-response`](errors/unexpected-response.md)               |
+| Status | `isJobCompleted` `false`                        | Still pending                                                        |
+| Status | Completed with `match` `exact_match` or `match` | `verified`, `exact` or `partial`                                     |
+| Status | Completed with error `already_verified`         | `already-verified`                                                   |
+| Status | Completed with an error that rejects the source | `failed`, with `reason` `<code>: <message>`                          |
+| Status | Completed with an error that may clear up later | [`verification-inconclusive`](errors/verification-inconclusive.md)   |
+| Status | Completed with any other error, or with neither | [`unknown-state`](errors/unknown-state.md)                           |
+| Status | 404 `job_not_found`                             | [`job-not-found`](errors/job-not-found.md)                           |
 
 `exact` means the metadata hash matches too; `partial` means everything but the metadata hash
 matches. An answer whose `chainId` or `address` names another contract throws
@@ -79,9 +79,9 @@ A submit may reach Sourcify without explorer-verify learning the job id: no resp
 or 504, a success status whose body failed or stalled, or a 202 whose body is not JSON.
 explorer-verify does not send such a submit again blindly. It looks the contract up first:
 
-- If the lookup finds the contract verified, the submit ends as `already-verified` with that match.
-  The verification may be the one this call started.
-- If not, it submits once more. If Sourcify answers that a job for the contract is already
+- If the lookup finds the contract verified from this source, the submit ends as
+  `already-verified` with that match. The verification may be the one this call started.
+- If not, or if the match is another contract's source, it submits once more. If Sourcify answers that a job for the contract is already
   running, the call throws `in-progress`, without a job id.
 - If the second submit also gets no clear answer, the call throws that error.
 - If the lookup fails, the call throws the lookup's error, and its message says the submit may
@@ -94,6 +94,18 @@ at once, with no lookup.
 
 - A 200 lookup can be up to an hour old: Sourcify sends `cache-control: public,max-age=3600`. A
   "not verified" answer is not cached. After a submit, the job's answer is newer than a lookup.
+- The lookup names the stored contract from `compilation`: `fullyQualifiedName`, else `name`, and
+  `compilerVersion`.
+- Sourcify can hold another contract's source for an address. On 2026-11-10, on Ethereum Sepolia,
+  it held `simplestorage2.sol:SimpleStorage` compiled with `0.8.33` as a `match` for a contract the
+  caller deployed as `EvBox` with `0.8.34`, within two minutes of the deployment. `verify()` compares
+  `fullyQualifiedName` with the whole `contractName` and `compilerVersion` with
+  `compiler.version`, and submits when either differs; see
+  [Match types](../explanation/match-types.md).
+- Two Sourcify answers name no contract: the `409` to a submit, and the lookup of a server that
+  ignores `fields=compilation`. `verify()` then takes the match as your source, and logs at `info`
+  that the answer names no contract. After a `409` that follows another contract's match, the
+  result keeps that contract in `storedContract`.
 - A submit can verify the contract on other explorers too. On 2026-11-02, completed jobs carried
   `externalVerifications`, with an entry per explorer (Etherscan, Blockscout, Routescan): a job id,
   an "already verified" answer or an error such as a daily limit. On Polygon Amoy, Etherscan showed

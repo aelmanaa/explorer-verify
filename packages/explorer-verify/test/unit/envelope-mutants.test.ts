@@ -131,6 +131,42 @@ describe("toEnvelope says what is wrong with an outcome that bypassed the types 
     }
   });
 
+  // R-FLOW-3, decision 0063.
+  it("refuses a storedContract that is not an object of strings", () => {
+    const issue = {
+      field: "outcome.storedContract",
+      message: "must be an object whose name and compilerVersion are strings when present",
+    };
+    const already = { ...VERIFIED, status: "already-verified", match: "partial" };
+    for (const storedContract of ["SimpleStorage", null, { name: 5 }, { compilerVersion: 8 }]) {
+      assert.deepEqual(issuesOf({ ...already, storedContract }), [issue]);
+      assert.deepEqual(issuesOf({ ...DRY_RUN, lookup: "partial", storedContract }), [issue]);
+    }
+  });
+
+  it("copies storedContract's two fields, redacted, and only on already-verified and dry-run", () => {
+    const secret = "DUMMYSECRETstored293key";
+    const storedContract = { name: `A${secret}`, compilerVersion: "v0.8.33", extra: "dropped" };
+    const options = { secrets: [secret] };
+    const already = { ...VERIFIED, status: "already-verified", match: "partial", storedContract };
+    assert.deepEqual(toEnvelope(bypass(already), options).result, {
+      ...VERIFIED,
+      status: "already-verified",
+      match: "partial",
+      storedContract: { name: "A[redacted]", compilerVersion: "v0.8.33" },
+    });
+    assert.deepEqual(toEnvelope(bypass({ ...VERIFIED, storedContract })).result, VERIFIED);
+    assert.deepEqual(toEnvelope(bypass({ ...DRY_RUN, storedContract: {} })).result, {
+      ...DRY_RUN,
+      storedContract: {},
+    });
+    assert.deepEqual(
+      toEnvelope(bypass({ ...DRY_RUN, storedContract: { compilerVersion: secret } }), options)
+        .result,
+      { ...DRY_RUN, storedContract: { compilerVersion: "[redacted]" } },
+    );
+  });
+
   it("reads a result that has its own toJSON() as a result", () => {
     const result = { ...VERIFIED, toJSON: () => ({}) };
     assert.deepEqual(toEnvelope(bypass(result)), {

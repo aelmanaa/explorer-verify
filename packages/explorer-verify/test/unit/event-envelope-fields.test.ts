@@ -43,7 +43,7 @@ describe("settled event fields (R-DX-6, R-RT-4, R-SEC-1)", () => {
     const client: Backend = {
       name: "sourcify",
       takesConstructorArgs: true,
-      lookup: async () => "exact",
+      lookup: async () => ({ match: "exact" }),
       submit: async () => {
         throw new Error("no submit expected");
       },

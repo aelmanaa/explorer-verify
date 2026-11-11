@@ -35,7 +35,7 @@ const GREETER_CHECKSUM = "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC";
 const GREETER_JOB = "ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718";
 const GREETER_PAGE = `https://repo.sourcify.dev/${String(SEPOLIA)}/${GREETER}`;
 const POLL_URL = `https://sourcify.dev/server/v2/verify/${GREETER_JOB}`;
-const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`;
+const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`;
 // The contract of the no_match, already_verified and internal_error jobs.
 const OTHER = "0xa6b01960ea6e942ada412c76456bc9465682f3ab";
 const OTHER_JOB = "dea83eb0-3918-449b-a914-3038dd554b42";

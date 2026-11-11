@@ -924,7 +924,7 @@ describe("linkProxy() on Sourcify (R-FLOW-8)", () => {
     });
     assert.deepEqual(actions(r), [
       `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${PROXY}?fields=proxyResolution`,
-      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${BOX}`,
+      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${BOX}?fields=compilation`,
     ]);
   });
 

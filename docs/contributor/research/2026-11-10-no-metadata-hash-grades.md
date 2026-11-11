@@ -123,4 +123,5 @@ with its length. `test/unit/no-metadata-hash-grades.test.ts` replays them per ba
 
 - Does Etherscan's explorer page show "Exact Match" for the nohash contract? Not read; see above.
 - Should explorer-verify report `exact` for Routescan when Routescan states no grade? This note
-  records the behaviour; the issue's non-goals keep the mapping as it is.
+  records the behaviour; the issue's non-goals keep the mapping as it is. [Decision 0063](../decisions/0063-submit-over-another-contracts-match.md)
+  later answered it: every Routescan match is `partial`.

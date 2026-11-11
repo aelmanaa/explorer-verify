@@ -196,14 +196,22 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 
 ### Flow (R-FLOW)
 
-- **R-FLOW-1** Check first: if the contract is already verified on the target backend, return
-  `already-verified` without submitting.
+- **R-FLOW-1** Check first: if the contract is already verified on the target backend from this
+  source, return `already-verified` without submitting. A match counts as this source when the
+  contract name and the compiler version the explorer stores, where its answer gives them, equal
+  the input's; otherwise `verify()` submits ([decision 0063](decisions/0063-submit-over-another-contracts-match.md)).
 - **R-FLOW-2** Submit, then poll until a terminal state, within a time budget the caller sets.
 - **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
   `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
   URL on success when the library knows a public page for the contract. A route that points at a
   self-hosted or local server has none. An Etherscan Similar Match, which Etherscan made from
-  another contract's verified source rather than one submitted for this address, is `partial` ([research](research/2026-11-04-etherscan-client.md#the-lookup-and-similar-match)).
+  another contract's verified source rather than one submitted for this address, is `partial`
+  ([research](research/2026-11-04-etherscan-client.md#the-lookup-and-similar-match)). So is every
+  Routescan match, from a lookup or a `Pass - Verified`, since Routescan states no grade. A
+  `verify()` result from a match whose stored contract name or compiler version differs from the
+  input is `already-verified`, `partial`, and carries `storedContract`; no `verify()` result is
+  `verified` or `exact` for such a match
+  ([decision 0063](decisions/0063-submit-over-another-contracts-match.md)).
 - **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
   ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling

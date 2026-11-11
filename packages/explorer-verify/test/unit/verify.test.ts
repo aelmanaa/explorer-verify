@@ -409,7 +409,7 @@ describe("verify(): submit and poll (R-FLOW-2, R-FLOW-3)", () => {
     assert.deepEqual(
       r.sent.map((s) => `${s.method} ${s.url}`),
       [
-        `GET https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`,
+        `GET https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
         `POST https://sourcify.dev/server/v2/verify/${String(SEPOLIA)}/${GREETER}`,
         `GET https://sourcify.dev/server/v2/verify/${GREETER_JOB}`,
         `GET https://sourcify.dev/server/v2/verify/${GREETER_JOB}`,
@@ -522,7 +522,7 @@ describe("verify(): submit and poll (R-FLOW-2, R-FLOW-3)", () => {
     assertResult(r.outcome, { status: "already-verified", backend: "sourcify", match: "exact" }, 0);
     assert.equal(
       r.sent[0]?.url,
-      `http://127.0.0.1:5555/server/v2/contract/${String(SEPOLIA)}/${GREETER}`,
+      `http://127.0.0.1:5555/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
     );
     assert.deepEqual(r.events[1], {
       type: "verify.routed",
@@ -792,7 +792,7 @@ describe("verify(): time budget (R-FLOW-2, R-FLOW-4, R-FLOW-5)", () => {
     );
     assert.equal(
       r.sent.at(-1)?.url,
-      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`,
+      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
     );
   });
 
@@ -1589,7 +1589,7 @@ describe("verify(): options read once, own properties only (R-SEC-2)", () => {
     assert.deepEqual(evil, []);
     assert.equal(
       sent[0]?.url,
-      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`,
+      `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`,
     );
   });
 

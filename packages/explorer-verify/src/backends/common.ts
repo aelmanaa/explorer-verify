@@ -13,11 +13,60 @@ import { request, sleep } from "../http/fetch.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { budgetText } from "../internal/duration.ts";
 import { readFields } from "../internal/read-fields.ts";
+import { redactLine } from "../redact.ts";
 import type { Handle } from "../types.ts";
-import type { Backend, Context, Match, ResolvedInput, SubmitOutcome, Target } from "./backend.ts";
+import type {
+  Backend,
+  Context,
+  Found,
+  Match,
+  ResolvedInput,
+  SubmitOutcome,
+  Target,
+} from "./backend.ts";
 
 /** The longest `failed` reason, or inconclusive reason, kept from the explorer's text. */
 export const REASON_LENGTH = 300;
+
+// References: R-FLOW-1, R-SEC-1, decision 0063.
+/**
+ * What a lookup found: the grade and the stored contract's name and compiler version, each only
+ * when the answer's field is a string that is not empty. Each is explorer text that reaches the
+ * result, the logs and the envelope, so it is cut to {@link REASON_LENGTH} characters, its
+ * control characters become `�`, and the call's keys are redacted from it.
+ *
+ * @param ctx - The call's context, whose secrets are redacted.
+ * @param match - The grade.
+ * @param name - The answer's name field.
+ * @param compilerVersion - The answer's compiler version field.
+ * @returns The lookup's result.
+ * @example
+ * ```ts
+ * return foundOf(ctx, "exact", fields.get("name"), fields.get("compiler_version"));
+ * ```
+ */
+export function foundOf(
+  ctx: Context,
+  match: Match,
+  name: unknown,
+  compilerVersion: unknown,
+): Found {
+  const stored = named(name, ctx);
+  const version = named(compilerVersion, ctx);
+  return {
+    match,
+    ...(stored === undefined ? {} : { name: stored }),
+    ...(version === undefined ? {} : { compilerVersion: version }),
+  };
+}
+
+/** A string field that is not empty, made safe to show: see {@link foundOf}. */
+function named(value: unknown, ctx: Context): string | undefined {
+  return typeof value === "string" && value !== ""
+    ? redactLine(value, ctx.http.secrets, REASON_LENGTH)
+    : undefined;
+}
+
 /** Submit statuses that may come after the explorer received the submit, so it is not sent again blindly. */
 export const UNCONFIRMED_STATUSES: readonly number[] = [500, 502, 504];
 
@@ -106,9 +155,10 @@ export async function attemptSubmit(
 
 /**
  * Runs a submit that is never sent again blindly. When the first try is `unconfirmed`, it looks
- * the contract up: a match ends the submit as `already-verified`; no match sends it once more. A
- * second `unconfirmed` throws its error. A failed lookup throws its error, whose message then says
- * the submit may already have been accepted.
+ * the contract up: a match of this source ends the submit as `already-verified`; no match, or a
+ * match of another contract's source, sends it once more. A second `unconfirmed` throws its error.
+ * A failed lookup throws its error, whose message then says the submit may already have been
+ * accepted.
  *
  * @param ctx - The call's context.
  * @param name - The backend, for the log line.
@@ -140,9 +190,9 @@ export async function submitOnce(
     `${label} submit: ${first.error.message} Looking the contract up before submitting again.`,
     { backend: name, code: first.error.code },
   );
-  const match = await lookupAfterUnclear(ctx, target, lookup);
-  if (match !== undefined) {
-    return { state: "already-verified", match };
+  const found = await lookupAfterUnclear(ctx, target, lookup);
+  if (found !== undefined) {
+    return { state: "already-verified", ...found };
   }
   const second = await attempt();
   if (second.kind === "answer") {
@@ -158,19 +208,21 @@ export async function submitOnce(
  * @param ctx - The call's context.
  * @param target - The contract.
  * @param lookup - The client's lookup.
- * @returns The match, or `undefined` when the contract is not verified.
+ * @returns The match of this source, or `undefined` when the contract is not verified or the
+ *   explorer holds another contract's source.
  * @example
  * ```ts
- * const match = await lookupAfterUnclear(ctx, target, lookup);
+ * const found = await lookupAfterUnclear(ctx, target, lookup);
  * ```
  */
 export async function lookupAfterUnclear(
   ctx: Context,
   target: Target,
   lookup: Backend["lookup"],
-): Promise<Match | undefined> {
+): Promise<Found | undefined> {
   try {
-    return await lookup(target, ctx);
+    const found = await lookup(target, ctx);
+    return found === undefined || ctx.own?.(found) === false ? undefined : found;
   } catch (error: unknown) {
     if (error instanceof ExplorerVerifyError) {
       throw newError(

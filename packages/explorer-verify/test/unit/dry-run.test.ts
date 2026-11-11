@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import type { Backend } from "../../src/backends/backend.ts";
+import type { Backend, Found } from "../../src/backends/backend.ts";
 import { sourcify } from "../../src/backends/sourcify.ts";
 import { exitCodeOf, toEnvelope } from "../../src/envelope.ts";
 import { ExplorerVerifyError, dryRun } from "../../src/index.ts";
@@ -17,7 +17,7 @@ const SEPOLIA = 11155111;
 // The Greeter deployed on Sepolia on 2026-11-02, whose responses the fixtures recorded.
 const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
 const GREETER_PAGE = `https://repo.sourcify.dev/${String(SEPOLIA)}/${GREETER}`;
-const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}`;
+const LOOKUP_URL = `https://sourcify.dev/server/v2/contract/${String(SEPOLIA)}/${GREETER}?fields=compilation`;
 const ETHERSCAN_API = "https://api.etherscan.io/v2/api";
 // A fake key. Never a real one (R-SEC-1).
 const KEY = "dryrun-dummy-key-7c1e";
@@ -52,7 +52,7 @@ function keyedBackend(): { backend: Backend; lookups: () => number } {
       name: "etherscan-v2",
       lookup: async () => {
         lookups += 1;
-        return await Promise.resolve("exact");
+        return await Promise.resolve<Found>({ match: "exact" });
       },
       submit: fail,
       poll: fail,

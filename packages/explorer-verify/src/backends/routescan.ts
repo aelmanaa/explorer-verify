@@ -60,6 +60,8 @@ function unique(ctx: Context, backend: BackendName, fields: Record<string, strin
   });
 }
 
+// References: decision 0063; docs/contributor/research/2026-11-10-foreign-matches.md and
+// 2026-11-10-no-metadata-hash-grades.md.
 /**
  * The Routescan client.
  *
@@ -69,7 +71,12 @@ function unique(ctx: Context, backend: BackendName, fields: Record<string, strin
  * | submit | `POST <base>`, form body as for Etherscan: `verifysourcecode` and its fields     |
  * | poll   | `GET <base>?module=contract&action=checkverifystatus&guid=<guid>&nocache=<n>`    |
  *
- * A lookup never reports `partial`: Routescan's `getsourcecode` has no `SimilarMatch` field.
+ * Every match is `partial`, from a lookup or from `Pass - Verified`: Routescan states no grade.
+ * Its `getsourcecode` has no `SimilarMatch` field, it passed a build without a metadata hash that
+ * Sourcify and Blockscout grade partial, and it takes copies forwarded from Sourcify and Blockscout
+ * (live, 2026-11-10). Within two minutes of a deployment it can hold another contract's source
+ * under another `ContractName` (live, 2026-11-10); `verify()` compares the name and the compiler
+ * version with the input.
  *
  * @example
  * ```ts
@@ -85,6 +92,7 @@ export const routescan: Backend = /* @__PURE__ */ etherscanStyle({
   label: "Routescan",
   read: unique,
   retryAfterHeader: RETRY_AFTER_HEADER,
+  ungraded: true,
   // The part before the address, which differs per contract.
   rejections: ["Error: Compilation successful, but bytecode does not match with deployed bytecode"],
 });

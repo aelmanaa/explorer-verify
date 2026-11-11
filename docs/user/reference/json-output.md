@@ -113,6 +113,11 @@ An error, here a job still pending:
 its status declares. `explorerUrl` is absent when the library knows no public page for the
 contract.
 
+`storedContract`, on `already-verified`, names another contract whose source the explorer holds
+([verify()](verify.md#another-contracts-source)). Your source is then not on the explorer, yet
+`ok` stays `true` and the exit code 0. To require your own source, check that it is absent:
+`jq -e '.result.storedContract == null'`.
+
 ### The error object
 
 `error` is the error's `toJSON()`. It never holds `cause` or the stack:
@@ -173,11 +178,12 @@ A `cancelled` error of a CLI run on several backends also holds `handles`. It li
 }
 ```
 
-| Field      | Values                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| `lookup`   | `exact`, `partial`, `none`, or `skipped`: the backend needs a key and none was set       |
-| `routedBy` | `caller`, `table`, `fallback` or `api-url`: how the backend was chosen                   |
-| `apiHost`  | A host name, with the port when it is not the scheme's default, such as `127.0.0.1:5555` |
+| Field            | Values                                                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `lookup`         | `exact`, `partial`, `none`, or `skipped`: the backend needs a key and none was set                                     |
+| `storedContract` | The other contract's `name` and `compilerVersion`, for a match from its source: a run without `--dry-run` would submit |
+| `routedBy`       | `caller`, `table`, `fallback` or `api-url`: how the backend was chosen                                                 |
+| `apiHost`        | A host name, with the port when it is not the scheme's default, such as `127.0.0.1:5555`                               |
 
 ### Several backends
 
@@ -326,37 +332,38 @@ optional `route`. It has no field for an API key. See [CLI](cli.md#the-request-a
 Each outcome has one exit code. `exitCodeOf` covers results and errors, and `ERROR_EXIT_CODES` of
 `explorer-verify/envelope` holds the codes of the errors.
 
-| Outcome                        | Kind   | `ok`    | Exit code |
-| ------------------------------ | ------ | ------- | --------- |
-| `verified`                     | Result | `true`  | 0         |
-| `already-verified`             | Result | `true`  | 0         |
-| `failed`                       | Result | `false` | 1         |
-| `invalid-input`                | Error  | `false` | 2         |
-| `unsupported-chain`            | Error  | `false` | 2         |
-| `incomplete-input`             | Error  | `false` | 2         |
-| `insufficient-artifact`        | Error  | `false` | 2         |
-| `unsupported-compiler`         | Error  | `false` | 2         |
-| `source-mismatch`              | Error  | `false` | 2         |
-| `no-metadata-hash`             | Error  | `false` | 2         |
-| `constructor-args-unavailable` | Error  | `false` | 2         |
-| `handler-refused`              | Error  | `false` | 2         |
-| `missing-api-key`              | Error  | `false` | 3         |
-| `api-key-rejected`             | Error  | `false` | 3         |
-| `quota-exceeded`               | Error  | `false` | 3         |
-| `not-confirmed`                | Error  | `false` | 4         |
-| `verification-inconclusive`    | Error  | `false` | 4         |
-| `proxy-link-pending`           | Error  | `false` | 4         |
-| `proxy-link-unknown-state`     | Error  | `false` | 6         |
-| `network`                      | Error  | `false` | 5         |
-| `rate-limited`                 | Error  | `false` | 5         |
-| `timeout`                      | Error  | `false` | 5         |
-| `unexpected-response`          | Error  | `false` | 5         |
-| `in-progress`                  | Error  | `false` | 5         |
-| `metadata-unavailable`         | Error  | `false` | 5         |
-| `unknown-state`                | Error  | `false` | 6         |
-| `job-not-found`                | Error  | `false` | 6         |
-| `internal-error`               | Error  | `false` | 6         |
-| `cancelled`                    | Error  | `false` | 130       |
+| Outcome                                  | Kind   | `ok`    | Exit code |
+| ---------------------------------------- | ------ | ------- | --------- |
+| `verified`                               | Result | `true`  | 0         |
+| `already-verified`                       | Result | `true`  | 0         |
+| `already-verified` with `storedContract` | Result | `true`  | 0         |
+| `failed`                                 | Result | `false` | 1         |
+| `invalid-input`                          | Error  | `false` | 2         |
+| `unsupported-chain`                      | Error  | `false` | 2         |
+| `incomplete-input`                       | Error  | `false` | 2         |
+| `insufficient-artifact`                  | Error  | `false` | 2         |
+| `unsupported-compiler`                   | Error  | `false` | 2         |
+| `source-mismatch`                        | Error  | `false` | 2         |
+| `no-metadata-hash`                       | Error  | `false` | 2         |
+| `constructor-args-unavailable`           | Error  | `false` | 2         |
+| `handler-refused`                        | Error  | `false` | 2         |
+| `missing-api-key`                        | Error  | `false` | 3         |
+| `api-key-rejected`                       | Error  | `false` | 3         |
+| `quota-exceeded`                         | Error  | `false` | 3         |
+| `not-confirmed`                          | Error  | `false` | 4         |
+| `verification-inconclusive`              | Error  | `false` | 4         |
+| `proxy-link-pending`                     | Error  | `false` | 4         |
+| `proxy-link-unknown-state`               | Error  | `false` | 6         |
+| `network`                                | Error  | `false` | 5         |
+| `rate-limited`                           | Error  | `false` | 5         |
+| `timeout`                                | Error  | `false` | 5         |
+| `unexpected-response`                    | Error  | `false` | 5         |
+| `in-progress`                            | Error  | `false` | 5         |
+| `metadata-unavailable`                   | Error  | `false` | 5         |
+| `unknown-state`                          | Error  | `false` | 6         |
+| `job-not-found`                          | Error  | `false` | 6         |
+| `internal-error`                         | Error  | `false` | 6         |
+| `cancelled`                              | Error  | `false` | 130       |
 
 The CLI creates `cancelled` and `internal-error`; the library never throws them.
 [Errors](errors/index.md#exit-codes) explains what to do for each exit code.

@@ -126,6 +126,8 @@ describe("zksolc on Blockscout (R-BE-3, R-EXT-1)", () => {
         const value = {
           ...input(chainId),
           address: new URL(fixture.request.url).pathname.split("/").at(-1),
+          // The input names the recorded contract, so the match is this source (decision 0063).
+          contractName: `A.sol:${String(Reflect.get(Object(fixture.response.body), "name"))}`,
         };
         const checked = validateInput(value);
         const result = core

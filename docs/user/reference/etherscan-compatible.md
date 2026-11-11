@@ -134,6 +134,10 @@ answer means the route points at a retired Etherscan host. It throws
 
 ## Behaviour to know
 
+- The lookup reads `ContractName` and `CompilerVersion`, as on Etherscan, and `verify()` compares
+  them with the input ([Another contract's source](verify.md#another-contracts-source)). An
+  explorer whose answer has neither field names no contract: `verify()` then takes its match as
+  your source, and logs at `info` that the answer names no contract.
 - The routing table lists a standalone explorer only when its API answered a recorded keyless
   probe: Bitlayer (200901) in this release. Core (1116) and Kaia (8217), which Foundry's chain list
   names, refused a request without a key and have no entry; reach them with `route.apiUrl` and

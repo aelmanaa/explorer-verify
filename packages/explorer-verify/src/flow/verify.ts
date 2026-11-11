@@ -6,7 +6,7 @@
  */
 import { BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
-import type { Backend, Context, Match, PollOutcome, Target } from "../backends/backend.ts";
+import type { Backend, Context, Found, PollOutcome, Target } from "../backends/backend.ts";
 import { kindCheck } from "../compiler-kinds.ts";
 import type { KindCheck, ZksolcRoutes } from "../compiler-kinds.ts";
 import { newError } from "../error-hints.ts";
@@ -40,12 +40,14 @@ import type {
   Handle,
   Logger,
   RouteOverride,
+  StoredContract,
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
   VerifyResult,
 } from "../types.ts";
 import { formatHandle, redactHandleLine } from "./format-handle.ts";
+import { heldText, otherContract } from "./stored.ts";
 
 /** The default time budget of one call, polling included, in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -412,7 +414,22 @@ export interface Call {
   readonly target: Target;
   readonly settings: Settings;
   readonly observer: Observer;
+  // References: R-FLOW-1, decision 0063.
+  /**
+   * For a `verify()` call: the other contract a match comes from, logged at `warn`, or
+   * `undefined` for a match of the input's source. Absent for `checkStatus()`, which has no input,
+   * so its bundle holds none of the comparison.
+   */
+  readonly otherOf?: OtherOf;
 }
+
+/**
+ * The other contract that `found` comes from, for a result of `status`. See {@link Call.otherOf}.
+ */
+type OtherOf = (
+  found: Found,
+  status: "verified" | "already-verified",
+) => StoredContract | undefined;
 
 /**
  * How polling ended: a final outcome, or no answer in time. `budget` means the time budget ran
@@ -503,18 +520,44 @@ export async function verifyOnRoute(
 ): Promise<VerifyResult> {
   const target: Target = { chainId: checked.chainId, address: checked.address };
   const loaded = await withClient(route, dependencies, settings, budget);
-  const call = openCall(settings, route, target, loaded, true, budget);
-  const { backend } = call;
-  const { emit, log } = call.observer;
+  const opened = openCall(settings, route, target, loaded, true, budget);
+  const { backend } = opened;
+  const { emit, log } = opened.observer;
+  const fields = { backend: backend.name };
+  // The other contract the first lookup found, kept for an answer that names none (decision 0063).
+  let first: StoredContract | undefined;
+  const call: Call = {
+    ...opened,
+    ctx: { ...opened.ctx, own: (found) => otherContract(found, checked) === undefined },
+    otherOf: (found, status) => {
+      const named = found.name !== undefined || found.compilerVersion !== undefined;
+      const other = named
+        ? otherContract(found, checked)
+        : status === "already-verified"
+          ? first
+          : undefined;
+      if (other !== undefined) {
+        log.warn(`${heldText(backend.name, other)}, not this one.`, fields);
+      } else if (!named && status === "already-verified") {
+        log.info(`${backend.name} names no contract; the match is taken as this source.`, fields);
+      }
+      return other;
+    },
+  };
   if (validated) {
     emit({ type: "verify.validated", chainId: checked.chainId, address: checked.address });
   }
   announceRoute(call, `Verifying ${checked.address} on chain ${String(checked.chainId)}`);
 
   const found = await backend.lookup(call.target, call.ctx);
-  emit({ type: "verify.lookup", backend: backend.name, lookup: found ?? "none" });
+  emit({ type: "verify.lookup", backend: backend.name, lookup: found?.match ?? "none" });
   if (found !== undefined) {
-    return finish(call, "already-verified", found);
+    // A match of another contract's source does not verify this one: submit over it.
+    first = otherContract(found, checked);
+    if (first === undefined) {
+      return finish(call, "already-verified", found);
+    }
+    log.info(`${heldText(backend.name, first)}; submitting this source.`, fields);
   }
 
   const submitted = await backend.submit(
@@ -522,7 +565,7 @@ export async function verifyOnRoute(
     call.ctx,
   );
   if (submitted.state === "already-verified") {
-    return finish(call, "already-verified", submitted.match);
+    return finish(call, "already-verified", submitted);
   }
   const { handle } = submitted;
   const { secrets } = call.ctx.http;
@@ -817,10 +860,15 @@ export async function settle(
   }
   const { outcome } = polled;
   if (outcome.state === "verified") {
-    return finish(call, "verified", outcome.match);
+    return finish(call, "verified", outcome);
   }
   if (outcome.state === "already-verified") {
-    return finish(call, "already-verified", outcome.match ?? (await gradeOf(call, handle)));
+    const { match } = outcome;
+    return finish(
+      call,
+      "already-verified",
+      match === undefined ? await gradeOf(call, handle) : { ...outcome, match },
+    );
   }
   return failed(call, outcome.reason);
 }
@@ -1440,19 +1488,37 @@ async function lastLookup(
     `Polling ${backend.name} job ${handle.jobId} stopped (${stopped.why}); looking the contract up once more`,
     { backend: backend.name },
   );
-  let match: Match | undefined;
+  let found: Found | undefined;
   try {
-    match = await backend.lookup(call.target, graceContext(call));
+    found = await backend.lookup(call.target, graceContext(call));
   } catch (error: unknown) {
     if (mustRethrow(error, settings.signal)) {
       throw error;
     }
     throw notConfirmed(call, handle, stopped.why, stopped.cause ?? error, "failed");
   }
-  if (match !== undefined) {
-    return finish(call, "verified", match);
+  const confirming = confirmed(call, found);
+  if (confirming !== undefined) {
+    return finish(call, "verified", confirming);
   }
-  throw notConfirmed(call, handle, stopped.why, stopped.cause, "found no match");
+  throw notConfirmed(
+    call,
+    handle,
+    stopped.why,
+    stopped.cause,
+    found === undefined ? "found no match" : "found only another contract's source",
+  );
+}
+
+// References: R-FLOW-4, decision 0063.
+/**
+ * The match of a lookup after polling when it shows the job's work: any match, but for a
+ * `verify()` call only one of the input's contract. The other contract's match that `verify()`
+ * submitted over is not.
+ */
+function confirmed(call: Call, found: Found | undefined): Found | undefined {
+  // Stryker disable next-line StringLiteral: equivalent. Only "already-verified" changes what otherOf does with a match that names nothing.
+  return found === undefined || call.otherOf?.(found, "verified") !== undefined ? undefined : found;
 }
 
 /**
@@ -1472,9 +1538,9 @@ async function forgottenJob(
     `${backend.name} does not know job ${handle.jobId}; looking the contract up instead`,
     { backend: backend.name },
   );
-  let match: Match | undefined;
+  let found: Found | undefined;
   try {
-    match = await backend.lookup(call.target, graceContext(call));
+    found = await backend.lookup(call.target, graceContext(call));
   } catch (error: unknown) {
     if (mustRethrow(error, settings.signal)) {
       throw error;
@@ -1485,12 +1551,13 @@ async function forgottenJob(
       { secrets: ctx.http.secrets, cause: error },
     );
   }
-  if (match !== undefined) {
-    return finish(call, "verified", match);
+  const confirming = confirmed(call, found);
+  if (confirming !== undefined) {
+    return finish(call, "verified", confirming);
   }
   throw newError(
     { code: "job-not-found", handle },
-    `${backend.name} does not know job ${handle.jobId}, and a lookup found the contract not verified.`,
+    `${backend.name} does not know job ${handle.jobId}, and a lookup ${found === undefined ? "found the contract not verified" : "found only another contract's source"}.`,
     {
       hint: "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.",
       secrets: ctx.http.secrets,
@@ -1501,22 +1568,23 @@ async function forgottenJob(
 
 /**
  * The match of a job that found the contract already verified without saying the grade: one
- * lookup. A lookup that fails or says "not verified" throws `unknown-state`, never a guess.
+ * lookup, which also names the stored contract. A lookup that fails or says "not verified" throws
+ * `unknown-state`, never a guess.
  */
-async function gradeOf(call: Call, handle: Handle): Promise<Match> {
+async function gradeOf(call: Call, handle: Handle): Promise<Found> {
   const { backend, settings, ctx } = call;
-  let match: Match | undefined;
+  let found: Found | undefined;
   let cause: unknown;
   try {
-    match = await backend.lookup(call.target, graceContext(call));
+    found = await backend.lookup(call.target, graceContext(call));
   } catch (error: unknown) {
     if (mustRethrow(error, settings.signal)) {
       throw error;
     }
     cause = error;
   }
-  if (match !== undefined) {
-    return match;
+  if (found !== undefined) {
+    return found;
   }
   const excerpt =
     cause instanceof ExplorerVerifyError && cause.details.code === "unexpected-response"
@@ -1564,7 +1632,7 @@ function notConfirmed(
   handle: Handle,
   why: "budget" | "failures",
   cause: unknown,
-  lookup: "failed" | "found no match",
+  lookup: string,
 ): ExplorerVerifyError {
   const { backend, settings, ctx } = call;
   const reason =
@@ -1579,15 +1647,37 @@ function notConfirmed(
   );
 }
 
-/** A success result, with the public page when the library knows one. Emits `verify.result`. */
-function finish(call: Call, status: "verified" | "already-verified", match: Match): VerifyResult {
+// References: R-FLOW-3, R-FLOW-4, decision 0063.
+/**
+ * A success result, with the public page when the library knows one. Emits `verify.result`.
+ *
+ * For a `verify()` call, a match whose stored contract is not the input's gives `already-verified`
+ * with `storedContract` and a `partial` match, never `verified` or `exact`, and logs at `warn`.
+ * An `already-verified` answer that names no contract keeps the other contract the first lookup
+ * found, if any.
+ */
+function finish(call: Call, status: "verified" | "already-verified", found: Found): VerifyResult {
   const { backend, ctx, target, observer } = call;
+  const other = call.otherOf?.(found, status);
   const explorerUrl = backend.explorerUrl(target, ctx);
-  const result: VerifyResult =
-    explorerUrl === undefined
-      ? { status, backend: backend.name, match }
-      : { status, backend: backend.name, match, explorerUrl };
-  report(observer, { type: "verify.result", ...result });
+  const page = explorerUrl === undefined ? {} : { explorerUrl };
+  const result: Exclude<VerifyResult, { status: "failed" }> =
+    other === undefined
+      ? { status, backend: backend.name, match: found.match, ...page }
+      : {
+          status: "already-verified",
+          backend: backend.name,
+          match: "partial",
+          ...page,
+          storedContract: other,
+        };
+  report(observer, {
+    type: "verify.result",
+    backend: result.backend,
+    status: result.status,
+    match: result.match,
+    ...page,
+  });
   return result;
 }
 

@@ -71,7 +71,9 @@ the clients from `explorer-verify/clients/<name>`. `explorer-verify/core` has th
 
 A dry run needs no API key. Read its `lookup` field:
 
-- `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing.
+- `exact` or `partial`: the explorer already holds the contract. `verify` would submit nothing,
+  unless the result has `storedContract`: then the match is another contract's source and `verify`
+  would submit. Ask the person first.
 - `none`: `verify` would submit. Ask the person before you run it without `--dry-run`.
 - `skipped`: the backend needs an API key and none is set, so no request was sent. `verify` would
   exit 3 with `missing-api-key`. Ask the person to set the key.

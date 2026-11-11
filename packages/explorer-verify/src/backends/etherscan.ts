@@ -24,7 +24,7 @@ import type { Handle } from "../types.ts";
 import type {
   Backend,
   Context,
-  Match,
+  Found,
   PollOutcome,
   ResolvedInput,
   SubmitOutcome,
@@ -34,6 +34,7 @@ import {
   attemptSubmit,
   checkHandle,
   explorerUrl,
+  foundOf,
   REASON_LENGTH,
   resultOf,
   send,
@@ -117,6 +118,13 @@ export interface Dialect {
    * answers with one record whose `SourceCode` is empty, so for it an empty list throws.
    */
   readonly emptyLookup?: boolean;
+  // References: R-FLOW-3, decision 0063.
+  /**
+   * Whether the API states no grade, so every match, from a lookup or from `Pass - Verified`, is
+   * `partial`. Set for Routescan: its `getsourcecode` has no `SimilarMatch` field, and it reported
+   * `Pass - Verified` for a build that Sourcify and Blockscout grade partial (live, 2026-11-10).
+   */
+  readonly ungraded?: boolean;
   /**
    * A response header that holds the wait after a rate-limit answer in whole seconds, read when
    * `Retry-After` is absent. Passed to the HTTP layer with the submit; `read` sets it on its own
@@ -159,11 +167,12 @@ export function etherscanStyle(dialect: Dialect): Backend {
 
   /**
    * Asks whether the contract is verified, with `getsourcecode`. A first result with a non-empty
-   * `SourceCode` is a match: `partial` when `SimilarMatch` names another contract, else `exact`.
+   * `SourceCode` is a match: `partial` when `SimilarMatch` names another contract or the dialect
+   * sets `ungraded`, else `exact`. `ContractName` and `CompilerVersion` name the stored contract.
    * An empty `SourceCode` is "not verified", and so is an empty `result` list when the dialect
    * sets `emptyLookup`. Every other answer throws.
    */
-  async function lookup(target: Target, ctx: Context): Promise<Match | undefined> {
+  async function lookup(target: Target, ctx: Context): Promise<Found | undefined> {
     const answer = await send(
       ctx,
       read(ctx, name, { action: "getsourcecode", address: target.address }),
@@ -182,12 +191,18 @@ export function etherscanStyle(dialect: Dialect): Backend {
         }
         // Stryker disable next-line OptionalChaining: equivalent. first holds the SourceCode just read, so it exists.
         const similar = first?.get("SimilarMatch");
-        if (similar === undefined || similar === "") {
-          return "exact";
-        }
-        // Similar Match: Etherscan matched the contract from another contract's verified source.
-        if (typeof similar === "string") {
-          return "partial";
+        // A non-empty SimilarMatch: Etherscan matched the contract from another contract's
+        // verified source.
+        const own = similar === undefined || similar === "";
+        if (own || typeof similar === "string") {
+          return foundOf(
+            ctx,
+            own && dialect.ungraded !== true ? "exact" : "partial",
+            // Stryker disable next-line OptionalChaining: equivalent. first holds the SourceCode just read, so it exists.
+            first?.get("ContractName"),
+            // Stryker disable next-line OptionalChaining: equivalent. first holds the SourceCode just read, so it exists.
+            first?.get("CompilerVersion"),
+          );
         }
       }
     }
@@ -219,7 +234,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
       ctx,
       name,
       label,
-      { chainId: input.chainId, address: input.address },
+      input,
       async () => await untilIndexed(ctx, req, unconfirmed),
       async (answer) => await readSubmit(input, ctx, answer),
       lookup,
@@ -276,9 +291,9 @@ export function etherscanStyle(dialect: Dialect): Backend {
       }
       if (startsWithAny(result, ALREADY_VERIFIED)) {
         // The answer does not say the grade, and the outcome needs it: one lookup reads it.
-        const match = await lookup({ chainId: input.chainId, address: input.address }, ctx);
-        if (match !== undefined) {
-          return { state: "already-verified", match };
+        const found = await lookup(input, ctx);
+        if (found !== undefined) {
+          return { state: "already-verified", ...found };
         }
         throw unexpected(
           ctx,
@@ -313,7 +328,7 @@ export function etherscanStyle(dialect: Dialect): Backend {
       return { state: "pending" };
     }
     if (result.startsWith(PASS)) {
-      return { state: "verified", match: "exact" };
+      return { state: "verified", match: dialect.ungraded === true ? "partial" : "exact" };
     }
     if (startsWithAny(result, ALREADY_VERIFIED)) {
       return { state: "already-verified" };
@@ -322,13 +337,11 @@ export function etherscanStyle(dialect: Dialect): Backend {
       // A lookup that fails throws: a verdict it could not check is not reported as `failed`. An
       // exact match means the job did verify the source. A partial one is Etherscan's own match
       // from another contract's source, while the submitted source was rejected:
-      // `already-verified`.
-      const match = await lookup(handle, ctx);
-      return match === undefined
+      // `already-verified`. The flow compares the stored contract with the input.
+      const found = await lookup(handle, ctx);
+      return found === undefined
         ? { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) }
-        : match === "exact"
-          ? { state: "verified", match }
-          : { state: "already-verified", match };
+        : { state: found.match === "exact" ? "verified" : "already-verified", ...found };
     }
     if (startsWithAny(result, rejections)) {
       return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };

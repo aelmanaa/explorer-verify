@@ -6,6 +6,7 @@
     "src/backends/sourcify.ts",
     "src/backends/common.ts",
     "src/flow/verify.ts",
+    "src/flow/stored.ts",
     "src/flow/status.ts",
     "src/compiler-kinds.ts",
     "src/redact.ts",

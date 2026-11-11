@@ -134,6 +134,27 @@ export interface VerifyInput {
   libraries?: Record<string, Hex> | undefined;
 }
 
+// References: R-FLOW-1, R-FLOW-3, decision 0063.
+/**
+ * A contract whose verified source an explorer holds for the address when it is not the input's:
+ * another contract name or compiler version. Each field is absent when the explorer's answer does
+ * not give it.
+ *
+ * @example
+ * ```ts
+ * import type { StoredContract } from "explorer-verify";
+ *
+ * const stored: StoredContract = { name: "SimpleStorage", compilerVersion: "0.8.33+commit.64118f21" };
+ * ```
+ * @experimental
+ */
+export interface StoredContract {
+  /** The contract's name as the explorer gives it: `Name`, or `path:Name` on Sourcify. */
+  name?: string;
+  /** The compiler version as the explorer gives it, such as `v0.8.33+commit.64118f21`. */
+  compilerVersion?: string;
+}
+
 /**
  * The outcome of a verification. `failed` means the explorer definitively rejected the
  * submission; any unknown or ambiguous state throws instead, so a caller never mistakes it for
@@ -168,14 +189,27 @@ export type VerifyResult =
       explorerUrl?: string;
     }
   | {
-      /** The explorer had verified the source before this call; nothing was submitted. */
+      /**
+       * The explorer held a verified source for the contract before this call. Without
+       * `storedContract`, it is this source and nothing was submitted.
+       */
       status: "already-verified";
       /** The backend that holds the verified source. */
       backend: BackendName;
-      /** `partial` when the explorer matched the code but not its metadata hash. */
+      /**
+       * `partial` when the explorer matched the code but not its metadata hash. Always `partial`
+       * with `storedContract`.
+       */
       match: "exact" | "partial";
       /** The public page of the contract. Absent when the library knows none. */
       explorerUrl?: string;
+      // References: R-FLOW-3, decision 0063.
+      /**
+       * Present when the source the explorer holds is another contract's: another contract name
+       * or compiler version than the input's. `verify()` submitted this source and the explorer
+       * refused it as already verified, so the explorer page shows the other contract.
+       */
+      storedContract?: StoredContract;
     }
   | {
       /** The explorer definitively rejected the submission. */
@@ -292,6 +326,8 @@ export type LinkProxyResult =
  *   so `verify()` would return `already-verified` without a submit; `none` when it holds none, so
  *   `verify()` would submit; `skipped` when the backend needs an API key and none is set, so no
  *   request was sent.
+ * - `storedContract` is set when the match is another contract's source: another contract name or
+ *   compiler version than the input's. `verify()` would then submit.
  * - `explorerUrl` is the public page of the contract, present only for a match the library knows a
  *   page for.
  * - `routedBy` says how the backend was chosen; see {@link RoutedBy}.
@@ -320,6 +356,9 @@ export interface DryRunResult {
   explorerUrl?: string;
   /** How the backend was chosen. `dryRun()` always sets it. */
   routedBy?: RoutedBy;
+  // References: R-AX-8, decision 0063.
+  /** The contract the match is from, when it is not the input's: `verify()` would submit. */
+  storedContract?: StoredContract;
 }
 
 /**

@@ -40,7 +40,7 @@ line of JSON for every run. The [CLI](cli.md) page lists the commands and option
 
 | Code | Meaning                                                                                                                                                            |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0    | Verified: verified or already-verified. Help and the version also exit 0                                                                                           |
+| 0    | Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours. Help and the version also exit 0      |
 | 1    | Failed: the explorer definitively rejected the submission                                                                                                          |
 | 2    | Usage or input error: nothing was submitted for verification                                                                                                       |
 | 3    | API key: missing, invalid or under-privileged                                                                                                                      |
