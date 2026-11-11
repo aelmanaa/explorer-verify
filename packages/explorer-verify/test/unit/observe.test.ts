@@ -248,7 +248,24 @@ function sourceFiles(dir: URL): URL[] {
   });
 }
 
+/**
+ * Whether `code` sets `reason` to the string `value`, in the source as written or as Stryker's
+ * in-place run rewrites it: `reason: stryMutAct_x("1") ? "" : (stryCov_x("1"), "network")`.
+ */
+function emits(code: string, value: string): boolean {
+  const wrapped = String.raw`(?:stryMutAct_\w+\("\d+"\) \? "" : \(stryCov_\w+\([^)]*\), )?`;
+  return new RegExp(`reason: ${wrapped}"${value}"`).test(code);
+}
+
 describe("verify.retry reasons (R-DX-6, #353)", () => {
+  it("finds a reason in a file that Stryker instrumented, as in the original", () => {
+    const instrumented =
+      'emit({ reason: stryMutAct_9fa48("14") ? "" : (stryCov_9fa48("14", "15"), "network") });';
+    assert.equal(emits(instrumented, "network"), true);
+    assert.equal(emits('emit({ reason: "network" });', "network"), true);
+    assert.equal(emits('emit({ reason: "network" });', "rate-limited"), false);
+  });
+
   it("lists each reason of the schema as emitted by a source file or as reserved, not both", () => {
     const schema = readFileSync(SCHEMA_URL, "utf8");
     const lists = [
@@ -269,7 +286,7 @@ describe("verify.retry reasons (R-DX-6, #353)", () => {
       )
       .join("\n");
     for (const reason of reasons) {
-      const emitted = code.includes(`reason: "${reason}"`);
+      const emitted = emits(code, String(reason));
       const reserved = RESERVED_REASONS.includes(String(reason));
       assert.ok(
         emitted !== reserved,
