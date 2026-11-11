@@ -161,6 +161,7 @@
           "minimum": 2
         },
         "reason": {
+          "description": "Why the previous attempt failed. duplicate-submission is reserved: no client emits it, and Sourcify's duplicate answer ends the call with in-progress instead of a retry.",
           "enum": [
             "rate-limited",
             "network",
@@ -293,6 +294,7 @@
           "minimum": 2
         },
         "reason": {
+          "description": "Why the previous attempt failed. duplicate-submission is reserved: no client emits it, and Sourcify's duplicate answer ends the call with in-progress instead of a retry.",
           "enum": [
             "rate-limited",
             "network",

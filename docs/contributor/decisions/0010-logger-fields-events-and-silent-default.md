@@ -80,7 +80,11 @@ values.
   lists both as enums, so a new value is a schema change. Amended on 2026-11-04: the Etherscan v2
   client (#61) adds `not-indexed` and the Blockscout client (#92) adds `empty-submit`, each for a
   whole submit sent again ([Etherscan](../research/2026-11-04-etherscan-client.md),
-  [Blockscout](../research/2026-11-04-blockscout-client.md)).
+  [Blockscout](../research/2026-11-04-blockscout-client.md)). Amended on 2026-11-11 by
+  [#353](https://github.com/aelmanaa/explorer-verify/issues/353): `duplicate-submission` is
+  reserved. No client emits it, because Sourcify's 429 `duplicate_verification_request` ends the
+  call with `in-progress` instead of a retry. The value stays in the type and the schema, so
+  removing it would break a reader that switches on it.
 - `verify.submitted` replaces "logs the handle through `logger.info`" in decision 0009,
   section 1. A caller that aborts or crashes after the submit still has the handle (R-FLOW-5).
   The logger may also print a line, but no program depends on it.

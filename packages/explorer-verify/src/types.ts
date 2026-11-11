@@ -508,7 +508,11 @@ type VerificationEvent =
       readonly backend: BackendName;
       /** The number of the attempt that follows the wait: 2 for the first retry. */
       readonly attempt: number;
-      /** Why the previous attempt failed. */
+      // References: R-DX-6, issue #353.
+      /**
+       * Why the previous attempt failed. `duplicate-submission` is reserved: no client emits it.
+       * Sourcify's duplicate answer ends the call with `in-progress` instead of a retry.
+       */
       readonly reason:
         | "rate-limited"
         | "network"
