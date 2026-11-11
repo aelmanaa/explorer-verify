@@ -8,12 +8,14 @@ import type { Context, Found, ResolvedInput } from "../../src/backends/backend.t
 import {
   attemptSubmit,
   checkHandle,
+  send,
   submitOnce,
   unexpected,
   waitToResubmit,
 } from "../../src/backends/common.ts";
 import type { Answer, Resubmit } from "../../src/backends/common.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
+import type { ResolvedHandler } from "../../src/http/handler-url.ts";
 import type { LogFields, Logger } from "../../src/index.ts";
 import { createObserver } from "../../src/observe.ts";
 import type { Handle } from "../../src/types.ts";
@@ -228,6 +230,33 @@ function late(): Context {
   const ctx = contextOf(noFetch);
   return { ...ctx, http: { ...ctx.http, budget: { deadline: Date.now(), timeoutMs: 1_000 } } };
 }
+
+describe("send: the time it passes to the server handler (#354, R-SRV-5)", () => {
+  it("passes the milliseconds from the request to its error", async (t: TestContext) => {
+    t.mock.timers.enable({ apis: ["Date"], now: 5_000 });
+    const seen: unknown[] = [];
+    const handler: ResolvedHandler = {
+      url: "https://dapp.example/api/verify",
+      serves: () => true,
+      sentUrl: (url) => url,
+      refuseKey: () => assert.fail("no key"),
+      answerError: () => assert.fail("no answer"),
+      annotate: (error, _secrets, _body, elapsedMs) => {
+        seen.push(elapsedMs);
+        return error;
+      },
+    };
+    const failing: typeof globalThis.fetch = async () => {
+      t.mock.timers.tick(250);
+      throw new TypeError("connection reset");
+    };
+    const ctx: Context = { ...contextOf(failing), handler };
+    await assert.rejects(
+      send(ctx, { url: "https://api.etherscan.io/v2/api", method: "POST", retry: "submit" }),
+    );
+    assert.deepEqual(seen, [250]);
+  });
+});
 
 describe("waitToResubmit: the timeout's reason (#349, R-FLOW-7)", () => {
   it("names empty-submit as the reason of the timeout that ends the empty-submit loop", async () => {

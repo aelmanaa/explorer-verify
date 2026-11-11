@@ -710,11 +710,13 @@ function networkFailure(cause: unknown): Failure {
  * 2024-11-11, or one that drops it gets `false`, and the request goes without the field.
  */
 function takesNoStore(url: string): boolean {
+  let kept = false;
   try {
-    return new Request(url, { cache: "no-store" }).cache === "no-store";
+    kept = new Request(url, { cache: "no-store" }).cache === "no-store";
   } catch {
-    return false;
+    // The runtime refuses the field: the request goes without it.
   }
+  return kept;
 }
 
 /**

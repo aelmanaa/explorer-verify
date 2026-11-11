@@ -304,6 +304,7 @@ export async function waitToResubmit(
               code: "timeout",
               backend,
               timeoutMs: budget.timeoutMs,
+              // Stryker disable next-line ConditionalExpression: equivalent. The error keeps only an empty-submit reason, so another one is dropped either way.
               ...(reason === "empty-submit" ? { reason } : {}),
             }
           : {
