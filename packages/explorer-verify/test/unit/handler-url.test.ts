@@ -320,11 +320,75 @@ describe("the errors of the handler's answers (decision 0048)", () => {
     }
   });
 
+  // R-SRV-5, decision 0066 (amendment of 2026-11-11), issue #354.
+  it("maps address-not-indexed to not-indexed: the refused submits, and the time measured", () => {
+    const notIndexed = (attempts: number | undefined, body: unknown, elapsedMs?: number) => {
+      const excerpt = refusal("address-not-indexed");
+      const error = handler.annotate(
+        newError(
+          {
+            code: "unexpected-response",
+            backend: "etherscan-v2",
+            status: 503,
+            excerpt,
+            ...(attempts === undefined ? {} : { attempts }),
+          },
+          "m",
+          { secrets: [] },
+        ),
+        [],
+        body,
+        elapsedMs,
+      );
+      assert.ok(ExplorerVerifyError.is(error, "not-indexed"));
+      return error;
+    };
+    const submit = new URLSearchParams({ action: "verifysourcecode" });
+    assert.deepEqual(notIndexed(5, submit, 21_000).details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 5,
+      elapsedMs: 21_000,
+    });
+    assert.equal(notIndexed(undefined, submit).details.submits, 1);
+    assert.equal(notIndexed(undefined, submit).details.elapsedMs, 0);
+    const lookup = new URLSearchParams({ action: "getsourcecode" });
+    assert.equal(notIndexed(5, lookup, 21_000).details.submits, 0);
+    assert.equal(notIndexed(5, undefined, 21_000).details.submits, 0);
+    const error = notIndexed(5, lookup);
+    assert.match(error.hint, /no creation record/);
+    assert.doesNotMatch(error.hint, /indexWaitMs/);
+    assert.equal(error.retryable, true);
+    // An answer the client reads, outside the HTTP layer's retries: one answer, no time measured.
+    const read = handler.answerError(
+      "etherscan-v2",
+      answer(503, "address-not-indexed"),
+      "the submit",
+      [],
+    );
+    assert.ok(ExplorerVerifyError.is(read, "not-indexed"));
+    assert.deepEqual(read.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 1,
+      elapsedMs: 0,
+    });
+    // With another status, the code maps nothing.
+    const other = handler.answerError(
+      "etherscan-v2",
+      answer(500, "address-not-indexed"),
+      "the submit",
+      [],
+    );
+    assert.equal(other.code, "unexpected-response");
+  });
+
   it("names the action of the request body in the message, or the request", () => {
     for (const [body, what] of [
       [new URLSearchParams({ action: "verifysourcecode" }), "the submit"],
       [new URLSearchParams({ action: "checkverifystatus" }), "the job status request"],
-      [new URLSearchParams({ action: "verifyproxycontract" }), "the request"],
+      [new URLSearchParams({ action: "verifyproxycontract" }), "the proxy link request"],
+      [new URLSearchParams({ action: "getabi" }), "the request"],
       [new URLSearchParams(), "the request"],
       ["action=getsourcecode", "the request"],
     ] as const) {

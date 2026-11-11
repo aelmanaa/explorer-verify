@@ -90,12 +90,13 @@ export interface Answer {
  */
 export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
   let response: Response;
+  const started = Date.now();
   try {
     response = await request(ctx.http, req);
   } catch (error: unknown) {
     throw ctx.handler === undefined
       ? error
-      : ctx.handler.annotate(error, ctx.http.secrets, req.body);
+      : ctx.handler.annotate(error, ctx.http.secrets, req.body, Date.now() - started);
   }
   const text = await response.text();
   let parsed: unknown;

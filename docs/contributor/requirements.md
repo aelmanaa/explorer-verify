@@ -268,7 +268,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   ([decision 0046](decisions/0046-handler-url-and-keyed-backend-names.md)). Each refusal code of
   the handler maps to one error code; a refusal that holds until the handler's options change is
   `handler-refused`, not retryable
-  ([decision 0048](decisions/0048-handler-refusals-map-to-error-codes.md)).
+  ([decision 0048](decisions/0048-handler-refusals-map-to-error-codes.md)). `address-not-indexed`
+  is `not-indexed`, as on a direct call
+  ([decision 0066](decisions/0066-wait-for-the-explorer-to-index.md), amended 2026-11-11).
 
 ### Developer experience (R-DX)
 

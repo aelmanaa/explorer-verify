@@ -66,10 +66,11 @@ When a client stopped sending a submit again, `details.attempts` is the number o
 ## Through your server handler
 
 With `handlerUrl`, a refusal with a known code and its status throws its own error, such as
-[`handler-refused`](handler-refused.md) for a 403 `chain-not-allowed`. This code remains for:
+[`handler-refused`](handler-refused.md) for a 403 `chain-not-allowed`. A 503
+`address-not-indexed` throws [`not-indexed`](not-indexed.md). This code remains for:
 
 - an answer with no code, an unknown code or another status; the message does not repeat it;
-- the handler's `address-not-indexed` and `internal-error`;
+- the handler's `internal-error`;
 - a redirect or an unreadable body.
 
 See [how the client reads a refusal](../server-handler.md#how-the-client-reads-a-refusal).
