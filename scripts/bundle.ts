@@ -7,6 +7,7 @@
 // code as Rollup, Vite and webpack do by default: each dynamic `import()` gets its own chunk, and code
 // two chunks share moves to a shared chunk (decision 0031). The size check (scripts/check-size.ts)
 // and the browser smoke test (scripts/browser-smoke.ts) use `bundleChunks`.
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 
@@ -232,8 +233,26 @@ export interface Apart {
 /** Marker of the plugin's own `resolve` call, so it does not handle that call again. */
 const OWN_RESOLVE = Symbol("own resolve");
 
-/** Leaves each dynamic `import()` that resolves external, and records the file it resolves to. */
-function dynamicExternal(found: Set<string>): Plugin {
+/**
+ * The specifier an external import gets in the measured code: the file's path relative to `root`,
+ * with `/` separators, such as `./dist/src/error-hints.js`. esbuild writes it into the output as
+ * given, so an absolute path would make the size depend on where the repository is checked out
+ * (R-RUN-3). A browser bundler replaces the specifier with a chunk file name anyway.
+ *
+ * @param root - The folder the specifier is relative to.
+ * @param file - The absolute path of the file.
+ * @returns The specifier.
+ */
+export function externalSpecifier(root: string, file: string): string {
+  const relative = path.relative(root, file).split(path.sep).join("/");
+  return relative.startsWith("../") ? relative : `./${relative}`;
+}
+
+/**
+ * Leaves each dynamic `import()` that resolves external under {@link externalSpecifier}, and
+ * records the absolute path of the file by that specifier.
+ */
+function dynamicExternal(root: string, found: Map<string, string>): Plugin {
   return {
     name: "dynamic-external",
     setup(plugin) {
@@ -252,15 +271,19 @@ function dynamicExternal(found: Set<string>): Plugin {
         if (resolved.errors.length > 0 || resolved.external) {
           return undefined;
         }
-        found.add(resolved.path);
-        return { path: resolved.path, external: true };
+        const specifier = externalSpecifier(root, resolved.path);
+        found.set(specifier, resolved.path);
+        return { path: specifier, external: true };
       });
     },
   };
 }
 
-/** Leaves every import of a file in `held` external: the page already holds it. */
-function heldExternal(held: ReadonlySet<string>): Plugin {
+/**
+ * Leaves every import of a file in `held` external under {@link externalSpecifier}: the page
+ * already holds it.
+ */
+function heldExternal(root: string, held: ReadonlySet<string>): Plugin {
   return {
     name: "held-external",
     setup(plugin) {
@@ -274,7 +297,9 @@ function heldExternal(held: ReadonlySet<string>): Plugin {
           resolveDir: args.resolveDir,
           pluginData: OWN_RESOLVE,
         });
-        return held.has(resolved.path) ? { path: resolved.path, external: true } : undefined;
+        return held.has(resolved.path)
+          ? { path: externalSpecifier(root, resolved.path), external: true }
+          : undefined;
       });
     },
   };
@@ -302,18 +327,26 @@ export async function bundleApart(
   source: BundleSource,
   options: BundleOptions = {},
 ): Promise<Apart> {
-  const found = new Set<string>();
-  const result = await build(buildOptions(source, options, [dynamicExternal(found)]));
-  checkResolved(result.metafile, found);
+  // esbuild resolves symbolic links, so the root is resolved too.
+  const root = realpathSync(
+    "entry" in source ? path.dirname(path.resolve(source.entry)) : source.resolveDir,
+  );
+  // Each dynamically imported file, by the specifier the entry's output imports it with.
+  const found = new Map<string, string>();
+  const result = await build(buildOptions(source, options, [dynamicExternal(root, found)]));
+  checkResolved(result.metafile, new Set(found.keys()));
   // Only the dynamic imports left in the output: tree-shaking drops those in unused code.
   const loaded = Object.values(result.metafile.outputs)
     .flatMap(({ imports }) => imports)
-    .filter((imported) => imported.kind === "dynamic-import" && found.has(imported.path))
-    .map((imported) => imported.path);
+    .filter((imported) => imported.kind === "dynamic-import")
+    .flatMap((imported) => found.get(imported.path) ?? []);
   const held = inputsOf(result.metafile);
+  const heldSpecifiers = new Set([...held].map((file) => externalSpecifier(root, file)));
   // A module the entry also imports statically is in the entry already: its import() splits
   // nothing off, and measuring it apart would hide that.
-  const both = [...found].filter((file) => held.has(file)).map((file) => path.basename(file));
+  const both = [...found.values()]
+    .filter((file) => held.has(file))
+    .map((file) => path.basename(file));
   if (both.length > 0) {
     throw new Error(
       `the entry imports ${both.join(", ")} statically as well as with import(), so no chunk is split off`,
@@ -325,14 +358,17 @@ export async function bundleApart(
     if (chunks.has(name)) {
       throw new Error(`two dynamically imported modules are named ${name}`);
     }
-    const nested = new Set<string>();
+    const nested = new Map<string, string>();
     const chunk = await build(
-      buildOptions({ entry: file }, options, [dynamicExternal(nested), heldExternal(held)]),
+      buildOptions({ entry: file }, options, [
+        dynamicExternal(root, nested),
+        heldExternal(root, held),
+      ]),
     );
     if (nested.size > 0) {
       throw new Error(`${name} loads more modules with a dynamic import(), which is not measured`);
     }
-    checkResolved(chunk.metafile, held);
+    checkResolved(chunk.metafile, heldSpecifiers);
     chunks.set(name, [...javascript(chunk.outputFiles).values()].join(""));
   }
   return { entry: [...javascript(result.outputFiles).values()].join(""), chunks };

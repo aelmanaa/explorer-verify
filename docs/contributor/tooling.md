@@ -303,7 +303,9 @@ ES2023, with every tsconfig file ignored (`tsconfigRaw: "{}"`). An import of a N
 (`node:fs` or `fs`) fails the build. So does any import esbuild leaves external, which catches a
 built-in inside `try`/`catch` or a dynamic `import()`. `scripts/check-size.ts`
 and `scripts/browser-smoke.ts` both use it, so the size check measures the bundle the browser
-test runs. [testing.md](testing.md#browser-smoke-test) describes both commands.
+test runs. [testing.md](testing.md#browser-smoke-test) describes both commands. When the size
+check leaves an import external, it writes the file's path relative to the entry's folder, so
+the sizes are the same on any checkout path ([testing.md](testing.md#bundle-size)).
 
 esbuild has an install script, which only checks that the binary from its platform package works.
 `allowBuilds` in `pnpm-workspace.yaml` lists it as `false`, so the script does not run. Playwright

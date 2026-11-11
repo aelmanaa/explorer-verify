@@ -434,6 +434,14 @@ ok   verify: 13611 bytes (ceiling 16334)
 OVER chunk routescan: 4100 bytes (ceiling 4032)
 ```
 
+The sizes do not depend on where the repository is checked out. An import left external in an
+entry or a chunk gets the file's path relative to the entry's folder, such as
+`./dist/src/error-hints.js`, never the absolute path. The sizes depend only on the commit, the
+esbuild version and Node's zlib. Before #355 the measured code held absolute paths, so a longer
+checkout path gave a larger size for each chunk but `table` and for each entry with a dynamic
+`import()`. `scripts/check-names.ts` measures its `size-budget.json` model lines with the same
+code; its esbuild and Rollup rows never held a path.
+
 The entries are `verify`, `verify (one file)`, `checkStatus`, `linkProxy`, `buildVerifyInput`, the whole index
 and `createVerifyHandler` ([decision 0014](decisions/0014-measured-bundle-ceilings.md)). To shrink a bundle, see what an
 entry holds with esbuild's analyzer:
