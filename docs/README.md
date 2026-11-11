@@ -12,6 +12,7 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 | Page                                                                                                | What it covers                                                                                |
 | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | [Which package do I need](user/start/which-package.md)                                              | The four packages and the entries of `explorer-verify`: task, install, runtime                |
+| [Quickstarts](user/start/README.md)                                                                 | The seven quickstarts, one line each                                                          |
 | [Quickstart: browser dapp](user/start/quickstart-browser.md)                                        | A dry run from a Vite page, no key, then `verify()`                                           |
 | [Quickstart: Node.js script](user/start/quickstart-node.md)                                         | A dry run from a TypeScript script, no key, then `verify()`                                   |
 | [Quickstart: SDK wrapper](user/start/quickstart-sdk-wrapper.md)                                     | One client from `explorer-verify/core`, one error code mapped                                 |
