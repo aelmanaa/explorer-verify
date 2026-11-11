@@ -1038,6 +1038,7 @@ function redactHandle(handle: Handle, secrets: readonly string[]): Handle {
     chainId: numberOf(handle.chainId),
     address: `0x${digits ?? text(stringOf(handle.address).slice(2), secrets)}`,
     jobId: redactJobId(stringOf(handle.jobId), secrets),
+    ...(handle.overPartial === true ? { overPartial: true } : {}),
   };
 }
 

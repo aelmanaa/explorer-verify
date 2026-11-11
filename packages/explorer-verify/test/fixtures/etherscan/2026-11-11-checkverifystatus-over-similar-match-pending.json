@@ -1,0 +1,31 @@
+{
+  "source": "Live response from api.etherscan.io to a POST request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T08:27:14.552Z: the first status of that job on Ethereum Sepolia (issue #294). The key was in the form body; it is not recorded.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "sbi7gfxxkkbzakcvtsyrdf7xexuhep5kclw8fj3nbyyvfsuhmm",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "recordedAt": "2026-11-11T08:27:14.552Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Pending in queue"
+    }
+  }
+}

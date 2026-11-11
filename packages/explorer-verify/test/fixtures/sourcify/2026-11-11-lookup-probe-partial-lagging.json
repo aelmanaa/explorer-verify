@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:42:14.885Z: the lookup 8 seconds after that job, which still answered match on Ethereum Sepolia (issue #294). Body reduced to the match, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1?fields=compilation"
+  },
+  "recordedAt": "2026-11-11T07:42:14.885Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "compilation": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.30+commit.73712a01",
+        "name": "Probe294S",
+        "fullyQualifiedName": "src/Probe294S.sol:Probe294S"
+      },
+      "matchId": "59092005",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-11T07:41:35Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1"
+    }
+  }
+}

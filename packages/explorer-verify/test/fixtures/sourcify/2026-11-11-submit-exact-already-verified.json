@@ -1,0 +1,19 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:42:15.499Z: the submit of the exact source after the lookup that still answered match on Ethereum Sepolia (issue #294).",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0x6c7ff2cf19865fa06523c01bc76dc4c68f16a7b1"
+  },
+  "recordedAt": "2026-11-11T07:42:15.499Z",
+  "response": {
+    "status": 409,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "customCode": "already_verified",
+      "message": "Contract 0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1 on chain 11155111 is already verified with runtimeMatch and creationMatch both being exact matches.",
+      "errorId": "48bdadd0-ee7e-492c-b4aa-1f958df8b7a3"
+    }
+  }
+}

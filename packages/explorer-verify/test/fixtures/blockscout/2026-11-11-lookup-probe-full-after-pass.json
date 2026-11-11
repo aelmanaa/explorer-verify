@@ -1,0 +1,24 @@
+{
+  "source": "Live response from eth-sepolia.blockscout.com to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:43:23.198Z: the lookup after that job passed on Ethereum Sepolia (issue #294). Body reduced to the verification, name and compiler fields.",
+  "request": {
+    "method": "GET",
+    "url": "https://eth-sepolia.blockscout.com/api/v2/smart-contracts/0xdce2c184bfa3baecf2fbfc85248563e6b03d5360"
+  },
+  "recordedAt": "2026-11-11T07:43:23.198Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "is_verified": true,
+      "is_fully_verified": true,
+      "is_partially_verified": false,
+      "name": "Probe294B",
+      "compiler_version": "v0.8.30+commit.73712a01",
+      "verified_at": "2026-11-11T07:42:27.067508Z",
+      "is_verified_via_eth_bytecode_db": false,
+      "is_verified_via_sourcify": false
+    }
+  }
+}

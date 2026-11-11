@@ -20,7 +20,7 @@ import {
   withClient,
   withHandler,
 } from "./verify.ts";
-import type { FlowDependencies } from "./verify.ts";
+import type { Call, FlowDependencies } from "./verify.ts";
 
 /**
  * {@link checkStatus} with its dependencies passed in. Internal: the package entry point does not
@@ -57,7 +57,17 @@ export async function runCheckStatus(
     const route = await routeOf(handle.chainId, settings, dependencies, budget);
     checkBackend(handle, route);
     const loaded = await withClient(route, dependencies, settings, budget);
-    const call = openCall(settings, route, target, loaded, true, budget);
+    const opened = openCall(settings, route, target, loaded, true, budget);
+    // A submit over a partial match: only an exact match confirms the job, and a failed job keeps
+    // the partial match, as in verify() (decision 0067).
+    const call: Call =
+      handle.overPartial === true
+        ? {
+            ...opened,
+            partial: { match: "partial" },
+            ctx: { ...opened.ctx, own: (found) => found.match === "exact" },
+          }
+        : opened;
     announceRoute(
       call,
       `Resuming ${call.backend.name} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,

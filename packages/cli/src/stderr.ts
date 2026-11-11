@@ -389,9 +389,11 @@ export function createStderr(options: StderrOptions): Stderr {
   };
 
   // A logger line: an `info` line that repeats an event or the result drops to `debug` in text.
+  // The library's option name becomes the CLI flag.
   const logged = (lineLevel: LineLevel, message: string, fields?: LogFields): void => {
-    const repeated = lineLevel === "info" && format === "text" && repeats(message, fields);
-    log(repeated ? "debug" : lineLevel, message, fields);
+    const text = message.replace(/\bsubmitOverPartial\b/g, "--submit-over-partial");
+    const repeated = lineLevel === "info" && format === "text" && repeats(text, fields);
+    log(repeated ? "debug" : lineLevel, text, fields);
   };
 
   return {

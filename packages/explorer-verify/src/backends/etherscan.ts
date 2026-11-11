@@ -350,9 +350,13 @@ export function etherscanStyle(dialect: Dialect): Backend {
       // from another contract's source, while the submitted source was rejected:
       // `already-verified`. The flow compares the stored contract with the input.
       const found = await lookup(handle, ctx);
-      return found === undefined
-        ? { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) }
-        : { state: found.match === "exact" ? "verified" : "already-verified", ...found };
+      const reason = redactExcerpt(result, ctx.http.secrets, REASON_LENGTH);
+      if (found === undefined) {
+        return { state: "failed", reason, notVerified: true };
+      }
+      return found.match === "exact"
+        ? { state: "verified", ...found }
+        : { state: "already-verified", ...found, reason };
     }
     if (startsWithAny(result, rejections)) {
       return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };

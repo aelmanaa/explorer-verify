@@ -107,7 +107,7 @@
           "$ref": "#/$defs/backend"
         },
         "handle": {
-          "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>.",
+          "description": "The handle in its one-line form, ev1:<backend>:<chainId>:<address>:<jobId>, with :over-partial at the end for a submit over a partial match.",
           "type": "string",
           "pattern": "^ev1:"
         },

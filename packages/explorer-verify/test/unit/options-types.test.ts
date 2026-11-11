@@ -75,7 +75,13 @@ const call: CallOptions = {
   allowSourcifyFallback: maybe.boolean,
   apiKeys: maybe.apiKeys,
 };
-const options: VerifyOptions = { ...call, route, pollIntervalMs: maybe.number, rpcUrl: env.RPC_URL };
+const options: VerifyOptions = {
+  ...call,
+  route,
+  pollIntervalMs: maybe.number,
+  rpcUrl: env.RPC_URL,
+  submitOverPartial: maybe.boolean,
+};
 const dry: DryRunOptions = { ...call, rpcUrl: env.RPC_URL };
 const status: CheckStatusOptions = { ...call, pollIntervalMs: maybe.number };
 const link: LinkProxyOptions = { ...call, pollIntervalMs: maybe.number };
@@ -90,6 +96,7 @@ const each: VerifyEachOptions = {
   allowSourcifyFallback: maybe.boolean,
   apiKeys: maybe.apiKeys,
   rpcUrl: env.RPC_URL,
+  submitOverPartial: maybe.boolean,
 };
 const input: VerifyInput = {
   ...base,

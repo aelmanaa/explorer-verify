@@ -7,14 +7,24 @@ import { toBackendName } from "../backend-names.ts";
 import type { InputIssue } from "../errors.ts";
 import { addressDigits, readChainId, readFields } from "../internal/read-fields.ts";
 import type { Handle, HandleString, Hex } from "../types.ts";
+import { OVER_PARTIAL } from "./format-handle.ts";
 
-const FIELDS: readonly string[] = ["version", "backend", "chainId", "address", "jobId"];
+const FIELDS: readonly string[] = [
+  "version",
+  "backend",
+  "chainId",
+  "address",
+  "jobId",
+  "overPartial",
+];
 // No `:`, `.`, `/`, `%`, `?`, `#` or `\`: a job id can never parse as a URL scheme or a path
 // segment when a client puts it in a request URL, and the one-line form splits on `:`.
 export const JOB_ID: RegExp = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
-// The fields of the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
+// The fields of the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`. A sixth,
+// `over-partial`, marks a submit over a partial match (decision 0067).
 const LINE_FIELDS = 5;
+const OVER_PARTIAL_PART = OVER_PARTIAL.slice(1);
 // Longer than any valid line: "ev1", the longest backend name, a 16-digit chain id, an address, a
 // 128-character job id and four separators come to under 256 characters.
 const MAX_LINE_LENGTH = 512;
@@ -107,17 +117,25 @@ function lineFields(line: string): Map<string, unknown> | undefined {
     return undefined;
   }
   const parts = line.split(":");
-  const [version, backend, chainId, address, jobId] = parts;
-  if (parts.length !== LINE_FIELDS) {
+  const [version, backend, chainId, address, jobId, marker] = parts;
+  // Five parts, or six whose last is `over-partial`: any other line is in neither form.
+  if (
+    parts.length !== LINE_FIELDS &&
+    !(parts.length === LINE_FIELDS + 1 && marker === OVER_PARTIAL_PART)
+  ) {
     return undefined;
   }
-  return new Map<string, unknown>([
+  const fields = new Map<string, unknown>([
     ["version", version === LINE_VERSION ? 1 : version],
     ["backend", backend],
     ["chainId", DECIMAL.test(String(chainId)) ? Number(chainId) : chainId],
     ["address", address],
     ["jobId", jobId],
   ]);
+  if (marker !== undefined) {
+    fields.set("overPartial", true);
+  }
+  return fields;
 }
 
 /** Checks the fields of a handle in either form and builds a new handle from them. */
@@ -156,6 +174,14 @@ function checkFields(
         "must be 1 to 128 characters from A-Z, a-z, 0-9, '_' and '-', starting with a letter or digit",
     });
   }
+  const marker = fields.get("overPartial");
+  const badMarker = marker !== undefined && marker !== true;
+  if (badMarker) {
+    issues.push({
+      field: "overPartial",
+      message: "must be true when present",
+    });
+  }
   let unknown = 0;
   for (const name of fields.keys()) {
     if (!FIELDS.includes(name)) {
@@ -180,9 +206,19 @@ function checkFields(
     chainId !== undefined &&
     address !== undefined &&
     jobId !== undefined &&
+    !badMarker &&
     unknown === 0
   ) {
-    return { handle: { version, backend, chainId, address, jobId } };
+    return {
+      handle: {
+        version,
+        backend,
+        chainId,
+        address,
+        jobId,
+        ...(marker === true ? { overPartial: true } : {}),
+      },
+    };
   }
   return { issues };
 }

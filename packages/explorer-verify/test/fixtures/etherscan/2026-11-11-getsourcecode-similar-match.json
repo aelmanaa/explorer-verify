@@ -1,0 +1,40 @@
+{
+  "source": "Live response from api.etherscan.io to a POST request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T08:26:43.731Z: the getsourcecode of Probe294E at 0xc00d59930cfe782876cb11d671738b2e5885fff0, which held a Similar Match of the same source at 0x42a97fb5d5b652ce47a90ba4930dad1d3f58cdac on Ethereum Sepolia (issue #294). Body reduced to the match, name and compiler fields; the SourceCode text is removed and the other result fields are dropped. The key was in the form body; it is not recorded.",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xc00d59930cfe782876cb11d671738b2e5885fff0",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "recordedAt": "2026-11-11T08:26:43.731Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "[source removed]",
+          "ContractName": "Probe294E",
+          "CompilerVersion": "v0.8.30+commit.73712a01",
+          "SimilarMatch": "0x42a97fb5d5b652ce47a90ba4930dad1d3f58cdac",
+          "Proxy": "0",
+          "Implementation": ""
+        }
+      ]
+    }
+  }
+}

@@ -160,8 +160,13 @@ own.
   `already-verified` with `partial` and `storedContract`.
 
 Blockscout answers `Smart-contract already verified.` only for a full match. A contract with a
-partial match of its own source takes a new submit, but `verify()` does not send one: its first
-lookup returns `already-verified` with `partial`.
+partial match of its own source takes a new submit. By default `verify()` does not send one: its
+first lookup returns `already-verified` with `partial`. With `submitOverPartial`, it submits.
+
+On Ethereum Sepolia on 2026-11-11, the exact source over a partial match passed and the lookup then
+gave `is_fully_verified`: `verified`, `exact`. The same partial source again ended with
+`Fail - Unable to verify`, which gives `already-verified` with `partial`, not `failed`
+([Submit over a partial match](verify.md#submit-over-a-partial-match)).
 
 ## The empty answer right after a deployment
 

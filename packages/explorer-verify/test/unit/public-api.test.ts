@@ -20,6 +20,7 @@ const handleKeys: Record<keyof Handle, true> = {
   chainId: true,
   address: true,
   jobId: true,
+  overPartial: true,
 };
 const optionKeys: Record<keyof VerifyOptions, true> = {
   fetch: true,
@@ -34,6 +35,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   allowSourcifyFallback: true,
   rpcUrl: true,
   handlerUrl: true,
+  submitOverPartial: true,
 };
 const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true, apiKey: true };
 const emptyRoute: RouteOverride = {};
@@ -45,18 +47,19 @@ const successesWithoutLink: VerifyResult[] = [
 const versionIsOne: Equal<Handle["version"], 1> = true;
 
 describe("public types", () => {
-  it("Handle has exactly version, backend, chainId, address and jobId (R-FLOW-5, R-SEC-2)", () => {
+  it("Handle has exactly version, backend, chainId, address, jobId and overPartial (R-FLOW-5, R-SEC-2, decision 0067)", () => {
     assert.deepEqual(Object.keys(handleKeys), [
       "version",
       "backend",
       "chainId",
       "address",
       "jobId",
+      "overPartial",
     ]);
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has the M1 fields, indexWaitMs, apiKeys, allowSourcifyFallback, rpcUrl and handlerUrl (decisions 0009, 0010, 0016, 0046 and 0066, R-RT-3, R-IN-3)", () => {
+  it("VerifyOptions has the M1 fields, indexWaitMs, apiKeys, allowSourcifyFallback, rpcUrl, handlerUrl and submitOverPartial (decisions 0009, 0010, 0016, 0046, 0066 and 0067, R-RT-3, R-IN-3)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
@@ -70,6 +73,7 @@ describe("public types", () => {
       "allowSourcifyFallback",
       "rpcUrl",
       "handlerUrl",
+      "submitOverPartial",
     ]);
   });
 

@@ -845,6 +845,8 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
       state: "already-verified",
       match: "partial",
       ...CHILD,
+      reason:
+        "Fail - Unable to verify. Compiled contract runtime bytecode does NOT match the on-chain runtime bytecode.",
     });
   });
 
@@ -854,6 +856,7 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
       state: "failed",
       reason:
         "Fail - Unable to verify. Compiled contract runtime bytecode does NOT match the on-chain runtime bytecode.",
+      notVerified: true,
     });
   });
 
@@ -866,6 +869,7 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
       state: "failed",
       reason:
         "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode.",
+      notVerified: true,
     });
   });
 

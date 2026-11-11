@@ -125,6 +125,7 @@ explorer-verify verify <address> --chain <chain> --input <file>...
 | `--rpc-url-file <path>`         | Read the JSON-RPC endpoint URL from this regular file. Use it for a URL with a key.                                                                                                                                                                                                                                                                             |
 | `--rpc-url-stdin`               | Read the JSON-RPC endpoint URL piped on stdin. Use it for a URL with a key.                                                                                                                                                                                                                                                                                     |
 | `--allow-sourcify-fallback`     | Send a chain that the routing table does not list to the public Sourcify API. No effect on a listed chain. Cannot be combined with --api-url or with a --backend other than sourcify.                                                                                                                                                                           |
+| `--submit-over-partial`         | Submit when the explorer holds only a partial match of this contract's source, so it can replace it with an exact one. An exact match never submits. On Routescan every match is partial, so it submits over every match, and Routescan replaces the source it holds, an exact one included.                                                                    |
 | `-n`, `--dry-run`               | Check the input, resolve the route and look the contract up, then stop before the submit. Needs no API key.                                                                                                                                                                                                                                                     |
 | `--input-json <file>`           | Read the whole verify request as JSON from this file, or from stdin when it is -. See input.schema.json in the explorer-verify package.                                                                                                                                                                                                                         |
 
@@ -237,8 +238,12 @@ says what `auto` would pick.
 before the submit. It needs no API key and no `--backend`, and exits 0. An error before the submit
 exits as it would without `--dry-run`.
 
-The [dry-run result](json-output.md#dry-run) names the `backend` a real run would use. Its
-`lookup` is `none` when `verify` would submit.
+The [dry-run result](json-output.md#dry-run) names the `backend` a real run would use. A real run
+submits in three cases:
+
+- `lookup` is `none`.
+- The result has `storedContract`: the match is another contract's.
+- `lookup` is `partial` and `--submit-over-partial` is set.
 
 ## Several backends
 

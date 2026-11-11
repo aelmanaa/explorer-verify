@@ -81,6 +81,7 @@ export function eachOptionKeys(): readonly string[] {
     allowSourcifyFallback: true,
     apiKeys: true,
     rpcUrl: true,
+    submitOverPartial: true,
     backends: true,
   } satisfies Record<keyof VerifyEachOptions | "route", true>);
 }

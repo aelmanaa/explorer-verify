@@ -141,7 +141,12 @@ at once, with no lookup.
   error such as a daily limit. A later Etherscan submit can then answer that the contract is
   already verified. explorer-verify does not report these entries yet.
 - A submit with exact sources for a contract that has only a partial match upgrades it to an exact
-  match.
+  match. `verify()` sends it only with `submitOverPartial`. On Ethereum Sepolia on 2026-11-11, the
+  job ended with `exact_match`. The same partial sources again started a job that ended with the
+  code `already_verified` ([Submit over a partial match](verify.md#submit-over-a-partial-match)).
+- The lookup answer carries `cache-control: public,max-age=3600`. On 2026-11-11 the lookup with
+  `fields=compilation` still answered `match` 44 minutes after a job upgraded the contract to
+  `exact_match`, while the same lookup without the query answered `exact_match`.
 - Linked libraries: for a contract linked to a library after compiling, as Foundry and Hardhat do,
   submit `settings.libraries` as it was at compile time. Adding the library addresses gives only
   a partial match, because the addresses change the metadata hash. `verify()` sends the input

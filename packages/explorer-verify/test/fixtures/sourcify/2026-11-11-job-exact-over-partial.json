@@ -1,0 +1,30 @@
+{
+  "source": "Live response from sourcify.dev to a request sent with the fetch of Node.js 24.21.0 by explorer-verify, recorded 2026-11-11T07:42:06.347Z: the job of that submit, which upgraded the match to exact_match on Ethereum Sepolia (issue #294). externalVerifications dropped: it lists the submits Sourcify forwarded to other explorers.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/bcd51e72-394f-4c30-8878-79cca756721f"
+  },
+  "recordedAt": "2026-11-11T07:42:06.347Z",
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "bcd51e72-394f-4c30-8878-79cca756721f",
+      "jobStartTime": "2026-11-11T07:42:01Z",
+      "jobFinishTime": "2026-11-11T07:42:01Z",
+      "compilationTime": "101",
+      "contract": {
+        "match": "exact_match",
+        "creationMatch": "exact_match",
+        "runtimeMatch": "exact_match",
+        "chainId": "11155111",
+        "address": "0x6c7ff2CF19865fA06523C01bc76dC4C68F16A7b1",
+        "verifiedAt": "2026-11-11T07:42:01Z",
+        "matchId": "59092005"
+      }
+    }
+  }
+}

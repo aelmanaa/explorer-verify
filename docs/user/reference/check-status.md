@@ -106,9 +106,31 @@ or shell characters, so a shell takes it without quotes.
 `handle` of an error's `toJSON()` and of the `verify.submitted` event has the
 one-line form and the `HandleString` type.
 
+### A submit over a partial match
+
+A job that `verify()` submitted with
+[`submitOverPartial`](verify.md#submit-over-a-partial-match) over a partial
+match of the input's source has a handle with `overPartial: true`. Its
+one-line form ends with `:over-partial`:
+
+```text
+ev1:blockscout:11155111:0xdce2c184bfa3baecf2fbfc85248563e6b03d5360:dce2c184bfa3baecf2fbfc85248563e6b03d53606af41c8c:over-partial
+```
+
+`checkStatus()` ends such a job as `verify()` would:
+
+- A rejected job gives `already-verified`, `partial`, with a `warn` line,
+  unless a newer lookup finds no match.
+- A lookup after the budget runs out, or after the explorer forgets the job,
+  confirms it only with an `exact` match. A `partial` match gives
+  `not-confirmed` or `job-not-found`.
+
+A handle without the marker resumes as before.
+
 ## Handle rules
 
-- The one-line form splits on `:` into exactly five parts.
+- The one-line form splits on `:` into five parts, or six when the last is
+  `over-partial`.
 - A job id is 1 to 128 letters, digits, `_` or `-`, starting with a letter
   or digit.
 - The address keeps its case. Whitespace is not trimmed.

@@ -8,6 +8,10 @@ import { readFileSync } from "node:fs";
 /**
  * What the explorer holds:
  * - `verified`: the contract is verified, with an exact match.
+ * - `partial`: the contract is verified, with a partial match; a submit is accepted, and its job
+ *   ends with an exact match.
+ * - `partial-pending`, `partial-rejected`, `partial-forgotten`: a partial match, and a job that
+ *   never ends, ends with `no_match`, or is unknown to the explorer.
  * - `new`: not verified; a submit is accepted, and its job ends with an exact match.
  * - `pending`: not verified; a submit is accepted, and its job never ends.
  * - `rejected`: not verified; a submit is accepted, and its job ends with `no_match`.
@@ -20,6 +24,10 @@ import { readFileSync } from "node:fs";
  */
 export type Scenario =
   | "verified"
+  | "partial"
+  | "partial-pending"
+  | "partial-rejected"
+  | "partial-forgotten"
   | "new"
   | "pending"
   | "rejected"
@@ -31,6 +39,10 @@ export type Scenario =
 /** The scenarios, for checking a name read from the environment. */
 export const SCENARIOS: readonly Scenario[] = [
   "verified",
+  "partial",
+  "partial-pending",
+  "partial-rejected",
+  "partial-forgotten",
   "new",
   "pending",
   "rejected",
@@ -43,6 +55,7 @@ export const SCENARIOS: readonly Scenario[] = [
 /** The recorded job answer of each scenario whose job ends with an error. */
 const JOB_ERRORS: Partial<Record<Scenario, string>> = {
   rejected: "sourcify/2026-11-02-job-no-match",
+  "partial-rejected": "sourcify/2026-11-02-job-no-match",
   inconclusive: "sourcify/2026-11-02-job-internal-error",
   unclassified: "sourcify/2026-11-02-job-unknown-code",
 };
@@ -137,15 +150,19 @@ async function read(
 
 /** The Sourcify answer of `path`, or `undefined` when it is not a Sourcify path. */
 function sourcify(scenario: Scenario, method: string, path: string): Response | undefined {
-  const lookup = /\/v2\/contract\/(\d+)\/0x[0-9a-fA-F]{40}$/.exec(path);
+  const lookup = /\/v2\/contract\/(\d+)\/(0x[0-9a-fA-F]{40})$/.exec(path);
   if (lookup !== null) {
     // The answer, moved to the chain asked for: the library checks that it is about that chain.
     const { status, body } = recordedAnswer(
       scenario === "verified"
         ? "sourcify/2026-11-02-lookup-exact-match"
-        : "sourcify/2026-11-02-lookup-not-verified",
+        : scenario.startsWith("partial")
+          ? "sourcify/2026-11-02-lookup-match"
+          : "sourcify/2026-11-02-lookup-not-verified",
     );
-    return respond(status, { ...Object.fromEntries(fields(body)), chainId: lookup[1] });
+    // The partial answer was recorded for another contract: it is moved to this one too.
+    const moved = scenario.startsWith("partial") ? { address: lookup[2] } : {};
+    return respond(status, { ...Object.fromEntries(fields(body)), chainId: lookup[1], ...moved });
   }
   if (method === "POST" && /\/v2\/verify\/\d+\/0x[0-9a-fA-F]{40}$/.test(path)) {
     return recorded("sourcify/2026-11-02-submit-accepted");
@@ -155,8 +172,11 @@ function sourcify(scenario: Scenario, method: string, path: string): Response | 
     if (error !== undefined) {
       return jobError(error);
     }
+    if (scenario === "partial-forgotten") {
+      return recorded("sourcify/2026-11-02-job-not-found");
+    }
     return recorded(
-      scenario === "pending" || scenario === "flaky"
+      scenario === "pending" || scenario === "flaky" || scenario === "partial-pending"
         ? "sourcify/2026-11-02-job-pending"
         : "sourcify/2026-11-02-job-exact-match",
     );

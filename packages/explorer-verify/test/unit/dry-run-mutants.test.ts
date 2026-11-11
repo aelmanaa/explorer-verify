@@ -93,11 +93,11 @@ describe("dryRun logs what verify() would do (R-AX-8, R-DX-5)", () => {
     });
   });
 
-  it("says verify() would not submit when the backend holds a partial match", async () => {
+  it("says verify() would not submit when the backend holds a partial match, unless submitOverPartial is set", async () => {
     const lines = await infoLines(keyed("partial"), KEYED);
     assert.deepEqual(lines.at(-1), {
       message:
-        "Dry run: etherscan-v2 already holds the contract (partial match), so a verification would not submit.",
+        "Dry run: etherscan-v2 already holds the contract (partial match), so a verification would not submit unless submitOverPartial is set.",
       fields: { backend: "etherscan-v2", routedBy: "api-url" },
     });
   });

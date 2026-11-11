@@ -201,6 +201,13 @@ client does. Any other answer throws an error and is never read as a result.
 - Routescan states no grade, so every match is `partial`, from a lookup or from `Pass - Verified`.
   It answered `Pass - Verified` for a build without a metadata hash, which Sourcify and Blockscout
   graded partial. It also held copies of Sourcify and Blockscout submits seconds after them.
+- With `submitOverPartial`, `verify()` submits over every Routescan match, since each is
+  `partial`. On Ethereum Sepolia on 2026-11-11, Routescan accepted the exact source over a
+  partial source it held, answered `Pass - Verified`, and its `getsourcecode` then returned the
+  exact source ([Submit over a partial match](verify.md#submit-over-a-partial-match)).
+- Routescan replaces the stored source on a resubmit, so a build that differs only in its
+  metadata can replace an exact source with a partial one. A forgotten job of such a call always
+  ends with `job-not-found`: its lookup finds a `partial` match, which does not confirm the job.
 - `Fail - Unable to verify` followed by a lookup that finds the source, even your own, now gives
   `already-verified` with `partial`. 0.1.0 gave `verified` with `exact` there. The lookup's grade
   is `partial`, and a `partial` lookup after a failed job reads as a match that was there before.
