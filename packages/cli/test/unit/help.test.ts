@@ -140,11 +140,12 @@ describe("help: every command's help (R-AX-11)", () => {
     assert.match(text, /^ {2}--poll-interval <seconds> +The wait between two status polls/m);
   });
 
-  it("keeps help verify to 50 lines at most, down from 64 (#225)", () => {
+  // --submit-over-partial, --index-wait and --require-own-source each add a line.
+  it("keeps help verify to 52 lines at most, down from 64 (#225)", () => {
     const verify = COMMANDS.find(({ name }) => name === "verify");
     assert.ok(verify !== undefined);
     const lines = helpText(helpResult(COMMANDS, verify)).split("\n").length - 1;
-    assert.ok(lines <= 50, `${String(lines)} lines`);
+    assert.ok(lines <= 52, `${String(lines)} lines`);
   });
 });
 

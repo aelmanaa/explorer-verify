@@ -143,8 +143,13 @@ case "$code" in
     echo "::error::$(problem)"
     ;;
   1)
-    reason=$(escape "$(field .result.reason)")
-    echo "::error::The explorer rejected the source: $reason"
+    stored=$(field '.result.storedContract.name // empty')
+    if [ -n "$stored" ]; then
+      echo "::error::The explorer holds another contract's source: $(escape "$stored")"
+    else
+      reason=$(escape "$(field .result.reason)")
+      echo "::error::The explorer rejected the source: $reason"
+    fi
     ;;
   2 | 3 | 5 | 6 | 130)
     echo "::error::$(problem)"
@@ -156,16 +161,17 @@ esac
 exit "$code"
 ```
 
-| Exit code | Outcome                                                                     | What the script does                                                        |
-| --------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 0         | `verified` or `already-verified`                                            | Prints the status and the backend                                           |
-| 1         | `failed`: the explorer rejected the source                                  | Fails with the reason. Fix the build, not the job                           |
-| 2         | Usage or input error; nothing was submitted                                 | Fails with the code, the message and the hint                               |
-| 3         | API key missing, rejected or out of quota                                   | Fails with the hint. Check the secret                                       |
-| 4         | `not-confirmed` with a handle, `verification-inconclusive` or `not-indexed` | With a handle: passes, warns and writes the `handle` output. Without: fails |
-| 5         | Network or explorer unavailable after retries                               | Fails. Re-run the job later: `verify` looks the contract up first           |
-| 6         | `unknown-state`, `job-not-found` or `internal-error`                        | Fails. Do not re-run automatically; read the hint                           |
-| 130       | Cancelled                                                                   | Fails. If the log shows a `Submitted` line, resume its handle               |
+| Exit code | Outcome                                                                     | What the script does                                                                                                                             |
+| --------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0         | `verified` or `already-verified`                                            | Prints the status and the backend                                                                                                                |
+| 1         | `failed`: the explorer rejected the source                                  | Fails with the reason. Fix the build, not the job                                                                                                |
+| 1         | With `--require-own-source`: `already-verified` with `storedContract`       | Fails with the stored contract's name. Check `--contract` and the compiler version against the deployed build; the source itself is not rejected |
+| 2         | Usage or input error; nothing was submitted                                 | Fails with the code, the message and the hint                                                                                                    |
+| 3         | API key missing, rejected or out of quota                                   | Fails with the hint. Check the secret                                                                                                            |
+| 4         | `not-confirmed` with a handle, `verification-inconclusive` or `not-indexed` | With a handle: passes, warns and writes the `handle` output. Without: fails                                                                      |
+| 5         | Network or explorer unavailable after retries                               | Fails. Re-run the job later: `verify` looks the contract up first                                                                                |
+| 6         | `unknown-state`, `job-not-found` or `internal-error`                        | Fails. Do not re-run automatically; read the hint                                                                                                |
+| 130       | Cancelled                                                                   | Fails. If the log shows a `Submitted` line, resume its handle                                                                                    |
 
 The script leaves `set -e` off on purpose. With it, the failing command substitution would end the
 script before `case`, and the envelope would go unread.
@@ -173,11 +179,23 @@ script before `case`, and the envelope would go unread.
 `${VERIFY_TIMEOUT:-300}` gives the run five minutes. A run that ends pending exits 4 with the
 handle, and the script writes it as the step output `handle`.
 
+An explorer can hold another contract's source at the address. `verify` then exits 0 with
+`already-verified` and `result.storedContract`, and the explorer page shows the other contract.
+To fail the job in that case, pass `--require-own-source` to the script. The run exits 1, and the
+script names the stored contract.
+
 A job that verifies right after the deploy can reach Etherscan before it has indexed the contract.
 Etherscan then answers that it finds no contract code at the address, and `verify` sends the
 submit again at most 10 times, about 27 seconds at the default `--poll-interval` of 3 seconds.
-Pass `--index-wait <seconds>` to keep sending it longer, such as `--index-wait 120`. The wait stays
-within `--timeout`. When it ends, the run exits 4 with `not-indexed` and no handle.
+Pass `--index-wait <seconds>` to keep sending it longer, such as `--index-wait 120`.
+
+- It applies to `etherscan-v2`, `routescan` and `etherscan-compatible` only. With other backends
+  only, the run logs one warning and ignores it.
+- `--timeout` caps it, so raise both. Its upper bound is 2147483 seconds.
+- A value under about 30 seconds, at the default `--poll-interval`, waits less than the default
+  10 submits.
+
+When the wait ends, the run exits 4 with `not-indexed` and no handle.
 
 `escape` encodes text from an explorer. `%` becomes `%25`, and CR and LF become `%0D` and `%0A`.
 So a reason or a hint cannot end the `::error::` line and start another workflow command. GitHub's own

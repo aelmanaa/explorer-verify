@@ -202,6 +202,27 @@ describe(
       assert.equal(run.output, "");
     });
 
+    it(
+      "exit code 1 with --require-own-source: names another contract's source (#351)",
+      TIMEOUT,
+      async () => {
+        const args = verifyArgs(["--backend", "sourcify"]);
+        const plain = await runScript("other-source", args, "other-source");
+        assert.equal(plain.code, 0);
+        assert.equal(plain.stdout, "already-verified on sourcify\n");
+        const gated = await runScript(
+          "own-source",
+          [...args, "--require-own-source"],
+          "other-source",
+        );
+        assert.equal(gated.code, 1);
+        assert.equal(
+          gated.stdout,
+          "::error::The explorer holds another contract's source: simplestorage2.sol:SimpleStorage\n",
+        );
+      },
+    );
+
     it("exit code 2: fails with the code and the hint", TIMEOUT, async () => {
       const run = await runScript(
         "bad-chain",

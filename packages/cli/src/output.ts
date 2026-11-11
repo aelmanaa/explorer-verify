@@ -52,6 +52,18 @@ function dryRunText(
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
 
+/**
+ * One outcome of a run on several backends, as the CLI prints it: the library's, or, under
+ * `--require-own-source`, an `already-verified` result of another contract's source with
+ * `ok: false`.
+ */
+export type GatedOutcome =
+  | BackendOutcome<ErrorJson>
+  | (Omit<Extract<BackendOutcome<ErrorJson>, { ok: true }>, "ok"> & {
+      /** `false`: the explorer holds another contract's source. */
+      ok: false;
+    });
+
 // References: R-AX-5, R-AX-10.
 /**
  * The envelope the CLI prints: the library's, with the CLI's hint in each error, and, for an
@@ -59,6 +71,26 @@ function dryRunText(
  */
 export type CliEnvelope =
   | Exclude<Envelope, { readonly error: ErrorJson }>
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `false`: with `--require-own-source`, the explorer holds another contract's source. */
+      ok: false;
+      /** An `already-verified` result with `storedContract`. */
+      result: VerifyResult;
+      /** Results carry no error. */
+      error?: never;
+    }
+  | {
+      /** The version of this document's form. */
+      schemaVersion: 1;
+      /** `false`: at least one backend failed, or holds another contract's source. */
+      ok: false;
+      /** One outcome per backend, in the order of `--backend`. */
+      result: { outcomes: GatedOutcome[] };
+      /** Results carry no error. */
+      error?: never;
+    }
   | {
       /** The version of this document's form. */
       schemaVersion: 1;
@@ -125,14 +157,18 @@ export function stdoutText(
   if ("outcomes" in result) {
     return result.outcomes.map((outcome) => outcomeText(outcome, paint)).join("");
   }
-  return resultText(result, paint, overPartial);
+  return resultText(result, paint, overPartial, envelope.ok);
 }
 
-/** The summary of a result of one backend. */
+/**
+ * The summary of a result of one backend. `ok` is `false` for a verified result that
+ * `--require-own-source` fails, whose status is then red.
+ */
 function resultText(
   result: VerifyResult | DryRunResult | LinkProxyResult,
   paint: ReturnType<typeof painter>,
   overPartial: boolean,
+  ok: boolean,
 ): string {
   if (result.status === "dry-run") {
     return dryRunText(result, paint, overPartial);
@@ -149,7 +185,7 @@ function resultText(
     result.status === "already-verified" && result.storedContract !== undefined
       ? `, from another contract's source (${storedText(result.storedContract)})`
       : "";
-  const line = `${paint("green", result.status)}: ${result.match} match on ${result.backend}${stored}\n`;
+  const line = `${paint(ok ? "green" : "red", result.status)}: ${result.match} match on ${result.backend}${stored}\n`;
   return result.explorerUrl === undefined ? line : `${line}${result.explorerUrl}\n`;
 }
 
@@ -163,13 +199,10 @@ function storedText(stored: StoredContract): string {
  * The summary of one backend of a run on several backends: its result as for one backend, or its
  * error's code and message, and the handle when the error carries one.
  */
-function outcomeText(
-  outcome: BackendOutcome<ErrorJson>,
-  paint: ReturnType<typeof painter>,
-): string {
-  if (!(outcome.error !== undefined)) {
+function outcomeText(outcome: GatedOutcome, paint: ReturnType<typeof painter>): string {
+  if (outcome.error === undefined) {
     // A run on several backends is never a dry run.
-    return resultText(outcome.result, paint, false);
+    return resultText(outcome.result, paint, false, outcome.ok);
   }
   const { error } = outcome;
   const line = `${paint("red", error.code)} on ${outcome.backend}: ${visible(error.message)}\n`;

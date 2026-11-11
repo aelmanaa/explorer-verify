@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "explorer-verify envelope",
-  "description": "The JSON document that toEnvelope() returns and that the CLI prints on stdout with --json (R-AX-5). ok is true exactly when the exit code is 0. Within schemaVersion 1, a release may add fields, error codes and backends, and changes nothing else, so readers ignore fields they do not know and treat an unknown error code by its retryable value and the exit code. Keys appear in the order the properties below list them.",
+  "description": "The JSON document that toEnvelope() returns and that the CLI prints on stdout with --json (R-AX-5). ok is true exactly when the exit code is 0. Within schemaVersion 1, a release may add fields, error codes, backends, and forms that only an opt-in CLI flag produces, and changes nothing else, so readers ignore fields they do not know and treat an unknown error code by its retryable value and the exit code. Keys appear in the order the properties below list them.",
   "oneOf": [
     {
       "description": "verified or already-verified: exit code 0.",
@@ -48,6 +48,28 @@
       }
     },
     {
+      "description": "already-verified with storedContract under the CLI's verify --require-own-source: the explorer holds another contract's source, so the run fails. Exit code 1. toEnvelope() never returns it (decision 0069).",
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/schemaVersion"
+        },
+        "ok": {
+          "const": false
+        },
+        "result": {
+          "$ref": "#/$defs/otherSource"
+        }
+      },
+      "required": ["schemaVersion", "ok", "result"],
+      "not": {
+        "properties": {
+          "error": {}
+        },
+        "required": ["error"]
+      }
+    },
+    {
       "description": "A dry run: toEnvelope() of the result of dryRun(), which the CLI prints for verify --dry-run. Nothing was submitted. Exit code 0.",
       "type": "object",
       "properties": {
@@ -70,7 +92,7 @@
       }
     },
     {
-      "description": "Several backends: toEnvelope() of the result of verifyEach(), which the CLI prints for verify with --backend repeated. ok is true and the exit code 0 only when every outcome is ok. Otherwise the exit code is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has, each outcome's code being that of its result or error. A non-zero code names only the first outcome with that code: read result.outcomes for every backend.",
+      "description": "Several backends: toEnvelope() of the result of verifyEach(), which the CLI prints for verify with --backend repeated. ok is true and the exit code 0 only when every outcome is ok. Otherwise the exit code is the first of 6, 4, 3, 2, 5, 1 and 130 that any outcome has, each outcome's code being that of its result or error. Under the CLI's --require-own-source, an outcome with another contract's source has ok false and code 1. A non-zero code names only the first outcome with that code: read result.outcomes for every backend.",
       "type": "object",
       "properties": {
         "schemaVersion": {
@@ -303,6 +325,26 @@
       },
       "required": ["status", "backend", "reason"]
     },
+    "otherSource": {
+      "description": "An already-verified VerifyResult with storedContract: the explorer holds another contract's source for the address. Only the CLI's verify with --require-own-source prints it with ok false; toEnvelope() never does.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/success"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "already-verified"
+            },
+            "storedContract": {
+              "$ref": "#/$defs/storedContract"
+            }
+          },
+          "required": ["storedContract"]
+        }
+      ]
+    },
     "dryRun": {
       "description": "A DryRunResult: where verify would go and what the explorer holds now. Nothing was submitted.",
       "type": "object",
@@ -387,6 +429,28 @@
             },
             "result": {
               "$ref": "#/$defs/failure"
+            }
+          },
+          "required": ["backend", "ok", "result"],
+          "not": {
+            "properties": {
+              "error": {}
+            },
+            "required": ["error"]
+          }
+        },
+        {
+          "description": "already-verified with storedContract under the CLI's verify --require-own-source: the explorer holds another contract's source. Its exit code is 1.",
+          "type": "object",
+          "properties": {
+            "backend": {
+              "$ref": "#/$defs/backend"
+            },
+            "ok": {
+              "const": false
+            },
+            "result": {
+              "$ref": "#/$defs/otherSource"
             }
           },
           "required": ["backend", "ok", "result"],

@@ -47,6 +47,7 @@ const INPUT_JSON_COMPANIONS: readonly string[] = [
   "timeout",
   "poll-interval",
   "index-wait",
+  "require-own-source",
 ];
 
 /** A JSON value read from a file or stdin, or the issue that stopped it. */

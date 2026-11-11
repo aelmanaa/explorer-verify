@@ -58,15 +58,16 @@ them wherever they appear.
 
 ## The envelope
 
-The envelope has five forms. Tell them apart by `ok`, `error` and `result.status`:
+The envelope has six forms. Tell them apart by `ok`, `error` and `result.status`:
 
-| Form                                  | `ok`                         | Holds                                   |
-| ------------------------------------- | ---------------------------- | --------------------------------------- |
-| A verified result                     | `true`                       | `result`                                |
-| A `failed` result                     | `false`                      | `result`, with `reason`, and no `error` |
-| An error                              | `false`                      | `error`                                 |
-| A [dry run](#dry-run)                 | `true`                       | `result` with `status: "dry-run"`       |
-| [Several backends](#several-backends) | `true` when every one passed | `result.outcomes`                       |
+| Form                                                            | `ok`                         | Holds                                                                           |
+| --------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
+| A verified result                                               | `true`                       | `result`                                                                        |
+| A `failed` result                                               | `false`                      | `result`, with `reason`, and no `error`                                         |
+| Another contract's source, CLI with `--require-own-source` only | `false`                      | `result` with `status: "already-verified"` and `storedContract`, and no `error` |
+| An error                                                        | `false`                      | `error`                                                                         |
+| A [dry run](#dry-run)                                           | `true`                       | `result` with `status: "dry-run"`                                               |
+| [Several backends](#several-backends)                           | `true` when every one passed | `result.outcomes`                                                               |
 
 A verified result:
 
@@ -115,8 +116,14 @@ contract.
 
 `storedContract`, on `already-verified`, names another contract whose source the explorer holds
 ([verify()](verify.md#another-contracts-source)). Your source is then not on the explorer, yet
-`ok` stays `true` and the exit code 0. To require your own source, check that it is absent:
-`jq -e '.result.storedContract == null'`.
+`ok` stays `true` and the exit code 0.
+
+To require your own source, pass `--require-own-source` to `verify`. The run then exits 1, and the
+envelope keeps the result with `ok: false`. On several backends, each such outcome gets
+`ok: false` and counts as exit code 1. `toEnvelope()` and `exitCodeOf()` take no such option: a
+script that calls them checks `result.storedContract === undefined`. `status` never sets
+`storedContract`, so the flag is `verify`'s only
+([decision 0069](../../contributor/decisions/0069-require-own-source.md)).
 
 ### The error object
 
@@ -332,39 +339,40 @@ optional `route`. It has no field for an API key. See [CLI](cli.md#the-request-a
 Each outcome has one exit code. `exitCodeOf` covers results and errors, and `ERROR_EXIT_CODES` of
 `explorer-verify/envelope` holds the codes of the errors.
 
-| Outcome                                  | Kind   | `ok`    | Exit code |
-| ---------------------------------------- | ------ | ------- | --------- |
-| `verified`                               | Result | `true`  | 0         |
-| `already-verified`                       | Result | `true`  | 0         |
-| `already-verified` with `storedContract` | Result | `true`  | 0         |
-| `failed`                                 | Result | `false` | 1         |
-| `invalid-input`                          | Error  | `false` | 2         |
-| `unsupported-chain`                      | Error  | `false` | 2         |
-| `incomplete-input`                       | Error  | `false` | 2         |
-| `insufficient-artifact`                  | Error  | `false` | 2         |
-| `unsupported-compiler`                   | Error  | `false` | 2         |
-| `source-mismatch`                        | Error  | `false` | 2         |
-| `no-metadata-hash`                       | Error  | `false` | 2         |
-| `constructor-args-unavailable`           | Error  | `false` | 2         |
-| `handler-refused`                        | Error  | `false` | 2         |
-| `missing-api-key`                        | Error  | `false` | 3         |
-| `api-key-rejected`                       | Error  | `false` | 3         |
-| `quota-exceeded`                         | Error  | `false` | 3         |
-| `not-confirmed`                          | Error  | `false` | 4         |
-| `verification-inconclusive`              | Error  | `false` | 4         |
-| `proxy-link-pending`                     | Error  | `false` | 4         |
-| `not-indexed`                            | Error  | `false` | 4         |
-| `proxy-link-unknown-state`               | Error  | `false` | 6         |
-| `network`                                | Error  | `false` | 5         |
-| `rate-limited`                           | Error  | `false` | 5         |
-| `timeout`                                | Error  | `false` | 5         |
-| `unexpected-response`                    | Error  | `false` | 5         |
-| `in-progress`                            | Error  | `false` | 5         |
-| `metadata-unavailable`                   | Error  | `false` | 5         |
-| `unknown-state`                          | Error  | `false` | 6         |
-| `job-not-found`                          | Error  | `false` | 6         |
-| `internal-error`                         | Error  | `false` | 6         |
-| `cancelled`                              | Error  | `false` | 130       |
+| Outcome                                                                  | Kind   | `ok`    | Exit code |
+| ------------------------------------------------------------------------ | ------ | ------- | --------- |
+| `verified`                                                               | Result | `true`  | 0         |
+| `already-verified`                                                       | Result | `true`  | 0         |
+| `already-verified` with `storedContract`                                 | Result | `true`  | 0         |
+| The same, CLI `verify --require-own-source` only; `exitCodeOf` returns 0 | Result | `false` | 1         |
+| `failed`                                                                 | Result | `false` | 1         |
+| `invalid-input`                                                          | Error  | `false` | 2         |
+| `unsupported-chain`                                                      | Error  | `false` | 2         |
+| `incomplete-input`                                                       | Error  | `false` | 2         |
+| `insufficient-artifact`                                                  | Error  | `false` | 2         |
+| `unsupported-compiler`                                                   | Error  | `false` | 2         |
+| `source-mismatch`                                                        | Error  | `false` | 2         |
+| `no-metadata-hash`                                                       | Error  | `false` | 2         |
+| `constructor-args-unavailable`                                           | Error  | `false` | 2         |
+| `handler-refused`                                                        | Error  | `false` | 2         |
+| `missing-api-key`                                                        | Error  | `false` | 3         |
+| `api-key-rejected`                                                       | Error  | `false` | 3         |
+| `quota-exceeded`                                                         | Error  | `false` | 3         |
+| `not-confirmed`                                                          | Error  | `false` | 4         |
+| `verification-inconclusive`                                              | Error  | `false` | 4         |
+| `proxy-link-pending`                                                     | Error  | `false` | 4         |
+| `not-indexed`                                                            | Error  | `false` | 4         |
+| `proxy-link-unknown-state`                                               | Error  | `false` | 6         |
+| `network`                                                                | Error  | `false` | 5         |
+| `rate-limited`                                                           | Error  | `false` | 5         |
+| `timeout`                                                                | Error  | `false` | 5         |
+| `unexpected-response`                                                    | Error  | `false` | 5         |
+| `in-progress`                                                            | Error  | `false` | 5         |
+| `metadata-unavailable`                                                   | Error  | `false` | 5         |
+| `unknown-state`                                                          | Error  | `false` | 6         |
+| `job-not-found`                                                          | Error  | `false` | 6         |
+| `internal-error`                                                         | Error  | `false` | 6         |
+| `cancelled`                                                              | Error  | `false` | 130       |
 
 The CLI creates `cancelled` and `internal-error`; the library never throws them.
 [Errors](errors/index.md#exit-codes) explains what to do for each exit code.

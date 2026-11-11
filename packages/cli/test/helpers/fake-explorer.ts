@@ -23,6 +23,9 @@ import { readFileSync } from "node:fs";
  *   run retries it once with a `verify.retry` warning.
  * - `not-indexed`: Etherscan and Routescan answer every submit that they find no contract code at
  *   the address, as right after a deployment.
+ * - `other-source`: Sourcify holds another contract's source at the address (recorded on
+ *   2026-11-10 for issue #293) and refuses the submit as already verified, so `verify()` returns
+ *   `already-verified` with `storedContract`. Etherscan holds the Greeter's own source.
  */
 export type Scenario =
   | "verified"
@@ -37,7 +40,8 @@ export type Scenario =
   | "unclassified"
   | "offline"
   | "flaky"
-  | "not-indexed";
+  | "not-indexed"
+  | "other-source";
 
 /** The scenarios, for checking a name read from the environment. */
 export const SCENARIOS: readonly Scenario[] = [
@@ -54,6 +58,7 @@ export const SCENARIOS: readonly Scenario[] = [
   "offline",
   "flaky",
   "not-indexed",
+  "other-source",
 ];
 
 /** The recorded job answer of each scenario whose job ends with an error. */
@@ -155,6 +160,15 @@ async function read(
 /** The Sourcify answer of `path`, or `undefined` when it is not a Sourcify path. */
 function sourcify(scenario: Scenario, method: string, path: string): Response | undefined {
   const lookup = /\/v2\/contract\/(\d+)\/(0x[0-9a-fA-F]{40})$/.exec(path);
+  if (lookup !== null && scenario === "other-source") {
+    // Another contract's match, moved to the chain and the address asked for.
+    const { status, body } = recordedAnswer("sourcify/2026-11-10-lookup-simple-storage");
+    return respond(status, {
+      ...Object.fromEntries(fields(body)),
+      chainId: lookup[1],
+      address: lookup[2],
+    });
+  }
   if (lookup !== null) {
     // The answer, moved to the chain asked for: the library checks that it is about that chain.
     const { status, body } = recordedAnswer(
@@ -169,7 +183,11 @@ function sourcify(scenario: Scenario, method: string, path: string): Response | 
     return respond(status, { ...Object.fromEntries(fields(body)), chainId: lookup[1], ...moved });
   }
   if (method === "POST" && /\/v2\/verify\/\d+\/0x[0-9a-fA-F]{40}$/.test(path)) {
-    return recorded("sourcify/2026-11-02-submit-accepted");
+    return recorded(
+      scenario === "other-source"
+        ? "sourcify/2026-11-02-submit-already-verified"
+        : "sourcify/2026-11-02-submit-accepted",
+    );
   }
   if (path.endsWith(`/v2/verify/${JOB}`)) {
     const error = JOB_ERRORS[scenario];
@@ -234,7 +252,7 @@ export function fakeExplorer(
     if (ETHERSCAN_HOSTS.includes(url.host)) {
       if (action === "getsourcecode") {
         return recorded(
-          scenario === "verified"
+          scenario === "verified" || scenario === "other-source"
             ? "etherscan/2026-11-04-getsourcecode-sepolia-greeter"
             : "etherscan/2026-11-03-getsourcecode-not-verified",
         );

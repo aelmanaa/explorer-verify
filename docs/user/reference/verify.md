@@ -122,6 +122,7 @@ source, check `result.storedContract === undefined`
 ([Another contract's source](#another-contracts-source)). After a
 Sourcify `409`, `storedContract` comes from a lookup that can be up to an hour
 old, so it may be out of date ([Sourcify](sourcify.md#behaviour-to-know)).
+With `storedContract` present, the CLI's `verify --require-own-source` exits 1, with `ok: false`.
 
 ## Errors
 

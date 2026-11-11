@@ -34,6 +34,7 @@ import type {
   PrepareContext,
   Prepared,
 } from "./command.ts";
+import { REQUIRE_OWN_SOURCE_OPTION } from "./own-source.ts";
 import { PROJECT_OPTIONS, inputFromProject, projectOf } from "./project.ts";
 import { FOLDER_MESSAGE, readJsonFile, readJsonRequest } from "./request.ts";
 import type { JsonRequestSpec } from "./request.ts";
@@ -690,6 +691,7 @@ const OPTIONS: OptionSpecs = {
     description:
       "Submit when the explorer holds only a partial match of this contract's source, so it can replace it with an exact one. An exact match never submits. On Routescan every match is partial, so it submits over every match, and Routescan replaces the source it holds, an exact one included.",
   },
+  "require-own-source": REQUIRE_OWN_SOURCE_OPTION,
   "dry-run": {
     type: "boolean",
     short: "n",

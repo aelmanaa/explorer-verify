@@ -58,9 +58,13 @@ export const EXIT_CODES: readonly ExitCodeHelp[] = [
   {
     code: 0,
     meaning:
-      "Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours. Help and the version also exit 0",
+      "Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours; verify --require-own-source exits 1 for it. Help and the version also exit 0",
   },
-  { code: 1, meaning: "Failed: the explorer definitively rejected the submission" },
+  {
+    code: 1,
+    meaning:
+      "Failed: the explorer definitively rejected the submission, or, with --require-own-source, holds another contract's source (result.storedContract)",
+  },
   { code: 2, meaning: "Usage or input error: nothing was submitted for verification" },
   { code: 3, meaning: "API key: missing, invalid or under-privileged" },
   {
