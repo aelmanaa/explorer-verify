@@ -16,6 +16,8 @@ import { pageDetails, SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 
 const PACKAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SRC = path.join(PACKAGE, "src");
+// The Hardhat and Foundry helpers, whose hints follow the same rule (#326).
+const HELPER_SRC = ["hardhat", "foundry"].map((name) => path.join(PACKAGE, "..", name, "src"));
 
 /** Every TypeScript file under `src/`. */
 function sources(dir = SRC): string[] {
@@ -54,14 +56,16 @@ function hintsIn(text: string): string[] {
   return [...scannedCode(text).matchAll(HINT_LITERAL)].map((match) => match[1] ?? match[2] ?? "");
 }
 
-/** Each hint literal of the core's source, with the file it is in. Template parts become `X`. */
-function specificHints(): { file: string; hint: string }[] {
-  return sources().flatMap((file) =>
-    [...scannedCode(readFileSync(file, "utf8")).matchAll(HINT_LITERAL)].map((match) => ({
-      file: path.relative(PACKAGE, file),
-      hint: (match[1] ?? match[2] ?? "").replaceAll(/\$\{[^}]*\}/g, "X"),
-    })),
-  );
+/** Each hint literal of the source under `dirs`, with its file. Template parts become `X`. */
+function specificHints(dirs: readonly string[] = [SRC]): { file: string; hint: string }[] {
+  return dirs
+    .flatMap((dir) => sources(dir))
+    .flatMap((file) =>
+      [...scannedCode(readFileSync(file, "utf8")).matchAll(HINT_LITERAL)].map((match) => ({
+        file: path.relative(PACKAGE, file),
+        hint: (match[1] ?? match[2] ?? "").replaceAll(/\$\{[^}]*\}/g, "X"),
+      })),
+    );
 }
 
 /** The hint with every parenthesised part removed. */
@@ -141,6 +145,13 @@ function rateLimitedUserHint(retryAfterMs?: number): string {
   return hintFor(errorOf(details), "user");
 }
 
+/** Blockscout's answer to a submit right after a deployment: accepted, with no job id. */
+const EMPTY_SUBMIT = '{"message":"OK","result":"","status":"1"}';
+
+/** The end-user hint of Blockscout's empty submit answer. */
+const EMPTY_SUBMIT_HINT =
+  "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
+
 /** The details of every code, and of each case whose end-user hint reads the details. */
 function everyCase(): ErrorDetails[] {
   return [
@@ -154,6 +165,13 @@ function everyCase(): ErrorDetails[] {
       excerpt: '{"status":"0","message":"NOTOK","result":"Unable to locate ContractCode at 0x5f"}',
     },
     { code: "cancelled", handles: [HANDLE] },
+    {
+      code: "unexpected-response",
+      backend: "blockscout",
+      status: 200,
+      excerpt: EMPTY_SUBMIT,
+      attempts: 4,
+    },
   ];
 }
 
@@ -176,6 +194,38 @@ describe("hint wording without field names (R-DX-3, R-AX-10, #286)", () => {
         `${file}: ${hint}`,
       );
     }
+  });
+
+  it("names no details., options. or error. field outside parentheses in a hint of the Hardhat or Foundry helper (#326)", () => {
+    const hints = specificHints(HELPER_SRC);
+    // Each helper holds several hints; a scan that finds few means the pattern broke.
+    assert.ok(hints.length >= 10, String(hints.length));
+    for (const dir of HELPER_SRC) {
+      const name = path.basename(path.dirname(dir));
+      assert.ok(
+        hints.some(({ file }) => file.includes(`${name}/src/`)),
+        name,
+      );
+    }
+    for (const { file, hint } of hints) {
+      const rest = withoutParentheses(hint);
+      assert.doesNotMatch(rest, /\b(?:details|options|error)\.\w/, `${file}: ${hint}`);
+      assert.doesNotMatch(rest, /\w\(\)/, `${file}: ${hint}`);
+    }
+    const all = hints.map(({ hint }) => hint);
+    assert.ok(all.some((hint) => hint.includes("(options.contract)")));
+    assert.ok(all.some((hint) => hint.includes("(details.candidates)")));
+  });
+
+  it("names no library call in the Blockscout empty-submit hint (#326)", () => {
+    const moments = specificHints().filter(
+      ({ file, hint }) =>
+        file.endsWith("backends/blockscout.ts") && hint.includes("deployed moments ago"),
+    );
+    assert.deepEqual(
+      moments.map(({ hint }) => hint),
+      ["If the contract was deployed moments ago, try again later."],
+    );
   });
 
   it("reads a hint from a file that Stryker instrumented, as from the original", () => {
@@ -317,6 +367,96 @@ describe("hintFor (R-DX-3, R-AX-10, #298)", () => {
     assert.equal(
       hintFor(errorOf(SAMPLE_DETAILS["unexpected-response"]), "user"),
       "The explorer gave an answer that could not be read. Try again later; if it keeps failing, check the explorer's status page.",
+    );
+  });
+
+  it("says the explorer did not start the verification when Blockscout's submit loop ends on its empty answer (#326)", () => {
+    type Backend = "blockscout" | "blockscout-hosted" | "etherscan-v2";
+    const empty = (excerpt: string, backend: Backend = "blockscout", attempts: number | null = 4) =>
+      hintFor(
+        errorOf({
+          code: "unexpected-response",
+          backend,
+          status: 200,
+          excerpt,
+          ...(attempts === null ? {} : { attempts }),
+        }),
+        "user",
+      );
+    const unreadable = hintFor(errorOf(SAMPLE_DETAILS["unexpected-response"]), "user");
+    assert.equal(empty(EMPTY_SUBMIT), EMPTY_SUBMIT_HINT);
+    assert.equal(empty(EMPTY_SUBMIT, "blockscout-hosted"), EMPTY_SUBMIT_HINT);
+    assert.equal(empty(EMPTY_SUBMIT, "blockscout", 1), EMPTY_SUBMIT_HINT);
+    assert.equal(empty('{"status":"1","message":"OK","result":null}'), EMPTY_SUBMIT_HINT);
+    assert.equal(empty('{"status":"1","message":"OK"}'), EMPTY_SUBMIT_HINT);
+    const json = errorOf({
+      code: "unexpected-response",
+      backend: "blockscout-hosted",
+      status: 200,
+      excerpt: EMPTY_SUBMIT,
+      attempts: 4,
+    }).toJSON();
+    assert.equal(hintFor(json, "user"), EMPTY_SUBMIT_HINT);
+    // A job id, another status, a body that is not JSON, or another backend: not this case.
+    for (const excerpt of [
+      '{"status":"1","message":"OK","result":"b1d9a0"}',
+      '{"status":"1","message":"OK","result":0}',
+      '{"status":"0","message":"NOTOK","result":""}',
+      '{"status":1,"message":"OK","result":""}',
+      '{"message":"OK","result":""}',
+      "<html>",
+      "null",
+      "",
+    ]) {
+      assert.equal(empty(excerpt), unreadable, excerpt);
+    }
+    assert.equal(empty(EMPTY_SUBMIT, "etherscan-v2"), unreadable);
+    // The same answer to a checkverifystatus poll or to a proxy-link request ends no submit loop,
+    // so it carries no attempts: the explorer may have started the verification.
+    assert.equal(empty('{"status":"1","result":null}', "blockscout", null), unreadable);
+    assert.equal(
+      empty('{"status":"1","message":"OK","result":""}', "blockscout-hosted", null),
+      unreadable,
+    );
+    assert.equal(empty(EMPTY_SUBMIT, "blockscout", null), unreadable);
+    const gateway = errorOf({
+      code: "unexpected-response",
+      backend: "blockscout",
+      status: 502,
+      excerpt: EMPTY_SUBMIT,
+      attempts: 4,
+    });
+    assert.equal(hintFor(gateway, "user"), unreadable);
+    assert.equal(
+      userHintOf({
+        details: { code: "unexpected-response", backend: "blockscout", status: 200, attempts: 4 },
+      }),
+      unreadable,
+    );
+    assert.equal(
+      userHintOf({
+        details: {
+          code: "unexpected-response",
+          backend: "blockscout",
+          status: 200,
+          excerpt: EMPTY_SUBMIT,
+          attempts: "4",
+        },
+      }),
+      unreadable,
+    );
+    // The same answer under another code keeps that code's hint.
+    assert.equal(
+      userHintOf({
+        details: {
+          code: "network",
+          backend: "blockscout",
+          status: 200,
+          excerpt: EMPTY_SUBMIT,
+          attempts: 4,
+        },
+      }),
+      hintFor(errorOf(SAMPLE_DETAILS.network), "user"),
     );
   });
 

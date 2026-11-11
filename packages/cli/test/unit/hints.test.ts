@@ -599,6 +599,32 @@ describe("the CLI's own hints (R-AX-10, D3)", () => {
     );
   });
 
+  it("keeps the Blockscout empty-submit hint, and gives its timeout the CLI's --timeout hint (#326)", () => {
+    const hint = "If the contract was deployed moments ago, try again later.";
+    const empty = new ExplorerVerifyError(
+      {
+        code: "unexpected-response",
+        backend: "blockscout",
+        status: 200,
+        excerpt: '{"message":"OK","result":"","status":"1"}',
+        attempts: 4,
+      },
+      "Blockscout gave no job id after 4 submits.",
+      { hint, secrets: [] },
+    );
+    assert.equal(cliErrorJson(empty.toJSON()).hint, hint);
+    // The loop's timeout carries the same hint; the CLI keeps its own, which names --timeout.
+    const timeout = new ExplorerVerifyError(
+      { code: "timeout", backend: "blockscout", timeoutMs: 4_000 },
+      "Blockscout gave no job id after 1 submit, within the 4 s budget.",
+      { hint, secrets: [] },
+    );
+    const shown = cliErrorJson(timeout.toJSON()).hint;
+    assert.equal(shown, cliHint(timeout.toJSON()));
+    assert.match(shown, /--timeout/);
+    assert.match(shown, /nothing is pending/);
+  });
+
   it("names the --input files, not options.sources, when sources are missing", () => {
     const error = new ExplorerVerifyError(
       { code: "incomplete-input", field: "sources", candidates: ["a.sol"] },

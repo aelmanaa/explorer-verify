@@ -203,7 +203,10 @@ export type ErrorDetails =
       excerpt: string;
       /** How long the backend asked to wait, when it sent `Retry-After` with its last answer. */
       retryAfterMs?: number;
-      /** How many requests were tried, when the HTTP layer gave up after retries. */
+      /**
+       * How many requests were tried, when the HTTP layer gave up after retries, or how many
+       * submits were sent, when the explorer kept answering a submit without a job id.
+       */
       attempts?: number;
     }
   | {

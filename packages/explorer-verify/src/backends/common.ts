@@ -266,8 +266,9 @@ export interface Resubmit {
  * Before submit `attempt + 1`: stops when it would pass the budget's deadline, after `maxTries`
  * submits, or once `until` has passed, or with `end`, when a whole `pollIntervalMs` no longer
  * fits before `until`. It then throws the error `end` builds, or else `timeout` at the deadline
- * and `unexpected-response` for the other two. When it goes on, it logs at `warn`, emits
- * `verify.retry` and waits `pollIntervalMs`, without `end` cut to what is left before `until`.
+ * and `unexpected-response`, with the number of submits sent as `attempts`, for the other two.
+ * When it goes on, it logs at `warn`, emits `verify.retry` and waits `pollIntervalMs`, without
+ * `end` cut to what is left before `until`.
  *
  * @param ctx - The call's context.
  * @param answer - The answer that asks for a new submit.
@@ -298,7 +299,13 @@ export async function waitToResubmit(
       newError(
         late
           ? { code: "timeout", backend, timeoutMs: budget.timeoutMs }
-          : { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
+          : {
+              code: "unexpected-response",
+              backend,
+              status: answer.status,
+              excerpt: answer.text,
+              attempts: attempt,
+            },
         message,
         { hint, secrets },
       )

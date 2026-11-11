@@ -38,13 +38,22 @@ cannot act on them, and the library gave a tool nothing else to show.
    a throwing getter or a revoked `Proxy` gets the general hint. A code counts only as an own key
    of the table, so `"toString"` or `"__proto__"` gets the general hint too.
 4. The end-user hint is one fixed sentence per code, in a table in its own module,
-   `src/user-hints.ts`, which nothing else imports. Three cases read the details:
+   `src/user-hints.ts`, which nothing else imports. Four cases read the details:
    - `rate-limited` with a usable `retryAfterMs` names the wait, rounded up: in seconds below 120
      seconds, in minutes up to one hour, and "Try again later" above one hour;
    - `unexpected-response` whose excerpt holds "Unable to locate ContractCode at", the answer of the
      Etherscan-style APIs (Etherscan, Routescan, Etherscan-compatible explorers) while they have not
      indexed the contract, says the explorer has not found the contract yet. The client and
      `hintFor` read the phrase from one module, `src/not-indexed.ts`;
+   - `unexpected-response` from `blockscout` or `blockscout-hosted` with status 200, a numeric
+     `attempts`, and an excerpt that is JSON with `status` `"1"` and an empty, `null` or absent
+     `result`, says the explorer did not start the verification, and asks the user to check the
+     contract's page, then to try again in a minute (issue
+     [#326](https://github.com/aelmanaa/explorer-verify/issues/326)). This is the error that ends
+     the client's submit loop on the empty answer Blockscout gives right after a deployment. The
+     loop sets `attempts` to the number of submits sent. A job status or proxy-link answer of the
+     same shape carries no `attempts`, so it gets the code's general hint. A `timeout` from the
+     same loop carries nothing that marks it, so it keeps the `timeout` hint;
    - `cancelled` with a non-empty `handle` or a non-empty `handles` list says the explorer accepted
      the submission, and asks the user to check the contract's page before submitting again.
 
@@ -95,7 +104,8 @@ trims the hint or resets the ceiling by decision 0014's rule.
 - `error.hint` reads correctly in a wrapper's own error class; the field path is a pointer, not a
   word of the sentence.
 - A tool shows `hintFor(error, "user")` to its own users and keeps `error.hint` for its logs.
-- The Hardhat and Foundry helpers keep their own hints, which still name `options.` and `details.`
-  fields; they follow the same rule in a later change.
+- The Hardhat and Foundry helpers follow the same rule, and the word check scans their source too
+  (issue [#326](https://github.com/aelmanaa/explorer-verify/issues/326)). The Blockscout
+  empty-submit hint says "try again" instead of naming `verify()`.
 - A new code needs an end-user hint: the table is typed by `ErrorCode`, so it does not compile
   without one.

@@ -11,8 +11,9 @@ status, an HTML page, a wrong content type, a redirect or a body that is too lar
 read. `details.status` holds the status and `details.excerpt` the first 300 characters of the
 body, redacted. `details.retryAfterMs` holds the wait the backend asked for, when its last answer
 had a `Retry-After` header, and `details.attempts` the number of requests tried, when the error
-came after retries. A status or body that the backend's client does not recognise ends here
-too, such as Sourcify's `400 invalid_parameter`, or an answer about another contract.
+came after retries. When a client stopped sending a submit again, `details.attempts` is the number
+of submits. A status or body that the backend's client does not recognise ends here too, such as
+Sourcify's `400 invalid_parameter`, or an answer about another contract.
 
 Fix: call again later. If the error persists, check the explorer's status page and report
 `details.status` and `details.excerpt` in an issue.
@@ -27,6 +28,13 @@ When an explorer with an Etherscan-style API (Etherscan, Routescan or an Ethersc
 explorer) found no contract code at the address after its tries, `hintFor(error, "user")` says
 instead that the explorer has not found the contract yet, and asks the user to check the chain and
 the address, or to try again in a minute.
+
+When the Blockscout client (`blockscout` or `blockscout-hosted`) stopped submitting because each
+submit got `status` `"1"` and no job id, as it can right after a deployment,
+`hintFor(error, "user")` says that the explorer did not start the verification. It asks the user
+to check the contract's page on the explorer, then to try again in a minute. It reads this case
+only from an error with `details.attempts`: a job status or proxy-link answer of the same shape
+gets the general hint.
 
 From the CLI: Run the command again later. If it persists, check the explorer's status page and
 report the status and excerpt that --json prints.

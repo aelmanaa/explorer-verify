@@ -9,6 +9,7 @@ import type { LinkTarget, LinkVerdict } from "../../src/backends/backend.ts";
 import { blockscoutProxyLinker } from "../../src/backends/proxy-blockscout.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { RouteOverride } from "../../src/types.ts";
+import { hintFor } from "../../src/user-hints.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
 import { driveMockClock } from "../helpers/mock-clock.ts";
 import {
@@ -103,6 +104,18 @@ describe("the Blockscout proxy link (R-FLOW-8, R-FLOW-4)", () => {
     for (const each of [answer("0", "NOTOK", UID), answer("1", "OK", UID, 201)]) {
       const r = await request(t, [each]);
       expectUnexpected(r.outcome, REQUEST_ANSWER(each.status));
+    }
+  });
+
+  it("gives a request answer with status 1 and an empty result the general end-user hint, not the empty-submit one (#326)", async (t) => {
+    for (const result of ["", null]) {
+      const r = await request(t, [answer("1", "OK", result)]);
+      expectUnexpected(r.outcome, REQUEST_ANSWER(200));
+      assert.ok(r.outcome instanceof ExplorerVerifyError);
+      assert.equal(
+        hintFor(r.outcome, "user"),
+        "The explorer gave an answer that could not be read. Try again later; if it keeps failing, check the explorer's status page.",
+      );
     }
   });
 

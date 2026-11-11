@@ -331,7 +331,11 @@ export function cliErrorJson(error: ErrorJson, context: HintContext = {}): Error
   if (context.own === true) {
     return error;
   }
-  const words = error.hint === ERROR_HINTS[error.code] ? undefined : inCliWords(error.hint);
+  // A `timeout` keeps the CLI's hint, which names --timeout and says nothing is pending.
+  const words =
+    error.hint === ERROR_HINTS[error.code] || error.code === "timeout"
+      ? undefined
+      : inCliWords(error.hint);
   return { ...error, message, hint: words ?? cliHint(error, context) };
 }
 

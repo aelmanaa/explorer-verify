@@ -30,6 +30,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/types.ts";
+import { hintFor } from "../../src/user-hints.ts";
 import { runCheckStatus, runVerify } from "../helpers/defaults.ts";
 import { replay } from "../helpers/fake-fetch.ts";
 import type { Call, Step } from "../helpers/fake-fetch.ts";
@@ -557,7 +558,13 @@ describe("blockscout submit: the empty answer right after a deployment (R-FLOW-7
     assert.ok(error.details.code === "unexpected-response");
     assert.equal(error.details.status, 200);
     assert.equal(error.message, "Blockscout gave no job id after 4 submits.");
-    assert.match(error.hint, /call verify\(\) again later/);
+    assert.equal(error.hint, "If the contract was deployed moments ago, try again later.");
+    assert.equal(error.details.attempts, MAX_EMPTY_SUBMITS);
+    // A tool's end users get a hint for this answer, from the error and from its JSON form.
+    const user =
+      "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
+    assert.equal(hintFor(error, "user"), user);
+    assert.equal(hintFor(error.toJSON(), "user"), user);
     assert.equal(s.calls.length, 2 * MAX_EMPTY_SUBMITS - 1);
     assert.equal(Date.now(), 15_000);
     assert.ok(s.lines.some((line) => line.includes("(submit 4)")));
@@ -692,6 +699,16 @@ describe("blockscout poll (R-BE-3, R-FLOW-2, R-FLOW-4)", () => {
       assert.ok(error.details.code === "unknown-state", result);
       assert.match(error.message, /does not recognise/);
     }
+  });
+
+  it("gives a poll answer with status 1 and a null result the general end-user hint, not the empty-submit one (#326)", async () => {
+    const error = await errorOf(blockscout.poll(handle(), setup([text(null, "1", "OK")]).ctx));
+    assert.ok(error.details.code === "unexpected-response");
+    assert.equal(error.details.attempts, undefined);
+    assert.equal(
+      hintFor(error, "user"),
+      "The explorer gave an answer that could not be read. Try again later; if it keeps failing, check the explorer's status page.",
+    );
   });
 
   it("throws unexpected-response for a result that is not text, a 500 or a body that is not JSON", async () => {

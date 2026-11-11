@@ -112,6 +112,33 @@ function holdsHandle(details: unknown): boolean {
   return accepted || (typeof count === "number" && count > 0);
 }
 
+/**
+ * Whether an `unexpected-response` ends Blockscout's submit loop on its empty answer: a 200 whose
+ * body is JSON with `status` `"1"` and an empty, `null` or absent `result`, so no job id, after
+ * `attempts` submits. Blockscout gives it right after a deployment. A poll or a proxy-link request
+ * with the same answer carries no `attempts`.
+ */
+function emptySubmit(details: unknown): boolean {
+  const excerpt = read(details, "excerpt");
+  const backend = read(details, "backend");
+  if (
+    (backend !== "blockscout" && backend !== "blockscout-hosted") ||
+    read(details, "status") !== 200 ||
+    typeof read(details, "attempts") !== "number" ||
+    typeof excerpt !== "string"
+  ) {
+    return false;
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(excerpt);
+  } catch {
+    return false;
+  }
+  const result = read(body, "result");
+  return read(body, "status") === "1" && (result === undefined || result === null || result === "");
+}
+
 /** The end-user hint, from the code and what its details say. Never throws. */
 function userHint(details: unknown): string {
   const code = read(details, "code");
@@ -135,6 +162,9 @@ function userHint(details: unknown): string {
   ) {
     // An older copy's JSON names this answer as unexpected-response (decision 0066).
     return USER_HINTS["not-indexed"];
+  }
+  if (code === "unexpected-response" && emptySubmit(details)) {
+    return "The explorer did not start the verification, as can happen right after a deployment. Check the contract's page on the explorer; if it is not verified, wait a minute, then try again.";
   }
   if (code === "cancelled" && holdsHandle(details)) {
     return "The verification was cancelled after the explorer accepted it. Check the contract's page on the explorer before you submit it again.";

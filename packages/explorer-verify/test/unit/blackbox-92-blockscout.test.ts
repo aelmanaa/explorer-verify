@@ -919,7 +919,7 @@ describe("blackbox #92: the empty submit answer (R-FLOW-7)", () => {
     assert.ok(last.at - first.at <= 30_000, `last submit ${last.at - first.at} ms after the first`);
     assert.ok(submits.length <= 11, `${submits.length} submits`);
     assert.equal(retryReasons(run).filter((r) => r === "empty-submit").length, submits.length - 1);
-    assert.ok(error.hint.toLowerCase().includes("verify"), error.hint);
+    assert.match(error.hint, /try again later/, error.hint);
     assert.ok(!eventTypes(run).includes("verify.result"));
     assertEventsValid(run);
   });

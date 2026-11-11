@@ -106,12 +106,18 @@ const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper f
 tool gives the error's fields other names.
 
 `hintFor(error, "user")` returns a hint for the people who use your tool, such as an IDE, a dapp or
-a verification service. It names no function, option, field or command, and reads the error's
-details: it gives the wait the explorer asked for, says when an explorer with an Etherscan-style
-API has not indexed the contract yet, and tells a cancelled run with a handle to check the explorer
-before submitting again. `hintFor(error, "developer")` returns `error.hint`. Both take the error or
-its JSON form. `hintFor` never throws: a value it cannot read, or a code it does not know, gets a
-general hint. Each code's page gives its end-user hint on its "For end users" line.
+a verification service. It names no function, option, field or command. It reads the error's
+details, so it can:
+
+- give the wait the explorer asked for;
+- say when an explorer with an Etherscan-style API has not indexed the contract yet;
+- say when Blockscout, hosted or not, gave no job id for each submit, as it can right after a
+  deployment;
+- tell a cancelled run with a handle to check the explorer before submitting again.
+
+`hintFor(error, "developer")` returns `error.hint`. Both take the error or its JSON form. `hintFor`
+never throws: a value it cannot read, or a code it does not know, gets a general hint. Each code's
+page gives its end-user hint on its "For end users" line.
 
 <!-- no-run: it calls a terminal function of the host tool, which a test run does not have. -->
 
