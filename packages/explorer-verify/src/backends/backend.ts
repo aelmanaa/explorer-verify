@@ -93,6 +93,13 @@ export interface Context {
    * Absent means 3000.
    */
   readonly pollIntervalMs?: number;
+  // References: R-FLOW-7, decision 0066.
+  /**
+   * The caller's `indexWaitMs`: how long, from the first submit, a client sends the submit again
+   * while the explorer finds no contract code at the address. Absent means at most
+   * 10 submits.
+   */
+  readonly indexWaitMs?: number | undefined;
   // References: decision 0046.
   /**
    * The caller's server handler, for a route whose requests go through it: it

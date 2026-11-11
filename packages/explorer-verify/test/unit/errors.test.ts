@@ -124,6 +124,7 @@ const LEAKY_DETAILS: Record<ErrorCode, ErrorDetails> = {
     handlerCode: `chain-not-allowed ${DUMMY_KEY}`,
     excerpt: `Refused. ${DUMMY_KEY}`,
   },
+  "not-indexed": { code: "not-indexed", backend: "etherscan-v2", submits: 10, elapsedMs: 27_000 },
 };
 
 // The documented contract for every code (R-DX-3, R-AX-7, R-AX-10).
@@ -257,6 +258,11 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     hint: "Do not retry. Fix the createVerifyHandler option or the request that the handler's refusal code names (details.handlerCode).",
     retryable: false,
     exitCode: 2,
+  },
+  "not-indexed": {
+    hint: "Check the chain and the address (chainId, address). If the contract was just deployed, call again in a minute, or wait longer with indexWaitMs.",
+    retryable: true,
+    exitCode: 4,
   },
 };
 
@@ -400,6 +406,7 @@ describe("ExplorerVerifyError", () => {
       case "proxy-link-pending":
       case "proxy-link-unknown-state":
       case "handler-refused":
+      case "not-indexed":
         assert.fail(`unexpected code ${details.code}`);
     }
   });
@@ -501,11 +508,14 @@ describe("ERROR_EXIT_CODES (R-AX-7)", () => {
     // finished job cannot give another answer; the fix is a new verify(). R-AX-5 and decision
     // 0010: internal-error exits 6 with no handle, because no explorer job is involved. R-FLOW-8
     // and decision 0033: proxy-link-pending exits 4 with no handle; the fix is a new linkProxy().
+    // R-FLOW-7 and decision 0066: not-indexed exits 4 with no handle, because nothing was
+    // submitted; the fix is a new verify().
     const withoutHandle: readonly ErrorCode[] = [
       "verification-inconclusive",
       "internal-error",
       "proxy-link-pending",
       "proxy-link-unknown-state",
+      "not-indexed",
     ];
     for (const code of ERROR_CODES) {
       const exit = ERROR_EXIT_CODES[code];

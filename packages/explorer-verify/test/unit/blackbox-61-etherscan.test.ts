@@ -512,7 +512,7 @@ describe("blackbox #61: submit mapping (R-FLOW-4, R-FLOW-7)", () => {
     assert.equal(actions(run).filter((action) => action === "verifysourcecode").length, 3);
   });
 
-  it("Unable to locate ContractCode at until the budget is spent throws timeout without a handle", async () => {
+  it("Unable to locate ContractCode at until the budget is spent throws not-indexed without a handle", async () => {
     const run = setup(
       {
         getsourcecode: [LOOKUP_NONE],
@@ -521,7 +521,7 @@ describe("blackbox #61: submit mapping (R-FLOW-4, R-FLOW-7)", () => {
       { timeoutMs: 10_000 },
     );
     const error = await errorOf(verify(makeInput(), run.options));
-    assert.equal(error.details.code, "timeout");
+    assert.equal(error.details.code, "not-indexed");
     assert.ok(!("handle" in error.details) || error.details.handle === undefined);
     const submits = actions(run).filter((action) => action === "verifysourcecode").length;
     assert.ok(submits >= 2 && submits <= 12, `submits ${submits}`);

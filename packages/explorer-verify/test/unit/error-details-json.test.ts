@@ -354,6 +354,13 @@ describe("toEnvelope() rebuilds the details of an error object it did not build 
         },
       ],
       ["handler-refused", { backend: "x", status: "403", excerpt: "", handlerCode: "" }, undefined],
+      [
+        "not-indexed",
+        { backend: "routescan", submits: 4, elapsedMs: 9_000, extra: 1 },
+        { code: "not-indexed", backend: "routescan", submits: 4, elapsedMs: 9_000 },
+      ],
+      ["not-indexed", { backend: "routescan", submits: "4", elapsedMs: 9_000 }, undefined],
+      ["not-indexed", { backend: "routescan", submits: 4, elapsedMs: Number.NaN }, undefined],
       ["no-metadata-hash", { found: "no-code" }, { code: "no-metadata-hash", found: "no-code" }],
       [
         "no-metadata-hash",

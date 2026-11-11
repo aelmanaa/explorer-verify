@@ -66,7 +66,7 @@ export const EXIT_CODES: readonly ExitCodeHelp[] = [
   {
     code: 4,
     meaning:
-      "No verdict yet: not-confirmed (the output carries the handle), verification-inconclusive or proxy-link-pending (SDK only)",
+      "No verdict yet: not-confirmed (the output carries the handle), verification-inconclusive, not-indexed (the explorer has not indexed the contract yet) or proxy-link-pending (SDK only)",
   },
   { code: 5, meaning: "Network: the explorer was unavailable after retries" },
   {

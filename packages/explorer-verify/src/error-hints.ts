@@ -78,6 +78,8 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
     "Do not retry automatically. Check the proxy's page on the explorer and report its answer (details.excerpt).",
   "handler-refused":
     "Do not retry. Fix the createVerifyHandler option or the request that the handler's refusal code names (details.handlerCode).",
+  "not-indexed":
+    "Check the chain and the address (chainId, address). If the contract was just deployed, call again in a minute, or wait longer with indexWaitMs.",
 };
 
 /**

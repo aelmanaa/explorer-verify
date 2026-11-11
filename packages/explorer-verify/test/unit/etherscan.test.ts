@@ -10,6 +10,8 @@ import { inspect } from "node:util";
 import type { Context, Target } from "../../src/backends/backend.ts";
 import { REASON_LENGTH } from "../../src/backends/common.ts";
 import { MAX_NOT_INDEXED_TRIES, etherscan } from "../../src/backends/etherscan.ts";
+import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
+import { ERROR_HINTS } from "../../src/error-hints.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { checkStatus } from "../../src/index.ts";
@@ -22,6 +24,7 @@ import type {
   RouteOverride,
   VerifyEvent,
   VerifyInput,
+  VerifyOptions,
   VerifyResult,
 } from "../../src/types.ts";
 import { runVerify } from "../helpers/defaults.ts";
@@ -102,7 +105,12 @@ interface Setup {
 
 function setup(
   steps: Step[],
-  options: { route?: RouteOverride; budgetMs?: number; pollIntervalMs?: number } = {},
+  options: {
+    route?: RouteOverride;
+    budgetMs?: number;
+    pollIntervalMs?: number;
+    indexWaitMs?: number;
+  } = {},
 ): Setup {
   const fake = replay(...steps);
   const events: VerifyEvent[] = [];
@@ -134,6 +142,7 @@ function setup(
       apiKeys: () => apiKeys,
       http,
       ...(options.pollIntervalMs === undefined ? {} : { pollIntervalMs: options.pollIntervalMs }),
+      ...(options.indexWaitMs === undefined ? {} : { indexWaitMs: options.indexWaitMs }),
     },
     calls: fake.calls,
     events,
@@ -503,7 +512,13 @@ describe("etherscan submit (R-BE-1, R-FLOW-2, R-FLOW-7)", () => {
     for (const event of s.events) {
       assert.deepEqual(validateEvent(event), [], JSON.stringify(event));
     }
-    assert.ok(s.lines.some((line) => line.includes("found no contract code at the address yet")));
+    assert.ok(
+      s.lines.some((line) =>
+        line.includes(
+          "found no contract code at the address yet; submitting again in 5000 ms (submit 2)",
+        ),
+      ),
+    );
   });
 
   it("waits 3000 ms between those submits without a pollIntervalMs", async (t) => {
@@ -513,27 +528,181 @@ describe("etherscan submit (R-BE-1, R-FLOW-2, R-FLOW-7)", () => {
     assert.equal(Date.now(), 3_000);
   });
 
-  it("throws timeout when the next of those submits would pass the budget", async (t) => {
+  it("throws not-indexed, not timeout, when the next of those submits would pass the budget (decision 0066)", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
     const s = setup([NO_CODE(), NO_CODE()], { budgetMs: 8_000, pollIntervalMs: 5_000 });
     const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
-    assert.deepEqual(error.details, { code: "timeout", backend: "etherscan-v2", timeoutMs: 8_000 });
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 2,
+      elapsedMs: 5_000,
+    });
     assert.equal(s.calls.length, 2);
-    assert.match(error.message, /no contract code at the address after 2 submits/);
-    assert.match(error.hint, /Check that chainId and address/);
+    assert.equal(
+      error.message,
+      "Etherscan found no contract code at the address after 2 submits, within the 8 s budget.",
+    );
+    assert.match(error.hint, /^Check the chain and the address \(chainId, address\)\./);
+    assert.equal(error.retryable, true);
   });
 
-  it(`stops after ${String(MAX_NOT_INDEXED_TRIES)} of those submits with unexpected-response whose hint names the chain id and address`, async (t) => {
+  it(`stops after ${String(MAX_NOT_INDEXED_TRIES)} of those submits without indexWaitMs, with not-indexed (decision 0066)`, async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
     // A large budget, so the cap ends the loop; one more step would fail the replay.
     const steps = Array.from({ length: MAX_NOT_INDEXED_TRIES }, () => NO_CODE());
     const s = setup(steps, { budgetMs: 10_000_000, pollIntervalMs: 1_000 });
     const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
-    assert.equal(error.code, "unexpected-response");
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 10,
+      elapsedMs: 9_000,
+    });
     assert.equal(s.calls.length, MAX_NOT_INDEXED_TRIES);
     assert.equal(s.events.length, MAX_NOT_INDEXED_TRIES - 1);
-    assert.match(error.message, /after 10 submits/);
-    assert.match(error.hint, /Check that chainId and address name a contract deployed/);
+    assert.equal(
+      error.message,
+      "Etherscan found no contract code at the address after 10 submits.",
+    );
+    assert.equal(error.hint, ERROR_HINTS["not-indexed"]);
+  });
+
+  it("with indexWaitMs, sends more than 10 of those submits, with no cap in the log line (R-FLOW-7)", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const steps = Array.from({ length: MAX_NOT_INDEXED_TRIES + 2 }, () => NO_CODE());
+    const s = setup([...steps, SUBMITTED()], {
+      budgetMs: 60_000,
+      pollIntervalMs: 1_000,
+      indexWaitMs: 20_000,
+    });
+    const outcome = await drive(t, etherscan.submit(input(), s.ctx));
+    assert.equal(outcome.state, "submitted");
+    assert.equal(s.calls.length, MAX_NOT_INDEXED_TRIES + 3);
+    assert.equal(Date.now(), 12_000);
+    assert.equal(s.events.length, MAX_NOT_INDEXED_TRIES + 2);
+    assert.ok(
+      s.lines.some((line) => line.includes("submitting again in 1000 ms (submit 12) {")),
+      s.lines.join("\n"),
+    );
+    assert.ok(!s.lines.some((line) => line.includes("of at most")));
+  });
+
+  it("with indexWaitMs, never cuts a wait: it stops when a whole pollIntervalMs no longer fits", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    // Submits at 0, 2000 and 4000; at 4000 only 500 ms of indexWaitMs is left, so none follows.
+    const steps = Array.from({ length: 3 }, () => NO_CODE());
+    const s = setup(steps, { budgetMs: 60_000, pollIntervalMs: 2_000, indexWaitMs: 4_500 });
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 3,
+      elapsedMs: 4_000,
+    });
+    assert.deepEqual(
+      s.events.map((event) => (event.type === "verify.retry" ? event.delayMs : undefined)),
+      [2_000, 2_000],
+    );
+    assert.equal(error.message, "Etherscan found no contract code at the address after 3 submits.");
+  });
+
+  it("with indexWaitMs, sends the last submit when a whole pollIntervalMs fits exactly", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    // Submits at 0, 2000 and 4000: the wait after 2000 ends exactly at indexWaitMs.
+    const steps = Array.from({ length: 3 }, () => NO_CODE());
+    const s = setup(steps, { budgetMs: 60_000, pollIntervalMs: 2_000, indexWaitMs: 4_000 });
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.equal(s.calls.length, 3);
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 3,
+      elapsedMs: 4_000,
+    });
+  });
+
+  it("with an indexWaitMs shorter than pollIntervalMs, sends one submit and no near-duplicate", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    const s = setup([NO_CODE()], { budgetMs: 60_000, pollIntervalMs: 3_000, indexWaitMs: 1 });
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.equal(s.calls.length, 1);
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 1,
+      elapsedMs: 0,
+    });
+    assert.equal(s.events.length, 0);
+  });
+
+  it("keeps the wait and the count of the first try after a submit without a clear answer (decision 0066)", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    // No code three times, a 502 that may hide an accepted submit, the lookup that finds nothing,
+    // then no code again. The submit sent after the lookup belongs to the same wait.
+    const s = setup(
+      [
+        NO_CODE(),
+        NO_CODE(),
+        NO_CODE(),
+        new Response("Bad Gateway", { status: 502 }),
+        NOT_VERIFIED(),
+        NO_CODE(),
+      ],
+      { budgetMs: 60_000, pollIntervalMs: 3_000, indexWaitMs: 10_000 },
+    );
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 4,
+      elapsedMs: 9_000,
+    });
+    assert.equal(Date.now(), 9_000);
+    assert.deepEqual(
+      s.calls.map((call) => form(call).get("action")),
+      [
+        "verifysourcecode",
+        "verifysourcecode",
+        "verifysourcecode",
+        "verifysourcecode",
+        "getsourcecode",
+        "verifysourcecode",
+      ],
+    );
+  });
+
+  it("with indexWaitMs longer than the budget, the budget ends the wait with not-indexed", async (t) => {
+    // A clock that does not start at 0, so elapsedMs is measured from the first submit.
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 50_000 });
+    const steps = Array.from({ length: 3 }, () => NO_CODE());
+    const s = setup(steps, { budgetMs: 5_000, pollIntervalMs: 2_000, indexWaitMs: 60_000 });
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 3,
+      elapsedMs: 4_000,
+    });
+    assert.match(error.message, /after 3 submits, within the 5 s budget\.$/);
+  });
+
+  it("stops when the next submit would land exactly on the budget's deadline", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+    // Submits at 0 and 2000; one more at 4000 would land on the deadline, so none is sent.
+    const s = setup([NO_CODE(), NO_CODE()], {
+      budgetMs: 4_000,
+      pollIntervalMs: 2_000,
+      indexWaitMs: 60_000,
+    });
+    const error = await errorOf(drive(t, etherscan.submit(input(), s.ctx)));
+    assert.deepEqual(error.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 2,
+      elapsedMs: 2_000,
+    });
+    assert.equal(s.calls.length, 2);
   });
 
   it("sends those submits again with a context that has no observer", async (t) => {
@@ -796,6 +965,7 @@ describe("etherscan explorerUrl (R-FLOW-3)", () => {
 async function runFlow(
   t: TestContext,
   steps: Step[],
+  extra: VerifyOptions = {},
 ): Promise<{ outcome: unknown; events: VerifyEvent[]; calls: Call[]; lines: string[] }> {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   const fake = replay(...steps);
@@ -816,6 +986,7 @@ async function runFlow(
         onEvent: (event) => {
           events.push(event);
         },
+        ...extra,
       },
       { backends: { "etherscan-v2": etherscan }, table: TABLE, random: () => 0 },
     ).catch((error: unknown) => error),
@@ -883,6 +1054,49 @@ describe("verify() with the Etherscan client (R-FLOW-1, R-FLOW-2, R-DX-6, R-SEC-
       r.lines.join("\n"),
     ].join("\n");
     assert.ok(!shown.includes(KEY));
+  });
+
+  it("R-FLOW-7: waits indexWaitMs for a new deployment, then verifies (recorded 2026-11-04 and 2026-11-03)", async (t) => {
+    // 15 answers of no contract code, 3 s apart: more than the 10 submits sent without indexWaitMs.
+    const notIndexed = Array.from({ length: 15 }, () => NO_CODE());
+    const r = await runFlow(t, [NOT_VERIFIED(), ...notIndexed, SUBMITTED(), PENDING(), PASS()], {
+      indexWaitMs: 60_000,
+      pollIntervalMs: 3_000,
+    });
+    const expected: VerifyResult = {
+      status: "verified",
+      backend: "etherscan-v2",
+      match: "exact",
+      explorerUrl: `https://sepolia.arbiscan.io/address/${TARGET.address}#code`,
+    };
+    assert.deepEqual(r.outcome, expected);
+    const retries = r.events.filter((event) => event.type === "verify.retry");
+    assert.equal(retries.length, 15);
+    assert.ok(retries.every((event) => event.reason === "not-indexed" && event.delayMs === 3_000));
+    assert.equal(r.calls.length, 1 + 15 + 1 + 2);
+    // The last submit went out at 45 s, and the two polls 3 s apart after it.
+    assert.equal(Date.now(), 51_000);
+  });
+
+  it("R-FLOW-4: throws not-indexed, retryable, exit code 4 and no handle, when indexWaitMs ends (recorded 2026-11-04)", async (t) => {
+    const notIndexed = Array.from({ length: 6 }, () => NO_CODE());
+    const r = await runFlow(t, [NOT_VERIFIED(), ...notIndexed], { indexWaitMs: 5_000 });
+    assert.ok(r.outcome instanceof ExplorerVerifyError);
+    assert.deepEqual(r.outcome.details, {
+      code: "not-indexed",
+      backend: "etherscan-v2",
+      submits: 6,
+      elapsedMs: 5_000,
+    });
+    assert.equal(r.outcome.retryable, true);
+    assert.ok(!("handle" in r.outcome.details));
+    assert.equal(ERROR_EXIT_CODES[r.outcome.code], 4);
+    assert.equal(
+      r.events.filter((event) => event.type === "verify.retry" && event.reason === "not-indexed")
+        .length,
+      5,
+    );
+    assert.ok(!r.events.some((event) => event.type === "verify.submitted"));
   });
 
   it("returns already-verified from the first lookup without a submit (R-FLOW-1)", async (t) => {

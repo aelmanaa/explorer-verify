@@ -77,6 +77,7 @@ export function verifyOptionKeys(): readonly string[] {
     signal: true,
     timeoutMs: true,
     pollIntervalMs: true,
+    indexWaitMs: true,
     logger: true,
     onEvent: true,
     route: true,
@@ -383,6 +384,9 @@ export interface Settings {
   readonly signal: AbortSignal | undefined;
   readonly timeoutMs: number;
   readonly pollIntervalMs: number;
+  // References: R-FLOW-7, decision 0066.
+  /** The caller's `indexWaitMs`, checked; `undefined` when absent. */
+  readonly indexWaitMs: number | undefined;
   readonly logger: Logger | undefined;
   readonly onEvent: VerifyOptions["onEvent"];
   readonly route: RouteOverride | undefined;
@@ -766,6 +770,7 @@ export function openContext(
       route,
       apiKeys,
       pollIntervalMs: settings.pollIntervalMs,
+      indexWaitMs: settings.indexWaitMs,
       http: httpContext(route, settings, observer, secrets, budget, random),
       handler: serverAddsKey ? handler : undefined,
     },
@@ -886,6 +891,8 @@ export async function settle(
  *   clamped to it, because a longer `setTimeout` fires at once.
  * - `pollIntervalMs` must be a positive finite number; it is clamped to between
  *   {@link MIN_POLL_INTERVAL_MS} and {@link MAX_TIMER_MS}.
+ * - `indexWaitMs` must be a positive number; one above {@link MAX_TIMER_MS}, `Infinity` included,
+ *   is clamped to it.
  * - `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object.
  */
 export function settingsOf(
@@ -898,6 +905,7 @@ export function settingsOf(
       signal: undefined,
       timeoutMs: DEFAULT_TIMEOUT_MS,
       pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
+      indexWaitMs: undefined,
       logger: undefined,
       onEvent: undefined,
       route: undefined,
@@ -953,6 +961,7 @@ export function settingsOf(
         "pollIntervalMs",
         issues,
       ),
+      indexWaitMs: duration(own(options, "indexWaitMs"), undefined, 1, "indexWaitMs", issues, true),
     };
     rawKeys = own(options, "apiKeys");
     rawRpcUrl = own(options, "rpcUrl");
@@ -1022,14 +1031,14 @@ function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
  * issue when it is not a positive number. `Infinity` is clamped like any value above
  * {@link MAX_TIMER_MS} when `unbounded` is set, and is an issue otherwise.
  */
-function duration(
+function duration<F extends number | undefined>(
   value: unknown,
-  fallback: number,
+  fallback: F,
   floor: number,
   field: string,
   issues: InputIssue[],
   unbounded = false,
-): number {
+): number | F {
   if (value === undefined) {
     return fallback;
   }
@@ -1059,7 +1068,7 @@ function invalidOptions(
     { code: "invalid-input", issues },
     `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
-      hint: `Pass options as a plain object: timeoutMs and pollIntervalMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.${issues.some(({ field }) => field === "clients" || field === "table") ? " Use explorer-verify/core for clients and table." : ""}`,
+      hint: `Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.${issues.some(({ field }) => field === "clients" || field === "table") ? " Use explorer-verify/core for clients and table." : ""}`,
       secrets,
     },
   );

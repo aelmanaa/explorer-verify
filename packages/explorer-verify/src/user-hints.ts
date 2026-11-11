@@ -61,6 +61,8 @@ const USER_HINTS: Readonly<Record<ErrorCode, string>> = {
     "The explorer gave an answer about the proxy that could not be read. Check the proxy's page on the explorer before you try again.",
   "handler-refused":
     "The verification server refused the request. Report it to the tool's maintainer; trying again will not help.",
+  "not-indexed":
+    "The explorer has not found the contract at this address yet. Check the chain and the address; if the contract was deployed moments ago, try again in a minute.",
 };
 
 /** The end-user hint of a code that is not in this copy's catalogue, such as one from a newer copy. */
@@ -131,7 +133,8 @@ function userHint(details: unknown): string {
     typeof excerpt === "string" &&
     excerpt.includes(NOT_INDEXED_ANSWER)
   ) {
-    return "The explorer has not found the contract at this address yet. Check the chain and the address; if the contract was deployed moments ago, try again in a minute.";
+    // An older copy's JSON names this answer as unexpected-response (decision 0066).
+    return USER_HINTS["not-indexed"];
   }
   if (code === "cancelled" && holdsHandle(details)) {
     return "The verification was cancelled after the explorer accepted it. Check the contract's page on the explorer before you submit it again.";

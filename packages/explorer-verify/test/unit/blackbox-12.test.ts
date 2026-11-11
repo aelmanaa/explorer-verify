@@ -56,6 +56,7 @@ const expected: Record<ErrorCode, { retryable: boolean; exit: number; hasHandle:
   "proxy-link-pending": { retryable: true, exit: 4, hasHandle: false },
   "proxy-link-unknown-state": { retryable: false, exit: 6, hasHandle: false },
   "handler-refused": { retryable: false, exit: 2, hasHandle: false },
+  "not-indexed": { retryable: true, exit: 4, hasHandle: false },
 };
 
 /** Details for each code; `text` goes into every free-text string the details allow. */
@@ -125,6 +126,7 @@ function detailsFor(code: ErrorCode, text: string): ErrorDetails {
       handlerCode: text,
       excerpt: text,
     },
+    "not-indexed": { code: "not-indexed", backend: "etherscan-v2", submits: 3, elapsedMs: 6_000 },
   };
   return all[code];
 }

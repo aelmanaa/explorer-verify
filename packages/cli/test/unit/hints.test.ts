@@ -109,6 +109,7 @@ const LEAKY: { readonly [C in ErrorCode]: ErrorDetails } = {
     handlerCode: `chain-${DUMMY_KEY}`,
     excerpt: `{"error":"${DUMMY_KEY}"}`,
   },
+  "not-indexed": { code: "not-indexed", backend: "routescan", submits: 4, elapsedMs: 9_000 },
 };
 
 /** The CLI hint of `rate-limited` with the wait the explorer asked for. */

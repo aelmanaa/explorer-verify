@@ -560,7 +560,7 @@ describe("blockscout submit: the empty answer right after a deployment (R-FLOW-7
     assert.match(error.hint, /call verify\(\) again later/);
     assert.equal(s.calls.length, 2 * MAX_EMPTY_SUBMITS - 1);
     assert.equal(Date.now(), 15_000);
-    assert.ok(s.lines.some((line) => line.includes("(submit 4 of at most 4)")));
+    assert.ok(s.lines.some((line) => line.includes("(submit 4)")));
   });
 
   it(`cuts a long pollIntervalMs to the ${String(EMPTY_SUBMIT_WINDOW_MS)} ms window, then stops`, async (t) => {

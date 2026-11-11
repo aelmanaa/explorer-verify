@@ -156,6 +156,7 @@ const SAMPLE_DETAILS: Record<ErrorCode, ErrorDetails> = {
     handlerCode: "chain-not-allowed",
     excerpt: LEAKY_URL,
   },
+  "not-indexed": { code: "not-indexed", backend: "etherscan-v2", submits: 10, elapsedMs: 27_000 },
 };
 
 function errorFor(code: ErrorCode): ExplorerVerifyError {

@@ -65,6 +65,7 @@ const DETAILS: { readonly [C in ErrorCode]: DetailsJsonOf<C> } = {
     excerpt: "Forbidden",
     handlerCode: "<handler code>",
   },
+  "not-indexed": { code: "not-indexed", backend: "etherscan-v2", submits: 10, elapsedMs: 27_000 },
 };
 
 /**

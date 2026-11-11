@@ -93,7 +93,8 @@ the verification goes on.
   with `,`, such as `etherscan-v2`.
 - `verify.retry` `reason` is `rate-limited`, `network`, `server-error`, `duplicate-submission`,
   `not-indexed` or `empty-submit`. `not-indexed` means Etherscan found no contract code at the
-  address yet, and the submit is sent again ([Etherscan](etherscan.md#how-answers-are-read)).
+  address yet, and the submit is sent again, within `indexWaitMs` when it is set
+  ([Etherscan](etherscan.md#how-answers-are-read)).
   `empty-submit` means Blockscout gave an empty answer to the submit, and the submit is sent again
   after a lookup ([Blockscout](blockscout.md#the-empty-answer-right-after-a-deployment)).
   `attempt` is the number of the attempt after the wait, so the first retry is attempt 2.

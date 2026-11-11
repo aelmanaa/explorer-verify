@@ -31,6 +31,7 @@ const verifyOptionKeys: Equals<
   | "signal"
   | "timeoutMs"
   | "pollIntervalMs"
+  | "indexWaitMs"
   | "logger"
   | "onEvent"
   | "route"

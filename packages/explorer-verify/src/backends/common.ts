@@ -246,18 +246,28 @@ export interface Resubmit {
   readonly reason: "not-indexed" | "empty-submit";
   /** What the explorer said, as a sentence start: `Etherscan found no contract code at the address`. */
   readonly what: string;
-  /** The hint of the error that ends the loop. */
+  /** The hint of the error that ends the loop, when `end` is absent; `end` gives its own. */
   readonly hint: string;
   /** The most submits, the first included. */
   readonly maxTries: number;
   /** The last time, as a `Date.now()` value, a submit may be sent. Absent means no limit. */
   readonly until?: number;
+  // References: decision 0066.
+  /**
+   * The error that ends the loop, built from its message, whatever stopped it. Absent means
+   * `timeout` at the budget's deadline and `unexpected-response` otherwise. With it, no wait is
+   * cut: the loop stops when a whole `pollIntervalMs` no longer fits before `until`.
+   */
+  readonly end?: (message: string) => AnyExplorerVerifyError;
 }
 
+// References: R-FLOW-7, decision 0066.
 /**
- * Before submit `attempt + 1`: throws `timeout` when it would pass the budget's deadline, and
- * `unexpected-response` after `maxTries` submits or once `until` has passed. Otherwise logs at
- * `warn`, emits `verify.retry` and waits `pollIntervalMs`, cut to what is left before `until`.
+ * Before submit `attempt + 1`: stops when it would pass the budget's deadline, after `maxTries`
+ * submits, or once `until` has passed, or with `end`, when a whole `pollIntervalMs` no longer
+ * fits before `until`. It then throws the error `end` builds, or else `timeout` at the deadline
+ * and `unexpected-response` for the other two. When it goes on, it logs at `warn`, emits
+ * `verify.retry` and waits `pollIntervalMs`, without `end` cut to what is left before `until`.
  *
  * @param ctx - The call's context.
  * @param answer - The answer that asks for a new submit.
@@ -265,7 +275,7 @@ export interface Resubmit {
  * @param loop - The backend's rules.
  * @example
  * ```ts
- * await waitToResubmit(ctx, answer, attempt, { backend, reason: "not-indexed", what, hint, maxTries: 10 });
+ * await waitToResubmit(ctx, answer, attempt, { backend, reason: "empty-submit", what, hint, maxTries: 4 });
  * ```
  */
 export async function waitToResubmit(
@@ -277,24 +287,25 @@ export async function waitToResubmit(
   const { backend, reason, what, hint, maxTries, until = Infinity } = loop;
   const { budget, secrets, observer, signal } = ctx.http;
   const now = Date.now();
-  const delayMs = Math.min(ctx.pollIntervalMs ?? RESUBMIT_WAIT_MS, until - now);
+  const waitMs = ctx.pollIntervalMs ?? RESUBMIT_WAIT_MS;
+  const delayMs = Math.min(waitMs, until - now);
   const tries = `${String(attempt)} ${attempt === 1 ? "submit" : "submits"}`;
-  if (budget !== undefined && now + delayMs >= budget.deadline) {
-    throw newError(
-      { code: "timeout", backend, timeoutMs: budget.timeoutMs },
-      `${what} after ${tries}, within the ${budgetText(budget.timeoutMs)} budget.`,
-      { hint, secrets },
-    );
-  }
-  if (attempt >= maxTries || delayMs <= 0) {
-    throw newError(
-      { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
-      `${what} after ${tries}.`,
-      { hint, secrets },
+  const late = budget !== undefined && now + delayMs >= budget.deadline;
+  if (late || attempt >= maxTries || delayMs <= 0 || (delayMs < waitMs && loop.end)) {
+    const message = `${what} after ${tries}${late ? `, within the ${budgetText(budget.timeoutMs)} budget` : ""}.`;
+    throw (
+      loop.end?.(message) ??
+      newError(
+        late
+          ? { code: "timeout", backend, timeoutMs: budget.timeoutMs }
+          : { code: "unexpected-response", backend, status: answer.status, excerpt: answer.text },
+        message,
+        { hint, secrets },
+      )
     );
   }
   observer?.log.warn(
-    `${what} yet; submitting again in ${String(delayMs)} ms (submit ${String(attempt + 1)} of at most ${String(maxTries)})`,
+    `${what} yet; submitting again in ${String(delayMs)} ms (submit ${String(attempt + 1)})`,
     { backend, attempt: attempt + 1, reason, delayMs },
   );
   observer?.emit({ type: "verify.retry", backend, attempt: attempt + 1, reason, delayMs });

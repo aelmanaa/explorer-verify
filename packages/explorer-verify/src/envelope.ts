@@ -94,6 +94,7 @@ export const ERROR_EXIT_CODES: Readonly<Record<ErrorCode, ExitCode>> = {
   "proxy-link-pending": 4,
   "proxy-link-unknown-state": 6,
   "handler-refused": 2,
+  "not-indexed": 4,
 };
 
 /**
