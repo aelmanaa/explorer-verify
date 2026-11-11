@@ -50,7 +50,8 @@ The sample request names a Greeter that Sourcify already verified on Sepolia.
 A dry run looks it up and submits nothing:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+curl -fsSLO \
+  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
@@ -72,7 +73,7 @@ your own contract.
 | `@explorer-verify/foundry` | Builds the input from a Foundry project's `out/`   | Node.js code works in a Foundry project  |
 | `@explorer-verify/hardhat` | Builds the input from a Hardhat 2 or 3 project     | Node.js code works in a Hardhat project  |
 
-[Which package do I need](/start/which-package) gives the install command and
+[Which package to install](/start/which-package) gives the install command and
 the entry for each task.
 
 ## Find your way

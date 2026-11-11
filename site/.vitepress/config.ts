@@ -39,6 +39,9 @@ const config: UserConfig<DefaultTheme.Config> = defineConfig({
   title: "explorer-verify",
   description: `Verify deployed contract source on block explorers. Docs of explorer-verify ${version}.`,
   lang: "en",
+  // The site has no icon. An empty one stops the browser asking for /favicon.ico, which is outside
+  // the base and answers 404 in the console.
+  head: [["link", { rel: "icon", href: "data:," }]],
   base: SITE_BASE,
   srcDir: path.relative(path.join(root, "site"), root),
   srcExclude: siteSourceExcludes(root),
