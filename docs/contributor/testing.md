@@ -160,6 +160,29 @@ test runner's environment never changes a run; an entry may set a dummy one. To 
 that sends a request, add an entry with the answers it needs. The test names the page and line of
 each failure.
 
+### The dapp tutorials
+
+The two tutorials, `tutorials/verify-from-a-dapp.md` and `tutorials/deploy-and-verify-from-a-dapp.md`,
+are tested in two places.
+
+The user-docs test runs these blocks against the build, with Sourcify and Etherscan answers
+recorded on 2026-11-02 and 2026-11-04 for the Greeter at
+`0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc` on Sepolia:
+
+| Page               | Run                                            | Type-checked only                              | Neither                           |
+| ------------------ | ---------------------------------------------- | ---------------------------------------------- | --------------------------------- |
+| Verify from a dapp | Every block: dry run, verify, resume           | None                                           | None                              |
+| Deploy and verify  | The build script; the handler script of step 5 | `src/load-input.ts`, `src/verify-etherscan.ts` | `src/deploy.ts` and `src/main.ts` |
+
+The type-checked blocks request files or routes from the dapp's own origin. The others need a
+wallet, a live network or the dapp's own modules.
+
+`examples/test/` runs every module of `examples/dapp/` with no network and no browser: a fake
+EIP-1193 wallet, an in-memory `localStorage`, the example's server for the page's own files and
+`/api/verify`, and the same recorded answers. `examples/test/dapp-files.test.ts` also checks that
+each tutorial block that names an example file is that file, unchanged, and that the bundle puts
+each explorer client in a chunk of its own.
+
 `test/integration/ci-page.test.ts` in the CLI package runs the `sh` examples of the CI guide on the
 built bin, and runs its `scripts/verify.sh` with `bash` and `jq` for exit codes 0, 2, 3 and 4, and
 with a stand-in command whose hint holds `%`, CR and LF, which the script must escape. It skips the

@@ -1,42 +1,30 @@
 # Deploy a contract from a dapp and verify it
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers new to explorer-verify who build a web dapp that deploys contracts for its
-users.
+For: developers who build a web dapp that deploys contracts from the user's wallet.
 
-In this tutorial you build the parts of a dapp that deploy a small contract, `Greeter`, from the
-user's browser wallet on the Sepolia testnet, then verify its source on Sourcify. Sourcify needs no
-API key, so no secret reaches the browser. You will:
+You need: Node 22.18 or later, [Foundry](https://getfoundry.sh/), a bundler, and a browser wallet
+with some Sepolia ETH. An Etherscan key only for step 5.
 
-1. build the contract and ship its files with the dapp;
-2. deploy it from the browser and keep the creation transaction hash;
-3. load the verification input only when the user verifies;
-4. verify on Sourcify, show the handle, and wire the steps to a button;
-5. resume the verification after a page reload;
-6. read the result and the errors;
-7. verify on Etherscan through your own server, which keeps the API key.
-
-You need Node 22.18 or later, [Foundry](https://getfoundry.sh/), a bundler for the browser code
-(any one that handles ES modules and dynamic `import()`), and a browser wallet with some Sepolia
-ETH. Steps 1 to 6 need no account and no API key.
-
-The code blocks are plain TypeScript modules with no framework. Each one names the file it goes in.
-The finished dapp is in the repository, in
-[`examples/dapp/`](../../../examples/dapp/src/main.ts); each module it shares with this page is the
-same file. [Run the example](#run-the-example) says how to start
-it.
+This tutorial deploys a small contract, `Greeter`, from the user's wallet on Sepolia, then
+verifies it. It builds on [Verify a contract from a dapp](verify-from-a-dapp.md), which covers the
+verify, resume and result steps without a wallet. The finished dapp is in
+[`examples/dapp/`](../../../examples/dapp/src/main.ts); each module this page shows is a file there.
 
 ## Step 1: Build the contract and ship its files
 
 The contract stores an owner and a greeting. It inherits from a second file, so its source has two
-files. In a Foundry project, `src/Base.sol`:
+files. In a Foundry project, save both under `src/`.
 
-```solidity
+<details>
+<summary>The two Solidity files</summary>
+
+The base contract:
+
+```solidity [src/Base.sol]
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -49,9 +37,9 @@ abstract contract Base {
 }
 ```
 
-And `src/Greeter.sol`:
+Then the contract the dapp deploys:
 
-```solidity
+```solidity [src/Greeter.sol]
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -66,9 +54,11 @@ contract Greeter is Base {
 }
 ```
 
-Pin the compiler in `foundry.toml`, so every build uses the same solc and gives the same bytecode:
+</details>
 
-```toml
+Pin the compiler, so every build uses the same solc and gives the same bytecode:
+
+```toml [foundry.toml]
 [profile.default]
 src = "src"
 out = "out"
@@ -83,17 +73,17 @@ forge build --build-info
 
 The dapp needs two files from this build:
 
-- `Greeter.deploy.json`: the ABI and the creation bytecode, to deploy;
-- `Greeter.verify.json`: the compiler version and the Standard JSON input, with every source file,
-  to verify.
+| File                  | Holds                                                       | Used to |
+| --------------------- | ----------------------------------------------------------- | ------- |
+| `Greeter.deploy.json` | The ABI and the creation bytecode                           | Deploy  |
+| `Greeter.verify.json` | The compiler version and the Standard JSON input, all files | Verify  |
 
-This tutorial keeps the dapp and the Foundry project in one folder, and the dapp serves `public/`
-as static files. Add a `package.json` with `"type": "module"`, so Node runs the script below as an
-ES module, and install `explorer-verify` and `@explorer-verify/foundry` as development
-dependencies. Save the script as `scripts/export-contracts.ts` and run it after each build with
-`node scripts/export-contracts.ts`:
+Add a `package.json` with `"type": "module"`, and install `explorer-verify` and
+`@explorer-verify/foundry` as development dependencies. Save this script and run it after each
+build with `node scripts/export-contracts.ts`. It writes both files to `public/contracts/`, which
+the dapp serves as static files:
 
-```ts
+```ts [scripts/export-contracts.ts]
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
@@ -129,23 +119,27 @@ It prints:
 src/Greeter.sol:Greeter 0.8.24+commit.e11b9ed9
 ```
 
-The verify file holds every source file of the compile. It is often much larger than the deploy
-file, and most users never verify, so the dapp loads it only when verification runs (step 3).
-Serving it publishes your sources, which verification does anyway. See
-[Verify a contract from a Foundry project](../guides/verify-from-a-foundry-project.md) for the
-helper's options, and
-[Verify a contract shipped in an npm package](../guides/verify-a-contract-from-an-npm-package.md)
-for Hardhat files and other build formats.
+The verify file holds every source file of the compile, so it is often much larger than the deploy
+file. Most users never verify, so the dapp loads it only when verification runs (step 3). Serving
+it publishes your sources, which verification does anyway.
 
 ## Step 2: Deploy from the browser
 
 This step uses [viem](https://viem.sh/) to talk to the wallet. explorer-verify does not need viem:
 any library that sends a contract creation and returns the transaction hash works, such as ethers.
-Install it in the dapp with `npm install viem`, and save this module as `src/deploy.ts`:
+Install it with `npm install viem`. The module exports two functions:
+
+- `deployGreeter(greeting)` asks the wallet to deploy, then waits for the receipt;
+- `resumeDeployment()` finishes a deployment that a page reload interrupted.
+
+<details>
+<summary>The deploy module</summary>
+
+Save it as `src/deploy.ts`:
 
 <!-- fragment: it needs viem and a browser wallet; the test project has neither. -->
 
-```ts fragment
+```ts fragment [src/deploy.ts]
 import { createPublicClient, createWalletClient, custom, isHex } from "viem";
 import type { Abi, EIP1193Provider, Hex } from "viem";
 import { sepolia } from "viem/chains";
@@ -236,41 +230,31 @@ export async function resumeDeployment(): Promise<Deployment | undefined> {
 }
 ```
 
-`deployGreeter` returns the contract's address and the creation transaction hash. The page shows
-both when the transaction is mined (see the button code in step 4).
+</details>
 
-The docs tests do not run this block, because it needs viem and a wallet. The example's tests run
-the same module, `examples/dapp/src/deploy.ts`, against viem 2.57.8 with a fake EIP-1193 wallet.
-The viem calls are those of
-the viem docs, read on 2026-11-04: [Wallet Client](https://viem.sh/docs/clients/wallet),
-[`deployContract`](https://viem.sh/docs/contract/deployContract),
-[`switchChain`](https://viem.sh/docs/actions/wallet/switchChain) and
-[`waitForTransactionReceipt`](https://viem.sh/docs/actions/public/waitForTransactionReceipt).
+`deployGreeter` returns the contract's address and the creation transaction hash. explorer-verify
+sends the hash to Sourcify as `creationTransactionHash`, and it lets the user find the deployment
+again.
 
-Keep the creation transaction hash. explorer-verify sends it to Sourcify as
-`creationTransactionHash`, which names the transaction that created the contract, and it lets the
-user find the deployment again. The module saves it in `localStorage` as soon as the wallet returns
-it, before the transaction is mined. If the page reloads while the transaction is pending,
-`resumeDeployment` waits for the receipt of the saved hash and returns the deployment.
+The module saves the hash in `localStorage` as soon as the wallet returns it, before the
+transaction is mined. If the page reloads while the transaction is pending, `resumeDeployment`
+waits for the receipt of the saved hash and returns the deployment.
 
-`window.ethereum` is the provider that most browser wallets inject, as defined by
-[EIP-1193](https://eips.ethereum.org/EIPS/eip-1193). When a user has several wallets installed, use
-[EIP-6963](https://eips.ethereum.org/EIPS/eip-6963) discovery to let them choose one. If the wallet
-does not know Sepolia, `switchChain` fails; MetaMask answers with error code 4902
-([MetaMask docs](https://docs.metamask.io/wallet/how-to/manage-networks/add-network/), read on
-2026-11-04). Call `wallet.addChain({ chain: sepolia })`
-([viem `addChain`](https://viem.sh/docs/actions/wallet/addChain)), then switch again.
+> [!TIP]
+> When a user has several wallets installed, use [EIP-6963](https://eips.ethereum.org/EIPS/eip-6963)
+> discovery to let them choose one. If the wallet does not know Sepolia, `switchChain` fails
+> (MetaMask answers with error code 4902): call `wallet.addChain({ chain: sepolia })`, then switch
+> again.
 
 ## Step 3: Load the verification input when the user verifies
 
 When the user asks to verify, load explorer-verify and the verify file with a dynamic import and
 `fetch`. Neither is part of the dapp's first page load. Then add the chain, the address and the
-creation transaction hash, and check the whole input with `validateInput`. Save this module as
-`src/load-input.ts`:
+creation transaction hash, and check the whole input. Save this module:
 
 <!-- no-run: it fetches a file from the dapp's own origin, which a test run does not serve. -->
 
-```ts no-run
+```ts no-run [src/load-input.ts]
 import type { VerifyInput } from "explorer-verify";
 
 export interface Deployment {
@@ -295,95 +279,24 @@ export async function loadVerifyInput(deployment: Deployment): Promise<VerifyInp
 }
 ```
 
-`validateInput` checks the compiler version, the Standard JSON input, the contract name, the
-address and the transaction hash, and returns a new input with the address in lower case. A bad
-field throws [`invalid-input`](../reference/errors/invalid-input.md), and nothing is sent. The page
-shows the contract name and the compiler version of the loaded input (see the button code in
-step 4).
+`validateInput` checks every field and returns a new input with the address in lower case. A bad
+field throws [`invalid-input`](../reference/errors/invalid-input.md), and nothing is sent.
 
-## Step 4: Verify on Sourcify
+## Step 4: Verify on Sourcify from a button
 
-Sepolia is in the routing table, which sends it to Sourcify (see
-[Routing](../reference/routing.md)).
-`verify()` first looks the contract up. When Sourcify does not have it yet, it submits the source,
-then polls the job until it ends.
+Sepolia's row in the [routing table](../reference/routing.md) sends it to Sourcify, which needs no
+key. Add the two modules of the first tutorial to `src/`:
 
-Save this module as `src/verify.ts`. `show` writes a line where the user sees it. The last line
-runs the function once on its own, with the console as `show` and `input` as `loadVerifyInput`
-returns it; leave that line out in the dapp, where the button code calls the function.
+- `src/verify.ts`, from [Verify and save the handle](verify-from-a-dapp.md#step-3-verify-and-save-the-handle);
+- `src/resume.ts`, from [Resume after a page reload](verify-from-a-dapp.md#step-5-resume-after-a-page-reload).
 
-```ts
-import { ExplorerVerifyError, verify } from "explorer-verify";
-import type { VerifyInput, VerifyResult } from "explorer-verify";
-
-export const PENDING_KEY = "greeter-verification";
-
-function summary(result: VerifyResult): string {
-  if (result.status === "failed") {
-    return `Sourcify rejected the source: ${result.reason}`;
-  }
-  return [result.status, `(${result.match})`, result.explorerUrl].join(" ");
-}
-
-/** Verifies on Sourcify, saves the handle for a reload, and shows each step with `show`. */
-export async function verifyOnSourcify(
-  input: VerifyInput,
-  show: (line: string) => void,
-): Promise<void> {
-  try {
-    const result = await verify(input, {
-      onEvent: (event) => {
-        if (event.type === "verify.submitted") {
-          // Saved before the first poll, so a reload can resume the job (step 5).
-          localStorage.setItem(PENDING_KEY, event.handle);
-          show(`Submitted. Handle: ${event.handle}`);
-        }
-      },
-    });
-    localStorage.removeItem(PENDING_KEY);
-    show(summary(result));
-  } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-      show("Sourcify is still checking. Reload the page later to see the result.");
-      return;
-    }
-    // Every other end leaves nothing to resume.
-    localStorage.removeItem(PENDING_KEY);
-    if (error instanceof ExplorerVerifyError) {
-      show(`${error.code}: ${error.hint}`);
-      return;
-    }
-    throw error;
-  }
-}
-
-await verifyOnSourcify(input, console.log);
-```
-
-When Sourcify verifies the contract, it prints:
-
-```text
-Submitted. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718
-verified (exact) https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
-```
-
-Show the handle to the user. It is the one-line form of the job: backend, chain, address and job
-id. It holds no key and no URL, so it is safe to display, store or paste into a support request.
-
-The `explorerUrl` is the contract's page on Sourcify. When Sourcify already had the contract,
-`verify()` submits nothing and prints `already-verified (exact)` with the same link. The call has
-a time budget of 120 seconds by default (`timeoutMs`); see
-[verify()](../reference/verify.md#options).
-
-### Wire the steps to a button
-
-The page's entry module, `src/main.ts`, runs the steps in order when the user clicks a button with
-the id `deploy`, and writes each line into an element with the id `status`. On load, it finishes a
+The page's entry module runs the steps in order when the user clicks the button with the id
+`deploy`, and writes each line into the element with the id `status`. On load, it finishes a
 deployment that a reload interrupted:
 
 <!-- fragment: it imports the dapp's own modules of steps 2 to 4. -->
 
-```ts fragment
+```ts fragment [src/main.ts]
 import { deployGreeter, resumeDeployment } from "./deploy.ts";
 import type { Deployment } from "./deploy.ts";
 import { loadVerifyInput } from "./load-input.ts";
@@ -418,130 +331,48 @@ if (pending !== undefined) {
 }
 ```
 
-Point your bundler at `src/main.ts`. The docs tests do not run this module. The example's
-`src/main.ts` holds the same code, adds the steps that follow, and is tested on a fake page. A
-bundler that splits code puts each
-explorer client in a chunk of its own, and this page loads only the Sourcify client: see
-[client chunks](../reference/routing.md#client-chunks).
+Point your bundler at `src/main.ts`. A bundler that splits code puts each explorer client in a
+chunk of its own, and this page loads only the Sourcify client: see
+[client chunks](../reference/routing.md#client-chunks). The example's `src/main.ts` also calls
+`resumeVerification(show)` on load. [Verify a contract from a dapp](verify-from-a-dapp.md#step-6-read-the-result)
+says how to read each result and error.
 
-## Step 5: Resume after a page reload
+## Step 5: Verify on Etherscan through your server
 
-A reload, a closed tab or the call's time limit can end the page's wait while Sourcify still
-checks the source. The job goes on. Because step 4 saved the handle when Sourcify accepted the
-submission, the page can poll the same job again with `checkStatus()`, which never submits. Save
-this module as `src/resume.ts`, and call `resumeVerification(show)` from `src/main.ts` when the page
-loads. As in step 4, the last line runs it once on its own:
+Etherscan needs an API key, and the key must never reach the browser. The server handler keeps it
+on your server: the browser sends its Etherscan requests to the handler, which adds the key and
+forwards them.
 
-```ts
-import { ExplorerVerifyError, checkStatus, tryParseHandle } from "explorer-verify";
+> [!IMPORTANT]
+> A public dapp, or any use by a business, protocol, foundation or DAO, needs an Etherscan Advanced
+> plan or higher and its own key. A dapp that displays Etherscan data must show "Powered by
+> Etherscan.io APIs". See [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md).
 
-const PENDING_KEY = "greeter-verification";
+[Run the server handler](../guides/run-the-server-handler.md) shows the handler in Next.js and in a
+Cloudflare Worker. Whatever the platform, set these options for this dapp:
 
-/** Polls the job whose handle a previous page load saved, if any. Never submits. */
-export async function resumeVerification(show: (line: string) => void): Promise<void> {
-  const stored = localStorage.getItem(PENDING_KEY);
-  if (stored === null) {
-    return;
-  }
-  // A value that is not a handle, such as one another version of the page wrote, is dropped.
-  const handle = tryParseHandle(stored);
-  if (handle === undefined) {
-    localStorage.removeItem(PENDING_KEY);
-    show("The saved handle is not valid. It was removed.");
-    return;
-  }
-  show(`Resuming ${stored}`);
-  try {
-    const result = await checkStatus(handle, { timeoutMs: 60_000 });
-    localStorage.removeItem(PENDING_KEY);
-    show(result.status);
-  } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-      show("Still checking. The handle stays saved for the next load.");
-      return;
-    }
-    localStorage.removeItem(PENDING_KEY);
-    throw error;
-  }
-}
+| Option      | Value for this dapp                                                         |
+| ----------- | --------------------------------------------------------------------------- |
+| `chains`    | `[11155111]`: Sepolia, the only chain the dapp deploys on                   |
+| `rateLimit` | A check that refuses requests a browser sends from another site             |
+| `deployers` | None: users deploy from their own wallets, so limit callers with your login |
 
-await resumeVerification(console.log);
-```
+The browser passes the handler's URL to `verify()` as `handlerUrl`, and each Etherscan request
+goes to the handler with no key. To try the path before you deploy a server, run both halves in
+one Node script.
 
-After a reload, with the job verified, it prints:
+<details>
+<summary>Try the handler in Node</summary>
 
-```text
-Resuming ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718
-verified
-```
+The script runs on the sample request. Save
+[greeter-sepolia.json](../start/greeter-sepolia.json) next to it, and set `ETHERSCAN_API_KEY`:
 
-`tryParseHandle()` checks the stored value without throwing, so a value that is not a handle is
-removed. `checkStatus()` resolves the route from the handle's chain; the handle never chooses a
-host. See [checkStatus()](../reference/check-status.md).
-
-## Step 6: Read the result
-
-`verify()` and `checkStatus()` return one of three results:
-
-| `status`           | What to tell the user                                                                                                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verified`         | The source is now public on Sourcify. Link `explorerUrl`                                                                                                                        |
-| `already-verified` | Sourcify had the source already, so nothing was submitted. Link `explorerUrl`                                                                                                   |
-| `failed`           | Sourcify rejected the source, for example because the compiled code differs from the deployed code. Show `reason`. A retry gives the same answer; the fix is in the build files |
-
-`match` is `exact` when the metadata hash matches too, and `partial` when only the code matches.
-[Match types](../explanation/match-types.md) explains the difference.
-
-Every other end is an `ExplorerVerifyError`. Its `hint` says what to do next, and `retryable` says
-whether trying again may help. The codes a dapp meets most often:
-
-| Code                                                                            | What it means for the user                                                                       |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`not-confirmed`](../reference/errors/not-confirmed.md)                         | Sourcify has the job but did not finish in time. Resume it with `checkStatus()` (step 5)         |
-| [`invalid-input`](../reference/errors/invalid-input.md)                         | A field of the input or an option is malformed. Nothing was sent. Check the verify file (step 1) |
-| [`unsupported-chain`](../reference/errors/unsupported-chain.md)                 | The wallet deployed on a chain the routing table does not list                                   |
-| [`in-progress`](../reference/errors/in-progress.md)                             | Another submission for this contract is being checked. Try again in a minute                     |
-| [`network`](../reference/errors/network.md)                                     | No answer from Sourcify. Check the connection and try again                                      |
-| [`rate-limited`](../reference/errors/rate-limited.md)                           | Sourcify asked to slow down. Try again later                                                     |
-| [`timeout`](../reference/errors/timeout.md)                                     | The time ran out before Sourcify accepted the submission. Nothing to resume; try again           |
-| [`job-not-found`](../reference/errors/job-not-found.md)                         | Sourcify no longer knows the job and the contract is not verified. Call `verify()` again         |
-| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md) | The job ended without a verdict. Call `verify()` again later                                     |
-| [`unknown-state`](../reference/errors/unknown-state.md)                         | Sourcify reported a state the library cannot classify. Check the contract on Sourcify by hand    |
-
-[Errors](../reference/errors/index.md) lists every code, with its cause and fix.
-
-## Step 7: Verify on Etherscan through your server
-
-Etherscan needs an API key, and the key must never reach the browser. explorer-verify's server
-handler keeps it on your server: the browser sends its Etherscan requests to the handler, which
-adds the key and forwards them.
-
-Before you use Etherscan from a dapp, check your plan. A public dapp, or any use by a business,
-protocol, foundation or DAO, needs an Etherscan Advanced plan or higher and its own key. When the
-dapp displays Etherscan data, it must show "Powered by Etherscan.io APIs".
-[Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md) explains the
-rule and its sources.
-
-[Run the server handler](../guides/run-the-server-handler.md) shows the handler as a Next.js route
-and as a Cloudflare Worker, with the key in the platform's secret store. Whatever the platform, set
-these options for this dapp:
-
-- `chains`: `[11155111]`, Sepolia, the only chain the dapp deploys on.
-- `rateLimit`: a check that refuses requests a browser sends from another site.
-- No `deployers`. `deployers` fits a dapp that deploys from its own addresses or a factory it alone
-  controls; here users deploy from their own wallets, so limit callers with `rateLimit` and your own
-  sign-in.
-
-The browser passes the handler's URL to `verify()` as `handlerUrl`. Each Etherscan request then
-goes to the handler with no key. Sepolia's row lists Etherscan first, so the call routes there, as it
-would with a key. The block below runs both halves in one Node script, so you can try the path
-before you deploy the server. The handler is created as on the server; a `fetch` passed next to
-`handlerUrl` calls it directly, as a request from the dapp's origin:
-
-```ts
-import { verify } from "explorer-verify";
+```ts [try-the-handler.ts]
+import { validateInput, verify } from "explorer-verify";
 import { createVerifyHandler } from "explorer-verify/server";
 import type { RateLimit } from "explorer-verify/server";
+
+import greeter from "./greeter-sepolia.json" with { type: "json" };
 
 const DAPP_ORIGIN = "https://your-dapp.example";
 
@@ -552,13 +383,14 @@ const fromDapp: RateLimit = (request) => {
   return site !== "cross-site" && (origin === null || origin === DAPP_ORIGIN);
 };
 const handler = createVerifyHandler({
-  apiKey: etherscanKey, // from your server's secrets, never from the request
+  // From your server's secrets, never from the request.
+  apiKey: process.env["ETHERSCAN_API_KEY"] ?? "",
   chains: [11155111],
   rateLimit: fromDapp,
 });
 
-// Browser side: handlerUrl sends each Etherscan request to the handler, with no key. Here the
-// handler is called directly, in place of the network.
+// Browser side: handlerUrl sends each Etherscan request to the handler,
+// with no key. Here the handler is called directly, not over the network.
 const toHandler: typeof fetch = async (target, init) => {
   const headers = new Headers(init?.headers);
   headers.set("origin", DAPP_ORIGIN);
@@ -566,27 +398,27 @@ const toHandler: typeof fetch = async (target, init) => {
   return await handler(new Request(url, { ...init, headers }));
 };
 
-const result = await verify(input, {
+const result = await verify(validateInput(greeter), {
   handlerUrl: `${DAPP_ORIGIN}/api/verify`,
   fetch: toHandler,
 });
 console.log(`${result.status} ${result.backend}`);
 ```
 
-The Greeter of the recorded answers is already verified on Etherscan, so it prints:
+The sample Greeter is already verified on Etherscan, so it prints:
 
 ```text
 already-verified etherscan-v2
 ```
 
-In the dapp, the handler runs on your server and the browser's `fetch` posts to it. Save this as
-`src/verify-etherscan.ts`, and call `verifyOnEtherscan(input)` with the input of step 3.
-`handlerUrl` and the fix for [issue #183](https://github.com/aelmanaa/explorer-verify/issues/183)
-come with the next release.
+</details>
+
+In the dapp, the handler runs on your server and the browser's `fetch` posts to it. Save this
+module, and call `verifyOnEtherscan(input)` with the input of step 3:
 
 <!-- no-run: it posts to /api/verify on the dapp's own origin, which a test run does not serve. -->
 
-```ts no-run
+```ts no-run [src/verify-etherscan.ts]
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
@@ -596,22 +428,19 @@ export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResul
 }
 ```
 
-The browser sends no key: the handler adds yours. The answer comes from `/api/verify` on the
-dapp's origin, and `verify()` reads it because `handlerUrl` chose that URL; a redirect from your
-server still ends the call with `unexpected-response`. The routing table still decides the route,
-so a result reached through the handler carries the Etherscan page as `explorerUrl`.
-[Etherscan](../reference/etherscan.md) describes what the client sends and how it reads each
-answer, and [Server handler](../reference/server-handler.md) lists the handler's options and
-refusals.
+The routing table still decides the route, so the result carries the Etherscan page as
+`explorerUrl`. A redirect from your server ends the call with `unexpected-response`.
+[Server handler](../reference/server-handler.md) lists the handler's options and refusals.
 
-## Run the example
+> [!NOTE]
+> `handlerUrl` and the fix for [issue #183](https://github.com/aelmanaa/explorer-verify/issues/183)
+> come with the next release. The example builds explorer-verify from the repository, which has
+> both.
 
-[`examples/dapp/`](../../../examples/dapp/src/main.ts) is the dapp of this page. Its `src/main.ts` runs the
-steps on a click, resumes on load (step 5), and verifies on Etherscan too when the page's box is
-ticked (step 7). `server.ts` serves `public/` and runs the server handler at `/api/verify` for
-Sepolia only, and answers 403 to a request a browser marks as cross-site. It is for loopback only:
-before you bind it to another address, add a rate limit, an `Origin` and `Host` check and your
-own sign-in. From a clone of the repository, with Node 22.18 or later and pnpm:
+## Step 6: Run the example
+
+[`examples/dapp/`](../../../examples/dapp/src/main.ts) is the dapp of this page. From a clone of
+the repository, with Node 22.18 or later and pnpm:
 
 ```bash
 pnpm install
@@ -621,36 +450,34 @@ pnpm --filter explorer-verify-examples run dapp:serve
 ```
 
 Open `http://127.0.0.1:8080` in a browser with a wallet that holds some Sepolia ETH, and click
-**Deploy and verify**. Each line the page shows comes from one of the steps above. The server
-reads the Etherscan key from `ETHERSCAN_API_KEY` in its environment; without it, `/api/verify`
-answers 503 and the rest of the page works. The example builds explorer-verify from the
-repository, which has the fix for issue #183, so the Etherscan box works; a dapp that installs
-explorer-verify needs the next release, as
-[step 7](#step-7-verify-on-etherscan-through-your-server) says.
+**Deploy and verify**. Tick the Etherscan box to run step 5 too. The server reads the key from
+`ETHERSCAN_API_KEY`; without it, `/api/verify` answers 503 and the rest of the page works.
 
-The build files in `public/contracts/` come from the example's Foundry project. After a change to
-a contract in `src/`, run `forge build --build-info` and `node scripts/export-contracts.ts` in
+> [!WARNING]
+> The example's `server.ts` is for loopback only. Before you bind it to another address, add a
+> rate limit, an `Origin` and `Host` check and your own sign-in.
+
+After a change to a contract, run the build and the export script of step 1 again in
 `examples/dapp/`.
 
-## What you built
+## Sources
 
-- A build script that writes the deploy file and the verify file for the dapp.
-- A deploy module that keeps the creation transaction hash and recovers it after a reload.
-- A verify flow that loads the input only when needed, needs no key, and shows the handle.
-- A resume step that finishes a verification after a reload, without a second submission.
-- Etherscan verification through your own server, with the key kept there.
+- viem docs, read on 2026-11-04: [Wallet Client](https://viem.sh/docs/clients/wallet),
+  [`deployContract`](https://viem.sh/docs/contract/deployContract),
+  [`switchChain`](https://viem.sh/docs/actions/wallet/switchChain),
+  [`addChain`](https://viem.sh/docs/actions/wallet/addChain) and
+  [`waitForTransactionReceipt`](https://viem.sh/docs/actions/public/waitForTransactionReceipt).
+- [EIP-1193](https://eips.ethereum.org/EIPS/eip-1193): the provider that most browser wallets
+  inject as `window.ethereum`.
+- MetaMask, [Add a network](https://docs.metamask.io/wallet/how-to/manage-networks/add-network/):
+  error code 4902 for an unknown chain. Read on 2026-11-04.
 
-## How the examples are tested
+## Next steps
 
-The tests of this repository run the TypeScript blocks of steps 1, 4 and 5 and the first block of
-step 7 against the build, with Sourcify and Etherscan answers recorded on 2026-11-02 and
-2026-11-04 for the Greeter contract at `0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc` on Sepolia.
-Step 3 and the second block of step 7 are type-checked but not run, because they request files or
-routes from the dapp's own origin. Step 2 and the button code are not run, because they need a
-wallet, a live network or the dapp's own files.
-
-The example's tests run every module of the example, with no network and no browser: a fake
-EIP-1193 wallet, an in-memory `localStorage`, the example's server for the page's own files and
-`/api/verify`, and the same recorded answers. They also check that each block above that names an
-example file is that file, unchanged, and that the bundle puts each explorer client in a chunk of
-its own.
+- [Run the server handler](../guides/run-the-server-handler.md): the handler in Next.js and a
+  Cloudflare Worker, with the key in the platform's secret store.
+- [Verify a contract from a Foundry project](../guides/verify-from-a-foundry-project.md): the
+  options of the build helper.
+- [Verify a contract shipped in an npm package](../guides/verify-a-contract-from-an-npm-package.md):
+  Hardhat files and other build formats.
+- [Etherscan](../reference/etherscan.md): what the client sends and how it reads each answer.
