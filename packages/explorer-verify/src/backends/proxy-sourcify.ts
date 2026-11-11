@@ -11,7 +11,7 @@
  */
 import { readFields } from "../internal/read-fields.ts";
 import type { Hex } from "../types.ts";
-import type { Context, LinkTarget, LinkVerdict, ProxyLinker } from "./backend.ts";
+import type { Context, LinkEnd, LinkTarget, LinkVerdict, ProxyLinker } from "./backend.ts";
 import { send, unexpected } from "./common.ts";
 import { implementationOf, unknownLink } from "./proxy-common.ts";
 import { sourcify } from "./sourcify.ts";
@@ -44,7 +44,7 @@ async function check(_jobId: string, target: LinkTarget, ctx: Context): Promise<
 }
 
 /** One lookup with `fields=proxyResolution`. */
-async function request(target: LinkTarget, ctx: Context): Promise<LinkVerdict> {
+async function request(target: LinkTarget, ctx: Context): Promise<LinkEnd> {
   const url = new URL(
     ctx.route.requestUrl(
       `/v2/contract/${String(target.chainId)}/${encodeURIComponent(target.address)}`,

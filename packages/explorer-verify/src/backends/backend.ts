@@ -195,10 +195,8 @@ export interface Backend {
 
 // References: R-FLOW-8.
 /**
- * One step of a proxy link, as a {@link ProxyLinker} reports it.
+ * How a proxy link ended, as a {@link ProxyLinker} reports it.
  *
- * - `submitted`: the explorer accepted the request and gave a job id to check.
- * - `pending`: the explorer is still linking. Check again.
  * - `linked`: the explorer links the proxy to `implementation`, one address in lower case, never
  *   the zero address. `implementationVerified` is absent when the answer does not say; the flow
  *   then asks {@link ProxyLinker.verified}. The flow compares it with `expectedImplementation`.
@@ -206,9 +204,7 @@ export interface Backend {
  *   `expectedImplementation`. `implementation` is the one it holds, when it says.
  * - `not-linked`: the explorer definitively refused. `reason` is its text, redacted and cut.
  */
-export type LinkStep =
-  | { readonly state: "submitted"; readonly jobId: string }
-  | { readonly state: "pending" }
+export type LinkEnd =
   | {
       readonly state: "linked";
       readonly implementation: Hex;
@@ -217,8 +213,14 @@ export type LinkStep =
   | { readonly state: "mismatch"; readonly implementation: Hex | undefined }
   | { readonly state: "not-linked"; readonly reason: string };
 
-/** A {@link LinkStep} other than `submitted`: what a status check answers. */
-export type LinkVerdict = Exclude<LinkStep, { readonly state: "submitted" }>;
+/**
+ * What a link request answers: `submitted`, the explorer accepted the request and gave a job id to
+ * check, or a {@link LinkEnd}. A request never answers `pending`.
+ */
+export type LinkStep = { readonly state: "submitted"; readonly jobId: string } | LinkEnd;
+
+/** What a status check answers: `pending`, the explorer is still linking, or a {@link LinkEnd}. */
+export type LinkVerdict = { readonly state: "pending" } | LinkEnd;
 
 /**
  * The proxy to link: a {@link Target} and, when the caller set it, the implementation it should
@@ -244,6 +246,13 @@ export interface ProxyLinker {
   readonly request: (target: LinkTarget, ctx: Context) => Promise<LinkStep>;
   /** Asks once for the state of a link that `request` submitted. */
   readonly check: (jobId: string, target: LinkTarget, ctx: Context) => Promise<LinkVerdict>;
+  // References: decision 0065.
+  /**
+   * Whether `jobId` has the form of a job id this explorer gives for the target, so a caller's
+   * `resumeJobId` may be checked with `check`. Absent for an explorer that starts no job, which
+   * takes no `resumeJobId`.
+   */
+  readonly acceptsJobId?: (jobId: string, target: LinkTarget) => boolean;
   /**
    * Whether the explorer holds the implementation's verified source, for a linker whose `linked`
    * answer does not say. Absent when every `linked` step says.

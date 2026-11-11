@@ -378,6 +378,9 @@ export async function verifyEach(
  *   recorded when it verified the proxy, and one more says whether the implementation is verified.
  * - Routescan: throws `invalid-input` on `route.backend` and sends nothing.
  *
+ * With `resumeJobId`, the `details.jobId` of an earlier `proxy-link-pending`, the call sends no
+ * `verifyproxycontract`: it checks that job's link at once, then every `pollIntervalMs`.
+ *
  * Linking again is safe: a call never undoes a link. The call ends within `timeoutMs` plus one
  * request. It emits `verify.routed`, then `verify.poll` for each pending check, and HTTP retries as
  * `verify.retry`; no `verify.validated` and no `verify.result`.
@@ -388,14 +391,16 @@ export async function verifyEach(
  *
  * @param target - The proxy's chain id and address, and the implementation it should point at.
  *   Other fields are ignored.
- * @param options - The options of `verify()`; `rpcUrl` is checked and not used. Etherscan needs `apiKeys["etherscan-v2"]`.
+ * @param options - The options of `verify()`, plus `resumeJobId`; `rpcUrl` is checked and not
+ *   used. Etherscan needs `apiKeys["etherscan-v2"]`.
  * @returns `linked`, with the implementation and whether its source is verified; `mismatch` when
  *   the explorer holds another implementation than `expectedImplementation`; or `not-linked` with
  *   the explorer's reason, API keys removed.
  * @throws The caller's `signal.reason`, unchanged, when the signal aborts.
  * @throws ExplorerVerifyError with `invalid-input` for a bad target or options, or for Routescan;
  *   `proxy-link-pending` when the link is still pending when `timeoutMs` runs out (call again
- *   later); `proxy-link-unknown-state` for a link state the library cannot classify;
+ *   later with `resumeJobId` set to its `details.jobId`); `invalid-input` on `resumeJobId` for a
+ *   job id the backend does not give, or on Sourcify; `proxy-link-unknown-state` for a link state the library cannot classify;
  *   `missing-api-key`, `unsupported-chain`, `timeout`, `network` (also when the proxy-link module
  * fails to load), `rate-limited` and `unexpected-response`.
  * @example

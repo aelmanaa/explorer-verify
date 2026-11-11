@@ -16,7 +16,14 @@ import { sleep } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
 import type { Hex } from "../types.ts";
-import type { Context, LinkStep, LinkTarget, LinkVerdict, ProxyLinker } from "./backend.ts";
+import type {
+  Context,
+  LinkEnd,
+  LinkStep,
+  LinkTarget,
+  LinkVerdict,
+  ProxyLinker,
+} from "./backend.ts";
 import { ask, blockscout, blockscoutHosted, form, lookupRequest } from "./blockscout.ts";
 import { REASON_LENGTH, resultOf, unexpected } from "./common.ts";
 import type { Answer } from "./common.ts";
@@ -66,6 +73,7 @@ export const blockscoutProxyLinker: ProxyLinker = {
   request,
   check,
   verified,
+  acceptsJobId,
 };
 
 /** Sends `verifyproxycontract`, once more after a repeat-interval refusal that fits the budget. */
@@ -116,8 +124,12 @@ function tooSoon({ status, fields }: Answer): number | undefined {
 function readRequest(ctx: Context, target: LinkTarget, answer: Answer): LinkStep {
   const { status, fields } = answer;
   const result = resultOf(answer);
-  const uid = new RegExp(`^${target.address.slice(2)}[0-9a-f]{1,16}$`);
-  if (status === 200 && fields?.get("status") === "1" && result !== undefined && uid.test(result)) {
+  if (
+    status === 200 &&
+    fields?.get("status") === "1" &&
+    result !== undefined &&
+    acceptsJobId(result, target)
+  ) {
     return { state: "submitted", jobId: result };
   }
   const message = fields?.get("message");
@@ -125,6 +137,11 @@ function readRequest(ctx: Context, target: LinkTarget, answer: Answer): LinkStep
     return { state: "not-linked", reason: NOT_VERIFIED };
   }
   throw unexpected(ctx, nameOf(ctx), LABEL, answer, "the proxy link request");
+}
+
+/** Whether `jobId` is a uid of the documented form for the proxy: its 40 hex digits, then a hex timestamp. */
+function acceptsJobId(jobId: string, target: LinkTarget): boolean {
+  return new RegExp(`^${target.address.slice(2)}[0-9a-f]{1,16}$`).test(jobId);
 }
 
 /** Sends `checkproxyverification` once and maps its answer. */
@@ -152,7 +169,8 @@ async function check(jobId: string, target: LinkTarget, ctx: Context): Promise<L
       ? { state: "linked", implementation: found.implementation }
       : { state: "not-linked", reason: NO_IMPLEMENTATION };
   }
-  // `Unknown UID` included: the uid came from this call, so Blockscout forgetting it is unknown.
+  // `Unknown UID` included: the uid came from this call or from the caller's resumeJobId, so
+  // whether Blockscout forgot the link or never had it is unknown.
   throw unknownLink(ctx, nameOf(ctx), LABEL, answer);
 }
 
@@ -161,7 +179,7 @@ async function check(jobId: string, target: LinkTarget, ctx: Context): Promise<L
  * one, `not-linked` for none. Several, or one that is not an address, throw
  * `proxy-link-unknown-state`; an answer in another form throws `unexpected-response`.
  */
-async function recorded(target: LinkTarget, ctx: Context): Promise<LinkVerdict> {
+async function recorded(target: LinkTarget, ctx: Context): Promise<LinkEnd> {
   const name = nameOf(ctx);
   const answer = await ask(ctx, name, lookupRequest(ctx, name, target.address), target.chainId);
   const listed = answer.status === 200 ? answer.fields?.get("implementations") : undefined;

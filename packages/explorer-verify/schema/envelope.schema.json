@@ -1170,6 +1170,10 @@
                   },
                   "backend": {
                     "$ref": "#/$defs/backend"
+                  },
+                  "jobId": {
+                    "description": "The job id of the pending link. Pass it to linkProxy() as resumeJobId to check the same link without a new request. Absent from an error of a release before it.",
+                    "type": "string"
                   }
                 },
                 "required": ["code", "backend"]

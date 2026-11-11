@@ -4,6 +4,9 @@ Status: Accepted (2026-11-04). Amends the error code list of
 [decision 0009](0009-options-handle-and-errors.md) and the actions the server handler forwards
 under [decision 0021](0021-server-handler-forwards-a-reduced-lookup.md).
 
+Amended by [decision 0065](0065-resume-a-pending-proxy-link.md): `proxy-link-pending` carries
+`details.jobId`, and `linkProxy()` with `resumeJobId` checks that link without a new request.
+
 Research: [2026-11-04: how Etherscan, Blockscout and Sourcify link a proxy](../research/2026-11-04-proxy-linking.md).
 
 ## Context

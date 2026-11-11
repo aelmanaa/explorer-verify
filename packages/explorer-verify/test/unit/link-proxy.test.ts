@@ -10,6 +10,7 @@ import type { TestContext } from "node:test";
 
 import type {
   Context,
+  LinkEnd,
   LinkStep,
   LinkTarget,
   LinkVerdict,
@@ -122,9 +123,9 @@ function resolution(value: unknown): Response {
 }
 
 /** A linker that answers `verdict` to every request and check, and has no `verified`. */
-function linker(verdict: LinkVerdict): ProxyLinker {
+function linker(verdict: LinkEnd): ProxyLinker {
   return {
-    request: async (_target: LinkTarget, _ctx: Context): Promise<LinkVerdict> =>
+    request: async (_target: LinkTarget, _ctx: Context): Promise<LinkEnd> =>
       await Promise.resolve(verdict),
     check: async (): Promise<LinkVerdict> => await Promise.resolve(verdict),
   };
@@ -523,11 +524,15 @@ describe("linkProxy() on Etherscan v2 (R-FLOW-8)", () => {
     const pending = Array.from({ length: 20 }, () => PENDING_0());
     const r = await run(t, [REQUESTED(), ...pending], { ...ETHERSCAN_OPTIONS, timeoutMs: 10_000 });
     const error = errorOf(r, "proxy-link-pending");
-    assert.deepEqual(error.details, { code: "proxy-link-pending", backend: "etherscan-v2" });
+    assert.deepEqual(error.details, {
+      code: "proxy-link-pending",
+      backend: "etherscan-v2",
+      jobId: "wccgmdtjug6bss2mf166jzjtqcs4uchztznlevycg6mbwlxttz",
+    });
     assert.equal(error.retryable, true);
     assert.equal(error.toJSON().handle, undefined);
     assert.match(error.message, /time budget ran out/);
-    assert.ok(error.hint.includes("linkProxy() again"));
+    assert.ok(error.hint.includes("resumeJobId set to details.jobId"));
     // 10 s budget, a check every 3 s: three checks.
     assert.equal(r.calls.length, 4);
   });
@@ -1105,14 +1110,6 @@ describe("linkProxy() with linkers passed in", () => {
     });
     const result = resultOf(r);
     assert.equal(result.status === "linked" && result.implementationVerified, false);
-  });
-
-  it("throws proxy-link-pending when the request answers pending", async (t) => {
-    const r = await run(t, [], SOURCIFY_OPTIONS, target, {
-      linkers: { sourcify: linker({ state: "pending" }) },
-      random: () => 0,
-    });
-    errorOf(r, "proxy-link-pending");
   });
 
   it("passes on an error a check throws that is not an ExplorerVerifyError", async (t) => {

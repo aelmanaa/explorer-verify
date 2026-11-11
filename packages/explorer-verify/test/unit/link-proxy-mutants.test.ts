@@ -312,16 +312,6 @@ describe("linkProxy(): the time budget (R-FLOW-8)", () => {
     assert.equal(Object.hasOwn(error, "cause"), false);
   });
 
-  it("says the explorer answered pending when the request does, with no cause", async (t) => {
-    const r = await run(t, { linkers: { sourcify: linker({ state: "pending" }).linker } });
-    const error = errorOf(r.outcome, "proxy-link-pending");
-    assert.equal(
-      error.message,
-      `The link of proxy ${PROXY} on sourcify is not confirmed: the explorer answered that the link is pending before the explorer finished.`,
-    );
-    assert.equal(Object.hasOwn(error, "cause"), false);
-  });
-
   it("names the proxy-link code that did not load within the budget", async () => {
     const error = await keptAlive(
       async () =>
