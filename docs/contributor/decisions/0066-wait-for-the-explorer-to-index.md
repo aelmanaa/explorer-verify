@@ -131,3 +131,16 @@ With `deployers` set, `createVerifyHandler` answers 503 `address-not-indexed` wi
 
 A caller that matched `unexpected-response` for this refusal now gets `not-indexed`. The changeset
 marks the change breaking.
+
+Bundle size of the whole pull request that holds this amendment, which also closes #349, #353,
+#356 and #357. It was measured with `pnpm run size` on 2026-11-11 on `d638b33`, the head of #348,
+plus those changes (esbuild 0.28.2, Rollup 4.67.4, Node.js 24.21.0 zlib). The shared submit loop
+sets the `timeout` reason, the Blockscout client tags a timeout after an empty answer, `send`
+measures the time for the handler refusal, and the HTTP layer checks `cache: "no-store"`.
+
+Two rows of `name-budget.json` pass their ceilings. They rise by the
+[decision 0014](0014-measured-bundle-ceilings.md) rule, the measured size plus 20% rounded up:
+`ERROR_CODES` from `explorer-verify` split by esbuild, 5879 gzip bytes (ceiling 5870, now 7055),
+and `linkProxy` from `explorer-verify` under Rollup, 17903 (17844, now 21484). The etherscan and
+proxy-blockscout chunks, 3975 and 4873 bytes, stay under the ceilings #348 set. Local measurements
+run above CI's (issue #355), so CI may show each row a few dozen bytes smaller.
