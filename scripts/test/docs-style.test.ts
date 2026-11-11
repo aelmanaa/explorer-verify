@@ -6,8 +6,9 @@ import {
   codeSpansPerSentence,
   densityReport,
   isGuide,
-  isLegacy,
   LEGACY_MARKER,
+  legacyLine,
+  MAX_AVERAGE,
   MAX_CODE_SPANS,
   MAX_WORDS,
   pageDensity,
@@ -93,13 +94,28 @@ describe("styleProblems", () => {
     assert.deepEqual(styleProblems(FILE, PAGE, GUIDE), []);
   });
 
-  it("skips a page with the legacy marker", () => {
-    const broken = GUIDE.replace("For:", "Audience:").replace("Run the command:", "Run it.");
-    assert.notDeepEqual(styleProblems(FILE, PAGE, broken), []);
-    const legacy = broken.replace("# Verify X\n", `# Verify X\n\n${LEGACY_MARKER}\n`);
-    assert.ok(isLegacy(legacy));
-    assert.deepEqual(styleProblems(FILE, PAGE, legacy), []);
-    assert.ok(!isLegacy(`Text ${LEGACY_MARKER}`));
+  it("fails a page with the legacy marker and still checks the rest of it", () => {
+    assert.deepEqual(problemsWith("# Verify X\n", `# Verify X\n\n${LEGACY_MARKER}\n`), [
+      `${FILE}:3: the legacy marker no longer exempts a page; remove it and fix the page`,
+    ]);
+    const broken = GUIDE.replace("Run the command:", "Run it.").replace(
+      "# Verify X\n",
+      `# Verify X\n${LEGACY_MARKER}\n`,
+    );
+    assert.equal(styleProblems(FILE, PAGE, broken).length, 2);
+    assert.equal(legacyLine(`# X\n\n  ${LEGACY_MARKER}\n`), 3);
+    assert.equal(legacyLine(`Text ${LEGACY_MARKER}`), undefined);
+  });
+
+  it(`fails a page whose blocks average over ${MAX_AVERAGE} words`, () => {
+    const dense = Array.from({ length: 20 }, () => `${words(60)}.`).join("\n\n");
+    const page = GUIDE.replace("## Sources\n", `${dense}\n\n## Sources\n`);
+    const { average } = pageDensity(page);
+    assert.ok(average > MAX_AVERAGE);
+    assert.deepEqual(problemsWith("## Sources\n", `${dense}\n\n## Sources\n`), [
+      `${FILE}:1: an average of ${average} words per block; keep it at most ${MAX_AVERAGE}`,
+    ]);
+    assert.ok(pageDensity(GUIDE).average <= MAX_AVERAGE);
   });
 
   it(`fails a paragraph, a list item and a quote over ${MAX_WORDS} words`, () => {
@@ -261,7 +277,7 @@ describe("checkDocsStyle and densityReport", () => {
     assert.deepEqual(checkDocsStyle(root), []);
     assert.deepEqual(densityReport(root), [
       "README.md: 4 blocks, average 3 words, longest 7",
-      "guides/using-from-an-agent.md: 3 blocks, average 5 words, longest 11, legacy",
+      "guides/using-from-an-agent.md: 3 blocks, average 7 words, longest 11",
     ]);
     writeFiles(root, { [FILE]: GUIDE.replace("## Next steps", "## More") });
     assert.deepEqual(checkDocsStyle(root), [

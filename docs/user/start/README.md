@@ -25,6 +25,6 @@ shows the real run.
 
 ## Next steps
 
-- [Which package do I need](which-package.md): the four packages and when to use each.
+- [Which package to install](which-package.md): the four packages and when to use each.
 - [Overview](../README.md): every page of the docs, grouped by kind.
 - [Glossary](../explanation/glossary.md): backend, route, handle, lookup and other terms.

@@ -67,11 +67,11 @@ Read [llms.txt](../../llms.txt), [the agent page](../../docs/user/guides/using-f
 Version: explorer-verify 1.2.3
 
 Agents: [llms.txt](../../../llms.txt).
+For: agents.
+You need: a shell.
 
 ## Submit is permanent
-
 ## Safe steps
-
 ## API keys
 
 ## Etherscan plan rule
@@ -80,7 +80,7 @@ Agents: [llms.txt](../../../llms.txt).
 
 Back to the [index](../README.md#user-docs), [this section](#notes), the [top](#) and [a host](//example.com/x.md).
 
-<!-- docs-style: legacy -->
+## Next steps
 `,
   "docs/contributor/notes.md": "# Notes\n\n[Requirements](requirements.md)\n",
   "docs/contributor/requirements.md": "# Requirements\n",

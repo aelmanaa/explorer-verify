@@ -81,7 +81,7 @@ for (const name of PAGES) {
 
     it("starts with the download of the shipped sample request", () => {
       const first = blocks(page)[0];
-      assert.equal(first?.code, `curl -fsSLO ${SAMPLE_URL}\n`);
+      assert.equal(first?.code, `curl -fsSLO \\\n  ${SAMPLE_URL}\n`);
     });
 
     it("runs every command through npx: a dry run on the sample, then a verify", () => {

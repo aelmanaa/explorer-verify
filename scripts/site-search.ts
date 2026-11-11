@@ -14,11 +14,12 @@ export const processTerm = (term: string): string => {
 };
 
 /**
- * The weight of a section in the search results for `term`, a term `processTerm` gave. A section of
- * a page whose title holds `term` as a whole word counts three times, so "etherscan key" lists the
- * API keys page before sections that only mention a key, and "handle" does not lift the server
- * handler page. The title's words go through the same steps as `processTerm`. The generated API
- * reference, under `/api/`, ranks below the pages people write.
+ * The weight of a section in the search results for `term`, a term `processTerm` gave. A section
+ * whose own heading or page title holds `term` as a whole word counts three times, so "handle"
+ * lists the glossary's Handle section and does not lift the server handler page. The words go
+ * through the same steps as `processTerm`. A quickstart or the package page, under `/start/`,
+ * counts twice, so "install" and "dry run" open a first-success page. The generated API reference,
+ * under `/api/`, ranks below the pages people write.
  */
 export const boostDocument = (
   id: string,
@@ -26,11 +27,15 @@ export const boostDocument = (
   stored?: Record<string, unknown>,
 ): number => {
   const titles: unknown = stored?.["titles"];
-  const first: unknown = Array.isArray(titles) && titles.length > 0 ? titles[0] : stored?.["title"];
-  const words = (typeof first === "string" ? first.toLowerCase() : "")
+  const page: unknown = Array.isArray(titles) && titles.length > 0 ? titles[0] : "";
+  const own: unknown = stored?.["title"];
+  const words = [page, own]
+    .map((text) => (typeof text === "string" ? text.toLowerCase() : ""))
+    .join(" ")
     .split(/[^\p{L}\p{N}]+/u)
     .map((word) =>
       word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word,
     );
-  return (id.includes("/api/") ? 0.5 : 1) * (words.includes(term) ? 3 : 1);
+  const area = id.includes("/api/") ? 0.5 : id.includes("/start/") ? 2 : 1;
+  return area * (words.includes(term) ? 3 : 1);
 };

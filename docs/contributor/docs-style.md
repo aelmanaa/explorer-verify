@@ -6,21 +6,16 @@ This page sets the density and style of the user docs. Most rules are enforced: 
 runs `scripts/check-agent-docs.ts`, which applies the rules in `scripts/docs-style.ts` to every
 user page. Their unit tests are in `scripts/test/docs-style.test.ts`.
 
-## Legacy pages
+## No exemptions
 
-Pages written before these rules hold this line after their H1:
-
-```md
-<!-- docs-style: legacy -->
-```
-
-The check skips the style rules on such a page. Its `ts` examples may still use `input` and
-`built` without defining them. The issue that rewrites a page removes the line, and the page must
-then pass every rule below. A new page never gets the line.
+Every user page passes every rule below. The line `<!-- docs-style: legacy -->` once exempted a
+page that was not yet rewritten; the check now fails a page that holds it.
 
 ## Paragraphs
 
 - Keep a paragraph to about 50 words. The check fails a paragraph, list item or quote over 80.
+- Keep a page's paragraphs, list items and quotes to an average of 30 words or fewer. The check
+  fails a page above it.
 - Use at most 4 code spans in one sentence. Put a longer set in a list or a table.
 - Give each H2 one idea. Split a section that answers two questions.
 
@@ -62,9 +57,9 @@ npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --backend sourcify --dry-run --json
 ```
 
-The example tests read titles and continuations. On a page without the legacy line, a `ts`
-example is type-checked without the `input` and `built` globals, so it must define what it uses.
-The keys, `deployerAddress` and `request` stay predefined.
+The example tests read titles and continuations. A `ts` example is type-checked without the
+`input` and `built` globals, so it must define what it uses. The keys, `deployerAddress` and
+`request` stay predefined.
 
 ## Callouts
 

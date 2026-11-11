@@ -23,6 +23,15 @@ says which option holds each key, which host it goes to, and what happens withou
 > [server handler](server-handler.md#point-the-client-at-it), which holds the key
 > ([A server adds the key](#a-server-adds-the-key)).
 
+## Get an Etherscan key
+
+1. Create a free account at <https://etherscan.io/register>.
+2. Open the API dashboard at <https://etherscan.io/apidashboard> and select **Add**.
+3. Copy the key into a secret store or an environment variable on your server.
+
+One key covers every chain of Etherscan API v2. Free plans reach most chains; the
+[Etherscan plan rule](#etherscan-plan-rule) says which plan a use needs.
+
 ## A minimal call
 
 The routing table lists Etherscan v2 for the 55 chains of the Etherscan chainlist
@@ -349,5 +358,7 @@ Sourcify first on those chains. A key goes to Etherscan there only when you set 
 - Routescan reading a real key in the `apikey` header, and the hosted Blockscout API reading a key
   from the header, a form field and the query: live runs on 2026-11-05.
 - Etherscan's terms: <https://etherscan.io/apiterms>, version of 1 October 2026.
+- Creating a key: [Set up your API key](https://docs.etherscan.io/set-up-your-api-key), read
+  2026-11-11.
 - The 10 chains marked "Paid Plan required":
   [Etherscan chainlist](https://api.etherscan.io/v2/chainlist), read 2026-11-05.
