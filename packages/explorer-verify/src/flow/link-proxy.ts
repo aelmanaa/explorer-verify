@@ -243,7 +243,7 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
 }
 
 const RESUME_HINT =
-  "Pass resumeJobId as the details.jobId of a proxy-link-pending error for the same proxy and backend, or leave it out to send a new link request.";
+  "Pass resumeJobId as the job id of a proxy-link-pending error (details.jobId) for the same proxy and backend, or leave it out to send a new link request.";
 
 // References: decision 0065.
 /**

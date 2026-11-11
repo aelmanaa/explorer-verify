@@ -244,7 +244,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 2,
   },
   "proxy-link-pending": {
-    hint: "Call linkProxy() again later with resumeJobId set to details.jobId: it checks the same link and sends no new request. A call without it sends a new request, which is also safe.",
+    hint: "Call linkProxy() again later with resumeJobId set to the job id (details.jobId): it checks the same link and sends no new request. A call without it sends a new request, which is also safe.",
     retryable: true,
     exitCode: 4,
   },

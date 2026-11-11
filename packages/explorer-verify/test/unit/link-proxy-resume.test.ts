@@ -134,7 +134,7 @@ function refusedJobId(r: Run, message: RegExp): ExplorerVerifyError {
     ["resumeJobId"],
   );
   assert.match(error.details.issues[0]?.message ?? "", message);
-  assert.match(error.hint, /details\.jobId of a proxy-link-pending error/);
+  assert.match(error.hint, /job id of a proxy-link-pending error \(details\.jobId\)/);
   assert.equal(r.calls.length, 0);
   return error;
 }
@@ -154,7 +154,7 @@ describe("linkProxy() resumes a pending link with resumeJobId (R-FLOW-8, decisio
     const serialized = error.toJSON();
     assert.ok(serialized.code === "proxy-link-pending");
     assert.equal(serialized.details.jobId, GUID);
-    assert.match(error.hint, /resumeJobId set to details\.jobId/);
+    assert.match(error.hint, /resumeJobId set to the job id \(details\.jobId\)/);
 
     const resumed = await run(t, [LINKED()], { ...ETHERSCAN, resumeJobId: jobIdOf(error) });
     assert.deepEqual(resumed.outcome.result, {
@@ -286,7 +286,7 @@ describe("linkProxy() refuses a resumeJobId it cannot check, before any request 
         error.message,
         "The resumeJobId option is invalid: it must be 1 to 100 letters and digits.",
       );
-      assert.match(error.hint, /details\.jobId of a proxy-link-pending error/);
+      assert.match(error.hint, /job id of a proxy-link-pending error \(details\.jobId\)/);
       assert.ok(!JSON.stringify(error).includes(KEY));
       assert.equal(fake.calls.length, 0);
     }
