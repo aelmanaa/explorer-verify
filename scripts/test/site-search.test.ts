@@ -64,6 +64,35 @@ describe("boostDocument", () => {
     assert.equal(boostDocument("/index#a", "verify", { titles: [42] }), 1);
   });
 
+  it("triples a section whose own heading holds the term", () => {
+    assert.equal(
+      boostDocument("/explanation/glossary#handle", "handle", {
+        titles: ["Glossary"],
+        title: "Handle",
+      }),
+      3,
+    );
+    assert.equal(
+      boostDocument("/reference/api-keys#get-an-etherscan-key", "etherscan", {
+        titles: ["API keys"],
+        title: "Get an Etherscan key",
+      }),
+      3,
+    );
+    assert.equal(
+      boostDocument("/reference/x#a", "handle", { titles: ["X"], title: "Handlers" }),
+      1,
+    );
+  });
+
+  it("doubles a quickstart or the package page", () => {
+    assert.equal(boostDocument("/start/quickstart-cli#a", "dry", page("Quickstart: the CLI")), 2);
+    assert.equal(
+      boostDocument("/start/which-package#a", "install", page("Which package to install")),
+      6,
+    );
+  });
+
   it("halves a page of the generated API reference", () => {
     assert.equal(boostDocument("/api/explorer-verify/#a", "verify", page("explorer-verify")), 1.5);
     assert.equal(boostDocument("/api/explorer-verify/#a", "handle", page("explorer-verify")), 0.5);

@@ -1,4 +1,4 @@
-# Which package do I need
+# Which package to install
 
 Version: explorer-verify 0.1.0
 

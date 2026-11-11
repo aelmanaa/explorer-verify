@@ -16,7 +16,8 @@ Start with the [quickstart for your setup](start/README.md), or read
 Sourcify already verified on Sepolia. A dry run looks it up and submits nothing:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+curl -fsSLO \
+  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
@@ -51,7 +52,7 @@ With `ETHERSCAN_API_KEY` set, the routing table picks Etherscan instead.
 | `@explorer-verify/foundry` | Builds the input from a Foundry project's `out/`   | Node.js code works in a Foundry project  |
 | `@explorer-verify/hardhat` | Builds the input from a Hardhat 2 or 3 project     | Node.js code works in a Hardhat project  |
 
-[Which package do I need](start/which-package.md) gives the install command and the entry for
+[Which package to install](start/which-package.md) gives the install command and the entry for
 each task.
 
 ## Find your way
