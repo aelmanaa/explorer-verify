@@ -1,7 +1,5 @@
 # Sourcify
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,10 +7,19 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who need to know what explorer-verify sends to Sourcify and how it
 reads each answer.
 
-explorer-verify talks to Sourcify through its API v2 at `https://sourcify.dev/server`, or at the
-server that the `route` option names. Sourcify needs no API key and answers browsers directly. The
-v1 API was switched off on 2026-07-07; explorer-verify does not use it. [verify()](verify.md) and
+explorer-verify talks to Sourcify through its API v2. [verify()](verify.md) and
 [checkStatus()](check-status.md) use this client.
+
+| Fact       | Value                                                   |
+| ---------- | ------------------------------------------------------- |
+| Server     | `https://sourcify.dev/server`, or the one `route` names |
+| API key    | None                                                    |
+| Browsers   | Answers them directly                                   |
+| API        | v2 only; the v1 API is switched off                     |
+| Match type | [`exact` or `partial`](../explanation/match-types.md)   |
+
+> [!IMPORTANT]
+> A submit sends your source to Sourcify, which publishes it. It cannot be undone.
 
 ## Requests
 
@@ -22,13 +29,14 @@ v1 API was switched off on 2026-07-07; explorer-verify does not use it. [verify(
 | Submit | `POST /v2/verify/{chainId}/{address}`                     | The source. Outward and permanent: Sourcify publishes it |
 | Status | `GET /v2/verify/{verificationId}`                         | Nothing. Safe to repeat                                  |
 
-The submit body is JSON:
+The submit body is JSON. Each field comes from the [verify input](verify.md):
 
-- `stdJsonInput`: an object with only `language`, `sources` and `settings` from
-  `compiler.input`. Other top-level fields of the Standard JSON input are not sent.
-- `compilerVersion`: `compiler.version`, without a leading `v`.
-- `contractIdentifier`: `contractName`, as `contracts/Greeter.sol:Greeter`.
-- `creationTransactionHash`: `creationTxHash`, when the input has it.
+| Field                     | Value                                                         |
+| ------------------------- | ------------------------------------------------------------- |
+| `stdJsonInput`            | `compiler.input`, with only `language`, `sources`, `settings` |
+| `compilerVersion`         | `compiler.version`, without a leading `v`                     |
+| `contractIdentifier`      | `contractName`, as `contracts/Greeter.sol:Greeter`            |
+| `creationTransactionHash` | `creationTxHash`, when the input has it                       |
 
 Constructor arguments are never sent: Sourcify reads them from the creation code.
 
@@ -60,18 +68,39 @@ success.
 matches. An answer whose `chainId` or `address` names another contract throws
 `unexpected-response`.
 
-Error codes that reject the source, so `failed`: `no_match`, `bytecode_length_mismatch`,
-`compiler_error`, `missing_source`, `missing_or_invalid_source`, `invalid_compilation_target`,
-`contract_not_found_in_compiler_output`, `runtime_bytecode_not_found_in_compiler_output`,
-`invalid_compiler_version`, `unsupported_compiler_version`, `invalid_language`,
-`unsupported_language`, `compiled_bytecode_is_zero`, `onchain_bytecode_is_zero` and
-`extra_file_input_bug`.
+## Job error codes
 
-Error codes that may clear up later, so `verification-inconclusive`: `internal_error`, `job_abandoned`,
-`compiler_timeout`, `compiler_out_of_memory`, `no_compiler_output`, `cannot_fetch_bytecode`,
-`onchain_runtime_bytecode_not_available`, `onchain_creation_bytecode_not_available` and
-`contract_not_deployed`. The last one can appear right after a deployment, before Sourcify's node
-sees the contract.
+A completed job's error code decides between `failed` and `verification-inconclusive`.
+
+| Error code                                      | Outcome                     |
+| ----------------------------------------------- | --------------------------- |
+| `no_match`                                      | `failed`                    |
+| `bytecode_length_mismatch`                      | `failed`                    |
+| `compiler_error`                                | `failed`                    |
+| `missing_source`                                | `failed`                    |
+| `missing_or_invalid_source`                     | `failed`                    |
+| `invalid_compilation_target`                    | `failed`                    |
+| `contract_not_found_in_compiler_output`         | `failed`                    |
+| `runtime_bytecode_not_found_in_compiler_output` | `failed`                    |
+| `invalid_compiler_version`                      | `failed`                    |
+| `unsupported_compiler_version`                  | `failed`                    |
+| `invalid_language`                              | `failed`                    |
+| `unsupported_language`                          | `failed`                    |
+| `compiled_bytecode_is_zero`                     | `failed`                    |
+| `onchain_bytecode_is_zero`                      | `failed`                    |
+| `extra_file_input_bug`                          | `failed`                    |
+| `internal_error`                                | `verification-inconclusive` |
+| `job_abandoned`                                 | `verification-inconclusive` |
+| `compiler_timeout`                              | `verification-inconclusive` |
+| `compiler_out_of_memory`                        | `verification-inconclusive` |
+| `no_compiler_output`                            | `verification-inconclusive` |
+| `cannot_fetch_bytecode`                         | `verification-inconclusive` |
+| `onchain_runtime_bytecode_not_available`        | `verification-inconclusive` |
+| `onchain_creation_bytecode_not_available`       | `verification-inconclusive` |
+| `contract_not_deployed`                         | `verification-inconclusive` |
+
+`contract_not_deployed` can appear right after a deployment, before Sourcify's node sees the
+contract.
 
 ## A submit without a clear answer
 
@@ -96,27 +125,34 @@ at once, with no lookup.
   "not verified" answer is not cached. After a submit, the job's answer is newer than a lookup.
 - The lookup names the stored contract from `compilation`: `fullyQualifiedName`, else `name`, and
   `compilerVersion`.
-- Sourcify can hold another contract's source for an address. On 2026-11-10, on Ethereum Sepolia,
-  it held `simplestorage2.sol:SimpleStorage` compiled with `0.8.33` as a `match` for a contract the
-  caller deployed as `EvBox` with `0.8.34`, within two minutes of the deployment. `verify()` compares
-  `fullyQualifiedName` with the whole `contractName` and `compilerVersion` with
-  `compiler.version`, and submits when either differs; see
-  [Match types](../explanation/match-types.md).
+- Sourcify can hold another contract's source for an address. On Ethereum Sepolia, within two
+  minutes of a deployment, it held a `match` from `simplestorage2.sol:SimpleStorage` compiled with
+  `0.8.33`. The caller had deployed `EvBox`, compiled with `0.8.34`. `verify()` compares the
+  stored contract with the input, and submits when either part differs
+  ([Match types](../explanation/match-types.md)):
+  - `fullyQualifiedName` with the whole `contractName`;
+  - `compilerVersion` with `compiler.version`.
 - Two Sourcify answers name no contract: the `409` to a submit, and the lookup of a server that
   ignores `fields=compilation`. `verify()` then takes the match as your source, and logs at `info`
   that the answer names no contract. After a `409` that follows another contract's match, the
   result keeps that contract in `storedContract`.
-- A submit can verify the contract on other explorers too. On 2026-11-02, completed jobs carried
-  `externalVerifications`, with an entry per explorer (Etherscan, Blockscout, Routescan): a job id,
-  an "already verified" answer or an error such as a daily limit. On Polygon Amoy, Etherscan showed
-  the contract verified after the Sourcify submit alone. A later Etherscan submit for the same
-  contract can then answer that it is already verified. explorer-verify does not report these
-  entries yet.
+- A submit can verify the contract on other explorers too. Completed jobs carry
+  `externalVerifications`, one entry per explorer: a job id, an "already verified" answer or an
+  error such as a daily limit. A later Etherscan submit can then answer that the contract is
+  already verified. explorer-verify does not report these entries yet.
 - A submit with exact sources for a contract that has only a partial match upgrades it to an exact
   match.
 - Linked libraries: for a contract linked to a library after compiling, as Foundry and Hardhat do,
-  submit `settings.libraries` as it was at compile time. On 2026-11-03, adding the library
-  addresses to `settings.libraries` gave only a partial match, because the addresses change the
-  metadata hash. `verify()` sends the input unchanged; see
-  [Linked libraries](verify.md#linked-libraries).
-- Jobs on testnets finished in about one second on 2026-11-02.
+  submit `settings.libraries` as it was at compile time. Adding the library addresses gives only
+  a partial match, because the addresses change the metadata hash. `verify()` sends the input
+  unchanged; see [Linked libraries](verify.md#linked-libraries).
+- Jobs on testnets finish in about one second.
+
+## Sources
+
+- Sourcify API v1 shutdown on 2026-07-07: the Sourcify API v2 documentation.
+- `externalVerifications` entries for Etherscan, Blockscout and Routescan, and an Etherscan
+  verification on Polygon Amoy after a Sourcify submit alone: live runs on 2026-11-02.
+- Testnet jobs finishing in about one second: live runs on 2026-11-02.
+- A partial match after adding library addresses to `settings.libraries`: live run on 2026-11-03.
+- Another contract's source held for a new contract on Ethereum Sepolia: live run on 2026-11-10.

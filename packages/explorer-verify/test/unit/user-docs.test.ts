@@ -344,14 +344,17 @@ const RUNS: readonly DocRun[] = [
     page: "reference/errors/index.md",
     example: 0,
     what: "verify() finds the contract verified",
+    setup: "foundry",
     fixtures: ALREADY_VERIFIED,
   },
   {
     page: "reference/errors/index.md",
     example: 0,
     what: "verify() ends not-confirmed: the handle is stored and the error rethrown",
+    setup: "foundry",
     fixtures: NOT_CONFIRMED,
     exitCode: 1,
+    stdout: "",
   },
   {
     page: "reference/json-output.md",
@@ -556,9 +559,23 @@ const RUNS: readonly DocRun[] = [
   {
     page: WRAPPER,
     example: 0,
-    what: "verified; then a cancel after the submit keeps the handle, and the resume ends verified",
+    what: "the wrapper's dry run finds the sample verified and submits nothing",
+    fixtures: ALREADY_VERIFIED,
+    stdout: "dry-run on sourcify: lookup exact\n",
+  },
+  {
+    page: WRAPPER,
+    example: 2,
+    what: "a dry run that finds no match; verified; then a cancel keeps the handle and resumes",
     // The cancelled call sends no poll: the abort lands in the wait before the first one.
-    fixtures: [...VERIFIED, ...VERIFIED],
+    fixtures: ["2026-11-02-lookup-not-verified", ...VERIFIED, ...VERIFIED],
+    stdout: [
+      "dry-run on sourcify: lookup none",
+      "success (exact) on sourcify",
+      `cancelled, resume with ${RECORDED_HANDLE}`,
+      "success (exact) on sourcify",
+      "",
+    ].join("\n"),
   },
   {
     page: "reference/core.md",
@@ -581,7 +598,7 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: WRAPPER,
-    example: 2,
+    example: 4,
     what: "explorer-verify/core with the Sourcify client and the table: already verified",
     fixtures: ALREADY_VERIFIED,
     stdout: "already-verified sourcify\n",
@@ -589,9 +606,9 @@ const RUNS: readonly DocRun[] = [
   {
     page: WRAPPER,
     example: 3,
-    what: "explorer-verify/core with route.apiUrl and no table: already verified",
-    fixtures: ALREADY_VERIFIED,
-    stdout: "already-verified\n",
+    what: "hintFor gives the end-user hint of a rate-limited error",
+    stdout:
+      "Verification failed. The explorer is limiting requests. Wait 3 seconds, then try again.\n",
   },
   {
     page: WRAPPER,
@@ -608,17 +625,22 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: WRAPPER,
-    example: 0,
-    what: "both calls map an already-verified result and submit nothing",
-    fixtures: [...ALREADY_VERIFIED, ...ALREADY_VERIFIED],
-    stdout: "already-verified (exact) on sourcify\nalready-verified (exact) on sourcify\n",
+    example: 2,
+    what: "the dry run and both calls find the sample verified and submit nothing",
+    fixtures: [...ALREADY_VERIFIED, ...ALREADY_VERIFIED, ...ALREADY_VERIFIED],
   },
   {
     page: WRAPPER,
-    example: 0,
+    example: 2,
     what: "not-confirmed becomes a pending DeployKitError, resumed; then the cancel and its resume",
-    fixtures: [...NOT_CONFIRMED, "2026-11-02-job-exact-match", ...VERIFIED],
+    fixtures: [
+      "2026-11-02-lookup-not-verified",
+      ...NOT_CONFIRMED,
+      "2026-11-02-job-exact-match",
+      ...VERIFIED,
+    ],
     stdout: [
+      "dry-run on sourcify: lookup none",
       `pending, resume with ${RECORDED_HANDLE}`,
       "success (exact) on sourcify",
       `cancelled, resume with ${RECORDED_HANDLE}`,

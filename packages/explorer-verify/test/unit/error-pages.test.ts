@@ -16,16 +16,20 @@ import { pageDetails, SAMPLE_DETAILS } from "../helpers/sample-details.ts";
 const REPOSITORY = new URL("../../../../", import.meta.url);
 const PAGES = new URL("docs/user/reference/errors/", REPOSITORY);
 const RELEASED = new URL("../../released-error-codes.json", import.meta.url);
-// The labelled lines of a code page, in the order they appear. The CLI tests check "From the CLI:".
-const LABELS = [
-  "Cause:",
-  "Fix:",
-  "Default hint:",
-  "For end users:",
-  "From the CLI:",
-  "Retryable:",
-  "Exit code:",
+// The template of a code page (decision 0064): the H1, a one-sentence summary, then these H2s in
+// this order, each holding its labelled lines in this order. The CLI tests check "From the CLI:".
+const SECTIONS: readonly { heading: string; labels: readonly string[] }[] = [
+  { heading: "How to fix", labels: ["Fix:", "From the CLI:"] },
+  {
+    heading: "Facts",
+    labels: ["Retryable:", "Exit code:", "Sent to an explorer:", "Default hint:", "For end users:"],
+  },
+  { heading: "Why", labels: ["Cause:"] },
+  { heading: "In code", labels: [] },
 ];
+const LABELS = SECTIONS.flatMap((section) => section.labels);
+// The most words between the H1 and the start of the fix (R-AX-10, issue #321).
+const FIX_WITHIN_WORDS = 40;
 
 const codes: readonly string[] = ERROR_CODES;
 
@@ -52,6 +56,40 @@ function paragraph(text: string, label: string): string | undefined {
     .slice(start + label.length, end === -1 ? undefined : end)
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** The H2 headings of a page, with the offset of each, outside code blocks. */
+function headings(text: string): { heading: string; at: number }[] {
+  const found: { heading: string; at: number }[] = [];
+  let fenced = false;
+  let at = 0;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("```")) {
+      fenced = !fenced;
+    } else if (!fenced && line.startsWith("## ")) {
+      found.push({ heading: line.slice(3).trim(), at });
+    }
+    at += line.length + 1;
+  }
+  return found;
+}
+
+/** The H2 a page offset falls under, or `undefined` before the first H2. */
+function sectionAt(text: string, at: number): string | undefined {
+  return headings(text).findLast((found) => found.at < at)?.heading;
+}
+
+/** The offset of the one line that starts with `label`, or -1. */
+function labelAt(text: string, label: string): number {
+  return text.search(new RegExp(`^${label} `, "m"));
+}
+
+/** The words of a Markdown text, with each link counted as its text. */
+function words(text: string): number {
+  return text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, " $1 ")
+    .split(/\s+/)
+    .filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
 }
 
 /** The committed list of released codes: each code and the first version that shipped it. */
@@ -105,6 +143,56 @@ describe("error pages (R-AX-10)", () => {
         positions.toSorted((a, b) => a - b),
         `${code}: labels out of order`,
       );
+    }
+  });
+
+  it("puts the template's H2s in order, with How to fix as the first H2 (decision 0064)", () => {
+    const required = SECTIONS.map((section) => section.heading);
+    for (const code of ERROR_CODES) {
+      const found = headings(page(code)).map((each) => each.heading);
+      assert.equal(found[0], "How to fix", `${code}: the first H2`);
+      assert.deepEqual(
+        found.filter((heading) => required.includes(heading)),
+        required,
+        `${code}: the template's H2s, once each, in order`,
+      );
+    }
+  });
+
+  it("puts each labelled line in its H2", () => {
+    for (const code of ERROR_CODES) {
+      const text = page(code);
+      for (const section of SECTIONS) {
+        for (const label of section.labels) {
+          assert.equal(sectionAt(text, labelAt(text, label)), section.heading, `${code}: ${label}`);
+        }
+      }
+    }
+  });
+
+  it("opens with a one-sentence summary and starts the fix within 40 words of the H1", () => {
+    for (const code of ERROR_CODES) {
+      const text = page(code);
+      const head = text.slice(text.indexOf("\n"), labelAt(text, "Fix:"));
+      const count = words(head);
+      assert.ok(count <= FIX_WITHIN_WORDS, `${code}: ${String(count)} words before the fix`);
+      const summary = head
+        .split("\n\n")
+        .map((block) => block.trim())
+        .filter((block) => block !== "" && !block.startsWith("#"))
+        .filter((block) => !/^(Version|Agents): /.test(block));
+      assert.equal(summary.length, 1, `${code}: one summary paragraph`);
+      const sentence = (summary[0] ?? "").replace(/`[^`]*`/g, "code");
+      assert.match(sentence, /^[^.]*\.$/, `${code}: the summary is one sentence`);
+    }
+  });
+
+  it("shows a check of the error's code under In code", () => {
+    for (const code of ERROR_CODES) {
+      const text = page(code);
+      const start = headings(text).find((each) => each.heading === "In code")?.at ?? -1;
+      const block = /```ts[^\n]*\n([\s\S]*?)```/.exec(text.slice(start))?.[1] ?? "";
+      assert.ok(block.includes(`"${code}"`), `${code}: no ts block that checks the code`);
     }
   });
 

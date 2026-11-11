@@ -1,32 +1,26 @@
 # Run the server handler
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: developers who run a dapp and want its users to verify contracts on Etherscan without
-shipping an Etherscan key to the browser. The handler is part of the core `explorer-verify` package.
+Keep your Etherscan key on your server. The browser sends its Etherscan requests to a handler,
+which adds the key; Sourcify requests go out unchanged.
 
-This guide runs [`createVerifyHandler`](../reference/server-handler.md) in two places: a Next.js
-App Router route and a Cloudflare Worker. In both, the key comes from the platform's secret store,
-the guards are set, and the browser sends its Etherscan requests to the handler through the `fetch`
-it passes to `verify()`. The full examples are in the repository under
+For: developers who run a dapp and want its users to verify contracts on Etherscan.
+
+You need: a Next.js App Router project or a Cloudflare Worker, and an Etherscan key on a plan that
+covers your use.
+
+This guide runs [`createVerifyHandler`](../reference/server-handler.md) as a Next.js route and as
+a Cloudflare Worker. Each code block is a file from the repository's
 [`examples/server-nextjs/`](../../../examples/server-nextjs/app/api/verify/route.ts) and
-[`examples/server-cloudflare/`](../../../examples/server-cloudflare/src/index.ts). Each code block
-on this page is a file from those folders, unchanged.
-
-The browser calls `verify()` with `route: { backend: "etherscan-v2" }` and a `fetch` that sends
-the Etherscan requests to the handler, as
-[Point the client at it](../reference/server-handler.md#point-the-client-at-it) shows. Sourcify
-requests go out unchanged.
+[`examples/server-cloudflare/`](../../../examples/server-cloudflare/src/index.ts), unchanged.
 
 ## Etherscan's terms
 
-Read [Etherscan's API terms](https://etherscan.io/apiterms) before you deploy the handler. This
-project read them on 2026-11-04 (the page said "Last updated: 1 October 2026"). In this project's
-reading:
+Read [Etherscan's API terms](https://etherscan.io/apiterms) before you deploy the handler. In this
+project's reading:
 
 - You use your own key, on your own server.
 - The handler is part of your application. Do not offer it as a relay to other applications.
@@ -49,14 +43,13 @@ Install the core package in the server project, and in the dapp if it is a separ
 npm install explorer-verify
 ```
 
-The handler is the `explorer-verify/server` entry point. It imports no Node built-in and uses
-only web-platform globals. `explorer-verify` depends on neither `next` nor `wrangler`; your
-project brings the one it runs on.
+The handler is the `explorer-verify/server` entry point. It uses only web-platform globals, and
+depends on neither `next` nor `wrangler`: your project brings the one it runs on.
 
 ## Configure the guards
 
 Both examples set the same options. The [reference](../reference/server-handler.md) lists every
-option and every refusal.
+option and every refusal:
 
 | Setting        | Example value                     | Why                                                                                   |
 | -------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
@@ -67,11 +60,17 @@ option and every refusal.
 | `rateLimit`    | An origin check                   | Refuses a browser request from another site with 429. Add a per-client limit here too |
 | `logger`       | `console`                         | Logs each refusal and failure, with the key removed                                   |
 
-CORS is not access control. A form-encoded POST needs no preflight, so any page can make its
-visitors' browsers send one to your handler, and a script outside a browser sends any header it
-wants. The origin check stops other sites' pages; `deployers` limits which contracts your key
-verifies; your own sign-in, in front of the handler, limits who verifies. See
-[Who may verify](../reference/server-handler.md#who-may-verify).
+> [!WARNING]
+> CORS is not access control. Any page can make its visitors' browsers send a form-encoded POST to
+> your handler, and a script outside a browser sends any header it wants.
+
+Each guard limits something else:
+
+- the origin check stops other sites' pages;
+- `deployers` limits which contracts your key verifies;
+- your own sign-in, in front of the handler, limits who verifies.
+
+See [Who may verify](../reference/server-handler.md#who-may-verify).
 
 ## Next.js
 
@@ -83,11 +82,13 @@ route a standard `Request` and sends the `Response` it returns.
    host's environment settings for production. Keep `.env*` files out of git.
 3. Optional: set `VERIFY_DEPLOYERS` to your deployer addresses, comma-separated.
 
-Never name the key `NEXT_PUBLIC_ETHERSCAN_API_KEY`. Next.js copies a variable with that prefix into
-the JavaScript it sends to the browser, at build time; a variable without the prefix stays on the
-server.
+> [!WARNING]
+> Never name the key `NEXT_PUBLIC_ETHERSCAN_API_KEY`. Next.js copies a variable with that prefix
+> into the JavaScript it sends to the browser, at build time.
 
-```ts
+The route:
+
+```ts [app/api/verify/route.ts]
 // The explorer-verify server handler as a Next.js App Router route handler: POST /api/verify.
 // Guide: docs/user/guides/run-the-server-handler.md
 //
@@ -158,15 +159,16 @@ export async function POST(request: Request): Promise<Response> {
 }
 ```
 
-The route exports only `runtime` and `POST`, because Next.js accepts only HTTP methods and segment
-options as exports of a route file. It uses the default Node.js runtime: Next.js marks the `edge`
-runtime as deprecated. It creates the handler on the first request, because `next build` loads the
-module where the key may be absent; created at load time, the handler would throw
+The route exports only `runtime` and `POST`: Next.js accepts only HTTP methods and segment options
+from a route file. It uses the default Node.js runtime, because Next.js marks `edge` as deprecated.
+
+It creates the handler on the first request. `next build` loads the module where the key may be
+absent, and a handler created then would throw
 [`invalid-input`](../reference/errors/invalid-input.md) and fail the build. A deployment without
 the key answers 500 and logs that error, which names the `apiKey` option and no value.
 
 The dapp and the route share an origin, so the route needs no CORS header. Next.js answers an
-`OPTIONS` request to the route itself, with an `Allow` header.
+`OPTIONS` request to the route itself.
 
 ## Cloudflare Workers
 
@@ -186,15 +188,17 @@ origin only.
    ```
 
    The command deploys a new version of the Worker with the secret. With gradual deployments, use
-   `npx wrangler versions secret put ETHERSCAN_API_KEY` instead, which creates a version without
-   deploying it.
+   `npx wrangler versions secret put` instead, which creates a version without deploying it.
 
-For `wrangler dev`, put `ETHERSCAN_API_KEY=<your key>` in a `.dev.vars` file or a `.env` file next
-to `wrangler.jsonc`, not both, and keep the file out of git.
+For `wrangler dev`, put `ETHERSCAN_API_KEY=<your key>` in a `.dev.vars` or a `.env` file next to
+the configuration, not both. Keep the file out of git.
 
-Never put the key in `vars`: Wrangler stores `vars` in the configuration file, in plain text.
+> [!WARNING]
+> Never put the key in `vars`: Wrangler stores `vars` in the configuration file, in plain text.
 
-```jsonc
+The configuration:
+
+```jsonc [wrangler.jsonc]
 // Wrangler configuration of the verify handler Worker.
 // The Etherscan key is a secret, never a var: `npx wrangler secret put ETHERSCAN_API_KEY`.
 // For `wrangler dev`, put it in a .dev.vars file next to this one, and keep that file out of git.
@@ -212,11 +216,11 @@ Never put the key in `vars`: Wrangler stores `vars` in the configuration file, i
 ```
 
 The `enable_request_signal` flag makes `request.signal` fire when the browser disconnects, so the
-handler stops its upstream request. From compatibility date 2026-11-17 this is the default
-([Request](https://developers.cloudflare.com/workers/runtime-apis/request/), read on 2026-11-04,
-page updated 2026-11-02).
+handler stops its upstream request. From compatibility date 2026-11-17 this is the default.
 
-```ts
+The Worker:
+
+```ts [src/index.ts]
 // The explorer-verify server handler as a Cloudflare Worker: POST /api/verify.
 // Guide: docs/user/guides/run-the-server-handler.md
 //
@@ -354,10 +358,10 @@ export default {
 };
 ```
 
-The Worker reads the key from `env`, the bindings argument of `fetch`. It creates one handler per
-`env` object, because the runtime may pass the same object to many requests. It types `Env` by hand
-so the example needs no Cloudflare package; `npx wrangler types` generates the same interface from
-`wrangler.jsonc`. A Worker without the secret throws `invalid-input` on its first request.
+The Worker reads the key from `env`, the bindings argument of `fetch`, and creates one handler per
+`env` object. It types `Env` by hand so the example needs no Cloudflare package;
+`npx wrangler types` generates the same interface. A Worker without the secret throws
+`invalid-input` on its first request.
 
 The CORS settings the handler expects you to add:
 
@@ -370,32 +374,39 @@ The CORS settings the handler expects you to add:
 | Another path                    | 404                                                                                                                                         |
 
 The handler adds no CORS header and answers `OPTIONS` with 405, so the Worker answers the preflight
-before it calls the handler. `Access-Control-Expose-Headers` lets the dapp read `Retry-After`,
-which comes with a 503 `address-not-indexed` and a 429 `upstream-rate-limited`. A form-encoded POST is a simple request and needs no preflight; the
-Worker answers one in case a browser sends it.
+itself. A form-encoded POST needs no preflight; the Worker answers one in case a browser sends it.
+`Access-Control-Expose-Headers` lets the dapp read `Retry-After`, which comes with a 503
+`address-not-indexed` and a 429 `upstream-rate-limited`.
 
 ## Point the browser at the handler
 
-The browser keeps no key. It passes `verify()` the handler's URL as `handlerUrl`. Each Etherscan
-request then goes to the handler, with the same query, method and body and no key, and every other
-request goes to its explorer unchanged. The routing table chooses as it does with an Etherscan
-key, so a chain whose row lists Etherscan first goes to the handler. No other code changes between
-direct and proxied use.
+The browser keeps no key. It passes the handler's URL as `handlerUrl`, and each Etherscan request
+goes to the handler with the same query, method and body and no key. Every other request goes to
+its explorer unchanged. The routing table chooses as it does with an Etherscan key.
 [API keys](../reference/api-keys.md#a-server-adds-the-key) lists the rules.
 
-An injected `fetch` alone does not send a request without its key: without `handlerUrl`, a call
-routed to Etherscan with no key throws `missing-api-key` before any request. Pass `fetch` next to
-`handlerUrl` when you need your own, for logging or retries; the requests go through it.
+Start with a dry run. It sends the handler one read-only lookup and never submits:
 
-The handler's answer comes from the handler's URL, not from `api.etherscan.io`. `verify()` reads it
-as Etherscan's answer, because `handlerUrl` chose that URL. A redirect from the handler still ends
-the call with `unexpected-response`. A refusal of the handler, such as `chain-not-allowed`, ends it
-with [`handler-refused`](../reference/errors/handler-refused.md), whose hint names the option to
-change. Log lines, events and errors name the handler's URL for these requests.
+<!-- no-run: it needs the deployed route at /api/verify and the sample next to the page. -->
 
-For the Next.js route, the handler URL is the path `/api/verify`:
+```ts no-run [check-route.ts]
+import { dryRun } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
 
-```ts
+const response = await fetch("/greeter-sepolia.json");
+const input: VerifyInput = await response.json();
+const plan = await dryRun(input, { handlerUrl: "/api/verify" });
+console.log(plan.backend, plan.lookup);
+```
+
+With the sample request [greeter-sepolia.json](../start/greeter-sepolia.json) served next to the
+page, it logs `etherscan-v2 exact`: Sepolia's row lists Etherscan first, and Etherscan holds the
+Greeter. A refusal such as `chain-not-allowed` throws
+[`handler-refused`](../reference/errors/handler-refused.md), whose hint names the option to change.
+
+For the Next.js route, `verify()` takes the path `/api/verify`:
+
+```ts [lib/verify-client.ts]
 // The browser side of the Next.js example: verify() with handlerUrl, which sends each Etherscan
 // request to the route in app/api/verify/route.ts. The browser holds no key.
 // Guide: docs/user/guides/run-the-server-handler.md
@@ -412,9 +423,9 @@ export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResul
 }
 ```
 
-For the Worker, it is the Worker's full URL:
+For the Worker, it takes the Worker's full URL:
 
-```ts
+```ts [client/verify-client.ts]
 // The browser side of the Cloudflare example: verify() in the dapp, with handlerUrl, which sends
 // each Etherscan request to the Worker on its own origin. The browser holds no key.
 // Guide: docs/user/guides/run-the-server-handler.md
@@ -434,16 +445,22 @@ export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResul
 }
 ```
 
+An injected `fetch` alone does not send a request without its key: without `handlerUrl`, a call
+routed to Etherscan with no key throws `missing-api-key`. Pass `fetch` next to `handlerUrl` for
+your own logging or retries. A redirect from the handler ends the call with `unexpected-response`.
+
 ## What the repository checks
 
 CI type-checks both examples, the Worker a second time without Node types, and runs their tests on
-Node.js. The tests call the route's `POST` and the Worker's `fetch` with the request the browser
-sends through `handlerUrl`, against recorded Etherscan answers. They check that the answer has
-the shape the client reads, that the key goes to Etherscan only in the form body, and that no
-response and no log line holds the key, even when Etherscan echoes it. One test serves the
-Next.js route over HTTP on 127.0.0.1 and calls `verify()` with `handlerUrl` and the real
-`fetch`, as a browser does. The examples are not deployed, and the tests do not run in the Workers
-runtime.
+Node.js against recorded Etherscan answers. The tests check that:
+
+- the answer has the shape the client reads;
+- the key goes to Etherscan only in the form body;
+- no response and no log line holds the key, even when Etherscan echoes it;
+- `verify()` with `handlerUrl` and the real `fetch` works against the Next.js route served on
+  127.0.0.1.
+
+The examples are not deployed, and the tests do not run in the Workers runtime.
 
 ## Sources
 
@@ -456,8 +473,8 @@ runtime.
 - Next.js, [Environment variables](https://nextjs.org/docs/app/guides/environment-variables):
   `.env*` loading and the `NEXT_PUBLIC_` prefix. Read on 2026-11-04 (page updated 2026-08-25).
 - Cloudflare, [Secrets](https://developers.cloudflare.com/workers/configuration/secrets/):
-  `wrangler secret put`, `wrangler versions secret put`, `env`, and `.dev.vars` or `.env` but not
-  both. Read on 2026-11-04 (page updated 2026-10-15).
+  `wrangler secret put` and `wrangler versions secret put`, the `env` argument, and one local
+  secrets file. Read on 2026-11-04 (page updated 2026-10-15).
 - Cloudflare, [Request](https://developers.cloudflare.com/workers/runtime-apis/request/):
   `request.signal` on disconnect and `enable_request_signal`. Read on 2026-11-04 (page updated
   2026-11-02).
@@ -472,5 +489,12 @@ runtime.
 - MDN, [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS): a form-encoded POST
   is a simple request without preflight, and `Vary: Origin` with a listed origin. Read on
   2026-11-04 (page updated 2026-10-28).
-- Etherscan, [API terms](https://etherscan.io/apiterms). Read on 2026-11-04 (page updated
-  2026-10-01).
+- Etherscan, [API terms](https://etherscan.io/apiterms). This project read them on 2026-11-04
+  (the page said "Last updated: 1 October 2026").
+
+## Next steps
+
+- [Server handler reference](../reference/server-handler.md): every option and refusal.
+- [Verify from a browser](verify-from-a-browser.md): the dapp side.
+- [Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md).
+- [API keys](../reference/api-keys.md): which host gets each key.

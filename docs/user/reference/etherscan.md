@@ -1,7 +1,5 @@
 # Etherscan
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -9,19 +7,37 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 Audience: developers and agents who need to know what explorer-verify sends to Etherscan and how it
 reads each answer.
 
-explorer-verify talks to Etherscan through its API v2 at `https://api.etherscan.io/v2/api`, or at
-the server that the `route` option names, such as your own
-[server handler](server-handler.md). One API serves every chain Etherscan covers; the chain goes in
-the query as `chainid`. Etherscan needs an API key ([API keys](api-keys.md)).
-[verify()](verify.md) and [checkStatus()](check-status.md) use this client.
+explorer-verify talks to Etherscan through its API v2. One API serves every chain Etherscan
+covers. [verify()](verify.md) and [checkStatus()](check-status.md) use this client.
 
-The routing table lists Etherscan v2 for the 55 chains of the Etherscan chainlist, each with its
-explorer host ([Routing](routing.md#etherscan-rows-and-paid-plans)). Pass the key in `apiKeys`:
+| Fact       | Value                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------- |
+| Server     | `https://api.etherscan.io/v2/api`, or the one `route` names                             |
+| Chain      | In the query, as `chainid`                                                              |
+| API key    | Required ([API keys](api-keys.md))                                                      |
+| Chains     | The 55 of the Etherscan chainlist ([Routing](routing.md#etherscan-rows-and-paid-plans)) |
+| Browsers   | Through your [server handler](server-handler.md), which adds the key                    |
+| Match type | [`exact` or `partial`](../explanation/match-types.md)                                   |
 
-```ts
-import { verify } from "explorer-verify";
+> [!IMPORTANT]
+> A submit sends your source to Etherscan, which publishes it. Keep the key off the client: in a
+> browser, send the requests through your [server handler](server-handler.md).
 
-const result = await verify(input, { apiKeys: { "etherscan-v2": etherscanKey } });
+## A minimal call
+
+Pass the key in `apiKeys`. This script verifies the sample request,
+[greeter-sepolia.json](../start/greeter-sepolia.json), a Greeter already verified on Sepolia:
+
+```ts [etherscan.ts]
+import { readFile } from "node:fs/promises";
+
+import { validateInput, verify } from "explorer-verify";
+
+const text = await readFile("greeter-sepolia.json", "utf8");
+const input = validateInput(JSON.parse(text));
+const result = await verify(input, {
+  apiKeys: { "etherscan-v2": etherscanKey },
+});
 console.log(`${result.status} ${result.backend}`);
 if (result.status !== "failed") {
   console.log(result.explorerUrl);
@@ -33,16 +49,20 @@ already-verified etherscan-v2
 https://sepolia.etherscan.io/address/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc#code
 ```
 
-The result's `explorerUrl` is the contract's page on the chain's explorer. Without a key, the
-call goes to Sourcify. On the 10 chains that need a paid Etherscan plan, Sourcify comes first: add
-`route: { backend: "etherscan-v2" }` to use Etherscan there.
+The result's `explorerUrl` is the contract's page on the chain's explorer.
 
-From a browser, pass `route: { backend: "etherscan-v2" }` and a `fetch` that sends the requests to
-your [server handler](server-handler.md#point-the-client-at-it), which adds the key.
+## When the call goes to Etherscan
+
+| Situation                      | Backend                                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| An Etherscan key in `apiKeys`  | Etherscan                                                                                                      |
+| No key                         | Sourcify                                                                                                       |
+| One of the 10 paid-plan chains | Sourcify first; `route: { backend: "etherscan-v2" }` for Etherscan                                             |
+| A browser                      | `route: { backend: "etherscan-v2" }` and a `fetch` to [your handler](server-handler.md#point-the-client-at-it) |
 
 ## Requests
 
-Every request is `POST <api>?chainid=<id>` with a form-encoded body (`application/x-www-form-urlencoded`):
+Every request is `POST <api>?chainid=<id>` with a form-encoded body. The body holds
 `module=contract`, the action, its fields and `apikey`. The key goes in the body and never in the
 URL, so it is never in a logged URL.
 
@@ -54,13 +74,15 @@ URL, so it is never in a logged URL.
 
 The submit fields:
 
-- `codeformat`: `solidity-standard-json-input`.
-- `sourceCode`: the JSON text of `compiler.input` with only `language`, `sources` and `settings`.
-- `contractaddress`: `address`.
-- `contractname`: `contractName`, as `contracts/Greeter.sol:Greeter`.
-- `compilerversion`: `compiler.version` with one leading `v`, as `v0.8.24+commit.e11b9ed9`.
-- `constructorArguments` and `constructorArguements`: `constructorArgs` without `0x`, both with the
-  same value. Both are left out when the contract takes no arguments.
+| Field                   | Value                                                                |
+| ----------------------- | -------------------------------------------------------------------- |
+| `codeformat`            | `solidity-standard-json-input`                                       |
+| `sourceCode`            | The JSON text of `compiler.input`: `language`, `sources`, `settings` |
+| `contractaddress`       | `address`                                                            |
+| `contractname`          | `contractName`, as `contracts/Greeter.sol:Greeter`                   |
+| `compilerversion`       | `compiler.version` with one leading `v`                              |
+| `constructorArguments`  | `constructorArgs` without `0x`; absent with no arguments             |
+| `constructorArguements` | The same value; Etherscan reads this misspelled name too             |
 
 ## How answers are read
 
@@ -99,10 +121,12 @@ attempt limit and time budget, and a `verify.retry` event with `reason` `rate-li
 
 A `failed` reason is redacted with the call's keys and cut to 300 characters.
 
+## A contract Etherscan has not indexed
+
 `Unable to locate ContractCode at …` means Etherscan finds no contract code at the address on that
 chain. Right after a deployment, Etherscan may not have indexed the contract yet. So the submit is
-sent again every `pollIntervalMs`, with a `verify.retry` event whose `reason` is `not-indexed`
-before each wait, for as long as the `indexWaitMs` option allows:
+sent again every `pollIntervalMs`, for as long as the `indexWaitMs` option allows. Before each
+wait, a `verify.retry` event gives `reason` `not-indexed`:
 
 - Without `indexWaitMs`, the call sends at most 10 submits, about 27 seconds with the default
   `pollIntervalMs`.
@@ -119,9 +143,12 @@ Right after a deployment, pass a longer wait and a budget that holds it:
 
 <!-- no-run: it posts to /api/verify on the page's own origin, which a test run does not serve. -->
 
-```ts no-run
-import { verify } from "explorer-verify";
+```ts no-run [wait-for-indexing.ts]
+import { validateInput, verify } from "explorer-verify";
 
+import greeter from "./greeter-sepolia.json" with { type: "json" };
+
+const input = validateInput(greeter);
 const result = await verify(input, {
   handlerUrl: "/api/verify",
   indexWaitMs: 120_000,
@@ -152,21 +179,26 @@ the call throws that error.
 - `Fail - Unable to verify` was once answered for a contract that a lookup showed verified moments
   later, right after a deployment. So explorer-verify checks with one lookup before it reports
   `failed`. An exact match means the job did verify the source: `verified`. A partial match is
-  Etherscan's own match from another contract, while the submitted source was rejected:
-  `already-verified`. If that lookup fails, the status poll counts as failed and polling goes on, as
-  for any failed poll. When polls keep failing, or the budget runs out, the call ends with
-  [`not-confirmed`](errors/not-confirmed.md) and the handle; it never reports `failed` from a
-  verdict it could not check.
-- On 2026-11-03, Etherscan gave an exact match for two contracts submitted without constructor
-  arguments, and with wrong ones, and recorded the arguments from the chain
-  ([live probes](../../contributor/research/2026-11-03-m2-live-probes.md#a-etherscan-with-constructor-arguments-omitted-or-wrong)).
-  This was one chain and two contracts.
-- Paid-plan chains: on 2026-11-04, a free-plan key on the 11 chains marked "Paid Plan required"
-  got normal answers to `getsourcecode` and `checkverifystatus`. The same key got
-  `Free API access is not supported for this chain …` for `account` `balance` on 8 of those chains
-  ([research note](../../contributor/research/2026-11-04-etherscan-rows.md#a-free-plan-key-on-the-paid-plan-chains)).
-  The answer to a submit with a free-plan key was not recorded. If Etherscan gives that text to any
-  request, the call throws [`api-key-rejected`](errors/api-key-rejected.md) with a hint to use a
-  key on a paid plan, or to verify on Sourcify with `route: { backend: "sourcify" }`.
+  Etherscan's own match from another contract: `already-verified`.
+- If that lookup fails, the poll counts as failed and polling goes on. When polls keep failing, or
+  the budget runs out, the call ends with [`not-confirmed`](errors/not-confirmed.md) and the
+  handle. It never reports `failed` from a verdict it could not check.
+- Etherscan gave an exact match for two contracts submitted without constructor arguments, and
+  with wrong ones, and recorded the arguments from the chain. This was one chain and two
+  contracts.
+- Paid-plan chains: a free-plan key on the chains marked "Paid Plan required" got normal answers
+  to `getsourcecode` and `checkverifystatus`. Other requests got
+  `Free API access is not supported for this chain …`. The answer to a submit was not recorded.
+- If Etherscan gives that text to any request, the call throws
+  [`api-key-rejected`](errors/api-key-rejected.md). The hint says to use a key on a paid plan, or
+  to verify on Sourcify with `route: { backend: "sourcify" }`.
 - Etherscan's plan rules apply to how you use your key
   ([Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md)).
+
+## Sources
+
+- Constructor arguments omitted or wrong: live run on 2026-11-03,
+  [live probes](../../contributor/research/2026-11-03-m2-live-probes.md#a-etherscan-with-constructor-arguments-omitted-or-wrong).
+- A free-plan key on the 11 paid-plan chains, with `account` `balance` refused on 8 of them: live
+  run on 2026-11-04,
+  [research note](../../contributor/research/2026-11-04-etherscan-rows.md#a-free-plan-key-on-the-paid-plan-chains).

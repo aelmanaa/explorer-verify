@@ -1,7 +1,5 @@
 # Etherscan plans and attribution
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
@@ -11,9 +9,14 @@ Audience: developers and dapp operators who will verify through Etherscan with t
 Etherscan's API needs a key, and its API terms set which plan a use needs, how displayed data is
 credited, and where a key may live. This page states the rules that shape explorer-verify and how
 the library follows them. It is the project's reading of
-[Etherscan's API terms](https://etherscan.io/apiterms) ("Last updated: 1 October 2026"), read on
-2026-11-02 and again on 2026-11-04. It is not legal advice. For a definitive answer about your
-use, ask Etherscan.
+[Etherscan's API terms](https://etherscan.io/apiterms), not legal advice. For a definitive answer
+about your use, ask Etherscan.
+
+| Rule                                 | What it means for you                                      |
+| ------------------------------------ | ---------------------------------------------------------- |
+| [Plan](#the-plan-rule)               | A public dapp or an organisation needs Advanced or higher  |
+| [Attribution](#the-attribution-rule) | Show "Powered by Etherscan.io APIs" next to Etherscan data |
+| [Keys](#keys-stay-off-the-client)    | Never put a key in client code                             |
 
 explorer-verify sends a call to Etherscan when the routing table lists Etherscan for the chain and
 you pass a key ([Routing](../reference/routing.md#etherscan-rows-and-paid-plans)). Sourcify needs
@@ -33,9 +36,13 @@ The terms say:
 Personal and research use includes developing, prototyping and testing an application before it
 is deployed commercially. It holds only while the use "does not generate revenue, does not support
 a revenue-generating product or service, and is not made on behalf of, or for the benefit of, a
-business, organisation or other third party". Commercial Application use covers an application, website, product or service offered
-to third parties, free or paid; anything that earns revenue; and anything run by or for a
-business, company, protocol, foundation, DAO or other organisation.
+business, organisation or other third party".
+
+Commercial Application use covers:
+
+- an application, website, product or service offered to third parties, free or paid;
+- anything that earns revenue;
+- anything run by or for a business, company, protocol, foundation, DAO or other organisation.
 
 | Setup                                                | Plan this reading gives         |
 | ---------------------------------------------------- | ------------------------------- |
@@ -64,9 +71,11 @@ as Etherscan API data. A dapp that shows it shows the attribution too.
 
 ## Keys stay off the client
 
-The terms forbid sharing or exposing a key, "including by embedding them in publicly accessible
-code or client-side applications". So the documented setups of explorer-verify never send an
-Etherscan key from a browser ([decision 0003](../../contributor/decisions/0003-etherscan-only-through-a-self-hosted-handler.md)).
+> [!IMPORTANT]
+> The terms forbid sharing or exposing a key, "including by embedding them in publicly accessible
+> code or client-side applications".
+
+So the documented setups of explorer-verify never send an Etherscan key from a browser ([decision 0003](../../contributor/decisions/0003-etherscan-only-through-a-self-hosted-handler.md)).
 
 - In a backend, a script or CI, pass the key in `apiKeys`; see [API keys](../reference/api-keys.md).
 - In a browser, use a keyless backend such as Sourcify, or send Etherscan calls to your own server,
@@ -81,10 +90,11 @@ Its position on the terms (R-SEC-5):
 
 - You run it on your own server, with your own key, as part of your own application.
 - It is not offered as a relay to other applications. The project runs no shared relay.
-- It forwards only the verify-submit action, `verifysourcecode`, the status action,
-  `checkverifystatus`, and a read-only lookup, `getsourcecode`. It reduces the lookup's answer so
-  that no source code and no ABI is passed on. With `deployers` set, it also reads the contract's
-  creation record from Etherscan, to check who created it.
+- It forwards only the verify submit, the status poll and a read-only lookup, and the proxy-link
+  actions when you turn them on ([Server handler](../reference/server-handler.md#etherscans-terms)).
+- It reduces the lookup's answer so that no source code and no ABI is passed on.
+- With `deployers` set, it also reads the contract's creation record from Etherscan, to check who
+  created it.
 - The terms forbid operating "an API proxy, gateway, relay or data feed that passes API Data
   through to third parties". Whether a handler limited to these actions counts as such a proxy is
   this project's reading, not legal advice: confirm it with Etherscan before you run it.
