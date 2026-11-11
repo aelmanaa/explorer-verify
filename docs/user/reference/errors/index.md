@@ -1,57 +1,59 @@
 # Errors
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-Audience: developers and agents handling errors from explorer-verify.
+Every error explorer-verify throws is an `ExplorerVerifyError` with a stable `code`. Each code has
+its own page that starts with the fix.
 
-Every error the library throws is an `ExplorerVerifyError`, except on abort, where the call rejects
-with `signal.reason` unchanged. Check `error.code`; TypeScript then narrows `error.details` to that
-code's data. Each error has:
+## Handle an error
 
-| Field       | Contents                                                                              |
-| ----------- | ------------------------------------------------------------------------------------- |
-| `code`      | A stable code from the list below                                                     |
-| `message`   | What went wrong                                                                       |
-| `hint`      | What to do next                                                                       |
-| `docsUrl`   | The code's own page, listed under [Codes](#codes)                                     |
-| `retryable` | `true` when trying again may succeed; for `not-confirmed`, try `checkStatus` again    |
-| `details`   | The code's data, such as the handle                                                   |
-| `cause`     | A redacted copy of the underlying error. `toJSON()` and `JSON.stringify` leave it out |
+Check `error.code`, then act on it. This example verifies the Greeter on Sepolia and stores the
+handle when the explorer is still verifying:
 
-`Object.keys(error)` lists `code`, `hint`, `retryable`, `details` and `docsUrl`.
-`JSON.stringify(error)` prints `code`, `message`, `hint`, `docsUrl`, `retryable`, the handle in its
-one-line form when there is one, and `details`, redacted, with each handle in its one-line form. It
-never prints `cause`, the stack or an API key. Its type, `ErrorJson`, is a union keyed by `code`, so
-checking `code` narrows `details` there too.
-
-`ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS`, `hintFor` and the error types are also
-exported from `explorer-verify/errors`. Code that only checks or maps errors imports them from there: that entry
-never reaches the verification code, so any bundler emits one file for it.
-
-```ts
+```ts [verify-or-store.ts]
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 import { ExplorerVerifyError, formatHandle, verify } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
+
+const built = await buildVerifyInputFromFoundry({
+  root: ".",
+  contract: "src/Greeter.sol:Greeter",
+});
+const input: VerifyInput = {
+  chainId: 11155111,
+  address: "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc",
+  ...built,
+};
 
 try {
-  await verify(input);
+  const result = await verify(input, { route: { backend: "sourcify" } });
+  console.log(result.status);
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-    localStorage.setItem("pending-verification", formatHandle(error.details.handle));
+  if (ExplorerVerifyError.is(error, "not-confirmed")) {
+    const line = formatHandle(error.details.handle);
+    localStorage.setItem("pending-verification", line);
   }
   throw error;
 }
 ```
 
+When the contract is already verified, it prints:
+
+```text
+already-verified
+```
+
+On abort, the call rejects with `signal.reason` unchanged, not with an `ExplorerVerifyError`.
+
 ### Recognise an error
 
 `ExplorerVerifyError.is(error, code)` checks the error and its code in one call, and narrows
-`error.details` to that code. Leave out `code` to accept any code; a `switch` on `error.code` then
+`error.details` to that code. Leave out `code` to accept any code. A `switch` on `error.code` then
 narrows `details` in each case:
 
-```ts
+```ts [resume.ts]
 import { ExplorerVerifyError, checkStatus } from "explorer-verify";
 import type { Handle } from "explorer-verify";
 
@@ -60,7 +62,8 @@ async function resume(handle: Handle): Promise<void> {
     await checkStatus(handle);
   } catch (error) {
     if (ExplorerVerifyError.is(error, "rate-limited")) {
-      console.error(`Wait ${String(error.details.retryAfterMs ?? 5_000)} ms.`);
+      const waitMs = error.details.retryAfterMs ?? 5_000;
+      console.error(`Wait ${String(waitMs)} ms.`);
     } else if (ExplorerVerifyError.is(error)) {
       switch (error.code) {
         case "not-confirmed":
@@ -80,23 +83,10 @@ as `AnyExplorerVerifyError`, not `ExplorerVerifyError`.
 
 `ExplorerVerifyError.is` and `instanceof` check a brand, `Symbol.for("explorer-verify.error")`, not
 the class. Both hold for an error from another installed copy of explorer-verify, for example when
-a build helper resolves another version than your code. The brand is a symbol key, so
-`structuredClone` and `postMessage` drop it; send `error.toJSON()` to a worker or another window.
+a build helper resolves another version than your code.
 
-### Create an error
-
-Library code creates these errors. Code that builds one itself, such as a wrapper that reports its
-own failures the same way, passes the code's default hint from `ERROR_HINTS`. Without a `hint`, the
-error's hint points to `docsUrl`:
-
-```ts
-import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
-
-const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper failed.", {
-  hint: ERROR_HINTS["internal-error"],
-  secrets: [],
-});
-```
+The brand is a symbol key, so `structuredClone` and `postMessage` drop it. Send `error.toJSON()` to
+a worker or another window.
 
 ### Hints for your tool's users
 
@@ -117,11 +107,11 @@ details, so it can:
 
 `hintFor(error, "developer")` returns `error.hint`. Both take the error or its JSON form. `hintFor`
 never throws: a value it cannot read, or a code it does not know, gets a general hint. Each code's
-page gives its end-user hint on its "For end users" line.
+page gives its end-user hint on its "For end users" line:
 
 <!-- no-run: it calls a terminal function of the host tool, which a test run does not have. -->
 
-```ts no-run
+```ts no-run [show-hint.ts]
 import { ExplorerVerifyError, hintFor, verify } from "explorer-verify";
 import type { VerifyInput } from "explorer-verify";
 
@@ -142,9 +132,11 @@ try {
 
 The CLI prints the same codes, with a hint in its own words: flags, environment variables and
 commands instead of the library's options. Each code's page gives that hint on its "From the CLI"
-line. Under the error line, it lists the issues of `invalid-input` that the message does not
-already state, and the candidates or missing sources of `incomplete-input`. For example, with a
-build-info that holds two contracts and no `--contract`:
+line.
+
+Under the error line, the CLI lists the issues of `invalid-input` that the message does not already
+state, and the candidates or missing sources of `incomplete-input`. For example, with a build-info
+that holds two contracts and no `--contract`:
 
 ```console
 error: The documents hold 2 contracts and none was chosen. (incomplete-input)
@@ -154,43 +146,149 @@ error: The documents hold 2 contracts and none was chosen. (incomplete-input)
 ```
 
 For `not-confirmed`, and for `cancelled` with one handle, a `next:` line gives the command that
-resumes the job, and `--json` puts it in `nextCommand`.
+resumes the job. With `--json`, the command is in `nextCommand`.
 [JSON output](../json-output.md#from-the-cli) describes both.
+
+## Codes
+
+Each code's page gives the fix, the facts with the default and end-user hints, the cause and a
+check in code. `docsUrl` links that
+page.
+
+- [`invalid-input`](invalid-input.md): the input, a handle or a command line failed validation.
+- [`not-confirmed`](not-confirmed.md): still verifying when the time budget ran out.
+- [`unsupported-chain`](unsupported-chain.md): no route for the chain.
+- [`network`](network.md): every request failed before it answered.
+- [`rate-limited`](rate-limited.md): HTTP 429 on every try.
+- [`timeout`](timeout.md): the budget ran out before the explorer accepted the submission.
+- [`unexpected-response`](unexpected-response.md): an answer not from the explorer's API.
+- [`in-progress`](in-progress.md): the explorer is already verifying the contract.
+- [`unknown-state`](unknown-state.md): a job status the library cannot classify.
+- [`job-not-found`](job-not-found.md): the explorer dropped the job.
+- [`cancelled`](cancelled.md): the CLI run was cancelled.
+- [`incomplete-input`](incomplete-input.md): the build documents lack part of the input.
+- [`insufficient-artifact`](insufficient-artifact.md): only ABI and bytecode.
+- [`unsupported-compiler`](unsupported-compiler.md): a compiler this release does not verify.
+- [`verification-inconclusive`](verification-inconclusive.md): a job ended without a verdict.
+- [`source-mismatch`](source-mismatch.md): a source file differs from the compiled one.
+- [`missing-api-key`](missing-api-key.md): the backend needs a key.
+- [`api-key-rejected`](api-key-rejected.md): the explorer refused the key.
+- [`quota-exceeded`](quota-exceeded.md): the key's daily limit is spent.
+- [`internal-error`](internal-error.md): a bug in the CLI.
+- [`no-metadata-hash`](no-metadata-hash.md): the bytecode holds no metadata hash.
+- [`metadata-unavailable`](metadata-unavailable.md): no bytecode or metadata found.
+- [`constructor-args-unavailable`](constructor-args-unavailable.md): not the deployed build.
+- [`proxy-link-pending`](proxy-link-pending.md): the proxy link had not finished.
+- [`proxy-link-unknown-state`](proxy-link-unknown-state.md): a proxy link state the library
+  cannot classify.
+- [`handler-refused`](handler-refused.md): your server handler refused the request.
+- [`not-indexed`](not-indexed.md): the explorer found no contract code at the address yet.
+
+## Error fields
+
+Each error has these fields:
+
+| Field       | Contents                                                                              |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `code`      | A stable code from the list under [Codes](#codes)                                     |
+| `message`   | What went wrong                                                                       |
+| `hint`      | What to do next                                                                       |
+| `docsUrl`   | The code's own page                                                                   |
+| `retryable` | `true` when trying again may succeed; for `not-confirmed`, try `checkStatus` again    |
+| `details`   | The code's data, such as the handle                                                   |
+| `cause`     | A redacted copy of the underlying error. `toJSON()` and `JSON.stringify` leave it out |
+
+`Object.keys(error)` lists the fields an error owns:
+
+- `code`, `hint` and `retryable`;
+- `details` and `docsUrl`.
+
+`JSON.stringify(error)` prints these fields:
+
+- `code`, `message` and `hint`;
+- `docsUrl` and `retryable`;
+- the handle in its one-line form, when there is one;
+- `details`, redacted, with each handle in its one-line form.
+
+It never prints `cause`, the stack or an API key. Its type, `ErrorJson`, is a union keyed by
+`code`, so checking `code` narrows `details` there too.
+
+The error class, its codes, their hints and the error types are also exported from
+`explorer-verify/errors`:
+
+- `ExplorerVerifyError` and `ERROR_CODES`;
+- `ERROR_HINTS` and `hintFor`;
+- the error types, such as `ErrorJson`.
+
+Code that only checks or maps errors imports them from there. That entry never reaches the
+verification code, so any bundler emits one file for it.
+
+## Create an error
+
+Library code creates these errors. Code that builds one itself, such as a wrapper that reports its
+own failures the same way, passes the code's default hint from `ERROR_HINTS`. Without a `hint`, the
+error's hint points to `docsUrl`:
+
+```ts [wrapper-error.ts]
+import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
+
+const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper failed.", {
+  hint: ERROR_HINTS["internal-error"],
+  secrets: [],
+});
+```
 
 ## API keys in errors
 
 The error removes API keys before it stores anything. The message, the hint, every string in
-`details` and the cause all show `[redacted]` in place of:
+`details` and the cause all show `[redacted]` in place of these values:
 
 - the API key of the call, in any case, also URL-encoded or form-encoded;
-- the value of a key-like URL or form parameter, in any case, in the query string or the
-  fragment, also percent-encoded inside another URL: `apikey`, `api_key`, `api-key`, `x-api-key`,
-  `key`, `token`, `access_token`, `refresh_token`, `client_secret`, `auth`, `secret` and
-  `password`;
+- the value of a key-like URL or form parameter, listed below, in any case. That covers the query
+  string and the fragment, also percent-encoded inside another URL;
 - `apikey: value` and a JSON member such as `"apiKey": "value"`;
 - the user name and password of a URL;
 - a bearer token;
 - a bare 34-character Etherscan-style key: upper-case letters and digits, with at least one of
-  each. This rule skips the job id of a handle: an explorer may issue a job id of that shape, and
-  redacting it would make the handle impossible to resume. A job id that equals the call's API
-  key, or holds a key-like parameter, is still redacted.
+  each.
+
+The key-like parameters:
+
+- `apikey`, `api_key`, `api-key` and `x-api-key`;
+- `key`, `token`, `access_token` and `refresh_token`;
+- `client_secret`, `auth`, `secret` and `password`.
+
+The rule for a bare 34-character key skips the job id of a handle. An explorer may issue a job id
+of that shape, and redacting it would make the handle impossible to resume. A job id that equals
+the call's API key, or holds a key-like parameter, is still redacted.
+
+### Details and cause
 
 The error builds `details` again from the fields its code declares, so an extra field never
 reaches the error. A `details.backend` outside the list of backends reads `unknown`. That happens
 only when code bypassed the types.
 
 The details are frozen. An optional number that is not finite, such as a `retryAfterMs` of `NaN`,
-is left out. A required number, such as the `status` of `unexpected-response`, is kept as it is:
-an error built by code that bypassed the types with `NaN` or `Infinity` there is refused by
-`toEnvelope()` and `exitCodeOf()` with `invalid-input`, because JSON has no such number.
+is left out. A required number, such as the `status` of `unexpected-response`, is kept as it is.
 
-The `cause` is a copy of the underlying error. It is a plain `Error` with the original name. Its
-message, stack, `code`, `errno` and `syscall`, a one-line summary of an `AggregateError`'s errors,
-and its own cause are redacted. Other fields of the original are left out. So `console.log(error)`
-does not print a key, even when `fetch` failed with a URL that held one. A cause that is an object
-but not an `Error` reads `[cause omitted]`.
+Code that bypassed the types may build an error with `NaN` or `Infinity` there. `toEnvelope()`
+and `exitCodeOf()` refuse such an error with `invalid-input`, because JSON has no such number.
 
-Redaction does not cover these cases. Keep such values out of errors:
+The `cause` is a copy of the underlying error: a plain `Error` with the original name. These parts
+of it are redacted:
+
+- its message and stack;
+- its `code`, `errno` and `syscall`;
+- a one-line summary of an `AggregateError`'s errors;
+- its own cause.
+
+Other fields of the original are left out. So `console.log(error)` does not print a key, even when
+`fetch` failed with a URL that held one. A cause that is an object but not an `Error` reads
+`[cause omitted]`.
+
+### What redaction does not cover
+
+Keep such values out of errors:
 
 - request headers other than a bearer token;
 - base64 text, and a URL encoded three or more times;
@@ -213,11 +311,13 @@ each error code to its exit code.
 | 6         | Unknown state; the output carries the handle of a verification. Or a bug in the CLI, with no handle. A person checks it                                          | `unknown-state`, `job-not-found`, `proxy-link-unknown-state` (no handle), `internal-error` (created by the CLI)                                                                                                                       |
 | 130       | Cancelled                                                                                                                                                        | `cancelled`, created by the CLI. In the library, an abort rejects with `signal.reason`                                                                                                                                                |
 
-`unexpected-response` and `unknown-state` differ in who answered. `unexpected-response` means the
-answer did not come from the explorer's API, or not in its format: a 5xx status, an HTML page or a
-wrong content type, after retries. `unknown-state` means the explorer's API answered in its format,
-for a submission with a job id, with a status the library cannot classify, or that a job reported
-the contract as already verified and the lookup for its match failed or found no match.
+`unexpected-response` and `unknown-state` differ in who answered:
+
+- `unexpected-response`: the answer did not come from the explorer's API, or not in its format. It
+  covers a 5xx status, an HTML page or a wrong content type, after retries.
+- `unknown-state`: the explorer's API answered in its format, for a submission with a job id, with
+  a status the library cannot classify. It also covers a job that reported the contract as already
+  verified when the lookup for its match failed or found no match.
 
 ## Retries
 
@@ -233,13 +333,17 @@ request with the same URL and body:
 - for a lookup or a poll: after a network error, a request that took longer than 30 seconds, and
   HTTP 429, 502, 503 or 504;
 - for a submit: only after HTTP 429 or 503, which refuse the request before the explorer processes
-  it. A submit that got no answer, timed out, or got a 500, 502 or 504 is not sent again, because
-  the explorer may have received it. Check the contract's state before you submit again.
+  it.
+
+> [!WARNING]
+> A submit that got no answer, timed out, or got a 500, 502 or 504 is not sent again, because the
+> explorer may have received it. Check the contract's state before you submit again.
 
 A Sourcify 429 whose `customCode` is `duplicate_verification_request` means the contract is
-already being verified. It is not retried. A wait that would end after the time budget
-(`timeoutMs`) ends the retries with the last error. An abort stops every request and wait at once,
-and the call rejects with `signal.reason`.
+already being verified. It is not retried.
+
+A wait that would end after the time budget (`timeoutMs`) ends the retries with the last error.
+An abort stops every request and wait at once, and the call rejects with `signal.reason`.
 
 Some answers end the call at once with `unexpected-response`, without a retry:
 
@@ -247,36 +351,3 @@ Some answers end the call at once with `unexpected-response`, without a retry:
   configure;
 - a body larger than 16 MiB;
 - a body that fails or stalls after the headers arrived.
-
-## Codes
-
-Each code has its own page with the cause, the fix, the default hint, the end-user hint, whether to
-retry and the exit code. `docsUrl` links that page.
-
-- [`invalid-input`](invalid-input.md)
-- [`not-confirmed`](not-confirmed.md)
-- [`unsupported-chain`](unsupported-chain.md)
-- [`network`](network.md)
-- [`rate-limited`](rate-limited.md)
-- [`timeout`](timeout.md)
-- [`unexpected-response`](unexpected-response.md)
-- [`in-progress`](in-progress.md)
-- [`unknown-state`](unknown-state.md)
-- [`job-not-found`](job-not-found.md)
-- [`cancelled`](cancelled.md)
-- [`incomplete-input`](incomplete-input.md)
-- [`insufficient-artifact`](insufficient-artifact.md)
-- [`unsupported-compiler`](unsupported-compiler.md)
-- [`verification-inconclusive`](verification-inconclusive.md)
-- [`source-mismatch`](source-mismatch.md)
-- [`missing-api-key`](missing-api-key.md)
-- [`api-key-rejected`](api-key-rejected.md)
-- [`quota-exceeded`](quota-exceeded.md)
-- [`internal-error`](internal-error.md)
-- [`no-metadata-hash`](no-metadata-hash.md)
-- [`metadata-unavailable`](metadata-unavailable.md)
-- [`constructor-args-unavailable`](constructor-args-unavailable.md)
-- [`proxy-link-pending`](proxy-link-pending.md)
-- [`proxy-link-unknown-state`](proxy-link-unknown-state.md)
-- [`handler-refused`](handler-refused.md)
-- [`not-indexed`](not-indexed.md)

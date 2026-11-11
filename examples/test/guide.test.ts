@@ -1,7 +1,7 @@
 // The docs check of the guide docs/user/guides/run-the-server-handler.md: it makes each statement
 // R-SEC-5 requires, with the link to Etherscan's API terms and the date they were read, and each
-// of its code blocks is an example file, unchanged, so the code the guide shows is the code CI
-// type-checks and tests (R-SRV-1, R-SRV-5).
+// code block titled with an example file's path is that file, unchanged, so the code the guide
+// shows is the code CI type-checks and tests (R-SRV-1, R-SRV-5).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -12,18 +12,24 @@ const guide = readFileSync(new URL(GUIDE, root), "utf8");
 /** The guide's prose, with lines rejoined, so a statement may wrap. */
 const prose = guide.replaceAll(/\s+/g, " ");
 
-/** The example files the guide shows, in the order it shows them. */
-const SHOWN: readonly string[] = [
-  "examples/server-nextjs/app/api/verify/route.ts",
-  "examples/server-cloudflare/wrangler.jsonc",
-  "examples/server-cloudflare/src/index.ts",
-  "examples/server-nextjs/lib/verify-client.ts",
-  "examples/server-cloudflare/client/verify-client.ts",
+/**
+ * The example files the guide shows, in the order it shows them, each with the title of its block:
+ * the file's path in its example project.
+ */
+const SHOWN: readonly (readonly [title: string, file: string])[] = [
+  ["app/api/verify/route.ts", "examples/server-nextjs/app/api/verify/route.ts"],
+  ["wrangler.jsonc", "examples/server-cloudflare/wrangler.jsonc"],
+  ["src/index.ts", "examples/server-cloudflare/src/index.ts"],
+  ["lib/verify-client.ts", "examples/server-nextjs/lib/verify-client.ts"],
+  ["client/verify-client.ts", "examples/server-cloudflare/client/verify-client.ts"],
 ];
+const TITLES: ReadonlySet<string> = new Set(SHOWN.map(([title]) => title));
 
-/** The ts and jsonc blocks of the guide, in order. */
-function codeBlocks(text: string): string[] {
-  return [...text.matchAll(/^```(?:ts|jsonc)\n([\s\S]*?)^```$/gm)].map((match) => match[1] ?? "");
+/** The ts and jsonc blocks of the guide titled with an example file, in order. */
+function codeBlocks(text: string): { title: string; code: string }[] {
+  return [...text.matchAll(/^```(?:ts|jsonc) \[([^\]\n]+)\]\n([\s\S]*?)^```$/gm)]
+    .map((match) => ({ title: match[1] ?? "", code: match[2] ?? "" }))
+    .filter(({ title }) => TITLES.has(title));
 }
 
 describe(GUIDE, () => {
@@ -60,11 +66,14 @@ describe(GUIDE, () => {
     });
   }
 
-  it("shows each example file unchanged", () => {
+  it("shows each example file unchanged, titled with its path", () => {
     const blocks = codeBlocks(guide);
-    assert.equal(blocks.length, SHOWN.length);
-    SHOWN.forEach((file, index) => {
-      assert.equal(blocks[index], readFileSync(new URL(file, root), "utf8"), file);
+    assert.deepEqual(
+      blocks.map(({ title }) => title),
+      SHOWN.map(([title]) => title),
+    );
+    SHOWN.forEach(([, file], index) => {
+      assert.equal(blocks[index]?.code, readFileSync(new URL(file, root), "utf8"), file);
     });
   });
 });

@@ -1,53 +1,108 @@
 # Wrap explorer-verify behind your tool's API
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
-Audience: authors of a tool that already verifies contracts, such as a deploy framework, a
-dashboard or an SDK, who want to call explorer-verify inside their existing functions. Your users keep calling the functions they call today. Inside those functions, the tool calls
-[`verify()`](../reference/verify.md) and [`checkStatus()`](../reference/check-status.md), maps its
-own settings onto `VerifyOptions`, and maps results and error codes back onto its own results and
-error classes. The examples use a made-up tool, `deployKit`, with a function
-`deployKit.verifyContract(params, settings)` whose signature stays as it was.
+Call explorer-verify inside the functions your tool already has. The examples change the body of
+`deployKit.verifyContract()` in a made-up tool; its callers change nothing.
 
-## Setup
+For: authors of a deploy framework, a dashboard or an SDK that already verifies contracts.
 
-Node.js 22.18 or later, or any runtime with `fetch`. Supported Node.js versions follow Node's LTS
-schedule ([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)).
-Install the core package:
+You need: Node.js 22.18 or later, or any runtime with `fetch`. For a five-minute version, start
+with the [SDK wrapper quickstart](../start/quickstart-sdk-wrapper.md).
+
+## Install
+
+Install the core package, which runs in a browser, a backend or a CLI. Download the sample
+request, a Greeter contract on Sepolia that Sourcify already holds:
 
 ```sh
 npm install explorer-verify
+curl -O \
+  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
 ```
 
-The core has no Node.js built-ins, so the same wrapper runs in a browser, a backend or a CLI.
+## Start with a dry run
 
-## The wrapper
+Give your tool a function that says what a verify call would do. `dryRun()` checks the input,
+picks the explorer and looks the contract up once. It never submits and needs no key:
 
-This module is the whole integration. `verifyContract` and `resumeVerification` keep the tool's
-public types. Only their bodies change:
+```ts [plan.ts]
+import { readFile } from "node:fs/promises";
+
+import { dryRun } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
+
+/** deployKit's new function: what verifyContract() would do. */
+export async function planVerification(input: VerifyInput): Promise<string> {
+  const plan = await dryRun(input);
+  return `${plan.status} on ${plan.backend}: lookup ${plan.lookup}`;
+}
+
+const json = await readFile("greeter-sepolia.json", "utf8");
+const sample: VerifyInput = JSON.parse(json);
+console.log(await planVerification(sample));
+```
+
+Run it:
+
+```sh
+node plan.ts
+```
+
+```text
+dry-run on sourcify: lookup exact
+```
+
+| `lookup`  | What a verify call would do                              |
+| --------- | -------------------------------------------------------- |
+| `exact`   | Nothing to submit: the explorer holds the contract       |
+| `partial` | Nothing to submit: the explorer holds a partial match    |
+| `none`    | Submit the source, which the explorer publishes for good |
+| `skipped` | Fail with `missing-api-key`: the backend needs a key     |
+
+## Write the wrapper
+
+Your public functions keep their signatures. Only their bodies change, and four functions do the
+mapping:
 
 1. `toInput` maps the tool's parameters onto a `VerifyInput`.
 2. `toOptions` maps the tool's settings onto `VerifyOptions`.
 3. `toReport` maps a `VerifyResult` onto the tool's report.
-4. `toDeployKitError` maps an `ExplorerVerifyError` onto the tool's error class, with `KIND`, which
-   names a kind for every error code. Because `KIND` is a `Record<ErrorCode, …>`, the tool stops
-   compiling when a release adds a code, until you map it.
+4. `toDeployKitError` maps an error onto the tool's error class.
 
-`verifyContract` also keeps the handle from the `verify.submitted` event. An abort rejects with
-`signal.reason`, which carries no handle, so without the event a call cancelled after the submit
-would lose the job. The handle is what to log or persist: the wrapper passes it to the tool's
-`onSubmitted` setting and puts it on the `cancelled` error as `resumeToken`.
+At the core of `verifyContract`, the wrapper keeps the handle from the `verify.submitted` event,
+because an abort rejects with `signal.reason`, which carries no handle:
 
-The last lines run it twice on the Greeter on Sepolia. The first call has a two-minute deadline.
-The second call cancels as soon as the explorer accepts the submission. After each, the example
-resumes the job from the token when the call ended without a verdict.
+<!-- fragment: an excerpt of deploykit.ts below, which runs in full. -->
 
-```ts
-import { ExplorerVerifyError, checkStatus, verify } from "explorer-verify";
+```ts fragment
+let handle: string | undefined;
+const onEvent = (event: VerifyEvent): void => {
+  if (event.type === "verify.submitted") handle = event.handle;
+};
+try {
+  const options = { ...toOptions(settings), onEvent };
+  return toReport(await verify(toInput(params), options));
+} catch (error) {
+  throw toDeployKitError(error, settings.signal, handle);
+}
+```
+
+`KIND` in the module gives every error code a kind. Its type is `Record<ErrorCode, …>`, so your
+tool stops compiling when a release adds a code. The module ends with a dry run, then two verify
+calls: one with a two-minute deadline, one cancelled once the explorer accepts the submission.
+
+<details>
+<summary>The whole module, deploykit.ts (about 240 lines)</summary>
+
+Copy it, then replace deployKit's types with your tool's:
+
+```ts [deploykit.ts]
+import { readFile } from "node:fs/promises";
+
+import { ExplorerVerifyError, checkStatus, dryRun, verify } from "explorer-verify";
 import type {
   ErrorCode,
   Hex,
@@ -59,7 +114,6 @@ import type {
 } from "explorer-verify";
 
 // deployKit's public types. They do not change.
-
 export interface VerifyContractParams {
   chainId: number;
   address: Hex;
@@ -69,27 +123,20 @@ export interface VerifyContractParams {
   compilerVersion: string;
   standardJsonInput: SolidityStandardJsonInput;
   constructorArgs?: Hex;
-  deployTxHash?: Hex;
-  /** The compiled creation bytecode, to derive constructorArgs when they are absent. */
-  bytecode?: Hex;
 }
 
 export interface VerifyContractSettings {
   etherscanApiKey?: string;
-  /** Seconds to wait for the explorer's verdict. Unset: the longest budget, about 24.8 days. */
+  /** Seconds to wait for a verdict. Unset: the longest budget. */
   waitTimeoutSeconds?: number;
-  fetch?: typeof fetch;
-  /** Stops the call. Use it to end a long wait. */
   signal?: AbortSignal;
-  rpcUrl?: string;
-  /** Called with the resume token as soon as the explorer accepts the submission. */
+  /** Called with the resume token when the explorer accepts. */
   onSubmitted?: (resumeToken: string) => void;
 }
 
 export interface VerifyReport {
   status: "success" | "already-verified" | "failed";
   explorer: string;
-  /** `partial` when the explorer matched the code but not the metadata hash. */
   match?: "exact" | "partial";
   url?: string;
   message?: string;
@@ -106,25 +153,23 @@ export type DeployKitErrorKind =
 
 export class DeployKitError extends Error {
   readonly kind: DeployKitErrorKind;
-  readonly retryable: boolean;
-  /** Pass it to resumeVerification() to keep polling without a new submission. */
+  /** Pass it to resumeVerification() to poll without a new submit. */
   readonly resumeToken: string | undefined;
 
   constructor(
     kind: DeployKitErrorKind,
     message: string,
-    options: { retryable: boolean; resumeToken: string | undefined; cause: unknown },
+    resumeToken: string | undefined,
+    cause: unknown,
   ) {
-    super(message, { cause: options.cause });
+    super(message, { cause });
     this.name = "DeployKitError";
     this.kind = kind;
-    this.retryable = options.retryable;
-    this.resumeToken = options.resumeToken;
+    this.resumeToken = resumeToken;
   }
 }
 
 // The mapping.
-
 const KIND: Readonly<Record<ErrorCode, DeployKitErrorKind>> = {
   "invalid-input": "config",
   "not-confirmed": "pending",
@@ -156,37 +201,39 @@ const KIND: Readonly<Record<ErrorCode, DeployKitErrorKind>> = {
 };
 
 function toInput(params: VerifyContractParams): VerifyInput {
+  const args = params.constructorArgs;
   return {
     chainId: params.chainId,
     address: params.address,
     contractName: params.contract,
-    compiler: { kind: "solc", version: params.compilerVersion, input: params.standardJsonInput },
-    ...(params.constructorArgs === undefined ? {} : { constructorArgs: params.constructorArgs }),
-    ...(params.deployTxHash === undefined ? {} : { creationTxHash: params.deployTxHash }),
-    ...(params.bytecode === undefined ? {} : { creationBytecode: params.bytecode }),
+    compiler: {
+      kind: "solc",
+      version: params.compilerVersion,
+      input: params.standardJsonInput,
+    },
+    ...(args === undefined ? {} : { constructorArgs: args }),
   };
 }
 
 function toOptions(settings: VerifyContractSettings): VerifyOptions {
+  const seconds = settings.waitTimeoutSeconds;
   return {
     apiKeys: { "etherscan-v2": settings.etherscanApiKey },
-    // Infinity is lowered to the longest budget, 2147483647 ms (about 24.8 days).
-    timeoutMs:
-      settings.waitTimeoutSeconds === undefined ? Infinity : settings.waitTimeoutSeconds * 1000,
-    ...(settings.fetch === undefined ? {} : { fetch: settings.fetch }),
+    // Infinity is lowered to the longest budget, about 24.8 days.
+    timeoutMs: seconds === undefined ? Infinity : seconds * 1000,
     ...(settings.signal === undefined ? {} : { signal: settings.signal }),
-    ...(settings.rpcUrl === undefined ? {} : { rpcUrl: settings.rpcUrl }),
   };
 }
 
 function toReport(result: VerifyResult): VerifyReport {
+  const explorer = result.backend;
   if (result.status === "failed") {
-    return { status: "failed", explorer: result.backend, message: result.reason };
+    return { status: "failed", explorer, message: result.reason };
   }
-  // A partial match counts as success; the report says which match it is.
+  // A partial match counts as success; the report says which match.
   return {
     status: result.status === "verified" ? "success" : "already-verified",
-    explorer: result.backend,
+    explorer,
     match: result.match,
     ...(result.explorerUrl === undefined ? {} : { url: result.explorerUrl }),
   };
@@ -197,27 +244,22 @@ function toDeployKitError(
   signal: AbortSignal | undefined,
   handle: string | undefined,
 ): unknown {
-  // An abort rejects with signal.reason, unchanged: it is not an ExplorerVerifyError and carries
-  // no handle, so the handle comes from the verify.submitted event.
+  // An abort rejects with signal.reason: no ExplorerVerifyError, no handle.
   if (signal?.aborted === true && error === signal.reason) {
-    return new DeployKitError("cancelled", "Verification was cancelled.", {
-      retryable: false,
-      resumeToken: handle,
-      cause: error,
-    });
+    return new DeployKitError("cancelled", "Cancelled.", handle, error);
   }
   if (!(error instanceof ExplorerVerifyError)) {
     return error;
   }
-  return new DeployKitError(KIND[error.code], `${error.message} ${error.hint}`, {
-    retryable: error.retryable,
-    // The handle in its one-line form, when the code carries one.
-    resumeToken: error.toJSON().handle ?? handle,
-    cause: error,
-  });
+  const token = error.toJSON().handle ?? handle;
+  const message = `${error.message} ${error.hint}`;
+  return new DeployKitError(KIND[error.code], message, token, error);
 }
 
 // deployKit's public functions. Same signatures, new bodies.
+async function planVerification(params: VerifyContractParams) {
+  return await dryRun(toInput(params));
+}
 
 async function verifyContract(
   params: VerifyContractParams,
@@ -231,16 +273,14 @@ async function verifyContract(
     }
   };
   try {
-    return toReport(await verify(toInput(params), { ...toOptions(settings), onEvent }));
+    const options = { ...toOptions(settings), onEvent };
+    return toReport(await verify(toInput(params), options));
   } catch (error) {
     throw toDeployKitError(error, settings.signal, handle);
   }
 }
 
-/**
- * Polls a submitted verification again; it never submits. Pass settings that route to the same
- * backend as the submit, the same key included; otherwise checkStatus() throws invalid-input.
- */
+/** Polls a submitted job again; never submits. Route to the same backend. */
 async function resumeVerification(
   resumeToken: string,
   settings: VerifyContractSettings = {},
@@ -252,19 +292,25 @@ async function resumeVerification(
   }
 }
 
-export const deployKit = { verifyContract, resumeVerification };
-
-// Two runs on the Greeter on Sepolia.
-const params: VerifyContractParams = {
-  chainId: input.chainId,
-  address: input.address,
-  contract: input.contractName,
-  compilerVersion: input.compiler.version,
-  standardJsonInput: input.compiler.input,
+export const deployKit = {
+  planVerification,
+  verifyContract,
+  resumeVerification,
 };
 
-/** Verifies, and resumes from the token once when the call ends without a verdict. */
-async function verifyAndResume(settings: VerifyContractSettings): Promise<void> {
+// The sample, as deployKit's parameters.
+const json = await readFile("greeter-sepolia.json", "utf8");
+const sample: VerifyInput = JSON.parse(json);
+const params: VerifyContractParams = {
+  chainId: sample.chainId,
+  address: sample.address,
+  contract: sample.contractName,
+  compilerVersion: sample.compiler.version,
+  standardJsonInput: sample.compiler.input,
+};
+
+/** Verifies; resumes once when the call ends without a verdict. */
+async function verifyAndResume(settings: VerifyContractSettings) {
   let report: VerifyReport;
   try {
     report = await deployKit.verifyContract(params, settings);
@@ -277,12 +323,17 @@ async function verifyAndResume(settings: VerifyContractSettings): Promise<void> 
       throw error;
     }
     console.log(`${error.kind}, resume with ${error.resumeToken}`);
-    report = await deployKit.resumeVerification(error.resumeToken, { waitTimeoutSeconds: 120 });
+    report = await deployKit.resumeVerification(error.resumeToken, {
+      waitTimeoutSeconds: 120,
+    });
   }
-  console.log(`${report.status} (${report.match ?? "no match"}) on ${report.explorer}`);
+  const match = report.match ?? "no match";
+  console.log(`${report.status} (${match}) on ${report.explorer}`);
 }
 
-// A two-minute deadline.
+// First the dry run, then a two-minute deadline.
+const plan = await deployKit.planVerification(params);
+console.log(`${plan.status} on ${plan.backend}: lookup ${plan.lookup}`);
 await verifyAndResume({ waitTimeoutSeconds: 120 });
 
 // A user who cancels as soon as the explorer accepts the submission.
@@ -294,292 +345,225 @@ await verifyAndResume({
 });
 ```
 
-With no Etherscan key, the routing table sends Sepolia to Sourcify. When Sourcify does not have the
-contract yet, the first call submits it and the job ends with an exact match. The second call
-submits, is cancelled with the handle saved, and resumes the same job:
+</details>
+
+With no Etherscan key, the routing table sends Sepolia to Sourcify, which already holds the
+sample:
 
 ```text
-success (exact) on sourcify
-cancelled, resume with ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718
-success (exact) on sourcify
+dry-run on sourcify: lookup exact
+already-verified (exact) on sourcify
+already-verified (exact) on sourcify
 ```
 
-When Sourcify already holds the contract, neither call submits, and each prints
-`already-verified (exact) on sourcify`. When the two minutes of the first call run out while
-Sourcify is still checking, `verifyContract` throws a `pending` error with the resume token, and
-`resumeVerification` polls the same job.
+On a contract Sourcify lacks, the dry run says `lookup none` and both calls submit. The second
+prints `cancelled, resume with ev1:sourcify:…` and resumes the same job. When a deadline runs out,
+`verifyContract` throws a `pending` error with the token. [Resume from a job
+queue](../advanced/resume-from-a-job-queue.md) polls it later.
 
 ## Map the settings onto VerifyOptions
 
-| deployKit setting    | `VerifyOptions` field     | Notes                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `etherscanApiKey`    | `apiKeys["etherscan-v2"]` | Sent only to Etherscan's API host. With a key, a chain on Etherscan's free tier goes to Etherscan v2; without one, to Sourcify. See [API keys](../reference/api-keys.md)                                                                                   |
-| `waitTimeoutSeconds` | `timeoutMs`               | The budget for the whole call, every request, retry and poll included. See [Behaviour that changes](#behaviour-that-changes)                                                                                                                               |
-| `fetch`              | `fetch`                   | Every request goes through it. It must not follow redirects. Use it for a proxy, logging or recorded answers in tests. It does not skip the `missing-api-key` check before any request: for a server that adds the key, map that setting onto `handlerUrl` |
-| `signal`             | `signal`                  | An abort rejects with `signal.reason` unchanged; the wrapper turns it into its `cancelled` error, with the handle from `verify.submitted` when the submit was accepted                                                                                     |
-| `onSubmitted`        | `onEvent`                 | The wrapper reads `verify.submitted` and passes its handle on. Log or persist it                                                                                                                                                                           |
-| `rpcUrl`             | `rpcUrl`                  | Used only to derive constructor arguments from the creation transaction                                                                                                                                                                                    |
-| A fixed explorer     | `route`                   | `{ backend }` picks another backend from the chain's row; `{ backend, apiUrl, apiKey }` targets another server. See [Routing](../reference/routing.md#route)                                                                                               |
-| A logger             | `logger`, `onEvent`       | Log lines and stage events, keys removed. See [Logging and events](../reference/logging-and-events.md)                                                                                                                                                     |
+| deployKit setting    | `VerifyOptions` field     | Notes                                               |
+| -------------------- | ------------------------- | --------------------------------------------------- |
+| `etherscanApiKey`    | `apiKeys["etherscan-v2"]` | Sent only to Etherscan's host. Without it, Sourcify |
+| `waitTimeoutSeconds` | `timeoutMs`               | The budget for the whole call, polls included       |
+| `signal`             | `signal`                  | An abort rejects with `signal.reason` unchanged     |
+| `onSubmitted`        | `onEvent`                 | Read the handle from `verify.submitted`             |
+| A `fetch`            | `fetch`                   | Every request goes through it. It must not redirect |
+| A fixed explorer     | `route`                   | See [Routing](../reference/routing.md#route)        |
+| A logger             | `logger`, `onEvent`       | See [Logging](../reference/logging-and-events.md)   |
+| A server with a key  | `handlerUrl`              | See [Server handler](run-the-server-handler.md)     |
 
-The library never reads `process.env`. If your tool reads keys from environment variables or a
-config file, read them in the tool and pass them in `apiKeys`. Etherscan's terms forbid an
-Etherscan key in browser code: in a browser, set `handlerUrl` to a
-[server handler](run-the-server-handler.md) that holds the key.
-
-When your tool builds one options object for `verify()` and `dryRun()`, as `toOptions()` above does,
-type it as `VerifyOptions`. [Options of each function](../reference/verify.md#options-of-each-function)
-shows why an object literal written for `verify()` does not compile in a `dryRun()` call.
+The library never reads `process.env`: read keys in your tool and pass them in `apiKeys`. In a
+browser, use `handlerUrl` instead; Etherscan's terms forbid its key in browser code. Type one
+options object for `verify()` and `dryRun()` as `VerifyOptions`
+([why](../reference/verify.md#options-of-each-function)).
 
 ## Behaviour that changes
 
-Some of what `verify()` does may differ from what your tool did before. Keep the old behaviour as
-the default, and let your users opt in, where the table says how.
+`verify()` may act differently from your tool's old code. Keep the old behaviour as the default
+where you can:
 
-| What `verify()` does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | How to keep the old behaviour, or make it opt-in                                                                                                                                                                                                                                                                                             |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| It stops after a time budget, 2 minutes by default, and throws `not-confirmed` with a handle when the explorer is still checking. It also throws `not-confirmed` after 3 failed polls in a row                                                                                                                                                                                                                                                                                                                                                                          | There is no way to turn the deadline off. 2147483647 ms, about 24.8 days, is the largest budget. A larger value, `Infinity` included, is lowered to it; the example above passes `Infinity` when your users set no deadline. Map `not-confirmed` onto a pending result that can be resumed, and offer `signal` so users can stop a long call |
-| It looks the contract up before it submits, and returns `already-verified` without a submit when the explorer holds an `exact` or `partial` match                                                                                                                                                                                                                                                                                                                                                                                                                       | Nothing to change. Map `already-verified` onto your own result for that case                                                                                                                                                                                                                                                                 |
-| It picks the backend from a routing table, by chain and by the keys you pass. A chain the table does not list throws `unsupported-chain`                                                                                                                                                                                                                                                                                                                                                                                                                                | Pass `route` to fix the backend. Pass `allowSourcifyFallback: true` to send an unlisted chain to the public Sourcify API                                                                                                                                                                                                                     |
-| On a backend that takes constructor arguments (Etherscan v2, Routescan, Etherscan-compatible explorers, Blockscout), it derives missing arguments from the creation code when the input has `creationBytecode`. It needs `rpcUrl` with `creationTxHash`, or an Etherscan key bound to the route; otherwise it logs why and submits without arguments. On Etherscan v2, Routescan and Etherscan-compatible explorers, which refuse a build other than the deployed one, a creation code that shows another build throws `constructor-args-unavailable` before the submit | Leave `creationBytecode` out, or pass `constructorArgs` (`0x` for none): passed arguments always win, and nothing is derived. See [Constructor arguments](../reference/verify.md#constructor-arguments)                                                                                                                                      |
-| It retries a failed request up to 5 attempts, and never resends a submit the explorer may have received                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Remove your own retry loop around the call. A loop around `verify()` multiplies the attempts                                                                                                                                                                                                                                                 |
-| It throws on every outcome that is not a verdict. A `failed` result, a definitive rejection, is returned, not thrown                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Map `failed` onto your failure result, and errors onto your error classes, as below                                                                                                                                                                                                                                                          |
-| It never follows a redirect, and an injected `fetch` must not follow one either                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Nothing to change, unless your own `fetch` wrapper follows redirects                                                                                                                                                                                                                                                                         |
-| It waits at least 1 second between polls, and uses the address in lower case in handles, events and URLs                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Nothing to change. A `pollIntervalMs` below 1000 is raised to 1000                                                                                                                                                                                                                                                                           |
+| What `verify()` does                                               | What to do in the wrapper                                       |
+| ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Stops after its budget, 2 minutes by default, with `not-confirmed` | Map it to a pending result you can resume; offer `signal`       |
+| Looks the contract up first; returns `already-verified`            | Map it onto your own result for that case                       |
+| Picks the backend from the routing table                           | Pass `route`, or `allowSourcifyFallback: true` for other chains |
+| Derives constructor arguments from `creationBytecode`              | Pass `constructorArgs`, `0x` for none, to skip it               |
+| Retries a request up to 5 times; never resends a submit            | Remove your own retry loop                                      |
+| Returns `failed`, and throws every other outcome                   | Map both, as the next sections show                             |
+| Never follows a redirect                                           | Make sure your own `fetch` does not either                      |
+
+The largest budget is about 24.8 days. [Constructor arguments](../reference/verify.md#constructor-arguments)
+says when a derived argument throws `constructor-args-unavailable`.
 
 ## Map the results
 
-| `VerifyResult.status` | deployKit `status` | Fields                                                              |
-| --------------------- | ------------------ | ------------------------------------------------------------------- |
-| `verified`            | `success`          | `backend`, `match` (`exact` or `partial`), `explorerUrl` when known |
-| `already-verified`    | `already-verified` | The same. Nothing was submitted                                     |
-| `failed`              | `failed`           | `backend`, `reason`: the explorer's code and message                |
-
-`match` is `partial` when the explorer matched the code but not the metadata hash. For a build
-without a metadata hash, a partial match is the best result Sourcify and Blockscout give. The example
-counts a partial match as success and carries `match` on the report, so its users can tell the
-two apart. If your tool reports only success or failure, decide whether a partial match counts as
-success, and say so in your docs. See [Match types](../explanation/match-types.md).
+A result's `status` is `verified`, `already-verified` or `failed`. `toReport` maps each onto
+deployKit's own. `failed` carries the explorer's `reason`. The other two carry `match`, which
+is `partial` when the explorer matched the code but not the metadata hash. Decide whether a partial
+match counts as success, and say so in your docs ([Match types](../explanation/match-types.md)).
 
 ## Map the errors
 
-Every failure is an `ExplorerVerifyError`, except an abort. Switch on `error.code`, not on the
-message. `error.hint` says what to do next, `error.retryable` whether trying again may work, and
-`error.toJSON().handle` holds the handle in its one-line form when the code carries one. The CLI
-exit code comes from `ERROR_EXIT_CODES` in `explorer-verify/envelope`; use it when your tool is a
-CLI too.
+Every failure but an abort is an `ExplorerVerifyError`. Switch on `error.code`, never on the
+message. `error.hint` says what to do next, and `error.toJSON().handle` holds the handle when the
+code carries one.
 
-After `timeout`, `network` or `verification-inconclusive`, a new `verify()` call is safe: it looks
-the contract up first and submits only when the explorer holds no match. After `not-confirmed`,
-or a cancel with a saved handle, call `checkStatus()` instead, which never submits. Pass it
-settings that route to the backend named in the handle, with the same key; otherwise it throws
-`invalid-input` before any request.
+After `not-confirmed`, or a cancel with a saved handle, call `checkStatus()`, which never submits.
+After `timeout`, `network` or `verification-inconclusive`, a new `verify()` is safe: it looks the
+contract up first. The kind column is the example's `KIND`:
 
-The table lists every code. Retryable and exit code come from the library; the deployKit kind is
-the example's choice, from `KIND` above.
+| Code                                                                                  | Retryable | Exit code | deployKit kind |
+| ------------------------------------------------------------------------------------- | --------- | --------- | -------------- |
+| [`invalid-input`](../reference/errors/invalid-input.md)                               | no        | 2         | `config`       |
+| [`not-confirmed`](../reference/errors/not-confirmed.md)                               | yes       | 4         | `pending`      |
+| [`unsupported-chain`](../reference/errors/unsupported-chain.md)                       | no        | 2         | `config`       |
+| [`network`](../reference/errors/network.md)                                           | yes       | 5         | `unavailable`  |
+| [`rate-limited`](../reference/errors/rate-limited.md)                                 | yes       | 5         | `unavailable`  |
+| [`timeout`](../reference/errors/timeout.md)                                           | yes       | 5         | `unavailable`  |
+| [`unexpected-response`](../reference/errors/unexpected-response.md)                   | yes       | 5         | `unavailable`  |
+| [`in-progress`](../reference/errors/in-progress.md)                                   | yes       | 5         | `unavailable`  |
+| [`unknown-state`](../reference/errors/unknown-state.md)                               | no        | 6         | `needs-review` |
+| [`job-not-found`](../reference/errors/job-not-found.md)                               | no        | 6         | `needs-review` |
+| [`cancelled`](../reference/errors/cancelled.md)                                       | no        | 130       | `cancelled`    |
+| [`incomplete-input`](../reference/errors/incomplete-input.md)                         | no        | 2         | `config`       |
+| [`insufficient-artifact`](../reference/errors/insufficient-artifact.md)               | no        | 2         | `config`       |
+| [`unsupported-compiler`](../reference/errors/unsupported-compiler.md)                 | no        | 2         | `config`       |
+| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md)       | yes       | 4         | `unavailable`  |
+| [`source-mismatch`](../reference/errors/source-mismatch.md)                           | no        | 2         | `config`       |
+| [`missing-api-key`](../reference/errors/missing-api-key.md)                           | no        | 3         | `auth`         |
+| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                         | no        | 3         | `auth`         |
+| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                             | no        | 3         | `auth`         |
+| [`internal-error`](../reference/errors/internal-error.md)                             | no        | 6         | `bug`          |
+| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)                         | no        | 2         | `config`       |
+| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md)                 | yes       | 5         | `unavailable`  |
+| [`constructor-args-unavailable`](../reference/errors/constructor-args-unavailable.md) | no        | 2         | `config`       |
+| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)                     | yes       | 4         | `pending`      |
+| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md)         | no        | 6         | `needs-review` |
+| [`handler-refused`](../reference/errors/handler-refused.md)                           | no        | 2         | `config`       |
+| [`not-indexed`](../reference/errors/not-indexed.md)                                   | yes       | 4         | `unavailable`  |
 
-| Code                                                                                  | Retryable | Exit code | deployKit kind | What the tool tells its user                                                                                |
-| ------------------------------------------------------------------------------------- | --------- | --------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| [`invalid-input`](../reference/errors/invalid-input.md)                               | no        | 2         | `config`       | Fix the parameter or setting the message names; nothing was sent                                            |
-| [`not-confirmed`](../reference/errors/not-confirmed.md)                               | yes       | 4         | `pending`      | Still checking; resume with the token, do not submit again                                                  |
-| [`unsupported-chain`](../reference/errors/unsupported-chain.md)                       | no        | 2         | `config`       | Choose another explorer for this chain                                                                      |
-| [`network`](../reference/errors/network.md)                                           | yes       | 5         | `unavailable`  | No answer after retries; try again later                                                                    |
-| [`rate-limited`](../reference/errors/rate-limited.md)                                 | yes       | 5         | `unavailable`  | The explorer is limiting requests; try again later                                                          |
-| [`timeout`](../reference/errors/timeout.md)                                           | yes       | 5         | `unavailable`  | The deadline ran out before a submit was accepted; try again                                                |
-| [`unexpected-response`](../reference/errors/unexpected-response.md)                   | yes       | 5         | `unavailable`  | The explorer answered outside its API; try again later                                                      |
-| [`in-progress`](../reference/errors/in-progress.md)                                   | yes       | 5         | `unavailable`  | Another verification of this contract is running; wait, then try again                                      |
-| [`unknown-state`](../reference/errors/unknown-state.md)                               | no        | 6         | `needs-review` | Check the contract on the explorer; the token identifies the job                                            |
-| [`job-not-found`](../reference/errors/job-not-found.md)                               | no        | 6         | `needs-review` | The explorer forgot the job; check the contract before you submit again                                     |
-| [`cancelled`](../reference/errors/cancelled.md)                                       | no        | 130       | `cancelled`    | Cancelled. The core never throws it; an abort rejects with `signal.reason`                                  |
-| [`incomplete-input`](../reference/errors/incomplete-input.md)                         | no        | 2         | `config`       | Add the missing sources or settings                                                                         |
-| [`insufficient-artifact`](../reference/errors/insufficient-artifact.md)               | no        | 2         | `config`       | Use a build file with the compiler input or metadata                                                        |
-| [`unsupported-compiler`](../reference/errors/unsupported-compiler.md)                 | no        | 2         | `config`       | The compiler is not supported                                                                               |
-| [`verification-inconclusive`](../reference/errors/verification-inconclusive.md)       | yes       | 4         | `unavailable`  | The job ended without a verdict; verify again later, once                                                   |
-| [`source-mismatch`](../reference/errors/source-mismatch.md)                           | no        | 2         | `config`       | A source does not match its recorded hash; use the files of the deployed build                              |
-| [`missing-api-key`](../reference/errors/missing-api-key.md)                           | no        | 3         | `auth`         | Set the API key; nothing was sent                                                                           |
-| [`api-key-rejected`](../reference/errors/api-key-rejected.md)                         | no        | 3         | `auth`         | Replace the key, or use one on a plan that covers the chain                                                 |
-| [`quota-exceeded`](../reference/errors/quota-exceeded.md)                             | no        | 3         | `auth`         | The key's daily limit is spent; try again after the reset                                                   |
-| [`internal-error`](../reference/errors/internal-error.md)                             | no        | 6         | `bug`          | The CLI creates it; the library never throws it                                                             |
-| [`no-metadata-hash`](../reference/errors/no-metadata-hash.md)                         | no        | 2         | `config`       | The bytecode has no metadata hash; build the input from build files                                         |
-| [`metadata-unavailable`](../reference/errors/metadata-unavailable.md)                 | yes       | 5         | `unavailable`  | The metadata could not be fetched; try again later or pass a gateway                                        |
-| [`constructor-args-unavailable`](../reference/errors/constructor-args-unavailable.md) | no        | 2         | `config`       | The creation code shows another build; pass the deployed build or the arguments                             |
-| [`proxy-link-pending`](../reference/errors/proxy-link-pending.md)                     | yes       | 4         | `pending`      | The explorer is still linking the proxy; call `linkProxy()` later with `resumeJobId` set to `details.jobId` |
-| [`proxy-link-unknown-state`](../reference/errors/proxy-link-unknown-state.md)         | no        | 6         | `needs-review` | Check the proxy's page on the explorer; there is no token                                                   |
-| [`handler-refused`](../reference/errors/handler-refused.md)                           | no        | 2         | `config`       | Your server handler refused the request; change the option the hint names                                   |
-| [`not-indexed`](../reference/errors/not-indexed.md)                                   | yes       | 4         | `unavailable`  | The explorer has not indexed the contract yet; check the address, then verify again later                   |
+A test checks this table against the library. A CLI takes the exit code from `ERROR_EXIT_CODES` in
+`explorer-verify/envelope`.
 
-`verify()`, `checkStatus()` and `linkProxy()` throw some of these codes. `buildVerifyInput`,
-`buildVerifyInputFromBytecode` and the CLI throw the others. A test checks the code, retryable and exit
-code columns of this table against the library, so the table changes when a release adds a code.
-The [error reference](../reference/errors/index.md) has a page per code with the cause and the fix.
+## Show errors to your users
 
-## Show errors to your tool's users
+`error.hint` and `error.message` are for the developer who calls explorer-verify. They can name a
+function, an option or a field, such as `checkStatus` or `chainId`. The people who use your tool,
+in an IDE, a dapp or a verification receipt, cannot act on those names.
 
-`error.hint` is for the developer who calls explorer-verify. It can name a function or an option,
-such as "Call checkStatus later with the error's handle (details.handle) to continue polling". It
-names field paths only in parentheses, so it still reads correctly when your error class keeps the
-details under another name. A developer who uses your tool can act on it when your error carries
-the details: keep `error.toJSON().details` on your error, as `cause.details` or `context.details`,
-for example.
+Show them `hintFor(error, "user")` instead. It names no function, option, field or command. It
+reads the error's details, such as the wait the explorer asked for. Show it alone, or after a
+summary in your tool's own words, and keep `error.message` for your logs.
 
-The people who use your tool, in an IDE, a dapp or a verification receipt, cannot call
-`checkStatus()` or raise `timeoutMs`. Show them `hintFor(error, "user")` instead. It names no
-function, option, field or command, and reads the error's details, such as the wait the explorer
-asked for. `error.message` is developer text too: it can name a field, such as `chainId`. Show the
-user hint alone, or after a summary in your tool's own words, and keep `error.message` for your
-logs:
+This module builds the line an IDE terminal shows, here for a `rate-limited` error whose explorer
+asked for 3 seconds:
 
-<!-- no-run: it defines a function and calls nothing, so there is no output to check. -->
-
-```ts no-run
-import { hintFor } from "explorer-verify/errors";
+```ts [user-message.ts]
+import { ExplorerVerifyError, hintFor } from "explorer-verify/errors";
 import type { AnyExplorerVerifyError } from "explorer-verify/errors";
 
 /** The line an IDE terminal shows for a failed verification. */
-function terminalLine(error: AnyExplorerVerifyError): string {
-  console.debug(error.message, error.hint);
+export function terminalLine(error: AnyExplorerVerifyError): string {
   return `Verification failed. ${hintFor(error, "user")}`;
 }
+
+const error = new ExplorerVerifyError(
+  { code: "rate-limited", backend: "sourcify", retryAfterMs: 3_000 },
+  "sourcify answered HTTP 429.",
+  { secrets: [] },
+);
+console.log(terminalLine(error));
 ```
 
-For a `rate-limited` error whose explorer asked for 3 seconds, `hintFor(error, "user")` returns
-"The explorer is limiting requests. Wait 3 seconds, then try again." `hintFor(error, "developer")`
-returns `error.hint`. Both also take the JSON form, from `error.toJSON()` or an envelope. Each
-code's page in the [error reference](../reference/errors/index.md) gives its end-user hint. To
-write your own words, as the CLI does for its flags, switch on `error.code` and read
-`error.details`.
+```text
+Verification failed. The explorer is limiting requests. Wait 3 seconds, then try again.
+```
+
+`hintFor` also takes the JSON form, from `error.toJSON()` or an envelope, and never throws.
+`hintFor(error, "developer")` returns `error.hint`.
+
+`error.hint` names field paths only in parentheses, such as "(details.handle)". So it still reads
+correctly when your error class keeps the details under another name. Keep `error.toJSON().details`
+on your error, for example as `cause.details`, so a developer who uses your tool can act on it.
+
+Each code's page in the [error reference](../reference/errors/index.md) gives its end-user hint on
+its "For end users" line. To write your own words, as the CLI does for its flags, switch on
+`error.code` and read `error.details`.
 
 ## Ship only the clients your tool uses
 
-How much of explorer-verify reaches your users depends on how your tool is built.
+Declare `explorer-verify` as a peer dependency and do not bundle it: your users' bundler then
+loads each explorer client only when a call needs it. If your tool ships one bundled file, import
+`verify` from `explorer-verify/core` and pass only the clients you use:
 
-Declare `explorer-verify` as a peer dependency of your tool, so your users install one copy, and
-ship ES modules without bundling it. Your users' bundler then sees the library's own entry. Vite,
-Rollup and webpack split each explorer client and the routing table into chunks of their own, and
-a call loads only what its route needs ([client chunks](../reference/routing.md#client-chunks)).
-Re-export names from their smallest entry, as [Re-export from the smallest entry](#re-export-from-the-smallest-entry)
-shows.
+```ts [verify-core.ts]
+import { readFile } from "node:fs/promises";
 
-When your tool bundles its dependencies into one file, every dynamic `import()` in the default
-entry is inlined. So are bundles from esbuild without `splitting`, from Wrangler, and from CommonJS
-output. `verify()` from `explorer-verify` then carries all five clients and the routing table,
-whatever your tool calls, and your users cannot split them again. In that case, import the flow
-functions from `explorer-verify/core` and pass the clients your tool uses:
-
-```ts
+import type { VerifyInput } from "explorer-verify";
 import { sourcify } from "explorer-verify/clients/sourcify";
 import { verify } from "explorer-verify/core";
 import { routingTable } from "explorer-verify/table";
 
+const json = await readFile("greeter-sepolia.json", "utf8");
+const input: VerifyInput = JSON.parse(json);
 // The routing table chooses among the clients passed: Sourcify here.
-const result = await verify(input, { clients: [sourcify()], table: routingTable });
+const result = await verify(input, {
+  clients: [sourcify()],
+  table: routingTable,
+});
 console.log(result.status, result.backend);
 ```
 
-A tool that always names its explorer can leave the table out, and the rows are then not bundled.
-Sourcify, Etherscan v2 and Blockscout's hosted API have one public host for every chain, so
-`route.backend` is enough; any other backend needs `route.apiUrl`:
-
-```ts
-import { sourcify } from "explorer-verify/clients/sourcify";
-import { verify } from "explorer-verify/core";
-
-const result = await verify(input, { clients: [sourcify()], route: { backend: "sourcify" } });
-console.log(result.status);
+```text
+already-verified sourcify
 ```
 
-Build the clients inside your tool, and do not take them from your tool's callers: a client works
-only with the copy of explorer-verify that made it. A list your tool builds from its settings takes the type `ClientList<ExplorerClient>` from `explorer-verify/core`, a non-empty list. [Core entry](../reference/core.md) lists every
-client, the options and the errors.
-
-`pnpm run size` and `scripts/check-names.ts` measured these one-file bundles with esbuild 0.28.2,
-minified, gzip from the zlib of Node 24.21.0, on 2026-11-06:
-
-| Bundle, one file                                          | Minified      | Gzipped      |
-| --------------------------------------------------------- | ------------- | ------------ |
-| `verify` from `explorer-verify`                           | 112,520 bytes | 32,666 bytes |
-| `verify` from `explorer-verify/core`, `sourcify()`        | 65,572 bytes  | 21,853 bytes |
-| The same with `routingTable`                              | 91,533 bytes  | 25,033 bytes |
-| `verify` from `explorer-verify/core`, `etherscanV2()`     | 77,968 bytes  | 25,902 bytes |
-| `verify` from `explorer-verify/core`, every client, table | 114,307 bytes | 31,763 bytes |
-
-### Re-export from the smallest entry
-
-When your tool re-exports names of explorer-verify, re-export each one from its smallest entry:
-
-| Names                                                                              | Entry                      |
-| ---------------------------------------------------------------------------------- | -------------------------- |
-| `ExplorerVerifyError`, `ERROR_CODES`, `ERROR_HINTS`, `hintFor` and the error types | `explorer-verify/errors`   |
-| `formatHandle`, `parseHandle`, `tryParseHandle`, `isHandleString`                  | `explorer-verify/handle`   |
-| `BACKEND_NAMES`, `toBackendName`                                                   | `explorer-verify/backends` |
-| `toEnvelope`, `exitCodeOf`, `ERROR_EXIT_CODES`, for a CLI                          | `explorer-verify/envelope` |
-
-These entries never reach the verification code. A user of your tool who imports only an error
-code or a handle function then gets one file. Under esbuild with `splitting: true`, the same
-name from `explorer-verify` also brings the default entry's shared chunk and its client chunks into
-the build. Keep `explorer-verify` external, as above, so your users' bundler sees these entries:
-
-```ts
-export { ERROR_CODES, ExplorerVerifyError } from "explorer-verify/errors";
-export { formatHandle, parseHandle } from "explorer-verify/handle";
-export { verify } from "explorer-verify";
-```
+Build the clients inside your tool: a client works only with the copy of explorer-verify that
+made it. [Bundle size](../advanced/bundle-size.md) has the sizes and the small entries to
+re-export from.
 
 ## Make verification an optional feature
 
-When verification is one opt-in feature of your tool, declare `explorer-verify` as an optional peer
-dependency. Users who never verify then do not install it:
+When verification is one opt-in feature, declare `explorer-verify` as an optional peer dependency.
+Users who never verify then do not install it:
 
-```json
+```json [package.json]
 {
-  "name": "deploykit",
-  "type": "module",
-  "exports": {
-    ".": "./dist/index.js",
-    "./verify": "./dist/verify.js"
-  },
   "peerDependencies": { "explorer-verify": "^0.1.0" },
   "peerDependenciesMeta": { "explorer-verify": { "optional": true } }
 }
 ```
 
-Load explorer-verify with `import()` in a subpath of your tool, `deploykit/verify` here, and never
-import that subpath from the root entry. Put the `import()` inside `try`, and turn a failed load
-into an error of your tool:
+Load explorer-verify with `import()` inside `try`, in a subpath such as `deploykit/verify` that
+the root entry never imports. Turn a failed load into an error of your tool:
 
-```ts
-// deploykit/src/verify.ts, published as "deploykit/verify". The root entry never imports it.
-import type { VerifyInput, VerifyOptions, VerifyResult } from "explorer-verify";
+```ts [verify.ts]
+import { readFile } from "node:fs/promises";
 
-/** Thrown when explorer-verify is not installed or does not load. */
-export class VerificationUnavailableError extends Error {
-  constructor(cause: unknown) {
-    super("Verification needs explorer-verify: npm install explorer-verify", { cause });
-    this.name = "VerificationUnavailableError";
-  }
-}
+import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-async function loadExplorerVerify(): Promise<typeof import("explorer-verify")> {
-  // Inside try, esbuild and webpack leave a missing package to run time instead of failing the build.
+const NEEDED = "Verification needs explorer-verify: npm install explorer-verify";
+
+export class VerificationUnavailableError extends Error {}
+
+export async function verifyContract(input: VerifyInput): Promise<VerifyResult> {
+  let library: typeof import("explorer-verify");
   try {
-    return await import("explorer-verify");
+    // Inside try, bundlers leave a missing package to run time.
+    library = await import("explorer-verify");
   } catch (cause) {
-    throw new VerificationUnavailableError(cause);
+    throw new VerificationUnavailableError(NEEDED, { cause });
   }
-}
-
-export async function verifyContract(
-  input: VerifyInput,
-  options: VerifyOptions = {},
-): Promise<VerifyResult> {
-  const { verify } = await loadExplorerVerify();
-  return await verify(input, options);
+  return await library.verify(input);
 }
 
 // What a user of deploykit writes.
+const json = await readFile("greeter-sepolia.json", "utf8");
+const input: VerifyInput = JSON.parse(json);
 try {
-  const result = await verifyContract(input);
-  console.log(result.status);
+  console.log((await verifyContract(input)).status);
 } catch (error) {
   if (!(error instanceof VerificationUnavailableError)) {
     throw error;
@@ -588,133 +572,75 @@ try {
 }
 ```
 
-With explorer-verify installed, the example prints the status. Without it:
+With explorer-verify installed, it prints the status. Without it:
 
 ```text
 Verification needs explorer-verify: npm install explorer-verify
 ```
 
-An app that imports only `deploykit` never reaches the `import()`: each bundler below builds it
-with no warning. The table shows what happens on 2026-11-10, with Node 24.21.0, when an app imports
-`deploykit/verify` and explorer-verify is not installed:
-
-| Bundler                                                 | `import()` inside `try`, or with `.catch()`                                                                                                    | `import()` with neither                      |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| esbuild 0.28.2, `--bundle`                              | Builds with no warning. The `import()` stays and fails at run time                                                                             | Fails: `Could not resolve "explorer-verify"` |
-| Rollup 4.67.4 with `@rollup/plugin-node-resolve` 16.0.3 | Warns `Unresolved dependencies` and keeps `import("explorer-verify")`, which fails at run time                                                 | The same                                     |
-| webpack 5.112.2, `--mode production`                    | Warns `Module not found`. The `import()` fails at run time                                                                                     | Fails: `Module not found`                    |
-| Vite 8.3.7 (Rolldown 1.2.18)                            | Builds, and replaces explorer-verify with a module that throws `Could not resolve "explorer-verify" imported by "deploykit". Is it installed?` | The same                                     |
-
-Vite builds only because `peerDependenciesMeta` marks the peer optional. With a plain peer
-dependency, Vite 8.3.7 fails the build with `Rolldown failed to resolve import "explorer-verify"`.
-In every case, the failed load reaches your `catch` and becomes `VerificationUnavailableError`.
+With `import()` inside `try`, esbuild, Rollup, webpack and Vite all build an app that lacks the
+package, and the failed load reaches your `catch`. Vite needs the peer marked optional. Without
+`try`, esbuild and webpack fail the build.
 
 ## Test with recorded answers
 
-In your tool's tests, replay explorer answers through an injected `fetch`, so the tests need no
-network and give the same result on every run. Record each answer once from the live explorer, with
-the date, and keep the method and URL of the request with it. The `fetch` below answers each
-request with the next recording and fails on any other request.
+Replay explorer answers through an injected `fetch`, so your tests need no network. Record each
+answer once from the live explorer, with the date, the method and the URL. This `fetch` answers
+each request with the next recording and fails on any other:
 
-In your suite, pass it as your tool's `fetch` setting. Here it goes straight to `verify()`, so the
-example runs on its own:
-
-```ts
+```ts [replay.test.ts]
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
-import { ExplorerVerifyError, verify } from "explorer-verify";
+import { verify } from "explorer-verify";
+import type { VerifyInput } from "explorer-verify";
 
-/** One recorded request and the explorer's answer. */
-interface Recording {
-  readonly method: string;
-  readonly url: string;
-  readonly status: number;
-  readonly body: unknown;
-}
+type Recording = { method: string; url: string; status: number; body: unknown };
 
-/** A fetch that answers each request with the next recording, and fails on any other request. */
 function replay(recordings: readonly Recording[]): typeof fetch {
   let next = 0;
   return async (request, init) => {
     const url = request instanceof Request ? request.url : String(request);
-    const method = init?.method ?? "GET";
-    const recording = recordings[next];
-    next += 1;
-    assert.ok(recording, `unexpected request: ${method} ${url}`);
-    assert.equal(`${method} ${url}`, `${recording.method} ${recording.url}`);
-    // The library never follows a redirect; a fetch you pass must not either.
-    assert.equal(init?.redirect, "manual");
-    return await Promise.resolve(
-      new Response(JSON.stringify(recording.body), {
-        status: recording.status,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+    const sent = `${init?.method ?? "GET"} ${url}`;
+    const recording = recordings[next++];
+    assert.ok(recording, `unexpected request: ${sent}`);
+    assert.equal(sent, `${recording.method} ${recording.url}`);
+    const body = JSON.stringify(recording.body);
+    const headers = { "content-type": "application/json" };
+    const answer = new Response(body, { status: recording.status, headers });
+    return await Promise.resolve(answer);
   };
 }
 
-const GREETER = "0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc";
+const json = await readFile("greeter-sepolia.json", "utf8");
+const input: VerifyInput = JSON.parse(json);
+const lookup = `https://sourcify.dev/server/v2/contract/11155111/${input.address}?fields=compilation`;
 
-// Sourcify's lookup answer for the Sepolia Greeter, recorded on 2026-11-02 before the library
-// asked for `fields=compilation`. Without that field the answer names no contract, so the library
-// compares none.
-const verified = await verify(input, {
-  fetch: replay([
-    {
-      method: "GET",
-      url: `https://sourcify.dev/server/v2/contract/11155111/${GREETER}?fields=compilation`,
-      status: 200,
-      body: {
-        matchId: "58142236",
-        creationMatch: "exact_match",
-        runtimeMatch: "exact_match",
-        verifiedAt: "2026-11-02T23:39:56Z",
-        match: "exact_match",
-        chainId: "11155111",
-        address: "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
-      },
-    },
-  ]),
+// Sourcify's lookup answer for the sample, trimmed. Without `compilation`, the answer names no
+// contract, so the library compares no name and takes the match as this source.
+const answer = { match: "exact_match", chainId: "11155111", address: input.address };
+const result = await verify(input, {
+  fetch: replay([{ method: "GET", url: lookup, status: 200, body: answer }]),
 });
-assert.deepEqual(verified, {
-  status: "already-verified",
-  backend: "sourcify",
-  match: "exact",
-  explorerUrl: `https://repo.sourcify.dev/11155111/${GREETER}`,
-});
-console.log("already-verified: ok");
-
-// Sourcify's answer for a chain it does not serve, recorded on 2026-11-02.
-await assert.rejects(
-  verify(
-    { ...input, chainId: 9429413 },
-    {
-      allowSourcifyFallback: true,
-      fetch: replay([
-        {
-          method: "GET",
-          url: `https://sourcify.dev/server/v2/contract/9429413/${GREETER}?fields=compilation`,
-          status: 400,
-          body: { customCode: "unsupported_chain", message: "Chain 9429413 not found" },
-        },
-      ]),
-    },
-  ),
-  (error) => error instanceof ExplorerVerifyError && error.code === "unsupported-chain",
-);
-console.log("unsupported-chain: ok");
+assert.equal(result.status, "already-verified");
 ```
 
-It prints:
+For a pending answer, answer every poll with one recording, and mock the timers and `Date.now` so
+the test does not wait.
 
-```text
-already-verified: ok
-unsupported-chain: ok
-```
+> [!WARNING]
+> Never record a request or an answer that holds an API key. Replace the key with a dummy value
+> before you save the recording.
 
-For an answer that is still pending, record the pending poll once and answer every poll with it
-until the time budget ends. Use your test runner's mock timers for the waits between polls, so the
-test does not wait in real time. The library measures its budget with `Date.now`, so mock it too.
+## Sources
 
-Never record a request or an answer that holds an API key. Replace the key with a dummy value
-before you save the recording.
+- Bundler behaviour with a missing optional peer, checked on 2026-11-10 with Node 24.21.0:
+  esbuild 0.28.2, Rollup 4.67.4 with `@rollup/plugin-node-resolve` 16.0.3, webpack 5.112.2 and
+  Vite 8.3.7 (Rolldown 1.2.18).
+
+## Next steps
+
+- [Server handler](run-the-server-handler.md): keep an Etherscan key off the browser.
+- [Using explorer-verify from an agent](using-from-an-agent.md): which calls submit.
+- [Bundle size](../advanced/bundle-size.md): what each entry adds.
+- [Errors](../reference/errors/index.md): every code, its cause and fix.

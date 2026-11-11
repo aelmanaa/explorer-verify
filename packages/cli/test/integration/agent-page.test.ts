@@ -3,18 +3,33 @@
 // command the CLI lists, and its command-line examples print what the page shows. The stderr line
 // it quotes is tested in-process, in test/unit/agent-page.test.ts.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { COMMANDS } from "../../src/commands.ts";
 import { shellExamples } from "../helpers/shell-examples.ts";
-import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
+import { runBin } from "../helpers/spawn-bin.ts";
 
 const PAGE_NAME = "using-from-an-agent.md";
 const PAGE = readFileSync(
   new URL(`../../../../docs/user/guides/${PAGE_NAME}`, import.meta.url),
   "utf8",
 );
+
+/** The docs' sample request, which the page's commands read from the working folder. */
+const SAMPLE = "greeter-sepolia.json";
+/** A folder holding the sample, as a download leaves it. */
+const DIR = mkdtempSync(join(tmpdir(), "explorer-verify-agent-page-"));
+copyFileSync(
+  fileURLToPath(new URL(`../../../../docs/user/start/${SAMPLE}`, import.meta.url)),
+  join(DIR, SAMPLE),
+);
+after(() => {
+  rmSync(DIR, { recursive: true, force: true });
+});
 
 /** The packages whose public functions the page must classify. */
 const PACKAGES: readonly string[] = ["explorer-verify", "foundry", "hardhat", "cli"];
@@ -166,8 +181,8 @@ describe("the agent page's command-line examples (R-AX-3)", () => {
 
   for (const example of examples) {
     it(`${PAGE_NAME} line ${String(example.line)}: explorer-verify ${example.args.join(" ")}`, async () => {
-      // In a Foundry project, against the fake explorer: nothing reaches the network.
-      const result = await runBin(example.args, { cwd: PROJECT, fake: {} });
+      // In a folder with the sample, against the fake explorer: nothing reaches the network.
+      const result = await runBin(example.args, { cwd: DIR, fake: {} });
       assert.equal(result.code, example.exitCode, `stderr:\n${result.stderr}`);
       assert.equal(result.stdout, example.stdout);
     });

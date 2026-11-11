@@ -1,18 +1,26 @@
 # job-not-found
 
-<!-- docs-style: legacy -->
-
 Version: explorer-verify 0.1.0
 
 Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
-Cause: the explorer no longer knows the job id in `details.handle`. Explorers drop old jobs.
+The explorer no longer knows the job of this handle, and the contract is not verified.
+
+## How to fix
 
 Fix: do not retry automatically. Check the contract on the explorer. If it is not verified, call
-`verify()` again to submit it again. `checkStatus()` and `verify()` do this check themselves:
-when a poll answers that the job is not found, they look the contract up once and return
-`verified` when they find a match. They throw this error only when the lookup finds the contract
-not verified, and then the hint says to call `verify()` again, or when the lookup fails.
+`verify()` again to submit it again.
+
+From the CLI: Do not retry automatically. Check the contract on the explorer; if it is not verified,
+run verify again.
+
+## Facts
+
+Retryable: no. Checking the same handle again fails the same way.
+
+Exit code: 6
+
+Sent to an explorer: yes, earlier. The explorer accepted the submission, then dropped the job.
 
 Default hint: Do not retry automatically. Check the contract on the explorer; if it is not verified,
 call verify() again.
@@ -20,11 +28,32 @@ call verify() again.
 For end users: The explorer no longer knows this verification. Check the contract's page on the
 explorer; if the contract is not verified, start a new verification.
 
-From the CLI: Do not retry automatically. Check the contract on the explorer; if it is not verified,
-run verify again.
+## Why
 
-Retryable: no. Checking the same handle again fails the same way.
+Cause: the explorer no longer knows the job id in `details.handle`. Explorers drop old jobs.
 
-Exit code: 6
+`checkStatus()` and `verify()` check this themselves. When a poll answers that the job is not
+found, they look the contract up once and return `verified` when they find a match.
+
+They throw this error only in two cases:
+
+- the lookup finds the contract not verified, and the hint says to call `verify()` again;
+- the lookup fails.
+
+## In code
+
+Check the code, then read the job id the explorer dropped:
+
+<!-- no-run: it defines a handler and calls nothing, so a run prints nothing. -->
+
+```ts no-run [on-error.ts]
+import { ExplorerVerifyError } from "explorer-verify/errors";
+
+export function onError(error: unknown): void {
+  if (ExplorerVerifyError.is(error, "job-not-found")) {
+    console.error(`Job ${error.details.handle.jobId} is gone.`);
+  }
+}
+```
 
 [Errors](index.md) describes the fields every error has, key redaction, exit codes and retries.
