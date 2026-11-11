@@ -139,6 +139,8 @@ const AMBIGUOUS_HINT =
   "Pass contract as path:Name with one of the paths listed, or pass artifact with one of the files listed.";
 const VERSIONS_HINT =
   "Foundry built this contract with several compiler versions or profiles and wrote one artifact for each; a clean build writes them all again. Pass artifact with the file of the build you deployed, one of the files listed.";
+const ROOT_HINT =
+  "Check that the project folder (options.root) exists and can be read. It should hold foundry.toml.";
 const READ_HINT = "Check that the file exists and that this process may read it.";
 const JSON_HINT = "Run forge build again to rewrite the file.";
 const REBUILD_HINT =
@@ -174,6 +176,7 @@ interface ArtifactMatch {
   rawMetadata: string | undefined;
 }
 
+/** `invalid-input` with one issue. The message repeats the issue, which holds no secret. */
 function invalid(
   field: string,
   message: string,
@@ -182,7 +185,7 @@ function invalid(
 ): ExplorerVerifyError {
   return new ExplorerVerifyError(
     { code: "invalid-input", issues: [{ field, message }] },
-    `The input is invalid: ${field}.`,
+    `The input is invalid: ${field} ${message}.`,
     { hint, ...(cause === undefined ? {} : { cause }), secrets: [] },
   );
 }
@@ -220,6 +223,34 @@ function shown(root: string, file: string): string {
 function isInside(dir: string, file: string): boolean {
   const rel = path.relative(dir, file);
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+}
+
+// References: R-DX-2.
+/**
+ * Checks that the project root is a folder, before the output directory under it. The issue never
+ * repeats the path, as the Hardhat helper's does not.
+ */
+async function checkRoot(root: string): Promise<void> {
+  const reason = await folderProblem(root);
+  if (reason !== undefined) {
+    throw invalid("root", `is not a folder: it ${reason}`, ROOT_HINT);
+  }
+}
+
+/**
+ * Why `dir` is not a folder this process can use: "does not exist", "is a file" or "cannot be
+ * read", or `undefined` for a folder.
+ */
+async function folderProblem(dir: string): Promise<string | undefined> {
+  try {
+    return (await stat(dir)).isDirectory() ? undefined : "is a file";
+  } catch (error) {
+    return error instanceof Error &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ? "does not exist"
+      : "cannot be read";
+  }
 }
 
 async function isDirectory(dir: string): Promise<boolean> {
@@ -706,12 +737,14 @@ export async function findFoundryBuild(options: FindBuildOptions): Promise<Proje
 /** {@link findFoundryBuild} on checked options. */
 async function findBuild(checked: Options): Promise<ProjectBuild> {
   const { root, spec, out } = checked;
-  if (!(await isDirectory(root))) {
-    throw invalid("root", "is not a directory");
-  }
+  await checkRoot(root);
   let artifact: ArtifactMatch;
   if (checked.artifact === undefined) {
-    if (!(await isDirectory(out))) {
+    const problem = await folderProblem(out);
+    if (problem === "cannot be read") {
+      throw invalid("outDir", "could not be read", READ_HINT);
+    }
+    if (problem !== undefined) {
       throw invalid("outDir", "is not a directory", OUT_HINT);
     }
     artifact = await pickArtifact(root, await listFiles(root, out, checked.buildInfoDir), spec);

@@ -97,6 +97,8 @@ const COMPILE_HINT =
   "Compile the project (npx hardhat compile on Hardhat 2, npx hardhat build on Hardhat 3), then try again.";
 const ARTIFACTS_HINT =
   "Compile the project first, or pass outDir with the artifacts folder of the Hardhat config (paths.artifacts).";
+const ROOT_HINT =
+  "Check that the project folder (options.root) exists and can be read. It should hold the Hardhat config.";
 const CONTRACT_HINT =
   "Pass the contract (options.contract) as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one of the candidates (details.candidates).";
 
@@ -145,6 +147,25 @@ function ownField(value: unknown, name: string): unknown {
 function isInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return !path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`);
+}
+
+// References: R-DX-2.
+/**
+ * Checks that `root` is a folder, before the artifacts folder under it, so a missing project is
+ * reported on `root`, not as a missing artifacts folder. The issue never repeats the path: a path
+ * typed by mistake can be a key.
+ */
+async function checkRoot(root: string): Promise<void> {
+  let reason: string;
+  try {
+    if ((await stat(root)).isDirectory()) {
+      return;
+    }
+    reason = "is a file";
+  } catch (error) {
+    reason = hasCode(error, NOT_FOUND) ? "does not exist" : "cannot be read";
+  }
+  throw invalid("root", `is not a folder: it ${reason}`, ROOT_HINT);
 }
 
 /** Reads the project's files and names them relative to the project root. */
@@ -464,7 +485,8 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  *   folder; or the artifact file.
  * @returns The contract as `path:Name`, the parsed documents, an empty `sources` and the files
  *   the documents came from, relative to `root`.
- * @throws ExplorerVerifyError `invalid-input` for an option of the wrong type, an output folder
+ * @throws ExplorerVerifyError `invalid-input` for an option of the wrong type, a `root` that is
+ *   not a folder (missing, a file or unreadable), an output folder
  *   that is missing or is a file, a contract with no artifact (the message names the file it
  *   looked for), an `artifact` file that is not the contract's artifact in the output folder, a
  *   source path outside the output folder, a file that is not JSON, cannot be read, is not a
@@ -497,6 +519,7 @@ export async function findBuild(
   extra: readonly string[],
 ): Promise<ProjectBuild> {
   const checked = readOptions(options, extra);
+  await checkRoot(checked.root);
   const project = new Project(checked.root, checked.outDir);
   await project.open();
   const { file: artifactFile, artifact } = await readArtifact(
