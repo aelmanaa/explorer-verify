@@ -191,6 +191,12 @@ export type ErrorDetails =
       backend: BackendName;
       /** The budget that ran out, in milliseconds. */
       timeoutMs: number;
+      // References: R-FLOW-7, issue #349.
+      /**
+       * `empty-submit` when the budget ran out while Blockscout was answering the submit with no
+       * job id, as it can right after a deployment. Absent for any other timeout.
+       */
+      reason?: "empty-submit";
     }
   | {
       /** The backend answered with a status or a body the library does not recognise. */
@@ -837,6 +843,7 @@ const REDACTORS: { readonly [C in ErrorCode]: Redactor<C> } = {
     code: "timeout",
     backend: backendOf(details.backend),
     timeoutMs: numberOf(details.timeoutMs),
+    ...(details.reason === "empty-submit" ? { reason: "empty-submit" } : {}),
   }),
   "in-progress": (details) => ({ code: "in-progress", backend: backendOf(details.backend) }),
   "incomplete-input": (details, secrets) => ({
@@ -1200,7 +1207,12 @@ const FROM_JSON: { readonly [C in ErrorCode]: FromJson<C> } = {
     const timeoutMs = finiteOf(read("timeoutMs"));
     return timeoutMs === undefined
       ? undefined
-      : { code: "timeout", backend: backendOf(read("backend")), timeoutMs };
+      : {
+          code: "timeout",
+          backend: backendOf(read("backend")),
+          timeoutMs,
+          ...(read("reason") === "empty-submit" ? { reason: "empty-submit" } : {}),
+        };
   },
   "in-progress": (read) => ({ code: "in-progress", backend: backendOf(read("backend")) }),
   "incomplete-input": (read, secrets, top) => ({

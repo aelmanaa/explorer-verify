@@ -12,7 +12,7 @@ import {
   unexpected,
   waitToResubmit,
 } from "../../src/backends/common.ts";
-import type { Answer } from "../../src/backends/common.ts";
+import type { Answer, Resubmit } from "../../src/backends/common.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import type { LogFields, Logger } from "../../src/index.ts";
 import { createObserver } from "../../src/observe.ts";
@@ -209,6 +209,46 @@ describe("submitOnce and waitToResubmit: log fields (#158, R-DX-5)", () => {
       lines.filter(([level]) => level === "warn").map(([, , fields]) => fields),
       [{ backend: "etherscan-v2", attempt: 3, reason: "not-indexed", delayMs: 1_000 }],
     );
+  });
+});
+
+/** A submit loop without `end`, with `reason`. */
+function loop(reason: Resubmit["reason"]): Resubmit {
+  return {
+    backend: "blockscout",
+    reason,
+    what: "Blockscout gave no job id",
+    hint: "Wait.",
+    maxTries: 5,
+  };
+}
+
+/** A context whose budget has already run out. */
+function late(): Context {
+  const ctx = contextOf(noFetch);
+  return { ...ctx, http: { ...ctx.http, budget: { deadline: Date.now(), timeoutMs: 1_000 } } };
+}
+
+describe("waitToResubmit: the timeout's reason (#349, R-FLOW-7)", () => {
+  it("names empty-submit as the reason of the timeout that ends the empty-submit loop", async () => {
+    await assert.rejects(waitToResubmit(late(), ANSWER, 1, loop("empty-submit")), (error) => {
+      assert.ok(error instanceof ExplorerVerifyError);
+      assert.deepEqual(error.details, {
+        code: "timeout",
+        backend: "blockscout",
+        timeoutMs: 1_000,
+        reason: "empty-submit",
+      });
+      return true;
+    });
+  });
+
+  it("gives no reason to a timeout of another loop", async () => {
+    await assert.rejects(waitToResubmit(late(), ANSWER, 1, loop("not-indexed")), (error) => {
+      assert.ok(error instanceof ExplorerVerifyError);
+      assert.deepEqual(error.details, { code: "timeout", backend: "blockscout", timeoutMs: 1_000 });
+      return true;
+    });
   });
 });
 

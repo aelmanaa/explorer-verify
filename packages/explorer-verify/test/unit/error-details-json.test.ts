@@ -265,6 +265,17 @@ describe("toEnvelope() rebuilds the details of an error object it did not build 
         { backend: "sourcify", timeoutMs: 9 },
         { code: "timeout", backend: "sourcify", timeoutMs: 9 },
       ],
+      // Issue #349: the one reason a timeout can carry, and nothing for another value.
+      [
+        "timeout",
+        { backend: "blockscout", timeoutMs: 9, reason: "empty-submit" },
+        { code: "timeout", backend: "blockscout", timeoutMs: 9, reason: "empty-submit" },
+      ],
+      [
+        "timeout",
+        { backend: "blockscout", timeoutMs: 9, reason: "not-indexed" },
+        { code: "timeout", backend: "blockscout", timeoutMs: 9 },
+      ],
       ["in-progress", { backend: 1 }, { code: "in-progress", backend: "etherscan-compatible" }],
       [
         "incomplete-input",

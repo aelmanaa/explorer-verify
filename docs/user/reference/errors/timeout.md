@@ -26,10 +26,20 @@ Default hint: Call again, or raise timeoutMs. The explorer had not accepted the 
 
 For end users: The explorer did not accept the submission in time. Try again.
 
+For end users, with `details.reason` `empty-submit`: The explorer did not start the verification, as
+can happen right after a deployment. Check the contract's page on the explorer; if it is not
+verified, wait a minute, then try again.
+
 ## Why
 
 Cause: the time budget (`timeoutMs`) ran out before the explorer accepted the submission. There is
 no job id yet, so the error carries no handle. `details.timeoutMs` gives the budget.
+
+Blockscout can answer a submit with no job id right after a deployment, and the client then submits
+again. When the budget runs out during that loop, before a new submit or in the lookup or submit
+that follows an empty answer, `details.reason` is `empty-submit`. Any other timeout has no
+`reason`. See
+[the empty answer right after a deployment](../blockscout.md#the-empty-answer-right-after-a-deployment).
 
 ## In code
 

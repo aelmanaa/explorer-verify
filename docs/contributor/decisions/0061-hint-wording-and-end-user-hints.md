@@ -53,7 +53,10 @@ cannot act on them, and the library gave a tool nothing else to show.
      the client's submit loop on the empty answer Blockscout gives right after a deployment. The
      loop sets `attempts` to the number of submits sent. A job status or proxy-link answer of the
      same shape carries no `attempts`, so it gets the code's general hint. A `timeout` from the
-     same loop carries nothing that marks it, so it keeps the `timeout` hint;
+     same loop carries nothing that marks it, so it keeps the `timeout` hint. Amended on 2026-11-11
+     by [#349](https://github.com/aelmanaa/explorer-verify/issues/349): a `timeout` with
+     `details.reason` `empty-submit` gets the empty-submit hint. The loop sets it when the budget
+     runs out before a new submit, or in the lookup or the submit that follows an empty answer;
    - `cancelled` with a non-empty `handle` or a non-empty `handles` list says the explorer accepted
      the submission, and asks the user to check the contract's page before submitting again.
 

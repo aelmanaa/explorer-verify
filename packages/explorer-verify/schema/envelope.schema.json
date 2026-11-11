@@ -664,6 +664,10 @@
                   },
                   "timeoutMs": {
                     "type": "number"
+                  },
+                  "reason": {
+                    "description": "empty-submit when the budget ran out while Blockscout answered the submit with no job id. Absent for any other timeout.",
+                    "enum": ["empty-submit"]
                   }
                 },
                 "required": ["code", "backend", "timeoutMs"]
