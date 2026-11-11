@@ -222,12 +222,25 @@ function without(headers: Record<string, string>): Record<string, string> {
   return copy;
 }
 
-/** The problems with a request's headers: credentials, or a header a page script set. */
-function headerProblems(method: string, headers: IncomingHttpHeaders): string[] {
+// Headers the runtime adds to a request with `cache: "no-store"`, which only the Sourcify lookup
+// sends: the fetch standard's HTTP-network-or-cache fetch appends `Pragma: no-cache` and
+// `Cache-Control: no-cache` when absent (https://fetch.spec.whatwg.org/#http-network-or-cache-fetch,
+// Living Standard of 2026-10-19, read 2026-11-11). Issue #356.
+const NO_STORE = new Set(["pragma", "cache-control"]);
+
+/**
+ * The problems with a request's headers: credentials, or a header a page script set. The lookup,
+ * sent with `cache: "no-store"`, may also carry `pragma` and `cache-control`, each `no-cache`.
+ */
+function headerProblems(method: string, headers: IncomingHttpHeaders, lookup = false): string[] {
   const problems: string[] = [];
   for (const [name, value] of Object.entries(headers)) {
     if (name === "cookie" || name === "authorization") {
       problems.push(`${method} sent credentials (${name})`);
+    } else if (lookup && NO_STORE.has(name)) {
+      if (value !== "no-cache") {
+        problems.push(`${method} sent ${name} ${String(value)}`);
+      }
     } else if (!SAFELISTED.has(name) && !RUNTIME.has(name) && !name.startsWith("sec-")) {
       problems.push(`${method} sent the header ${name}`);
     } else if (name === "content-type" && value !== "application/json") {
@@ -311,7 +324,9 @@ async function startReplay(names: readonly string[]): Promise<Replay> {
     const method = request.method ?? "GET";
     const target = request.url ?? "/";
     const body = await readBody(request);
-    for (const problem of headerProblems(method, request.headers)) {
+    // The Sourcify contract lookup, the one request the client sends with `cache: "no-store"`.
+    const lookup = method === "GET" && target.includes("/v2/contract/");
+    for (const problem of headerProblems(method, request.headers, lookup)) {
       fail(problem);
     }
     if (method === "OPTIONS") {

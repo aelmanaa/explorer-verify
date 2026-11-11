@@ -97,6 +97,7 @@ interface SubmitBody {
   creationTransactionHash?: string;
 }
 
+// References: issue #356 for the lookup's cache.
 /**
  * The Sourcify API v2 client.
  *
@@ -108,7 +109,7 @@ interface SubmitBody {
  *
  * A 200 lookup can be up to an hour old (`cache-control: public,max-age=3600`, served by a shared
  * cache in front of the server); a job result is newer and wins over it. The lookup goes with
- * `cache: "no-store"`, so a browser's own cache adds no second hour (issue #356).
+ * `cache: "no-store"` through the platform fetch, so a browser's own cache adds no second hour.
  *
  * @example
  * ```ts

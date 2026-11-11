@@ -34,6 +34,7 @@ export type HandlerRefusal =
   | "upstream-error"
   | "internal-error";
 
+// References: decisions 0048 and 0066.
 /**
  * The error codes a client that set `handlerUrl` throws for a refusal code:
  *
@@ -41,9 +42,8 @@ export type HandlerRefusal =
  * - `network`: the handler or Etherscan did not answer in time, or Etherscan failed; retryable.
  * - `rate-limited`: the handler's `rateLimit`, or Etherscan's limit. The HTTP layer throws it for
  *   the 429 before the code is read.
- * - `not-indexed`: Etherscan has no creation record for the address yet (decision 0066); retryable.
- * - `unexpected-response`: the handler failed;
- *   retryable.
+ * - `not-indexed`: Etherscan has no creation record for the address yet; retryable.
+ * - `unexpected-response`: the handler failed; retryable.
  */
 export type ClientCode = Extract<
   ErrorCode,

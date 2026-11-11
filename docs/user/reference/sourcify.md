@@ -135,6 +135,8 @@ at once, with no lookup.
   gets the field: your `fetch` handles caching, and the lookup can be up to an hour old, or more if
   your `fetch` caches it too. [The cache probes](../../contributor/research/2026-11-11-sourcify-lookup-cache.md)
   record each request tried and its answer.
+- With `cache: "no-store"`, the runtime adds `Pragma: no-cache` and `Cache-Control: no-cache` to
+  the lookup, as the Fetch Standard says. A page does not set them, so they need no CORS preflight.
 - The lookup names the stored contract from `compilation`: `fullyQualifiedName`, else `name`, and
   `compilerVersion`.
 - Sourcify can hold another contract's source for an address. On Ethereum Sepolia, within two
@@ -166,6 +168,9 @@ at once, with no lookup.
 ## Sources
 
 - Sourcify API v1 shutdown on 2026-07-07: the Sourcify API v2 documentation.
+- The headers that `cache: "no-store"` adds: the WHATWG Fetch Standard,
+  [HTTP-network-or-cache fetch](https://fetch.spec.whatwg.org/#http-network-or-cache-fetch), last
+  updated 2026-10-19, read 2026-11-11.
 - `externalVerifications` entries for Etherscan, Blockscout and Routescan, and an Etherscan
   verification on Polygon Amoy after a Sourcify submit alone: live runs on 2026-11-02.
 - Testnet jobs finishing in about one second: live runs on 2026-11-02.

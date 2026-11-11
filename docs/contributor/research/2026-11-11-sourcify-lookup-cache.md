@@ -58,6 +58,15 @@ default from 2025-08-07 (same page). The client therefore sends `no-store` only 
 built with it keeps it, and only through the platform's `fetch`: an injected `fetch` may refuse a
 field it does not know, and it handles caching itself.
 
+The field also changes the request on the wire. The Fetch Standard's HTTP-network-or-cache fetch
+appends `Pragma: no-cache` and `Cache-Control: no-cache` to a request whose cache mode is
+`no-store` or `reload`, when the request does not hold them already
+(https://fetch.spec.whatwg.org/#http-network-or-cache-fetch, Living Standard last updated
+2026-10-19, read 2026-11-11). The runtime adds them, not the page, so they are no CORS request
+headers and cause no preflight. In this project's browser smoke test on 2026-11-11, the Sourcify
+lookup from Node.js 24.21.0 carried both headers, and the Chromium run passed against the
+recorded Sourcify CORS answers with no preflight for them.
+
 ## What the client does
 
 - It sends the lookup with `cache: "no-store"` through the platform's `fetch`, where the runtime
@@ -70,6 +79,14 @@ field it does not know, and it handles caching itself.
   409 `already_verified` when the address already has an exact match. The result keeps the other
   contract in `storedContract` with `partial`, and a `warn` line says that contract may be out of
   date.
+
+## Sources
+
+- WHATWG Fetch Standard, [HTTP-network-or-cache fetch](https://fetch.spec.whatwg.org/#http-network-or-cache-fetch),
+  Living Standard last updated 2026-10-19, read 2026-11-11: the `Pragma` and `Cache-Control` steps
+  for cache mode `no-store`.
+- `pnpm run test:browser` on 2026-11-11, Node.js 24.21.0 and Playwright's Chromium headless shell:
+  the headers on the lookup, and no preflight for them.
 
 ## Sources
 
