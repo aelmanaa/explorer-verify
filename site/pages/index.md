@@ -1,5 +1,7 @@
 ---
 layout: home
+title: Verify contract source on block explorers
+description: Verify deployed contract source on Etherscan, Blockscout, Sourcify and Routescan from a browser, a backend, a CI job or an agent.
 
 hero:
   name: explorer-verify

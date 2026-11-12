@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { CORE_ENTRY, RAW_MAIN } from "../agent-docs.ts";
+import { SITE_URL } from "../site-docs.ts";
 
 /** The user index page of the fixture. */
 export const README = "docs/user/README.md";
@@ -117,4 +118,55 @@ export function edit(root: string, file: string, from: string, to: string): void
 /** Reads a fixture file. */
 export function read(root: string, file: string): string {
   return readFileSync(path.join(root, file), "utf8");
+}
+
+/** What `builtPage` writes into the head of a page, each part replaceable. */
+export interface BuiltPageParts {
+  /** The page gets the JSON-LD block of the home page, naming `version`. */
+  home?: boolean;
+  version?: string;
+  title?: string;
+  description?: string;
+  canonical?: string;
+  /** The `og:url`, by default the canonical URL. */
+  ogUrl?: string;
+  /** Raw HTML added at the end of the head, or in place of the JSON-LD block when set. */
+  extra?: string;
+}
+
+/**
+ * The HTML of a built page at `page`, its URL path on the docs site (`""` for the home page), with
+ * the head VitePress and the site config write: a title, a description, a canonical link and the
+ * Open Graph tags, each unique to the page unless `parts` replaces it.
+ */
+export function builtPage(page: string, parts: BuiltPageParts = {}): string {
+  const url = parts.canonical ?? `${SITE_URL}${page}`;
+  const name = page === "" ? "home" : page;
+  const title = parts.title ?? `The page ${name} | explorer-verify`;
+  const description =
+    parts.description ?? `The fixture page ${name}, with a description of its own.`;
+  const jsonLd =
+    parts.home === true
+      ? `<script type="application/ld+json">${JSON.stringify({
+          "@type": "SoftwareSourceCode",
+          version: parts.version ?? "1.2.3",
+        })}</script>`
+      : "";
+  return [
+    "<!DOCTYPE html><html><head>",
+    `<title>${title}</title>`,
+    `<meta name="description" content="${description}">`,
+    `<link rel="canonical" href="${url}">`,
+    `<meta property="og:title" content="${title}">`,
+    `<meta property="og:description" content="${description}">`,
+    `<meta property="og:url" content="${parts.ogUrl ?? url}">`,
+    parts.extra ?? jsonLd,
+    "</head><body></body></html>",
+  ].join("\n");
+}
+
+/** A sitemap that lists `pages`, URL paths on the docs site, as VitePress writes it. */
+export function sitemapOf(pages: readonly string[]): string {
+  const urls = pages.map((page) => `<url><loc>${SITE_URL}${page}</loc></url>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
 }

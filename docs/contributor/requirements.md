@@ -357,7 +357,12 @@ Docs:
 - **R-AX-17** A docs site serves the user docs of the version on npm `latest` before 1.0, and of
   each major from 1.0, built from release tags, never from `main`. It serves `/llms.txt` and a
   `.md` copy of each user page and of the agent skill (decision 0015). Site-only pages, such as
-  the home page, have no copy (decision 0062).
+  the home page, have no copy (decision 0062). The site serves `sitemap.xml`, which lists every
+  page by its absolute URL without `.html`, and no `robots.txt`. Every page other than the 404
+  page has a title and a description of 40 to 160 characters that no other page has, one
+  canonical link equal to its sitemap URL, and Open Graph tags whose `og:url` is that URL. The
+  home page has a `SoftwareSourceCode` JSON-LD block that names the core package's version, and
+  the site serves the search console verification the maintainer sets up.
 
 CLI:
 

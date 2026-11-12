@@ -3,7 +3,10 @@
 // return 200, each within 10 seconds, and the site's `llms.txt` names the version of the core
 // package, so a site still serving an older version fails. Every file under `docs/user/` that is
 // not a page, such as the sample verify request, must return 200, and a JSON file must parse as
-// JSON. It reads the codes and their URLs from the built core package. The deploy workflow runs it
+// JSON. `sitemap.xml` must return 200 and list the home page, the Google verification file that
+// `site/verification.json` names must return 200 with its exact content, and the home page must
+// hold each search console meta tag whose token is set (issue #366). It reads the codes and their
+// URLs from the built core package. The deploy workflow runs it
 // on the version's tag after the deploy, so a failure fails the workflow and stops a caller that
 // waits on it.
 //
@@ -20,6 +23,7 @@ import { parseArgs } from "node:util";
 
 import { CORE_ENTRY, packageVersion } from "./agent-docs.ts";
 import { docsUrlsOf, siteAssets, SITE_URL, smokeProblems } from "./site-docs.ts";
+import { readVerification, verificationFiles, verificationTags } from "./site-seo.ts";
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -41,10 +45,15 @@ const core: unknown = await import(pathToFileURL(path.join(root, CORE_ENTRY)).hr
 const urls = docsUrlsOf(core, CORE_ENTRY);
 const version = packageVersion(root);
 const assets = siteAssets(root);
+const verification = readVerification(root);
+const search = {
+  files: verificationFiles(verification),
+  homeMeta: verificationTags(verification),
+};
 
 let problems: string[] = [];
 for (let attempt = 1; attempt <= attempts; attempt += 1) {
-  problems = await smokeProblems(site, version, urls, fetch, assets);
+  problems = await smokeProblems(site, version, urls, fetch, assets, search);
   if (problems.length === 0) {
     break;
   }
@@ -60,5 +69,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 process.stdout.write(
-  `site smoke: ${site} serves the page and Markdown copy of ${urls.length} error codes, ${assets.length} other files, llms.txt and every page it lists\n`,
+  `site smoke: ${site} serves the page and Markdown copy of ${urls.length} error codes, ${assets.length} other files, llms.txt, every page it lists and the sitemap\n`,
 );

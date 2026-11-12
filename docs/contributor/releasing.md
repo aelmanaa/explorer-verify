@@ -303,11 +303,13 @@ only.
   push.
 - **Input.** `version`, without the `v`. The workflow checks out the tag `v<version>`, never a
   branch, and fails when the package version at that tag differs.
-- **Jobs.** `build` runs the core build, `site:build` and `site:check` (test 3), then uploads the
+- **Jobs.** `build` checks out the tag with its full history, so the sitemap gets each page's
+  `lastmod`, runs the core build, `site:build` and `site:check` (test 3), then uploads the
   site. `deploy` is the only job with `pages: write` and `id-token: write`, and runs in the
   `github-pages` environment. `smoke` runs `scripts/smoke-site.ts` (test 4): each code page, its
   `.md` copy, `/llms.txt` and every page it lists must return 200 over HTTPS within 10 seconds,
-  and `/llms.txt` must name the version at the tag. A failed job fails the
+  and `/llms.txt` must name the version at the tag. `sitemap.xml` and the Google verification
+  file must return 200 too ([Search console](search-console.md)). A failed job fails the
   workflow, so a promote that waits on it stops before it moves `latest`.
 - **Environment.** The `github-pages` environment allows deployments from `main` only. A caller
   must grant `pages: write` and `id-token: write` to the job that calls the workflow.

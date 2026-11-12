@@ -16,6 +16,7 @@
 // which the CI determinism check uses.
 //
 // Usage: node site/api-reference.ts [outDir]
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +25,7 @@ import {
   ArrayType,
   ConditionalType,
   LiteralType,
+  PageEvent,
   PredicateType,
   ReferenceType,
   ReflectionKind,
@@ -43,11 +45,15 @@ import type { MarkdownPageEvent, PluginOptions } from "typedoc-plugin-markdown";
 import { ERROR_CODES } from "../packages/explorer-verify/src/errors.ts";
 import { packageVersion } from "../scripts/agent-docs.ts";
 import {
+  API_DESCRIPTIONS,
   API_GROUP_ORDER,
+  API_INDEX_DESCRIPTION,
   API_OUT,
   API_TITLE,
+  apiDescription,
   apiEntryPoints,
   apiPageName,
+  apiPages,
   apiProblems,
   isRepositorySource,
   orderApiMembers,
@@ -163,6 +169,29 @@ const app = await Application.bootstrapWithPlugins(options);
 app.renderer.defineRouter(ROUTER, EntryPointRouter);
 app.renderer.defineTheme(THEME, ApiTheme);
 
+// The entry point and the first paragraph of the TSDoc summary of each page, by its path under the
+// output folder. The docs site makes them the page's meta description (R-AX-17).
+const summaries = new Map<string, { entry: string; summary: string }>();
+app.renderer.on(PageEvent.END, (page) => {
+  if (!page.isReflectionEvent()) {
+    return;
+  }
+  let module: Reflection | undefined = page.model;
+  while (module !== undefined && module.kind !== ReflectionKind.Module) {
+    module = module.parent;
+  }
+  const model = page.model;
+  const comment = model.isDeclaration()
+    ? (model.comment ?? model.signatures?.[0]?.comment)
+    : model.comment;
+  if (module !== undefined) {
+    summaries.set(page.url, {
+      entry: module.name,
+      summary: (comment?.getShortSummary(true) ?? []).map((part) => part.text).join(""),
+    });
+  }
+});
+
 const project = await app.convert();
 if (project === undefined) {
   process.stderr.write("api reference: TypeDoc could not convert the entry points\n");
@@ -249,9 +278,24 @@ if (app.logger.hasErrors() || app.logger.hasWarnings()) {
   process.exit(1);
 }
 await app.generateOutputs(project);
+// Each page's meta description, from its summary, in a file next to the pages, which the site
+// config reads. The index has its own.
+const descriptions: Record<string, string> = {};
+const undescribed: string[] = [];
+for (const { page, title } of apiPages(out)) {
+  const found = summaries.get(page);
+  if (page === "index.md") {
+    descriptions[page] = API_INDEX_DESCRIPTION;
+  } else if (found === undefined) {
+    undescribed.push(`${page} has no TSDoc summary for its description (R-AX-17)`);
+  } else {
+    descriptions[page] = apiDescription(title, found.entry, found.summary);
+  }
+}
+writeFileSync(path.join(out, API_DESCRIPTIONS), `${JSON.stringify(descriptions, null, 2)}\n`);
 const problems = app.logger.hasErrors()
   ? ["TypeDoc reported the problems above"]
-  : apiProblems(out, entryPoints);
+  : [...apiProblems(out, entryPoints), ...undescribed];
 if (problems.length > 0) {
   process.stderr.write(`${problems.map((problem) => `api reference: ${problem}`).join("\n")}\n`);
   process.exit(1);

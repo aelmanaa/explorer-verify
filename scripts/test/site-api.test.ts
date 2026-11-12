@@ -10,10 +10,12 @@ import {
   API_LEADING_FUNCTIONS,
   API_OUT,
   API_TITLE,
+  apiDescription,
   apiEntryPoints,
   apiPageName,
   apiPages,
   apiProblems,
+  apiTitles,
   isApiEntryPage,
   isRepositorySource,
   orderApiMembers,
@@ -299,5 +301,55 @@ describe("apiProblems", () => {
       `${directory} has no page core-server/index.md titled core/server (R-AX-2)`,
       `${directory}/core/index.md:3: holds {{ outside code; the docs site would evaluate it as a Vue expression. Put it in a code span or a code block (R-AX-17)`,
     ]);
+  });
+});
+
+describe("apiDescription (R-AX-17)", () => {
+  it("names the member and its entry point, then the summary's sentences that fit", () => {
+    assert.equal(
+      apiDescription(
+        "Function: verify()",
+        "explorer-verify/core",
+        "Verifies a contract's source, as `verify()` does.\nSee [the guide](../x.md).",
+      ),
+      "verify() in explorer-verify/core: Verifies a contract's source, as verify() does. See the guide.",
+    );
+    assert.equal(
+      apiDescription("explorer-verify/server", "explorer-verify/server", "A request handler."),
+      "explorer-verify/server: A request handler.",
+    );
+    assert.equal(
+      apiDescription("Variable: DEFAULT\\_MAX", "explorer-verify/server", "The limit."),
+      "DEFAULT_MAX in explorer-verify/server: The limit.",
+    );
+  });
+
+  it("stops before a sentence that would pass 160 characters, and cuts a first sentence at a word", () => {
+    const long = `${"word ".repeat(40).trim()}.`;
+    const kept = apiDescription("Type Alias: X", "e", `Short one. ${long}`);
+    assert.equal(kept, "X in e: Short one.");
+    const cut = apiDescription("Type Alias: X", "e", long);
+    assert.ok(cut.length <= 160, String(cut.length));
+    assert.match(cut, /^X in e: word( word)*…$/);
+  });
+});
+
+describe("apiTitles (R-AX-17)", () => {
+  it("adds the entry point to the title of a member two entry points export, and only to it", () => {
+    const titles = apiTitles([
+      { page: "index.md", title: "API reference" },
+      { page: "a/index.md", title: "explorer-verify" },
+      { page: "a/functions/verify.md", title: "Function: verify()" },
+      { page: "a/functions/only.md", title: "Function: only()" },
+      { page: "b/index.md", title: "explorer-verify/core" },
+      { page: "b/functions/verify.md", title: "Function: verify()" },
+    ]);
+    assert.deepEqual(
+      [...titles],
+      [
+        ["a/functions/verify.md", "verify() (explorer-verify)"],
+        ["b/functions/verify.md", "verify() (explorer-verify/core)"],
+      ],
+    );
   });
 });

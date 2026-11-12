@@ -5,9 +5,12 @@
 // pages in `site/pages/`, such as the home page and the 404 page, which may use frontmatter and
 // Vue (decision 0062). VitePress reads all three from the repository root, and `srcExclude` hides
 // every other Markdown file. The link rules, the sidebar, the nav and the Markdown copies are in
-// scripts/site-docs.ts; the theme in site/.vitepress/theme/ only adds CSS.
+// scripts/site-docs.ts; the theme in site/.vitepress/theme/ only adds CSS. What the site tells
+// search engines, the sitemap, canonical links, descriptions, social tags, JSON-LD and the search
+// console tags, is in scripts/site-seo.ts and scripts/site-descriptions.ts.
 //
 // Build: pnpm run site:build. Preview: pnpm run site:preview.
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +18,8 @@ import { defineConfig } from "vitepress";
 import type { DefaultTheme, UserConfig } from "vitepress";
 
 import { githubSlug, packageVersion, USER_DOCS } from "../../scripts/agent-docs.ts";
+import { API_DESCRIPTIONS, API_OUT, apiPages, apiTitles } from "../../scripts/site-api.ts";
+import { readPageDescriptions } from "../../scripts/site-descriptions.ts";
 import {
   codeTitleOf,
   dropHeaderLines,
@@ -22,6 +27,9 @@ import {
   inCodeGroup,
   rewriteForSite,
   SITE_BASE,
+  SITE_PAGES,
+  SITE_URL,
+  siteDescription,
   siteNav,
   siteRewrites,
   siteSidebar,
@@ -29,15 +37,43 @@ import {
   withCodeTitle,
 } from "../../scripts/site-docs.ts";
 import { boostDocument, processTerm } from "../../scripts/site-search.ts";
+import {
+  gitLastModified,
+  packageFacts,
+  readVerification,
+  searchHead,
+} from "../../scripts/site-seo.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const version = packageVersion(root);
 const home = hasSiteHome(root);
 const sidebar = siteSidebar(root);
+const rewrites = siteRewrites(root);
+const facts = packageFacts(root);
+const verification = readVerification(root);
+const pageDescriptions = readPageDescriptions(root);
+// The API reference is generated before VitePress runs (`site:api`): the titles of the members
+// that two entry points export, and each page's description from its TSDoc summary.
+const apiTitleOf = apiTitles(apiPages(path.join(root, API_OUT)));
+const apiDescriptionOf = readDescriptions(path.join(root, API_OUT, API_DESCRIPTIONS));
+
+/** The descriptions file the API generator writes, or none before it has run. */
+function readDescriptions(file: string): Map<string, string> {
+  const parsed: unknown = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+  const descriptions = new Map<string, string>();
+  if (typeof parsed === "object" && parsed !== null) {
+    for (const [page, description] of Object.entries(parsed)) {
+      if (typeof description === "string") {
+        descriptions.set(page, description);
+      }
+    }
+  }
+  return descriptions;
+}
 
 const config: UserConfig<DefaultTheme.Config> = defineConfig({
   title: "explorer-verify",
-  description: `Verify deployed contract source on block explorers. Docs of explorer-verify ${version}.`,
+  description: siteDescription(version),
   lang: "en",
   // The site has no icon. An empty one stops the browser asking for /favicon.ico, which is outside
   // the base and answers 404 in the console.
@@ -48,7 +84,47 @@ const config: UserConfig<DefaultTheme.Config> = defineConfig({
   outDir: "dist",
   cacheDir: path.join(root, "node_modules/.cache/vitepress"),
   cleanUrls: true,
-  rewrites: siteRewrites(root),
+  rewrites,
+  // The sitemap lists every page by its absolute URL, without `.html` (cleanUrls). A page's
+  // `lastmod` is the date of the last commit that changed its source other than its `Version:`
+  // line, which every release rewrites; an API page, generated from many sources, has none, and
+  // neither has any page when the checkout is shallow (scripts/site-seo.ts).
+  sitemap: {
+    hostname: SITE_URL,
+    transformItems(items) {
+      const sources = new Map(Object.entries(rewrites).map(([source, page]) => [page, source]));
+      const dates = gitLastModified(root, [USER_DOCS, SITE_PAGES]);
+      return items.map((item) => {
+        const page =
+          item.url === "" || item.url.endsWith("/") ? `${item.url}index.md` : `${item.url}.md`;
+        const lastmod = dates?.get(sources.get(page) ?? "");
+        return lastmod === undefined ? item : { ...item, lastmod };
+      });
+    },
+  },
+  // A user page's description comes from site/descriptions.json, since the pages hold no
+  // frontmatter; an API page's from its TSDoc summary, and a member that two entry points export
+  // gets its entry point in its title. Site-only pages set both in their frontmatter.
+  transformPageData(pageData) {
+    const source = pageData.filePath;
+    if (source.startsWith(`${USER_DOCS}/`)) {
+      const description = pageDescriptions.get(path.posix.relative(USER_DOCS, source));
+      return description === undefined ? undefined : { description };
+    }
+    if (source.startsWith(`${API_OUT}/`)) {
+      const page = path.posix.relative(API_OUT, source);
+      return {
+        title: apiTitleOf.get(page) ?? pageData.title,
+        description: apiDescriptionOf.get(page) ?? pageData.description,
+      };
+    }
+    return undefined;
+  },
+  // The canonical link, Open Graph and Twitter tags of each page, and on the home page the
+  // JSON-LD block and the search console tags (scripts/site-seo.ts). The 404 page gets none.
+  transformHead({ page, title, description }) {
+    return searchHead({ page, title, description, facts, verification });
+  },
   markdown: {
     // The same anchors as GitHub, which the repository's link check uses (scripts/agent-docs.ts).
     anchor: { slugify: githubSlug },
