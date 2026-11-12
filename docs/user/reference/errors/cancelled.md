@@ -8,7 +8,7 @@ The CLI run was cancelled, for example with Ctrl-C.
 
 ## How to fix
 
-Fix: if the envelope has `error.handle`, the explorer accepted the submission. Resume from that
+If the envelope has `error.handle`, the explorer accepted the submission. Resume from that
 handle instead of submitting again:
 
 - in a shell, with `explorer-verify status <handle>`;

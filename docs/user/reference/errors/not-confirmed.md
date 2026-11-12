@@ -8,7 +8,7 @@ The explorer accepted the submission and was still verifying when the time budge
 
 ## How to fix
 
-Fix: store `details.handle` and pass it to `checkStatus()` later to continue polling. Raise
+Store `details.handle` and pass it to `checkStatus()` later to continue polling. Raise
 `timeoutMs` if this happens often.
 
 > [!WARNING]

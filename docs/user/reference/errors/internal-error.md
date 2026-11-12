@@ -8,7 +8,7 @@ The CLI hit a bug in explorer-verify, not a problem with the input or the explor
 
 ## How to fix
 
-Fix: do not retry automatically. Report the bug in an issue with the command you ran and the
+Do not retry automatically. Report the bug in an issue with the command you ran and the
 message. Leave out your API key.
 
 From the CLI: This is a bug in explorer-verify. Report it with the command you ran, without your API

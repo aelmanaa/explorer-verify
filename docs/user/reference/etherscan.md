@@ -84,6 +84,14 @@ The submit fields:
 | `constructorArguments`  | `constructorArgs` without `0x`; absent with no arguments             |
 | `constructorArguements` | The same value; Etherscan reads this misspelled name too             |
 
+A call that submits sends one lookup, one submit (more while Etherscan has not
+[indexed the contract](#a-contract-etherscan-has-not-indexed)) and one status request per poll,
+plus any retries. A status answer
+of `Fail - Unable to verify` costs one more request: a `getsourcecode` lookup, sent before the call
+reports its outcome
+([decision 0067](../../contributor/decisions/0067-submit-over-a-partial-match.md)). Count it when
+you plan for a key's rate limit. Routescan and the Etherscan-compatible explorers do the same.
+
 ## How answers are read
 
 Etherscan answers almost everything with HTTP 200 and puts the meaning in the `result` text. The

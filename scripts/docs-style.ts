@@ -15,10 +15,14 @@
 // - the line `<!-- docs-style: legacy -->`, which once exempted a page from these rules;
 // - a line over 80 characters in a fenced code block, except in a `text` block, which holds
 //   program output as printed. A block with a line that cannot break, such as JSON with a long
-//   string, may have `<!-- code-width: the reason -->` on the nearest non-blank line before it.
+//   string, may have `<!-- code-width: the reason -->` on the nearest non-blank line before it;
+// - an exit-code comment, such as `# exit code 0`, in a fenced code block other than `text`: the
+//   copy button would copy it with the command. The exit code goes in the line after the block,
+//   "It exits 0 and prints:" (issue #379).
 //
 // The code width rule also runs on the agent skills, `llms.txt` and the site's home page. It is
-// for the source and the copies in the npm package and on GitHub; the site soft-wraps code.
+// for the source and the copies in the npm package and on GitHub; the site soft-wraps code. The
+// exit-code rule runs on the same files and on the READMEs.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -50,6 +54,16 @@ export const WRAPPED_LANGUAGES: ReadonlySet<string> = new Set(["text"]);
 export const CODE_WIDTH_EXEMPTION: RegExp = /^<!-- code-width: \S.* -->$/;
 /** Markdown files outside `docs/user/` that the code width rule reads, besides the skills. */
 export const CODE_WIDTH_FILES: readonly string[] = ["llms.txt", "site/pages/index.md"];
+/** The READMEs, which hold copyable commands too; only the exit-code rule reads them. */
+export const README_FILES: readonly string[] = [
+  "README.md",
+  "packages/explorer-verify/README.md",
+  "packages/cli/README.md",
+  "packages/foundry/README.md",
+  "packages/hardhat/README.md",
+];
+/** A comment line in a code block that states an exit code: `# exit code 0`, `// exits 2`. */
+export const EXIT_COMMENT: RegExp = /^\s*(?:#|\/\/)\s*(?:→\s*)?exit(?:s|\s+code|\s+status)?\b/i;
 
 /** Splits a code line into the characters a reader sees, to measure its width. */
 const GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -286,12 +300,30 @@ export function codeWidthProblems(file: string, text: string): string[] {
 }
 
 /**
+ * The exit-code comments in the fenced blocks of one Markdown file, except in `text` blocks,
+ * which hold program output. `file` is the repository path, for the messages.
+ */
+export function exitCommentProblems(file: string, text: string): string[] {
+  return parse(text).fences.flatMap((fence) =>
+    WRAPPED_LANGUAGES.has(fence.lang)
+      ? []
+      : fence.lines.flatMap((line, offset) =>
+          EXIT_COMMENT.test(line)
+            ? [
+                `${file}:${fence.index + offset + 2}: an exit-code comment in a code block, which the copy button copies; write "It exits N and prints:" after the block (${STYLE_GUIDE})`,
+              ]
+            : [],
+        ),
+  );
+}
+
+/**
  * The style problems of one user page. `file` is the repository path, such as
  * `docs/user/guides/x.md`, and `page` the path under `docs/user/`.
  */
 export function styleProblems(file: string, page: string, text: string): string[] {
   const parsed = parse(text);
-  const problems: string[] = codeWidthProblems(file, text);
+  const problems: string[] = [...codeWidthProblems(file, text), ...exitCommentProblems(file, text)];
   const report = (line: number, message: string): void => {
     problems.push(`${file}:${line}: ${message} (${STYLE_GUIDE})`);
   };
@@ -371,18 +403,23 @@ function userPages(root: string): { file: string; page: string; text: string }[]
 }
 
 /**
- * Every style problem of the user pages under `root`, and the code width problems of the skills
- * and {@link CODE_WIDTH_FILES}; empty when they pass.
+ * Every style problem of the user pages under `root`, the code width and exit-code problems of
+ * the skills and {@link CODE_WIDTH_FILES}, and the exit-code problems of {@link README_FILES};
+ * empty when they pass.
  */
 export function checkDocsStyle(root: string): string[] {
   const others = [...listFiles(root, SKILLS, ".md"), ...CODE_WIDTH_FILES].filter((file) =>
     existsSync(path.join(root, file)),
   );
+  const readmes = README_FILES.filter((file) => existsSync(path.join(root, file)));
+  const read = (file: string): string => readFileSync(path.join(root, file), "utf8");
   return [
     ...userPages(root).flatMap(({ file, page, text }) => styleProblems(file, page, text)),
-    ...others.flatMap((file) =>
-      codeWidthProblems(file, readFileSync(path.join(root, file), "utf8")),
-    ),
+    ...others.flatMap((file) => [
+      ...codeWidthProblems(file, read(file)),
+      ...exitCommentProblems(file, read(file)),
+    ]),
+    ...readmes.flatMap((file) => exitCommentProblems(file, read(file))),
   ];
 }
 

@@ -8,7 +8,7 @@ The API key's daily limit is spent.
 
 ## How to fix
 
-Fix: call again after the explorer resets the limit, or use a key on a plan with a higher limit.
+Call again after the explorer resets the limit, or use a key on a plan with a higher limit.
 [API keys](../api-keys.md) describes the Etherscan plan rules.
 
 From the CLI: The key's daily limit is spent. Run the command again after the explorer resets the

@@ -6,7 +6,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 For: developers who deploy with Hardhat and want to verify from the command line.
 
-You need: Node.js 22.18 or later, a Hardhat 3 or Hardhat 2 project and curl. No API key.
+You need: Node.js 22.12 or later, a Hardhat 3 or Hardhat 2 project and curl. No API key.
 
 This is not a Hardhat plugin: `@explorer-verify/cli` reads the build files under `artifacts/`
 and needs no change to `hardhat.config.ts`. It works alongside `hardhat-verify`.
@@ -25,10 +25,11 @@ curl -fsSLO "$repo/docs/user/start/greeter-sepolia.json"
 A dry run looks the contract up and never submits:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}
@@ -51,11 +52,12 @@ On Hardhat 2, run `npx hardhat compile`.
 Pass `--hardhat .` and the contract as `path:Name`, with your address and chain ID:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --hardhat . --contract contracts/Greeter.sol:Greeter \
   --backend sourcify --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}
@@ -68,11 +70,12 @@ npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
 Drop `--dry-run`:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --hardhat . --contract contracts/Greeter.sol:Greeter \
   --backend sourcify --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"already-verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}

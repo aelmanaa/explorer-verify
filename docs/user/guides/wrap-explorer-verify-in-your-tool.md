@@ -384,6 +384,10 @@ browser, use `handlerUrl` instead; Etherscan's terms forbid its key in browser c
 options object for `verify()` and `dryRun()` as `VerifyOptions`
 ([why](../reference/verify.md#options-of-each-function)).
 
+explorer-verify sets no `User-Agent` and reads no proxy variable. To keep your tool's
+`User-Agent` or its `HTTPS_PROXY` support, pass a `fetch` that adds them, as in
+[Set the User-Agent and send requests through a proxy](verify-from-node.md#set-the-user-agent-and-send-requests-through-a-proxy).
+
 ## Behaviour that changes
 
 `verify()` may act differently from your tool's old code. Keep the old behaviour as the default

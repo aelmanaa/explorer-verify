@@ -6,7 +6,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 For: people who let a coding agent verify a contract.
 
-You need: an agent with a shell, Node.js 22.18 or later, and the contract's
+You need: an agent with a shell, Node.js 22.12 or later, and the contract's
 Foundry or Hardhat build.
 
 ## Paste the prompt
@@ -37,10 +37,11 @@ npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
 The agent's first command needs no key:
 
 ```sh [dry-run.sh]
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}

@@ -204,7 +204,8 @@ describe("blackbox #12: catalogue", () => {
         assert.equal(error.docsUrl, docsUrlOf(code));
         const doc = section(code);
         assert.match(doc, /^Cause: /mu);
-        assert.match(doc, /^Fix: /mu);
+        // The fix is the first paragraph under its heading, with no "Fix:" label (#379).
+        assert.match(doc, /^## How to fix\n\n[A-Z]/mu);
       });
 
       it("exit code equals the documented exit code (R-AX-7)", () => {

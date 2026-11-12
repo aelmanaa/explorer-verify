@@ -8,7 +8,7 @@ The route's backend needs an API key, and the call has none for it.
 
 ## How to fix
 
-Fix: pass the key in `apiKeys` under the backend that `details.backend` names. For an explorer on
+Pass the key in `apiKeys` under the backend that `details.backend` names. For an explorer on
 its own host, pass it as `route.apiKey`. [API keys](../api-keys.md) describes where each key goes.
 
 For `etherscan-v2` in a browser, set `handlerUrl` to your [server handler](../server-handler.md),

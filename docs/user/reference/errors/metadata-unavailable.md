@@ -8,7 +8,7 @@ Agents: [llms.txt](../../../../llms.txt) lists every page of these docs.
 
 ## How to fix
 
-Fix: read `details.attempts`, then act on the source and outcome it shows:
+Read `details.attempts`, then act on the source and outcome it shows:
 
 | Attempt                   | What to do                                                |
 | ------------------------- | --------------------------------------------------------- |

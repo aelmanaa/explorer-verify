@@ -8,7 +8,7 @@ The explorer no longer knows the job of this handle, and the contract is not ver
 
 ## How to fix
 
-Fix: do not retry automatically. Check the contract on the explorer. If it is not verified, call
+Do not retry automatically. Check the contract on the explorer. If it is not verified, call
 `verify()` again to submit it again.
 
 From the CLI: Do not retry automatically. Check the contract on the explorer; if it is not verified,

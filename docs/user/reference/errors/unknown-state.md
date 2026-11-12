@@ -8,7 +8,7 @@ The explorer answered for a job with a status the library cannot classify.
 
 ## How to fix
 
-Fix: do not retry automatically. Check the contract on the explorer, then report `details.excerpt`
+Do not retry automatically. Check the contract on the explorer, then report `details.excerpt`
 in an issue.
 
 From the CLI: Do not retry automatically. Check the contract on the explorer, and report the excerpt

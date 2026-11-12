@@ -20,8 +20,11 @@ Add the core package:
 npm install explorer-verify
 ```
 
-Node.js 22.18 runs the `.ts` files below directly. Supported Node.js versions follow Node's LTS
-schedule ([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md)).
+The packages run on Node.js 22.12 or later. The examples below are `.ts` files, which Node.js runs
+directly from 22.18; on 22.12 to 22.17, write them as `.mjs` files without the types. Supported
+Node.js versions follow Node's LTS schedule
+([decision 0060](../../contributor/decisions/0060-supported-node-versions-follow-lts.md),
+[decision 0071](../../contributor/decisions/0071-published-node-floor.md)).
 
 ## Run a dry run on the sample contract
 
@@ -204,6 +207,69 @@ To stop a call early, such as on shutdown, pass an `AbortSignal` in `signal`. Th
 the signal's reason. When a crash between submit and result must not lose the job, save the handle
 from the `verify.submitted` event ([Abort and resume](../reference/verify.md#abort-and-resume)).
 
+## Set the User-Agent and send requests through a proxy
+
+Every request explorer-verify sends goes through one `fetch`: `globalThis.fetch`, or the function
+you pass as the `fetch` option. explorer-verify sets these fields on each request:
+
+- `method`, and a body on a submit or an Etherscan-style request.
+- `content-type`: `application/json` for Sourcify, `application/x-www-form-urlencoded` for the
+  Etherscan family and Blockscout.
+- The API key, only for its own host: in the form body for Etherscan v2 and Etherscan-compatible
+  explorers, in an `apikey` header for Routescan, and in `authorization: Bearer` for Blockscout's
+  hosted API ([API keys](../reference/api-keys.md)).
+- `redirect: "manual"`, so a redirect is never followed, and a `signal` for the time budget.
+- `cache: "no-store"` on a Sourcify lookup, only when the default `fetch` sends it.
+
+It sets no `User-Agent` and no proxy. Node.js's `fetch` then sends `user-agent: node` and connects
+directly, whatever `HTTPS_PROXY` says. A tool that names itself to the explorers, or that runs
+behind a proxy, passes its own `fetch`. This one sets a `User-Agent` and, when `HTTPS_PROXY` is
+set, sends every request through undici's `ProxyAgent` (`npm install undici`):
+
+```ts [tool-fetch.ts]
+import { readFile } from "node:fs/promises";
+
+import { validateInput, verify } from "explorer-verify";
+import { ProxyAgent } from "undici";
+
+const USER_AGENT = "my-tool/1.4.0";
+const proxyUrl = process.env["HTTPS_PROXY"] ?? "";
+const dispatcher = proxyUrl === "" ? undefined : new ProxyAgent(proxyUrl);
+
+/** Node.js's fetch with this tool's User-Agent, and the proxy if set. */
+async function toolFetch(
+  input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  headers.set("user-agent", USER_AGENT);
+  // Node.js's fetch reads undici's `dispatcher`, which RequestInit lacks.
+  const options: RequestInit & { dispatcher?: ProxyAgent } = {
+    ...init,
+    headers,
+  };
+  if (dispatcher !== undefined) {
+    options.dispatcher = dispatcher;
+  }
+  return await fetch(input, options);
+}
+
+const input = validateInput(
+  JSON.parse(await readFile("greeter-sepolia.json", "utf8")),
+);
+const result = await verify(input, { fetch: toolFetch });
+console.log(`${result.status} on ${result.backend}`);
+```
+
+```text
+already-verified on sourcify
+```
+
+Keep the rest of `init`: it carries the method, the body, `redirect: "manual"` and the `signal`. The
+same function goes to `checkStatus()`, `dryRun()`, `verifyEach()` and `linkProxy()`. Two things
+change with your own `fetch`: explorer-verify no longer checks that the answer came from the URL it
+asked, and it sends no `cache: "no-store"`. It still refuses a redirect.
+
 ## Verify on several explorers at once
 
 To publish the source on Etherscan and on Sourcify, call `verifyEach()` once instead of `verify()`
@@ -281,6 +347,11 @@ Advanced plan or higher. See [Etherscan plans and attribution](../explanation/et
 
 ## Sources
 
+- undici, [`ProxyAgent`](https://github.com/nodejs/undici/blob/main/docs/docs/api/ProxyAgent.md):
+  a dispatcher that sends requests through a proxy. Read on 2026-11-12. Node.js 22.12.0 and
+  24.21.0 sent `user-agent: node` by default, and the recipe above, with undici 7.30.2, reached a
+  local server through a local proxy (CONNECT) with the custom `User-Agent`, both observed on
+  2026-11-12.
 - Node.js, [`--env-file`](https://nodejs.org/api/cli.html#--env-filefile): loads variables from a
   file. v26 docs, read on 2026-11-04.
 - Deno, [Node and npm](https://docs.deno.com/runtime/fundamentals/node/): `npm:` specifiers and

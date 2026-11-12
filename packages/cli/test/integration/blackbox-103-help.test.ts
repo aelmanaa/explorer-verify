@@ -499,12 +499,12 @@ describe(
 
     it("the skill's mistyped --color example prints the documented envelope", TIMEOUT, async () => {
       const block =
-        /```sh\n# exit code (\d+)\n(explorer-verify [^\n]*)\n```\n\nIt prints:\n\n```text\n([^\n]*)\n```/.exec(
+        /```sh\n(explorer-verify [^\n]*)\n```\n\nIt exits (\d+) and prints:\n\n```text\n([^\n]*)\n```/.exec(
           SKILL_MD,
         );
       assert.ok(block?.[1] !== undefined && block[2] !== undefined && block[3] !== undefined);
-      const result = await runBin(block[2].split(" ").slice(1));
-      assert.equal(result.code, Number(block[1]));
+      const result = await runBin(block[1].split(" ").slice(1));
+      assert.equal(result.code, Number(block[2]));
       assert.equal(result.stdout, `${block[3]}\n`);
     });
 

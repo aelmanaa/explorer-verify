@@ -8,7 +8,7 @@ The chain has no route, or the backend answered that it does not serve it.
 
 ## How to fix
 
-Fix: check the chain ID. If it is right, set `allowSourcifyFallback: true` to verify on Sourcify,
+Check the chain ID. If it is right, set `allowSourcifyFallback: true` to verify on Sourcify,
 or pick a backend that serves the chain with the `route` option.
 
 In the CLI, pass `--allow-sourcify-fallback` for a chain without a row; the CLI's hint names that

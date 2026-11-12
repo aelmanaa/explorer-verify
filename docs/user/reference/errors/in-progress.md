@@ -8,7 +8,7 @@ The explorer is already verifying this contract from another submission.
 
 ## How to fix
 
-Fix: wait for the explorer to finish that verification, then call again.
+Wait for the explorer to finish that verification, then call again.
 
 From the CLI: Wait for the explorer to finish its current verification of this contract, then run
 the command again.

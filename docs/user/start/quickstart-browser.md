@@ -8,7 +8,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 For: developers who add contract verification to a dapp.
 
-You need: Node.js 22.18 or later and npm. The page uses Vite; any bundler works.
+You need: Node.js 22.12 or later and npm. The page uses Vite; any bundler works.
 
 ## 1. Install
 

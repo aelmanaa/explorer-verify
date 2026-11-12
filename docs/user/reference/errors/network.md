@@ -8,7 +8,7 @@ Every request to the backend failed before it answered, retries included.
 
 ## How to fix
 
-Fix: check the network connection and the explorer's status page, then call again.
+Check the network connection and the explorer's status page, then call again.
 
 For a module that failed to load, check that the site serves every file of its build, then reload
 the page.

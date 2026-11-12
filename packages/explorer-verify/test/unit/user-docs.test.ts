@@ -541,6 +541,14 @@ const RUNS: readonly DocRun[] = [
     fixtures: NOT_CONFIRMED,
     stdout: `queued ${RECORDED_HANDLE}\nqueued for a status check\n`,
   },
+  // The fetch recipe: the stub `undici` ProxyAgent is built only when HTTPS_PROXY is set.
+  ...[{}, { HTTPS_PROXY: "http://proxy.example:8080" }].map((env): DocRun => ({
+    page: NODE,
+    example: 3,
+    what: `the tool's own fetch, ${"HTTPS_PROXY" in env ? "through a proxy" : "with no proxy"}`,
+    fixtures: ALREADY_VERIFIED,
+    env,
+  })),
   {
     page: QUEUE,
     example: 0,
@@ -675,6 +683,14 @@ function runProblem(example: DocExample, spec: DocRun, run: Run): string | undef
   return undefined;
 }
 
+/** The files a run had to write in `dir` and did not, as a problem, or `undefined`. */
+function writeProblem(example: DocExample, spec: DocRun, dir: string): string | undefined {
+  const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
+  return missing.length === 0
+    ? undefined
+    : `${example.page}:${String(example.line)}, ${spec.what}: did not write ${missing.join(", ")}`;
+}
+
 /** Calls `use` with a new project for each setup it asks for, and removes them all after. */
 async function withProjects<T>(
   use: (projectOf: (setup: DocSetup) => string) => T | Promise<T>,
@@ -773,13 +789,7 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
           ...NO_KEYS,
           ...spec.env,
         });
-        const missing = (spec.files ?? []).filter((name) => !existsSync(path.join(dir, name)));
-        return (
-          runProblem(example, spec, run) ??
-          (missing.length > 0
-            ? `${example.page}:${String(example.line)}, ${spec.what}: did not write ${missing.join(", ")}`
-            : undefined)
-        );
+        return runProblem(example, spec, run) ?? writeProblem(example, spec, dir);
       });
     });
     assert.deepEqual(
@@ -1080,14 +1090,27 @@ describe("the user-docs checks catch a broken example", () => {
       "guides/x.md:3, a probe: printed\nother\nexpected\nok\n",
     );
     // Without an output block, a run must print nothing.
-    assert.match(
-      runProblem({ ...example, output: undefined }, spec, {
-        stdout: "x\n",
-        stderr: "",
-        status: 0,
-      }) ?? "",
-      /printed\nx\nexpected\n$/,
-    );
+    const silent = runProblem({ ...example, output: undefined }, spec, {
+      stdout: "x\n",
+      stderr: "",
+      status: 0,
+    });
+    assert.ok(silent !== undefined);
+    assert.match(silent, /printed\nx\nexpected\n$/);
+    // A run that must write files reports the ones it did not write.
+    const dir = mkdtempSync(path.join(tmpdir(), "explorer-verify-writes-"));
+    try {
+      writeFiles(dir, { "a.json": "{}\n" });
+      const writes: DocRun = { ...spec, files: ["a.json", "b.json"] };
+      assert.equal(
+        writeProblem(example, writes, dir),
+        "guides/x.md:3, a probe: did not write b.json",
+      );
+      assert.equal(writeProblem(example, { ...writes, files: ["a.json"] }, dir), undefined);
+      assert.equal(writeProblem(example, spec, dir), undefined);
+    } finally {
+      removeProject(dir);
+    }
     assert.deepEqual(runsOf(example), [
       { page: "guides/x.md", example: 0, what: "the default run" },
     ]);

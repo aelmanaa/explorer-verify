@@ -6,7 +6,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
 For: developers who verify contracts from a terminal or a CI job.
 
-You need: Node.js 22.18 or later and curl. No API key, wallet or project.
+You need: Node.js 22.12 or later and curl. No API key, wallet or project.
 
 The command ships in `@explorer-verify/cli`. `npx` downloads and runs it.
 
@@ -24,10 +24,11 @@ curl -fsSLO "$repo/docs/user/start/greeter-sepolia.json"
 A dry run looks the contract up and never submits:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}
@@ -45,11 +46,12 @@ forge build --build-info
 ```
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --backend sourcify --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}
@@ -63,11 +65,12 @@ Use your own address, chain and contract. In a Hardhat project, run `npx hardhat
 Drop `--dry-run`:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --backend sourcify --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"already-verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}

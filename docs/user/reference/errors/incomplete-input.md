@@ -9,7 +9,7 @@ sources.
 
 ## How to fix
 
-Fix: add the part that `details.field` names:
+Add the part that `details.field` names:
 
 | `details.field`   | What to add                                                                      |
 | ----------------- | -------------------------------------------------------------------------------- |

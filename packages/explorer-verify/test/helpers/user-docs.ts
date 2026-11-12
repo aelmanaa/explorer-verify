@@ -286,15 +286,41 @@ function writePinoStub(dir: string): void {
 }
 
 /**
- * A new temporary project for user-docs examples: the core, the Foundry and Hardhat helpers and a
- * pino stub in `node_modules`, the DOM library for browser examples, the globals module, the
- * docs' sample request `greeter-sepolia.json` at the root, as a reader saves it next to the
- * example, and the files of `setup`. With `legacy` false, the globals module leaves out
- * {@link LEGACY_GLOBALS}.
+ * Writes `node_modules/undici`: a stub with undici's `ProxyAgent`, so the Node.js guide's `fetch`
+ * recipe compiles and runs without the package. The recorded answers replace `fetch`, so the
+ * dispatcher is never used; the constructor only checks that it gets a URL.
+ */
+function writeUndiciStub(dir: string): void {
+  const undici = path.join(dir, "node_modules/undici");
+  mkdirSync(undici);
+  const files: Record<string, string> = {
+    "package.json": `${JSON.stringify({ name: "undici", type: "module", main: "index.js", types: "index.d.ts" })}\n`,
+    "index.d.ts": "export declare class ProxyAgent {\n  constructor(uri: string);\n}\n",
+    "index.js": [
+      "export class ProxyAgent {",
+      "  constructor(uri) {",
+      "    new URL(uri);",
+      "  }",
+      "}",
+      "",
+    ].join("\n"),
+  };
+  for (const [name, text] of Object.entries(files)) {
+    writeFileSync(path.join(undici, name), text);
+  }
+}
+
+/**
+ * A new temporary project for user-docs examples: the core, the Foundry and Hardhat helpers, a
+ * pino stub and an undici stub in `node_modules`, the DOM library for browser examples, the
+ * globals module, the docs' sample request `greeter-sepolia.json` at the root, as a reader saves
+ * it next to the example, and the files of `setup`. With `legacy` false, the globals module leaves
+ * out {@link LEGACY_GLOBALS}.
  */
 export function createDocsProject(setup: DocSetup, legacy = true): string {
   const dir = createProject({ bare: true, dom: true, workspacePackages: WORKSPACE_PACKAGES });
   writePinoStub(dir);
+  writeUndiciStub(dir);
   writeFileSync(path.join(dir, "doc-globals.d.ts"), globalsModule(legacy));
   copy(dir, path.join(USER_DOCS_DIR, "start/greeter-sepolia.json"), "greeter-sepolia.json");
   const foundry = path.join(PACKAGES_DIR, "foundry/test/fixtures");

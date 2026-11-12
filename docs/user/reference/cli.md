@@ -11,7 +11,7 @@ stderr, exit codes and help.
 
 ## Install
 
-The CLI is the `@explorer-verify/cli` package, for Node.js 22.18 or later. npx runs it with no
+The CLI is the `@explorer-verify/cli` package, for Node.js 22.12 or later. npx runs it with no
 install. In a project or a CI job, add it as a development dependency:
 
 ```bash
@@ -27,9 +27,10 @@ Each example checks the Greeter on Sepolia, which Sourcify already holds, with n
 the docs' sample request, [`greeter-sepolia.json`](../start/greeter-sepolia.json):
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json --dry-run
 ```
+
+It exits 0 and prints:
 
 ```text
 dry run on sourcify at sourcify.dev, the routing table's pick: exact match already, so a run without --dry-run would not submit.
@@ -41,10 +42,11 @@ Verify from a Foundry project on Sourcify. `ADDRESS` holds
 [routing table](#where-verify-submits) pick:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify "$ADDRESS" --chain sepolia \
   --foundry . --contract src/Greeter.sol:Greeter --backend sourcify
 ```
+
+It exits 0 and prints:
 
 ```text
 already-verified: exact match on sourcify
@@ -54,11 +56,12 @@ https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
 Verify from build files kept outside a project. Repeat `--input` for each file:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify "$ADDRESS" --chain sepolia \
   --input build/build-info.json --input build/Greeter.json \
   --backend sourcify
 ```
+
+It exits 0 and prints:
 
 ```text
 already-verified: exact match on sourcify
@@ -68,9 +71,10 @@ https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
 Resume a verification that ended with exit code 4, from the handle it printed:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli status "$HANDLE"
 ```
+
+It exits 0 and prints:
 
 ```text
 verified: exact match on sourcify

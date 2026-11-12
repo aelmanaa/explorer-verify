@@ -369,11 +369,10 @@ The `@explorer-verify/cli` package adds the `explorer-verify` command. It is not
 This command line mistypes `--color`:
 
 ```sh
-# exit code 2
 explorer-verify --version --json --colour=never
 ```
 
-It prints:
+It exits 2 and prints:
 
 ```text
 {"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --colour is not an option.","hint":"Did you mean --color? Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"--colour","message":"is not an option"}]}}}
@@ -397,13 +396,12 @@ hash name; `--hardhat .` does the same in a Hardhat project. Pass `--input <file
 file, only for build files outside a project:
 
 ```sh
-# exit code 0
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --dry-run --json
 ```
 
-It prints:
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}
@@ -429,14 +427,13 @@ nothing. `--api-url` needs `--backend` naming the backend that serves it. For a 
 the lookup:
 
 ```sh
-# exit code 0
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api \
   --dry-run --json
 ```
 
-It prints:
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"etherscan-v2","apiHost":"api.etherscan.io","lookup":"skipped","routedBy":"api-url"}}

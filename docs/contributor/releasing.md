@@ -347,6 +347,12 @@ During 0.x the drop ships in a minor release with a "Breaking:" changeset. The s
 raises `engines.node` in every package and in the root `package.json`, the first leg of the CI test
 matrix, and the Node version that the READMEs and user guides state.
 
+There are two floors ([decision 0071](decisions/0071-published-node-floor.md)). The published packages declare
+`engines.node` `>=22.12.0`, and the `node-floor` CI job installs their tarballs on exactly that
+release and runs `test/node-floor/smoke.mjs`. The repository, its CI test matrix and the docs
+examples that Node runs as `.ts` files need 22.18.0. Raising the published floor is a breaking
+change: a `minor` changeset that starts with "Breaking:". Lowering it is a `patch`.
+
 Next: Node 22 reaches end of life on 2027-04-30
 ([Node.js release schedule](https://github.com/nodejs/Release/blob/main/schedule.json), read
 2026-11-10), so the first minor release after that date drops it and moves the floor to a Node 24

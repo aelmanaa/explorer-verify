@@ -8,7 +8,7 @@ The time budget ran out before the explorer accepted the submission.
 
 ## How to fix
 
-Fix: call again, or raise `timeoutMs`. If the explorer did receive the submission, the next call
+Call again, or raise `timeoutMs`. If the explorer did receive the submission, the next call
 may report the contract as verified or in progress.
 
 From the CLI: Run the command again, or raise --timeout. The explorer had not accepted the

@@ -8,7 +8,7 @@ The explorer refused the API key, or the key's plan does not cover the chain.
 
 ## How to fix
 
-Fix: check the key on the explorer's account page, then pass a valid key in `apiKeys` or
+Check the key on the explorer's account page, then pass a valid key in `apiKeys` or
 `route.apiKey` and call again. [API keys](../api-keys.md) describes where each key goes.
 
 For a chain that needs a paid plan, use a key on a paid plan, or verify on Sourcify, which needs no

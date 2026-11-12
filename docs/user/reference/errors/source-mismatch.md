@@ -8,7 +8,7 @@ A source file you passed differs from the file the Solidity metadata was built f
 
 ## How to fix
 
-Fix: pass the file exactly as it was compiled, byte for byte. A changed line ending, a trailing
+Pass the file exactly as it was compiled, byte for byte. A changed line ending, a trailing
 newline or a formatter run changes the hash. Take the file from the same package version or commit
 as the metadata.
 

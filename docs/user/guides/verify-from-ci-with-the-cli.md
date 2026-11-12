@@ -7,7 +7,7 @@ Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 For: developers who verify contracts in a CI job, such as a GitHub Actions workflow that runs
 after a deployment.
 
-You need: Node.js 22.18 or later, a Foundry or Hardhat project, and the deployed contract's address
+You need: Node.js 22.12 or later, a Foundry or Hardhat project, and the deployed contract's address
 and chain. An API key only for an explorer that needs one, such as Etherscan.
 
 The job builds the contracts, dry runs the verification, then verifies with `--json` and acts on
@@ -42,7 +42,6 @@ A dry run validates the input, resolves the explorer and looks the contract up. 
 and it needs no key:
 
 ```sh [dry-run.sh]
-# exit code 0
 npx @explorer-verify/cli verify \
   0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 \
@@ -52,6 +51,8 @@ npx @explorer-verify/cli verify \
   --dry-run \
   --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}
@@ -75,7 +76,6 @@ Drop `--dry-run`. With `--json`, stdout holds one line, the
 [JSON envelope](../reference/json-output.md#the-envelope), and logs go to stderr:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify \
   0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 \
@@ -84,6 +84,8 @@ npx @explorer-verify/cli verify \
   --backend sourcify \
   --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"already-verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}
@@ -209,9 +211,10 @@ Resume a handle with `status`, never with a new `verify`. It polls the job and n
 the same exit codes. Pass the route and keys the submit used. `HANDLE` holds the handle:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli status "$HANDLE" --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}

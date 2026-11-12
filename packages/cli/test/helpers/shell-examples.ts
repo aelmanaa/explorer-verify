@@ -1,7 +1,8 @@
 // The command-line examples of a Markdown page, for the tests that run them against the built bin
 // (R-AX-3, R-AX-4): each `sh` block holds one `explorer-verify` or `npx @explorer-verify/cli`
-// command and a `# exit code N` comment, and the `text` block after it holds what the command
-// prints on stdout. A command may continue over several lines, each but the last ending in `\`.
+// command and nothing else, so a reader copies only the command. The line "It exits N and
+// prints:" follows the block, then a `text` block holds what the command prints on stdout
+// (issue #379). A command may continue over several lines, each but the last ending in `\`.
 import assert from "node:assert/strict";
 
 /** One fenced block of a Markdown text. */
@@ -10,7 +11,12 @@ export interface FencedBlock {
   readonly code: string;
   /** The 1-based line of the opening fence. */
   readonly line: number;
+  /** The text between the previous block, or the start of the page, and this block, trimmed. */
+  readonly before: string;
 }
+
+/** The line between a command's `sh` block and its `text` block. */
+const EXIT_LINE: RegExp = /^It exits (\d+) and prints:$/;
 
 /** One command-line example. */
 export interface ShellExample {
@@ -33,9 +39,12 @@ export const PROGRAMS: readonly string[] = ["explorer-verify", "npx @explorer-ve
 export function blocks(markdown: string): FencedBlock[] {
   const found: FencedBlock[] = [];
   const pattern = /^```(\w*)[^\n`]*\n([\s\S]*?)^```$/gm;
+  let end = 0;
   for (const match of markdown.matchAll(pattern)) {
     const line = markdown.slice(0, match.index).split("\n").length;
-    found.push({ lang: String(match[1]), code: String(match[2]), line });
+    const before = markdown.slice(end, match.index).trim();
+    found.push({ lang: String(match[1]), code: String(match[2]), line, before });
+    end = match.index + match[0].length;
   }
   return found;
 }
@@ -59,13 +68,12 @@ export function shellExamples(markdown: string, file: string): ShellExample[] {
       .replace(/[ \t]*\\\n[ \t]*/g, " ")
       .split("\n")
       .filter((text) => text !== "");
-    const commands = lines.filter((text) => !text.startsWith("#"));
-    const exit = lines.map((text) => /^# exit code (\d+)$/.exec(text)).find((match) => match);
     const next = all[index + 1];
-    assert.equal(commands.length, 1, `${where}: one command line`);
-    assert.ok(exit, `${where}: a "# exit code N" comment`);
+    assert.equal(lines.length, 1, `${where}: one command line, and no comment`);
     assert.equal(next?.lang, "text", `${where}: a text block follows`);
-    const command = String(commands[0]);
+    const exit = EXIT_LINE.exec(next.before);
+    assert.ok(exit, `${where}: "It exits N and prints:" between the command and its output`);
+    const command = String(lines[0]);
     const program = PROGRAMS.find((name) => command.startsWith(`${name} `));
     assert.ok(program, `${where}: starts with ${PROGRAMS.join(" or ")}`);
     const args = command.slice(program.length + 1).split(" ");
