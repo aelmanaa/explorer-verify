@@ -12,8 +12,9 @@
 # npm answers 403 to automated clients, so a live link reads as broken.
 ^https://(www\.)?npmjs\.com/
 
-# The docs site is deployed with the first release; until then every page answers 404. The pull
-# request CI checks the built site offline instead.
+# The docs site holds the pages of the last release, so a link from main to the page of an error
+# code added since then answers 404 until the next release deploys it. The pull request CI checks
+# the built site offline instead. To remove this entry, exclude only the pages of unreleased codes.
 ^https://aelmanaa\.github\.io/explorer-verify/
 
 # GitHub builds heading anchors, and the #readme anchor, in the browser, so lychee finds no such
