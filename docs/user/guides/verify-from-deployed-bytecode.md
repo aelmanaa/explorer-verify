@@ -176,7 +176,10 @@ try {
     },
   );
 } catch (error) {
-  if (error instanceof ExplorerVerifyError && error.code === "metadata-unavailable") {
+  if (
+    error instanceof ExplorerVerifyError &&
+    error.code === "metadata-unavailable"
+  ) {
     for (const attempt of error.details.attempts) {
       console.log(attempt.source, attempt.outcome, attempt.status);
     }

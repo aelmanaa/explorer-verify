@@ -226,7 +226,8 @@ const input: VerifyInput = {
   address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   ...built,
   libraries: {
-    "project/contracts/Tally.sol:Tally": "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c",
+    "project/contracts/Tally.sol:Tally":
+      "0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c",
   },
 };
 console.log(JSON.stringify(input.libraries));

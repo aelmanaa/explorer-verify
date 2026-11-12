@@ -12,11 +12,17 @@
 //   `npx @explorer-verify/cli`;
 // - a guide or quickstart (`guides/`, `start/`, `tutorials/`) without a "For:" and a
 //   "You need:" line in its first 15 lines, or whose last H2 is not "Next steps";
-// - the line `<!-- docs-style: legacy -->`, which once exempted a page from these rules.
-import { readFileSync } from "node:fs";
+// - the line `<!-- docs-style: legacy -->`, which once exempted a page from these rules;
+// - a line over 80 characters in a fenced code block, except in a `text` block, which holds
+//   program output as printed. A block with a line that cannot break, such as JSON with a long
+//   string, may have `<!-- code-width: the reason -->` on the nearest non-blank line before it.
+//
+// The code width rule also runs on the agent skills, `llms.txt` and the site's home page. It is
+// for the source and the copies in the npm package and on GitHub; the site soft-wraps code.
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { forEachProseLine, listFiles, USER_DOCS } from "./agent-docs.ts";
+import { forEachProseLine, listFiles, SKILLS, USER_DOCS } from "./agent-docs.ts";
 
 /** The line that once exempted a page from the style rules. The check now fails it. */
 export const LEGACY_MARKER = "<!-- docs-style: legacy -->";
@@ -36,7 +42,17 @@ export const GUIDE_FOLDERS: readonly string[] = ["guides", "start", "tutorials"]
 export const NEXT_STEPS = "Next steps";
 /** The H2 that may hold dated citations. */
 export const SOURCES = "Sources";
+/** The most characters a line of a fenced code block may have. */
+export const MAX_CODE_WIDTH = 80;
+/** The languages of code blocks whose lines may be longer: program output, as printed. */
+export const WRAPPED_LANGUAGES: ReadonlySet<string> = new Set(["text"]);
+/** The comment that lets one code block keep lines over {@link MAX_CODE_WIDTH}, with its reason. */
+export const CODE_WIDTH_EXEMPTION: RegExp = /^<!-- code-width: \S.* -->$/;
+/** Markdown files outside `docs/user/` that the code width rule reads, besides the skills. */
+export const CODE_WIDTH_FILES: readonly string[] = ["llms.txt", "site/pages/index.md"];
 
+/** Splits a code line into the characters a reader sees, to measure its width. */
+const GRAPHEMES = new Intl.Segmenter("en", { granularity: "grapheme" });
 const SHELL_LANGUAGES: ReadonlySet<string> = new Set(["sh", "bash", "shell", "console", "zsh"]);
 const FENCE_OPEN = /^\s*(`{3,}|~{3,})[ \t]*([^\s`]*)/;
 const ATX_HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
@@ -238,12 +254,44 @@ function introProblem(page: Page, fence: Fence): string | undefined {
 }
 
 /**
+ * The code width problems of one Markdown file: each line over {@link MAX_CODE_WIDTH} characters
+ * in a fenced block that is not `text` and has no exemption, and each exemption on a block that
+ * needs none. `file` is the repository path, for the messages.
+ */
+export function codeWidthProblems(file: string, text: string): string[] {
+  const lines = text.split("\n");
+  const problems: string[] = [];
+  for (const fence of parse(text).fences) {
+    const before = lines.slice(0, fence.index).findLastIndex((line) => line.trim() !== "");
+    const exempt = before !== -1 && CODE_WIDTH_EXEMPTION.test(String(lines[before]).trim());
+    const long = WRAPPED_LANGUAGES.has(fence.lang)
+      ? []
+      : fence.lines.flatMap((line, offset) => {
+          const width = [...GRAPHEMES.segment(line)].length;
+          return width > MAX_CODE_WIDTH ? [{ line: fence.index + offset + 2, width }] : [];
+        });
+    if (exempt && long.length === 0) {
+      problems.push(
+        `${file}:${before + 1}: a code-width exemption on a block with no line over ${MAX_CODE_WIDTH} characters; remove it (${STYLE_GUIDE})`,
+      );
+    } else if (!exempt) {
+      for (const { line, width } of long) {
+        problems.push(
+          `${file}:${line}: a code line of ${width} characters; wrap it at ${MAX_CODE_WIDTH}, a shell line with \\, or put <!-- code-width: the reason --> before the block (${STYLE_GUIDE})`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
+/**
  * The style problems of one user page. `file` is the repository path, such as
  * `docs/user/guides/x.md`, and `page` the path under `docs/user/`.
  */
 export function styleProblems(file: string, page: string, text: string): string[] {
   const parsed = parse(text);
-  const problems: string[] = [];
+  const problems: string[] = codeWidthProblems(file, text);
   const report = (line: number, message: string): void => {
     problems.push(`${file}:${line}: ${message} (${STYLE_GUIDE})`);
   };
@@ -322,9 +370,20 @@ function userPages(root: string): { file: string; page: string; text: string }[]
   }));
 }
 
-/** Every style problem of the user pages under `root`; empty when they pass. */
+/**
+ * Every style problem of the user pages under `root`, and the code width problems of the skills
+ * and {@link CODE_WIDTH_FILES}; empty when they pass.
+ */
 export function checkDocsStyle(root: string): string[] {
-  return userPages(root).flatMap(({ file, page, text }) => styleProblems(file, page, text));
+  const others = [...listFiles(root, SKILLS, ".md"), ...CODE_WIDTH_FILES].filter((file) =>
+    existsSync(path.join(root, file)),
+  );
+  return [
+    ...userPages(root).flatMap(({ file, page, text }) => styleProblems(file, page, text)),
+    ...others.flatMap((file) =>
+      codeWidthProblems(file, readFileSync(path.join(root, file), "utf8")),
+    ),
+  ];
 }
 
 /**

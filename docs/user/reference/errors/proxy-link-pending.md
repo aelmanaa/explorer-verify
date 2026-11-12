@@ -64,7 +64,8 @@ import { ExplorerVerifyError } from "explorer-verify/errors";
 export function onError(error: unknown): void {
   if (ExplorerVerifyError.is(error, "proxy-link-pending")) {
     console.error(
-      `${error.details.backend} is still linking: job ${error.details.jobId ?? "unknown"}.`,
+      `${error.details.backend} is still linking: ` +
+        `job ${error.details.jobId ?? "unknown"}.`,
     );
   }
 }

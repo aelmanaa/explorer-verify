@@ -34,7 +34,8 @@ This handler serves three chains and forwards only contracts that your deployer 
 import { createVerifyHandler } from "explorer-verify/server";
 
 const handler = createVerifyHandler({
-  apiKey: etherscanKey, // read from your server's secrets, never from the request
+  // Read the key from your server's secrets, never from the request.
+  apiKey: etherscanKey,
   chains: [1, 11155111, 421614], // Ethereum, Sepolia and Arbitrum Sepolia
   deployers: [deployerAddress], // the addresses your dapp deploys from
   logger: console,
@@ -182,6 +183,8 @@ the forwarded `getsourcecode` for the proxy. It reads the implementation Ethersc
 
 A refusal has the shape of an Etherscan error, plus a stable `code`:
 
+<!-- code-width: JSON strings do not break -->
+
 ```json
 {
   "status": "0",
@@ -301,7 +304,10 @@ import type { RateLimit } from "explorer-verify/server";
 const rateLimit: RateLimit = (request) => {
   const site = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
-  return site !== "cross-site" && (origin === null || origin === "https://your-dapp.example");
+  return (
+    site !== "cross-site" &&
+    (origin === null || origin === "https://your-dapp.example")
+  );
 };
 ```
 

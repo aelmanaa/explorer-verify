@@ -89,7 +89,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
 
 // The ABI and the creation bytecode, from Foundry's artifact.
-const artifact: unknown = JSON.parse(await readFile("out/Greeter.sol/Greeter.json", "utf8"));
+const artifact: unknown = JSON.parse(
+  await readFile("out/Greeter.sol/Greeter.json", "utf8"),
+);
 if (
   typeof artifact !== "object" ||
   artifact === null ||
@@ -101,8 +103,12 @@ if (
 ) {
   throw new Error("out/Greeter.sol/Greeter.json holds no ABI and bytecode.");
 }
-// The compiler version, the contract name and the Standard JSON input, from the build-info.
-const built = await buildVerifyInputFromFoundry({ root: ".", contract: "src/Greeter.sol:Greeter" });
+// The compiler version, the contract name and the Standard JSON input, from the
+// build-info.
+const built = await buildVerifyInputFromFoundry({
+  root: ".",
+  contract: "src/Greeter.sol:Greeter",
+});
 
 await mkdir("public/contracts", { recursive: true });
 await writeFile(
@@ -170,11 +176,16 @@ function clients() {
   };
 }
 
-/** Loads the ABI and the creation bytecode that the build script wrote in step 1. */
+/**
+ * Loads the ABI and the creation bytecode that the build script wrote in step
+ * 1.
+ */
 async function loadArtifact(): Promise<{ abi: Abi; bytecode: Hex }> {
   const response = await fetch("/contracts/Greeter.deploy.json");
   if (!response.ok) {
-    throw new Error(`Could not load the contract: HTTP ${String(response.status)}`);
+    throw new Error(
+      `Could not load the contract: HTTP ${String(response.status)}`,
+    );
   }
   const artifact: unknown = await response.json();
   if (
@@ -190,19 +201,30 @@ async function loadArtifact(): Promise<{ abi: Abi; bytecode: Hex }> {
   return { abi: artifact.abi, bytecode: artifact.bytecode };
 }
 
-/** Waits until the creation transaction is mined, then returns the deployment. */
+/**
+ * Waits until the creation transaction is mined, then returns the deployment.
+ */
 async function waitForDeployment(creationTxHash: Hex): Promise<Deployment> {
   const { reader } = clients();
-  const receipt = await reader.waitForTransactionReceipt({ hash: creationTxHash });
+  const receipt = await reader.waitForTransactionReceipt({
+    hash: creationTxHash,
+  });
   localStorage.removeItem(CREATION_TX_KEY);
   const address = receipt.contractAddress;
-  if (receipt.status !== "success" || address === null || address === undefined) {
+  if (
+    receipt.status !== "success" ||
+    address === null ||
+    address === undefined
+  ) {
     throw new Error(`The deployment failed in transaction ${creationTxHash}.`);
   }
   return { chainId: sepolia.id, address, creationTxHash };
 }
 
-/** Deploys Greeter from the user's wallet, owned by the user, and waits until it is mined. */
+/**
+ * Deploys Greeter from the user's wallet, owned by the user, and waits until it
+ * is mined.
+ */
 export async function deployGreeter(greeting: string): Promise<Deployment> {
   const { wallet } = clients();
   const [account] = await wallet.requestAddresses();
@@ -212,7 +234,8 @@ export async function deployGreeter(greeting: string): Promise<Deployment> {
   await wallet.switchChain({ id: sepolia.id });
   const artifact = await loadArtifact();
 
-  // The wallet asks the user to confirm. The hash comes back before the transaction is mined.
+  // The wallet asks the user to confirm. The hash comes back before the
+  // transaction is mined.
   const creationTxHash = await wallet.deployContract({
     abi: artifact.abi,
     bytecode: artifact.bytecode,
@@ -223,7 +246,10 @@ export async function deployGreeter(greeting: string): Promise<Deployment> {
   return await waitForDeployment(creationTxHash);
 }
 
-/** After a reload: the deployment whose transaction was sent but not yet seen mined, if any. */
+/**
+ * After a reload: the deployment whose transaction was sent but not yet seen
+ * mined, if any.
+ */
 export async function resumeDeployment(): Promise<Deployment | undefined> {
   const stored = localStorage.getItem(CREATION_TX_KEY);
   return isHex(stored) ? await waitForDeployment(stored) : undefined;
@@ -263,12 +289,19 @@ export interface Deployment {
   creationTxHash: string;
 }
 
-/** Loads explorer-verify and the verify file, and returns the checked input for a deployment. */
-export async function loadVerifyInput(deployment: Deployment): Promise<VerifyInput> {
+/**
+ * Loads explorer-verify and the verify file, and returns the checked input for
+ * a deployment.
+ */
+export async function loadVerifyInput(
+  deployment: Deployment,
+): Promise<VerifyInput> {
   const { validateInput } = await import("explorer-verify");
   const response = await fetch("/contracts/Greeter.verify.json");
   if (!response.ok) {
-    throw new Error(`Could not load the verification input: HTTP ${String(response.status)}`);
+    throw new Error(
+      `Could not load the verification input: HTTP ${String(response.status)}`,
+    );
   }
   const built: unknown = await response.json();
   if (typeof built !== "object" || built === null) {
@@ -311,7 +344,10 @@ function show(line: string): void {
 }
 
 async function verifyDeployment(deployment: Deployment): Promise<void> {
-  show(`Deployed at ${deployment.address} in transaction ${deployment.creationTxHash}`);
+  show(
+    `Deployed at ${deployment.address} ` +
+      `in transaction ${deployment.creationTxHash}`,
+  );
   const input = await loadVerifyInput(deployment);
   show(`Loaded ${input.contractName}, compiled with ${input.compiler.version}`);
   await verifyOnSourcify(input, show);
@@ -423,11 +459,17 @@ import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
 /**
- * Verifies on Etherscan through the dapp's server at /api/verify, which adds the key. Etherscan
- * may need a minute to index a contract deployed moments ago: indexWaitMs waits for it.
+ * Verifies on Etherscan through the dapp's server at /api/verify, which adds
+ * the key. Etherscan may need a minute to index a contract deployed moments
+ * ago: indexWaitMs waits for it.
  */
-export async function verifyOnEtherscan(input: VerifyInput): Promise<VerifyResult> {
-  return await verify(input, { handlerUrl: "/api/verify", indexWaitMs: 60_000 });
+export async function verifyOnEtherscan(
+  input: VerifyInput,
+): Promise<VerifyResult> {
+  return await verify(input, {
+    handlerUrl: "/api/verify",
+    indexWaitMs: 60_000,
+  });
 }
 ```
 

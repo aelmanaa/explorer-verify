@@ -62,7 +62,10 @@ import greeter from "./greeter-sepolia.json" with { type: "json" };
 
 const PENDING_KEY = "pending-verification";
 
-/** Verifies `input`, loading the library on first use. Returns a line to show the user. */
+/**
+ * Verifies `input`, loading the library on first use. Returns a line to show
+ * the user.
+ */
 export async function verifyFromPage(input: VerifyInput): Promise<string> {
   const { ExplorerVerifyError, verify } = await import("explorer-verify");
   try {
@@ -79,7 +82,10 @@ export async function verifyFromPage(input: VerifyInput): Promise<string> {
       ? `rejected: ${result.reason}`
       : `${result.status} on ${result.backend}`;
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
       return "still checking: the handle stays saved";
     }
     localStorage.removeItem(PENDING_KEY);
@@ -87,7 +93,9 @@ export async function verifyFromPage(input: VerifyInput): Promise<string> {
   }
 }
 
-/** On page load: polls the saved job with checkStatus(), which never submits. */
+/**
+ * On page load: polls the saved job with checkStatus(), which never submits.
+ */
 export async function resumeOnLoad(): Promise<string | undefined> {
   const handle = localStorage.getItem(PENDING_KEY);
   if (handle === null) {

@@ -12,5 +12,26 @@
     "pnpm-lock.yaml",
     "validation/ccip/artifacts/**",
     "validation/browser-remix/evidence-real-remix/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "docs/user/**/*.md",
+        "skills/**/*.md",
+        "site/pages/**/*.md",
+        "examples/server-nextjs/app/api/verify/route.ts",
+        "examples/server-nextjs/lib/verify-client.ts",
+        "examples/server-cloudflare/src/index.ts",
+        "examples/server-cloudflare/client/verify-client.ts",
+        "examples/server-cloudflare/wrangler.jsonc",
+        "examples/dapp/scripts/export-contracts.ts",
+        "examples/dapp/src/deploy.ts",
+        "examples/dapp/src/load-input.ts",
+        "examples/dapp/src/resume.ts",
+        "examples/dapp/src/verify.ts",
+        "examples/dapp/src/verify-etherscan.ts"
+      ],
+      "options": { "printWidth": 80 }
+    }
   ]
 }

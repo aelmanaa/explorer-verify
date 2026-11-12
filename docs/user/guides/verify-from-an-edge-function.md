@@ -117,7 +117,12 @@ The test code at the end of the block, below the line `Test code`, calls the Wor
 for each case. Leave it out of the Worker:
 
 ```ts [worker.ts]
-import { ExplorerVerifyError, checkStatus, validateInput, verify } from "explorer-verify";
+import {
+  ExplorerVerifyError,
+  checkStatus,
+  validateInput,
+  verify,
+} from "explorer-verify";
 import type { VerifyOptions, VerifyResult } from "explorer-verify";
 import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
 import type { VerifyOutcome } from "explorer-verify/envelope";
@@ -127,21 +132,32 @@ import greeter from "./greeter-sepolia.json" with { type: "json" };
 export interface Env {
   /** A secret: `npx wrangler secret put ETHERSCAN_API_KEY`. */
   readonly ETHERSCAN_API_KEY: string;
-  /** A secret your backend sends as `Authorization: Bearer <token>`: 32 characters or more. */
+  /**
+   * A secret your backend sends as `Authorization: Bearer <token>`: 32
+   * characters or more.
+   */
   readonly VERIFY_TOKEN?: string;
 }
 
-/** Each budget stays well below the time a client or proxy waits for an answer. */
+/**
+ * Each budget stays well below the time a client or proxy waits for an answer.
+ */
 const SUBMIT_BUDGET_MS = 20_000;
 const STATUS_BUDGET_MS = 10_000;
 const MIN_TOKEN_LENGTH = 32;
 
-/** Compares the SHA-256 digests of two strings, so the time taken does not depend on the token. */
+/**
+ * Compares the SHA-256 digests of two strings, so the time taken does not
+ * depend on the token.
+ */
 async function sameSecret(given: string, expected: string): Promise<boolean> {
   const encoder = new TextEncoder();
   const [a, b] = await Promise.all(
     [given, expected].map(
-      async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(text))),
+      async (text) =>
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", encoder.encode(text)),
+        ),
     ),
   );
   let difference = 0;
@@ -151,7 +167,10 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
   return difference === 0;
 }
 
-/** Whether the request carries the token. Fails closed when the secret is missing or short. */
+/**
+ * Whether the request carries the token. Fails closed when the secret is
+ * missing or short.
+ */
 async function authorized(request: Request, secret: string): Promise<boolean> {
   const header = request.headers.get("authorization");
   if (header === null || !header.startsWith("Bearer ")) {
@@ -162,11 +181,19 @@ async function authorized(request: Request, secret: string): Promise<boolean> {
 
 function options(env: Env, request: Request, timeoutMs: number): VerifyOptions {
   // request.signal stops the call when the client disconnects.
-  return { apiKeys: { "etherscan-v2": env.ETHERSCAN_API_KEY }, signal: request.signal, timeoutMs };
+  return {
+    apiKeys: { "etherscan-v2": env.ETHERSCAN_API_KEY },
+    signal: request.signal,
+    timeoutMs,
+  };
 }
 
-/** The result, or the library's error as an outcome. Any other error is thrown. */
-async function outcomeOf(call: () => Promise<VerifyResult>): Promise<VerifyOutcome> {
+/**
+ * The result, or the library's error as an outcome. Any other error is thrown.
+ */
+async function outcomeOf(
+  call: () => Promise<VerifyResult>,
+): Promise<VerifyOutcome> {
   try {
     return await call();
   } catch (error) {
@@ -177,14 +204,23 @@ async function outcomeOf(call: () => Promise<VerifyResult>): Promise<VerifyOutco
   }
 }
 
-/** The envelope, with status 400 for invalid-input (exit code 2) and 200 otherwise. */
+/**
+ * The envelope, with status 400 for invalid-input (exit code 2) and 200
+ * otherwise.
+ */
 function answer(outcome: VerifyOutcome, env: Env): Response {
-  return Response.json(toEnvelope(outcome, { secrets: [env.ETHERSCAN_API_KEY] }), {
-    status: exitCodeOf(outcome) === 2 ? 400 : 200,
-  });
+  return Response.json(
+    toEnvelope(outcome, { secrets: [env.ETHERSCAN_API_KEY] }),
+    {
+      status: exitCodeOf(outcome) === 2 ? 400 : 200,
+    },
+  );
 }
 
-/** The parsed body, or `undefined` when it is not JSON, which validateInput() then refuses. */
+/**
+ * The parsed body, or `undefined` when it is not JSON, which validateInput()
+ * then refuses.
+ */
 async function jsonBody(request: Request): Promise<unknown> {
   try {
     const body: unknown = await request.json();
@@ -224,8 +260,9 @@ const worker = {
 
 export default worker;
 
-// ---- Test code: runs each case once, without a Worker runtime. Leave it out of the Worker. ----
-// `apiKey` and `etherscanKey` stand for your secrets; the token repeats `apiKey` to reach 32 characters.
+// ---- Test code: runs each case once, without a Worker runtime. Leave it out
+// of the Worker. ---- `apiKey` and `etherscanKey` stand for your secrets; the
+// token repeats `apiKey` to reach 32 characters.
 const token = apiKey.repeat(2);
 const env: Env = { ETHERSCAN_API_KEY: etherscanKey, VERIFY_TOKEN: token };
 const headers = { authorization: `Bearer ${token}` };
@@ -236,7 +273,9 @@ const verifyRequest = (init: RequestInit): Request =>
   new Request("https://verify.example/verify", { method: "POST", ...init });
 
 // No Authorization header: 401.
-await show(await worker.fetch(verifyRequest({ body: JSON.stringify(greeter) }), env));
+await show(
+  await worker.fetch(verifyRequest({ body: JSON.stringify(greeter) }), env),
+);
 // VERIFY_TOKEN not set: 500, whatever the request carries.
 await show(
   await worker.fetch(verifyRequest({ headers: { authorization: "Bearer " } }), {
@@ -246,10 +285,16 @@ await show(
 // A body that is not JSON: 400 with an invalid-input envelope.
 await show(await worker.fetch(verifyRequest({ headers, body: "{" }), env));
 // The sample request, already verified on Etherscan: 200.
-await show(await worker.fetch(verifyRequest({ headers, body: JSON.stringify(greeter) }), env));
+await show(
+  await worker.fetch(
+    verifyRequest({ headers, body: JSON.stringify(greeter) }),
+    env,
+  ),
+);
 // A passed Arbitrum Sepolia job: 200.
 const handle =
-  "ev1:etherscan-v2:421614:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ctzxlls4kl2yziafqgangtjk3hgdbd3xhnzbg5d3tgla9wgsb3";
+  "ev1:etherscan-v2:421614:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:" +
+  "ctzxlls4kl2yziafqgangtjk3hgdbd3xhnzbg5d3tgla9wgsb3";
 await show(
   await worker.fetch(
     new Request(`https://verify.example/status?handle=${handle}`, { headers }),

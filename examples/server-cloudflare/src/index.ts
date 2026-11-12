@@ -1,17 +1,27 @@
 // The explorer-verify server handler as a Cloudflare Worker: POST /api/verify.
 // Guide: docs/user/guides/run-the-server-handler.md
 //
-// The Etherscan key is a Worker secret: `npx wrangler secret put ETHERSCAN_API_KEY`. The dapp runs
-// on another origin, ALLOWED_ORIGIN in wrangler.jsonc, so this Worker answers CORS for that origin
-// only.
+// The Etherscan key is a Worker secret: `npx wrangler secret put
+// ETHERSCAN_API_KEY`. The dapp runs on another origin, ALLOWED_ORIGIN in
+// wrangler.jsonc, so this Worker answers CORS for that origin only.
 import { createVerifyHandler } from "explorer-verify/server";
-import type { RateLimit, VerifyHandler, VerifyHandlerOptions } from "explorer-verify/server";
+import type {
+  RateLimit,
+  VerifyHandler,
+  VerifyHandlerOptions,
+} from "explorer-verify/server";
 
-/** The bindings this Worker reads. `npx wrangler types` can generate this interface. */
+/**
+ * The bindings this Worker reads. `npx wrangler types` can generate this
+ * interface.
+ */
 export interface Env {
   /** A secret, set with `wrangler secret put`. Never in `vars`. */
   readonly ETHERSCAN_API_KEY: string;
-  /** The dapp's origin, such as `https://your-dapp.example`. A plain var in wrangler.jsonc. */
+  /**
+   * The dapp's origin, such as `https://your-dapp.example`. A plain var in
+   * wrangler.jsonc.
+   */
   readonly ALLOWED_ORIGIN: string;
   /** Optional: comma-separated addresses whose contracts may be verified. */
   readonly VERIFY_DEPLOYERS?: string;
@@ -21,14 +31,19 @@ export interface Env {
 const ROUTE = "/api/verify";
 /** The chains the dapp verifies on. A request for another chain gets 403. */
 const CHAINS: readonly number[] = [1, 11155111, 421614];
-/** The largest request body, in bytes: the handler's default, set here to show the option. */
+/**
+ * The largest request body, in bytes: the handler's default, set here to show
+ * the option.
+ */
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 /**
- * The `rateLimit` hook: returns `false`, so the handler answers 429 `rate-limited`, for a request
- * that a browser sends from any origin but the dapp's. CORS does not stop another site's page from
- * sending a form POST; this check does, but only in a browser. A script outside a browser can send
- * any `Origin` header, so `deployers` and your own sign-in are what limit use of the key.
+ * The `rateLimit` hook: returns `false`, so the handler answers 429
+ * `rate-limited`, for a request that a browser sends from any origin but the
+ * dapp's. CORS does not stop another site's page from sending a form POST; this
+ * check does, but only in a browser. A script outside a browser can send any
+ * `Origin` header, so `deployers` and your own sign-in are what limit use of
+ * the key.
  * @param allowedOrigin The dapp's origin.
  * @returns The `rateLimit` hook.
  */
@@ -42,11 +57,14 @@ function fromDapp(allowedOrigin: string): RateLimit {
 }
 
 /**
- * The `deployers` option from a comma-separated list; none when the list is empty.
+ * The `deployers` option from a comma-separated list; none when the list is
+ * empty.
  * @param value The VERIFY_DEPLOYERS binding.
  * @returns The option, or no option.
  */
-function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deployers"> {
+function deployers(
+  value: string | undefined,
+): Pick<VerifyHandlerOptions, "deployers"> {
   const list = (value ?? "")
     .split(",")
     .map((address) => address.trim())
@@ -55,8 +73,8 @@ function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deplo
 }
 
 /**
- * One handler per `env` object. The runtime may pass the same `env` to many requests, so the
- * handler and its checked options are reused.
+ * One handler per `env` object. The runtime may pass the same `env` to many
+ * requests, so the handler and its checked options are reused.
  */
 const handlers = new WeakMap<Env, VerifyHandler>();
 
@@ -83,14 +101,17 @@ function handlerFor(env: Env): VerifyHandler {
 }
 
 /**
- * The CORS headers for a request from the dapp's origin, or none for any other origin. The dapp
- * may read `Retry-After`, which the handler sets on a 503 `address-not-indexed` and passes on with
- * a 429 `upstream-rate-limited`.
+ * The CORS headers for a request from the dapp's origin, or none for any other
+ * origin. The dapp may read `Retry-After`, which the handler sets on a 503
+ * `address-not-indexed` and passes on with a 429 `upstream-rate-limited`.
  * @param request The request.
  * @param allowedOrigin The dapp's origin.
  * @returns The headers to add.
  */
-function corsHeaders(request: Request, allowedOrigin: string): Record<string, string> {
+function corsHeaders(
+  request: Request,
+  allowedOrigin: string,
+): Record<string, string> {
   return request.headers.get("origin") === allowedOrigin
     ? {
         "access-control-allow-origin": allowedOrigin,
@@ -102,8 +123,8 @@ function corsHeaders(request: Request, allowedOrigin: string): Record<string, st
 
 export default {
   /**
-   * Answers the CORS preflight itself, passes POST /api/verify to the handler, and adds the CORS
-   * headers to its answer.
+   * Answers the CORS preflight itself, passes POST /api/verify to the handler,
+   * and adds the CORS headers to its answer.
    * @param request The incoming request.
    * @param env The Worker's bindings.
    * @returns The response.
@@ -114,7 +135,8 @@ export default {
     }
     const cors = corsHeaders(request, env.ALLOWED_ORIGIN);
     if (request.method === "OPTIONS") {
-      // A form POST needs no preflight; this answers one if a browser sends it anyway.
+      // A form POST needs no preflight; this answers one if a browser sends it
+      // anyway.
       return new Response(null, {
         status: 204,
         headers: {

@@ -111,7 +111,8 @@ if (plan.lookup === "none" || plan.storedContract !== undefined) {
   console.log(`${plan.backend} needs an API key: ask the person to set it`);
 } else {
   console.log(
-    `${plan.backend} already holds the contract, ${plan.lookup} match: nothing to submit`,
+    `${plan.backend} already holds the contract, ` +
+      `${plan.lookup} match: nothing to submit`,
   );
 }
 ```
@@ -244,6 +245,8 @@ page per code.
 
 Resume with `status <handle>` and the same route options as the submit, never with a new `verify`.
 It never submits, and it uses the same exit codes:
+
+<!-- code-width: a handle is one argument and cannot break -->
 
 ```sh
 # exit code 0

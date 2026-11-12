@@ -1,14 +1,23 @@
-import { ExplorerVerifyError, checkStatus, tryParseHandle } from "explorer-verify";
+import {
+  ExplorerVerifyError,
+  checkStatus,
+  tryParseHandle,
+} from "explorer-verify";
 
 const PENDING_KEY = "greeter-verification";
 
-/** Polls the job whose handle a previous page load saved, if any. Never submits. */
-export async function resumeVerification(show: (line: string) => void): Promise<void> {
+/**
+ * Polls the job whose handle a previous page load saved, if any. Never submits.
+ */
+export async function resumeVerification(
+  show: (line: string) => void,
+): Promise<void> {
   const stored = localStorage.getItem(PENDING_KEY);
   if (stored === null) {
     return;
   }
-  // A value that is not a handle, such as one another version of the page wrote, is dropped.
+  // A value that is not a handle, such as one another version of the page
+  // wrote, is dropped.
   const handle = tryParseHandle(stored);
   if (handle === undefined) {
     localStorage.removeItem(PENDING_KEY);
@@ -21,7 +30,10 @@ export async function resumeVerification(show: (line: string) => void): Promise<
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
       show("Still checking. The handle stays saved for the next load.");
       return;
     }

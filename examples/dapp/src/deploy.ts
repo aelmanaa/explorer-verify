@@ -28,11 +28,16 @@ function clients() {
   };
 }
 
-/** Loads the ABI and the creation bytecode that the build script wrote in step 1. */
+/**
+ * Loads the ABI and the creation bytecode that the build script wrote in step
+ * 1.
+ */
 async function loadArtifact(): Promise<{ abi: Abi; bytecode: Hex }> {
   const response = await fetch("/contracts/Greeter.deploy.json");
   if (!response.ok) {
-    throw new Error(`Could not load the contract: HTTP ${String(response.status)}`);
+    throw new Error(
+      `Could not load the contract: HTTP ${String(response.status)}`,
+    );
   }
   const artifact: unknown = await response.json();
   if (
@@ -48,19 +53,30 @@ async function loadArtifact(): Promise<{ abi: Abi; bytecode: Hex }> {
   return { abi: artifact.abi, bytecode: artifact.bytecode };
 }
 
-/** Waits until the creation transaction is mined, then returns the deployment. */
+/**
+ * Waits until the creation transaction is mined, then returns the deployment.
+ */
 async function waitForDeployment(creationTxHash: Hex): Promise<Deployment> {
   const { reader } = clients();
-  const receipt = await reader.waitForTransactionReceipt({ hash: creationTxHash });
+  const receipt = await reader.waitForTransactionReceipt({
+    hash: creationTxHash,
+  });
   localStorage.removeItem(CREATION_TX_KEY);
   const address = receipt.contractAddress;
-  if (receipt.status !== "success" || address === null || address === undefined) {
+  if (
+    receipt.status !== "success" ||
+    address === null ||
+    address === undefined
+  ) {
     throw new Error(`The deployment failed in transaction ${creationTxHash}.`);
   }
   return { chainId: sepolia.id, address, creationTxHash };
 }
 
-/** Deploys Greeter from the user's wallet, owned by the user, and waits until it is mined. */
+/**
+ * Deploys Greeter from the user's wallet, owned by the user, and waits until it
+ * is mined.
+ */
 export async function deployGreeter(greeting: string): Promise<Deployment> {
   const { wallet } = clients();
   const [account] = await wallet.requestAddresses();
@@ -70,7 +86,8 @@ export async function deployGreeter(greeting: string): Promise<Deployment> {
   await wallet.switchChain({ id: sepolia.id });
   const artifact = await loadArtifact();
 
-  // The wallet asks the user to confirm. The hash comes back before the transaction is mined.
+  // The wallet asks the user to confirm. The hash comes back before the
+  // transaction is mined.
   const creationTxHash = await wallet.deployContract({
     abi: artifact.abi,
     bytecode: artifact.bytecode,
@@ -81,7 +98,10 @@ export async function deployGreeter(greeting: string): Promise<Deployment> {
   return await waitForDeployment(creationTxHash);
 }
 
-/** After a reload: the deployment whose transaction was sent but not yet seen mined, if any. */
+/**
+ * After a reload: the deployment whose transaction was sent but not yet seen
+ * mined, if any.
+ */
 export async function resumeDeployment(): Promise<Deployment | undefined> {
   const stored = localStorage.getItem(CREATION_TX_KEY);
   return isHex(stored) ? await waitForDeployment(stored) : undefined;

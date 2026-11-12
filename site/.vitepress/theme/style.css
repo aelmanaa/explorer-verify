@@ -47,12 +47,14 @@
 }
 
 /*
- * An output block, ```text, wraps its long lines instead of scrolling (#314). The CLI prints a
- * JSON envelope on one line, and an explorer URL is wider than the column, so a scrolled output
- * hides its end. Commands keep their own line breaks, ending in \.
+ * Every code block wraps its long lines instead of scrolling (#314, audit finding F13). The
+ * source keeps code lines to 80 characters for the npm and GitHub copies, but the site's column
+ * holds about 68 at desktop width and fewer on a phone. An output block also holds a JSON
+ * envelope on one line, and a scrolled block hides its end. The wrap is visual only: the copy
+ * button copies the text as written, with no line breaks added.
  */
-.vp-doc div.language-text pre,
-.vp-doc div.language-text code {
+.vp-doc div[class*="language-"] pre,
+.vp-doc div[class*="language-"] code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

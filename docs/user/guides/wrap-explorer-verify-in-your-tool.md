@@ -19,8 +19,8 @@ request, a Greeter contract on Sepolia that Sourcify already holds:
 
 ```sh
 npm install explorer-verify
-curl -O \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
+curl -O "$repo/docs/user/start/greeter-sepolia.json"
 ```
 
 ## Start with a dry run
@@ -102,7 +102,12 @@ Copy it, then replace deployKit's types with your tool's:
 ```ts [deploykit.ts]
 import { readFile } from "node:fs/promises";
 
-import { ExplorerVerifyError, checkStatus, dryRun, verify } from "explorer-verify";
+import {
+  ExplorerVerifyError,
+  checkStatus,
+  dryRun,
+  verify,
+} from "explorer-verify";
 import type {
   ErrorCode,
   Hex,
@@ -544,11 +549,14 @@ import { readFile } from "node:fs/promises";
 
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
-const NEEDED = "Verification needs explorer-verify: npm install explorer-verify";
+const NEEDED =
+  "Verification needs explorer-verify: npm install explorer-verify";
 
 export class VerificationUnavailableError extends Error {}
 
-export async function verifyContract(input: VerifyInput): Promise<VerifyResult> {
+export async function verifyContract(
+  input: VerifyInput,
+): Promise<VerifyResult> {
   let library: typeof import("explorer-verify");
   try {
     // Inside try, bundlers leave a missing package to run time.
@@ -614,11 +622,18 @@ function replay(recordings: readonly Recording[]): typeof fetch {
 
 const json = await readFile("greeter-sepolia.json", "utf8");
 const input: VerifyInput = JSON.parse(json);
-const lookup = `https://sourcify.dev/server/v2/contract/11155111/${input.address}?fields=compilation`;
+const lookup =
+  "https://sourcify.dev/server/v2/contract/11155111/" +
+  `${input.address}?fields=compilation`;
 
-// Sourcify's lookup answer for the sample, trimmed. Without `compilation`, the answer names no
-// contract, so the library compares no name and takes the match as this source.
-const answer = { match: "exact_match", chainId: "11155111", address: input.address };
+// Sourcify's lookup answer for the sample, trimmed. Without `compilation`, the
+// answer names no contract, so the library compares no name and takes the match
+// as this source.
+const answer = {
+  match: "exact_match",
+  chainId: "11155111",
+  address: input.address,
+};
 const result = await verify(input, {
   fetch: replay([{ method: "GET", url: lookup, status: 200, body: answer }]),
 });

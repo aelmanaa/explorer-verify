@@ -42,10 +42,26 @@ The check fails a guide without the two lines, or whose last H2 is not "Next ste
 - Show the output after a command, in a `text` block.
 - Start every CLI example with `npx @explorer-verify/cli`. A bare `explorer-verify` fails after a
   local install with exit 127. Split a long command over lines that end in `\`.
+- Keep each code line to 80 characters. The rule is for the source and for the copies in the npm
+  package and on GitHub, which show code as written. The site soft-wraps every code block, so
+  nothing scrolls there. Break a long string into parts joined with `+`, and a long comment over
+  more lines.
 
 The check fails a block whose introducing line does not end with a colon. It also fails a `sh`,
 `bash`, `shell`, `console` or `zsh` line that starts with a bare `explorer-verify`. A `text` block,
 such as the usage lines of the CLI reference, may show the bare name.
+
+The check fails a code line over 80 characters, in the user docs, the skill, `llms.txt` and the
+site's home page. A `text` block is exempt: it holds program output, such as a JSON envelope on one
+line, which must match what the program prints. A block with a line that cannot break needs a
+comment with the reason on the line before it. Examples are JSON with a long string, a handle
+passed as one argument, and output the CLI prints on one line:
+
+```md
+<!-- code-width: JSON strings do not break -->
+```
+
+The formatter prints the code in these pages, and the example files they show, at 80 columns.
 
 The dry run in [Verify from CI with the CLI](../user/guides/verify-from-ci-with-the-cli.md) has
 this shape, and the CLI page tests run it:

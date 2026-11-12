@@ -15,8 +15,8 @@ The command ships in `@explorer-verify/cli`. `npx` runs it, so the project gains
 The sample is a Greeter that Sourcify already verified on Sepolia:
 
 ```bash
-curl -fsSLO \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
+curl -fsSLO "$repo/docs/user/start/greeter-sepolia.json"
 ```
 
 ## 2. Dry run it

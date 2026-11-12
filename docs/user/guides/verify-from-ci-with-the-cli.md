@@ -145,7 +145,8 @@ case "$code" in
   1)
     stored=$(field '.result.storedContract.name // empty')
     if [ -n "$stored" ]; then
-      echo "::error::The explorer holds another contract's source: $(escape "$stored")"
+      name=$(escape "$stored")
+      echo "::error::The explorer holds another contract's source: $name"
     else
       reason=$(escape "$(field .result.reason)")
       echo "::error::The explorer rejected the source: $reason"
@@ -234,6 +235,8 @@ shell history. GitHub's docs also advise against passing secrets on the command 
 
 This workflow verifies a contract on Sepolia after a deployment. It runs the dry run, then the
 script:
+
+<!-- code-width: each pinned action keeps its version comment on its line -->
 
 ```yaml [.github/workflows/verify.yml]
 name: Verify

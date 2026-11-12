@@ -26,8 +26,9 @@ Download the sample request into `src/`. It holds the chain, the address, the co
 the Standard JSON input of a Greeter that Sourcify already verified:
 
 ```bash
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
 curl -fsSL -o src/greeter-sepolia.json \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+  "$repo/docs/user/start/greeter-sepolia.json"
 ```
 
 ## Step 2: Run a dry run
@@ -74,7 +75,10 @@ function summary(result: VerifyResult): string {
   return [result.status, `(${result.match})`, result.explorerUrl].join(" ");
 }
 
-/** Verifies on Sourcify, saves the handle for a reload, and shows each step with `show`. */
+/**
+ * Verifies on Sourcify, saves the handle for a reload, and shows each step with
+ * `show`.
+ */
 export async function verifyOnSourcify(
   input: VerifyInput,
   show: (line: string) => void,
@@ -83,7 +87,8 @@ export async function verifyOnSourcify(
     const result = await verify(input, {
       onEvent: (event) => {
         if (event.type === "verify.submitted") {
-          // Saved before the first poll, so a reload can resume the job (step 5).
+          // Saved before the first poll, so a reload can resume the job (step
+          // 5).
           localStorage.setItem(PENDING_KEY, event.handle);
           show(`Submitted. Handle: ${event.handle}`);
         }
@@ -92,8 +97,13 @@ export async function verifyOnSourcify(
     localStorage.removeItem(PENDING_KEY);
     show(summary(result));
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
-      show("Sourcify is still checking. Reload the page later to see the result.");
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
+      show(
+        "Sourcify is still checking. Reload the page later to see the result.",
+      );
       return;
     }
     // Every other end leaves nothing to resume.
@@ -108,7 +118,9 @@ export async function verifyOnSourcify(
 
 // Runs the module once on the sample. In the page, call it from a button.
 const { validateInput } = await import("explorer-verify");
-const sample = await import("./greeter-sepolia.json", { with: { type: "json" } });
+const sample = await import("./greeter-sepolia.json", {
+  with: { type: "json" },
+});
 await verifyOnSourcify(validateInput(sample.default), console.log);
 ```
 
@@ -144,17 +156,26 @@ source. The job goes on. `checkStatus()` polls the saved job again and never sub
 module as `src/resume.ts`:
 
 ```ts [src/resume.ts]
-import { ExplorerVerifyError, checkStatus, tryParseHandle } from "explorer-verify";
+import {
+  ExplorerVerifyError,
+  checkStatus,
+  tryParseHandle,
+} from "explorer-verify";
 
 const PENDING_KEY = "greeter-verification";
 
-/** Polls the job whose handle a previous page load saved, if any. Never submits. */
-export async function resumeVerification(show: (line: string) => void): Promise<void> {
+/**
+ * Polls the job whose handle a previous page load saved, if any. Never submits.
+ */
+export async function resumeVerification(
+  show: (line: string) => void,
+): Promise<void> {
   const stored = localStorage.getItem(PENDING_KEY);
   if (stored === null) {
     return;
   }
-  // A value that is not a handle, such as one another version of the page wrote, is dropped.
+  // A value that is not a handle, such as one another version of the page
+  // wrote, is dropped.
   const handle = tryParseHandle(stored);
   if (handle === undefined) {
     localStorage.removeItem(PENDING_KEY);
@@ -167,7 +188,10 @@ export async function resumeVerification(show: (line: string) => void): Promise<
     localStorage.removeItem(PENDING_KEY);
     show(result.status);
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
       show("Still checking. The handle stays saved for the next load.");
       return;
     }
