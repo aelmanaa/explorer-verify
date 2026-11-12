@@ -109,18 +109,18 @@ jobs:
           node scripts/verify-release-tag.ts "$TAG" --output "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
       # The tag goes on the merge commit of the Version Packages pull request, after CI on main
       # passed for it. The check reads the runs once; it does not wait for a run in progress.
+      # The query filters by head_sha only: the API's status, event and branch filters can lag
+      # behind a completed run, so scripts/check-ci-run.ts keeps the completed, successful push
+      # runs on main.
       - name: Require a passing ci.yml run on the tagged commit
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           COMMIT: ${{ steps.verify.outputs.commit }}
         run: |
-          passed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&status=success&event=push&branch=main" --jq '.total_count')"
-          if [ "$passed" = 0 ]; then
-            echo "::error::commit $COMMIT has no passing ci.yml run. Wait for CI on main to pass, then re-run this workflow."
-            exit 1
-          fi
-          echo "ci.yml passed on \`$COMMIT\` ($passed run(s))." >> "$GITHUB_STEP_SUMMARY"
+          set -o pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&per_page=100" \
+            | node scripts/check-ci-run.ts "$COMMIT" | tee -a "$GITHUB_STEP_SUMMARY"
 
   pack:
     name: Build, check and pack

@@ -135,12 +135,23 @@ jobs:
         run: |
           node site/api-reference.ts "$RUNNER_TEMP/api"
           diff -r site/api "$RUNNER_TEMP/api"
-      # Relative links and anchors, offline: a link to a missing file or anchor fails the job.
-      # External links are checked once a week by .github/workflows/links.yml.
-      - name: Links and anchors in docs/user and llms.txt
+      # Relative links and anchors in every tracked Markdown file and llms.txt, offline: a link to
+      # a missing file or anchor fails the job. The list comes from git, so a new Markdown file is
+      # checked without a change here. Left out: CHANGELOG.md files, which changesets writes;
+      # .changeset/, the pending release notes; and site/pages/, whose root-relative site links
+      # the built-site step below checks. External links are checked once a week by
+      # .github/workflows/links.yml.
+      - name: List the Markdown files to check
+        run: |
+          git ls-files -- '*.md' ':(exclude,glob)**/CHANGELOG.md' ':(exclude).changeset' ':(exclude)site/pages' \
+            > "$RUNNER_TEMP/link-check-files.txt"
+          echo llms.txt >> "$RUNNER_TEMP/link-check-files.txt"
+      - name: Links and anchors in tracked Markdown files and llms.txt
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
-          args: --offline --include-fragments --no-progress docs/user llms.txt
+          args: >-
+            --offline --include-fragments --no-progress
+            --files-from "${{ runner.temp }}/link-check-files.txt"
           jobSummary: false
       # The site's links start with its base path, /explorer-verify/, and leave out .html. lychee
       # resolves the home link to .../site/dist/explorer-verify, without a trailing slash, so the

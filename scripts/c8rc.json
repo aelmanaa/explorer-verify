@@ -11,6 +11,7 @@
     "scripts/check-size.ts",
     "scripts/check-names.ts",
     "scripts/check-changesets.ts",
+    "scripts/check-ci-run.ts",
     "scripts/check-registry-release.ts",
     "scripts/check-release-workflows.ts",
     "scripts/check-tarballs.ts",

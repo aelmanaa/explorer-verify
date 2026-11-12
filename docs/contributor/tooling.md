@@ -90,6 +90,12 @@ backticks dropped, entities decoded), lower case, punctuation other than `-` and
 space a hyphen without collapsing runs, and `-1`, `-2` for repeated headings. Setext headings
 count.
 
+This check covers `docs/` only. The `site` job of pull request CI runs lychee offline, with
+fragments, on every Markdown file that `git ls-files` lists, `docs/` included, except
+`CHANGELOG.md` files, `.changeset/` and `site/pages/` (see
+[Link check](testing.md#link-check)). A broken relative link or anchor in `README.md`, a package
+README, `.github/` or `validation/` fails that job, not `pnpm run check`.
+
 Links in `llms.txt` are raw links, so an agent gets Markdown, not HTML:
 `https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/<path>`.
 

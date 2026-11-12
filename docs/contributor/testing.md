@@ -45,7 +45,7 @@ run time, so c8 would report them at 0%.
 | Live check         | `scripts/live-check.ts`, `test/live/targets.json`, `.github/workflows/live.yml` weekly                         | Lookups on every backend with a client, a Sourcify submit and the CORS header still give the recorded answers (R-QA-4)                                         | In place                                              |
 | Docs check         | `scripts/check-agent-docs.ts`, in `pnpm run check`                                                             | `llms.txt`, page links and version lines (R-AX-1 to R-AX-3)                                                                                                    | In place                                              |
 | Docs examples      | `packages/explorer-verify/test/unit/user-docs.test.ts`                                                         | Every `ts` block under `docs/user/` compiles against the build and prints its documented output (R-AX-2)                                                       | In place                                              |
-| Link check         | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in `docs/user/`, `llms.txt` and the built site; external links once a week                                                          | In place                                              |
+| Link check         | lychee in CI: the `site` job, and `.github/workflows/links.yml` weekly                                         | Relative links and anchors in tracked Markdown files, `llms.txt` and the built site; external links once a week                                                | In place                                              |
 | Routing table      | `scripts/compare-routing-table.ts`, `.github/workflows/routing-table.yml` weekly                               | The routing table against the live Etherscan chainlist and Sourcify chain list (R-RT-1)                                                                        | In place                                              |
 | Deprecation        | `scripts/blockscout-deprecation.ts`, `.github/workflows/routing-table.yml` weekly                              | Blockscout's per-instance API shows no deprecation header, hosted-API answer, docs change or spread of failures                                                | In place                                              |
 | Agent evaluation   | [`test/agent-eval/`](../../test/agent-eval/README.md), maintainer only                                         | Agents complete a fixed task set without unsafe actions (R-AX-13)                                                                                              | First real evaluation recorded, 2026-11-08 (#262)     |
@@ -196,10 +196,12 @@ guide maps it.
 ## Link check
 
 The `site` job of pull request CI runs [lychee](https://github.com/lycheeverse/lychee) with
-`--offline --include-fragments` on `docs/user/` and the root `llms.txt`, then on the built site in
-`site/dist/`. A relative link to a missing file, or to an anchor that the page lacks, fails the
-job. `--offline` skips every external URL, so the check needs no network and gives the same result
-on every run.
+`--offline --include-fragments` on every Markdown file that `git ls-files` lists and on the root
+`llms.txt`, then on the built site in `site/dist/`. The first run leaves out `CHANGELOG.md` files,
+which changesets writes, `.changeset/`, which holds pending release notes, and `site/pages/`, whose
+root-relative links only resolve in the built site. A relative link to a missing file, or to an
+anchor that the page lacks, fails the job. `--offline` skips every external URL, so the check
+needs no network and gives the same result on every run.
 
 `.github/workflows/links.yml` checks the external links once a week, and on a manual dispatch. It
 runs only in this repository, never on a fork or a pull request, and uses no secret beyond the
@@ -207,8 +209,8 @@ workflow's own `GITHUB_TOKEN`. When lychee finds a broken link, the workflow ope
 "Broken links in the docs", or adds a comment to the open one, so repeated failures give one open
 issue. A run that finds no links, or cannot run lychee, also reaches the issue. `.lycheeignore`
 lists the URLs both checks skip, each with its reason: Etherscan and npm answer 403 to automated
-clients, the docs site is not deployed before the first release, and GitHub builds its heading
-anchors in the browser.
+clients, the live docs site has no page yet for an error code added since the last release, and
+GitHub builds its heading anchors in the browser.
 
 ## Routing table check
 
