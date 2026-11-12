@@ -980,7 +980,7 @@ function backendOf(value: unknown): BackendName {
  * A source-mismatch hash: `0x` and 64 lowercase hex digits, kept as it is; `0x` for anything else.
  * A hash is public, so it is not redacted, and the shape check keeps anything else out.
  */
-function hashOf(value: unknown): Hex {
+export function hashOf(value: unknown): Hex {
   const hash = stringOf(value);
   return HASH.test(hash) ? `0x${hash.slice(2)}` : "0x";
 }

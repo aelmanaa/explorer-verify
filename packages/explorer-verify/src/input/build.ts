@@ -592,6 +592,7 @@ function pickInput(
   }
   if (findings.stub) {
     throw incomplete(
+      // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
       "input",
       "The documents hold no compiler input: the build-info was written without it.",
       STUB_HINT,
@@ -599,6 +600,7 @@ function pickInput(
   }
   if (findings.metadata) {
     throw incomplete(
+      // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
       "input",
       "The documents hold no compiler input: only Solidity metadata.",
       METADATA_ONLY_HINT,
@@ -606,12 +608,14 @@ function pickInput(
   }
   if (findings.plainArtifact && !findings.output) {
     throw newError(
+      // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
       { code: "insufficient-artifact", field: "input" },
       "The documents hold no compiler input or settings: only ABI and bytecode.",
       // Stryker disable next-line ObjectLiteral,ArrayDeclaration: equivalent. The message is fixed text.
       { secrets: [] },
     );
   }
+  // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
   throw incomplete("input", "The documents hold no compiler input.", OUTPUT_ONLY_HINT);
 }
 

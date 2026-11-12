@@ -736,6 +736,16 @@ describe("createVerifyHandler checks its options (R-SRV-2, R-SEC-1)", () => {
     assert.equal(typeof createVerifyHandler({ apiKey: KEY, chains: [1], logger }), "function");
   });
 
+  it("names the options when an unknown option key cannot be named (#382)", () => {
+    const options: VerifyHandlerOptions = { apiKey: KEY, chains: [1] };
+    Reflect.set(options, "a b", 1);
+    const { details } = thrown(() => createVerifyHandler(options));
+    assert.deepEqual(details, {
+      code: "invalid-input",
+      issues: [{ field: "options", message: "is not a known option" }],
+    });
+  });
+
   it("says a logger must be an object", () => {
     const options: VerifyHandlerOptions = { apiKey: KEY, chains: [1] };
     Reflect.set(options, "logger", "console");
