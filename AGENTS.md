@@ -37,6 +37,9 @@ maintainer's.
 11. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
 12. [docs/contributor/search-console.md](docs/contributor/search-console.md): the search console
     verification values, the sitemap submission and the per-release indexing steps.
+13. [docs/contributor/adoption-metrics.md](docs/contributor/adoption-metrics.md): the monthly
+    adoption check (`scripts/adoption-check.ts`) for downloads, GitHub traffic, search and
+    Context7, and the monthly entries.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/README.md](docs/README.md).
