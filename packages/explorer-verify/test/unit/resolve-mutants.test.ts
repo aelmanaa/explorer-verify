@@ -5,8 +5,9 @@ import { describe, it } from "node:test";
 
 import { ExplorerVerifyError } from "../../src/errors.ts";
 import { REDACTED } from "../../src/redact.ts";
-import { tableTarget, unsupported } from "../../src/routing/resolve.ts";
-import type { TableEntry } from "../../src/routing/resolve.ts";
+import { routesFor } from "../../src/routing/load-table.ts";
+import { routesWith, tableTarget, unsupported } from "../../src/routing/resolve.ts";
+import type { RoutingTable, TableEntry } from "../../src/routing/resolve.ts";
 import { resolveRoute } from "../helpers/route.ts";
 
 const SEPOLIA = 11155111;
@@ -128,5 +129,105 @@ describe("unsupported: the hint of each case (#158, R-RT-3)", () => {
         "Set route.backend to another backend the chain lists, or set route.apiUrl with it.",
       );
     }
+  });
+});
+
+/** routesFor() with options of any shape, and what it resolved or rejected with. */
+async function routesOf(chainId: number, options: unknown): Promise<unknown> {
+  const pending: unknown = Reflect.apply(routesFor, undefined, [chainId, options]);
+  return await Promise.resolve(pending).then(
+    (result: unknown) => result,
+    (error: unknown) => error,
+  );
+}
+
+describe("routing mutants of the 0.2.0 run (#381, R-RT-1, R-RT-3, R-SEC-1)", () => {
+  it("sends a blockscout-hosted route with route.apiUrl to that URL", () => {
+    const route = resolveRoute(SEPOLIA, {
+      backend: "blockscout-hosted",
+      apiUrl: "https://proxy.example/api",
+    });
+    assert.equal(route.backend, "blockscout-hosted");
+    assert.equal(route.apiBase, "https://proxy.example/api");
+    assert.equal(route.requestUrl(""), "https://proxy.example/api");
+    assert.equal(route.routedBy, "api-url");
+  });
+
+  it("routesFor() treats a key that is not a string as absent", async () => {
+    const routes = await routesOf(SEPOLIA, { apiKeys: { "etherscan-v2": 123 } });
+    assert.deepEqual(routes, await routesFor(SEPOLIA));
+    assert.deepEqual(routes, {
+      listed: ["etherscan-v2", "sourcify", "blockscout", "routescan"],
+      pick: {
+        backend: "sourcify",
+        routedBy: "table",
+        skipped: ["etherscan-v2"],
+        keyMissing: false,
+      },
+    });
+  });
+
+  it("routesFor() keeps keyMissing for a non-string key when every backend needs one", async () => {
+    const table: RoutingTable = {
+      schemaVersion: 3,
+      checked: "2026-11-12",
+      chains: [{ chainId: SEPOLIA, backends: [{ backend: "etherscan-v2" }] }],
+    };
+    const pending: unknown = Reflect.apply(routesWith, undefined, [
+      SEPOLIA,
+      { apiKeys: { "etherscan-v2": 123 } },
+      async () => await Promise.resolve(table),
+    ]);
+    assert.deepEqual(await pending, {
+      listed: ["etherscan-v2"],
+      pick: { backend: "etherscan-v2", routedBy: "table", skipped: [], keyMissing: true },
+    });
+  });
+
+  it("routesFor() on a chain with no row names Sourcify and hints at the fallback", async () => {
+    const { pick } = await routesFor(999_999);
+    assert.ok(pick instanceof ExplorerVerifyError);
+    assert.deepEqual(pick.details, {
+      code: "unsupported-chain",
+      chainId: 999_999,
+      backend: "sourcify",
+    });
+    assert.equal(pick.message, "The routing table has no row for chain 999999.");
+    assert.equal(
+      pick.hint,
+      "Set allowSourcifyFallback: true, or set route.apiUrl and route.backend.",
+    );
+  });
+
+  it("routesWith() leaves out of listed a row entry it cannot route", async () => {
+    const table: RoutingTable = {
+      schemaVersion: 3,
+      checked: "2026-11-12",
+      chains: [
+        {
+          chainId: SEPOLIA,
+          // A Routescan entry without a network has no URL.
+          backends: [{ backend: "routescan" }, { backend: "sourcify" }],
+        },
+      ],
+    };
+    const { listed, pick } = await routesWith(
+      SEPOLIA,
+      {},
+      async () => await Promise.resolve(table),
+    );
+    assert.deepEqual(listed, ["sourcify"]);
+    assert.ok(!(pick instanceof ExplorerVerifyError));
+    assert.equal(pick.backend, "sourcify");
+  });
+
+  it("routesFor() names field options for an unknown key that cannot be named", async () => {
+    const error = await routesOf(SEPOLIA, { "a b": 1 });
+    assert.ok(error instanceof ExplorerVerifyError);
+    assert.equal(error.code, "invalid-input");
+    assert.equal(
+      error.details.code === "invalid-input" && error.details.issues[0]?.field,
+      "options",
+    );
   });
 });

@@ -37,8 +37,8 @@
     },
     {
       "file": "src/routing/resolve.ts",
-      "measured": 95.9,
-      "floor": 91
+      "measured": 96.75,
+      "floor": 95
     },
     {
       "file": "src/errors.ts",
@@ -62,8 +62,8 @@
     },
     {
       "file": "src/flow/verify-each.ts",
-      "measured": 93.51,
-      "floor": 92
+      "measured": 94.26,
+      "floor": 93
     },
     {
       "file": "src/flow/link-proxy.ts",
@@ -82,8 +82,8 @@
     },
     {
       "file": "src/backends/proxy-blockscout.ts",
-      "measured": 98.93,
-      "floor": 97
+      "measured": 99.47,
+      "floor": 98
     },
     {
       "file": "src/backends/proxy-sourcify.ts",
