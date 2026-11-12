@@ -1,5 +1,178 @@
 # @explorer-verify/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#338](https://github.com/aelmanaa/explorer-verify/pull/338) [`1162d86`](https://github.com/aelmanaa/explorer-verify/commit/1162d86dbc4adde5dad787c262965488f21ffcaa) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: `verify()` now submits when the explorer's match comes from another contract's source,
+  and Routescan matches are `partial`. Sourcify, Blockscout and Routescan can hold a match for a new
+  contract within two minutes of its deployment, made from another project's source. Before,
+  `verify()` returned `already-verified` for it and never sent your source.
+  
+  The breaking changes:
+  
+  - `already-verified` can now follow a submit. The lookup reads the contract name and the compiler
+    version the explorer stores; when either differs from the input, `verify()` submits. A match of
+    your own source still ends the call with no submit.
+  - A new field, `storedContract: { name?, compilerVersion? }`, on `already-verified` and on
+    `dryRun()`, names the other contract when the explorer refuses your source as already verified.
+    Its `match` is then `partial`. `storedContract` present means your source is not on the
+    explorer, while the exit code stays 0 and `ok` stays `true`: check
+    `result.storedContract === undefined` to require your own source.
+  - Every Routescan match is `partial`, from a lookup or from `Pass - Verified`, where it was
+    `exact`: Routescan states no grade. After `Fail - Unable to verify`, a Routescan lookup that
+    finds the source now gives `already-verified` with `partial`, where it gave `verified` with
+    `exact`.
+  - The CLI summary and its JSON output show `storedContract`, and the envelope schema lists it.
+  
+  Also:
+  
+  - The Sourcify lookup asks for `fields=compilation`.
+  - The stored name and version are cut to 300 characters, their control characters are replaced
+    and your keys are removed from them. The CLI's text log lines show control characters as
+    escapes.
+  
+  [#293](https://github.com/aelmanaa/explorer-verify/issues/293)
+
+- [#348](https://github.com/aelmanaa/explorer-verify/pull/348) [`fba3a2a`](https://github.com/aelmanaa/explorer-verify/commit/fba3a2a74b8ccfeabb812b42d033009cf473326d) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Add `submitOverPartial` to `verify()` and `verifyEach()`, and `--submit-over-partial` to the
+  `verify` command. By default, a partial match of your own source ends the call as
+  `already-verified` without a submit. With the option, explorer-verify submits your source so the
+  explorer can replace the partial match with an exact one. An exact match never submits.
+  
+  - The result follows the explorer: `verified` with the job's match, or `already-verified` with the
+    match a lookup reads when the explorer answers that the contract is already verified.
+  - When the explorer rejects the source, the partial match stays and the result is
+    `already-verified` with `partial`, not `failed`. A `warn` line gives the explorer's reason. On
+    Etherscan, Routescan and the Etherscan-compatible explorers, a lookup after the rejection that
+    finds no match gives `failed`.
+  - After the submit, a lookup that finds only the partial match does not confirm the job.
+  - The handle of such a job ends with `:over-partial`, and its object has `overPartial: true`.
+    `checkStatus()` and `explorer-verify status` end the job by the same rules. Every other handle
+    reads and resumes as before.
+  - Every Routescan match is `partial`, so on Routescan the option submits over every match, and
+    Routescan replaces the source it holds.
+  - `dryRun()` takes the option and says whether `verify()` would submit over a partial match; the
+    CLI's dry-run summary follows `--submit-over-partial`.
+  - A value that is not a boolean throws `invalid-input`. The CLI refuses `submitOverPartial` in an
+    `--input-json` request and names the flag.
+  
+  On Ethereum Sepolia on 2026-11-11, Sourcify and Blockscout upgraded a partial match to exact after
+  a submit of the exact source, and Routescan replaced the source it held.
+
+- [#345](https://github.com/aelmanaa/explorer-verify/pull/345) [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: when Etherscan, Routescan or an Etherscan-compatible explorer still finds no contract code
+  at the address, `verify()` now throws the new `not-indexed` error instead of `timeout` or
+  `unexpected-response`. The CLI and the JSON envelope exit 4 for this case, where they exited 5.
+  `not-indexed` is retryable, carries no handle, and has `details.backend`, `details.submits` and
+  `details.elapsedMs`. Its hint says to check the chain ID and the address, then try again in a
+  minute.
+  
+  `verify()` and `verifyEach()` also take `indexWaitMs`: how long to send the submit again while the
+  explorer finds no contract code, as it does right after a deployment. The wait counts from the
+  first submit, never cuts a wait short and stays within `timeoutMs`. Without it, `verify()` sends at
+  most 10 submits, as before.
+  
+  ```ts
+  await verify(input, { indexWaitMs: 120_000, timeoutMs: 300_000 });
+  ```
+  
+  What should I do? Where you matched `timeout` or `unexpected-response` for this case, match
+  `not-indexed`. In a script that reads exit codes, treat exit 4 with no handle as "run verify again
+  later". Right after a deployment, pass `indexWaitMs` to wait longer.
+  
+  [#297](https://github.com/aelmanaa/explorer-verify/issues/297)
+
+### Patch Changes
+
+- [#345](https://github.com/aelmanaa/explorer-verify/pull/345) [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672) Thanks [@aelmanaa](https://github.com/aelmanaa)! - When Blockscout answers each submit without a job id, the CLI now prints "If the contract was deployed moments ago, try again later." Before, it printed the general `unexpected-response` hint. A `timeout` always gets the CLI's own hint, which names `--timeout`.
+  
+  [#326](https://github.com/aelmanaa/explorer-verify/issues/326)
+
+- [#360](https://github.com/aelmanaa/explorer-verify/pull/360) [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `verify` takes `--index-wait <seconds>`: how long to keep sending the submit while the explorer
+  finds no contract code at the address, as right after a deployment. It sets the library's
+  `indexWaitMs`.
+  
+  - It applies to `etherscan-v2`, `routescan` and `etherscan-compatible` only. When every backend
+    named on the command line is another one, the run logs one warning.
+  - `--timeout` caps it. It takes whole seconds from 1 to 2147483, and it may go with
+    `--input-json`. A request that holds `indexWaitMs` exits 2 and names `--index-wait`. Any other value exits 2 with `invalid-input` naming `--index-wait`.
+  - Without it, the CLI sends the submit at most 10 times, as before: about 27 seconds at the
+    default `--poll-interval`. A value under about 30 waits less than that.
+  
+  ```sh
+  explorer-verify verify 0x… --chain sepolia --foundry . --contract src/Greeter.sol:Greeter \
+    --backend etherscan-v2 --index-wait 120 --timeout 300
+  ```
+  
+  The `not-indexed` hint no longer names `--address`, which the CLI does not accept. It names
+  `--chain` and the address argument, and says to raise `--index-wait` and `--timeout`. Each new
+  submit now prints one warning line on stderr instead of two.
+  
+  [#352](https://github.com/aelmanaa/explorer-verify/issues/352)
+
+- [#360](https://github.com/aelmanaa/explorer-verify/pull/360) [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15) Thanks [@aelmanaa](https://github.com/aelmanaa)! - A project folder that does not exist, is a file or cannot be read is now reported on `root`:
+  "The input is invalid: root is not a folder: it does not exist." The message never repeats the
+  path, since a path typed by mistake can hold a key. Both helpers use the same wording.
+  
+  The Hardhat helper checks `root` first, before the artifacts folder, even when `outDir` or
+  `artifact` is an absolute path. It no longer reports a missing `outDir` that the caller did not
+  pass.
+  
+  The Foundry helper's `invalid-input` messages now carry the issue text, as the Hardhat helper's
+  do: "The input is invalid: root is not a folder: …" instead of "The input is invalid: root." An
+  output directory that this process cannot read is now `outDir could not be read`, not
+  `outDir is not a directory`.
+  
+  The CLI names `--foundry` or `--hardhat` in the message and the issue, and its hint says to check
+  the folder instead of to compile the project:
+  
+  ```text
+  $ explorer-verify verify 0x… --chain 11155111 --hardhat no/such/project --contract contracts/A.sol:A --dry-run
+  error: The input is invalid: --hardhat is not a folder: it does not exist. (invalid-input)
+    hint: Check the folder that --hardhat names: it must exist and should hold the Hardhat config. Pass . for the current folder.
+  ```
+  
+  Without `--out-dir`, a project folder with no output folder, or one the CLI cannot read, now
+  names the project flag in the message too, for both Foundry and Hardhat: "The input is invalid:
+  --hardhat has no artifacts folder: build the project, or pass --out-dir." The message used to
+  name `--out-dir`, which the caller had not passed. The hint is unchanged.
+  
+  [#350](https://github.com/aelmanaa/explorer-verify/issues/350)
+
+- [#301](https://github.com/aelmanaa/explorer-verify/pull/301) [`9bb2f0f`](https://github.com/aelmanaa/explorer-verify/commit/9bb2f0f0e534365a078d7459e14dd58a4bd35684) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The READMEs and the Setup sections of the user guides now say how the supported Node.js range
+  changes: it follows Node's active and maintenance LTS lines, and a line is dropped when it reaches
+  end of life, in a minor release while the version is 0.x. Node 22 reaches end of life on
+  2027-04-30. Node 20 is not supported. `engines.node` stays `>=22.18.0`.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/291
+
+- [#360](https://github.com/aelmanaa/explorer-verify/pull/360) [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `explorer-verify verify` takes `--require-own-source`. When the explorer holds another contract's
+  source at the address, `verify` returns `already-verified` with `result.storedContract`, and the
+  run exits 0. With the flag, that run exits 1 instead, and the JSON envelope keeps the result with
+  `ok: false`. Without the flag, nothing changes.
+  
+  ```sh
+  explorer-verify verify 0x… --chain sepolia --foundry . --contract src/Greeter.sol:Greeter \
+    --backend sourcify --require-own-source --json
+  ```
+  
+  With a repeated `--backend`, each outcome with another contract's source gets `ok: false` and
+  counts as exit code 1. `status` does not take the flag: a resumed handle never carries
+  `storedContract`.
+  
+  `envelope.schema.json` accepts the two new forms: `ok: false` with an `already-verified` result
+  that has `storedContract`, at the top level and in an outcome. Its description now says that,
+  within `schemaVersion` 1, a release may add forms that only an opt-in CLI flag produces. A run
+  without the flag never prints them, so this is a patch. `toEnvelope()` and `exitCodeOf()` are
+  unchanged.
+  
+  [#351](https://github.com/aelmanaa/explorer-verify/issues/351)
+
+- [#300](https://github.com/aelmanaa/explorer-verify/pull/300) [`7ee0497`](https://github.com/aelmanaa/explorer-verify/commit/7ee049753c0162a44b2f6e61b9c9b5cd263c4b0d) Thanks [@aelmanaa](https://github.com/aelmanaa)! - TypeScript projects that set `"moduleResolution": "node"` now find the types of every subpath, such as `explorer-verify/core` and `explorer-verify/clients/sourcify`, and of the JSON schema files. Before, these imports failed with TS2307. `bundler`, `node16` and `nodenext` resolve the same files as before. [#295](https://github.com/aelmanaa/explorer-verify/issues/295)
+- Updated dependencies [[`acd9ffd`](https://github.com/aelmanaa/explorer-verify/commit/acd9ffd171e26af0802b6a68ba0d221988e752cf), [`a64a7aa`](https://github.com/aelmanaa/explorer-verify/commit/a64a7aa80a25f786d71bc5010c6ba8987f1cf8f1), [`c1ef895`](https://github.com/aelmanaa/explorer-verify/commit/c1ef895ef2865b5b56c05ab7c16659ac1b69a8d6), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`72de386`](https://github.com/aelmanaa/explorer-verify/commit/72de38635010c26a34014f3fe2256585e1eab09e), [`1162d86`](https://github.com/aelmanaa/explorer-verify/commit/1162d86dbc4adde5dad787c262965488f21ffcaa), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672), [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672), [`015930d`](https://github.com/aelmanaa/explorer-verify/commit/015930dc9993cd6cfb050374322076d702624225), [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15), [`c3e5ed8`](https://github.com/aelmanaa/explorer-verify/commit/c3e5ed8f5bceac042246390f42a80c4cb051ebaa), [`9bb2f0f`](https://github.com/aelmanaa/explorer-verify/commit/9bb2f0f0e534365a078d7459e14dd58a4bd35684), [`6ad0688`](https://github.com/aelmanaa/explorer-verify/commit/6ad0688bd6e50a3356718fe5aaaa4c524554ded8), [`899e945`](https://github.com/aelmanaa/explorer-verify/commit/899e9454200f67106881efe6eefa5e767875e7a8), [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`1a2c786`](https://github.com/aelmanaa/explorer-verify/commit/1a2c786f76dedeef3286f3bbdc8926bdea03a155), [`2c317c0`](https://github.com/aelmanaa/explorer-verify/commit/2c317c0a37872c3b92292f48af56610d4d522e54), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`fba3a2a`](https://github.com/aelmanaa/explorer-verify/commit/fba3a2a74b8ccfeabb812b42d033009cf473326d), [`7ee0497`](https://github.com/aelmanaa/explorer-verify/commit/7ee049753c0162a44b2f6e61b9c9b5cd263c4b0d), [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672)]:
+  - explorer-verify@0.2.0
+  - @explorer-verify/foundry@0.2.0
+  - @explorer-verify/hardhat@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

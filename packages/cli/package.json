@@ -1,6 +1,6 @@
 {
   "name": "@explorer-verify/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The explorer-verify command: verify deployed smart-contract source from a terminal, a CI job or an agent, with one JSON envelope on stdout and documented exit codes.",
   "keywords": [
     "ethereum",

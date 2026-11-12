@@ -3,7 +3,7 @@
 Verify the source of a deployed contract on Etherscan, Blockscout, Sourcify and Routescan, from a
 browser, a backend, a CI job or an agent.
 
-Version: explorer-verify 0.1.0
+Version: explorer-verify 0.2.0
 
 Agents: [llms.txt](../../llms.txt) lists every page of these docs.
 

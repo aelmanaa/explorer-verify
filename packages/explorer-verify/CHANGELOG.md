@@ -1,5 +1,182 @@
 # explorer-verify
 
+## 0.2.0
+
+### Minor Changes
+
+- [#327](https://github.com/aelmanaa/explorer-verify/pull/327) [`72de386`](https://github.com/aelmanaa/explorer-verify/commit/72de38635010c26a34014f3fe2256585e1eab09e) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `hintFor(error, "user")` returns a hint for the people who use your tool, such as an IDE, a dapp or a verification service. It names no function, option, field or command. It reads the error's details: it gives the wait the explorer asked for, says when an explorer with an Etherscan-style API has not indexed the contract yet, and tells a cancelled run with a handle to check the explorer before submitting again. `hintFor(error, "developer")` returns `error.hint`. Import it from `explorer-verify/errors` or `explorer-verify`. Each error page shows the end-user hint on a "For end users" line.
+  
+  The default hints, and the specific hints of `buildVerifyInput`, `buildVerifyInputFromBytecode` and `validateInput`, now name each value in words, with the field path only in parentheses. For example, the `rate-limited` hint reads "Wait as long as the explorer asked (details.retryAfterMs), or a few seconds, then call again." The hints read correctly in a tool whose error has no `details` field. The `cancelled` hint says to resume each handle with `checkStatus` instead of naming the CLI's `status` command. Hint text is not part of the API: switch on `error.code`, not on the hint.
+  
+  [#286](https://github.com/aelmanaa/explorer-verify/issues/286), [#298](https://github.com/aelmanaa/explorer-verify/issues/298)
+
+- [#338](https://github.com/aelmanaa/explorer-verify/pull/338) [`1162d86`](https://github.com/aelmanaa/explorer-verify/commit/1162d86dbc4adde5dad787c262965488f21ffcaa) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: `verify()` now submits when the explorer's match comes from another contract's source,
+  and Routescan matches are `partial`. Sourcify, Blockscout and Routescan can hold a match for a new
+  contract within two minutes of its deployment, made from another project's source. Before,
+  `verify()` returned `already-verified` for it and never sent your source.
+  
+  The breaking changes:
+  
+  - `already-verified` can now follow a submit. The lookup reads the contract name and the compiler
+    version the explorer stores; when either differs from the input, `verify()` submits. A match of
+    your own source still ends the call with no submit.
+  - A new field, `storedContract: { name?, compilerVersion? }`, on `already-verified` and on
+    `dryRun()`, names the other contract when the explorer refuses your source as already verified.
+    Its `match` is then `partial`. `storedContract` present means your source is not on the
+    explorer, while the exit code stays 0 and `ok` stays `true`: check
+    `result.storedContract === undefined` to require your own source.
+  - Every Routescan match is `partial`, from a lookup or from `Pass - Verified`, where it was
+    `exact`: Routescan states no grade. After `Fail - Unable to verify`, a Routescan lookup that
+    finds the source now gives `already-verified` with `partial`, where it gave `verified` with
+    `exact`.
+  - The CLI summary and its JSON output show `storedContract`, and the envelope schema lists it.
+  
+  Also:
+  
+  - The Sourcify lookup asks for `fields=compilation`.
+  - The stored name and version are cut to 300 characters, their control characters are replaced
+    and your keys are removed from them. The CLI's text log lines show control characters as
+    escapes.
+  
+  [#293](https://github.com/aelmanaa/explorer-verify/issues/293)
+
+- [#359](https://github.com/aelmanaa/explorer-verify/pull/359) [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: through a server handler (`handlerUrl`), the handler's 503 `address-not-indexed` now throws `not-indexed` instead of `unexpected-response`. The handler sends it when its `deployers` option is set and Etherscan has no creation record for the address yet. The client still retries as `Retry-After` asks. The error then has the same code, exit code 4 and end-user hint as a direct call. `details.submits` counts HTTP attempts, unlike a direct call, which counts answers: the attempts of the refused request when it was the submit, `0` when it was the lookup or another request. `details.elapsedMs` runs from the first attempt of the refused request to its last answer. `linkProxy()` through the handler can throw it too. Its hint says to call again in a minute, since `indexWaitMs` has no effect there. Code that matched `unexpected-response` for this refusal must match `not-indexed`. The handler's answer does not change.
+  
+  [#354](https://github.com/aelmanaa/explorer-verify/issues/354)
+
+- [#348](https://github.com/aelmanaa/explorer-verify/pull/348) [`fba3a2a`](https://github.com/aelmanaa/explorer-verify/commit/fba3a2a74b8ccfeabb812b42d033009cf473326d) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Add `submitOverPartial` to `verify()` and `verifyEach()`, and `--submit-over-partial` to the
+  `verify` command. By default, a partial match of your own source ends the call as
+  `already-verified` without a submit. With the option, explorer-verify submits your source so the
+  explorer can replace the partial match with an exact one. An exact match never submits.
+  
+  - The result follows the explorer: `verified` with the job's match, or `already-verified` with the
+    match a lookup reads when the explorer answers that the contract is already verified.
+  - When the explorer rejects the source, the partial match stays and the result is
+    `already-verified` with `partial`, not `failed`. A `warn` line gives the explorer's reason. On
+    Etherscan, Routescan and the Etherscan-compatible explorers, a lookup after the rejection that
+    finds no match gives `failed`.
+  - After the submit, a lookup that finds only the partial match does not confirm the job.
+  - The handle of such a job ends with `:over-partial`, and its object has `overPartial: true`.
+    `checkStatus()` and `explorer-verify status` end the job by the same rules. Every other handle
+    reads and resumes as before.
+  - Every Routescan match is `partial`, so on Routescan the option submits over every match, and
+    Routescan replaces the source it holds.
+  - `dryRun()` takes the option and says whether `verify()` would submit over a partial match; the
+    CLI's dry-run summary follows `--submit-over-partial`.
+  - A value that is not a boolean throws `invalid-input`. The CLI refuses `submitOverPartial` in an
+    `--input-json` request and names the flag.
+  
+  On Ethereum Sepolia on 2026-11-11, Sourcify and Blockscout upgraded a partial match to exact after
+  a submit of the exact source, and Routescan replaced the source it held.
+
+- [#345](https://github.com/aelmanaa/explorer-verify/pull/345) [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: when Etherscan, Routescan or an Etherscan-compatible explorer still finds no contract code
+  at the address, `verify()` now throws the new `not-indexed` error instead of `timeout` or
+  `unexpected-response`. The CLI and the JSON envelope exit 4 for this case, where they exited 5.
+  `not-indexed` is retryable, carries no handle, and has `details.backend`, `details.submits` and
+  `details.elapsedMs`. Its hint says to check the chain ID and the address, then try again in a
+  minute.
+  
+  `verify()` and `verifyEach()` also take `indexWaitMs`: how long to send the submit again while the
+  explorer finds no contract code, as it does right after a deployment. The wait counts from the
+  first submit, never cuts a wait short and stays within `timeoutMs`. Without it, `verify()` sends at
+  most 10 submits, as before.
+  
+  ```ts
+  await verify(input, { indexWaitMs: 120_000, timeoutMs: 300_000 });
+  ```
+  
+  What should I do? Where you matched `timeout` or `unexpected-response` for this case, match
+  `not-indexed`. In a script that reads exit codes, treat exit 4 with no handle as "run verify again
+  later". Right after a deployment, pass `indexWaitMs` to wait longer.
+  
+  [#297](https://github.com/aelmanaa/explorer-verify/issues/297)
+
+### Patch Changes
+
+- [#331](https://github.com/aelmanaa/explorer-verify/pull/331) [`acd9ffd`](https://github.com/aelmanaa/explorer-verify/commit/acd9ffd171e26af0802b6a68ba0d221988e752cf) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The package ships `docs/start/quickstart-agent.md`, a quickstart for people who let a coding agent verify a contract. It holds a prompt to paste into the agent: a dry run of the docs' sample, a dry run of the contract, then a stop until the person approves the submit. The packaged `llms.txt` now opens with an Instructions section that lists the pages an agent reads first.
+
+- [#342](https://github.com/aelmanaa/explorer-verify/pull/342) [`a64a7aa`](https://github.com/aelmanaa/explorer-verify/commit/a64a7aa80a25f786d71bc5010c6ba8987f1cf8f1) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Each entry point's declaration file opens with a `@packageDocumentation` comment whose first line
+  says what the entry point is for. The API reference on the docs site shows that line next to each
+  entry point, and gives each exported function, class, type and constant a page of its own.
+
+- [#339](https://github.com/aelmanaa/explorer-verify/pull/339) [`c1ef895`](https://github.com/aelmanaa/explorer-verify/commit/c1ef895ef2865b5b56c05ab7c16659ac1b69a8d6) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The CLI reference in `docs/reference/cli.md` now starts with the install command and four tested examples, each run with `npx @explorer-verify/cli`. The output contract moves to a new page, `docs/reference/cli-output.md`: stdout, stderr, log levels, the global options, the exit codes, help and cancelling. The CI guide states who it is for and what you need, and runs every command with npx; `docs/reference/json-output.md` is split into shorter sections and tables.
+
+- [#359](https://github.com/aelmanaa/explorer-verify/pull/359) [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Right after a deployment, Blockscout can answer a submit with no job id, and the client submits again. When the time budget runs out during that loop, including the lookup or the new submit after an empty answer, the `timeout` error now holds `details.reason` `empty-submit`. `hintFor(error, "user")` then tells the end user that the explorer did not start the verification, and to check the contract's page and try again in a minute. It gives the same hint for the error's JSON form. Any other `timeout` has no `reason` and keeps its hint.
+  
+  [#349](https://github.com/aelmanaa/explorer-verify/issues/349)
+
+- [#345](https://github.com/aelmanaa/explorer-verify/pull/345) [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672) Thanks [@aelmanaa](https://github.com/aelmanaa)! - When Blockscout, on an instance or through `blockscout-hosted`, answers each submit without a job id, the hint no longer names `verify()`. It reads "If the contract was deployed moments ago, try again later." The `unexpected-response` error that ends this loop now holds the number of submits sent in `details.attempts`. For this error, `hintFor(error, "user")` says that the explorer did not start the verification, and asks the user to check the contract's page on the explorer, then to try again in a minute. Before, it gave the general hint for an answer that could not be read. A job status or proxy-link answer of the same shape still gets the general hint.
+  
+  [#326](https://github.com/aelmanaa/explorer-verify/issues/326)
+
+- [#304](https://github.com/aelmanaa/explorer-verify/pull/304) [`015930d`](https://github.com/aelmanaa/explorer-verify/commit/015930dc9993cd6cfb050374322076d702624225) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `timeoutMs: Infinity` now gives the longest time budget instead of throwing `invalid-input`: it is lowered to 2147483647 ms, about 24.8 days, as any larger finite value is. `verify()`, `dryRun()`, `checkStatus()`, `linkProxy()`, `verifyEach()` and `buildVerifyInputFromBytecode()` all take it. Error messages and `timeout` details show the lowered budget.
+  
+  `pollIntervalMs` still refuses `Infinity`. `NaN`, `0`, negative numbers and `-Infinity` still throw `invalid-input`. The `invalid-input` issue for `timeoutMs` now reads "must be a positive number of milliseconds".
+  
+  [#289](https://github.com/aelmanaa/explorer-verify/issues/289)
+
+- [#305](https://github.com/aelmanaa/explorer-verify/pull/305) [`c3e5ed8`](https://github.com/aelmanaa/explorer-verify/commit/c3e5ed8f5bceac042246390f42a80c4cb051ebaa) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The match types page now lists the `match` each explorer gives a build compiled with `bytecodeHash: "none"`, as recorded on Ethereum Sepolia on 2026-11-10: `exact` on Etherscan v2, `partial` on Sourcify and Blockscout. Routescan states no grade, and explorer-verify now reports every Routescan match as `partial`. The page no longer says that such a build reaches only `partial` everywhere. Issue: https://github.com/aelmanaa/explorer-verify/issues/287
+
+- [#301](https://github.com/aelmanaa/explorer-verify/pull/301) [`9bb2f0f`](https://github.com/aelmanaa/explorer-verify/commit/9bb2f0f0e534365a078d7459e14dd58a4bd35684) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The READMEs and the Setup sections of the user guides now say how the supported Node.js range
+  changes: it follows Node's active and maintenance LTS lines, and a line is dropped when it reaches
+  end of life, in a minor release while the version is 0.x. Node 22 reaches end of life on
+  2027-04-30. Node 20 is not supported. `engines.node` stays `>=22.18.0`.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/291
+
+- [#299](https://github.com/aelmanaa/explorer-verify/pull/299) [`6ad0688`](https://github.com/aelmanaa/explorer-verify/commit/6ad0688bd6e50a3356718fe5aaaa4c524554ded8) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The guide "Verify contracts your package ships" now describes the routing table as it is: a
+  call goes to the first backend in the chain's row that works with the keys passed, so a key in
+  `apiKeys["etherscan-v2"]` sends a Sepolia call to Etherscan. The guide no longer says the table
+  has no Etherscan rows. Its new backend example runs in the docs tests against a recorded
+  Etherscan answer.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/285
+
+- [#332](https://github.com/aelmanaa/explorer-verify/pull/332) [`899e945`](https://github.com/aelmanaa/explorer-verify/commit/899e9454200f67106881efe6eefa5e767875e7a8) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The package ships three quickstarts under `docs/start/`: the CLI, a Foundry project and a
+  Hardhat project. Each one dry runs the sample request with `npx @explorer-verify/cli`, then the
+  reader's own project, then verifies, in at most five steps. The Hardhat quickstart says the CLI
+  is not a Hardhat plugin.
+
+- [#360](https://github.com/aelmanaa/explorer-verify/pull/360) [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `explorer-verify verify` takes `--require-own-source`. When the explorer holds another contract's
+  source at the address, `verify` returns `already-verified` with `result.storedContract`, and the
+  run exits 0. With the flag, that run exits 1 instead, and the JSON envelope keeps the result with
+  `ok: false`. Without the flag, nothing changes.
+  
+  ```sh
+  explorer-verify verify 0x… --chain sepolia --foundry . --contract src/Greeter.sol:Greeter \
+    --backend sourcify --require-own-source --json
+  ```
+  
+  With a repeated `--backend`, each outcome with another contract's source gets `ok: false` and
+  counts as exit code 1. `status` does not take the flag: a resumed handle never carries
+  `storedContract`.
+  
+  `envelope.schema.json` accepts the two new forms: `ok: false` with an `already-verified` result
+  that has `storedContract`, at the top level and in an outcome. Its description now says that,
+  within `schemaVersion` 1, a release may add forms that only an opt-in CLI flag produces. A run
+  without the flag never prints them, so this is a patch. `toEnvelope()` and `exitCodeOf()` are
+  unchanged.
+  
+  [#351](https://github.com/aelmanaa/explorer-verify/issues/351)
+
+- [#359](https://github.com/aelmanaa/explorer-verify/pull/359) [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The `duplicate-submission` reason of `verify.retry` and `proxy.retry` is now marked reserved in the type, in `event.schema.json` and in the logging reference. No client emits it: Sourcify's answer to a duplicate request ends the call with `in-progress`, not a retry. The value stays, so code that switches on it still compiles.
+  
+  [#353](https://github.com/aelmanaa/explorer-verify/issues/353)
+
+- [#344](https://github.com/aelmanaa/explorer-verify/pull/344) [`1a2c786`](https://github.com/aelmanaa/explorer-verify/commit/1a2c786f76dedeef3286f3bbdc8926bdea03a155) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `linkProxy()` can resume a pending proxy link without sending a new link request. The `proxy-link-pending` error now carries `details.jobId`, the job id the explorer gave for the link request, with API keys removed. Pass it back as `resumeJobId` with the same target and route: the call sends only `checkproxyverification`, checks at once and then every `pollIntervalMs`. This also works through `explorer-verify/core` and through the server handler with `allowProxyLink: true`.
+  
+  A `resumeJobId` that is not of the form the backend gives for the proxy throws `invalid-input` before any request, and so does any `resumeJobId` on Sourcify, which starts no link job. A job id the explorer no longer knows throws `proxy-link-unknown-state`. The default hint of `proxy-link-pending` names the new option.
+  
+  [#296](https://github.com/aelmanaa/explorer-verify/issues/296)
+
+- [#328](https://github.com/aelmanaa/explorer-verify/pull/328) [`2c317c0`](https://github.com/aelmanaa/explorer-verify/commit/2c317c0a37872c3b92292f48af56610d4d522e54) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The package ships `docs/start/greeter-sepolia.json`, a verify request for the docs' Greeter on Sepolia. A dry run of it with `--input-json` needs no key, no deploy and no project. Without an Etherscan key, it routes to Sourcify and reports an exact match.
+
+- [#359](https://github.com/aelmanaa/explorer-verify/pull/359) [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Through the platform's `fetch`, the Sourcify lookup now goes with `cache: "no-store"`, so a browser's HTTP cache no longer adds up to an hour on top of Sourcify's own cache. An injected `fetch` gets no `cache` field: it handles caching itself. A runtime whose `Request` refuses or drops the field, such as Cloudflare Workers before compatibility date 2024-11-11, sends the lookup without it. Sourcify's shared cache still serves a lookup for up to an hour, and no request field reaches it. The Sourcify reference page, the `dryRun()` docs and `DryRunResult.lookup` now say that a lookup grade can be up to an hour old, and that a job's answer wins over it. After a 409 that follows a lookup naming another contract, `verify()` logs at `warn` that the kept `storedContract` may be out of date.
+  
+  [#356](https://github.com/aelmanaa/explorer-verify/issues/356)
+
+- [#300](https://github.com/aelmanaa/explorer-verify/pull/300) [`7ee0497`](https://github.com/aelmanaa/explorer-verify/commit/7ee049753c0162a44b2f6e61b9c9b5cd263c4b0d) Thanks [@aelmanaa](https://github.com/aelmanaa)! - TypeScript projects that set `"moduleResolution": "node"` now find the types of every subpath, such as `explorer-verify/core` and `explorer-verify/clients/sourcify`, and of the JSON schema files. Before, these imports failed with TS2307. `bundler`, `node16` and `nodenext` resolve the same files as before. [#295](https://github.com/aelmanaa/explorer-verify/issues/295)
+
 ## 0.1.0
 
 ### Minor Changes
