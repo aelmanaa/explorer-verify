@@ -512,15 +512,15 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/flow/status.ts`                   | `checkStatus()` (R-FLOW-4)                                                                                     | 100   | 100         | 1 undetected |
 | `src/http/fetch.ts`                    | Retry, timeout and abort rules (R-FLOW-6)                                                                      | 99.67 | 98.20       | 97           |
 | `src/http/api-keys.ts`                 | Which key goes to which host (R-SEC-1)                                                                         | 99.04 | 98.08       | 97           |
-| `src/routing/resolve.ts`               | Which backend and URL a chain gets, so where a key goes                                                        | 95.90 | 92.93       | 91           |
+| `src/routing/resolve.ts`               | Which backend and URL a chain gets, so where a key goes                                                        | 96.75 | 96.04       | 95           |
 | `src/errors.ts`                        | The error catalogue and its redaction (R-SEC-1)                                                                | 100   | 100         | 99           |
 | `src/observe.ts`                       | The logger and event guard (R-DX-5, R-DX-6, R-SEC-1)                                                           | 100   | 100         | 99           |
 | `src/redact.ts`                        | Key redaction (R-SEC-1)                                                                                        | 98.30 | 98.30       | 97           |
-| `src/flow/verify-each.ts`              | `verifyEach()`: entries, routes and one outcome per backend (R-RT-4)                                           | 93.51 | 93.51       | 92           |
+| `src/flow/verify-each.ts`              | `verifyEach()`: entries, routes and one outcome per backend (R-RT-4)                                           | 94.26 | 94.26       | 93           |
 | `src/flow/link-proxy.ts`               | `linkProxy()`: target, route, checks and time budget (R-FLOW-8)                                                | 99.64 | 98.22       | 97           |
 | `src/backends/proxy-common.ts`         | The implementation an Etherscan or Blockscout answer names (R-FLOW-8)                                          | 100   | 100         | 99           |
 | `src/backends/proxy-etherscan.ts`      | Etherscan proxy-link answers mapped to link states (R-FLOW-8)                                                  | 99.27 | 99.27       | 98           |
-| `src/backends/proxy-blockscout.ts`     | Blockscout proxy-link answers mapped to link states (R-FLOW-8)                                                 | 98.93 | 98.93       | 97           |
+| `src/backends/proxy-blockscout.ts`     | Blockscout proxy-link answers mapped to link states (R-FLOW-8)                                                 | 99.47 | 99.47       | 98           |
 | `src/backends/proxy-sourcify.ts`       | Sourcify's proxy resolution mapped to link states (R-FLOW-8)                                                   | 100   | 100         | 99           |
 | `src/backends/etherscan.ts`            | Etherscan answers mapped to results and errors (R-FLOW-4)                                                      | 100   | 99.44       | 98           |
 | `src/backends/etherscan-compatible.ts` | The requests of a standalone Etherscan-compatible explorer (R-BE-2)                                            | 100   | 100         | 1 undetected |
@@ -615,6 +615,13 @@ timeouts. Every survivor is equivalent or changes only message wording. `metadat
 equivalent mutants are gone. A forced run of `server/handler.ts` (concurrency 3) killed 825 of 888,
 with 36 timeouts and 27 equivalent survivors. That is a killed-only score of 92.91, so its floor stays
 at 94 until a run without the timeouts measures it.
+
+The rows of `routing/resolve.ts`, `flow/verify-each.ts` and `backends/proxy-blockscout.ts` were
+measured again on 2026-11-12 with issues #380 and #381 applied, StrykerJS 10.0.0 and Node 24.21.0:
+one forced run per file (`pnpm exec stryker run --force --mutate <file> --concurrency 3`). The
+same runs of `flow/verify.ts` (98.37, killed only 97.67) and `flow/link-proxy.ts` (99.45, killed
+only 96.95, with 9 timeouts on a loaded machine) give no floor above the current one, so those
+rows keep their earlier measurements.
 
 Most survivors in these five files are listed as equivalent below: the defence-in-depth check of
 `validateInput()` and its narrowing guards, and the booleans of `eachOptionKeys()` that only
