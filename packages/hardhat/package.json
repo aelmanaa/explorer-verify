@@ -1,6 +1,6 @@
 {
   "name": "@explorer-verify/hardhat",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Find a contract's build files in a Hardhat 2 or Hardhat 3 project and build its explorer-verify input.",
   "keywords": [
     "ethereum",

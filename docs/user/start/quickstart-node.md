@@ -2,7 +2,7 @@
 
 Check a deployed contract from a Node.js script, without an API key.
 
-Version: explorer-verify 0.2.0
+Version: explorer-verify 0.2.1
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 

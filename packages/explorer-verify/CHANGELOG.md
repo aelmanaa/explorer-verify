@@ -1,5 +1,11 @@
 # explorer-verify
 
+## 0.2.1
+
+### Patch Changes
+
+- [#374](https://github.com/aelmanaa/explorer-verify/pull/374) [`8c72179`](https://github.com/aelmanaa/explorer-verify/commit/8c72179b3e304c3c47c3b5083efd427b17dfe52c) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The docs site has a sitemap, page descriptions, social tags, an icon and a social preview image.
+
 ## 0.2.0
 
 ### Minor Changes

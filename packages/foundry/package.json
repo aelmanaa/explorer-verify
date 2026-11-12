@@ -1,6 +1,6 @@
 {
   "name": "@explorer-verify/foundry",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Find a contract's build files in a Foundry project and build the explorer-verify input from them.",
   "keywords": [
     "ethereum",
