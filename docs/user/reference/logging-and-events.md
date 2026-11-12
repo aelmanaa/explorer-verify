@@ -188,14 +188,17 @@ release adds a type:
 ```ts [on-event.ts]
 import type { VerifyEvent } from "explorer-verify";
 
-// Your code: keep the handle, print retries, and fail to compile when a release adds a type.
+// Your code: keep the handle, print retries, and fail to compile when a release
+// adds a type.
 function onEvent(event: VerifyEvent): void {
   switch (event.type) {
     case "verify.submitted":
       localStorage.setItem("pending-verification", event.handle);
       break;
     case "verify.retry":
-      console.warn(`retry ${event.attempt} in ${event.delayMs} ms: ${event.reason}`);
+      console.warn(
+        `retry ${event.attempt} in ${event.delayMs} ms: ${event.reason}`,
+      );
       break;
     case "verify.validated":
     case "verify.routed":

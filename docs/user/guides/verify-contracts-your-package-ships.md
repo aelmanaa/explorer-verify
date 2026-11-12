@@ -76,6 +76,8 @@ holds a local path. Keep each source's exact bytes: do not run the files through
 Before you publish, check that the files load and route. This dry run builds the input from them
 for the sample Greeter on Sepolia:
 
+<!-- code-width: an import with attributes does not break -->
+
 ```ts [dry-run.ts]
 import { buildVerifyInput, dryRun } from "explorer-verify";
 
@@ -125,7 +127,9 @@ bytecode:
 import { buildVerifyInput, verify } from "explorer-verify";
 import type { Hex, VerifyOptions, VerifyResult } from "explorer-verify";
 
-/** Verifies a Greeter this package deployed. The application picks the options. */
+/**
+ * Verifies a Greeter this package deployed. The application picks the options.
+ */
 export async function verifyGreeter(
   deployment: { chainId: number; address: Hex; creationTxHash: Hex },
   options?: VerifyOptions,
@@ -143,7 +147,8 @@ export async function verifyGreeter(
 const result = await verifyGreeter({
   chainId: 11155111,
   address: "0x8275D36F64F047D2D8a1F42c79Bf80Caea39D7cC",
-  creationTxHash: "0xbde6884cf580e2b10b46bf5f02138b989ad23b0d1619700baf46ee3cc1f31cf2",
+  creationTxHash:
+    "0xbde6884cf580e2b10b46bf5f02138b989ad23b0d1619700baf46ee3cc1f31cf2",
 });
 if (result.status === "failed") {
   console.error(`Rejected: ${result.reason}`);
@@ -198,6 +203,8 @@ key the call goes to Sourcify. [Routing](../reference/routing.md#how-a-chain-res
 full rule.
 
 On a backend, pass the Etherscan key in `apiKeys`, and the Sepolia call goes to Etherscan:
+
+<!-- code-width: an import with attributes does not break -->
 
 ```ts [verify-with-etherscan.ts]
 import { buildVerifyInput, verify } from "explorer-verify";

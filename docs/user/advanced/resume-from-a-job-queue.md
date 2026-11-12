@@ -29,7 +29,9 @@ import type { VerifyOptions } from "explorer-verify";
 type ApiKeys = NonNullable<VerifyOptions["apiKeys"]>;
 
 /** The same keys as the submit used. An empty variable counts as unset. */
-function apiKeysFrom(env: Readonly<Record<string, string | undefined>>): ApiKeys {
+function apiKeysFrom(
+  env: Readonly<Record<string, string | undefined>>,
+): ApiKeys {
   const etherscan = env["ETHERSCAN_API_KEY"] ?? "";
   return etherscan === "" ? {} : { "etherscan-v2": etherscan };
 }
@@ -43,7 +45,10 @@ export async function statusJob(handle: string): Promise<"done" | "again"> {
     console.log(`${result.status} on ${result.backend}`);
     return "done";
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
       return "again";
     }
     throw error;

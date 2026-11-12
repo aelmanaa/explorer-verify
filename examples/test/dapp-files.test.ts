@@ -36,7 +36,9 @@ interface Tutorial {
 const RUN_ON_SAMPLE = [
   "// Runs the module once on the sample. In the page, call it from a button.",
   'const { validateInput } = await import("explorer-verify");',
-  'const sample = await import("./greeter-sepolia.json", { with: { type: "json" } });',
+  'const sample = await import("./greeter-sepolia.json", {',
+  '  with: { type: "json" },',
+  "});",
   "await verifyOnSourcify(validateInput(sample.default), console.log);",
   "",
 ].join("\n");

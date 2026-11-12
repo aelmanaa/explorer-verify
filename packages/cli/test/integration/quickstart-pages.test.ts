@@ -24,7 +24,7 @@ import { PROJECT, runBin } from "../helpers/spawn-bin.ts";
 const TIMEOUT = { timeout: 30_000 };
 const START = new URL("../../../../docs/user/start/", import.meta.url);
 const SAMPLE = "greeter-sepolia.json";
-const SAMPLE_URL = `https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/${SAMPLE}`;
+const REPO_URL = "https://raw.githubusercontent.com/aelmanaa/explorer-verify/main";
 const PAGES = ["quickstart-cli.md", "quickstart-foundry.md", "quickstart-hardhat.md"];
 /** The most steps a quickstart may have. */
 const MAX_STEPS = 5;
@@ -81,7 +81,10 @@ for (const name of PAGES) {
 
     it("starts with the download of the shipped sample request", () => {
       const first = blocks(page)[0];
-      assert.equal(first?.code, `curl -fsSLO \\\n  ${SAMPLE_URL}\n`);
+      assert.equal(
+        first?.code,
+        `repo=${REPO_URL}\ncurl -fsSLO "$repo/docs/user/start/${SAMPLE}"\n`,
+      );
     });
 
     it("runs every command through npx: a dry run on the sample, then a verify", () => {

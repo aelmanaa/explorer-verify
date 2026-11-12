@@ -89,33 +89,39 @@ route a standard `Request` and sends the `Response` it returns.
 The route:
 
 ```ts [app/api/verify/route.ts]
-// The explorer-verify server handler as a Next.js App Router route handler: POST /api/verify.
-// Guide: docs/user/guides/run-the-server-handler.md
+// The explorer-verify server handler as a Next.js App Router route handler:
+// POST /api/verify. Guide: docs/user/guides/run-the-server-handler.md
 //
-// The Etherscan key comes from the server's environment, ETHERSCAN_API_KEY. Next.js exposes a
-// variable to the browser only when its name starts with NEXT_PUBLIC_, so never give the key that
-// prefix.
+// The Etherscan key comes from the server's environment, ETHERSCAN_API_KEY.
+// Next.js exposes a variable to the browser only when its name starts with
+// NEXT_PUBLIC_, so never give the key that prefix.
 import { createVerifyHandler } from "explorer-verify/server";
-import type { RateLimit, VerifyHandler, VerifyHandlerOptions } from "explorer-verify/server";
+import type {
+  RateLimit,
+  VerifyHandler,
+  VerifyHandlerOptions,
+} from "explorer-verify/server";
 
-// Node.js is the default runtime of a route handler; Next.js marks `edge` as deprecated.
+// Node.js is the default runtime of a route handler; Next.js marks `edge` as
+// deprecated.
 export const runtime = "nodejs";
 
 /** The chains the dapp verifies on. A request for another chain gets 403. */
 const CHAINS: readonly number[] = [1, 11155111, 421614];
 
 /**
- * The largest request body, in bytes. 8 MiB is the handler's default; raise it if a contract's
- * Standard JSON input, form-encoded, is larger.
+ * The largest request body, in bytes. 8 MiB is the handler's default; raise it
+ * if a contract's Standard JSON input, form-encoded, is larger.
  */
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 /**
- * The `rateLimit` hook: returns `false`, so the handler answers 429 `rate-limited`, for a request
- * that a browser marks as sent from another site. The dapp's pages call this route from their own
- * origin. CORS does not stop another site's page from sending a form POST; this check does, but
- * only in a browser. A script outside a browser can send any header, so `deployers` and your own
- * sign-in are what limit use of the key.
+ * The `rateLimit` hook: returns `false`, so the handler answers 429
+ * `rate-limited`, for a request that a browser marks as sent from another site.
+ * The dapp's pages call this route from their own origin. CORS does not stop
+ * another site's page from sending a form POST; this check does, but only in a
+ * browser. A script outside a browser can send any header, so `deployers` and
+ * your own sign-in are what limit use of the key.
  */
 const sameOrigin: RateLimit = (request) => {
   const site = request.headers.get("sec-fetch-site");
@@ -123,10 +129,13 @@ const sameOrigin: RateLimit = (request) => {
 };
 
 /**
- * The addresses whose contracts this route may verify, from VERIFY_DEPLOYERS, comma-separated.
- * Unset, any contract on `CHAINS` may be verified with your key.
+ * The addresses whose contracts this route may verify, from VERIFY_DEPLOYERS,
+ * comma-separated. Unset, any contract on `CHAINS` may be verified with your
+ * key.
  */
-function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deployers"> {
+function deployers(
+  value: string | undefined,
+): Pick<VerifyHandlerOptions, "deployers"> {
   const list = (value ?? "")
     .split(",")
     .map((address) => address.trim())
@@ -137,8 +146,9 @@ function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deplo
 let handler: VerifyHandler | undefined;
 
 /**
- * Creates the handler on the first request. Next.js loads the module during `next build`, where
- * the key may be absent; created then, the handler would throw `invalid-input` and fail the build.
+ * Creates the handler on the first request. Next.js loads the module during
+ * `next build`, where the key may be absent; created then, the handler would
+ * throw `invalid-input` and fail the build.
  */
 function verifyHandler(): VerifyHandler {
   handler ??= createVerifyHandler({
@@ -199,15 +209,16 @@ the configuration, not both. Keep the file out of git.
 The configuration:
 
 ```jsonc [wrangler.jsonc]
-// Wrangler configuration of the verify handler Worker.
-// The Etherscan key is a secret, never a var: `npx wrangler secret put ETHERSCAN_API_KEY`.
-// For `wrangler dev`, put it in a .dev.vars file next to this one, and keep that file out of git.
+// Wrangler configuration of the verify handler Worker. The Etherscan key is a
+// secret, never a var: `npx wrangler secret put ETHERSCAN_API_KEY`. For
+// `wrangler dev`, put it in a .dev.vars file next to this one, and keep that
+// file out of git.
 {
   "name": "explorer-verify-handler",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-04",
-  // request.signal fires when the client disconnects, so the handler stops its upstream request.
-  // The default from compatibility date 2026-11-17 on.
+  // request.signal fires when the client disconnects, so the handler stops its
+  // upstream request. The default from compatibility date 2026-11-17 on.
   "compatibility_flags": ["enable_request_signal"],
   "vars": {
     "ALLOWED_ORIGIN": "https://your-dapp.example",
@@ -224,17 +235,27 @@ The Worker:
 // The explorer-verify server handler as a Cloudflare Worker: POST /api/verify.
 // Guide: docs/user/guides/run-the-server-handler.md
 //
-// The Etherscan key is a Worker secret: `npx wrangler secret put ETHERSCAN_API_KEY`. The dapp runs
-// on another origin, ALLOWED_ORIGIN in wrangler.jsonc, so this Worker answers CORS for that origin
-// only.
+// The Etherscan key is a Worker secret: `npx wrangler secret put
+// ETHERSCAN_API_KEY`. The dapp runs on another origin, ALLOWED_ORIGIN in
+// wrangler.jsonc, so this Worker answers CORS for that origin only.
 import { createVerifyHandler } from "explorer-verify/server";
-import type { RateLimit, VerifyHandler, VerifyHandlerOptions } from "explorer-verify/server";
+import type {
+  RateLimit,
+  VerifyHandler,
+  VerifyHandlerOptions,
+} from "explorer-verify/server";
 
-/** The bindings this Worker reads. `npx wrangler types` can generate this interface. */
+/**
+ * The bindings this Worker reads. `npx wrangler types` can generate this
+ * interface.
+ */
 export interface Env {
   /** A secret, set with `wrangler secret put`. Never in `vars`. */
   readonly ETHERSCAN_API_KEY: string;
-  /** The dapp's origin, such as `https://your-dapp.example`. A plain var in wrangler.jsonc. */
+  /**
+   * The dapp's origin, such as `https://your-dapp.example`. A plain var in
+   * wrangler.jsonc.
+   */
   readonly ALLOWED_ORIGIN: string;
   /** Optional: comma-separated addresses whose contracts may be verified. */
   readonly VERIFY_DEPLOYERS?: string;
@@ -244,14 +265,19 @@ export interface Env {
 const ROUTE = "/api/verify";
 /** The chains the dapp verifies on. A request for another chain gets 403. */
 const CHAINS: readonly number[] = [1, 11155111, 421614];
-/** The largest request body, in bytes: the handler's default, set here to show the option. */
+/**
+ * The largest request body, in bytes: the handler's default, set here to show
+ * the option.
+ */
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 /**
- * The `rateLimit` hook: returns `false`, so the handler answers 429 `rate-limited`, for a request
- * that a browser sends from any origin but the dapp's. CORS does not stop another site's page from
- * sending a form POST; this check does, but only in a browser. A script outside a browser can send
- * any `Origin` header, so `deployers` and your own sign-in are what limit use of the key.
+ * The `rateLimit` hook: returns `false`, so the handler answers 429
+ * `rate-limited`, for a request that a browser sends from any origin but the
+ * dapp's. CORS does not stop another site's page from sending a form POST; this
+ * check does, but only in a browser. A script outside a browser can send any
+ * `Origin` header, so `deployers` and your own sign-in are what limit use of
+ * the key.
  * @param allowedOrigin The dapp's origin.
  * @returns The `rateLimit` hook.
  */
@@ -265,11 +291,14 @@ function fromDapp(allowedOrigin: string): RateLimit {
 }
 
 /**
- * The `deployers` option from a comma-separated list; none when the list is empty.
+ * The `deployers` option from a comma-separated list; none when the list is
+ * empty.
  * @param value The VERIFY_DEPLOYERS binding.
  * @returns The option, or no option.
  */
-function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deployers"> {
+function deployers(
+  value: string | undefined,
+): Pick<VerifyHandlerOptions, "deployers"> {
   const list = (value ?? "")
     .split(",")
     .map((address) => address.trim())
@@ -278,8 +307,8 @@ function deployers(value: string | undefined): Pick<VerifyHandlerOptions, "deplo
 }
 
 /**
- * One handler per `env` object. The runtime may pass the same `env` to many requests, so the
- * handler and its checked options are reused.
+ * One handler per `env` object. The runtime may pass the same `env` to many
+ * requests, so the handler and its checked options are reused.
  */
 const handlers = new WeakMap<Env, VerifyHandler>();
 
@@ -306,14 +335,17 @@ function handlerFor(env: Env): VerifyHandler {
 }
 
 /**
- * The CORS headers for a request from the dapp's origin, or none for any other origin. The dapp
- * may read `Retry-After`, which the handler sets on a 503 `address-not-indexed` and passes on with
- * a 429 `upstream-rate-limited`.
+ * The CORS headers for a request from the dapp's origin, or none for any other
+ * origin. The dapp may read `Retry-After`, which the handler sets on a 503
+ * `address-not-indexed` and passes on with a 429 `upstream-rate-limited`.
  * @param request The request.
  * @param allowedOrigin The dapp's origin.
  * @returns The headers to add.
  */
-function corsHeaders(request: Request, allowedOrigin: string): Record<string, string> {
+function corsHeaders(
+  request: Request,
+  allowedOrigin: string,
+): Record<string, string> {
   return request.headers.get("origin") === allowedOrigin
     ? {
         "access-control-allow-origin": allowedOrigin,
@@ -325,8 +357,8 @@ function corsHeaders(request: Request, allowedOrigin: string): Record<string, st
 
 export default {
   /**
-   * Answers the CORS preflight itself, passes POST /api/verify to the handler, and adds the CORS
-   * headers to its answer.
+   * Answers the CORS preflight itself, passes POST /api/verify to the handler,
+   * and adds the CORS headers to its answer.
    * @param request The incoming request.
    * @param env The Worker's bindings.
    * @returns The response.
@@ -337,7 +369,8 @@ export default {
     }
     const cors = corsHeaders(request, env.ALLOWED_ORIGIN);
     if (request.method === "OPTIONS") {
-      // A form POST needs no preflight; this answers one if a browser sends it anyway.
+      // A form POST needs no preflight; this answers one if a browser sends it
+      // anyway.
       return new Response(null, {
         status: 204,
         headers: {
@@ -407,18 +440,21 @@ Greeter. A refusal such as `chain-not-allowed` throws
 For the Next.js route, `verify()` takes the path `/api/verify`:
 
 ```ts [lib/verify-client.ts]
-// The browser side of the Next.js example: verify() with handlerUrl, which sends each Etherscan
-// request to the route in app/api/verify/route.ts. The browser holds no key.
-// Guide: docs/user/guides/run-the-server-handler.md
+// The browser side of the Next.js example: verify() with handlerUrl, which
+// sends each Etherscan request to the route in app/api/verify/route.ts. The
+// browser holds no key. Guide: docs/user/guides/run-the-server-handler.md
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
 /**
- * Verifies a contract on Etherscan from the browser, through the route, which adds the key.
+ * Verifies a contract on Etherscan from the browser, through the route, which
+ * adds the key.
  * @param input The contract and its compiler input.
  * @returns The verification result.
  */
-export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResult> {
+export async function verifyFromBrowser(
+  input: VerifyInput,
+): Promise<VerifyResult> {
   return await verify(input, { handlerUrl: "/api/verify" });
 }
 ```
@@ -426,9 +462,10 @@ export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResul
 For the Worker, it takes the Worker's full URL:
 
 ```ts [client/verify-client.ts]
-// The browser side of the Cloudflare example: verify() in the dapp, with handlerUrl, which sends
-// each Etherscan request to the Worker on its own origin. The browser holds no key.
-// Guide: docs/user/guides/run-the-server-handler.md
+// The browser side of the Cloudflare example: verify() in the dapp, with
+// handlerUrl, which sends each Etherscan request to the Worker on its own
+// origin. The browser holds no key. Guide:
+// docs/user/guides/run-the-server-handler.md
 import { verify } from "explorer-verify";
 import type { VerifyInput, VerifyResult } from "explorer-verify";
 
@@ -436,11 +473,14 @@ import type { VerifyInput, VerifyResult } from "explorer-verify";
 export const WORKER_URL = "https://verify.your-dapp.example/api/verify";
 
 /**
- * Verifies a contract on Etherscan from the browser, through the Worker, which adds the key.
+ * Verifies a contract on Etherscan from the browser, through the Worker, which
+ * adds the key.
  * @param input The contract and its compiler input.
  * @returns The verification result.
  */
-export async function verifyFromBrowser(input: VerifyInput): Promise<VerifyResult> {
+export async function verifyFromBrowser(
+  input: VerifyInput,
+): Promise<VerifyResult> {
   return await verify(input, { handlerUrl: WORKER_URL });
 }
 ```

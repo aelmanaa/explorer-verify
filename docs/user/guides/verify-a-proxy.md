@@ -97,7 +97,9 @@ if (result.status === "linked") {
     console.log("verify the implementation, then call linkProxy() again");
   }
 } else if (result.status === "mismatch") {
-  console.log(`the proxy points at ${result.implementation ?? "another address"}`);
+  console.log(
+    `the proxy points at ${result.implementation ?? "another address"}`,
+  );
 } else {
   console.log(`not linked: ${result.reason}`);
 }
@@ -176,7 +178,10 @@ try {
 } catch (error) {
   if (ExplorerVerifyError.is(error, "proxy-link-pending")) {
     // Store error.details.jobId; later, or after a reload:
-    const result = await linkProxy(target, { ...options, resumeJobId: error.details.jobId });
+    const result = await linkProxy(target, {
+      ...options,
+      resumeJobId: error.details.jobId,
+    });
     console.log(result.status);
   }
 }

@@ -71,7 +71,8 @@ const input = validateInput(JSON.parse(text));
 const result = await verify(input, {
   route: {
     backend: "routescan",
-    apiUrl: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api",
+    apiUrl:
+      "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api",
   },
 });
 console.log(result.status);
@@ -156,6 +157,8 @@ network, such as `mainnet` for Fuji.
 ## Rate limits
 
 Over its limit Routescan answers HTTP 429 with this body, with or without a key:
+
+<!-- code-width: JSON strings do not break -->
 
 ```json
 {

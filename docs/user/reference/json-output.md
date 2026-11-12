@@ -91,6 +91,8 @@ A result the explorer rejected:
 
 An error, here a job still pending:
 
+<!-- code-width: JSON strings do not break -->
+
 ```json
 {
   "schemaVersion": 1,
@@ -256,6 +258,8 @@ command would need more:
 - a run that read its key from a key flag. Its hint then says to add the same flag.
 
 A `not-confirmed` error from the CLI:
+
+<!-- code-width: JSON strings do not break -->
 
 ```json
 {

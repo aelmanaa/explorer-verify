@@ -78,7 +78,9 @@ import { readFile, writeFile } from "node:fs/promises";
 
 import { buildVerifyInput, validateInput } from "explorer-verify";
 
-const artifact: unknown = JSON.parse(await readFile("out/Greeter.sol/Greeter.json", "utf8"));
+const artifact: unknown = JSON.parse(
+  await readFile("out/Greeter.sol/Greeter.json", "utf8"),
+);
 const built = buildVerifyInput([artifact], {
   sources: {
     "src/Base.sol": await readFile("src/Base.sol", "utf8"),
@@ -147,14 +149,16 @@ function storeHandle(handle: string): void {
   try {
     writeFileSync(HANDLE_FILE, handle);
   } catch {
-    console.error(`Could not store the handle. Stop and give it to the person: ${handle}`);
+    console.error(
+      `Could not store the handle. Stop and give it to the person: ${handle}`,
+    );
   }
 }
 
 const controller = new AbortController();
 process.once("SIGINT", () => controller.abort());
-// The same options go to verify() and checkStatus(), so a `route`, if you add one, is the same
-// for the submit and the resume.
+// The same options go to verify() and checkStatus(), so a `route`, if you add
+// one, is the same for the submit and the resume.
 const options: VerifyOptions = {
   signal: controller.signal,
   timeoutMs: 120_000,
@@ -165,7 +169,8 @@ const options: VerifyOptions = {
   },
 };
 
-// A stored handle means an earlier run submitted: resume it, never submit again.
+// A stored handle means an earlier run submitted: resume it, never submit
+// again.
 const pending = existsSync(HANDLE_FILE)
   ? parseHandle(readFileSync(HANDLE_FILE, "utf8").trim())
   : undefined;
@@ -173,7 +178,10 @@ const pending = existsSync(HANDLE_FILE)
 try {
   const result: VerifyResult =
     pending === undefined
-      ? await verify(validateInput(JSON.parse(readFileSync("verify-input.json", "utf8"))), options)
+      ? await verify(
+          validateInput(JSON.parse(readFileSync("verify-input.json", "utf8"))),
+          options,
+        )
       : await checkStatus(pending, options);
   rmSync(HANDLE_FILE, { force: true });
   if (result.status === "failed") {
@@ -192,7 +200,8 @@ try {
     } else {
       rmSync(HANDLE_FILE, { force: true });
     }
-    // The code, the handle when there is one, and the hint. Never the cause or the stack.
+    // The code, the handle when there is one, and the hint. Never the cause or
+    // the stack.
     const json = error.toJSON();
     console.log(json.code, json.handle ?? "-", json.hint);
     process.exitCode = exitCodeOf(error);
@@ -264,15 +273,18 @@ import { ExplorerVerifyError, validateInput, verify } from "explorer-verify";
 import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
 import type { VerifyOutcome } from "explorer-verify/envelope";
 
-// Logs the method, host and path of each request, never the query string, where keys go.
-// It passes `init` through unchanged, so the library's `redirect: "manual"` still applies.
+// Logs the method, host and path of each request, never the query string, where
+// keys go. It passes `init` through unchanged, so the library's `redirect:
+// "manual"` still applies.
 const loggingFetch: typeof fetch = async (request, init) => {
   const url = new URL(request instanceof Request ? request.url : request);
   console.error(`${init?.method ?? "GET"} ${url.host}${url.pathname}`);
   return fetch(request, init);
 };
 
-const input = validateInput(JSON.parse(await readFile("verify-input.json", "utf8")));
+const input = validateInput(
+  JSON.parse(await readFile("verify-input.json", "utf8")),
+);
 let outcome: VerifyOutcome;
 try {
   outcome = await verify(input, { fetch: loggingFetch });
@@ -386,7 +398,9 @@ file, only for build files outside a project:
 
 ```sh
 # exit code 0
-explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --dry-run --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
+  --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
+  --dry-run --json
 ```
 
 It prints:
@@ -416,7 +430,10 @@ the lookup:
 
 ```sh
 # exit code 0
-explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api --dry-run --json
+explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
+  --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
+  --backend etherscan-v2 --api-url https://api.etherscan.io/v2/api \
+  --dry-run --json
 ```
 
 It prints:

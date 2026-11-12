@@ -25,8 +25,8 @@ npm pkg set type=module
 Download a request for a Greeter contract that is already verified on Sepolia:
 
 ```sh
-curl -O \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
+curl -O "$repo/docs/user/start/greeter-sepolia.json"
 ```
 
 ## 3. Write the dry run

@@ -3,17 +3,22 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import {
   checkDocsStyle,
+  CODE_WIDTH_EXEMPTION,
+  CODE_WIDTH_FILES,
   codeSpansPerSentence,
+  codeWidthProblems,
   densityReport,
   isGuide,
   LEGACY_MARKER,
   legacyLine,
   MAX_AVERAGE,
   MAX_CODE_SPANS,
+  MAX_CODE_WIDTH,
   MAX_WORDS,
   pageDensity,
   styleProblems,
   wordCount,
+  WRAPPED_LANGUAGES,
 } from "../docs-style.ts";
 import { makeFixture, removeFixture, writeFiles } from "./fixture.ts";
 
@@ -236,6 +241,76 @@ describe("styleProblems", () => {
   });
 });
 
+/** A code line of `width` characters. */
+function line(width: number): string {
+  return "x".repeat(width);
+}
+
+/** The problems without the style guide suffix. */
+function strip(problems: string[]): string[] {
+  return problems.map((problem) => problem.replace(/ \(docs\/contributor\/docs-style\.md\)$/, ""));
+}
+
+describe("codeWidthProblems", () => {
+  it(`passes code lines of ${MAX_CODE_WIDTH} characters and fewer`, () => {
+    assert.deepEqual(codeWidthProblems("a.md", `Run:\n\n\`\`\`sh\n${line(80)}\n\`\`\`\n`), []);
+    // A character outside the BMP counts once.
+    assert.deepEqual(codeWidthProblems("a.md", `\`\`\`ts\n${"é".repeat(79)}😀\n\`\`\`\n`), []);
+  });
+
+  it(`fails a code line over ${MAX_CODE_WIDTH} characters, naming the file and line`, () => {
+    assert.deepEqual(
+      strip(codeWidthProblems("a.md", `Run:\n\n\`\`\`sh\nls\n${line(81)}\n\`\`\`\n`)),
+      [
+        "a.md:5: a code line of 81 characters; wrap it at 80, a shell line with \\, or put <!-- code-width: the reason --> before the block",
+      ],
+    );
+    // A fence indented in a list item, and a guide with a long line.
+    assert.deepEqual(
+      strip(codeWidthProblems("a.md", `- Run:\n\n  \`\`\`json\n  ${line(79)}\n  \`\`\`\n`)),
+      [
+        "a.md:4: a code line of 81 characters; wrap it at 80, a shell line with \\, or put <!-- code-width: the reason --> before the block",
+      ],
+    );
+    assert.deepEqual(problemsWith("  --chain 11155111 --dry-run --json", `  ${line(90)}`), [
+      `${FILE}:17: a code line of 92 characters; wrap it at 80, a shell line with \\, or put <!-- code-width: the reason --> before the block`,
+    ]);
+  });
+
+  it("lets a text block hold longer lines: it holds program output as printed", () => {
+    assert.ok(WRAPPED_LANGUAGES.has("text"));
+    assert.deepEqual(codeWidthProblems("a.md", `\`\`\`text\n${line(200)}\n\`\`\`\n`), []);
+    assert.deepEqual(problemsWith('{"ok":true}', `{"ok":true,"x":"${line(100)}"}`), []);
+  });
+
+  it("lets a block with a code-width comment before it hold longer lines", () => {
+    const exempt = `<!-- code-width: JSON strings do not break -->\n\n\`\`\`json\n"${line(90)}"\n\`\`\`\n`;
+    assert.deepEqual(codeWidthProblems("a.md", exempt), []);
+    // The comment covers only the next block, and needs a reason.
+    assert.equal(
+      codeWidthProblems("a.md", `${exempt}\n\`\`\`json\n"${line(90)}"\n\`\`\`\n`).length,
+      1,
+    );
+    assert.equal(
+      codeWidthProblems("a.md", exempt.replace("JSON strings do not break", "")).length,
+      1,
+    );
+    assert.ok(CODE_WIDTH_EXEMPTION.test("<!-- code-width: why -->"));
+  });
+
+  it("fails a code-width comment on a block that needs none", () => {
+    const unused = `Text:\n\n<!-- code-width: why -->\n\`\`\`sh\nls\n\`\`\`\n`;
+    assert.deepEqual(strip(codeWidthProblems("a.md", unused)), [
+      "a.md:3: a code-width exemption on a block with no line over 80 characters; remove it",
+    ]);
+    assert.equal(
+      codeWidthProblems("a.md", `<!-- code-width: why -->\n\`\`\`text\n${line(99)}\n\`\`\`\n`)
+        .length,
+      1,
+    );
+  });
+});
+
 describe("the counts", () => {
   it("counts words: a code span or a link text as written", () => {
     assert.equal(wordCount("Run `npx @explorer-verify/cli verify` on [the page](x.md) — now."), 6);
@@ -283,5 +358,19 @@ describe("checkDocsStyle and densityReport", () => {
     assert.deepEqual(checkDocsStyle(root), [
       `${FILE}:51: a guide ends with a "Next steps" H2; the last H2 is "More" (docs/contributor/docs-style.md)`,
     ]);
+  });
+
+  it("checks the code width of the skills, llms.txt and the site's home page", () => {
+    const long = `Run:\n\n\`\`\`sh\n${"x".repeat(81)}\n\`\`\`\n`;
+    writeFiles(root, {
+      "skills/x/SKILL.md": long,
+      "llms.txt": `# X\n\n${long}`,
+      "site/pages/index.md": `---\nlayout: home\n---\n\n${long}`,
+    });
+    assert.deepEqual(
+      checkDocsStyle(root).map((problem) => problem.replace(/: a code line.*$/, "")),
+      ["skills/x/SKILL.md:4", "llms.txt:6", "site/pages/index.md:8"],
+    );
+    assert.deepEqual(CODE_WIDTH_FILES, ["llms.txt", "site/pages/index.md"]);
   });
 });

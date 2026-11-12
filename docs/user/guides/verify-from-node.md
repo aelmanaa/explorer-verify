@@ -35,7 +35,9 @@ import { readFile } from "node:fs/promises";
 import { dryRun, validateInput } from "explorer-verify";
 
 // validateInput() checks the parsed JSON and returns a typed VerifyInput.
-const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+const input = validateInput(
+  JSON.parse(await readFile("greeter-sepolia.json", "utf8")),
+);
 const plan = await dryRun(input);
 console.log(plan.status, plan.backend, plan.apiHost, plan.lookup);
 ```
@@ -63,7 +65,9 @@ import { readFile } from "node:fs/promises";
 
 import { validateInput, verify } from "explorer-verify";
 
-const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+const input = validateInput(
+  JSON.parse(await readFile("greeter-sepolia.json", "utf8")),
+);
 const etherscan = process.env["ETHERSCAN_API_KEY"] ?? "";
 const result = await verify(input, {
   apiKeys: etherscan === "" ? {} : { "etherscan-v2": etherscan },
@@ -101,11 +105,26 @@ queues the handle for a later job:
 ```ts [service.ts]
 import { readFile } from "node:fs/promises";
 
-import { ExplorerVerifyError, formatHandle, validateInput, verify } from "explorer-verify";
-import type { LogFields, Logger, VerifyEvent, VerifyInput } from "explorer-verify";
+import {
+  ExplorerVerifyError,
+  formatHandle,
+  validateInput,
+  verify,
+} from "explorer-verify";
+import type {
+  LogFields,
+  Logger,
+  VerifyEvent,
+  VerifyInput,
+} from "explorer-verify";
 
-/** One JSON line per log line, on stderr. The library removes keys before it calls the logger. */
-function jsonLine(level: string): (message: string, fields?: LogFields) => void {
+/**
+ * One JSON line per log line, on stderr. The library removes keys before it
+ * calls the logger.
+ */
+function jsonLine(
+  level: string,
+): (message: string, fields?: LogFields) => void {
   return (message, fields) => {
     process.stderr.write(`${JSON.stringify({ level, message, ...fields })}\n`);
   };
@@ -139,7 +158,10 @@ export async function verifyAndQueue(
       ? `failed on ${result.backend}: ${result.reason}`
       : `${result.status} on ${result.backend}`;
   } catch (error) {
-    if (error instanceof ExplorerVerifyError && error.code === "not-confirmed") {
+    if (
+      error instanceof ExplorerVerifyError &&
+      error.code === "not-confirmed"
+    ) {
       await queue.add(formatHandle(error.details.handle));
       return "queued for a status check";
     }
@@ -147,8 +169,11 @@ export async function verifyAndQueue(
   }
 }
 
-// Runs it once, with a queue that prints the handle. In your service, pass your own queue.
-const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+// Runs it once, with a queue that prints the handle. In your service, pass your
+// own queue.
+const input = validateInput(
+  JSON.parse(await readFile("greeter-sepolia.json", "utf8")),
+);
 const queue: Queue = {
   add: async (handle) => {
     console.log(`queued ${handle}`);
@@ -192,7 +217,9 @@ import { readFile } from "node:fs/promises";
 
 import { formatHandle, validateInput, verifyEach } from "explorer-verify";
 
-const input = validateInput(JSON.parse(await readFile("greeter-sepolia.json", "utf8")));
+const input = validateInput(
+  JSON.parse(await readFile("greeter-sepolia.json", "utf8")),
+);
 const { outcomes } = await verifyEach(input, {
   backends: ["etherscan-v2", "sourcify"],
   apiKeys: { "etherscan-v2": process.env["ETHERSCAN_API_KEY"] },
@@ -201,8 +228,10 @@ const { outcomes } = await verifyEach(input, {
 for (const outcome of outcomes) {
   if ("error" in outcome) {
     const { error } = outcome;
-    // A pending backend: resume it later with checkStatus(error.details.handle).
-    const handle = error.code === "not-confirmed" ? formatHandle(error.details.handle) : "";
+    // A pending backend: resume it later with
+    // checkStatus(error.details.handle).
+    const handle =
+      error.code === "not-confirmed" ? formatHandle(error.details.handle) : "";
     console.log(`${outcome.backend}: ${error.code} ${handle}`);
   } else {
     console.log(`${outcome.backend}: ${outcome.result.status}`);

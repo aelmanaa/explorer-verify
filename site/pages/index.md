@@ -50,8 +50,8 @@ The sample request names a Greeter that Sourcify already verified on Sepolia.
 A dry run looks it up and submits nothing:
 
 ```sh
-curl -fsSLO \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
+curl -fsSLO "$repo/docs/user/start/greeter-sepolia.json"
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```

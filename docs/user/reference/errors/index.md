@@ -138,6 +138,8 @@ Under the error line, the CLI lists the issues of `invalid-input` that the messa
 state, and the candidates or missing sources of `incomplete-input`. For example, with a build-info
 that holds two contracts and no `--contract`:
 
+<!-- code-width: the CLI prints the docs URL on one line -->
+
 ```console
 error: The documents hold 2 contracts and none was chosen. (incomplete-input)
   candidates: src/Base.sol:Base, src/Greeter.sol:Greeter
@@ -232,10 +234,14 @@ error's hint points to `docsUrl`:
 ```ts [wrapper-error.ts]
 import { ERROR_HINTS, ExplorerVerifyError } from "explorer-verify";
 
-const error = new ExplorerVerifyError({ code: "internal-error" }, "The wrapper failed.", {
-  hint: ERROR_HINTS["internal-error"],
-  secrets: [],
-});
+const error = new ExplorerVerifyError(
+  { code: "internal-error" },
+  "The wrapper failed.",
+  {
+    hint: ERROR_HINTS["internal-error"],
+    secrets: [],
+  },
+);
 ```
 
 ## API keys in errors

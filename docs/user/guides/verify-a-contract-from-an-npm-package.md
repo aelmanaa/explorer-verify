@@ -38,7 +38,10 @@ const read = async (file: string): Promise<unknown> =>
   JSON.parse(await readFile(require.resolve(`some-sdk/${file}`), "utf8"));
 
 const built = buildVerifyInput([
-  await read("artifacts/build-info/solc-0_8_24-e2aa41ca9499e8400cb1090c69ef55b1cafafa86.json"),
+  await read(
+    "artifacts/build-info/" +
+      "solc-0_8_24-e2aa41ca9499e8400cb1090c69ef55b1cafafa86.json",
+  ),
   await read("artifacts/contracts/Greeter.sol/Greeter.json"),
 ]);
 console.log(built.contractName);

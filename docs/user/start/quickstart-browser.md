@@ -26,8 +26,8 @@ npm install explorer-verify
 Download a request for a Greeter contract that is already verified on Sepolia:
 
 ```sh
-curl -o src/greeter-sepolia.json \
-  https://raw.githubusercontent.com/aelmanaa/explorer-verify/main/docs/user/start/greeter-sepolia.json
+repo=https://raw.githubusercontent.com/aelmanaa/explorer-verify/main
+curl -o src/greeter-sepolia.json "$repo/docs/user/start/greeter-sepolia.json"
 ```
 
 ## 3. Write the dry run
