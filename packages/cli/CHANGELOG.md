@@ -1,5 +1,14 @@
 # @explorer-verify/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`8c72179`](https://github.com/aelmanaa/explorer-verify/commit/8c72179b3e304c3c47c3b5083efd427b17dfe52c)]:
+  - explorer-verify@0.2.1
+  - @explorer-verify/foundry@0.2.1
+  - @explorer-verify/hardhat@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
