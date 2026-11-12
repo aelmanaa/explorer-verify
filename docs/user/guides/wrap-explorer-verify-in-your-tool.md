@@ -1,6 +1,6 @@
 # Wrap explorer-verify behind your tool's API
 
-Version: explorer-verify 0.1.0
+Version: explorer-verify 0.2.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 

@@ -1,5 +1,55 @@
 # @explorer-verify/hardhat
 
+## 0.2.0
+
+### Patch Changes
+
+- [#342](https://github.com/aelmanaa/explorer-verify/pull/342) [`a64a7aa`](https://github.com/aelmanaa/explorer-verify/commit/a64a7aa80a25f786d71bc5010c6ba8987f1cf8f1) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Each entry point's declaration file opens with a `@packageDocumentation` comment whose first line
+  says what the entry point is for. The API reference on the docs site shows that line next to each
+  entry point, and gives each exported function, class, type and constant a page of its own.
+
+- [#345](https://github.com/aelmanaa/explorer-verify/pull/345) [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Two hints name each value in words, with the field path only in parentheses. A missing artifacts folder gives "Compile the project first, or pass outDir with the artifacts folder of the Hardhat config (paths.artifacts)." A contract name that matches several artifacts gives "Pass the contract (options.contract) as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one of the candidates (details.candidates)."
+  
+  [#326](https://github.com/aelmanaa/explorer-verify/issues/326)
+
+- [#360](https://github.com/aelmanaa/explorer-verify/pull/360) [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15) Thanks [@aelmanaa](https://github.com/aelmanaa)! - A project folder that does not exist, is a file or cannot be read is now reported on `root`:
+  "The input is invalid: root is not a folder: it does not exist." The message never repeats the
+  path, since a path typed by mistake can hold a key. Both helpers use the same wording.
+  
+  The Hardhat helper checks `root` first, before the artifacts folder, even when `outDir` or
+  `artifact` is an absolute path. It no longer reports a missing `outDir` that the caller did not
+  pass.
+  
+  The Foundry helper's `invalid-input` messages now carry the issue text, as the Hardhat helper's
+  do: "The input is invalid: root is not a folder: …" instead of "The input is invalid: root." An
+  output directory that this process cannot read is now `outDir could not be read`, not
+  `outDir is not a directory`.
+  
+  The CLI names `--foundry` or `--hardhat` in the message and the issue, and its hint says to check
+  the folder instead of to compile the project:
+  
+  ```text
+  $ explorer-verify verify 0x… --chain 11155111 --hardhat no/such/project --contract contracts/A.sol:A --dry-run
+  error: The input is invalid: --hardhat is not a folder: it does not exist. (invalid-input)
+    hint: Check the folder that --hardhat names: it must exist and should hold the Hardhat config. Pass . for the current folder.
+  ```
+  
+  Without `--out-dir`, a project folder with no output folder, or one the CLI cannot read, now
+  names the project flag in the message too, for both Foundry and Hardhat: "The input is invalid:
+  --hardhat has no artifacts folder: build the project, or pass --out-dir." The message used to
+  name `--out-dir`, which the caller had not passed. The hint is unchanged.
+  
+  [#350](https://github.com/aelmanaa/explorer-verify/issues/350)
+
+- [#301](https://github.com/aelmanaa/explorer-verify/pull/301) [`9bb2f0f`](https://github.com/aelmanaa/explorer-verify/commit/9bb2f0f0e534365a078d7459e14dd58a4bd35684) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The READMEs and the Setup sections of the user guides now say how the supported Node.js range
+  changes: it follows Node's active and maintenance LTS lines, and a line is dropped when it reaches
+  end of life, in a minor release while the version is 0.x. Node 22 reaches end of life on
+  2027-04-30. Node 20 is not supported. `engines.node` stays `>=22.18.0`.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/291
+- Updated dependencies [[`acd9ffd`](https://github.com/aelmanaa/explorer-verify/commit/acd9ffd171e26af0802b6a68ba0d221988e752cf), [`a64a7aa`](https://github.com/aelmanaa/explorer-verify/commit/a64a7aa80a25f786d71bc5010c6ba8987f1cf8f1), [`c1ef895`](https://github.com/aelmanaa/explorer-verify/commit/c1ef895ef2865b5b56c05ab7c16659ac1b69a8d6), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`72de386`](https://github.com/aelmanaa/explorer-verify/commit/72de38635010c26a34014f3fe2256585e1eab09e), [`1162d86`](https://github.com/aelmanaa/explorer-verify/commit/1162d86dbc4adde5dad787c262965488f21ffcaa), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672), [`015930d`](https://github.com/aelmanaa/explorer-verify/commit/015930dc9993cd6cfb050374322076d702624225), [`c3e5ed8`](https://github.com/aelmanaa/explorer-verify/commit/c3e5ed8f5bceac042246390f42a80c4cb051ebaa), [`9bb2f0f`](https://github.com/aelmanaa/explorer-verify/commit/9bb2f0f0e534365a078d7459e14dd58a4bd35684), [`6ad0688`](https://github.com/aelmanaa/explorer-verify/commit/6ad0688bd6e50a3356718fe5aaaa4c524554ded8), [`899e945`](https://github.com/aelmanaa/explorer-verify/commit/899e9454200f67106881efe6eefa5e767875e7a8), [`93488b4`](https://github.com/aelmanaa/explorer-verify/commit/93488b4db2ca5b04d5fca6381986a6a877e7ee15), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`1a2c786`](https://github.com/aelmanaa/explorer-verify/commit/1a2c786f76dedeef3286f3bbdc8926bdea03a155), [`2c317c0`](https://github.com/aelmanaa/explorer-verify/commit/2c317c0a37872c3b92292f48af56610d4d522e54), [`ec55dde`](https://github.com/aelmanaa/explorer-verify/commit/ec55ddede0e935d3ce77f6566cae89c57cfbdea6), [`fba3a2a`](https://github.com/aelmanaa/explorer-verify/commit/fba3a2a74b8ccfeabb812b42d033009cf473326d), [`7ee0497`](https://github.com/aelmanaa/explorer-verify/commit/7ee049753c0162a44b2f6e61b9c9b5cd263c4b0d), [`1ef1660`](https://github.com/aelmanaa/explorer-verify/commit/1ef16609b9ea50793970ef4565460d4916496672)]:
+  - explorer-verify@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

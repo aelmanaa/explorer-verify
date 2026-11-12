@@ -24,5 +24,6 @@
   "constructor-args-unavailable": "0.1.0",
   "proxy-link-pending": "0.1.0",
   "proxy-link-unknown-state": "0.1.0",
-  "handler-refused": "0.1.0"
+  "handler-refused": "0.1.0",
+  "not-indexed": "0.2.0"
 }
