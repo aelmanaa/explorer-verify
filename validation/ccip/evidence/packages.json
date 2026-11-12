@@ -1,10 +1,6 @@
 {
-  "candidate": "df036c7245c1baefa869478c7a5a00ca5366d8a2",
-  "coreVersion": "0.1.0",
-  "tarballs": {
-    "explorer-verify-0.1.0.tgz": "aad064c41bf9eed356f9368d41b9936e15fc38ea0a257bd39fe5af799ba46bda",
-    "explorer-verify-cli-0.1.0.tgz": "58a35deef0f9a5dbb493aee521b4f3ebcc106f14e04e9d2f1d50a2f3c1e22a43",
-    "explorer-verify-foundry-0.1.0.tgz": "d8a722260989e8017e82b7c4d9a5baa5143812f22f6d7eb16982d2deea943fe7",
-    "explorer-verify-hardhat-0.1.0.tgz": "e7f40427fa9c2a6e2cae6a090b56938d586ad80ebcae8069531e1059e647e6b1"
-  }
+  "source": "npm",
+  "coreVersion": "0.2.1",
+  "resolved": "https://registry.npmjs.org/explorer-verify/-/explorer-verify-0.2.1.tgz",
+  "integrity": "sha512-QEENH68rKj12xhjG7KxNnxTN3mq4oN/SnTbUmp3RDsuSBjo5GwV1gdrfS+uS74xCmguKUPEIv3s7gtEGHkiR+Q=="
 }

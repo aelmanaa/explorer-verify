@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "explorer-verify": "file:./candidate.tgz",
+    "explorer-verify": "0.2.1",
     "ethers": "6.15.0"
   }
 }

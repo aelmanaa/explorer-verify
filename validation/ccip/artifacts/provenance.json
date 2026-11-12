@@ -32,5 +32,40 @@
       "source": "ccip-sdk/src/cct/evm/token-pool/bytecodes/BurnMintTokenPool.ts",
       "sha256": "7f20418b84756834cf9a5b8e92393dc885964110a7fcf5b58c7f10fbb037e91a"
     }
-  ]
+  ],
+  "checkedAgainst": {
+    "date": "2026-11-12",
+    "note": "The creation bytecode on SDK main and in the npm package is the same hex string as the vendored bytecode. hexSha256 is the SHA-256 of the 0x-prefixed hex string.",
+    "sdkMain": {
+      "commit": "053a92eda662e62af03d73d0345a40dcb44fd479",
+      "files": [
+        {
+          "vendored": "BurnMintTokenPool.bytecode.ts",
+          "source": "ccip-sdk/src/cct/evm/artifacts/bytecode/V2_0_0/burn-mint-token-pool.ts",
+          "hexSha256": "41836a2d7a86e24d01cb6fa3b52a1d0f91b8b02153d88b7db10d69ce459e2ddd"
+        },
+        {
+          "vendored": "CrossChainToken.bytecode.ts",
+          "source": "ccip-sdk/src/cct/evm/artifacts/bytecode/V2_0_0/cross-chain-token.ts",
+          "hexSha256": "9441c38e91282a64208b1bf5bf30ac6af58178121d40fb5efc823347689f5a4a"
+        }
+      ]
+    },
+    "npmPackage": {
+      "name": "@chainlink/contracts-ccip",
+      "version": "2.0.0",
+      "files": [
+        {
+          "vendored": "BurnMintTokenPool.bytecode.ts",
+          "source": "bytecode/v2_0_0/burn_mint_token_pool.bin",
+          "hexSha256": "41836a2d7a86e24d01cb6fa3b52a1d0f91b8b02153d88b7db10d69ce459e2ddd"
+        },
+        {
+          "vendored": "CrossChainToken.bytecode.ts",
+          "source": "bytecode/v2_0_0/cross_chain_token.bin",
+          "hexSha256": "9441c38e91282a64208b1bf5bf30ac6af58178121d40fb5efc823347689f5a4a"
+        }
+      ]
+    }
+  }
 }
