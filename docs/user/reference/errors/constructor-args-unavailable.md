@@ -8,7 +8,7 @@ The creation code shows that `creationBytecode` is not the deployed build.
 
 ## How to fix
 
-Fix: check that `creationBytecode` and the compiler input come from the build that was deployed.
+Check that `creationBytecode` and the compiler input come from the build that was deployed.
 Or pass `constructorArgs`: the ABI-encoded arguments without a selector, such as the output of
 `cast abi-encode`.
 

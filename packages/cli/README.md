@@ -2,7 +2,7 @@
 
 Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a terminal.
 
-Status: experimental. The API may change before 1.0. Requires Node.js 22.18 or later. Supported
+Status: experimental. The API may change before 1.0. Requires Node.js 22.12 or later. Supported
 Node.js versions follow Node's LTS schedule ([decision 0060](https://github.com/aelmanaa/explorer-verify/blob/main/docs/contributor/decisions/0060-supported-node-versions-follow-lts.md)).
 
 In a Foundry project, first run `forge build --build-info`. These commands use its Greeter
@@ -12,8 +12,9 @@ already verified contract; progress goes to stderr.
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify --dry-run
-# exit code 0
 ```
+
+It exits 0 and prints:
 
 ```text
 dry run on sourcify at sourcify.dev: exact match already, so a run without --dry-run would not submit.
@@ -22,8 +23,9 @@ https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc
 
 ```sh
 explorer-verify verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc --chain sepolia --foundry . --contract src/Greeter.sol:Greeter --backend sourcify
-# exit code 0
 ```
+
+It exits 0 and prints:
 
 ```text
 already-verified: exact match on sourcify

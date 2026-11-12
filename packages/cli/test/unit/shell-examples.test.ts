@@ -11,9 +11,10 @@ function page(command: string, fence = "```sh"): string {
     "Run it:",
     "",
     fence,
-    "# exit code 0",
     command,
     "```",
+    "",
+    "It exits 0 and prints:",
     "",
     "```text",
     "{}",
@@ -64,6 +65,20 @@ describe("shellExamples", () => {
       blocks("```ts no-run [verify.ts]\na();\n```\n").map(({ lang, line }) => ({ lang, line })),
       [{ lang: "ts", line: 1 }],
     );
+  });
+
+  it("fails an exit-code comment in the block, and a missing exit line (#379)", () => {
+    assert.throws(
+      () => shellExamples(page("# exit code 0\nexplorer-verify status h"), "x.md"),
+      /x\.md line 3: one command line, and no comment/,
+    );
+    const noExit = page("explorer-verify status h").replace("It exits 0 and prints:", "It prints:");
+    assert.throws(() => shellExamples(noExit, "x.md"), /"It exits N and prints:"/);
+    const [example] = shellExamples(
+      page("explorer-verify status h").replace("exits 0", "exits 4"),
+      "x.md",
+    );
+    assert.equal(example?.exitCode, 4);
   });
 
   it("fails another program, a second command and shell syntax", () => {

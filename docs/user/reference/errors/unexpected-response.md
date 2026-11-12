@@ -8,7 +8,7 @@ The answer did not come from the explorer's API, or not in its format, after ret
 
 ## How to fix
 
-Fix: call again later. If the error persists, check the explorer's status page and report
+Call again later. If the error persists, check the explorer's status page and report
 `details.status` and `details.excerpt` in an issue.
 
 From the CLI: Run the command again later. If it persists, check the explorer's status page and

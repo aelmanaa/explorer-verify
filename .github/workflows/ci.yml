@@ -34,9 +34,10 @@ jobs:
       - run: pnpm run check
 
   test:
-    # Node 22.18.0 is the declared floor (packages/explorer-verify/package.json engines); keep the
-    # first leg equal to it. The supported lines follow Node's LTS schedule:
-    # docs/contributor/decisions/0060-supported-node-versions-follow-lts.md.
+    # Node 22.18.0 is the floor of the repository's scripts and tests, which run TypeScript natively
+    # (the root package.json engines); keep the first leg equal to it. The published packages'
+    # lower floor is tested by the node-floor job (decision 0071). The supported lines follow
+    # Node's LTS schedule: docs/contributor/decisions/0060-supported-node-versions-follow-lts.md.
     name: Test (Linux, Node ${{ matrix.node }})
     runs-on: ubuntu-26.04
     timeout-minutes: 15
@@ -55,6 +56,48 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test
+
+  # The published packages declare engines.node >=22.12.0, below the 22.18.0 the repository's own
+  # TypeScript scripts and tests need (decision 0071). This job tests that floor: it builds and packs
+  # the four packages on Node 24, installs the tarballs with npm into an empty folder on Node
+  # 22.12.0, and runs test/node-floor/smoke.mjs there. Keep NODE_FLOOR equal to engines.node;
+  # scripts/test/node-floor.test.ts checks it.
+  node-floor:
+    name: Packages on the Node floor
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      NODE_FLOOR: "22.12.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      # pnpm pack rewrites the workspace: ranges, so npm can install the tarballs.
+      - name: Pack the four packages
+        run: |
+          mkdir "$RUNNER_TEMP/tarballs"
+          for dir in explorer-verify cli foundry hardhat; do
+            (cd "packages/$dir" && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          done
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_FLOOR }}
+      - name: Install the tarballs and run the smoke test on the floor
+        run: |
+          test "$(node --version)" = "v$NODE_FLOOR"
+          mkdir "$RUNNER_TEMP/floor"
+          cd "$RUNNER_TEMP/floor"
+          echo '{"name":"node-floor-smoke","private":true,"type":"module"}' > package.json
+          npm install --no-audit --no-fund --ignore-scripts "$RUNNER_TEMP"/tarballs/*.tgz
+          cp "$GITHUB_WORKSPACE/test/node-floor/smoke.mjs" .
+          node smoke.mjs "$GITHUB_WORKSPACE"
 
   # The ruleset requires this job name. Besides coverage, the job runs the unit tests in a random
   # order.

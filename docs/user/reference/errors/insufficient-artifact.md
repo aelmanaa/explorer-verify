@@ -8,7 +8,7 @@ The build documents hold only ABI and bytecode, which is not enough to verify.
 
 ## How to fix
 
-Fix: three routes remain.
+Three routes remain.
 
 1. Ask the publisher to ship the build-info or the Solidity metadata of the build.
 2. Build the input from the deployed bytecode with

@@ -126,11 +126,12 @@ from untyped data, such as parsed JSON, check the whole input with `validateInpu
 project folder, after the build:
 
 ```sh [dry-run.sh]
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --hardhat . --contract contracts/Greeter.sol:Greeter \
   --backend sourcify --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"caller"}}

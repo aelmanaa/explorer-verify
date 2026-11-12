@@ -8,7 +8,7 @@ Your server handler refused the request before it reached Etherscan.
 
 ## How to fix
 
-Fix: change the `createVerifyHandler` option that the table under [Why](#why) names, redeploy the
+Change the `createVerifyHandler` option that the table under [Why](#why) names, redeploy the
 handler, then call again. For the first four codes, the error's hint names the option.
 
 From the CLI: The server handler refused the request with `<handler code>`. Do not retry: change the

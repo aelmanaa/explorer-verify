@@ -22,10 +22,10 @@ You need: npm or another package manager. Find your task, then read its section 
 
 | Package                    | Purpose                                                                      | Runs on                                         | Use it when                              |
 | -------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------- |
-| `explorer-verify`          | Verify, dry run, resume and link a proxy; build the input                    | Browsers, Node.js 22.18 or later, edge runtimes | Your code calls the explorers            |
-| `@explorer-verify/cli`     | The `explorer-verify` command, with a JSON envelope and exit codes           | Node.js 22.18 or later                          | A terminal, a CI job or an agent runs it |
-| `@explorer-verify/foundry` | Finds a contract's build files under `out/` and builds the input             | Node.js 22.18 or later                          | Node.js code works in a Foundry project  |
-| `@explorer-verify/hardhat` | Finds a contract's build files in a Hardhat 2 or 3 project, builds the input | Node.js 22.18 or later                          | Node.js code works in a Hardhat project  |
+| `explorer-verify`          | Verify, dry run, resume and link a proxy; build the input                    | Browsers, Node.js 22.12 or later, edge runtimes | Your code calls the explorers            |
+| `@explorer-verify/cli`     | The `explorer-verify` command, with a JSON envelope and exit codes           | Node.js 22.12 or later                          | A terminal, a CI job or an agent runs it |
+| `@explorer-verify/foundry` | Finds a contract's build files under `out/` and builds the input             | Node.js 22.12 or later                          | Node.js code works in a Foundry project  |
+| `@explorer-verify/hardhat` | Finds a contract's build files in a Hardhat 2 or 3 project, builds the input | Node.js 22.12 or later                          | Node.js code works in a Hardhat project  |
 
 The Foundry and Hardhat packages read files, so they run only on Node.js. They return the input;
 `explorer-verify` then verifies it, so install both.
@@ -78,10 +78,11 @@ The CLI also reads a whole request from a JSON file. Save
 already holds. Then run a dry run, which needs no key and submits nothing:
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}

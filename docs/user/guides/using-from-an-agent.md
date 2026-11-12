@@ -126,10 +126,11 @@ verify() would submit to sourcify: ask the person first
 With the command, which reads the same file:
 
 ```sh [dry-run.sh]
-# exit code 0
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --dry-run --json
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"dry-run","backend":"sourcify","apiHost":"sourcify.dev","lookup":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc","routedBy":"table"}}
@@ -185,10 +186,11 @@ run instead: its `backend` and `lookup` show whether the key was used. No flag t
 value, and the command refuses the flags that look like one:
 
 ```sh
-# exit code 2
 npx @explorer-verify/cli verify --input-json greeter-sepolia.json \
   --api-key --json
 ```
+
+It exits 2 and prints:
 
 ```text
 {"schemaVersion":1,"ok":false,"error":{"code":"invalid-input","message":"The command line is invalid: --api-key is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin.","hint":"Fix the arguments the message names, then run the command again. explorer-verify --help lists every command and option.","docsUrl":"https://aelmanaa.github.io/explorer-verify/reference/errors/invalid-input","retryable":false,"details":{"code":"invalid-input","issues":[{"field":"--api-key","message":"is not accepted: a key on the command line shows in the process list and the shell history; set ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or use --api-key-file <path> or --api-key-stdin"}]}}}
@@ -249,10 +251,11 @@ It never submits, and it uses the same exit codes:
 <!-- code-width: a handle is one argument and cannot break -->
 
 ```sh
-# exit code 0
 npx @explorer-verify/cli status --json \
   ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc:ae2fbfae-1d81-4284-9a2d-3dfd8cdb1718
 ```
+
+It exits 0 and prints:
 
 ```text
 {"schemaVersion":1,"ok":true,"result":{"status":"verified","backend":"sourcify","match":"exact","explorerUrl":"https://repo.sourcify.dev/11155111/0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc"}}

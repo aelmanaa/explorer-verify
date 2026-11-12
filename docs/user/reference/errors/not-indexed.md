@@ -8,7 +8,7 @@ The explorer kept answering that it finds no contract code at the address.
 
 ## How to fix
 
-Fix: check that `chainId` and `address` name the deployed contract. If it was deployed in the last
+Check that `chainId` and `address` name the deployed contract. If it was deployed in the last
 few minutes, call again in a minute, or pass a longer `indexWaitMs` and a `timeoutMs` that holds
 it. [Etherscan](../etherscan.md#how-answers-are-read) describes the wait.
 

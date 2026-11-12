@@ -8,7 +8,7 @@ The deployed bytecode holds no metadata hash, so the resolver cannot find the me
 
 ## How to fix
 
-Fix: build the input from the contract's build files instead, with `buildVerifyInput`, or with the
+Build the input from the contract's build files instead, with `buildVerifyInput`, or with the
 Foundry or Hardhat helper. For `no-code`, check the chain ID, the address and the `rpcUrl`.
 
 From the CLI: Pass the build files with --input instead.

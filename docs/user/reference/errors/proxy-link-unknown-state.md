@@ -8,7 +8,7 @@ The explorer answered about a proxy link with a state the library cannot classif
 
 ## How to fix
 
-Fix: do not retry automatically. Open the proxy's page on the explorer, check which implementation
+Do not retry automatically. Open the proxy's page on the explorer, check which implementation
 it shows, then report `details.excerpt` in an issue.
 
 From the CLI: Do not retry automatically. Check the proxy's page on the explorer, and report the

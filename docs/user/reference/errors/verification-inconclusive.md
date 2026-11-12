@@ -8,7 +8,7 @@ The explorer finished the verification job without a verdict.
 
 ## How to fix
 
-Fix: wait a minute, then call `verify()` again. It looks the contract up first and submits only
+Wait a minute, then call `verify()` again. It looks the contract up first and submits only
 when the contract is not verified.
 
 > [!WARNING]

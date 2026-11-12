@@ -8,7 +8,7 @@ The explorer had not finished linking the proxy when `linkProxy()` stopped waiti
 
 ## How to fix
 
-Fix: call `linkProxy()` again later with the same target and route, and with `resumeJobId` set to
+Call `linkProxy()` again later with the same target and route, and with `resumeJobId` set to
 `details.jobId`. That call sends no new link request: it checks the same link, at once and then
 every `pollIntervalMs`.
 

@@ -26,8 +26,9 @@ updates:
             "@types/*",
           ]
     ignore:
-      # The Node types follow the supported floor, Node 22.18.0. Types from a newer major would
-      # let code use APIs that Node 22 lacks and still type-check.
+      # The Node types follow the Node 22 line. Types from a newer major would let code use APIs
+      # that Node 22 lacks and still type-check. The node-floor CI job catches an API newer than
+      # the published floor, 22.12.0 (decision 0071).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
     commit-message:

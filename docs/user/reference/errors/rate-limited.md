@@ -8,7 +8,7 @@ The backend answered HTTP 429 on every try.
 
 ## How to fix
 
-Fix: wait `details.retryAfterMs`, or a few seconds when it is not set, then call again. Lower the
+Wait `details.retryAfterMs`, or a few seconds when it is not set, then call again. Lower the
 request rate if this happens often.
 
 From the CLI: The explorer limited the requests. Wait a few seconds, then run the command again.

@@ -120,7 +120,8 @@ with two independent model sessions, their results and unsafe attempts.
 | `pnpm changeset`                     | Adds a changeset for a user-facing change under `packages/`                                |
 
 Node 24 for development (`.nvmrc`); the floor is 22.18.0, because scripts and tests run TypeScript
-natively. pnpm 12.16.1 (`packageManager`).
+natively. The published packages declare 22.12.0, tested by the `node-floor` CI job
+([decision 0071](docs/contributor/decisions/0071-published-node-floor.md)). pnpm 12.16.1 (`packageManager`).
 
 ## Where things are
 

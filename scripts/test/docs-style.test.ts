@@ -8,6 +8,8 @@ import {
   codeSpansPerSentence,
   codeWidthProblems,
   densityReport,
+  EXIT_COMMENT,
+  exitCommentProblems,
   isGuide,
   LEGACY_MARKER,
   legacyLine,
@@ -16,6 +18,7 @@ import {
   MAX_CODE_WIDTH,
   MAX_WORDS,
   pageDensity,
+  README_FILES,
   styleProblems,
   wordCount,
   WRAPPED_LANGUAGES,
@@ -311,6 +314,43 @@ describe("codeWidthProblems", () => {
   });
 });
 
+/** The problems without the advice after the first comma. */
+function brief(problems: string[]): string[] {
+  return problems.map((problem) => problem.replace(/, which the copy.*$/, ""));
+}
+
+describe("exitCommentProblems (#379)", () => {
+  it("fails an exit-code comment in a command block, in any spelling", () => {
+    for (const comment of ["# exit code 0", "#exit 2", "  # → exits 4", "// exit status 1"]) {
+      assert.deepEqual(
+        brief(exitCommentProblems("a.md", `Run:\n\n\`\`\`sh\nls\n${comment}\n\`\`\`\n`)),
+        ["a.md:5: an exit-code comment in a code block"],
+        comment,
+      );
+    }
+  });
+
+  it("passes the exit code in prose, other comments and output blocks", () => {
+    const page = [
+      "Run:",
+      "",
+      "```sh",
+      "# Check the Greeter first",
+      "ls",
+      "```",
+      "",
+      "It exits 0 and prints:",
+      "",
+      "```text",
+      "# exit code 0",
+      "```",
+      "",
+    ].join("\n");
+    assert.deepEqual(exitCommentProblems("a.md", page), []);
+    assert.ok(!EXIT_COMMENT.test("# exiting the shell resets it"));
+  });
+});
+
 describe("the counts", () => {
   it("counts words: a code span or a link text as written", () => {
     assert.equal(wordCount("Run `npx @explorer-verify/cli verify` on [the page](x.md) — now."), 6);
@@ -372,5 +412,22 @@ describe("checkDocsStyle and densityReport", () => {
       ["skills/x/SKILL.md:4", "llms.txt:6", "site/pages/index.md:8"],
     );
     assert.deepEqual(CODE_WIDTH_FILES, ["llms.txt", "site/pages/index.md"]);
+  });
+
+  it("checks for exit-code comments in user pages, skills and READMEs (#379)", () => {
+    const commented = "Run:\n\n```sh\nls\n# exit code 0\n```\n";
+    writeFiles(root, {
+      [FILE]: GUIDE.replace(
+        "  --chain 11155111 --dry-run --json",
+        "  --chain 11155111 --dry-run --json\n# exit code 0",
+      ),
+      "skills/x/SKILL.md": commented,
+      "packages/cli/README.md": commented,
+    });
+    assert.deepEqual(
+      checkDocsStyle(root).map((problem) => problem.replace(/: an exit-code comment.*$/, "")),
+      [`${FILE}:18`, "skills/x/SKILL.md:5", "packages/cli/README.md:5"],
+    );
+    assert.ok(README_FILES.includes("README.md"));
   });
 });

@@ -8,7 +8,7 @@ The input comes from a compiler that this release or the route's backend does no
 
 ## How to fix
 
-Fix: use `kind: "solc"` for Solidity compiled with solc. For ZKsync Era (324) or Sepolia (300),
+Use `kind: "solc"` for Solidity compiled with solc. For ZKsync Era (324) or Sepolia (300),
 pass zksolc compiler input directly with `kind: "zksolc"` on Blockscout.
 
 The build helpers still refuse zksolc build documents; extract the input and versions with the

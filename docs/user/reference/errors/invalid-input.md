@@ -8,7 +8,7 @@ The input, a handle or a CLI command line failed validation.
 
 ## How to fix
 
-Fix: correct each field listed in `details.issues` (`field` and `message`), then call again. For a
+Correct each field listed in `details.issues` (`field` and `message`), then call again. For a
 handle, pass the handle object or its one-line form, as `verify()` or a `not-confirmed` error
 returned it.
 

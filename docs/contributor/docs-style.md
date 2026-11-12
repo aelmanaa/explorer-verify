@@ -39,7 +39,9 @@ The check fails a guide without the two lines, or whose last H2 is not "Next ste
   command block needs no introduction.
 - Give a block that is a file a title after the language, as in `ts [verify.ts]`. A flag comes
   before the title: `ts no-run [verify.ts]`. GitHub reads the first word as the language.
-- Show the output after a command, in a `text` block.
+- Show the output after a command, in a `text` block. Put the exit code of a CLI example in the
+  line between the two blocks, `It exits 0 and prints:`, never in a comment inside the command
+  block: the copy button copies the whole block.
 - Start every CLI example with `npx @explorer-verify/cli`. A bare `explorer-verify` fails after a
   local install with exit 127. Split a long command over lines that end in `\`.
 - Keep each code line to 80 characters. The rule is for the source and for the copies in the npm
@@ -50,6 +52,9 @@ The check fails a guide without the two lines, or whose last H2 is not "Next ste
 The check fails a block whose introducing line does not end with a colon. It also fails a `sh`,
 `bash`, `shell`, `console` or `zsh` line that starts with a bare `explorer-verify`. A `text` block,
 such as the usage lines of the CLI reference, may show the bare name.
+
+The check fails an exit-code comment, such as `# exit code 0`, in any block but `text`, in the
+user docs, the skill, `llms.txt`, the site's home page and the READMEs.
 
 The check fails a code line over 80 characters, in the user docs, the skill, `llms.txt` and the
 site's home page. A `text` block is exempt: it holds program output, such as a JSON envelope on one
@@ -67,10 +72,15 @@ The dry run in [Verify from CI with the CLI](../user/guides/verify-from-ci-with-
 this shape, and the CLI page tests run it:
 
 ```sh [dry-run.sh]
-# exit code 0
 npx @explorer-verify/cli verify 0x8275d36f64f047d2d8a1f42c79bf80caea39d7cc \
   --chain 11155111 --foundry . --contract src/Greeter.sol:Greeter \
   --backend sourcify --dry-run --json
+```
+
+It exits 0 and prints:
+
+```text
+{"schemaVersion":1,"ok":true,"result":{"status":"dry-run", ...}}
 ```
 
 The example tests read titles and continuations. A `ts` example is type-checked without the

@@ -18,8 +18,10 @@ const PAGES = new URL("docs/user/reference/errors/", REPOSITORY);
 const RELEASED = new URL("../../released-error-codes.json", import.meta.url);
 // The template of a code page (decision 0064): the H1, a one-sentence summary, then these H2s in
 // this order, each holding its labelled lines in this order. The CLI tests check "From the CLI:".
+// The fix is the first paragraph under "How to fix", with no label: the heading already says it
+// (issue #379).
 const SECTIONS: readonly { heading: string; labels: readonly string[] }[] = [
-  { heading: "How to fix", labels: ["Fix:", "From the CLI:"] },
+  { heading: "How to fix", labels: ["From the CLI:"] },
   {
     heading: "Facts",
     labels: ["Retryable:", "Exit code:", "Sent to an explorer:", "Default hint:", "For end users:"],
@@ -82,6 +84,17 @@ function sectionAt(text: string, at: number): string | undefined {
 /** The offset of the one line that starts with `label`, or -1. */
 function labelAt(text: string, label: string): number {
   return text.search(new RegExp(`^${label} `, "m"));
+}
+
+/** The offset of the `## How to fix` heading, or -1. */
+function fixAt(text: string): number {
+  return headings(text).find((each) => each.heading === "How to fix")?.at ?? -1;
+}
+
+/** The first paragraph under `## How to fix`: the fix. */
+function fixParagraph(text: string): string {
+  const start = fixAt(text);
+  return start === -1 ? "" : (text.slice(start).split("\n\n")[1] ?? "");
 }
 
 /** The words of a Markdown text, with each link counted as its text. */
@@ -159,6 +172,16 @@ describe("error pages (R-AX-10)", () => {
     }
   });
 
+  it("opens How to fix with the fix itself, without a Fix: label (#379)", () => {
+    for (const code of ERROR_CODES) {
+      const text = page(code);
+      const fix = fixParagraph(text);
+      assert.match(fix, /^[A-Z]/u, `${code}: the fix starts with a capital letter`);
+      assert.doesNotMatch(fix, /^(Fix|From the CLI):/u, `${code}: the fix has a label`);
+      assert.equal(labelAt(text, "Fix:"), -1, `${code}: a Fix: line`);
+    }
+  });
+
   it("puts each labelled line in its H2", () => {
     for (const code of ERROR_CODES) {
       const text = page(code);
@@ -173,7 +196,7 @@ describe("error pages (R-AX-10)", () => {
   it("opens with a one-sentence summary and starts the fix within 40 words of the H1", () => {
     for (const code of ERROR_CODES) {
       const text = page(code);
-      const head = text.slice(text.indexOf("\n"), labelAt(text, "Fix:"));
+      const head = text.slice(text.indexOf("\n"), fixAt(text));
       const count = words(head);
       assert.ok(count <= FIX_WITHIN_WORDS, `${code}: ${String(count)} words before the fix`);
       const summary = head
