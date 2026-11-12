@@ -2,7 +2,8 @@
 
 Status: Accepted (2026-11-10). Narrows R-FLOW-1 and amends R-FLOW-3. Builds on
 [decision 0021](0021-server-handler-forwards-a-reduced-lookup.md), which kept `ContractName` and
-`CompilerVersion` in the handler's reduced lookup.
+`CompilerVersion` in the handler's reduced lookup. Point 9 settled by
+[decision 0069](0069-require-own-source.md).
 
 Research: [Matches from another contract's source](../research/2026-11-10-foreign-matches.md);
 [the lookup and Similar Match](../research/2026-11-04-etherscan-client.md#the-lookup-and-similar-match);

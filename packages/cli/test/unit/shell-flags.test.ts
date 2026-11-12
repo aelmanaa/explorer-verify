@@ -3,7 +3,7 @@
 // repeated option refused (#221), the short help of a bare command line (R-AX-11) and one stderr
 // line per event (R-AX-14). A count of zero requests means nothing left the process.
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -89,6 +89,21 @@ function refused(result: Run): { message: string; hint: string } {
     message: String(Reflect.get(error, "message")),
     hint: String(Reflect.get(error, "hint")),
   };
+}
+
+/** The not-indexed error of a run that exits 4, and the submits the fake got. */
+function notIndexed(result: Run): { elapsedMs: number; submits: number } {
+  assert.equal(result.code, 4, result.stdout + result.stderr);
+  const envelope = oneEnvelope(result.stdout);
+  assert.deepEqual(envelopeProblems(envelope), [], result.stdout);
+  const error = envelope["error"];
+  assert.ok(typeof error === "object" && error !== null);
+  assert.equal(Reflect.get(error, "code"), "not-indexed");
+  const details: unknown = Reflect.get(error, "details");
+  assert.ok(typeof details === "object" && details !== null);
+  const submits = result.seen.filter((request) => request.submit).length;
+  assert.equal(Reflect.get(details, "submits"), submits);
+  return { elapsedMs: Number(Reflect.get(details, "elapsedMs")), submits };
 }
 
 /** The chain name the hint of a mistyped `--chain` value suggests. */
@@ -423,6 +438,105 @@ describe("--poll-interval (#225)", () => {
       const status = refused(await run(t, ["status", "ev1:x", "--poll-interval", value, "--json"]));
       assert.match(status.message, /--poll-interval must be a whole number of seconds from 1 to/);
     }
+  });
+});
+
+// References: R-FLOW-7, R-AX-16, decision 0066.
+describe("--index-wait (#352)", () => {
+  const VERIFY = [
+    "verify",
+    ADDRESS,
+    "--chain",
+    "11155111",
+    ...FOUNDRY,
+    "--backend",
+    "etherscan-v2",
+  ];
+  const ENV = { env: { ETHERSCAN_API_KEY: KEYS.ETHERSCAN_API_KEY } };
+
+  it("keeps submitting past 10 submits, within the wait, then exits 4 not-indexed", async (t) => {
+    const capped = notIndexed(await run(t, [...VERIFY, "--json"], "not-indexed", ENV));
+    assert.equal(capped.submits, 10);
+    const waited = notIndexed(
+      await run(t, [...VERIFY, "--index-wait", "60", "--json"], "not-indexed", ENV),
+    );
+    assert.ok(waited.submits > 10, String(waited.submits));
+    assert.ok(waited.elapsedMs <= 60_000, String(waited.elapsedMs));
+  });
+
+  it("prints one warning line per new submit, not two", async (t) => {
+    const result = await run(t, [...VERIFY, "--index-wait", "9", "--json"], "not-indexed", ENV);
+    const { submits } = notIndexed(result);
+    const retries = result.stderr
+      .split("\n")
+      .filter((line) => line.startsWith("warning: Retrying"));
+    assert.equal(retries.length, submits - 1, result.stderr);
+    assert.doesNotMatch(result.stderr, /found no contract code at the address yet/);
+  });
+
+  it("warns once when every backend named ignores it, and not for an Etherscan-style one", async (t) => {
+    const sourcify = [
+      ...VERIFY.slice(0, -1),
+      "sourcify",
+      "--index-wait",
+      "60",
+      "--dry-run",
+      "--json",
+    ];
+    const ignored = await run(t, sourcify);
+    assert.equal(ignored.code, 0, ignored.stderr);
+    const warnings = ignored.stderr.split("\n").filter((line) => line.includes("--index-wait"));
+    assert.deepEqual(warnings, [
+      "warning: --index-wait has no effect on sourcify: only etherscan-v2, routescan and etherscan-compatible send the submit again while the explorer finds no contract code.",
+    ]);
+    const used = await run(t, [...VERIFY, "--index-wait", "60", "--dry-run", "--json"], "new", ENV);
+    assert.doesNotMatch(used.stderr, /--index-wait has no effect/);
+  });
+
+  it("stops within --timeout when it ends first", async (t) => {
+    const result = notIndexed(
+      await run(
+        t,
+        [...VERIFY, "--index-wait", "600", "--timeout", "45", "--json"],
+        "not-indexed",
+        ENV,
+      ),
+    );
+    assert.ok(result.submits > 10, String(result.submits));
+    assert.ok(result.elapsedMs <= 45_000, String(result.elapsedMs));
+  });
+
+  it("is accepted next to --input-json (R-AX-16)", async (t) => {
+    const path = join(DIR, "verify-etherscan.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...JSON.parse(readFileSync(join(PROJECT, "verify-input.json"), "utf8")),
+        route: { backend: "etherscan-v2" },
+      }),
+    );
+    const result = notIndexed(
+      await run(
+        t,
+        ["verify", "--input-json", path, "--index-wait", "60", "--json"],
+        "not-indexed",
+        ENV,
+      ),
+    );
+    assert.ok(result.submits > 10, String(result.submits));
+  });
+
+  it("refuses 0, a fraction and a word, with --input-json too, and status does not take it", async (t) => {
+    const path = join(PROJECT, "verify-input.json");
+    for (const value of ["0", "1.5", "x", "2147484"]) {
+      for (const argv of [VERIFY, ["verify", "--input-json", path]]) {
+        const { message } = refused(await run(t, [...argv, "--index-wait", value, "--json"]));
+        assert.match(message, /--index-wait must be a whole number of seconds from 1 to 2147483/);
+        assert.ok(!message.includes(` ${value} `));
+      }
+    }
+    const status = refused(await run(t, ["status", "ev1:x", "--index-wait", "60", "--json"]));
+    assert.match(status.message, /--index-wait/);
   });
 });
 

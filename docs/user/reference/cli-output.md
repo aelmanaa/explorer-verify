@@ -38,16 +38,16 @@ line of JSON for every run. The [CLI](cli.md) page lists the commands and option
 
 ## Exit codes
 
-| Code | Meaning                                                                                                                                                                                |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours. Help and the version also exit 0                          |
-| 1    | Failed: the explorer definitively rejected the submission                                                                                                                              |
-| 2    | Usage or input error: nothing was submitted for verification                                                                                                                           |
-| 3    | API key: missing, invalid or under-privileged                                                                                                                                          |
-| 4    | No verdict yet: not-confirmed (the output carries the handle), verification-inconclusive, not-indexed (the explorer has not indexed the contract yet) or proxy-link-pending (SDK only) |
-| 5    | Network: the explorer was unavailable after retries                                                                                                                                    |
-| 6    | Unknown state: unknown-state (the output carries the handle), proxy-link-unknown-state (SDK only), or internal-error, a bug in the CLI. Do not retry automatically                     |
-| 130  | Cancelled: SIGINT or SIGTERM stopped the run                                                                                                                                           |
+| Code | Meaning                                                                                                                                                                                                   |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Verified: verified or already-verified. With result.storedContract, the explorer holds another contract's source, not yours; verify --require-own-source exits 1 for it. Help and the version also exit 0 |
+| 1    | Failed: the explorer definitively rejected the submission, or, with --require-own-source, holds another contract's source (result.storedContract)                                                         |
+| 2    | Usage or input error: nothing was submitted for verification                                                                                                                                              |
+| 3    | API key: missing, invalid or under-privileged                                                                                                                                                             |
+| 4    | No verdict yet: not-confirmed (the output carries the handle), verification-inconclusive, not-indexed (the explorer has not indexed the contract yet) or proxy-link-pending (SDK only)                    |
+| 5    | Network: the explorer was unavailable after retries                                                                                                                                                       |
+| 6    | Unknown state: unknown-state (the output carries the handle), proxy-link-unknown-state (SDK only), or internal-error, a bug in the CLI. Do not retry automatically                                        |
+| 130  | Cancelled: SIGINT or SIGTERM stopped the run                                                                                                                                                              |
 
 [Errors](errors/index.md#exit-codes) lists the error codes behind each exit code.
 

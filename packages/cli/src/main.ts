@@ -31,6 +31,7 @@ import {
 } from "./log-level.ts";
 import type { LogFormat } from "./log-level.ts";
 import { cliEnvelope, infoText, stdoutText } from "./output.ts";
+import { requireOwnSource } from "./own-source.ts";
 import { createStderr } from "./stderr.ts";
 import type { OutputStream, Stderr } from "./stderr.ts";
 import { COLOR_MODES, terminalPolicy } from "./terminal.ts";
@@ -309,16 +310,27 @@ function finish(
     keyFlag: boolean;
     secrets: readonly string[];
     overPartial?: boolean;
+    /** `--require-own-source`: another contract's source on the explorer fails the run. */
+    ownSource: boolean;
   },
 ): ExitCode {
   // A dry run's result goes through the same envelope as any other, and exits 0 (R-AX-8). The
   // CLI's hints and next command replace the library's words (R-AX-10).
-  const envelope = cliEnvelope(toEnvelope(outcome, { secrets: options.secrets }), {
+  const library = cliEnvelope(toEnvelope(outcome, { secrets: options.secrets }), {
     own: hasOwnHint(outcome),
     keyFlag: options.keyFlag,
     json: options.json,
   });
-  const code = exitCodeOf(outcome);
+  // R-AX-5 holds under --require-own-source too: ok is false exactly when the code is not 0.
+  const { envelope, code, backends } = options.ownSource
+    ? requireOwnSource(library, exitCodeOf(outcome))
+    : { envelope: library, code: exitCodeOf(outcome), backends: [] };
+  for (const backend of backends) {
+    stderr.log(
+      "error",
+      `${backend} holds another contract's source at the address, not this one, so --require-own-source fails the run. Check the contract name and the compiler version against the deployed build.`,
+    );
+  }
   const text = stdoutText(envelope, options.json, options.color, options.overPartial === true);
   // The stderr writer never throws, so stdout is written whatever stderr does.
   if (envelope.error !== undefined) {
@@ -440,6 +452,7 @@ async function runCli(
     keyFlag: KEY_FLAGS.some((flag) => args.values.has(flag)),
     secrets: state.secrets,
     overPartial: args.values.get("submit-over-partial") === true,
+    ownSource: args.values.get("require-own-source") === true,
   });
 }
 
@@ -513,6 +526,7 @@ function failSafe(error: unknown, io: Io, json: boolean, secrets: readonly strin
       color: false,
       keyFlag: false,
       secrets,
+      ownSource: false,
     });
   } catch {
     // stdout refused the output too; the exit code is all that is left.

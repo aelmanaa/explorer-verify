@@ -329,6 +329,58 @@ describe("R-DX-2: choosing the contract", () => {
   });
 });
 
+describe("R-DX-2: the project folder", () => {
+  const hint =
+    "Check that the project folder (options.root) exists and can be read. It should hold the Hardhat config.";
+
+  it("reports a missing project folder on root, before the artifacts folder (#350)", async () => {
+    await withCopy(HARDHAT_3, async (copy) => {
+      const root = path.join(copy, "missing");
+      for (const options of [
+        { root, contract: "Greeter" },
+        { root, contract: "Greeter", outDir: "artifacts" },
+      ]) {
+        const error = await rejection(findHardhatBuild(options));
+        assert.deepEqual(issue(error), {
+          field: "root",
+          message: "is not a folder: it does not exist",
+        });
+        assert.equal(
+          error.message,
+          "The input is invalid: root is not a folder: it does not exist.",
+        );
+        assert.equal(error.hint, hint);
+      }
+      // buildVerifyInputFromHardhat runs the same check.
+      const built = await rejection(buildVerifyInputFromHardhat({ root, contract: "Greeter" }));
+      assert.deepEqual(issue(built).field, "root");
+    });
+  });
+
+  it("never repeats the path, which a typo can turn into a key", async () => {
+    const error = await rejection(findHardhatBuild({ root: "no-such-project", contract: "A" }));
+    assert.equal(issue(error).message, "is not a folder: it does not exist");
+    assert.ok(!JSON.stringify(error.toJSON()).includes("no-such-project"));
+  });
+
+  it("reports a root that is a file, and one that cannot be read", async () => {
+    await withCopy(HARDHAT_3, async (copy) => {
+      const file = path.join(copy, "hardhat.config.ts");
+      await writeFile(file, "");
+      const error = await rejection(findHardhatBuild({ root: file, contract: "Greeter" }));
+      assert.deepEqual(issue(error), {
+        field: "root",
+        message: "is not a folder: it is a file",
+      });
+      // A name longer than the file system allows cannot be read: ENAMETOOLONG.
+      const long = path.join(copy, "a".repeat(300));
+      const unreadable = await rejection(findHardhatBuild({ root: long, contract: "Greeter" }));
+      assert.equal(issue(unreadable).message, "is not a folder: it cannot be read");
+      assert.equal(unreadable.hint, hint);
+    });
+  });
+});
+
 describe("R-DX-2: the artifacts folder", () => {
   it("reads the folder that options.outDir names, relative to the root", async () => {
     await withCopy(HARDHAT_3, async (root) => {

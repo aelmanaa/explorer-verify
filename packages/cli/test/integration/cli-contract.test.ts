@@ -106,6 +106,7 @@ const EXPECTED_EXIT = {
   "missing-api-key": 3,
   "not-confirmed": 4,
   "verification-inconclusive": 4,
+  "not-indexed": 4,
   network: 5,
   "unknown-state": 6,
   "internal-error": 6,
@@ -282,6 +283,20 @@ const CONTRACTS: Readonly<Record<string, Contract>> = {
         kind: "invalid-input",
         args: [...VERIFY, "--poll-interval", "0"],
         noRequests: true,
+      },
+      {
+        // #352: --index-wait below 1 second.
+        kind: "invalid-input",
+        args: [...VERIFY, "--index-wait", "0"],
+        noRequests: true,
+      },
+      {
+        // #352: --index-wait keeps sending the submit while Etherscan finds no contract code.
+        kind: "not-indexed",
+        args: [...BASE, ...ETHERSCAN, "--index-wait", "2", "--poll-interval", "1"],
+        scenario: "not-indexed",
+        env: { ETHERSCAN_API_KEY: KEY },
+        handle: false,
       },
       {
         kind: "invalid-input",

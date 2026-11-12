@@ -684,6 +684,25 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
     assert.ok(!JSON.stringify(error.toJSON()).includes(root));
   });
 
+  it("says the output directory could not be read when the root cannot be searched (#350)", async (t) => {
+    if (ROOT_USER) {
+      t.skip("file modes do not apply to root");
+      return;
+    }
+    const root = copyProject("out");
+    chmodSync(root, 0o000);
+    try {
+      const error = await rejection(
+        async () => await findFoundryBuild({ root, contract: "Pong" }),
+        "invalid-input",
+      );
+      assert.deepEqual(issuesOf(error), [{ field: "outDir", message: "could not be read" }]);
+      assert.equal(error.message, "The input is invalid: outDir could not be read.");
+    } finally {
+      chmodSync(root, 0o755);
+    }
+  });
+
   it("rejects an output directory it cannot list", async (t) => {
     if (ROOT_USER) {
       t.skip("file modes do not apply to root");
@@ -733,13 +752,27 @@ describe("findFoundryBuild reads files only under the root (R-DX-2, R-IN-7)", ()
     assert.equal(build.files[0], "out/Pair.sol/Ping.json");
   });
 
-  it("rejects a root that is not a directory", async () => {
-    const error = await rejection(
-      async () =>
-        await findFoundryBuild({ root: path.join(ROOT, "foundry.toml"), contract: "Greeter" }),
-      "invalid-input",
-    );
-    assert.deepEqual(issuesOf(error), [{ field: "root", message: "is not a directory" }]);
+  it("rejects a root that is not a folder, never repeating the path (#350)", async () => {
+    const hint =
+      "Check that the project folder (options.root) exists and can be read. It should hold foundry.toml.";
+    const file = path.join(ROOT, "foundry.toml");
+    const cases: [string, string][] = [
+      [file, "is not a folder: it is a file"],
+      ["no-such-project", "is not a folder: it does not exist"],
+      [path.join(ROOT, "missing"), "is not a folder: it does not exist"],
+      // A name longer than the file system allows cannot be read: ENAMETOOLONG.
+      [path.join(ROOT, "a".repeat(300)), "is not a folder: it cannot be read"],
+    ];
+    for (const [root, message] of cases) {
+      const error = await rejection(
+        async () => await findFoundryBuild({ root, contract: "Greeter" }),
+        "invalid-input",
+      );
+      assert.deepEqual(issuesOf(error), [{ field: "root", message }]);
+      // The message carries the issue, as the Hardhat helper's does.
+      assert.equal(error.message, `The input is invalid: root ${message}.`);
+      assert.equal(error.hint, hint);
+    }
   });
 
   it("rejects a missing output directory with a forge build hint", async () => {

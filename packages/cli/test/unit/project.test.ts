@@ -280,6 +280,70 @@ describe("withCliFlags: the helpers' errors in the CLI's words", () => {
     });
   });
 
+  it("names the project flag for a root that is not a folder, and says to check it (#350)", () => {
+    for (const [tool, holds] of [
+      ["foundry", "foundry.toml"],
+      ["hardhat", "the Hardhat config"],
+    ] as const) {
+      const cause = new ExplorerVerifyError(
+        {
+          code: "invalid-input",
+          issues: [{ field: "root", message: "is not a folder: it does not exist" }],
+        },
+        "The input is invalid: root is not a folder: it does not exist.",
+        { hint: "Check that root names the project folder.", secrets: [] },
+      );
+      for (const request of [requestOf(tool), requestOf(tool, "build")]) {
+        const error = withCliFlags(cause, request);
+        assert.ok(error instanceof ExplorerVerifyError);
+        assert.equal(
+          error.message,
+          `The input is invalid: --${tool} is not a folder: it does not exist.`,
+        );
+        assert.deepEqual(error.details, {
+          code: "invalid-input",
+          issues: [{ field: `--${tool}`, message: "is not a folder: it does not exist" }],
+        });
+        assert.equal(
+          error.hint,
+          `Check the folder that --${tool} names: it must exist and should hold ${holds}. Pass . for the current folder.`,
+        );
+        assert.ok(error.cause instanceof Error);
+      }
+    }
+  });
+
+  it("puts the project flag in the headline for the default output folder (#350)", () => {
+    const cases: [string, string, "foundry" | "hardhat", string][] = [
+      [
+        "outDir",
+        "is not a directory",
+        "foundry",
+        "--foundry has no out folder: build the project, or pass --out-dir",
+      ],
+      ["outDir", "could not be read", "foundry", "--foundry out folder could not be read"],
+      ["artifacts", "cannot be read", "hardhat", "--hardhat artifacts folder cannot be read"],
+      [
+        "outDir",
+        "names no folder: artifacts is a file",
+        "hardhat",
+        "--hardhat has no artifacts folder: build the project, or pass --out-dir",
+      ],
+    ];
+    for (const [field, message, tool, headline] of cases) {
+      const error = withCliFlags(
+        new ExplorerVerifyError(
+          { code: "invalid-input", issues: [{ field, message }] },
+          `The input is invalid: ${field} ${message}.`,
+          { hint: ERROR_HINTS["invalid-input"], secrets: [] },
+        ),
+        requestOf(tool),
+      );
+      assert.ok(error instanceof ExplorerVerifyError);
+      assert.equal(error.message, `The input is invalid: ${headline}.`);
+    }
+  });
+
   it("names the project flag and the default folder when --out-dir was not given", () => {
     for (const [tool, folder] of [
       ["foundry", "out"],

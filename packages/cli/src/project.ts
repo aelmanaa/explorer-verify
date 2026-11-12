@@ -135,9 +135,22 @@ export function projectOf(
 const DEFAULT_OUT: Readonly<Record<BuildTool, string>> = { foundry: "out", hardhat: "artifacts" };
 
 /**
+ * The helpers' issue message of an output folder that is missing or not a folder: Hardhat's
+ * "names no folder: …" and Foundry's "is not a directory".
+ */
+const MISSING_OUT = /^(?:names no folder\b|is not a directory$)/;
+
+/** What the project folder of each build tool holds, for the hint of a folder that is not there. */
+const ROOT_HINTS: Readonly<Record<BuildTool, string>> = {
+  foundry: "it must exist and should hold foundry.toml. Pass . for the current folder.",
+  hardhat: "it must exist and should hold the Hardhat config. Pass . for the current folder.",
+};
+
+/**
  * The error of a helper with the CLI's flags in its `invalid-input` issues: each field the helper
  * names, such as `contract`, becomes the flag that sets it, such as `--contract`, and a default
- * output folder the caller did not name is reported on the project flag. The envelope carries
+ * output folder the caller did not name is reported on the project flag. A project folder that is
+ * not there gets a message that names the project flag and a hint to check the folder. The envelope carries
  * the issues in `details`, and the stderr error block lists them. The hint is left to the CLI's
  * hint layer (`hints.ts`), which rewrites every error's hint in one place. Any other error is
  * returned as it is.
@@ -161,24 +174,45 @@ export function withCliFlags(error: unknown, request: ProjectRequest): unknown {
   }
   const { tool } = request;
   const flag = `--${tool}`;
+  const [first] = error.details.issues;
+  if (error.details.issues.length === 1 && first?.field === "root") {
+    // A project folder that is not there: name the flag, and say to check it.
+    const issue = { field: flag, message: first.message };
+    return new ExplorerVerifyError(
+      { code: "invalid-input", issues: [issue] },
+      `The input is invalid: ${flag} ${first.message}.`,
+      { ...options, hint: `Check the folder that ${flag} names: ${ROOT_HINTS[tool]}` },
+    );
+  }
   const names = new Map([
     ["root", flag],
     ["contract", "--contract"],
     ["artifact", "--artifact"],
     ["compilerVersion", "--compiler-version"],
   ]);
+  const folder = DEFAULT_OUT[tool];
   const issues = error.details.issues.map((issue): InputIssue => {
-    if (issue.field !== "outDir") {
-      return { ...issue, field: names.get(issue.field) ?? issue.field };
+    // The default output folder the caller did not name is reported on the project flag.
+    if (request.outDir === undefined && (issue.field === "outDir" || issue.field === folder)) {
+      return {
+        field: flag,
+        message: MISSING_OUT.test(issue.message)
+          ? `has no ${folder} folder: build the project, or pass --out-dir`
+          : `${folder} folder ${issue.message}`,
+      };
     }
-    return request.outDir === undefined
-      ? {
-          field: flag,
-          message: `has no ${DEFAULT_OUT[tool]} folder: build the project, or pass --out-dir`,
-        }
-      : { ...issue, field: "--out-dir" };
+    return {
+      ...issue,
+      field: issue.field === "outDir" ? "--out-dir" : (names.get(issue.field) ?? issue.field),
+    };
   });
-  return new ExplorerVerifyError({ code: "invalid-input", issues }, message, options);
+  // One issue: the headline is that issue, in the CLI's names, as for a missing project folder.
+  const [only] = issues;
+  const headline =
+    issues.length === 1 && only !== undefined
+      ? `The input is invalid: ${only.field} ${only.message}.`
+      : message;
+  return new ExplorerVerifyError({ code: "invalid-input", issues }, headline, options);
 }
 
 /**

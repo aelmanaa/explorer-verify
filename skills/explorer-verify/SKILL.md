@@ -232,7 +232,10 @@ state always throws; it never comes back as a result.
   differs.
 - `result.storedContract` on `already-verified` means the explorer holds another contract's source
   for the address, with that `name` and `compilerVersion`: `verify()` submitted and the explorer
-  refused. Tell the person; the explorer page shows the other contract, not theirs.
+  refused. Tell the person; the explorer page shows the other contract, not theirs. The CLI exits
+  0 for it, or 1 with `ok: false` under `verify --require-own-source`. Exit 1 here is not a
+  rejection of the source: do not edit it. Check the contract name and compiler version with the
+  person.
 - `already-verified` with `partial` and no `storedContract` means the explorer holds a partial
   match of this source. To replace it with an exact one, the person can ask for a second call with
   `submitOverPartial: true` (CLI: `--submit-over-partial`). That call submits the source: ask the
@@ -318,7 +321,7 @@ examples do. See [When to stop](#when-to-stop) for how often to retry.
 | Exit code | Outcome                                                                                                                                                                                                                                       | What to do                                                                                                                                                                                                                                                                                                                                                     |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0         | `verified` or `already-verified`                                                                                                                                                                                                              | Done. Delete the stored handle                                                                                                                                                                                                                                                                                                                                 |
-| 1         | `failed`: the explorer rejected the source                                                                                                                                                                                                    | Report `result.reason`. Do not change the sources or settings and submit again unless the person asks                                                                                                                                                                                                                                                          |
+| 1         | `failed`: the explorer rejected the source. With `--require-own-source`, also `already-verified` with `storedContract`                                                                                                                        | `failed`: report `result.reason`. `storedContract`: report its `name` and `compilerVersion`; the source was not rejected, so do not edit it. In both cases, do not change the sources or settings and submit again unless the person asks                                                                                                                      |
 | 2         | `invalid-input`, `unsupported-chain`, `incomplete-input`, `insufficient-artifact`, `unsupported-compiler`, `source-mismatch`, `no-metadata-hash`, `constructor-args-unavailable` or `handler-refused`. Nothing was submitted for verification | Fix what `error.details.issues` or `error.details.field` names. An envelope has no `details`: read its `hint`. `no-metadata-hash`: build the input from the build files instead. `constructor-args-unavailable`: pass `constructorArgs`. `handler-refused`: do not retry; give the hint, which names the `createVerifyHandler` option to change, to the person |
 | 3         | `missing-api-key`, `api-key-rejected` or `quota-exceeded`, from the Etherscan and Routescan clients on. Nothing more can succeed with this key in this call                                                                                   | Do not retry. Ask the person for a key, a valid key, or to wait until the daily limit resets. Never ask them to paste a key into the chat                                                                                                                                                                                                                      |
 | 4         | `not-confirmed`, `verification-inconclusive`, `not-indexed` or `proxy-link-pending`                                                                                                                                                           | `not-confirmed`: call `checkStatus()` later with the handle. `verification-inconclusive`: no handle; call `verify()` again later, once. `not-indexed`: no handle; check the chain ID and address, then call again in a minute, once. `proxy-link-pending`: no handle; call `linkProxy()` again later, once, with `resumeJobId: error.details.jobId`            |
@@ -433,7 +436,8 @@ Keys on the command line:
 - `--input-json <file>` reads the whole request as JSON: the `verify-input.json` of step 1, with an
   optional `route` of `backend` and `apiUrl`; a real run needs `route.backend`, a name or
   `"auto"`. It holds no key. Only the output, log, `--dry-run`,
-  `--timeout`, `--poll-interval` and key flags may go with it, not `--foundry` or `--hardhat`.
+  `--timeout`, `--poll-interval`, `--index-wait`, `--require-own-source` and key flags may go with
+  it, not `--foundry` or `--hardhat`.
 - A run that ends pending exits 4 with the handle in the error. Resume with
   `explorer-verify status <handle>`, never with a new `verify`. With `--json`, its envelope
   also holds `nextCommand`, that `status` command as an argument array: run it as it is. It never
@@ -451,12 +455,14 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
   command again at most once.
 - After `job-not-found`, ask the person first, then call `verify()` at most once.
 - Then stop, and report the handle, the error code and the hint to the person.
-- After exit code 1, report `result.reason`. Do not change the sources or the settings and submit
-  again unless the person asks.
+- After exit code 1, report `result.reason` for `failed`. For `already-verified` with
+  `storedContract`, which exits 1 under `--require-own-source`, report its `name` and
+  `compilerVersion`: the source was not rejected, so do not edit it. Either way, do not change the
+  sources or the settings and submit again unless the person asks.
 - Right after a deployment, Sourcify may answer `contract_not_deployed`, as
   `verification-inconclusive`, until its node sees the contract. Etherscan answers that it finds no
-  contract code, and `verify()` throws `not-indexed` when its wait ends; pass a longer `indexWaitMs`
-  to wait more. Wait for the deployment to be indexed, then try once more.
+  contract code, and `verify()` throws `not-indexed` when its wait ends; pass a longer `indexWaitMs`,
+  or `--index-wait <seconds>` to the CLI, to wait more. Wait for the deployment to be indexed, then try once more.
 
 ## Keys and redaction
 
