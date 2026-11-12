@@ -67,7 +67,8 @@ const noAbort: "abort" extends keyof VerifyOptions ? false : true = true;
 const signalType: Equals<VerifyOptions["signal"], AbortSignal | undefined> = true;
 const fetchType: Equals<VerifyOptions["fetch"], typeof fetch | undefined> = true;
 const loggerKeys: Equals<keyof Logger, "debug" | "info" | "warn" | "error"> = true;
-const routeKeys: Equals<keyof RouteOverride, "backend" | "apiUrl" | "apiKey"> = true;
+const routeKeys: Equals<keyof RouteOverride, "backend" | "apiUrl" | "apiKey" | "explorerUrl"> =
+  true;
 const handleKeys: Equals<
   keyof Handle,
   "version" | "backend" | "chainId" | "address" | "jobId" | "overPartial"

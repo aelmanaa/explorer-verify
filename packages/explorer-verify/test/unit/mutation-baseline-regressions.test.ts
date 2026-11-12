@@ -102,8 +102,11 @@ describe("mutation baseline regressions (R-FLOW-4, R-SEC-1, R-RT-2)", () => {
   it("names rejected and missing hosted keys without echoing the response", () => {
     const { ctx } = setup({ backend: "blockscout-hosted" }, []);
     for (const [status, message] of [
-      [401, "blockscout-hosted refused the API key, or its plan or credits for this request."],
-      [402, "blockscout-hosted answered that the API key is missing."],
+      [
+        401,
+        "Blockscout's hosted API refused the API key, or its plan or credits for this request.",
+      ],
+      [402, "Blockscout's hosted API answered that the API key is missing."],
     ] as const) {
       assert.equal(
         refusal(ctx, { status, text: "untrusted response", fields: undefined }, SEPOLIA)?.message,

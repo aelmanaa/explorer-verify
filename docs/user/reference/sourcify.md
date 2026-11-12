@@ -70,34 +70,37 @@ matches. An answer whose `chainId` or `address` names another contract throws
 
 ## Job error codes
 
-A completed job's error code decides between `failed` and `verification-inconclusive`.
+A completed job's error code decides between `failed` and `verification-inconclusive`, and gives a
+`failed` result its `reasonCode` ([Why a submission failed](verify.md#why-a-submission-failed)).
+`extra_file_input_bug` means the deployed build compiled more files than the input holds, so it
+reads as `missing-source`.
 
-| Error code                                      | Outcome                     |
-| ----------------------------------------------- | --------------------------- |
-| `no_match`                                      | `failed`                    |
-| `bytecode_length_mismatch`                      | `failed`                    |
-| `compiler_error`                                | `failed`                    |
-| `missing_source`                                | `failed`                    |
-| `missing_or_invalid_source`                     | `failed`                    |
-| `invalid_compilation_target`                    | `failed`                    |
-| `contract_not_found_in_compiler_output`         | `failed`                    |
-| `runtime_bytecode_not_found_in_compiler_output` | `failed`                    |
-| `invalid_compiler_version`                      | `failed`                    |
-| `unsupported_compiler_version`                  | `failed`                    |
-| `invalid_language`                              | `failed`                    |
-| `unsupported_language`                          | `failed`                    |
-| `compiled_bytecode_is_zero`                     | `failed`                    |
-| `onchain_bytecode_is_zero`                      | `failed`                    |
-| `extra_file_input_bug`                          | `failed`                    |
-| `internal_error`                                | `verification-inconclusive` |
-| `job_abandoned`                                 | `verification-inconclusive` |
-| `compiler_timeout`                              | `verification-inconclusive` |
-| `compiler_out_of_memory`                        | `verification-inconclusive` |
-| `no_compiler_output`                            | `verification-inconclusive` |
-| `cannot_fetch_bytecode`                         | `verification-inconclusive` |
-| `onchain_runtime_bytecode_not_available`        | `verification-inconclusive` |
-| `onchain_creation_bytecode_not_available`       | `verification-inconclusive` |
-| `contract_not_deployed`                         | `verification-inconclusive` |
+| Error code                                      | Outcome                     | `reasonCode`                                                              |
+| ----------------------------------------------- | --------------------------- | ------------------------------------------------------------------------- |
+| `no_match`                                      | `failed`                    | `bytecode-mismatch`                                                       |
+| `bytecode_length_mismatch`                      | `failed`                    | `bytecode-mismatch`                                                       |
+| `compiler_error`                                | `failed`                    | `compiler`; `missing-source` when the message says `Source "…" not found` |
+| `missing_source`                                | `failed`                    | `missing-source`                                                          |
+| `missing_or_invalid_source`                     | `failed`                    | `missing-source`                                                          |
+| `invalid_compilation_target`                    | `failed`                    | `contract-name`                                                           |
+| `contract_not_found_in_compiler_output`         | `failed`                    | `contract-name`                                                           |
+| `runtime_bytecode_not_found_in_compiler_output` | `failed`                    | `contract-name`                                                           |
+| `invalid_compiler_version`                      | `failed`                    | `compiler`                                                                |
+| `unsupported_compiler_version`                  | `failed`                    | `compiler`                                                                |
+| `invalid_language`                              | `failed`                    | `compiler`                                                                |
+| `unsupported_language`                          | `failed`                    | `compiler`                                                                |
+| `compiled_bytecode_is_zero`                     | `failed`                    | `contract-name`                                                           |
+| `onchain_bytecode_is_zero`                      | `failed`                    | `unknown`                                                                 |
+| `extra_file_input_bug`                          | `failed`                    | `missing-source`                                                          |
+| `internal_error`                                | `verification-inconclusive` |                                                                           |
+| `job_abandoned`                                 | `verification-inconclusive` |                                                                           |
+| `compiler_timeout`                              | `verification-inconclusive` |                                                                           |
+| `compiler_out_of_memory`                        | `verification-inconclusive` |                                                                           |
+| `no_compiler_output`                            | `verification-inconclusive` |                                                                           |
+| `cannot_fetch_bytecode`                         | `verification-inconclusive` |                                                                           |
+| `onchain_runtime_bytecode_not_available`        | `verification-inconclusive` |                                                                           |
+| `onchain_creation_bytecode_not_available`       | `verification-inconclusive` |                                                                           |
+| `contract_not_deployed`                         | `verification-inconclusive` |                                                                           |
 
 `contract_not_deployed` can appear right after a deployment, before Sourcify's node sees the
 contract.

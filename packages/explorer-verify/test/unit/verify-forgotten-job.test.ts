@@ -46,7 +46,7 @@ const HANDLE: Handle = {
 };
 const AGAIN_HINT =
   "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.";
-const LOOKING_UP = `sourcify does not know job ${GREETER_JOB}; looking the contract up instead`;
+const LOOKING_UP = `Sourcify does not know job ${GREETER_JOB}; looking the contract up instead`;
 
 const eventSchema: unknown = JSON.parse(
   readFileSync(new URL("../../schema/event.schema.json", import.meta.url), "utf8"),
@@ -298,7 +298,7 @@ describe("verify(): a job the explorer no longer knows (#75)", () => {
     assert.equal(error.hint, AGAIN_HINT);
     assert.equal(
       error.message,
-      `sourcify does not know job ${GREETER_JOB}, and a lookup found the contract not verified.`,
+      `Sourcify does not know job ${GREETER_JOB}, and a lookup found the contract not verified.`,
     );
     // The cause is the poll's own job-not-found error.
     assert.equal(causeCode(error), "job-not-found");
@@ -318,7 +318,7 @@ describe("verify(): a job the explorer no longer knows (#75)", () => {
     assert.ok(error.hint.startsWith("Do not retry automatically."), error.hint);
     assert.equal(
       error.message,
-      `sourcify does not know job ${GREETER_JOB}, and the lookup of the contract failed.`,
+      `Sourcify does not know job ${GREETER_JOB}, and the lookup of the contract failed.`,
     );
     assert.equal(causeCode(error), "network");
   });

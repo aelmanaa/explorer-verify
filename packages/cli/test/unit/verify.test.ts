@@ -725,7 +725,7 @@ describe("--submit-over-partial (R-FLOW-1, R-FLOW-7, decision 0067)", () => {
     assert.equal(result.code, 0, result.stderr);
     assert.match(
       result.stderr,
-      /sourcify holds a partial match of this source; submitting over it \(--submit-over-partial\)\./,
+      /Sourcify holds a partial match of this source; submitting over it \(--submit-over-partial\)\./,
     );
     assert.ok(!result.stderr.includes("submitOverPartial"));
   });

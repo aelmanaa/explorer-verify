@@ -176,7 +176,12 @@ async function run(context: CommandContext): Promise<VerifyResult> {
   }
   if (outcome === "failed") {
     onEvent({ type: "verify.result", backend: BACKEND, status: outcome });
-    return { status: outcome, backend: BACKEND, reason: "The scripted explorer rejected it." };
+    return {
+      status: outcome,
+      backend: BACKEND,
+      reason: "The scripted explorer rejected it.",
+      reasonCode: "unknown",
+    };
   }
   throw errorAfterSubmit(outcome);
 }

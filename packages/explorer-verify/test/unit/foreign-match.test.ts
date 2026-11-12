@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
+import { BACKEND_LABELS } from "../../src/backend-names.ts";
 import type { Context } from "../../src/backends/backend.ts";
 import { foundOf } from "../../src/backends/common.ts";
 import { sourcify as sourcifyClient } from "../../src/clients/sourcify.ts";
@@ -22,6 +23,7 @@ import type {
   StoredContract,
   VerifyEachOptions,
   VerifyEachResult,
+  VerifyEvent,
   VerifyInput,
   VerifyOptions,
 } from "../../src/index.ts";
@@ -218,11 +220,31 @@ describe("verify() submits over a recorded match of another contract's source (R
     it(`${row.backend}: ${row.name} at ${row.address}, where the explorer holds ${String(row.stored.name)}`, async () => {
       const fake = replay(recorded(row.backend, row.fixture), row.refused(), ...afterRefusal(row));
       const log = lines();
+      const events: VerifyEvent[] = [];
+      // The requests sent when verify.stored arrived: the lookup only (decision 0073).
+      let sentAtStored = -1;
       const result = await runVerify(input(row.address, row.name), {
         fetch: fake.fetch,
         route: { backend: row.backend },
         logger: log.logger,
+        onEvent: (event) => {
+          events.push(event);
+          if (event.type === "verify.stored") {
+            sentAtStored = fake.calls.length;
+          }
+        },
       });
+      assert.deepEqual(
+        events.filter((event) => event.type === "verify.stored"),
+        [{ type: "verify.stored", backend: row.backend, ...row.stored }],
+      );
+      assert.equal(sentAtStored, 1);
+      assert.deepEqual(events.map((event) => event.type).slice(0, 4), [
+        "verify.validated",
+        "verify.routed",
+        "verify.lookup",
+        "verify.stored",
+      ]);
       // The lookup, then the submit: a foreign match never ends the call before a submit.
       assert.equal(fake.calls[0]?.method, "GET");
       assert.ok(fake.calls[1] !== undefined && isSubmit(fake.calls[1]));
@@ -239,7 +261,7 @@ describe("verify() submits over a recorded match of another contract's source (R
       assert.ok(info !== undefined, "the info line names the other contract");
       assert.equal(
         info[1],
-        `${row.backend} holds another contract's source (${String(row.stored.name)}, ${String(row.stored.compilerVersion)}); submitting this source.`,
+        `${BACKEND_LABELS[row.backend]} holds another contract's source (${String(row.stored.name)}, ${String(row.stored.compilerVersion)}); submitting this source.`,
       );
       assert.deepEqual(info[2], { backend: row.backend });
       const warn = log.seen.find(
@@ -681,12 +703,12 @@ function sourcifyLookup(compilation: unknown): Response {
 describe("a stored contract that names one field only (decision 0063)", () => {
   it("heldText lists the fields the explorer gives", () => {
     assert.equal(
-      heldText("sourcify", { name: "A", compilerVersion: "v1" }),
-      "sourcify holds another contract's source (A, v1)",
+      heldText("Sourcify", { name: "A", compilerVersion: "v1" }),
+      "Sourcify holds another contract's source (A, v1)",
     );
     assert.equal(
-      heldText("routescan", { compilerVersion: "v1" }),
-      "routescan holds another contract's source (v1)",
+      heldText("Routescan", { compilerVersion: "v1" }),
+      "Routescan holds another contract's source (v1)",
     );
   });
 
@@ -718,7 +740,7 @@ describe("a stored contract that names one field only (decision 0063)", () => {
       assert.deepEqual(result.storedContract, stored);
       const warn = log.seen.find(([level]) => level === "warn");
       assert.deepEqual(warn?.slice(1), [
-        `${heldText("etherscan-v2", stored)}, not this one.`,
+        `${heldText("Etherscan", stored)}, not this one.`,
         { backend: "etherscan-v2" },
       ]);
     });
@@ -872,7 +894,7 @@ describe("the job's lookup and nameless answers (R-FLOW-4, decision 0063)", () =
       log.seen.some(
         ([level, message]) =>
           level === "info" &&
-          message === "sourcify names no contract; the match is taken as this source.",
+          message === "Sourcify names no contract; the match is taken as this source.",
       ),
     );
   });

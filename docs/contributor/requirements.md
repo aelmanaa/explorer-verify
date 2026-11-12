@@ -207,7 +207,8 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 - **R-FLOW-3** The result is a discriminated union: `verified` or `already-verified` (each with an
   `exact` or `partial` match), or `failed`, each with `backend` (a `BackendName`), and the explorer
   URL on success when the library knows a public page for the contract. A route that points at a
-  self-hosted or local server has none. An Etherscan Similar Match, which Etherscan made from
+  self-hosted or local server has none, unless the caller gives its page base as
+  `route.explorerUrl` ([decision 0073](decisions/0073-integration-api-for-build-tools.md)). An Etherscan Similar Match, which Etherscan made from
   another contract's verified source rather than one submitted for this address, is `partial`
   ([research](research/2026-11-04-etherscan-client.md#the-lookup-and-similar-match)). So is every
   Routescan match, from a lookup or a `Pass - Verified`, since Routescan states no grade. A
@@ -216,7 +217,11 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   `verified` or `exact` for such a match
   ([decision 0063](decisions/0063-submit-over-another-contracts-match.md)).
 - **R-FLOW-4** `failed` only when the explorer definitively rejected the submission. An unknown,
-  ambiguous or timed-out state throws a typed error. A caller never mistakes it for success.
+  ambiguous or timed-out state throws a typed error. A caller never mistakes it for success. A
+  `failed` result carries the explorer's text as `reason` and the cause its answer names as
+  `reasonCode`: `bytecode-mismatch`, `missing-source`, `compiler`, `contract-name`,
+  `constructor-args`, `libraries` or `unknown`
+  ([decision 0073](decisions/0073-integration-api-for-build-tools.md)).
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
   later, from another process or after a page reload. The handle is plain JSON with a version field
   and no URLs. Its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, is the form to store;
@@ -288,7 +293,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   The CLI and the library share the catalogue (R-AX-10). A library hint names each value in words;
   a field path follows only in parentheses. `hintFor(error, "user")` gives a hint for a tool's end
   users that names no function, option, field or command, and never throws (decision 0061). Hint
-  text may change in any release; callers switch on `code`.
+  text may change in any release; callers switch on `code`. Messages and hints name an explorer by
+  its label from `BACKEND_LABELS`, such as `Etherscan`; the backend id stays in `details.backend`,
+  and appears in text only as a value to set, such as `apiKeys.etherscan-v2` (decision 0073).
 - **R-DX-4** TSDoc on every export, with an example that compiles.
 - **R-DX-5** `VerifyOptions.logger` takes four methods, `debug`, `info`, `warn` and `error`, each
   `(message: string, fields?: LogFields) => void`. `LogFields` is a flat record whose values are
@@ -306,6 +313,7 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   | `verify.validated` | `chainId`, `address`                                         |
   | `verify.routed`    | `backend`, `apiHost` (host only, no path or query)           |
   | `verify.lookup`    | `backend`, `lookup`: `exact`, `partial`, `none` or `skipped` |
+  | `verify.stored`    | `backend`, and `name` and `compilerVersion` when given       |
   | `verify.submitted` | `backend`, `handle` in its one-line string form              |
   | `verify.poll`      | `backend`, `attempt`, `state`                                |
   | `verify.retry`     | `backend`, `attempt`, `reason`, `delayMs`                    |

@@ -49,6 +49,8 @@ const EVENT_LEVELS: Readonly<Record<VerifyEvent["type"], LineLevel>> = {
   "verify.validated": "debug",
   "verify.routed": "debug",
   "verify.lookup": "debug",
+  // The library logs the same at info, with the contract it names.
+  "verify.stored": "debug",
   "verify.submitted": "info",
   "verify.poll": "debug",
   "verify.retry": "warn",
@@ -109,6 +111,9 @@ export function eventMessage(event: VerifyEvent): string {
     case "verify.lookup":
       message = `Lookup on ${event.backend}: ${event.lookup}.`;
       break;
+    case "verify.stored":
+      message = `${event.backend} holds another contract's source (${[event.name, event.compilerVersion].filter((part) => part !== undefined).join(", ")}); submitting this source.`;
+      break;
     case "verify.submitted":
       message = `Submitted to ${event.backend}. Handle: ${event.handle}`;
       break;
@@ -151,6 +156,9 @@ export function stageText(event: VerifyEvent): string {
       break;
     case "verify.lookup":
       stage = `Looked the contract up on ${event.backend}`;
+      break;
+    case "verify.stored":
+      stage = `Found another contract's source on ${event.backend}`;
       break;
     case "verify.submitted":
       stage = `Submitted to ${event.backend}, waiting for the result`;

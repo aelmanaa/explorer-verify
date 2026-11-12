@@ -105,7 +105,7 @@ describe("resolveRoute: backend selection (R-RT-1)", () => {
     assert.equal(error.code, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
+      "Etherscan needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
     );
   });
 
@@ -175,7 +175,7 @@ describe("resolveRoute: route.backend and route.apiUrl (R-RT-2)", () => {
     });
     assert.equal(
       error.message,
-      `The routing table lists no routescan API for chain ${String(SEPOLIA)}.`,
+      `The routing table lists no Routescan API for chain ${String(SEPOLIA)}.`,
     );
     assert.match(error.hint, /route\.backend/);
     assert.match(error.hint, /route\.apiUrl/);
@@ -438,7 +438,7 @@ describe("resolveRoute: the route fields of the key rule (R-SEC-2, #58)", () => 
     });
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
+      "Etherscan needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
     );
   });
 });

@@ -137,7 +137,7 @@ additions:
 | Status | `Pass - Verified`                                                                     | `verified`, `partial`: Routescan states no grade                                                                                  |
 | Status | `Verification not found`                                                              | [`job-not-found`](errors/job-not-found.md) from the client; `verify()` and `checkStatus()` then look the contract up, see below   |
 | Status | `Missing guid`                                                                        | [`unexpected-response`](errors/unexpected-response.md)                                                                            |
-| Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, with the text as `reason`; no lookup                                                                                    |
+| Status | `Error: Compilation successful, but bytecode does not match with deployed bytecode …` | `failed`, `reasonCode` `bytecode-mismatch`, with the text as `reason`; no lookup                                                  |
 
 `Missing guid` means the status request was malformed. In `verify()` and `checkStatus()` it counts
 as a failed poll, as any `unexpected-response` does. Polling goes on, and after 3 failed polls in

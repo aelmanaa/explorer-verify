@@ -152,7 +152,12 @@ const RESULTS: readonly VerifyResult[] = [
     match: "partial",
     explorerUrl: "https://y.example",
   },
-  { status: "failed", backend: "etherscan-compatible", reason: "Bytecode does not match" },
+  {
+    status: "failed",
+    backend: "etherscan-compatible",
+    reason: "Bytecode does not match",
+    reasonCode: "bytecode-mismatch",
+  },
 ];
 
 const RESULT_EXIT: Record<VerifyResult["status"], ExitCode> = {
@@ -204,7 +209,7 @@ describe("black box #5: results", () => {
       assert.notEqual(envelope.result, result, "envelope result is a new object");
       const expectedKeys =
         result.status === "failed"
-          ? ["status", "backend", "reason"]
+          ? ["status", "backend", "reason", "reasonCode"]
           : ["status", "backend", "match", ...("explorerUrl" in result ? ["explorerUrl"] : [])];
       assert.deepEqual(Object.keys(envelope.result), expectedKeys);
       assertValid(envelope);
@@ -218,14 +223,19 @@ describe("black box #5: results", () => {
       backend: "sourcify",
       status: "verified",
     };
-    const shuffledFailed: VerifyResult = { reason: "nope", backend: "sourcify", status: "failed" };
+    const shuffledFailed: VerifyResult = {
+      reasonCode: "unknown",
+      reason: "nope",
+      backend: "sourcify",
+      status: "failed",
+    };
     assert.equal(
       JSON.stringify(toEnvelope(shuffled)),
       '{"schemaVersion":1,"ok":true,"result":{"status":"verified","backend":"sourcify","match":"exact","explorerUrl":"https://x.example/a"}}',
     );
     assert.equal(
       JSON.stringify(toEnvelope(shuffledFailed)),
-      '{"schemaVersion":1,"ok":false,"result":{"status":"failed","backend":"sourcify","reason":"nope"}}',
+      '{"schemaVersion":1,"ok":false,"result":{"status":"failed","backend":"sourcify","reason":"nope","reasonCode":"unknown"}}',
     );
   });
 
@@ -245,11 +255,17 @@ describe("black box #5: results", () => {
       status: "failed",
       backend: "sourcify",
       reason: "r",
+      reasonCode: "unknown",
       ...failedExtra,
     };
     const failedEnvelope = toEnvelope(failed);
     assert.ok(failedEnvelope.result !== undefined);
-    assert.deepEqual(Object.keys(failedEnvelope.result), ["status", "backend", "reason"]);
+    assert.deepEqual(Object.keys(failedEnvelope.result), [
+      "status",
+      "backend",
+      "reason",
+      "reasonCode",
+    ]);
     assertValid(envelope);
     assertValid(failedEnvelope);
   });
@@ -505,7 +521,7 @@ describe("black box #5: no key in the envelope (R-AX-9, R-SEC-1)", () => {
             match: "partial",
             explorerUrl: text,
           },
-          { status: "failed", backend: "etherscan-v2", reason: text },
+          { status: "failed", backend: "etherscan-v2", reason: text, reasonCode: "unknown" },
         ];
         for (const result of results) {
           assertNoKey(toEnvelope(result, { secrets: [key] }), [key]);
@@ -522,6 +538,7 @@ describe("black box #5: no key in the envelope (R-AX-9, R-SEC-1)", () => {
       status: "failed",
       backend: "sourcify",
       reason: `x ${OPAQUE_KEY}`,
+      reasonCode: "unknown",
     };
     const before = JSON.stringify(result);
     toEnvelope(result, { secrets: [OPAQUE_KEY] });

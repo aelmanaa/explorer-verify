@@ -218,7 +218,48 @@ export type VerifyResult =
       backend: BackendName;
       /** The explorer's code and message, with API keys removed and cut to 300 characters. */
       reason: string;
+      // References: R-FLOW-4, decision 0073.
+      /** Why the explorer rejected it, as far as its answer tells: see {@link FailureReasonCode}. */
+      reasonCode: FailureReasonCode;
     };
+
+// References: R-FLOW-4, decision 0073.
+/**
+ * Why the explorer rejected a submission, read from its answer. Switch on it rather than on the
+ * `reason` text, which is the explorer's and may change.
+ *
+ * - `bytecode-mismatch`: the source compiled, but its bytecode, or its metadata hash, differs from
+ *   the deployed one.
+ * - `missing-source`: the compiler needed a source file the input lacks, or the deployed build
+ *   used more files than the input has. A build tool that sent a reduced input can retry with the
+ *   full one.
+ * - `compiler`: the compiler rejected the input, or the explorer does not offer its version or
+ *   language.
+ * - `contract-name`: the compiler output has no deployable contract under `contractName`.
+ * - `constructor-args`: the constructor arguments do not match the deployment.
+ * - `libraries`: a linked library is missing or does not match.
+ * - `unknown`: the answer does not say, as Blockscout's `Fail - Unable to verify` does not.
+ *
+ * A later release may add values, so a `switch` needs a default branch.
+ *
+ * @example
+ * ```ts
+ * import type { VerifyResult } from "explorer-verify";
+ *
+ * function retryWithFullInput(result: VerifyResult): boolean {
+ *   return result.status === "failed" && result.reasonCode === "missing-source";
+ * }
+ * ```
+ * @experimental
+ */
+export type FailureReasonCode =
+  | "bytecode-mismatch"
+  | "missing-source"
+  | "compiler"
+  | "contract-name"
+  | "constructor-args"
+  | "libraries"
+  | "unknown";
 
 // References: R-FLOW-8.
 /**
@@ -487,6 +528,17 @@ type VerificationEvent =
       /** What the already-verified check found, or `skipped` when it did not run. */
       readonly lookup: "exact" | "partial" | "none" | "skipped";
     }
+  // References: R-DX-6, decision 0073.
+  | {
+      /** The event type. */
+      readonly type: "verify.stored";
+      /** The backend whose lookup found another contract's source. */
+      readonly backend: BackendName;
+      /** The stored contract's name as the explorer gives it, when it does. */
+      readonly name?: string;
+      /** The stored contract's compiler version as the explorer gives it, when it does. */
+      readonly compilerVersion?: string;
+    }
   | {
       /** The event type. */
       readonly type: "verify.submitted";
@@ -559,6 +611,7 @@ type VerificationEvent =
  * | `verify.validated` | The input passed validation                        |
  * | `verify.routed`    | The route is resolved                              |
  * | `verify.lookup`    | The already-verified check finished or was skipped |
+ * | `verify.stored`    | That check found another contract's source         |
  * | `verify.submitted` | The explorer accepted the submission               |
  * | `verify.poll`      | One poll returned a state that is not final        |
  * | `verify.retry`     | A request is retried after a transient failure     |
@@ -583,6 +636,7 @@ type VerificationEvent =
  *     case "verify.validated":
  *     case "verify.routed":
  *     case "verify.lookup":
+ *     case "verify.stored":
  *     case "verify.poll":
  *     case "verify.result":
  *       break;
@@ -664,7 +718,7 @@ export interface RouteOverride {
    * path. Any other value throws `invalid-input` naming `route.apiUrl`, without repeating the
    * value. It works for any chain, including one the routing table does not list. Without
    * `backend`, the backend is `sourcify`. A URL other than the routing table's for the backend
-   * and chain means results carry no `explorerUrl`. A `route.apiUrl` gets no key from `apiKeys`,
+   * and chain means results carry no `explorerUrl`, unless `route.explorerUrl` is set. A `route.apiUrl` gets no key from `apiKeys`,
    * except Etherscan's own API for `etherscan-v2`: a URL whose origin is
    * `https://api.etherscan.io`, in any letter case, with or without `:443` or a trailing dot on
    * the host, takes `apiKeys["etherscan-v2"]`. Pass `route.apiKey` for any other `apiUrl`.
@@ -683,6 +737,21 @@ export interface RouteOverride {
    * `route.apiKey`.
    */
   apiKey?: string | undefined;
+  // References: R-FLOW-3, decision 0073.
+  /**
+   * The explorer's page base, such as `https://sepolia.etherscan.io`, for the result's
+   * `explorerUrl`. It replaces the routing table's page, and gives a route with `apiUrl` a page,
+   * which it otherwise lacks. The contract's page is built as the table builds its pages:
+   *
+   * - `sourcify`: `<explorerUrl>/<chainId>/<address>`;
+   * - `blockscout` and `blockscout-hosted`: `<explorerUrl>/address/<address>?tab=contract`;
+   * - `etherscan-v2`, `etherscan-compatible` and `routescan`: `<explorerUrl>/address/<address>#code`.
+   *
+   * The same value rules as `apiUrl` apply, and it must not hold a query string. Trailing slashes
+   * are removed. Any other value throws `invalid-input` naming `route.explorerUrl`, without
+   * repeating the value. No request goes to it.
+   */
+  explorerUrl?: string | undefined;
 }
 
 // References: decision 0009.

@@ -50,3 +50,27 @@ export type KeyedBackendName = Extract<
   BackendName,
   "etherscan-v2" | "routescan" | "blockscout-hosted"
 >;
+
+// References: R-DX-3, decision 0073.
+/**
+ * The name of each backend's explorer as people know it, which messages, log lines and hints
+ * use. Errors keep the backend id in `details.backend`, and log lines in their `backend` field.
+ * Both Blockscout backends read `Blockscout`. The routing table gives a standalone explorer no
+ * name, so `etherscan-compatible` reads `Etherscan-compatible explorer`.
+ *
+ * @example
+ * ```ts
+ * import { BACKEND_LABELS } from "explorer-verify/backends";
+ *
+ * BACKEND_LABELS["etherscan-v2"]; // "Etherscan"
+ * ```
+ * @experimental
+ */
+export const BACKEND_LABELS: Readonly<Record<BackendName, string>> = {
+  "etherscan-v2": "Etherscan",
+  "etherscan-compatible": "Etherscan-compatible explorer",
+  blockscout: "Blockscout",
+  "blockscout-hosted": "Blockscout",
+  sourcify: "Sourcify",
+  routescan: "Routescan",
+};

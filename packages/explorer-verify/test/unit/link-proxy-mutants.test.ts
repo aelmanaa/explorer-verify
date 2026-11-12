@@ -145,14 +145,14 @@ describe("linkProxy(): what it logs (R-DX-5)", () => {
     assert.deepEqual(r.lines, [
       [
         "debug",
-        `Linking proxy ${PROXY} on chain ${String(SEPOLIA)} on sourcify`,
+        `Linking proxy ${PROXY} on chain ${String(SEPOLIA)} on Sourcify`,
         { backend: "sourcify", chainId: SEPOLIA, api: "https://sourcify.dev/server" },
       ],
-      ["info", "sourcify accepted the proxy link request (job job1)", { backend: "sourcify" }],
-      ["debug", "sourcify proxy link is pending (check 1)", { backend: "sourcify", attempt: 1 }],
+      ["info", "Sourcify accepted the proxy link request (job job1)", { backend: "sourcify" }],
+      ["debug", "Sourcify proxy link is pending (check 1)", { backend: "sourcify", attempt: 1 }],
       [
         "info",
-        `Result: linked to ${BOX} (implementation not verified) on sourcify`,
+        `Result: linked to ${BOX} (implementation not verified) on Sourcify`,
         { backend: "sourcify", status: "linked" },
       ],
     ]);
@@ -163,7 +163,7 @@ describe("linkProxy(): what it logs (R-DX-5)", () => {
     const r = await run(t, { linkers: { sourcify: fake.linker } });
     assert.deepEqual(r.lines.at(-1), [
       "info",
-      `Result: linked to ${BOX} on sourcify`,
+      `Result: linked to ${BOX} on Sourcify`,
       { backend: "sourcify", status: "linked" },
     ]);
   });
@@ -178,13 +178,13 @@ describe("linkProxy(): what it logs (R-DX-5)", () => {
     );
     assert.deepEqual(unnamed.lines.at(-1), [
       "info",
-      `Result: the proxy points at another implementation, not ${GREETER}, on sourcify`,
+      `Result: the proxy points at another implementation, not ${GREETER}, on Sourcify`,
       { backend: "sourcify", status: "mismatch" },
     ]);
     const named = await run(t, { linkers: { sourcify: linker(LINKED).linker } }, SOURCIFY, target);
     assert.deepEqual(named.lines.at(-1), [
       "info",
-      `Result: the proxy points at ${BOX}, not ${GREETER}, on sourcify`,
+      `Result: the proxy points at ${BOX}, not ${GREETER}, on Sourcify`,
       { backend: "sourcify", status: "mismatch" },
     ]);
   });
@@ -195,7 +195,7 @@ describe("linkProxy(): what it logs (R-DX-5)", () => {
     });
     assert.deepEqual(r.lines.at(-1), [
       "info",
-      "Result: not linked on sourcify",
+      "Result: not linked on Sourcify",
       { backend: "sourcify", status: "not-linked" },
     ]);
   });
@@ -212,7 +212,7 @@ describe("linkProxy(): failed checks (R-FLOW-4)", () => {
     const error = errorOf(r.outcome, "proxy-link-pending");
     assert.equal(
       error.message,
-      `The link of proxy ${PROXY} on sourcify is not confirmed: 3 status checks in a row failed before the explorer finished.`,
+      `The link of proxy ${PROXY} on Sourcify is not confirmed: 3 status checks in a row failed before the explorer finished.`,
     );
     assert.equal(fake.checked.length, 3);
     assert.deepEqual(
@@ -220,17 +220,17 @@ describe("linkProxy(): failed checks (R-FLOW-4)", () => {
       [
         [
           "warn",
-          "sourcify proxy link check 1 failed (network); checking again",
+          "Sourcify proxy link check 1 failed (network); checking again",
           { backend: "sourcify", attempt: 1, code: "network", failures: 1 },
         ],
         [
           "warn",
-          "sourcify proxy link check 2 failed (rate-limited); checking again",
+          "Sourcify proxy link check 2 failed (rate-limited); checking again",
           { backend: "sourcify", attempt: 2, code: "rate-limited", failures: 2 },
         ],
         [
           "warn",
-          "sourcify proxy link check 3 failed (network); giving up",
+          "Sourcify proxy link check 3 failed (network); giving up",
           { backend: "sourcify", attempt: 3, code: "network", failures: 3 },
         ],
       ],
@@ -286,7 +286,7 @@ describe("linkProxy(): failed checks (R-FLOW-4)", () => {
     const error = errorOf(r.outcome, "proxy-link-pending");
     assert.equal(
       error.message,
-      `The link of proxy ${PROXY} on sourcify is not confirmed: the time budget ran out before the explorer finished.`,
+      `The link of proxy ${PROXY} on Sourcify is not confirmed: the time budget ran out before the explorer finished.`,
     );
     assert.ok(error.cause instanceof Error);
     assert.equal(error.cause.message, "late");
@@ -304,7 +304,7 @@ describe("linkProxy(): the time budget (R-FLOW-8)", () => {
     const error = errorOf(r.outcome, "proxy-link-pending");
     assert.equal(
       error.message,
-      `The link of proxy ${PROXY} on sourcify is not confirmed: the time budget ran out before the explorer finished.`,
+      `The link of proxy ${PROXY} on Sourcify is not confirmed: the time budget ran out before the explorer finished.`,
     );
     // One check at 3 s; the next wait is the 1 s left, and no check runs at 4 s.
     assert.deepEqual(fake.checked, [3_000]);
@@ -376,7 +376,7 @@ describe("linkProxy(): the target and the route (R-FLOW-8, R-IN-6)", () => {
       { chainId: 999_999, address: PROXY },
     );
     const error = errorOf(r.outcome, "invalid-input");
-    assert.equal(error.message, "This version cannot link a proxy on routescan.");
+    assert.equal(error.message, "This version cannot link a proxy on Routescan.");
     assert.deepEqual(error.details.code === "invalid-input" && error.details.issues, [
       { field: "route.backend", message: "routescan cannot link a proxy" },
     ]);
@@ -399,7 +399,7 @@ describe("linkProxy(): the target and the route (R-FLOW-8, R-IN-6)", () => {
     const error = errorOf(r.outcome, "proxy-link-unknown-state");
     assert.equal(
       error.message,
-      "sourcify refused the link for another implementation than expected, but this call expected none.",
+      "Sourcify refused the link for another implementation than expected, but this call expected none.",
     );
     assert.deepEqual(error.details, {
       code: "proxy-link-unknown-state",

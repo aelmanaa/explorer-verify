@@ -48,7 +48,7 @@ const INPUT: VerifyInput = {
   },
   contractName: "contracts/Greeter.sol:Greeter",
 };
-const MESSAGE_START = `sourcify job ${GREETER_JOB} found the contract already verified, but`;
+const MESSAGE_START = `Sourcify job ${GREETER_JOB} found the contract already verified, but`;
 
 /** A fetch that must not be called: the backends in these tests answer without one. */
 const noFetch: typeof fetch = async () => {
@@ -294,7 +294,7 @@ function timeoutError(): ExplorerVerifyError {
   );
 }
 
-const NOT_CONFIRMED = `The verification of job ${GREETER_JOB} on sourcify is not confirmed:`;
+const NOT_CONFIRMED = `The verification of job ${GREETER_JOB} on Sourcify is not confirmed:`;
 
 describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-FLOW-5, R-DX-5)", () => {
   it("logs each failed poll, says when it gives up, and names the failures in the error", async (t) => {
@@ -318,7 +318,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
       lines.filter(([level]) => level === "warn"),
       [1, 2, 3].map((attempt) => [
         "warn",
-        `sourcify status poll ${String(attempt)} for job ${GREETER_JOB} failed (network); ${attempt < 3 ? "polling again" : "giving up polling"}`,
+        `Sourcify status poll ${String(attempt)} for job ${GREETER_JOB} failed (network); ${attempt < 3 ? "polling again" : "giving up polling"}`,
         { backend: "sourcify", attempt, code: "network", failures: attempt },
       ]),
     );
@@ -326,7 +326,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
       lines.find(([, message]) => message.startsWith("Polling ")),
       [
         "debug",
-        `Polling sourcify job ${GREETER_JOB} stopped (failures); looking the contract up once more`,
+        `Polling Sourcify job ${GREETER_JOB} stopped (failures); looking the contract up once more`,
         { backend: "sourcify" },
       ],
     );
@@ -377,7 +377,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
       lines.find(([, message]) => message.includes("is pending")),
       [
         "debug",
-        `sourcify job ${GREETER_JOB} is pending (poll 1)`,
+        `Sourcify job ${GREETER_JOB} is pending (poll 1)`,
         { backend: "sourcify", attempt: 1 },
       ],
     );
@@ -402,7 +402,7 @@ describe("settle(): why polling stopped, in the error and the log (R-FLOW-2, R-F
       lines.find(([, message]) => message.includes("looking the contract up instead")),
       [
         "debug",
-        `sourcify does not know job ${GREETER_JOB}; looking the contract up instead`,
+        `Sourcify does not know job ${GREETER_JOB}; looking the contract up instead`,
         { backend: "sourcify" },
       ],
     );
@@ -428,7 +428,7 @@ describe("verify(): the route and result lines of the log (R-DX-5)", () => {
     assert.equal(result.status, "already-verified");
     const messages = lines.map(([level, message]) => `${level} ${message}`);
     assert.ok(messages.includes(`debug Verifying ${GREETER} on chain ${String(SEPOLIA)}`));
-    assert.ok(messages.includes("info Result: already-verified (partial) on sourcify"));
+    assert.ok(messages.includes("info Result: already-verified (partial) on Sourcify"));
   });
 
   it("logs a failed result without a match", async (t) => {
@@ -436,18 +436,27 @@ describe("verify(): the route and result lines of the log (R-DX-5)", () => {
     const { logger, lines } = recorder();
     const call = callWith(
       scripted(
-        async () => ({ state: "failed", reason: "bytecode does not match" }),
+        async () => ({
+          state: "failed",
+          reason: "bytecode does not match",
+          reasonCode: "bytecode-mismatch",
+        }),
         async () => undefined,
       ),
       { logger },
     );
     const result = await onClock(t, settle(call, HANDLE, 0));
     assert.deepEqual(result, {
-      resolved: { status: "failed", backend: "sourcify", reason: "bytecode does not match" },
+      resolved: {
+        status: "failed",
+        backend: "sourcify",
+        reason: "bytecode does not match",
+        reasonCode: "bytecode-mismatch",
+      },
     });
     assert.deepEqual(
       lines.filter(([level]) => level === "info"),
-      [["info", "Result: failed on sourcify", { backend: "sourcify", status: "failed" }]],
+      [["info", "Result: failed on Sourcify", { backend: "sourcify", status: "failed" }]],
     );
   });
 });

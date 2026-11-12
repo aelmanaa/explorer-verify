@@ -37,7 +37,7 @@ const SUBPATHS = [
     subpath: "./backends",
     source: "entries/backends.ts",
     module: backends,
-    names: ["BACKEND_NAMES", "toBackendName"],
+    names: ["BACKEND_LABELS", "BACKEND_NAMES", "toBackendName"],
   },
   {
     subpath: "./envelope",

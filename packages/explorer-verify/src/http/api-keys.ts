@@ -6,7 +6,7 @@
  * Internal: the package entry point does not export it.
  */
 import type { BackendName, KeyedBackendName } from "../backend-names.ts";
-import { toBackendName } from "../backend-names.ts";
+import { BACKEND_LABELS, toBackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { readFields, readOwn } from "../internal/read-fields.ts";
@@ -517,7 +517,7 @@ export function requireKey(
           : `a route with route.apiUrl takes no key from apiKeys.${backend}; set route.apiKey`;
   throw newError(
     { code: "missing-api-key", backend },
-    `${backend} needs an API key and none is set for ${host}: ${where}.`,
+    `${BACKEND_LABELS[backend]} needs an API key and none is set for ${host}: ${where}.`,
     { secrets },
   );
 }
@@ -581,7 +581,7 @@ export function keyErrorOf(
   } else {
     return undefined;
   }
-  return newError({ code, backend }, `${backend} answered ${what}.`, {
+  return newError({ code, backend }, `${BACKEND_LABELS[backend]} answered ${what}.`, {
     secrets,
     // Stryker disable next-line ConditionalExpression: equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.
     ...(hint === undefined ? {} : { hint }),

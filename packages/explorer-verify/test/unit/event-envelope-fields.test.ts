@@ -271,7 +271,7 @@ describe("multi-backend envelope discrimination (R-AX-5, R-RT-4)", () => {
   const failure: BackendOutcome = {
     backend: "sourcify",
     ok: false,
-    result: { status: "failed", backend: "sourcify", reason: "rejected" },
+    result: { status: "failed", backend: "sourcify", reason: "rejected", reasonCode: "unknown" },
   };
   const error = newError({ code: "network", backend: "sourcify", attempts: 1 }, "offline", {
     secrets: [],

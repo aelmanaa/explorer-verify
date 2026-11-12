@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 
+import { BACKEND_LABELS } from "../../src/backend-names.ts";
+import type { BackendName } from "../../src/backend-names.ts";
 import type { LinkVerdict, ProxyLinker } from "../../src/backends/backend.ts";
 import { etherscanV2ProxyLink } from "../../src/clients/etherscan-v2.ts";
 import { linkProxy as coreLinkProxy } from "../../src/core/index.ts";
@@ -170,7 +172,7 @@ describe("linkProxy() resumes a pending link with resumeJobId (R-FLOW-8, decisio
     assert.deepEqual(resumed.times, [0]);
     assert.ok(
       resumed.lines.includes(
-        `Checking the etherscan-v2 proxy link of job ${GUID}; no new link request {"backend":"etherscan-v2"}`,
+        `Checking the Etherscan proxy link of job ${GUID}; no new link request {"backend":"etherscan-v2"}`,
       ),
       resumed.lines.join("\n"),
     );
@@ -227,10 +229,10 @@ describe("linkProxy() resumes a pending link with resumeJobId (R-FLOW-8, decisio
 describe("linkProxy() refuses a resumeJobId it cannot check, before any request (decision 0065)", () => {
   it("refuses it on Sourcify, which starts no link job", async (t) => {
     const r = await run(t, [], { route: { backend: "sourcify" }, resumeJobId: GUID });
-    const error = refusedJobId(r, /^sourcify starts no link job, so there is none to resume$/);
+    const error = refusedJobId(r, /^Sourcify starts no link job, so there is none to resume$/);
     assert.equal(
       error.message,
-      "The resumeJobId option is invalid: sourcify starts no link job, so there is none to resume.",
+      "The resumeJobId option is invalid: Sourcify starts no link job, so there is none to resume.",
     );
   });
 
@@ -243,7 +245,7 @@ describe("linkProxy() refuses a resumeJobId it cannot check, before any request 
   });
 
   it("refuses a job id that is not of the backend's form, never echoing it", async (t) => {
-    const cases: [LinkProxyOptions, string, string][] = [
+    const cases: [LinkProxyOptions, string, BackendName][] = [
       [ETHERSCAN, "abc", "etherscan-v2"],
       [ETHERSCAN, GUID.toUpperCase(), "etherscan-v2"],
       [ETHERSCAN, `${GUID}0`, "etherscan-v2"],
@@ -255,11 +257,11 @@ describe("linkProxy() refuses a resumeJobId it cannot check, before any request 
       const r = await run(t, [], { ...options, resumeJobId: jobId });
       const error = refusedJobId(
         r,
-        new RegExp(`^is not a link job id that ${backend} gives for this proxy$`),
+        new RegExp(`^is not a link job id that ${BACKEND_LABELS[backend]} gives for this proxy$`),
       );
       assert.equal(
         error.message,
-        `The resumeJobId option is invalid: it is not a link job id that ${backend} gives for this proxy.`,
+        `The resumeJobId option is invalid: it is not a link job id that ${BACKEND_LABELS[backend]} gives for this proxy.`,
       );
       assert.ok(!JSON.stringify([error.message, error.toJSON()]).includes(jobId), jobId);
     }

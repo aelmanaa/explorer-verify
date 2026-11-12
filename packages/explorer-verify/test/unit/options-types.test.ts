@@ -188,7 +188,7 @@ export async function run(): Promise<unknown[]> {
     buildVerifyInput([], build),
     await buildVerifyInputFromBytecode({ chainId: 1, address: base.address }, resolve),
     createVerifyHandler(handler),
-    toEnvelope({ status: "failed", backend: "sourcify", reason: "x" }, envelope),
+    toEnvelope({ status: "failed", backend: "sourcify", reason: "x", reasonCode: "unknown" }, envelope),
     hardhat,
     hardhatBuild,
     foundry,

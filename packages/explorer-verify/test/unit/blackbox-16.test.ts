@@ -12,6 +12,7 @@ import { ExplorerVerifyError } from "../../src/errors.ts";
 import { parseHandle } from "../../src/flow/handle.ts";
 import { createObserver } from "../../src/observe.ts";
 import type { Handle, Hex, SolidityStandardJsonInput, VerifyInput } from "../../src/types.ts";
+import { sourcifyReasonCode } from "../helpers/reason-codes.ts";
 import { resolveRoute } from "../helpers/route.ts";
 
 const CHAIN_ID = 11155111;
@@ -527,6 +528,7 @@ describe("blackbox #16: poll mapping", () => {
       assert.deepEqual(await backend.poll(HANDLE, h.ctx), {
         state: "failed",
         reason: `${code}: why ${code}`,
+        reasonCode: sourcifyReasonCode(code),
       });
     });
   }

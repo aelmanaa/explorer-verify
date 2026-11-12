@@ -365,7 +365,7 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "reference/routing.md",
-    example: 1,
+    example: 2,
     what: "route.backend blockscout on a chain whose row lists an instance (#169)",
     fixtures: ["blockscout/2026-11-04-lookup-sepolia-greeter"],
   },
@@ -389,7 +389,7 @@ const RUNS: readonly DocRun[] = [
   },
   {
     page: "reference/verify.md",
-    example: 3,
+    example: 4,
     what: "linked libraries: verify() finds the contract verified",
     setup: "linked-library",
     fixtures: ALREADY_VERIFIED,

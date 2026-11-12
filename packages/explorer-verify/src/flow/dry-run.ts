@@ -5,6 +5,7 @@
  * A match whose stored contract is not the input's is reported with `storedContract`, as
  * `verify()` would submit over it.
  */
+import { BACKEND_LABELS } from "../backend-names.ts";
 import type { Target } from "../backends/backend.ts";
 import { keyMissing } from "../http/api-keys.ts";
 import { validateInput } from "../input/validate.ts";
@@ -72,7 +73,7 @@ export async function runDryRun(
     ) {
       observer.emit({ type: "verify.lookup", backend: backend.name, lookup: "skipped" });
       observer.log.info(
-        `${backend.name} needs an API key and none is set, so the dry run skipped the lookup. Nothing was submitted.`,
+        `${BACKEND_LABELS[backend.name]} needs an API key and none is set, so the dry run skipped the lookup. Nothing was submitted.`,
         fields,
       );
       return { ...base, lookup: "skipped", ...chosen };
@@ -83,12 +84,12 @@ export async function runDryRun(
     const other = found === undefined ? undefined : otherContract(found, checked);
     observer.log.info(
       found === undefined
-        ? `Dry run: ${backend.name} holds no match, so a verification would submit the source. Nothing was submitted.`
+        ? `Dry run: ${BACKEND_LABELS[backend.name]} holds no match, so a verification would submit the source. Nothing was submitted.`
         : other === undefined
           ? found.match === "partial" && settings.submitOverPartial === true
-            ? `Dry run: ${backend.name} holds a partial match of this source, so a verification with submitOverPartial would submit over it. Nothing was submitted.`
-            : `Dry run: ${backend.name} already holds the contract (${found.match} match), so a verification would not submit${found.match === "partial" ? " unless submitOverPartial is set" : ""}.`
-          : `Dry run: ${heldText(backend.name, other)}, so a verification would submit. Nothing was submitted.`,
+            ? `Dry run: ${BACKEND_LABELS[backend.name]} holds a partial match of this source, so a verification with submitOverPartial would submit over it. Nothing was submitted.`
+            : `Dry run: ${BACKEND_LABELS[backend.name]} already holds the contract (${found.match} match), so a verification would not submit${found.match === "partial" ? " unless submitOverPartial is set" : ""}.`
+          : `Dry run: ${heldText(BACKEND_LABELS[backend.name], other)}, so a verification would submit. Nothing was submitted.`,
       fields,
     );
     if (found === undefined) {

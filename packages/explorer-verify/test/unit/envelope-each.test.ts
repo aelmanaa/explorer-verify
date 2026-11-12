@@ -43,7 +43,12 @@ const ALREADY: BackendOutcome<ErrorJson> = {
 const FAILED: BackendOutcome<ErrorJson> = {
   backend: "routescan",
   ok: false,
-  result: { status: "failed", backend: "routescan", reason: "Fail - Unable to verify" },
+  result: {
+    status: "failed",
+    backend: "routescan",
+    reason: "Fail - Unable to verify",
+    reasonCode: "unknown",
+  },
 };
 
 /** An error outcome of `code` as an envelope holds it: the error's toJSON(). */
@@ -142,7 +147,12 @@ describe("toEnvelope() of a verifyEach() result (R-AX-5)", () => {
     const leaky: BackendOutcome<ErrorJson> = {
       backend: "routescan",
       ok: false,
-      result: { status: "failed", backend: "routescan", reason: `bad key ${KEY}` },
+      result: {
+        status: "failed",
+        backend: "routescan",
+        reason: `bad key ${KEY}`,
+        reasonCode: "unknown",
+      },
     };
     const error = errorOutcome("network");
     const withKey: BackendOutcome<ErrorJson> =

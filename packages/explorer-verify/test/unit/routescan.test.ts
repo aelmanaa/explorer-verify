@@ -469,6 +469,7 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
       state: "failed",
       reason:
         "Error: Compilation successful, but bytecode does not match with deployed bytecode for address 0xA7B0158753812cDF1905d70802AF3BDDDe934A57, please check your parameters",
+      reasonCode: "bytecode-mismatch",
     });
     assert.equal(s.calls.length, 1);
   });
@@ -482,6 +483,7 @@ describe("routescan answers (R-BE-5, R-FLOW-3, R-FLOW-4)", () => {
     assert.deepEqual(await routescan.poll(handle(), setup([response]).ctx), {
       state: "failed",
       reason: result,
+      reasonCode: "bytecode-mismatch",
     });
   });
 

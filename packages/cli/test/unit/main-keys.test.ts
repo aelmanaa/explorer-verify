@@ -354,7 +354,12 @@ describe("main: a key never reaches stdout or stderr (R-AX-9, R-SEC-1)", () => {
         routed(
           "leak",
           async () =>
-            await Promise.resolve({ status: "failed", backend: "routescan", reason: `no ${KEY}` }),
+            await Promise.resolve({
+              status: "failed",
+              backend: "routescan",
+              reason: `no ${KEY}`,
+              reasonCode: "unknown",
+            }),
         ),
       ],
       { env: { ROUTESCAN_API_KEY: KEY } },

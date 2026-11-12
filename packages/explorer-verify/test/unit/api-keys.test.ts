@@ -420,7 +420,7 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
     assertKeyError(error, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
+      "Etherscan needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
     );
     assert.equal(spy.mock.callCount(), 0);
   });
@@ -433,7 +433,7 @@ describe("requireKey: a missing key before any request (R-AX-7, R-SRV-5)", () =>
     assertKeyError(error, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
+      "Etherscan needs an API key and none is set for proxy.example.org: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.",
     );
   });
 
@@ -669,7 +669,7 @@ describe("route.apiUrl on Etherscan's own API takes apiKeys (#244, R-SEC-2, deci
       const host = new URL(apiUrl).host;
       assert.equal(
         error.message,
-        `etherscan-v2 needs an API key and none is set for ${host}: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.`,
+        `Etherscan needs an API key and none is set for ${host}: apiKeys.etherscan-v2 goes only to Etherscan's own API; set route.apiKey for this route.apiUrl.`,
         apiUrl,
       );
     }
@@ -686,7 +686,7 @@ describe("route.apiUrl on Etherscan's own API takes apiKeys (#244, R-SEC-2, deci
     assertKeyError(error, "missing-api-key");
     assert.equal(
       error.message,
-      "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2.",
+      "Etherscan needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2.",
     );
   });
 
@@ -719,7 +719,7 @@ describe("route.apiUrl on Etherscan's own API takes apiKeys (#244, R-SEC-2, deci
     // The message does not give the host it names as the reason the key is not sent.
     assert.equal(
       error.message,
-      "blockscout-hosted needs an API key and none is set for api.blockscout.com: a route with route.apiUrl takes no key from apiKeys.blockscout-hosted; set route.apiKey.",
+      "Blockscout needs an API key and none is set for api.blockscout.com: a route with route.apiUrl takes no key from apiKeys.blockscout-hosted; set route.apiKey.",
     );
   });
 
@@ -823,7 +823,7 @@ describe("keyErrorOf: explorer answers about a key (R-AX-7)", () => {
     );
     assert.ok(error !== undefined);
     assert.deepEqual(error.details, { code: "api-key-rejected", backend: "routescan" });
-    assert.equal(error.message, "routescan answered that the API key is not valid.");
+    assert.equal(error.message, "Routescan answered that the API key is not valid.");
   });
 });
 

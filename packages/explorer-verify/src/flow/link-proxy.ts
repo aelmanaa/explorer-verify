@@ -6,7 +6,7 @@
  * `verify` does not bundle any of it. With `resumeJobId`, the call sends no link request: it checks
  * the link that job started.
  */
-import { BACKEND_NAMES } from "../backend-names.ts";
+import { BACKEND_LABELS, BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type {
   Context,
@@ -234,7 +234,7 @@ function cannotLink(backend: BackendName, settings: Settings): ExplorerVerifyErr
       code: "invalid-input",
       issues: [{ field: "route.backend", message: `${backend} cannot link a proxy` }],
     },
-    `This version cannot link a proxy on ${backend}.`,
+    `This version cannot link a proxy on ${BACKEND_LABELS[backend]}.`,
     {
       hint: "Pass route.backend as etherscan-v2, blockscout or sourcify, whichever serves the chain, or as etherscan-compatible with the explorer's route.apiUrl.",
       secrets: settings.keySecrets(),
@@ -282,8 +282,8 @@ function notResumable(
 ): ExplorerVerifyError {
   const why =
     linker.acceptsJobId === undefined
-      ? `${backend} starts no link job, so there is none to resume`
-      : `is not a link job id that ${backend} gives for this proxy`;
+      ? `${BACKEND_LABELS[backend]} starts no link job, so there is none to resume`
+      : `is not a link job id that ${BACKEND_LABELS[backend]} gives for this proxy`;
   return newError(
     { code: "invalid-input", issues: [{ field: "resumeJobId", message: why }] },
     `The resumeJobId option is invalid: ${linker.acceptsJobId === undefined ? "" : "it "}${why}.`,
@@ -299,21 +299,24 @@ async function link(call: LinkCall): Promise<LinkProxyResult> {
   const { backend, linker, target, ctx, observer, resumeJobId } = call;
   observer.emit({ type: "proxy.routed", backend, apiHost: apiHostOf(ctx) });
   observer.log.debug(
-    `Linking proxy ${target.address} on chain ${String(target.chainId)} on ${backend}`,
+    `Linking proxy ${target.address} on chain ${String(target.chainId)} on ${BACKEND_LABELS[backend]}`,
     { backend, chainId: target.chainId, api: ctx.route.redactedApiUrl },
   );
   if (resumeJobId !== undefined) {
     observer.log.info(
-      `Checking the ${backend} proxy link of job ${resumeJobId}; no new link request`,
+      `Checking the ${BACKEND_LABELS[backend]} proxy link of job ${resumeJobId}; no new link request`,
       { backend },
     );
     return await finish(call, await checkUntilDone(call, resumeJobId));
   }
   const step = await linker.request(target, ctx);
   if (step.state === "submitted") {
-    observer.log.info(`${backend} accepted the proxy link request (job ${step.jobId})`, {
-      backend,
-    });
+    observer.log.info(
+      `${BACKEND_LABELS[backend]} accepted the proxy link request (job ${step.jobId})`,
+      {
+        backend,
+      },
+    );
     return await finish(call, await checkUntilDone(call, step.jobId));
   }
   return await finish(call, step);
@@ -356,7 +359,7 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkEnd> {
       failures += 1;
       cause = error;
       observer.log.warn(
-        `${backend} proxy link check ${String(attempt)} failed (${error.code}); ${failures < MAX_POLL_FAILURES ? "checking again" : "giving up"}`,
+        `${BACKEND_LABELS[backend]} proxy link check ${String(attempt)} failed (${error.code}); ${failures < MAX_POLL_FAILURES ? "checking again" : "giving up"}`,
         { backend, attempt, code: error.code, failures },
       );
       if (failures >= MAX_POLL_FAILURES) {
@@ -374,10 +377,13 @@ async function checkUntilDone(call: LinkCall, jobId: string): Promise<LinkEnd> {
       return verdict;
     }
     observer.emit({ type: "proxy.poll", backend, attempt, state: "pending" });
-    observer.log.debug(`${backend} proxy link is pending (check ${String(attempt)})`, {
-      backend,
-      attempt,
-    });
+    observer.log.debug(
+      `${BACKEND_LABELS[backend]} proxy link is pending (check ${String(attempt)})`,
+      {
+        backend,
+        attempt,
+      },
+    );
   }
 }
 
@@ -397,7 +403,7 @@ async function finish(call: LinkCall, verdict: LinkEnd): Promise<LinkProxyResult
           backend,
           excerpt: "mismatch: the explorer refused for another implementation than expected",
         },
-        `${backend} refused the link for another implementation than expected, but this call expected none.`,
+        `${BACKEND_LABELS[backend]} refused the link for another implementation than expected, but this call expected none.`,
         { secrets: ctx.http.secrets },
       );
     }
@@ -414,7 +420,7 @@ async function finish(call: LinkCall, verdict: LinkEnd): Promise<LinkProxyResult
       : await linker.verified(implementation, target.chainId, ctx));
   const explorerUrl = route.explorerUrl?.(target.address);
   observer.log.info(
-    `Result: linked to ${implementation}${implementationVerified ? "" : " (implementation not verified)"} on ${backend}`,
+    `Result: linked to ${implementation}${implementationVerified ? "" : " (implementation not verified)"} on ${BACKEND_LABELS[backend]}`,
     { backend, status: "linked" },
   );
   const result: LinkProxyResult =
@@ -433,7 +439,7 @@ function mismatch(
   expectedImplementation: Hex,
 ): LinkProxyResult {
   observer.log.info(
-    `Result: the proxy points at ${implementation ?? "another implementation"}, not ${expectedImplementation}, on ${backend}`,
+    `Result: the proxy points at ${implementation ?? "another implementation"}, not ${expectedImplementation}, on ${BACKEND_LABELS[backend]}`,
     { backend, status: "mismatch" },
   );
   const result: LinkProxyResult =
@@ -446,7 +452,10 @@ function mismatch(
 
 /** A `not-linked` result, logged at `info`. */
 function notLinked(observer: Observer, backend: BackendName, reason: string): LinkProxyResult {
-  observer.log.info(`Result: not linked on ${backend}`, { backend, status: "not-linked" });
+  observer.log.info(`Result: not linked on ${BACKEND_LABELS[backend]}`, {
+    backend,
+    status: "not-linked",
+  });
   observer.emit({ type: "proxy.result", status: "not-linked", backend, reason });
   return { status: "not-linked", backend, reason };
 }
@@ -459,7 +468,7 @@ function pending(call: LinkCall, jobId: string, why: string, cause: unknown): Ex
   const { backend, target, ctx } = call;
   return newError(
     { code: "proxy-link-pending", backend, jobId },
-    `The link of proxy ${target.address} on ${backend} is not confirmed: ${why} before the explorer finished.`,
+    `The link of proxy ${target.address} on ${BACKEND_LABELS[backend]} is not confirmed: ${why} before the explorer finished.`,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },
   );
 }

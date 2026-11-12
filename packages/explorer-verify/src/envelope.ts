@@ -30,6 +30,7 @@ import { REDACTED, redact, redactExcerpt } from "./redact.ts";
 import type {
   BackendOutcome,
   DryRunResult,
+  FailureReasonCode,
   LinkProxyResult,
   StoredContract,
   VerifyEachResult,
@@ -242,6 +243,17 @@ const RESULT_EXIT_CODES: Readonly<Record<Status, ExitCode>> = {
 };
 
 const MATCHES = ["exact", "partial"] as const;
+
+// References: decision 0073. The values of `FailureReasonCode`.
+const REASON_CODES: readonly FailureReasonCode[] = [
+  "bytecode-mismatch",
+  "missing-source",
+  "compiler",
+  "contract-name",
+  "constructor-args",
+  "libraries",
+  "unknown",
+];
 
 // The longest message or hint kept from an error object that another copy or a server built.
 const MAX_TEXT = 2_000;
@@ -513,7 +525,11 @@ function copyResult(result: unknown, secrets: readonly string[]): AnyResult {
     if (backend === undefined || reason === undefined) {
       throw invalid(problems.issues);
     }
-    return { status, backend, reason: redact(reason, secrets) };
+    // A result from an older copy has no reasonCode, and one from a newer copy may hold a value
+    // this copy does not know: both read as `unknown`.
+    const code = fields.get("reasonCode");
+    const reasonCode = REASON_CODES.find((each) => each === code) ?? "unknown";
+    return { status, backend, reason: redact(reason, secrets), reasonCode };
   }
   if (status === "dry-run") {
     return copyDryRun(fields, backend, problems, secrets);

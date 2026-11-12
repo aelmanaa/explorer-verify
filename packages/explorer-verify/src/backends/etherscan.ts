@@ -21,7 +21,7 @@ import type { HttpRequest, RetryMode } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { NOT_INDEXED_ANSWER } from "../not-indexed.ts";
 import { redactExcerpt } from "../redact.ts";
-import type { Handle } from "../types.ts";
+import type { FailureReasonCode, Handle } from "../types.ts";
 import type {
   Backend,
   Context,
@@ -78,6 +78,39 @@ const NO_JOB: readonly string[] = [
   "Invalid GUID length",
   "Verification not found",
 ];
+
+// References: R-FLOW-4, decision 0073.
+/**
+ * The cause an Etherscan-style rejection names, read from its text in lower case. The phrases are
+ * those of Etherscan's documented verification errors (docs.etherscan.io, "Common Verification
+ * Errors", read 2026-11-12) and the recorded bytecode mismatches of Etherscan and Routescan
+ * (docs/contributor/research/2026-11-04-live-matrix.md). A missing source comes first: solc words it
+ * `Source "<path>" not found`, inside a compilation error.
+ *
+ * @param text - The `result` text of a rejected job.
+ * @returns The reason code, `unknown` for a text that names none of them.
+ * @example
+ * ```ts
+ * reasonCodeOf("Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode.");
+ * // "bytecode-mismatch"
+ * ```
+ */
+export function reasonCodeOf(text: string): FailureReasonCode {
+  const lower = text.toLowerCase();
+  return /source "[^"]*" not found/.test(lower)
+    ? "missing-source"
+    : lower.includes("constructor argument")
+      ? "constructor-args"
+      : lower.includes("library was required")
+        ? "libraries"
+        : lower.includes("unable to locate contractname")
+          ? "contract-name"
+          : lower.includes("bytecode does not match") || lower.includes("bytecodehash")
+            ? "bytecode-mismatch"
+            : lower.includes("compilation error") || lower.includes("solc version")
+              ? "compiler"
+              : "unknown";
+}
 
 /**
  * What sets one Etherscan-style API apart: its backend, its name in messages, and how a lookup
@@ -352,14 +385,18 @@ export function etherscanStyle(dialect: Dialect): Backend {
       const found = await lookup(handle, ctx);
       const reason = redactExcerpt(result, ctx.http.secrets, REASON_LENGTH);
       if (found === undefined) {
-        return { state: "failed", reason, notVerified: true };
+        return { state: "failed", reason, reasonCode: reasonCodeOf(result), notVerified: true };
       }
       return found.match === "exact"
         ? { state: "verified", ...found }
         : { state: "already-verified", ...found, reason };
     }
     if (startsWithAny(result, rejections)) {
-      return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };
+      return {
+        state: "failed",
+        reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH),
+        reasonCode: reasonCodeOf(result),
+      };
     }
     if (startsWithAny(result, NO_JOB)) {
       throw newError(

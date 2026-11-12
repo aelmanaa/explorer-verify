@@ -63,7 +63,7 @@ The envelope has six forms. Tell them apart by `ok`, `error` and `result.status`
 | Form                                                            | `ok`                         | Holds                                                                           |
 | --------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
 | A verified result                                               | `true`                       | `result`                                                                        |
-| A `failed` result                                               | `false`                      | `result`, with `reason`, and no `error`                                         |
+| A `failed` result                                               | `false`                      | `result`, with `reason` and `reasonCode`, and no `error`                        |
 | Another contract's source, CLI with `--require-own-source` only | `false`                      | `result` with `status: "already-verified"` and `storedContract`, and no `error` |
 | An error                                                        | `false`                      | `error`                                                                         |
 | A [dry run](#dry-run)                                           | `true`                       | `result` with `status: "dry-run"`                                               |
@@ -85,7 +85,12 @@ A result the explorer rejected:
 {
   "schemaVersion": 1,
   "ok": false,
-  "result": { "status": "failed", "backend": "etherscan-v2", "reason": "..." }
+  "result": {
+    "status": "failed",
+    "backend": "etherscan-v2",
+    "reason": "...",
+    "reasonCode": "bytecode-mismatch"
+  }
 }
 ```
 

@@ -664,6 +664,7 @@ describe("verify(): a submitted job", () => {
       status: "failed",
       backend: "sourcify",
       reason: "no_match: The deployed and recompiled bytecode don't match.",
+      reasonCode: "bytecode-mismatch",
     });
     assert.deepEqual(rec.events.at(-1), {
       type: "verify.result",
@@ -1540,6 +1541,7 @@ describe("verify(): doc examples", () => {
         case "verify.validated":
         case "verify.routed":
         case "verify.lookup":
+        case "verify.stored":
         case "verify.poll":
         case "proxy.routed":
         case "proxy.poll":

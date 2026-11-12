@@ -401,6 +401,7 @@ describe("verify() on blockscout-hosted, replayed from 2026-11-05 (R-BE-3, R-FLO
       status: "failed",
       backend: "blockscout-hosted",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
     assertKeyedToHostedOnly(r, PROAPI_KEY);
   });
