@@ -2,6 +2,7 @@
   "all": true,
   "src": ["scripts"],
   "include": [
+    "scripts/adoption-check.ts",
     "scripts/agent-docs.ts",
     "scripts/declaration-docs.ts",
     "scripts/docs-style.ts",

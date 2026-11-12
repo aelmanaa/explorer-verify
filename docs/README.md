@@ -61,23 +61,24 @@ with [Using explorer-verify from an agent](user/guides/using-from-an-agent.md) a
 
 ## Contributors
 
-| Page                                            | What it covers                                                                                                           |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [Requirements](contributor/requirements.md)     | What the library must do, with IDs                                                                                       |
-| [Architecture](contributor/architecture.md)     | Packages, modules, flow, extension points                                                                                |
-| [Roadmap](contributor/roadmap.md)               | Milestones and the first issues                                                                                          |
-| [Adoption](contributor/adoption.md)             | Adoption goal, kinds of users, what each needs, and when                                                                 |
-| [Decisions](contributor/decisions/README.md)    | Numbered decision records                                                                                                |
-| [Prior art](contributor/prior-art.md)           | The two implementations to port from                                                                                     |
-| [Research](contributor/research/README.md)      | Dated evidence: explorer APIs, Etherscan terms, landscape, agent readiness, CLI output and logging, live explorer probes |
-| [Testing](contributor/testing.md)               | Test layers and rules                                                                                                    |
-| [Docs style](contributor/docs-style.md)         | Density and style rules of the user docs, and what the docs check enforces                                               |
-| [Agent eval](../test/agent-eval/README.md)      | The R-AX-13 agent task set, how to run it and where the dated results go                                                 |
-| [Tooling](contributor/tooling.md)               | Toolchain and type-checking layout                                                                                       |
-| [Releasing](contributor/releasing.md)           | Release plan and first publish                                                                                           |
-| [Search console](contributor/search-console.md) | Where the verification values go, sitemap submission, indexing steps after a release                                     |
-| [Contributing](../CONTRIBUTING.md)              | Issues, labels, workflow, changesets                                                                                     |
-| [Security](../SECURITY.md)                      | Reporting vulnerabilities                                                                                                |
+| Page                                                | What it covers                                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [Requirements](contributor/requirements.md)         | What the library must do, with IDs                                                                                       |
+| [Architecture](contributor/architecture.md)         | Packages, modules, flow, extension points                                                                                |
+| [Roadmap](contributor/roadmap.md)                   | Milestones and the first issues                                                                                          |
+| [Adoption](contributor/adoption.md)                 | Adoption goal, kinds of users, what each needs, and when                                                                 |
+| [Decisions](contributor/decisions/README.md)        | Numbered decision records                                                                                                |
+| [Prior art](contributor/prior-art.md)               | The two implementations to port from                                                                                     |
+| [Research](contributor/research/README.md)          | Dated evidence: explorer APIs, Etherscan terms, landscape, agent readiness, CLI output and logging, live explorer probes |
+| [Testing](contributor/testing.md)                   | Test layers and rules                                                                                                    |
+| [Docs style](contributor/docs-style.md)             | Density and style rules of the user docs, and what the docs check enforces                                               |
+| [Agent eval](../test/agent-eval/README.md)          | The R-AX-13 agent task set, how to run it and where the dated results go                                                 |
+| [Tooling](contributor/tooling.md)                   | Toolchain and type-checking layout                                                                                       |
+| [Releasing](contributor/releasing.md)               | Release plan and first publish                                                                                           |
+| [Search console](contributor/search-console.md)     | Where the verification values go, sitemap submission, indexing steps after a release                                     |
+| [Adoption metrics](contributor/adoption-metrics.md) | The monthly adoption check: downloads, GitHub traffic, search consoles and Context7, and the monthly entries             |
+| [Contributing](../CONTRIBUTING.md)                  | Issues, labels, workflow, changesets                                                                                     |
+| [Security](../SECURITY.md)                          | Reporting vulnerabilities                                                                                                |
 
 The zksolc Blockscout mapping is recorded in [decision 0059](contributor/decisions/0059-zksolc-on-blockscout.md)
 and its [protocol evidence](contributor/research/2026-11-07-blockscout-zksolc.md).
