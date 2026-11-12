@@ -2,7 +2,8 @@
 
 Status: Accepted (2026-11-03); `srcDir` amended by
 [decision 0028](0028-site-reads-from-the-repository-root.md); site-only pages added by
-[decision 0062](0062-site-only-pages.md). Amends the `docsUrl` part of
+[decision 0062](0062-site-only-pages.md); host and the rename or transfer condition amended by
+[decision 0070](0070-docs-hostname.md). Amends the `docsUrl` part of
 [decision 0009](0009-options-handle-and-errors.md) and the site `llms.txt` part of
 [decision 0007](0007-agent-readiness-is-a-requirement-on-every-feature.md).
 

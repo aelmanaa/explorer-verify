@@ -72,6 +72,12 @@ The maintainer does each of these once, before the first release. Agents do none
      environment named, npm accepts only the token of a job in `npm-latest`, which runs after the
      maintainer approves it;
    - set "Publishing access" to require two-factor authentication and disallow tokens.
+7. Context7, at any time after a release is on `latest`: submit
+   `https://github.com/aelmanaa/explorer-verify` at
+   <https://context7.com/add-library> (GitHub tab). Context7 reads `context7.json` at the
+   repository root, which limits the index to `docs/user`, `skills` and `examples`. Then run the
+   search command in [Promote to latest](#promote-to-latest), step 6, and expect
+   `/aelmanaa/explorer-verify` with `"state": "finalized"` and a snippet count above zero.
 
 A configuration that no run has used yet shows as "not yet validated" on npmjs.com. Check both
 configurations, and their permissions, on the day of the tag.
@@ -241,6 +247,24 @@ one, in the pack job and again in the publish job.
    GitHub Release and marks it latest. If npm refuses the move over OIDC, run the same
    `npm dist-tag add` by hand with 2FA and re-run the workflow; packages already on `latest` are
    skipped.
+
+6. After the promote of a minor release (0.3.0, 0.4.0 and so on), refresh the library on Context7.
+   Context7 refreshes a rarely requested library only after 45 days
+   ([library updates](https://context7.com/docs/library-updates)). Log in at
+   <https://context7.com>, open `/aelmanaa/explorer-verify` and start a refresh. When it finishes,
+   check that `lastUpdateDate` is after the promote:
+
+   ```sh
+   curl -s "https://context7.com/api/v1/search?query=explorer-verify" \
+     | jq '.results[]
+       | select(.id == "/aelmanaa/explorer-verify")
+       | {state, lastUpdateDate, totalSnippets}'
+   ```
+
+   Expect `"state": "finalized"`. Open the library's logs and confirm that the rules from
+   `context7.json` were accepted: if Context7 rejects one rule, it applies none
+   ([library owners](https://context7.com/docs/library-owners)). Never commit or print a Context7
+   API key.
 
 The order of a release is: signed tag, `beta` publish (approved), promote dispatch, docs deploy,
 smoke check, `latest` (approved). The `beta` publish does not deploy the docs, so the site keeps
