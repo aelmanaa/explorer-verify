@@ -11,7 +11,15 @@ import { fileURLToPath } from "node:url";
 
 import { CORE_ENTRY, RAW_MAIN } from "../agent-docs.ts";
 import { SITE_OUT, SITE_URL } from "../site-docs.ts";
-import { builtPage, edit, makeFixture, removeFixture, sitemapOf, writeFiles } from "./fixture.ts";
+import {
+  builtPage,
+  edit,
+  makeFixture,
+  removeFixture,
+  sitemapOf,
+  writeBrandFiles,
+  writeFiles,
+} from "./fixture.ts";
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CODE_PAGE = "docs/user/reference/errors/boom.md";
@@ -66,6 +74,7 @@ function writeHtml(pages: readonly string[] = PAGES): void {
     [`${SITE_OUT}/404.html`]: "",
     [`${SITE_OUT}/sitemap.xml`]: sitemapOf(pages),
   });
+  writeBrandFiles(path.join(root, SITE_OUT));
 }
 
 beforeEach(() => {

@@ -2,7 +2,7 @@
 // head tags of each page, the home page's JSON-LD, the search console tokens and file, the
 // sitemap's lastmod, the page descriptions and the check of a built site.
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -11,22 +11,35 @@ import { fileURLToPath } from "node:url";
 import { descriptionProblems, readPageDescriptions } from "../site-descriptions.ts";
 import { SITE_URL, siteDescription, siteStaticFiles } from "../site-docs.ts";
 import {
+  BRAND_FILES,
   canonicalUrl,
   gitLastModified,
+  iconHead,
   googleFileContent,
   lastModifiedFromLog,
   packageFacts,
+  pngSize,
   readHead,
   readVerification,
   searchHead,
   searchProblems,
+  SITE_NAME,
   sitemapUrls,
+  SOCIAL_IMAGE_ALT,
   softwareSourceCode,
   verificationFiles,
   verificationTags,
 } from "../site-seo.ts";
 import type { SearchExpectations, Verification } from "../site-seo.ts";
-import { builtPage, makeFixture, removeFixture, sitemapOf, writeFiles } from "./fixture.ts";
+import {
+  builtPage,
+  makeFixture,
+  pngHeader,
+  removeFixture,
+  sitemapOf,
+  writeBrandFiles,
+  writeFiles,
+} from "./fixture.ts";
 import { commit, git, makeRepo, remove } from "./git-repo.ts";
 
 /** The root of this repository. */
@@ -67,7 +80,13 @@ describe("searchHead (R-AX-17)", () => {
       ["meta", { property: "og:title", content: "T | explorer-verify" }],
       ["meta", { property: "og:description", content: "D" }],
       ["meta", { property: "og:url", content: url }],
-      ["meta", { name: "twitter:card", content: "summary" }],
+      ["meta", { property: "og:image", content: `${SITE_URL}og-image.png` }],
+      ["meta", { property: "og:image:width", content: "1280" }],
+      ["meta", { property: "og:image:height", content: "640" }],
+      ["meta", { property: "og:image:alt", content: SOCIAL_IMAGE_ALT }],
+      ["meta", { name: "twitter:card", content: "summary_large_image" }],
+      ["meta", { name: "twitter:image", content: `${SITE_URL}og-image.png` }],
+      ["meta", { name: "twitter:image:alt", content: SOCIAL_IMAGE_ALT }],
     ]);
   });
 
@@ -80,7 +99,9 @@ describe("searchHead (R-AX-17)", () => {
     assert.deepEqual(
       home.filter(([tag]) => tag === "meta").filter(([, attrs]) => attrs.name !== undefined),
       [
-        ["meta", { name: "twitter:card", content: "summary" }],
+        ["meta", { name: "twitter:card", content: "summary_large_image" }],
+        ["meta", { name: "twitter:image", content: `${SITE_URL}og-image.png` }],
+        ["meta", { name: "twitter:image:alt", content: SOCIAL_IMAGE_ALT }],
         ["meta", { name: "google-site-verification", content: "g-token" }],
       ],
     );
@@ -259,6 +280,7 @@ describe("searchProblems (R-AX-17)", () => {
       "404.html": "<head><title>404</title></head>",
       "sitemap.xml": sitemapOf(pages),
     });
+    writeBrandFiles(out);
   });
 
   afterEach(() => {
@@ -402,6 +424,44 @@ describe("searchProblems (R-AX-17)", () => {
     ]);
   });
 
+  it("fails on a page without a social image tag, or with a relative or other one (#373)", () => {
+    writeFiles(out, {
+      "guides/a.html": builtPage("guides/a")
+        .replace(/<meta property="og:image" [^>]*>/, "")
+        .replace(
+          /<meta name="twitter:image"[^>]*>/,
+          '<meta name="twitter:image" content="/explorer-verify/og-image.png">',
+        ),
+      "api/x/index.html": builtPage("api/x/")
+        .replace('content="summary_large_image"', 'content="summary"')
+        .replace('og:image:width" content="1280"', 'og:image:width" content="1200"')
+        .replace(
+          /<meta property="og:image:alt"[^>]*>/,
+          '<meta property="og:image:alt" content="">',
+        ),
+    });
+    assert.deepEqual(searchProblems(out, expected), [
+      "api/x/index.html: og:image:width is 1200, not 1280 (#373)",
+      "api/x/index.html: needs one og:image:alt tag (#373)",
+      "api/x/index.html: twitter:card is summary, not summary_large_image (#373)",
+      "guides/a.html: needs one og:image tag (#373)",
+      `guides/a.html: twitter:image is /explorer-verify/og-image.png, not ${SITE_URL}og-image.png (#373)`,
+    ]);
+  });
+
+  it("fails when an icon or the social image is not built, or a PNG has another size (#373)", () => {
+    rmSync(path.join(out, "favicon.svg"));
+    rmSync(path.join(out, "apple-touch-icon.png"));
+    writeFiles(out, { "favicon-32.png": "not a png" });
+    writeFileSync(path.join(out, "og-image.png"), pngHeader(1200, 630));
+    assert.deepEqual(searchProblems(out, expected), [
+      "the built site has no favicon.svg; keep it in site/static/ and render it with node site/render-images.ts (#373)",
+      "favicon-32.png: is not a PNG, not 32×32 (#373)",
+      "the built site has no apple-touch-icon.png; keep it in site/static/ and render it with node site/render-images.ts (#373)",
+      "og-image.png: is 1200×630, not 1280×640 (#373)",
+    ]);
+  });
+
   it("fails when a robots.txt is built", () => {
     writeFiles(out, { "robots.txt": "User-agent: *\n" });
     assert.match(searchProblems(out, expected).join("\n"), /^the built site has robots\.txt/);
@@ -508,6 +568,7 @@ describe("searchProblems on a build without a home page or with stray tags (R-AX
   let out = "";
   beforeEach(() => {
     out = mkdtempSync(path.join(tmpdir(), "site-seo-home-"));
+    writeBrandFiles(out);
   });
   afterEach(() => {
     rmSync(out, { recursive: true, force: true });
@@ -615,6 +676,7 @@ describe("site-seo edge cases", () => {
         "index.html": builtPage("", { home: true, title: "y".repeat(61) }),
         "sitemap.xml": sitemapOf([""]),
       });
+      writeBrandFiles(out);
       assert.deepEqual(
         searchProblems(out, { version: "1.2.3", siteDescription: "x", verification: NONE }),
         [`index.html: the title "${"y".repeat(61)}" is longer than 60 characters (R-AX-17)`],
@@ -622,5 +684,41 @@ describe("site-seo edge cases", () => {
     } finally {
       rmSync(out, { recursive: true, force: true });
     }
+  });
+});
+
+describe("the icons and the social image (#373)", () => {
+  it("links the SVG icon, a PNG fallback and the touch icon under the base", () => {
+    assert.deepEqual(iconHead(), [
+      ["link", { rel: "icon", href: "/explorer-verify/favicon.svg", type: "image/svg+xml" }],
+      [
+        "link",
+        { rel: "icon", href: "/explorer-verify/favicon-32.png", type: "image/png", sizes: "32x32" },
+      ],
+      ["link", { rel: "apple-touch-icon", href: "/explorer-verify/apple-touch-icon.png" }],
+    ]);
+  });
+
+  it("reads a PNG's size and refuses a short file or another signature", () => {
+    assert.deepEqual(pngSize(pngHeader(1280, 640)), [1280, 640]);
+    assert.equal(pngSize(pngHeader(1, 1).subarray(0, 20)), undefined);
+    assert.equal(pngSize(Buffer.from("GIF89a".padEnd(24, "x"))), undefined);
+  });
+
+  it("holds in this repository: every file is in site/static, each PNG at its size", () => {
+    const files = siteStaticFiles(REPOSITORY);
+    for (const file of BRAND_FILES) {
+      assert.ok(files.includes(file), `site/static/${file} is missing`);
+    }
+    const sizeOf = (file: string): [number, number] | undefined =>
+      pngSize(readFileSync(path.join(REPOSITORY, "site/static", file)));
+    assert.deepEqual(sizeOf("og-image.png"), [1280, 640]);
+    assert.deepEqual(sizeOf("apple-touch-icon.png"), [180, 180]);
+    assert.deepEqual(sizeOf("favicon-32.png"), [32, 32]);
+  });
+
+  it("names the site in lower case, as the logo does", () => {
+    assert.equal(SITE_NAME, "explorer-verify");
+    assert.ok(SOCIAL_IMAGE_ALT.startsWith(`${SITE_NAME}:`));
   });
 });

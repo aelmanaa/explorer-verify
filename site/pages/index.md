@@ -4,8 +4,11 @@ title: Verify contract source on block explorers
 description: Verify deployed contract source on Etherscan, Blockscout, Sourcify and Routescan from a browser, a backend, a CI job or an agent.
 
 hero:
-  name: explorer-verify
+  name: explorer<span class="ev-title-accent">-verify</span>
   text: Verify contract source on block explorers
+  image:
+    src: /logo.svg
+    alt: ""
   tagline: Etherscan, Blockscout, Sourcify and Routescan, from a browser, a backend, a CI job or an agent. Start with a dry run that needs no key.
   actions:
     - theme: brand

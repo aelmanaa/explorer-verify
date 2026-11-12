@@ -11,6 +11,95 @@
 }
 
 /*
+ * The brand colours and fonts of the logo and the social image (#373). The light theme uses the
+ * stamp blue #3346D3 and the ink #14161C; the dark theme keeps VitePress's background and uses a
+ * lighter blue, #93A4FF, for text. A button keeps the stamp blue in both themes, so its white
+ * label stays above 4.5:1. scripts/test/site-theme.test.ts reads these values and checks the
+ * contrast of every text colour on the backgrounds it sits on.
+ *
+ * The fonts are the system stacks of the social image. The theme loads no web font: index.ts
+ * imports VitePress's theme without its bundled Inter.
+ */
+:root {
+  --ev-ink: #14161c;
+  --ev-paper: #f5f3ee;
+  --vp-c-brand-1: #3346d3;
+  --vp-c-brand-2: #2a3ab8;
+  --vp-c-brand-3: #3346d3;
+  --vp-c-brand-soft: rgba(51, 70, 211, 0.1);
+  --vp-button-brand-bg: #3346d3;
+  --vp-button-brand-hover-bg: #2a3ab8;
+  --vp-button-brand-active-bg: #2a3ab8;
+  --vp-home-hero-name-color: var(--ev-ink);
+  --ev-title-color: var(--ev-ink);
+  --ev-feature-bg: var(--ev-paper);
+  --vp-font-family-base:
+    system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --vp-font-family-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.dark {
+  --vp-c-brand-1: #93a4ff;
+  --vp-c-brand-2: #b4c0ff;
+  --vp-c-brand-3: #3346d3;
+  --vp-c-brand-soft: rgba(147, 164, 255, 0.16);
+  --vp-button-brand-bg: #3346d3;
+  --vp-button-brand-hover-bg: #4457e0;
+  --vp-button-brand-active-bg: #2a3ab8;
+  --vp-home-hero-name-color: var(--vp-c-text-1);
+  --ev-title-color: var(--vp-c-text-1);
+  --ev-feature-bg: var(--vp-c-bg-soft);
+}
+
+/* The header wordmark: the weight and tracking of the social image's name. */
+.VPNavBarTitle .title {
+  color: var(--ev-title-color);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ev-title-accent {
+  color: var(--vp-c-brand-1);
+}
+
+/* The home page's name, split in the same two colours. */
+.VPHero .name {
+  letter-spacing: -0.02em;
+}
+
+.VPHero .name .ev-title-accent {
+  color: var(--vp-c-brand-1);
+  -webkit-text-fill-color: var(--vp-c-brand-1);
+}
+
+/*
+ * The mark beside the home page's name, at most 240px wide. Below 960px the hero stacks, and the
+ * mark would push the name below the fold; the header's mark is enough there.
+ */
+.VPHero .image-container .image-src {
+  max-width: 240px;
+  max-height: 240px;
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    display: none;
+  }
+}
+
+/* The home page's feature cards sit on the paper of the social image in the light theme. */
+.VPFeatures .VPFeature {
+  background-color: var(--ev-feature-bg);
+}
+
+/* A visible focus ring in the brand colour on every focusable element. */
+:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/*
  * The title bar of a code block outside a code group, such as ```ts [verify.ts]. The site config
  * wraps the block in .ev-code-title (withCodeTitle in scripts/site-docs.ts). The bar uses the
  * colours of a code group's tab bar, and the block below it loses its own margin and top corners.

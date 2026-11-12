@@ -242,8 +242,8 @@ What the site tells search engines is in `scripts/site-seo.ts`, and the site con
 - **Canonical and social tags.** Each page except the 404 page has one canonical link: the
   absolute URL with the base and without `.html`, as the sitemap lists it. GitHub Pages answers
   for both `/page` and `/page.html`, so this says which one counts. `og:title`,
-  `og:description`, `og:url` (the canonical URL), `og:type`, `og:site_name` and `twitter:card`
-  (`summary`, until the site has an image) follow it.
+  `og:description`, `og:url` (the canonical URL), `og:type`, `og:site_name`, the social image
+  tags and `twitter:card` (`summary_large_image`) follow it.
 - **JSON-LD.** The home page has one schema.org `SoftwareSourceCode` block. Its version,
   description, license and repository are read from `packages/explorer-verify/package.json` at
   build time. Google shows no rich result for this type; it only describes the project.
@@ -268,6 +268,36 @@ does not parse or names another version; when a set verification tag is missing;
 verification file is missing or differs; and when a `robots.txt` is built.
 `scripts/smoke-site.ts` also fetches `sitemap.xml`, the Google verification file and the home
 page's verification tags after a deploy.
+
+### Icons, logo and social image
+
+The icons, the header logo and the social image are files of `site/static/`, served from the site
+root (#373). `favicon.svg` is the browser icon, drawn on a 16 px grid; `favicon-32.png` is its PNG
+fallback; `apple-touch-icon.png` is the 180 px home screen icon; `logo.svg` is the mark in the
+header and on the home page; `og-image.png` is the 1280×640 social image. Every page links the
+icons, and every page except the 404 page names the social image in `og:image` and
+`twitter:image` by its absolute URL, with `og:image:width`, `og:image:height` and
+`og:image:alt`.
+
+The PNGs are committed, so they look the same everywhere. Each has an SVG source next to it:
+`favicon.svg`, `apple-touch-icon.svg` and `og-image.svg`. After editing a source, run
+`pnpm run site:images` (`node site/render-images.ts`), which renders the PNGs in Chromium through Playwright. When
+Playwright's own Chromium is not installed, pass the path of a Chrome binary as its argument.
+Reduce the PNGs to an indexed palette with an optimiser before committing: `og-image.png` is
+about 25 kB that way.
+
+`site:check` fails when one of these files is missing from the build, when a PNG has another size,
+or when a page lacks `og:image` or `twitter:image`, names a relative or another URL in one, or sets
+`twitter:card` to anything but `summary_large_image`.
+
+The maintainer uploads `og-image.png` as the repository's social preview, in the repository's
+GitHub settings under General, Social preview.
+
+The theme's colours come from the logo: stamp blue `#3346D3` and ink `#14161C` in the light theme,
+and `#93A4FF` for text in the dark theme, where buttons keep the stamp blue. Both themes use the
+system font stacks of the social image; no web font loads. `scripts/test/site-theme.test.ts`
+reads VitePress's variables and the theme's overrides and fails when a text colour falls below
+4.5:1 on its background, or the focus ring below 3:1, in either theme.
 
 ### API reference
 
