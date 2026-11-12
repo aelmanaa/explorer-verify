@@ -15,6 +15,10 @@
 // - `site/verification.json` holds the search console tokens. An empty value emits no tag. The
 //   files in `site/static/` are copied to the site root as they are, such as the Google
 //   verification file.
+// - Every page links the icons, and every page but the 404 page names the social image in its
+//   Open Graph and Twitter tags by its absolute URL (#373). The icons and the social image are
+//   files of `site/static/`; their SVG sources sit next to them, and site/render-images.ts renders
+//   the PNGs.
 // - The sitemap's `lastmod` of a page is the date of the last commit that changed its source
 //   other than its `Version:` line. A shallow clone, or a page with no history, gets none.
 import { execFileSync } from "node:child_process";
@@ -22,7 +26,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { listFiles, PACKAGE_DIR } from "./agent-docs.ts";
-import { SITE_STATIC, SITE_URL } from "./site-docs.ts";
+import { SITE_BASE, SITE_STATIC, SITE_URL } from "./site-docs.ts";
 
 /** The site's name: the suffix of every title and `og:site_name`. */
 export const SITE_NAME = "explorer-verify";
@@ -36,6 +40,42 @@ export const DESCRIPTION_MIN = 40;
 export const DESCRIPTION_MAX = 160;
 /** The search console tokens, relative to the repository root. */
 export const VERIFICATION_FILE = "site/verification.json";
+
+/** The site's icons and social image (#373): files of `site/static/`, by their path on the site. */
+export const BRAND_FILES: readonly string[] = [
+  "favicon.svg",
+  "favicon-32.png",
+  "apple-touch-icon.png",
+  "logo.svg",
+  "og-image.png",
+];
+/** The social image's width in pixels, the 2:1 size that GitHub and X show in full. */
+export const SOCIAL_IMAGE_WIDTH = 1280;
+/** The social image's height in pixels. */
+export const SOCIAL_IMAGE_HEIGHT = 640;
+/** The pixel size of each PNG of `BRAND_FILES`, as `[width, height]`. */
+export const BRAND_SIZES: ReadonlyMap<string, readonly [number, number]> = new Map([
+  ["favicon-32.png", [32, 32]],
+  ["apple-touch-icon.png", [180, 180]],
+  ["og-image.png", [SOCIAL_IMAGE_WIDTH, SOCIAL_IMAGE_HEIGHT]],
+]);
+/** The social image's absolute URL, which `og:image` and `twitter:image` name on every page. */
+export const SOCIAL_IMAGE: string = `${SITE_URL}og-image.png`;
+/** The text alternative of the social image, `og:image:alt`. */
+export const SOCIAL_IMAGE_ALT =
+  "explorer-verify: verify contract source on block explorers. Etherscan, Blockscout, Sourcify, Routescan and Etherscan-compatible explorers.";
+
+/** The icon links of every page: the SVG icon, a 32 px PNG fallback and the Apple touch icon. */
+export function iconHead(): HeadTag[] {
+  return [
+    ["link", { rel: "icon", href: `${SITE_BASE}favicon.svg`, type: "image/svg+xml" }],
+    [
+      "link",
+      { rel: "icon", href: `${SITE_BASE}favicon-32.png`, type: "image/png", sizes: "32x32" },
+    ],
+    ["link", { rel: "apple-touch-icon", href: `${SITE_BASE}apple-touch-icon.png` }],
+  ];
+}
 
 /**
  * The canonical URL of a page, from its path on the site (`guides/x.md`, `index.md` or
@@ -192,7 +232,13 @@ export function searchHead({
     ["meta", { property: "og:title", content: title }],
     ["meta", { property: "og:description", content: description }],
     ["meta", { property: "og:url", content: url }],
-    ["meta", { name: "twitter:card", content: "summary" }],
+    ["meta", { property: "og:image", content: SOCIAL_IMAGE }],
+    ["meta", { property: "og:image:width", content: String(SOCIAL_IMAGE_WIDTH) }],
+    ["meta", { property: "og:image:height", content: String(SOCIAL_IMAGE_HEIGHT) }],
+    ["meta", { property: "og:image:alt", content: SOCIAL_IMAGE_ALT }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:image", content: SOCIAL_IMAGE }],
+    ["meta", { name: "twitter:image:alt", content: SOCIAL_IMAGE_ALT }],
   ];
   if (page === "index.md") {
     if (verification.google !== "") {
@@ -389,7 +435,10 @@ function duplicates(values: ReadonlyMap<string, string>): Map<string, string[]> 
  * page needs exactly one title, unique, at most `TITLE_MAX` characters before the suffix; one
  * description, unique, `DESCRIPTION_MIN` to `DESCRIPTION_MAX` characters and not the site's own
  * (home page aside); exactly one canonical link equal to its sitemap URL; and `og:title`,
- * `og:description` and an `og:url` equal to the canonical. The home page needs a parsable
+ * `og:description` and an `og:url` equal to the canonical; and the social image tags, with
+ * `og:image` and `twitter:image` naming `SOCIAL_IMAGE` and `twitter:card` set to
+ * `summary_large_image`. Each file of `BRAND_FILES` must be built, each PNG at its size in
+ * `BRAND_SIZES`. The home page needs a parsable
  * `SoftwareSourceCode` JSON-LD block naming `version`, and the search console tags whose token is
  * set. The Google verification file must be built with its exact content. A `robots.txt` fails:
  * crawlers read it at the host root only.
@@ -484,10 +533,12 @@ export function searchProblems(outDir: string, expected: SearchExpectations): st
     if (ogUrl !== undefined && canonical !== undefined && ogUrl !== canonical) {
       problems.push(`${page}: og:url ${ogUrl} is not its canonical URL ${canonical} (R-AX-17)`);
     }
+    problems.push(...socialProblems(page, head));
     if (page === "index.html") {
       problems.push(...homeProblems(head, expected));
     }
   }
+  problems.push(...brandProblems(outDir));
   if (!pages.includes("index.html")) {
     problems.push("the built site has no index.html (R-AX-17)");
   }
@@ -510,6 +561,66 @@ export function searchProblems(outDir: string, expected: SearchExpectations): st
       problems.push(
         `${googleFile}: the content is not "${googleFileContent(googleFile).trimEnd()}" (R-AX-17)`,
       );
+    }
+  }
+  return problems;
+}
+
+/**
+ * Problems with a page's social image tags (#373): one `og:image` and one `twitter:image`, each
+ * the absolute URL of the social image, its width, height and text alternative, and
+ * `twitter:card` set to `summary_large_image`.
+ */
+function socialProblems(page: string, head: PageHead): string[] {
+  const problems: string[] = [];
+  const expected: [string, string | undefined][] = [
+    ["og:image", SOCIAL_IMAGE],
+    ["og:image:width", String(SOCIAL_IMAGE_WIDTH)],
+    ["og:image:height", String(SOCIAL_IMAGE_HEIGHT)],
+    ["og:image:alt", undefined],
+    ["twitter:card", "summary_large_image"],
+    ["twitter:image", SOCIAL_IMAGE],
+  ];
+  for (const [name, value] of expected) {
+    const found = head.meta.get(name) ?? [];
+    if (found.length !== 1 || found[0] === "") {
+      problems.push(`${page}: needs one ${name} tag (#373)`);
+    } else if (value !== undefined && found[0] !== value) {
+      problems.push(`${page}: ${name} is ${String(found[0])}, not ${value} (#373)`);
+    }
+  }
+  return problems;
+}
+
+/** The width and height of a PNG file, read from its IHDR chunk; undefined for another file. */
+export function pngSize(bytes: Uint8Array): [number, number] | undefined {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length < 24 || signature.some((byte, index) => bytes[index] !== byte)) {
+    return undefined;
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return [view.getUint32(16), view.getUint32(20)];
+}
+
+/** Problems with the icons and the social image in a built site (#373): each is built, at its size. */
+function brandProblems(outDir: string): string[] {
+  const problems: string[] = [];
+  for (const file of BRAND_FILES) {
+    const built = path.join(outDir, file);
+    if (!existsSync(built)) {
+      problems.push(
+        `the built site has no ${file}; keep it in ${SITE_STATIC}/ and render it with node site/render-images.ts (#373)`,
+      );
+      continue;
+    }
+    const size = BRAND_SIZES.get(file);
+    if (size !== undefined) {
+      const found = pngSize(readFileSync(built));
+      if (found?.[0] !== size[0] || found[1] !== size[1]) {
+        problems.push(
+          `${file}: is ${found === undefined ? "not a PNG" : `${found[0]}×${found[1]}`}, not ${size[0]}×${size[1]} (#373)`,
+        );
+      }
     }
   }
   return problems;

@@ -38,6 +38,7 @@
     "site:build": "node site/api-reference.ts && vitepress build site && node scripts/site-copies.ts",
     "site:check": "node scripts/check-site.ts",
     "site:dev": "node site/api-reference.ts && vitepress dev site",
+    "site:images": "node site/render-images.ts",
     "site:preview": "vitepress preview site",
     "prepare": "lefthook install && node scripts/install-git-hooks.ts",
     "changeset": "changeset",

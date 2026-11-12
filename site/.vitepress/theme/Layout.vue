@@ -3,7 +3,7 @@
   slot, and the CSS overrides of style.css (#307).
 -->
 <script setup>
-import DefaultTheme from "vitepress/theme";
+import DefaultTheme from "vitepress/theme-without-fonts";
 
 import NotFound from "./NotFound.vue";
 </script>

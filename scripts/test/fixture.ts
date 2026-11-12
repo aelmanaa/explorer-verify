@@ -7,6 +7,7 @@ import path from "node:path";
 
 import { CORE_ENTRY, RAW_MAIN } from "../agent-docs.ts";
 import { SITE_URL } from "../site-docs.ts";
+import { BRAND_FILES, BRAND_SIZES, SOCIAL_IMAGE } from "../site-seo.ts";
 
 /** The user index page of the fixture. */
 export const README = "docs/user/README.md";
@@ -136,8 +137,8 @@ export interface BuiltPageParts {
 
 /**
  * The HTML of a built page at `page`, its URL path on the docs site (`""` for the home page), with
- * the head VitePress and the site config write: a title, a description, a canonical link and the
- * Open Graph tags, each unique to the page unless `parts` replaces it.
+ * the head VitePress and the site config write: a title, a description, a canonical link, the
+ * Open Graph tags and the social image tags, each unique to the page unless `parts` replaces it.
  */
 export function builtPage(page: string, parts: BuiltPageParts = {}): string {
   const url = parts.canonical ?? `${SITE_URL}${page}`;
@@ -160,9 +161,37 @@ export function builtPage(page: string, parts: BuiltPageParts = {}): string {
     `<meta property="og:title" content="${title}">`,
     `<meta property="og:description" content="${description}">`,
     `<meta property="og:url" content="${parts.ogUrl ?? url}">`,
+    `<meta property="og:image" content="${SOCIAL_IMAGE}">`,
+    `<meta property="og:image:width" content="1280">`,
+    `<meta property="og:image:height" content="640">`,
+    `<meta property="og:image:alt" content="The social image">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:image" content="${SOCIAL_IMAGE}">`,
     parts.extra ?? jsonLd,
     "</head><body></body></html>",
   ].join("\n");
+}
+
+/** The first 24 bytes of a PNG file of `width` by `height`: its signature and IHDR size. */
+export function pngHeader(width: number, height: number): Buffer {
+  const header = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]).copy(header);
+  header.write("IHDR", 12, "latin1");
+  header.writeUInt32BE(width, 16);
+  header.writeUInt32BE(height, 20);
+  return header;
+}
+
+/** Writes the icons and the social image into a built site `outDir`, each PNG at its size. */
+export function writeBrandFiles(outDir: string): void {
+  mkdirSync(outDir, { recursive: true });
+  for (const file of BRAND_FILES) {
+    const size = BRAND_SIZES.get(file);
+    writeFileSync(
+      path.join(outDir, file),
+      size === undefined ? '<svg xmlns="http://www.w3.org/2000/svg"/>' : pngHeader(...size),
+    );
+  }
 }
 
 /** A sitemap that lists `pages`, URL paths on the docs site, as VitePress writes it. */

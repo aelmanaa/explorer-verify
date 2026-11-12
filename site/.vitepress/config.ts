@@ -39,6 +39,7 @@ import {
 import { boostDocument, processTerm } from "../../scripts/site-search.ts";
 import {
   gitLastModified,
+  iconHead,
   packageFacts,
   readVerification,
   searchHead,
@@ -75,9 +76,9 @@ const config: UserConfig<DefaultTheme.Config> = defineConfig({
   title: "explorer-verify",
   description: siteDescription(version),
   lang: "en",
-  // The site has no icon. An empty one stops the browser asking for /favicon.ico, which is outside
-  // the base and answers 404 in the console.
-  head: [["link", { rel: "icon", href: "data:," }]],
+  // The icons are files of site/static/, served under the base (#373). Linking them also stops
+  // the browser asking for /favicon.ico, which is outside the base and answers 404.
+  head: iconHead(),
   base: SITE_BASE,
   srcDir: path.relative(path.join(root, "site"), root),
   srcExclude: siteSourceExcludes(root),
@@ -175,6 +176,10 @@ const config: UserConfig<DefaultTheme.Config> = defineConfig({
         },
       },
     },
+    // The mark and the two-colour wordmark of the logo and the social image (#373): "explorer" in
+    // the text colour and "-verify" in the brand colour (theme/style.css).
+    logo: { src: "/logo.svg", alt: "" },
+    siteTitle: 'explorer<span class="ev-title-accent">-verify</span>',
     sidebar,
     nav: siteNav(sidebar, version),
     outline: [2, 3],

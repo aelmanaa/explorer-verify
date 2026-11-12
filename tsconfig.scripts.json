@@ -14,6 +14,7 @@
     "site/.vitepress/config.ts",
     "site/.vitepress/theme",
     "site/api-reference.ts",
+    "site/render-images.ts",
     "packages/cli/src",
     "packages/explorer-verify/src",
     "packages/explorer-verify/src/routing/table.json"
