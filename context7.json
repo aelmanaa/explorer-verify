@@ -1,0 +1,13 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "explorer-verify",
+  "description": "Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a browser, a backend or a CLI, with one API.",
+  "folders": ["docs/user", "skills", "examples"],
+  "excludeFolders": ["docs/contributor", "test", "validation", "node_modules", "dist"],
+  "excludeFiles": ["CHANGELOG.md"],
+  "rules": [
+    "Run a dry run first (dryRun() or explorer-verify verify --dry-run). A submit publishes the source on the explorer and cannot be undone, so submit only when the person asked to verify that contract on that chain.",
+    "Etherscan keys stay on a server. A browser verifies on Etherscan only through the server handler from createVerifyHandler() in explorer-verify/server, which holds the key.",
+    "The CLI reads a key from ETHERSCAN_API_KEY, ROUTESCAN_API_KEY or BLOCKSCOUT_API_KEY, or from --api-key-file or --api-key-stdin. Never pass a key as a flag value; the CLI refuses such flags."
+  ]
+}

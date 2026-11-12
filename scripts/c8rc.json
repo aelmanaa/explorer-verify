@@ -38,6 +38,7 @@
     "scripts/routing-table-issue.ts",
     "scripts/size-budget.ts",
     "scripts/check-site.ts",
+    "scripts/context7.ts",
     "scripts/site-copies.ts",
     "scripts/site-api.ts",
     "scripts/site-docs.ts",
