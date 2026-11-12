@@ -527,7 +527,7 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/backends/routescan.ts`            | Routescan's requests (R-BE-5)                                                                                  | 100   | 100         | 1 undetected |
 | `src/backends/blockscout.ts`           | Blockscout answers mapped to results and errors (R-FLOW-4)                                                     | 99.07 | 99.07       | 98           |
 | `src/server/handler.ts`                | The server handler's guards, forwarding and redaction (R-SRV-3, R-SRV-4, R-SEC-1, R-SEC-2)                     | 98.15 | 95.62       | 94           |
-| `src/envelope.ts`                      | The JSON envelope and exit codes, and their checks (R-AX-5, R-AX-7, R-SEC-1)                                   | 97.87 | 97.87       | 96           |
+| `src/envelope.ts`                      | The JSON envelope and exit codes, and their checks (R-AX-5, R-AX-7, R-SEC-1)                                   | 98.02 | 98.02       | 97           |
 | `src/http/rpc.ts`                      | The JSON-RPC request and answer, and the `rpcUrl` parts redacted (R-SEC-1)                                     | 98.08 | 98.08       | 97           |
 | `src/flow/dry-run.ts`                  | `dryRun()` (R-AX-8)                                                                                            | 100   | 100         | 1 undetected |
 | `src/flow/handle.ts`                   | `parseHandle()`, which throws (R-FLOW-5, R-SEC-2)                                                              | 100   | 100         | 1 undetected |
@@ -535,8 +535,8 @@ wrong place. These files hold logic and are not mutated yet: the bytecode-metada
 | `src/flow/check-handle.ts`             | The handle checks, `tryParseHandle()` and `isHandleString()` (R-FLOW-5, R-SEC-2)                               | 100   | 100         | 1 undetected |
 | `src/input/validate.ts`                | `validateInput()`: every rule an input passes before a request (R-IN-1, R-IN-6)                                | 98.57 | 95.97       | 94           |
 | `src/input/constructor-args.ts`        | Constructor arguments derived from the creation code (R-IN-3)                                                  | 100   | 100         | 99           |
-| `src/input/build.ts`                   | `buildVerifyInput()`: document shapes, local paths, version and contract (R-IN-7)                              | 98.62 | 98.62       | 97           |
-| `src/input/metadata.ts`                | The Standard JSON input rebuilt from Solidity metadata (R-IN-7)                                                | 98.24 | 98.24       | 97           |
+| `src/input/build.ts`                   | `buildVerifyInput()`: document shapes, local paths, version and contract (R-IN-7)                              | 98.94 | 98.94       | 97           |
+| `src/input/metadata.ts`                | The Standard JSON input rebuilt from Solidity metadata (R-IN-7)                                                | 99.54 | 99.54       | 98           |
 | `src/input/libraries.ts`               | `linkLibraries()` (R-IN-4)                                                                                     | 100   | 100         | 99           |
 | `src/input/paths.ts`                   | The local-path rule (R-IN-4, R-IN-7)                                                                           | 100   | 100         | 1 undetected |
 | `src/core/options.ts`                  | `explorer-verify/core`: the `clients` and `table` options and the errors for a part left out (R-IN-6, R-SEC-2) | 100   | 99.52       | 98           |
@@ -606,6 +606,15 @@ file. The 95.77 of 2026-11-07 came from an incremental run that reused 10055 of 
 The floors of the two Blockscout clients, 99 and 98, were one point above the rule; they are now
 98 and 97. Floors set from an incremental run can sit above the score of a full run. Measure a row with
 `--force`, or check it against the latest full run of the `Mutation` workflow.
+
+The rows of `envelope.ts`, `input/build.ts` and `input/metadata.ts` were measured on 2026-11-12 with
+issues #382 and #383 applied on `70fc91b`: one forced run per file (`--force`, concurrency 4).
+`envelope.ts` killed 792 of 808 mutants, `build.ts` 931 of 941 and `metadata.ts` 219 of 220, with no
+timeouts. Every survivor is equivalent or changes only message wording. `metadata.ts` now takes the
+`source-mismatch` hash check from the error, which ran the same check again, so its three
+equivalent mutants are gone. A forced run of `server/handler.ts` (concurrency 3) killed 825 of 888,
+with 36 timeouts and 27 equivalent survivors. That is a killed-only score of 92.91, so its floor stays
+at 94 until a run without the timeouts measures it.
 
 Most survivors in these five files are listed as equivalent below: the defence-in-depth check of
 `validateInput()` and its narrowing guards, and the booleans of `eachOptionKeys()` that only
@@ -795,7 +804,11 @@ comments in source order. After adding or removing one, run
 | `packages/explorer-verify/src/input/build.ts`              | ConditionalExpression                                  | equivalent when always false. An undefined hint takes the catalogue's hint, as an absent one does.                                                                                                       |
 | `packages/explorer-verify/src/input/build.ts`              | ArrayDeclaration                                       | equivalent. The message names only a field, never a key.                                                                                                                                                 |
 | `packages/explorer-verify/src/input/build.ts`              | StringLiteral                                          | equivalent. Each entry starts with a quoted key and ends with a whole JSON value, so the entries split one way without the comma.                                                                        |
+| `packages/explorer-verify/src/input/build.ts`              | StringLiteral                                          | equivalent. The error maps a field outside its list to "input", its first entry.                                                                                                                         |
+| `packages/explorer-verify/src/input/build.ts`              | StringLiteral                                          | equivalent. The error maps a field outside its list to "input", its first entry.                                                                                                                         |
+| `packages/explorer-verify/src/input/build.ts`              | StringLiteral                                          | equivalent. The error maps a field outside its list to "input", its first entry.                                                                                                                         |
 | `packages/explorer-verify/src/input/build.ts`              | ObjectLiteral, ArrayDeclaration                        | equivalent. The message is fixed text.                                                                                                                                                                   |
+| `packages/explorer-verify/src/input/build.ts`              | StringLiteral                                          | equivalent. The error maps a field outside its list to "input", its first entry.                                                                                                                         |
 | `packages/explorer-verify/src/input/build.ts`              | ArrayDeclaration                                       | equivalent. The caller only asks whether a part is a local path, and Stryker's text is not one.                                                                                                          |
 | `packages/explorer-verify/src/input/build.ts`              | ArrayDeclaration                                       | equivalent. The caller only asks whether an entry holds a local path, and Stryker's text does not.                                                                                                       |
 | `packages/explorer-verify/src/input/constructor-args.ts`   | ObjectLiteral                                          | equivalent. The details come redacted from the first error, and the message names only the method.                                                                                                       |

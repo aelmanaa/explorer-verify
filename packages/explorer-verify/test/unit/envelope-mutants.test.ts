@@ -50,6 +50,14 @@ class OtherCopyError extends Error {
   }
 }
 
+/** An error of another class that carries the brand, as another copy of the package builds it. */
+function branded(json: unknown): OtherCopyError {
+  const other = new OtherCopyError(json);
+  Object.defineProperty(other, Symbol.for("explorer-verify.error"), { value: true });
+  assert.ok(ExplorerVerifyError.is(other), "the brand is recognised");
+  return other;
+}
+
 function thrownBy(run: () => unknown): ExplorerVerifyError {
   try {
     run();
@@ -330,5 +338,53 @@ describe("toEnvelope checks its options (R-AX-9)", () => {
       assert.equal(error.hint, "Pass options as { secrets: string[] }, or leave them out.");
       assert.deepEqual(error.details, { code: "invalid-input", issues: [issue] });
     }
+  });
+
+  it("names the options when an unknown option key cannot be named (#382)", () => {
+    const error = thrownBy(() => toEnvelope(bypass(VERIFIED), looseOptions({ "a b": 1 })));
+    assert.deepEqual(error.details, {
+      code: "invalid-input",
+      issues: [{ field: "options", message: "is not a known option" }],
+    });
+  });
+});
+
+// Tests added after the 0.2.0 mutation run (#382; decision 0044, R-SEC-1): an error from another
+// copy of the package, or a plain error object, has its message and hint cut and its handle
+// checked field by field, even when it carries the brand that this copy's errors carry.
+describe("toEnvelope reads an error it did not build as foreign (#382, decision 0044, R-SEC-1)", () => {
+  const LONG = "m".repeat(3_000);
+  const CUT = "m".repeat(2_000);
+
+  it("cuts the message and hint of a branded error from another copy to 2,000 characters", () => {
+    const envelope = toEnvelope(bypass(branded({ ...ERROR_JSON, message: LONG, hint: LONG })));
+    assert.ok(envelope.error !== undefined);
+    assert.equal(envelope.error.message, CUT);
+    assert.equal(envelope.error.hint, CUT);
+  });
+
+  it("refuses a job id with a colon in the handle of a branded error from another copy", () => {
+    const handle = `ev1:sourcify:11155111:${ADDRESS}:job:1`;
+    assert.deepEqual(issuesOf(branded({ ...ERROR_JSON, handle })), [
+      { field: "outcome.handle", message: "must be a handle in its one-line form" },
+    ]);
+  });
+
+  it("cuts the message of a plain error object in a verifyEach() outcome to 2,000 characters", () => {
+    const error = { ...ERROR_JSON, message: LONG };
+    const envelope = toEnvelope(bypass({ outcomes: [{ backend: "sourcify", ok: false, error }] }));
+    assert.equal(envelope.ok, false);
+    const { result } = envelope;
+    assert.ok(result !== undefined && "outcomes" in result);
+    const outcome = result.outcomes[0];
+    assert.ok(outcome?.error !== undefined);
+    assert.equal(outcome.error.message, CUT);
+  });
+
+  it("names an outcome that carries both a result and an error", () => {
+    const outcomes = [{ backend: "sourcify", ok: false, result: VERIFIED, error: ERROR_JSON }];
+    assert.deepEqual(issuesOf({ outcomes }), [
+      { field: "outcome.outcomes[0]", message: "must not carry both result and error" },
+    ]);
   });
 });

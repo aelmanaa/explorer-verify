@@ -6,6 +6,7 @@
  * https://docs.soliditylang.org/en/v0.8.24/metadata.html.
  */
 import { newError } from "../error-hints.ts";
+import { hashOf } from "../errors.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
 import { keccak256 } from "../internal/keccak.ts";
 import { readFields } from "../internal/read-fields.ts";
@@ -14,7 +15,6 @@ import { readFields } from "../internal/read-fields.ts";
 const OUTPUT_SELECTION = {
   "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "metadata"] },
 } as const;
-const HASH = /^0x[0-9a-f]{64}$/;
 // solc 0.8.2, 0.8.3 and 0.8.4, with or without a leading v.
 const INLINER_VERSIONS = /^v?0\.8\.[234](?!\d)/;
 
@@ -272,7 +272,8 @@ export function checkSourceHashes(supplied: readonly SuppliedSource[]): void {
         {
           code: "source-mismatch",
           path,
-          expected: HASH.test(expected) ? `0x${expected.slice(2)}` : "0x",
+          // `0x` when the metadata records a hash that is not `0x` and 64 lowercase hex digits.
+          expected: hashOf(expected),
           actual: `0x${actual.slice(2)}`,
         },
         "A source file does not match the keccak-256 hash the metadata records for it.",

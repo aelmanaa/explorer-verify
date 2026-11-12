@@ -117,8 +117,8 @@
     },
     {
       "file": "src/envelope.ts",
-      "measured": 96.75,
-      "floor": 96
+      "measured": 98.02,
+      "floor": 97
     },
     {
       "file": "src/http/rpc.ts",
@@ -157,13 +157,13 @@
     },
     {
       "file": "src/input/build.ts",
-      "measured": 98.62,
+      "measured": 98.94,
       "floor": 97
     },
     {
       "file": "src/input/metadata.ts",
-      "measured": 98.24,
-      "floor": 97
+      "measured": 99.54,
+      "floor": 98
     },
     {
       "file": "src/input/libraries.ts",
