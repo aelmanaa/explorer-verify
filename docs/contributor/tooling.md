@@ -222,6 +222,53 @@ as JSON. It also fails unless the site's `llms.txt` names the package version at
 checked-out tag, so a site that still serves an older version fails. It tries up to five times, 15 seconds apart, because a new deployment can take a short time to
 reach every edge. [Releasing](releasing.md#docs-deploy) describes the deploy.
 
+### Search engines
+
+What the site tells search engines is in `scripts/site-seo.ts`, and the site config applies it
+(R-AX-17, issues #366 and #367). The maintainer's console steps are in
+[Search console](search-console.md).
+
+- **Titles.** VitePress writes the page's H1, then ` | explorer-verify`. The home page sets its
+  title in its frontmatter. An API member that two entry points export, such as `verify()` in
+  `explorer-verify` and `explorer-verify/core`, gets its entry point in brackets:
+  `verify() (explorer-verify/core)`. The part before the suffix is at most 60 characters.
+- **Descriptions.** Each page has its own, 40 to 160 characters, unique across the site. The pages
+  in `docs/user/` hold no frontmatter (decision 0015), so their descriptions are in
+  `site/descriptions.json`, keyed by the page's path under `docs/user/`. A new user page needs an
+  entry there; `site:check` and a unit test fail without one. An API page's description is its
+  name, its entry point and the first sentences of its TSDoc summary that fit, which
+  `site/api-reference.ts` writes to `site/api/descriptions.json`. The home page sets the
+  site-level description in its frontmatter; no other page may use it.
+- **Canonical and social tags.** Each page except the 404 page has one canonical link: the
+  absolute URL with the base and without `.html`, as the sitemap lists it. GitHub Pages answers
+  for both `/page` and `/page.html`, so this says which one counts. `og:title`,
+  `og:description`, `og:url` (the canonical URL), `og:type`, `og:site_name` and `twitter:card`
+  (`summary`, until the site has an image) follow it.
+- **JSON-LD.** The home page has one schema.org `SoftwareSourceCode` block. Its version,
+  description, license and repository are read from `packages/explorer-verify/package.json` at
+  build time. Google shows no rich result for this type; it only describes the project.
+- **Sitemap.** `sitemap.hostname` is the site URL, so `site/dist/sitemap.xml` lists every page by
+  its absolute URL without `.html`. A page's `lastmod` is the date of the last commit that changed
+  its source other than its `Version:` line, which every release rewrites: `git log -p` of
+  `docs/user/` and `site/pages/`, skipping a diff whose changed lines are all `Version:` lines. An
+  API page, generated from many sources, has no `lastmod`. A shallow checkout has no history, so
+  the build leaves every `lastmod` out there; the docs deploy checks out the tag with
+  `fetch-depth: 0`. There is no `robots.txt`: crawlers read it at the host root only.
+- **Verification.** `site/verification.json` holds the Google and Bing tokens and the name of the
+  Google verification file. A set token adds its meta tag to the home page. The files in
+  `site/static/` are copied to the site root as they are by `scripts/site-copies.ts`, never as
+  pages.
+
+`scripts/check-site.ts` also fails when the sitemap is missing, misses a page, or lists a URL that
+is not built, is relative, ends in `.html` or leaves out `/explorer-verify/`; when a page has no
+title or description, shares one, has a description outside 40 to 160 characters or the site's
+own, lacks exactly one canonical link equal to its sitemap URL, or lacks `og:title`,
+`og:description` or an `og:url` equal to its canonical; when the home page's JSON-LD is missing,
+does not parse or names another version; when a set verification tag is missing; when the Google
+verification file is missing or differs; and when a `robots.txt` is built.
+`scripts/smoke-site.ts` also fetches `sitemap.xml`, the Google verification file and the home
+page's verification tags after a deploy.
+
 ### API reference
 
 The API reference on the site is generated from TSDoc (R-AX-2, R-DX-4, decision 0015).

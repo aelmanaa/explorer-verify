@@ -246,3 +246,80 @@ export function apiProblems(directory: string, entryPoints: readonly ApiEntryPoi
   }
   return problems;
 }
+
+/** The file, in the API reference's folder, that maps each page to its description. */
+export const API_DESCRIPTIONS = "descriptions.json";
+
+/** The description of the reference's index page. */
+export const API_INDEX_DESCRIPTION =
+  "Every export of the explorer-verify packages by entry point: functions, classes, types and constants, generated from their TSDoc.";
+
+/** The longest description of an API page. */
+const API_DESCRIPTION_MAX = 160;
+
+/** The kind TypeDoc puts before a member's name in its heading, such as `Function: `. */
+const KIND_PREFIX = /^[A-Z][A-Za-z ]*: /;
+
+/** A TSDoc summary as plain text: links as their text, no code marks, one line. */
+function plainSummary(summary: string): string {
+  return summary
+    .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replaceAll("`", "")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The description of the page of one API member or entry point, from its title (the page's first
+ * heading, such as `Function: verify()`), its entry point, such as `explorer-verify/core`, and the
+ * first paragraph of its TSDoc summary: the member's name and entry point, then as many of the
+ * summary's sentences as fit in 160 characters. A first sentence too long to fit is cut at a word
+ * and ends with `…`. Naming the entry point keeps the description of a member that two entry
+ * points export unique.
+ */
+export function apiDescription(title: string, entry: string, summary: string): string {
+  const name = title.replace(KIND_PREFIX, "").replaceAll(/\\(.)/g, "$1");
+  const lead = name === entry ? `${entry}: ` : `${name} in ${entry}: `;
+  const sentences = plainSummary(summary)
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => sentence !== "");
+  let text = lead;
+  for (const sentence of sentences) {
+    const next = text === lead ? `${text}${sentence}` : `${text} ${sentence}`;
+    if (next.length > API_DESCRIPTION_MAX) {
+      break;
+    }
+    text = next;
+  }
+  if (text !== lead) {
+    return text;
+  }
+  const room = API_DESCRIPTION_MAX - lead.length - 1;
+  const first = sentences[0] ?? "";
+  const cut = first.slice(0, room + 1);
+  const word = cut.lastIndexOf(" ");
+  const kept = cut.slice(0, word > 0 ? word : room).replace(/[\s,;:]+$/, "");
+  return `${lead}${kept}…`;
+}
+
+/**
+ * The `<title>` text of each API page whose first heading another API page shares: the member's
+ * name without its kind, then its entry point in brackets, such as
+ * `verify() (explorer-verify/core)`. The entry point is the title of the `index.md` of the page's
+ * folder. A page whose heading no other page has keeps it, and is left out.
+ */
+export function apiTitles(pages: readonly ApiPage[]): Map<string, string> {
+  const count = new Map<string, number>();
+  for (const { title } of pages) {
+    count.set(title, (count.get(title) ?? 0) + 1);
+  }
+  const titles = new Map<string, string>();
+  for (const { page, title } of pages) {
+    const folder = page.split("/")[0] ?? "";
+    const entry = pages.find((candidate) => candidate.page === `${folder}/index.md`)?.title;
+    if ((count.get(title) ?? 0) > 1 && entry !== undefined && !isApiEntryPage(page)) {
+      titles.set(page, `${title.replace(KIND_PREFIX, "").replaceAll(/\\(.)/g, "$1")} (${entry})`);
+    }
+  }
+  return titles;
+}

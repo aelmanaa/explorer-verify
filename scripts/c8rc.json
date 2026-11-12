@@ -44,6 +44,8 @@
     "scripts/site-api.ts",
     "scripts/site-docs.ts",
     "scripts/site-search.ts",
+    "scripts/site-descriptions.ts",
+    "scripts/site-seo.ts",
     "scripts/smoke-site.ts",
     "scripts/verify-release-tag.ts"
   ],

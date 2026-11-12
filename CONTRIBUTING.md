@@ -57,7 +57,8 @@ requirement the change does not meet is named in the pull request with the reaso
   dummy API key and asserts that the key appears nowhere in the error: not in `message`, `toJSON()`,
   `String(error)` or `util.inspect(error)`.
 - Docs ship with the code. A new page is linked from [AGENTS.md](AGENTS.md) and
-  [docs/README.md](docs/README.md).
+  [docs/README.md](docs/README.md). A new user page has a description in
+  `site/descriptions.json` for the docs site.
 - A user-facing change under `packages/` adds a changeset (see below).
 - A new or changed decision record links the research notes it relies on, or carries the line
   `Research: none (maintainer choice).` A new or changed research note has a `## Sources` section,

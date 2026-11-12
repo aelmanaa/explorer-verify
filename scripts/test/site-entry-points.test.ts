@@ -2,7 +2,7 @@
 // site:build`, pull request CI and the deploy workflow run them (R-AX-10, R-AX-17, decision 0015).
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { CORE_ENTRY, RAW_MAIN } from "../agent-docs.ts";
 import { SITE_OUT, SITE_URL } from "../site-docs.ts";
-import { edit, makeFixture, removeFixture, writeFiles } from "./fixture.ts";
+import { builtPage, edit, makeFixture, removeFixture, sitemapOf, writeFiles } from "./fixture.ts";
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CODE_PAGE = "docs/user/reference/errors/boom.md";
@@ -47,13 +47,24 @@ function run(
   });
 }
 
-/** Writes the HTML pages VitePress would build for the fixture's pages. */
-function writeHtml(): void {
+/** The pages VitePress builds for the fixture, by their URL path on the site. */
+const PAGES = ["", "guides/using-from-an-agent", "reference/errors/boom"];
+
+/**
+ * Writes the HTML pages VitePress would build for the fixture's pages, each with its title,
+ * description, canonical link and Open Graph tags, the first with the JSON-LD block, and the
+ * sitemap that lists them.
+ */
+function writeHtml(pages: readonly string[] = PAGES): void {
   writeFiles(root, {
-    [`${SITE_OUT}/index.html`]: "",
-    [`${SITE_OUT}/guides/using-from-an-agent.html`]: "",
-    [`${SITE_OUT}/reference/errors/boom.html`]: "",
+    ...Object.fromEntries(
+      pages.map((page, index) => [
+        `${SITE_OUT}/${page === "" ? "index" : page}.html`,
+        builtPage(page, { home: index === 0, version: "1.2.3" }),
+      ]),
+    ),
     [`${SITE_OUT}/404.html`]: "",
+    [`${SITE_OUT}/sitemap.xml`]: sitemapOf(pages),
   });
 }
 
@@ -61,6 +72,12 @@ beforeEach(() => {
   root = makeFixture();
   writeFiles(root, {
     [CORE_ENTRY]: CORE,
+    "site/verification.json": JSON.stringify({ google: "", bing: "", googleFile: "" }),
+    "site/descriptions.json": JSON.stringify({
+      "README.md": "The index of the fixture's user docs, with every page listed.",
+      "guides/using-from-an-agent.md": "Which calls an agent may run alone in the fixture's docs.",
+      "reference/errors/boom.md": "Error boom: the fixture's only error code, and how to fix it.",
+    }),
     [CODE_PAGE]:
       "# boom\n\nVersion: explorer-verify 1.2.3\n\nAgents: [llms.txt](../../../../llms.txt).\n",
   });
@@ -98,31 +115,64 @@ describe("check-site.ts (test 3)", () => {
     assert.equal(result.status, 0);
     assert.equal(
       result.stdout,
-      "site: the docsUrl of 1 error codes, llms.txt, the Markdown copies and the sidebar resolve in site/dist\n",
+      "site: the docsUrl of 1 error codes, llms.txt, the Markdown copies, the sidebar, the sitemap and the search tags resolve in site/dist\n",
     );
   });
 
   it("exits 1 when a user page is in no sidebar group", async () => {
     writeFiles(root, { "docs/user/guides/unlisted.md": "# Unlisted\n" });
     await run("site-copies.ts", root);
-    writeHtml();
-    writeFiles(root, { [`${SITE_OUT}/guides/unlisted.html`]: "" });
+    writeHtml([...PAGES, "guides/unlisted"]);
     const result = await run("check-site.ts", root);
     assert.equal(result.status, 1);
     assert.equal(
       result.stderr,
-      "docs/user/guides/unlisted.md is in no sidebar group; add it to SIDEBAR in scripts/site-docs.ts\nllms.txt does not list guides/unlisted.md (R-AX-17)\n",
+      "docs/user/guides/unlisted.md is in no sidebar group; add it to SIDEBAR in scripts/site-docs.ts\ndocs/user/guides/unlisted.md has no description; add one to site/descriptions.json (R-AX-17)\nllms.txt does not list guides/unlisted.md (R-AX-17)\n",
     );
   });
 
   it("accepts the site-only pages without a Markdown copy", async () => {
     writeFiles(root, { "site/pages/index.md": "---\nlayout: home\n---\n" });
     await run("site-copies.ts", root);
-    writeHtml();
-    writeFiles(root, { [`${SITE_OUT}/overview.html`]: "" });
+    writeHtml([...PAGES, "overview"]);
     const result = await run("check-site.ts", root);
     assert.equal(result.stderr, "");
     assert.equal(result.status, 0);
+  });
+
+  it("copies the files of site/static as they are and fails without the Google file (R-AX-17)", async () => {
+    const file = "google0123456789abcdef.html";
+    writeFiles(root, {
+      "site/verification.json": JSON.stringify({ google: "", bing: "", googleFile: file }),
+      [`site/static/${file}`]: `google-site-verification: ${file}\n`,
+    });
+    await run("site-copies.ts", root);
+    writeHtml();
+    assert.equal(
+      readFileSync(path.join(root, SITE_OUT, file), "utf8"),
+      `google-site-verification: ${file}\n`,
+    );
+    const passing = await run("check-site.ts", root);
+    assert.equal(passing.stderr, "");
+    assert.equal(passing.status, 0);
+    writeFiles(root, { [`${SITE_OUT}/${file}`]: "<!doctype html><title>x</title>" });
+    const failing = await run("check-site.ts", root);
+    assert.equal(failing.status, 1);
+    assert.equal(
+      failing.stderr,
+      `${file}: the content is not "google-site-verification: ${file}" (R-AX-17)\n`,
+    );
+  });
+
+  it("exits 1 when the sitemap is missing or a page lacks its search tags (R-AX-17)", async () => {
+    await run("site-copies.ts", root);
+    writeHtml();
+    writeFiles(root, { [`${SITE_OUT}/guides/using-from-an-agent.html`]: "<head></head>" });
+    rmSync(path.join(root, SITE_OUT, "sitemap.xml"));
+    const result = await run("check-site.ts", root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /^the built site has no sitemap\.xml/m);
+    assert.match(result.stderr, /^guides\/using-from-an-agent\.html: has 0 titles/m);
   });
 
   it("exits 1 and names the file a docsUrl lacks", async () => {
@@ -148,6 +198,7 @@ describe("smoke-site.ts (test 4)", () => {
 
   beforeEach(async () => {
     await run("site-copies.ts", root);
+    writeFiles(root, { [`${SITE_OUT}/sitemap.xml`]: sitemapOf(PAGES) });
     missing.clear();
     server = createServer((request, response) => {
       const url = new URL(request.url ?? "/", "http://localhost");
@@ -177,7 +228,7 @@ describe("smoke-site.ts (test 4)", () => {
     assert.equal(result.status, 0);
     assert.equal(
       result.stdout,
-      `site smoke: ${site}/ serves the page and Markdown copy of 1 error codes, 1 other files, llms.txt and every page it lists\n`,
+      `site smoke: ${site}/ serves the page and Markdown copy of 1 error codes, 1 other files, llms.txt, every page it lists and the sitemap\n`,
     );
   });
 

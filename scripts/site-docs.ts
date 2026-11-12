@@ -48,6 +48,10 @@ import type { ApiPage } from "./site-api.ts";
 
 /** The address of the docs site. Every `docsUrl` starts with it before 1.0. */
 export const SITE_URL = "https://aelmanaa.github.io/explorer-verify/";
+/** The site-level description: the home page's, and the fallback no other page may keep. */
+export function siteDescription(version: string): string {
+  return `Verify deployed contract source on block explorers. Docs of explorer-verify ${version}.`;
+}
 /** The path the site is served under, VitePress's `base`. */
 export const SITE_BASE = "/explorer-verify/";
 /** The folder of the VitePress config, relative to the repository root. */
@@ -61,6 +65,12 @@ const JSDELIVR_LLMS = "https://cdn.jsdelivr.net/npm/explorer-verify@<version>/ll
 
 /** The folder of the site-only pages, relative to the repository root (decision 0062). */
 export const SITE_PAGES = "site/pages";
+/**
+ * The folder whose files the build copies to the site root byte for byte, such as the Google
+ * Search Console verification file. They are no pages: no layout, no link rewrite, no Markdown
+ * copy and no sitemap entry.
+ */
+export const SITE_STATIC = "site/static";
 /** The site path of `docs/user/README.md` when the site has its own home page. */
 export const OVERVIEW = "overview.md";
 /** The agent skill. The site serves a Markdown copy at the same path, and its `llms.txt` links it. */
@@ -69,6 +79,11 @@ export const SITE_SKILL = "skills/explorer-verify/SKILL.md";
 /** The site-only pages: the Markdown files under `site/pages/`, relative to that folder. */
 export function sitePages(root: string): string[] {
   return listFiles(root, SITE_PAGES, ".md").map((file) => path.posix.relative(SITE_PAGES, file));
+}
+
+/** The files of `site/static/`, by their path on the site. */
+export function siteStaticFiles(root: string): string[] {
+  return listFiles(root, SITE_STATIC).map((file) => path.posix.relative(SITE_STATIC, file));
 }
 
 /** Whether the site has its own home page, `site/pages/index.md`. */
@@ -634,7 +649,8 @@ export function siteNav(sidebar: readonly SidebarItem[], version: string): NavIt
  * Writes the Markdown copy of every user page next to its HTML in `outDir`, with its links
  * rewritten for the site, copies every other file under `docs/user/` as is, writes the copy of the
  * skill, copies each page of the API reference to `api/`, its links being relative already, and
- * writes the site's `llms.txt`. Returns the paths written, relative to `outDir`.
+ * writes the site's `llms.txt`. It also copies each file of `site/static/` to the site root as it
+ * is. Returns the paths written, relative to `outDir`.
  */
 export function writeSiteCopies(root: string, outDir: string, version: string): string[] {
   const written: string[] = [];
@@ -666,6 +682,11 @@ export function writeSiteCopies(root: string, outDir: string, version: string): 
     mkdirSync(path.join(outDir, path.posix.dirname(destination)), { recursive: true });
     copyFileSync(path.join(root, API_OUT, page), path.join(outDir, destination));
     written.push(destination);
+  }
+  for (const file of siteStaticFiles(root)) {
+    mkdirSync(path.join(outDir, path.posix.dirname(file)), { recursive: true });
+    copyFileSync(path.join(root, SITE_STATIC, file), path.join(outDir, file));
+    written.push(file);
   }
   writeFileSync(
     path.join(outDir, "llms.txt"),
@@ -727,17 +748,31 @@ function sitePathOf(url: string, site: string): string | undefined {
  * HTML page with its Markdown copy next to it; each link in the site's `llms.txt` must be a
  * Markdown copy in the build; each HTML page other than `404.html` and the site-only pages must
  * have a Markdown copy that `llms.txt` lists; and each file of `assets` must be in the build.
- * `siteOnly` and `assets` are site paths, as `sitePages` and `siteAssets` give them.
+ * `siteOnly` and `assets` are site paths, as `sitePages` and `siteAssets` give them. Each file of
+ * `staticFiles`, a site path as `siteStaticFiles` gives it, must be in the build and is no page.
  */
 export function siteProblems(
   outDir: string,
   docsUrls: readonly string[],
-  { siteOnly = [], assets = [] }: { siteOnly?: readonly string[]; assets?: readonly string[] } = {},
+  {
+    siteOnly = [],
+    assets = [],
+    staticFiles = [],
+  }: {
+    siteOnly?: readonly string[];
+    assets?: readonly string[];
+    staticFiles?: readonly string[];
+  } = {},
 ): string[] {
   const problems: string[] = [];
   for (const asset of assets) {
     if (!existsSync(path.join(outDir, asset))) {
       problems.push(`the built site has no ${asset}, a file under ${USER_DOCS}/ (R-AX-17)`);
+    }
+  }
+  for (const file of staticFiles) {
+    if (!existsSync(path.join(outDir, file))) {
+      problems.push(`the built site has no ${file}, a file under ${SITE_STATIC}/ (R-AX-17)`);
     }
   }
   for (const url of docsUrls) {
@@ -775,7 +810,7 @@ export function siteProblems(
   for (const html of listFiles(outDir, ".", ".html")) {
     const file = path.posix.normalize(html);
     const copy = file.replace(/\.html$/, ".md");
-    if (file === "404.html" || siteOnly.includes(copy)) {
+    if (file === "404.html" || siteOnly.includes(copy) || staticFiles.includes(file)) {
       continue;
     }
     if (!existsSync(path.join(outDir, copy))) {
@@ -821,7 +856,10 @@ async function get(fetchUrl: Fetch, url: string): Promise<{ body: string } | { p
  * swapped for `site`, its `.md` copy, the site's `llms.txt` and each link in it must return 200
  * within `SMOKE_TIMEOUT_MS`, and the `llms.txt` must name `version`, so an older deploy fails.
  * Each file of `assets`, a site path as `siteAssets` gives it, must return 200 too, and a `.json`
- * file must parse as JSON, so the site serves it as it is and not as a page.
+ * file must parse as JSON, so the site serves it as it is and not as a page. The sitemap must
+ * return 200 and list the home page (R-AX-17). Each file of `search.files`, such as the Google
+ * verification file, must return 200 with that content, and the home page must hold each meta tag
+ * of `search.homeMeta` whose token is set.
  */
 export async function smokeProblems(
   site: string,
@@ -829,6 +867,10 @@ export async function smokeProblems(
   docsUrls: readonly string[],
   fetchUrl: Fetch,
   assets: readonly string[] = [],
+  search: {
+    files?: Readonly<Record<string, string>>;
+    homeMeta?: Readonly<Record<string, string>>;
+  } = {},
 ): Promise<string[]> {
   const problems: string[] = [];
   for (const asset of assets) {
@@ -864,6 +906,33 @@ export async function smokeProblems(
     const result = await get(fetchUrl, url);
     if ("problem" in result) {
       problems.push(result.problem);
+    }
+  }
+  const sitemap = await get(fetchUrl, `${site}sitemap.xml`);
+  if ("problem" in sitemap) {
+    problems.push(sitemap.problem);
+  } else if (!sitemap.body.includes(`<loc>${SITE_URL}</loc>`)) {
+    problems.push(`${site}sitemap.xml: does not list ${SITE_URL}`);
+  }
+  for (const [file, content] of Object.entries(search.files ?? {})) {
+    const result = await get(fetchUrl, `${site}${file}`);
+    if ("problem" in result) {
+      problems.push(result.problem);
+    } else if (result.body.trimEnd() !== content.trimEnd()) {
+      problems.push(`${site}${file}: the body is not "${content.trimEnd()}"`);
+    }
+  }
+  const tags = Object.entries(search.homeMeta ?? {}).filter(([, token]) => token !== "");
+  if (tags.length > 0) {
+    const home = await get(fetchUrl, site);
+    for (const [name, token] of tags) {
+      if ("problem" in home) {
+        problems.push(home.problem);
+        break;
+      }
+      if (!home.body.includes(`<meta name="${name}" content="${token}">`)) {
+        problems.push(`${site}: has no <meta name="${name}"> with the expected token`);
+      }
     }
   }
   return problems;

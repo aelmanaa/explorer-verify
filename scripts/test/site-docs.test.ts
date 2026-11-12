@@ -740,9 +740,12 @@ describe("siteProblems", () => {
 
 const LLMS_BODY = `# explorer-verify\n\n> x\n\nThis site holds the docs of explorer-verify 1.2.3. More.\n\n- [A](${SITE_URL}reference/errors/a.md)\n- [B](${SITE_URL}b.md)\n`;
 
+const SITEMAP_BODY = `<urlset><url><loc>${SITE_URL}</loc></url></urlset>`;
+
 function fakeFetch(
   answers: Readonly<Record<string, number | Error>>,
   body: string = LLMS_BODY,
+  bodies: Readonly<Record<string, string>> = {},
 ): { fetchUrl: Fetch; seen: string[]; signals: AbortSignal[] } {
   const seen: string[] = [];
   const signals: AbortSignal[] = [];
@@ -754,7 +757,10 @@ function fakeFetch(
     if (answer instanceof Error) {
       throw answer;
     }
-    return { status: answer, text: async () => body };
+    return {
+      status: answer,
+      text: async () => bodies[url] ?? (url.endsWith("sitemap.xml") ? SITEMAP_BODY : body),
+    };
   };
   return { fetchUrl, seen, signals };
 }
@@ -773,6 +779,7 @@ describe("smokeProblems", () => {
       "https://example.com/other",
       "https://example.com/other.md",
       `${site}b.md`,
+      `${site}sitemap.xml`,
     ]);
   });
 
@@ -780,8 +787,8 @@ describe("smokeProblems", () => {
     assert.equal(SMOKE_TIMEOUT_MS, 10_000);
     const { fetchUrl, signals } = fakeFetch({});
     await smokeProblems(site, "1.2.3", urls, fetchUrl);
-    assert.equal(signals.length, 6);
-    assert.equal(new Set(signals).size, 6);
+    assert.equal(signals.length, 7);
+    assert.equal(new Set(signals).size, 7);
     for (const signal of signals) {
       assert.ok(signal instanceof AbortSignal);
       assert.equal(signal.aborted, false);
@@ -831,6 +838,7 @@ describe("smokeProblems", () => {
       [`${site}start/good.json`]: '{"a":1}',
       [`${site}start/bad.json`]: "<!doctype html>",
       [`${site}llms.txt`]: LLMS_BODY,
+      [`${site}sitemap.xml`]: SITEMAP_BODY,
     };
     const fetchUrl: Fetch = async (target) => {
       seen.push(target);
@@ -862,6 +870,40 @@ describe("smokeProblems", () => {
     assert.deepEqual(await smokeProblems(site, "1.2.3", urls.slice(0, 1), fetchUrl), [
       `${site}llms.txt: status 500`,
     ]);
-    assert.equal(seen.length, 3);
+    assert.equal(seen.length, 4);
+  });
+
+  it("reports a sitemap that does not load or does not list the home page (R-AX-17)", async () => {
+    const missing = fakeFetch({ [`${site}sitemap.xml`]: 404 });
+    assert.deepEqual(await smokeProblems(site, "1.2.3", [], missing.fetchUrl), [
+      `${site}sitemap.xml: status 404`,
+    ]);
+    const empty = fakeFetch({}, LLMS_BODY, { [`${site}sitemap.xml`]: "<urlset></urlset>" });
+    assert.deepEqual(await smokeProblems(site, "1.2.3", [], empty.fetchUrl), [
+      `${site}sitemap.xml: does not list ${SITE_URL}`,
+    ]);
+  });
+
+  it("fetches the verification file and the home page's set search console tags (R-AX-17)", async () => {
+    const file = "google0123.html";
+    const content = `google-site-verification: ${file}\n`;
+    const search = {
+      files: { [file]: content },
+      homeMeta: { "google-site-verification": "g-token", "msvalidate.01": "" },
+    };
+    const home = '<head><meta name="google-site-verification" content="g-token"></head>';
+    const passing = fakeFetch({}, LLMS_BODY, { [`${site}${file}`]: content, [site]: home });
+    assert.deepEqual(await smokeProblems(site, "1.2.3", [], passing.fetchUrl, [], search), []);
+    assert.deepEqual(passing.seen.slice(-2), [`${site}${file}`, site]);
+    const failing = fakeFetch({}, LLMS_BODY, { [`${site}${file}`]: "<!doctype html>", [site]: "" });
+    assert.deepEqual(await smokeProblems(site, "1.2.3", [], failing.fetchUrl, [], search), [
+      `${site}${file}: the body is not "google-site-verification: ${file}"`,
+      `${site}: has no <meta name="google-site-verification"> with the expected token`,
+    ]);
+    const down = fakeFetch({ [`${site}${file}`]: 404, [site]: 500 });
+    assert.deepEqual(await smokeProblems(site, "1.2.3", [], down.fetchUrl, [], search), [
+      `${site}${file}: status 404`,
+      `${site}: status 500`,
+    ]);
   });
 });

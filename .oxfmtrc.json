@@ -10,6 +10,7 @@
     "**/CHANGELOG.md",
     ".changeset/*.md",
     "pnpm-lock.yaml",
+    "site/static/**",
     "validation/ccip/artifacts/**",
     "validation/browser-remix/evidence-real-remix/**"
   ],

@@ -35,6 +35,8 @@ maintainer's.
    of the user docs, which `pnpm run check` enforces.
 10. [docs/contributor/tooling.md](docs/contributor/tooling.md): toolchain and the type-checking layout.
 11. [docs/contributor/releasing.md](docs/contributor/releasing.md): release plan and first publish.
+12. [docs/contributor/search-console.md](docs/contributor/search-console.md): the search console
+    verification values, the sitemap submission and the per-release indexing steps.
 
 User docs live in [docs/user/](docs/user/README.md); the index for people is
 [docs/README.md](docs/README.md).
