@@ -1,5 +1,23 @@
 # explorer-verify
 
+## 0.3.0
+
+### Minor Changes
+
+- [#402](https://github.com/aelmanaa/explorer-verify/pull/402) [`88fe71c`](https://github.com/aelmanaa/explorer-verify/commit/88fe71c4ced5f49c2476cc596a25e57942c74d42) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `route.explorerUrl` sets the explorer's page base for a route. The result's `explorerUrl` is built from it, so a route given by `route.apiUrl` now has a contract page link. It is checked as `route.apiUrl` is, and must not hold a query string.
+  
+  Breaking: a `failed` result now carries `reasonCode`: `bytecode-mismatch`, `missing-source`, `compiler`, `contract-name`, `constructor-args`, `libraries` or `unknown`. Each client reads it from the explorer's answer, and `reason` keeps the explorer's text. A tool that sends a reduced compiler input first can retry with the full input on `missing-source`. Code that builds a `failed` result, such as a test double, adds the field.
+  
+  Breaking for an exhaustive `switch` on events: `verify()` emits a `verify.stored` event, with `backend`, `name` and `compilerVersion`, when the lookup finds another contract's source, before it submits. An exhaustive `switch` on the event type adds the new case. The CLI prints it at the debug level.
+  
+  Messages, log lines and hints name the explorer by its label, such as `Etherscan` or `Sourcify`, instead of the backend id. `details.backend` and the `backend` log field keep the id. `BACKEND_LABELS`, from `explorer-verify/backends` and `explorer-verify`, maps each backend to its label.
+
+### Patch Changes
+
+- [#395](https://github.com/aelmanaa/explorer-verify/pull/395) [`3801a0d`](https://github.com/aelmanaa/explorer-verify/commit/3801a0d0f80d0ec3fbc29f53e1a58c34a534b166) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Docs: "Verify from Node.js" lists what explorer-verify sends on each request and adds a `fetch` that sets a `User-Agent` and sends requests through undici's `ProxyAgent`. The Etherscan reference says that a `Fail - Unable to verify` status costs one more lookup. Error pages give the fix under "How to fix" without a repeated "Fix:" label. CLI examples state the exit code in the line after the command, so the copy button copies only the command.
+
+- [#395](https://github.com/aelmanaa/explorer-verify/pull/395) [`3801a0d`](https://github.com/aelmanaa/explorer-verify/commit/3801a0d0f80d0ec3fbc29f53e1a58c34a534b166) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The packages now declare Node.js 22.12.0 or later in `engines.node`, down from 22.18.0. CI installs the packed packages on Node.js 22.12.0 and runs every entry, the build helpers and the `explorer-verify` command there. Before 22.12.0, Node.js prints an experimental warning for the JSON imports the packages use.
+
 ## 0.2.1
 
 ### Patch Changes

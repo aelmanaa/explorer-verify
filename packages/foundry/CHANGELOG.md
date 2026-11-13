@@ -1,5 +1,13 @@
 # @explorer-verify/foundry
 
+## 0.3.0
+
+### Patch Changes
+
+- [#395](https://github.com/aelmanaa/explorer-verify/pull/395) [`3801a0d`](https://github.com/aelmanaa/explorer-verify/commit/3801a0d0f80d0ec3fbc29f53e1a58c34a534b166) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The packages now declare Node.js 22.12.0 or later in `engines.node`, down from 22.18.0. CI installs the packed packages on Node.js 22.12.0 and runs every entry, the build helpers and the `explorer-verify` command there. Before 22.12.0, Node.js prints an experimental warning for the JSON imports the packages use.
+- Updated dependencies [[`3801a0d`](https://github.com/aelmanaa/explorer-verify/commit/3801a0d0f80d0ec3fbc29f53e1a58c34a534b166), [`88fe71c`](https://github.com/aelmanaa/explorer-verify/commit/88fe71c4ced5f49c2476cc596a25e57942c74d42), [`3801a0d`](https://github.com/aelmanaa/explorer-verify/commit/3801a0d0f80d0ec3fbc29f53e1a58c34a534b166)]:
+  - explorer-verify@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
