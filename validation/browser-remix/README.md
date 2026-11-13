@@ -55,7 +55,10 @@ real fetch and CORS, without an injected SDK fetch or Playwright response interc
 stand-in checks captured submissions for source, compiler version, contract and creation hash.
 It returns accepted/exact, compiler rejection and pending responses. A submitted handle is saved
 in localStorage; after reloading the iframe, public `checkStatus()` resumes it. Request counts
-prove resume did not submit again. Another response omits CORS and the browser must reject it.
+prove resume did not submit again. The host delivers `compilationFinished` once, as Remix does
+for one compile, so the reloaded plugin does not run the scenarios again. The runner closes the
+page before it counts submissions, so a late submission cannot pass unnoticed. Another response
+omits CORS and the browser must reject it.
 
 Incomplete metadata without source contents yields `incomplete-input` naming `sources`; restoring
 the exact source recovers. Altered source yields `source-mismatch`. Output without input or
