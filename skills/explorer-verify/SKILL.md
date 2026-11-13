@@ -36,19 +36,20 @@ that contract on that chain.
 
 These calls never submit. Run them without asking:
 
-| Call                 | What it does                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------- |
-| `buildVerifyInput()` | Builds the compiler input and contract name from parsed build files                           |
-| `validateInput()`    | Checks an input locally and lists every problem. Sends nothing                                |
-| `dryRun()`           | Looks the contract up and says whether `verify()` would submit                                |
-| `linkLibraries()`    | Adds `libraries` to `settings.libraries`. Sends nothing                                       |
-| `checkStatus()`      | Asks the explorer about a submission it already has. Never submits                            |
-| `parseHandle()`      | Reads a stored handle and checks it. Sends nothing                                            |
-| `tryParseHandle()`   | As `parseHandle()`, but returns `undefined` instead of throwing                               |
-| `isHandleString()`   | Tells whether a string is a valid one-line handle. Sends nothing                              |
-| `formatHandle()`     | Writes a handle in its one-line form. Sends nothing                                           |
-| `toEnvelope()`       | Turns a result or an error into the JSON envelope (`explorer-verify/envelope`). Sends nothing |
-| `exitCodeOf()`       | Gives the exit code of a result or an error (`explorer-verify/envelope`). Sends nothing       |
+| Call                            | What it does                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `buildVerifyInput()`            | Builds the compiler input and contract name from parsed build files                           |
+| `buildVerifyInputFromSources()` | Builds the same from Solidity sources, settings and remappings (`explorer-verify/sources`)    |
+| `validateInput()`               | Checks an input locally and lists every problem. Sends nothing                                |
+| `dryRun()`                      | Looks the contract up and says whether `verify()` would submit                                |
+| `linkLibraries()`               | Adds `libraries` to `settings.libraries`. Sends nothing                                       |
+| `checkStatus()`                 | Asks the explorer about a submission it already has. Never submits                            |
+| `parseHandle()`                 | Reads a stored handle and checks it. Sends nothing                                            |
+| `tryParseHandle()`              | As `parseHandle()`, but returns `undefined` instead of throwing                               |
+| `isHandleString()`              | Tells whether a string is a valid one-line handle. Sends nothing                              |
+| `formatHandle()`                | Writes a handle in its one-line form. Sends nothing                                           |
+| `toEnvelope()`                  | Turns a result or an error into the JSON envelope (`explorer-verify/envelope`). Sends nothing |
+| `exitCodeOf()`                  | Gives the exit code of a result or an error (`explorer-verify/envelope`). Sends nothing       |
 
 The [agent page](../../docs/user/guides/using-from-an-agent.md#safe-steps) lists every call and
 command as safe or outward.
@@ -70,6 +71,12 @@ The metadata route rebuilds the Standard JSON input from the metadata. `sources`
 as the metadata lists it, to the file's content. Pass each file exactly as it was compiled: the
 builder checks its keccak-256 hash against the metadata and throws `source-mismatch` when a line
 ending or a formatter changed it.
+
+A package that ships only Solidity sources, settings and bytecode, with no build-info or metadata,
+needs `buildVerifyInputFromSources()` from `explorer-verify/sources`. It follows the contract's
+imports through the remappings and returns the same fields. Pass the settings the package was
+built with; compile the result once and compare the bytecode before you rely on it
+([guide](../../docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md)).
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:
 

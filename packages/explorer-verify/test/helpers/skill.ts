@@ -233,9 +233,14 @@ export function checkApiNames(
 
 /**
  * The entries whose names the skill may use: the main entry, and `explorer-verify/envelope`, where
- * `toEnvelope()`, `exitCodeOf()` and their types live (decision 0055).
+ * `toEnvelope()`, `exitCodeOf()` and their types live (decision 0055), and
+ * `explorer-verify/sources`, where `buildVerifyInputFromSources()` lives (decision 0074).
  */
-export const SKILL_ENTRIES: readonly string[] = ["explorer-verify", "explorer-verify/envelope"];
+export const SKILL_ENTRIES: readonly string[] = [
+  "explorer-verify",
+  "explorer-verify/envelope",
+  "explorer-verify/sources",
+];
 
 /**
  * The module that {@link typeNamesModule} reads the types from: every type of

@@ -126,6 +126,16 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   - an artifact with only ABI and bytecode. That is not enough to verify, and the error says so
     and names the remaining routes (R-IN-5, explorer similar-match).
 
+  A second builder, `buildVerifyInputFromSources` on `explorer-verify/sources`, takes the Solidity
+  sources, the Standard JSON settings and the remappings of a build that has no build output
+  (#283, decision 0074). It follows the contract's import directives, all four forms, ignoring
+  comments and string literals. It resolves each import as solc does: relative to the importing
+  file, then the longest remapping prefix with its context. Only the reachable files go in the
+  input, each once, so a cycle ends. It passes the result through the builder above. An import the
+  sources lack fails with `incomplete-input`, field `sources`, listing the missing names; a local
+  path in the contract, a remapping or an import fails with `invalid-input` naming no path. It reads
+  no file: the caller passes the contents or a function that returns them.
+
   The builder also returns the contract's `creationBytecode` (R-IN-3) when the documents hold it,
   a build-info output's `evm.bytecode.object` or an artifact's `bytecode`, and leaves it out when
   they hold different values. It returns only `language`, `sources` and `settings` in the compiler

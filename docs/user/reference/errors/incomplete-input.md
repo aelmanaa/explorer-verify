@@ -51,7 +51,9 @@ Cause: `buildVerifyInput` found no way to build part of the input from the docum
 - `contract`: the documents hold several contracts and none was chosen, or a bare name matches
   more than one. `details.candidates` lists the fully qualified names found, sorted, at most 20.
 - `sources`: the input is rebuilt from Solidity metadata, and some sources it lists have no
-  content: the metadata does not embed them and `options.sources` does not hold them.
+  content: the metadata does not embed them and `options.sources` does not hold them. From
+  `buildVerifyInputFromSources`, the contract imports files that `options.sources` does not
+  hold, often because a remapping is missing.
 
 For `sources`, `details.candidates` lists the missing source paths, sorted, at most 1,000; the
 message gives the full count.

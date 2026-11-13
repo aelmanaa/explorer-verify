@@ -52,6 +52,9 @@
       "resolve": [
         "./dist/src/input/resolvers/bytecode.d.ts"
       ],
+      "sources": [
+        "./dist/src/input/sources.d.ts"
+      ],
       "core": [
         "./dist/src/core/index.d.ts"
       ],
@@ -112,6 +115,10 @@
     "./resolve": {
       "types": "./dist/src/input/resolvers/bytecode.d.ts",
       "default": "./dist/src/input/resolvers/bytecode.js"
+    },
+    "./sources": {
+      "types": "./dist/src/input/sources.d.ts",
+      "default": "./dist/src/input/sources.js"
     },
     "./core": {
       "types": "./dist/src/core/index.d.ts",
@@ -181,6 +188,7 @@
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/tap-runner": "catalog:",
     "ajv": "catalog:",
-    "c8": "catalog:"
+    "c8": "catalog:",
+    "solc": "catalog:"
   }
 }

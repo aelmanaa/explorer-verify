@@ -58,7 +58,7 @@ These calls and commands never submit. Run them without asking:
 
 | Step             | Call or command                                                                                                                                                                                                         | Effect                                                           |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Build            | `buildVerifyInput()`, `buildVerifyInputFromFoundry()`, `findFoundryBuild()`, `buildVerifyInputFromHardhat()`, `findHardhatBuild()`                                                                                      | Read local build files; send nothing                             |
+| Build            | `buildVerifyInput()`, `buildVerifyInputFromSources()`, `buildVerifyInputFromFoundry()`, `findFoundryBuild()`, `buildVerifyInputFromHardhat()`, `findHardhatBuild()`                                                     | Read local build files; send nothing                             |
 | Validate         | `validateInput()`, `linkLibraries()`                                                                                                                                                                                    | Check the input, add library addresses; send nothing             |
 | Resolve          | `buildVerifyInputFromBytecode()`                                                                                                                                                                                        | Read-only requests to your RPC, Sourcify or an IPFS gateway      |
 | Dry run          | `dryRun()`, `explorer-verify verify --dry-run`                                                                                                                                                                          | Look the contract up once; say whether `verify()` would submit   |
@@ -72,6 +72,7 @@ Most of these come from `explorer-verify`. The others come from these entries:
 - `@explorer-verify/foundry`: the Foundry build functions;
 - `@explorer-verify/hardhat`: the Hardhat build functions;
 - `explorer-verify/resolve`: `buildVerifyInputFromBytecode()`;
+- `explorer-verify/sources`: `buildVerifyInputFromSources()`;
 - `explorer-verify/server`: `createVerifyHandler()`;
 - `explorer-verify/envelope`: `toEnvelope()` and `exitCodeOf()`;
 - `explorer-verify/clients/<name>`: the clients.

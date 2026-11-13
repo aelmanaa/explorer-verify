@@ -16,6 +16,7 @@
       "explorer-verify/envelope": ["./src/entries/envelope.ts"],
       "explorer-verify/server": ["./src/server/handler.ts"],
       "explorer-verify/resolve": ["./src/input/resolvers/bytecode.ts"],
+      "explorer-verify/sources": ["./src/input/sources.ts"],
       "explorer-verify/core": ["./src/core/index.ts"],
       "explorer-verify/table": ["./src/core/table.ts"],
       "explorer-verify/clients/*": ["./src/clients/*.ts"]

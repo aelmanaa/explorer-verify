@@ -59,6 +59,7 @@ stays small:
 | `explorer-verify/backends`             | `BACKEND_NAMES`, `toBackendName`                               | A form or a flag lists or checks backend names                            |
 | `explorer-verify/envelope`             | `toEnvelope`, `exitCodeOf`                                     | Your tool prints the CLI's JSON or its exit codes                         |
 | `explorer-verify/resolve`              | `buildVerifyInputFromBytecode`                                 | You have only the deployed bytecode                                       |
+| `explorer-verify/sources`              | `buildVerifyInputFromSources`                                  | A package ships Solidity sources and settings but no build output         |
 | `explorer-verify/input.schema.json`    | The JSON Schema of a verify request                            | Another language writes the request                                       |
 | `explorer-verify/envelope.schema.json` | The JSON Schema of the CLI's JSON output                       | Another language reads the CLI's output                                   |
 | `explorer-verify/event.schema.json`    | The JSON Schema of the stage events                            | You store or forward the events                                           |

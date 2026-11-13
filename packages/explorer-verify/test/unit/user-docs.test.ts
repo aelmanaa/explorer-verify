@@ -168,6 +168,20 @@ const RUNS: readonly DocRun[] = [
     setup: "foundry",
   },
   {
+    page: "guides/verify-contracts-from-a-package-that-ships-only-sources.md",
+    example: 0,
+    what: "build the input of a package that ships only sources, and write the files",
+    setup: "sources-package",
+    files: ["verification/Vault.input.json", "verification/Vault.manifest.json"],
+  },
+  {
+    // Fails when the fixture input no longer compiles to the package's bytecode (#284).
+    page: "guides/verify-contracts-from-a-package-that-ships-only-sources.md",
+    example: 1,
+    what: "compile the input with solc-js and compare it with the package's bytecode",
+    setup: "sources-input",
+  },
+  {
     page: "guides/verify-contracts-your-package-ships.md",
     example: 1,
     what: "dry run the shipped files: Sourcify holds the Greeter",
@@ -768,35 +782,42 @@ describe("the TypeScript examples of the user docs (R-AX-2)", () => {
     assert.deepEqual(diagnostics.map(brief), []);
   });
 
-  it("runs every block that is not flagged and prints its documented output", async () => {
-    const jobs = all
-      .filter(runs)
-      .flatMap((example) => runsOf(example).map((spec) => ({ example, spec })));
-    const problems = await withProjects(async (projectOf) => {
-      // Every block's file is written before the first run starts. A block with several runs
-      // shares one file, and rewriting it as each run started let a process that was starting
-      // read it empty, run nothing and send no request.
-      for (const { example, spec } of jobs) {
-        writeFiles(projectOf(spec.setup ?? "core"), { [exampleFile(example)]: example.code });
-      }
-      // Each run is its own process. Only the tutorial's build script and the package guide's
-      // script write files, each in a folder no other example reads, so runs can overlap.
-      return await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
-        const dir = projectOf(spec.setup ?? "core");
-        const file = exampleFile(example);
-        const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
-          DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
-          ...NO_KEYS,
-          ...spec.env,
+  // Its own limit: every block runs as a process, and the sources guide's check loads and runs
+  // solc-js, which takes seconds on a loaded machine.
+  const runLimit = { timeout: 120_000 };
+  it(
+    "runs every block that is not flagged and prints its documented output",
+    runLimit,
+    async () => {
+      const jobs = all
+        .filter(runs)
+        .flatMap((example) => runsOf(example).map((spec) => ({ example, spec })));
+      const problems = await withProjects(async (projectOf) => {
+        // Every block's file is written before the first run starts. A block with several runs
+        // shares one file, and rewriting it as each run started let a process that was starting
+        // read it empty, run nothing and send no request.
+        for (const { example, spec } of jobs) {
+          writeFiles(projectOf(spec.setup ?? "core"), { [exampleFile(example)]: example.code });
+        }
+        // Each run is its own process. Only the tutorial's build script and the package guide's
+        // script write files, each in a folder no other example reads, so runs can overlap.
+        return await inBatches(jobs, availableParallelism(), async ({ example, spec }) => {
+          const dir = projectOf(spec.setup ?? "core");
+          const file = exampleFile(example);
+          const run = await startExample(dir, file, spec.fixtures ?? [], [DOCS_PRELOAD], {
+            DOCS_LOCAL_STORAGE: JSON.stringify(spec.storage ?? {}),
+            ...NO_KEYS,
+            ...spec.env,
+          });
+          return runProblem(example, spec, run) ?? writeProblem(example, spec, dir);
         });
-        return runProblem(example, spec, run) ?? writeProblem(example, spec, dir);
       });
-    });
-    assert.deepEqual(
-      problems.filter((problem) => problem !== undefined),
-      [],
-    );
-  });
+      assert.deepEqual(
+        problems.filter((problem) => problem !== undefined),
+        [],
+      );
+    },
+  );
 });
 
 describe("the user-docs checks catch a broken example", () => {

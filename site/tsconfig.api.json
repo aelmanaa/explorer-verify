@@ -17,7 +17,8 @@
     "paths": {
       "explorer-verify": ["../packages/explorer-verify/src/index.ts"],
       "explorer-verify/server": ["../packages/explorer-verify/src/server/handler.ts"],
-      "explorer-verify/resolve": ["../packages/explorer-verify/src/input/resolvers/bytecode.ts"]
+      "explorer-verify/resolve": ["../packages/explorer-verify/src/input/resolvers/bytecode.ts"],
+      "explorer-verify/sources": ["../packages/explorer-verify/src/input/sources.ts"]
     }
   },
   "include": [

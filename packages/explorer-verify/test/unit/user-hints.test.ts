@@ -110,10 +110,11 @@ function optionNames(): Set<string> {
 }
 
 /**
- * Option names that are also the plain words an end user needs: the contract and its bytecode.
- * Every other option name, such as `route`, `signal` or `fetch`, must not appear in a user hint.
+ * Option names that are also the plain words an end user needs: the contract, its bytecode, and
+ * the tool's settings (`buildVerifyInputFromSources` has a `settings` option). Every other option
+ * name, such as `route`, `signal` or `fetch`, must not appear in a user hint.
  */
-const PLAIN_WORDS: ReadonlySet<string> = new Set(["contract", "bytecode"]);
+const PLAIN_WORDS: ReadonlySet<string> = new Set(["contract", "bytecode", "settings"]);
 
 /** The end-user hint of `value` for any value, cast-free, as an untyped caller would pass it. */
 function userHintOf(value: unknown, audience: unknown = "user"): string {

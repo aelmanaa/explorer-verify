@@ -458,6 +458,10 @@ export const SIDEBAR: readonly SidebarEntry[] = [
         text: "Contracts your package ships",
         page: "guides/verify-contracts-your-package-ships.md",
       },
+      {
+        text: "A package that ships only sources",
+        page: "guides/verify-contracts-from-a-package-that-ships-only-sources.md",
+      },
     ],
   },
   {

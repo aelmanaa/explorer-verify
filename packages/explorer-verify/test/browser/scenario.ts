@@ -17,6 +17,7 @@ import { exitCodeOf, toEnvelope } from "explorer-verify/envelope";
 import { ERROR_CODES, ExplorerVerifyError } from "explorer-verify/errors";
 import { formatHandle, isHandleString, parseHandle, tryParseHandle } from "explorer-verify/handle";
 import { createVerifyHandler } from "explorer-verify/server";
+import { buildVerifyInputFromSources } from "explorer-verify/sources";
 
 import { keccak256 } from "../../src/internal/keccak.ts";
 import vectors from "../fixtures/keccak256-vectors.json" with { type: "json" };
@@ -55,6 +56,67 @@ interface ScenarioResult {
   readonly handler: HandlerResult;
   /** The handle, errors, backends and envelope subpaths, run on the handle and the result. */
   readonly subpaths: SubpathResult | undefined;
+  /** `buildVerifyInputFromSources` on a small project, from `explorer-verify/sources`. */
+  readonly sources: SourcesResult;
+}
+
+/** What `buildVerifyInputFromSources` gives in this realm (R-IN-7, R-RUN-1). */
+interface SourcesResult {
+  /** The source unit names of the input, in order. */
+  readonly names: readonly string[];
+  readonly contractName: string;
+  readonly remappings: unknown;
+  /** The code and candidates of the error for a project that lacks a file. */
+  readonly missing: { readonly code: string; readonly candidates: readonly string[] } | undefined;
+}
+
+// A project with a remapped dependency, a relative import with an alias, an import cycle and an
+// import in a comment.
+const SOURCES: Readonly<Record<string, string>> = {
+  "src/Vault.sol": [
+    'import {Ownable} from "@acl/Ownable.sol";',
+    'import "./Math.sol" as M;',
+    '// import "./Unused.sol";',
+    "contract Vault is Ownable {}",
+    "",
+  ].join("\n"),
+  "src/Math.sol": 'import * as V from "./Vault.sol";\nlibrary Math {}\n',
+  "lib/acl/src/Ownable.sol": "abstract contract Ownable {}\n",
+  "src/Unused.sol": "contract Unused {}\n",
+};
+
+/**
+ * Runs `buildVerifyInputFromSources` with an async reader on {@link SOURCES}, then on the same
+ * project without its dependency.
+ */
+async function runSources(): Promise<SourcesResult> {
+  const options = {
+    contract: "src/Vault.sol:Vault",
+    compilerVersion: "0.8.24+commit.e11b9ed9",
+    settings: { optimizer: { enabled: true, runs: 200 } },
+    remappings: ["@acl/=lib/acl/src/"],
+  };
+  const built = await buildVerifyInputFromSources({
+    ...options,
+    sources: async (name) => await Promise.resolve(SOURCES[name]),
+  });
+  let missing: SourcesResult["missing"];
+  try {
+    await buildVerifyInputFromSources({
+      ...options,
+      sources: { "src/Vault.sol": SOURCES["src/Vault.sol"] ?? "" },
+    });
+  } catch (error) {
+    if (ExplorerVerifyError.is(error, "incomplete-input")) {
+      missing = { code: error.code, candidates: error.details.candidates };
+    }
+  }
+  return {
+    names: Object.keys(built.compiler.input.sources),
+    contractName: built.contractName,
+    remappings: built.compiler.input.settings["remappings"],
+    missing,
+  };
 }
 
 /** What the names of the four subpaths of decision 0055 give in this realm. */
@@ -222,6 +284,7 @@ async function runScenario(apiUrl: string): Promise<ScenarioResult> {
     handler: await runHandler(),
     subpaths:
       handle === undefined || !verified.ok ? undefined : runSubpaths(handle, verified.result),
+    sources: await runSources(),
   };
 }
 

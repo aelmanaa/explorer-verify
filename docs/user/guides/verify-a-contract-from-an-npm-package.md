@@ -12,7 +12,9 @@ address and chain ID. A dry run needs no API key.
 An SDK often ships compiled contracts as JSON files, and you may not know whether Hardhat 2,
 Hardhat 3 or Foundry wrote them. `buildVerifyInput` works out what each file is from its shape.
 If you write the package and deploy its contracts, see
-[Verify contracts your package ships](verify-contracts-your-package-ships.md).
+[Verify contracts your package ships](verify-contracts-your-package-ships.md). If the package ships
+Solidity sources and settings but no build output, see
+[Verify contracts from a package that ships only sources](verify-contracts-from-a-package-that-ships-only-sources.md).
 
 ## Install
 
