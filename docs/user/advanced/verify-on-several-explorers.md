@@ -107,8 +107,11 @@ to [checkStatus()](../reference/check-status.md), with that entry's route as
 `route`, to resume that backend alone.
 
 An abort rejects the whole call with `signal.reason`. `onSubmitted` has
-received the handle of every submission made before it, so each pending job
-can still be resumed ([Abort and resume](abort-and-resume.md)).
+received the handle of every submission the explorer answered before the
+abort, with the index of its entry in `backends` as `entry`. Resume each
+handle with that entry's route
+([Abort and resume](abort-and-resume.md#several-backends)). A submit still in
+flight at the abort may have been accepted with no handle returned.
 
 ## Keys
 

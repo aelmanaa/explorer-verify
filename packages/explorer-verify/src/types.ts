@@ -980,10 +980,11 @@ export interface VerifyOptions extends CallOptions {
    * poll, with keys removed as in the `verify.submitted` event. Keep it to resume the job with
    * `checkStatus()` when the call is aborted: an abort rejects with `signal.reason`, which carries
    * no handle. Not called when the explorer refuses the submit or the lookup finds a match.
-   * `verifyEach()` calls it once per backend that accepted a submission. An exception it throws,
-   * or a rejection of a promise it returns, is logged once at `warn` and does not change the
-   * outcome. A returned promise is not awaited. A value that is not a function throws
-   * `invalid-input`.
+   * The second argument, a {@link Submission}, names the backend and, in `verifyEach()`, the
+   * entry of `backends`. `verifyEach()` calls it once per entry that accepted a submission. An
+   * exception it throws, or a rejection of a promise it returns, is logged once at `warn` and
+   * does not change the outcome. A returned promise is not awaited. A value that is not a
+   * function throws `invalid-input`.
    *
    * @example
    * ```ts
@@ -997,7 +998,34 @@ export interface VerifyOptions extends CallOptions {
    * };
    * ```
    */
-  onSubmitted?: ((handle: HandleString) => void | Promise<void>) | undefined;
+  onSubmitted?:
+    | ((handle: HandleString, submission: Submission) => void | Promise<void>)
+    | undefined;
+}
+
+// References: R-FLOW-5, R-RT-4.
+/**
+ * The second argument of `VerifyOptions.onSubmitted`: which backend accepted the submission and,
+ * in `verifyEach()`, which entry of `backends` it came from. Two entries may name the same
+ * backend on different hosts, so `entry` says which route resumes the handle with
+ * `checkStatus()`.
+ *
+ * @example
+ * ```ts
+ * import type { HandleString, Submission } from "explorer-verify";
+ *
+ * const pending = new Map<number, HandleString>();
+ * function onSubmitted(handle: HandleString, submission: Submission): void {
+ *   pending.set(submission.entry ?? 0, handle);
+ * }
+ * ```
+ * @experimental
+ */
+export interface Submission {
+  /** The backend that accepted the submission. */
+  readonly backend: BackendName;
+  /** The zero-based index into `verifyEach()`'s `backends`; absent for `verify()`. */
+  readonly entry?: number;
 }
 
 /**

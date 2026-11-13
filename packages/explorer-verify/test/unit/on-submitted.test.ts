@@ -16,6 +16,7 @@ import type {
   HandleString,
   LogFields,
   Logger,
+  Submission,
   VerifyEachOptions,
   VerifyEvent,
   VerifyInput,
@@ -188,14 +189,16 @@ const VERIFIED = {
 };
 
 describe("onSubmitted: the handle of an accepted submission (R-FLOW-5)", () => {
-  it("R-FLOW-5: verify() passes the verify.submitted handle once", async (t) => {
+  it("R-FLOW-5: verify() passes the verify.submitted handle once, with its backend and no entry", async (t) => {
     const calls: HandleString[] = [];
+    const submissions: Submission[] = [];
     const r = await verifyOn(
       t,
       [fixture("lookup-not-verified"), fixture("submit-accepted"), fixture("job-exact-match")],
       {
-        onSubmitted: (handle) => {
+        onSubmitted: (handle, submission) => {
           calls.push(handle);
+          submissions.push(submission);
         },
       },
     );
@@ -205,6 +208,8 @@ describe("onSubmitted: the handle of an accepted submission (R-FLOW-5)", () => {
     );
     assert.deepEqual(calls, [SUBMITTED_HANDLE]);
     assert.deepEqual(submitted, calls);
+    assert.deepEqual(submissions, [{ backend: "sourcify" }]);
+    assert.equal(Object.hasOwn(submissions[0] ?? {}, "entry"), false);
   });
 
   it("R-FLOW-5: verify() calls onSubmitted after verify.submitted and before the poll request", async (t) => {
@@ -517,6 +522,13 @@ const sourcifyNotVerified = (): Response =>
   });
 const SOURCIFY_ACCEPTED = (): Response => json(202, { verificationId: GREETER_JOB });
 const SOURCIFY_EXACT_JOB = (): Response => responseOf(fixture("job-exact-match"));
+/** The recorded exact-match job answer, with its `verificationId` set to `jobId`. */
+const exactJob = (jobId: string) => (): Response => {
+  const recorded = fixture("job-exact-match");
+  const body: unknown = structuredClone(recorded.response.body);
+  assert.ok(typeof body === "object" && body !== null && !Array.isArray(body));
+  return json(recorded.response.status, { ...body, verificationId: jobId });
+};
 const SOURCIFY_LOOKUP_EXACT = (): Response => responseOf(fixture("lookup-exact-match"));
 const ETHERSCAN_NOT_VERIFIED = recordedBody("etherscan", "2026-11-03-getsourcecode-not-verified");
 const ETHERSCAN_SUBMITTED = recordedBody("etherscan", "2026-11-03-verifysourcecode-factory-child");
@@ -525,7 +537,7 @@ const ETHERSCAN_FAIL = recordedBody("etherscan", "2026-11-02-documented-checkver
 async function eachOn(
   t: TestContext,
   fake: typeof fetch,
-  options: Omit<VerifyEachOptions, "fetch" | "backends">,
+  options: Partial<Omit<VerifyEachOptions, "fetch">>,
 ): Promise<Run> {
   return await settle(t, (sinks) =>
     runVerifyEach(
@@ -555,9 +567,11 @@ describe("onSubmitted in verifyEach() (R-FLOW-5, R-SEC-1)", () => {
         ETHERSCAN_NOT_VERIFIED,
       ],
     });
+    const entries = new Map<HandleString, Submission>();
     const r = await eachOn(t, fetch, {
-      onSubmitted: (handle) => {
+      onSubmitted: (handle, submission) => {
         calls.push(handle);
+        entries.set(handle, submission);
       },
     });
     assert.ok(!(r.outcome instanceof Error), String(r.outcome));
@@ -565,6 +579,16 @@ describe("onSubmitted in verifyEach() (R-FLOW-5, R-SEC-1)", () => {
       event.type === "verify.submitted" ? [event.handle] : [],
     );
     assert.equal(calls.length, 2);
+    // Each handle arrives with the entry of its verify.submitted event.
+    for (const event of r.events) {
+      if (event.type === "verify.submitted") {
+        assert.deepEqual(entries.get(event.handle), {
+          backend: event.backend,
+          entry: event.entry,
+        });
+      }
+    }
+    assert.deepEqual(entries.get(SUBMITTED_HANDLE), { backend: "sourcify", entry: 0 });
     assert.deepEqual(calls.toSorted(), submitted.toSorted());
     assert.ok(calls.includes(SUBMITTED_HANDLE));
     assert.ok(calls.some((handle) => handle.startsWith(`ev1:etherscan-v2:${String(SEPOLIA)}:`)));
@@ -591,36 +615,214 @@ describe("onSubmitted in verifyEach() (R-FLOW-5, R-SEC-1)", () => {
     assert.ok(calls[0]?.startsWith(`ev1:etherscan-v2:${String(SEPOLIA)}:`));
   });
 
-  it("R-SEC-1: a callback that throws a key is logged at warn without it, once per backend call, and the outcomes do not change", async (t) => {
-    const fetch = byHost({
-      "sourcify.dev": [sourcifyNotVerified, SOURCIFY_ACCEPTED, SOURCIFY_EXACT_JOB],
-      "api.etherscan.io": [
-        ETHERSCAN_NOT_VERIFIED,
-        ETHERSCAN_SUBMITTED,
-        ETHERSCAN_FAIL,
-        ETHERSCAN_NOT_VERIFIED,
-      ],
-    });
-    const r = await eachOn(t, fetch, {
+  const eachFailures: { name: string; onSubmitted: VerifyOptions["onSubmitted"] }[] = [
+    {
+      name: "throws",
       onSubmitted: () => {
         throw new Error(`callback broke with ${ETHERSCAN_KEY}`);
       },
+    },
+    {
+      name: "returns a promise that rejects",
+      onSubmitted: async () => {
+        await Promise.resolve();
+        throw new Error(`callback broke with ${ETHERSCAN_KEY}`);
+      },
+    },
+  ];
+  for (const { name, onSubmitted } of eachFailures) {
+    it(`R-SEC-1: a callback that ${name} with a key is logged at warn without it, once per backend call, and the outcomes do not change`, async (t) => {
+      await eachFailureCase(t, onSubmitted);
+    });
+  }
+
+  it("R-FLOW-5, R-RT-4: two Sourcify entries on different hosts each pass their own entry, and checkStatus() with that entry's route resumes its job", async (t) => {
+    const selfHosted = "https://sourcify.example.org/server";
+    const otherJob = "5b0e6f2c-3a1d-4c8e-9f7a-2d4b6c8e0f1a";
+    const fetch = byHost({
+      "sourcify.dev": [sourcifyNotVerified, SOURCIFY_ACCEPTED, SOURCIFY_EXACT_JOB],
+      "sourcify.example.org": [
+        sourcifyNotVerified,
+        () => json(202, { verificationId: otherJob }),
+        exactJob(otherJob),
+      ],
+    });
+    const byEntry = new Map<number | undefined, HandleString>();
+    const backends: string[] = [];
+    const r = await eachOn(t, fetch, {
+      backends: ["sourcify", { backend: "sourcify", apiUrl: selfHosted }],
+      onSubmitted: (handle, submission) => {
+        backends.push(submission.backend);
+        byEntry.set(submission.entry, handle);
+      },
     });
     assert.ok(typeof r.outcome === "object" && r.outcome !== null && "outcomes" in r.outcome);
-    const { outcomes } = r.outcome;
-    assert.ok(Array.isArray(outcomes));
+    assert.ok(Array.isArray(r.outcome.outcomes));
     assert.deepEqual(
-      outcomes.map((outcome: unknown) =>
+      r.outcome.outcomes.map((outcome: unknown) =>
         typeof outcome === "object" && outcome !== null && "ok" in outcome ? outcome.ok : null,
       ),
-      [true, false],
+      [true, true],
     );
-    const warnings = r.lines.filter((line) => line.message === SUBMITTED_FAILED);
-    assert.deepEqual(warnings.map((line) => String(line.fields?.["backend"])).toSorted(), [
-      "etherscan-v2",
-      "sourcify",
-    ]);
-    const text = JSON.stringify([r.lines, r.events, r.outcome]);
-    assert.ok(!text.includes(ETHERSCAN_KEY), text);
+    assert.deepEqual(backends, ["sourcify", "sourcify"]);
+    assert.equal(byEntry.get(0), SUBMITTED_HANDLE);
+    const second = byEntry.get(1);
+    assert.equal(second, SUBMITTED_HANDLE.replace(GREETER_JOB, otherJob));
+    assert.ok(second !== undefined);
+    // The second handle resumes on the second entry's host.
+    const polls: string[] = [];
+    const poll = async (request: RequestInfo | URL): Promise<Response> => {
+      polls.push(
+        typeof request === "string" ? request : request instanceof URL ? request.href : request.url,
+      );
+      return await Promise.resolve(exactJob(otherJob)());
+    };
+    const resumed = await settle(t, (sinks) =>
+      runCheckStatus(
+        second,
+        { fetch: poll, route: { backend: "sourcify", apiUrl: selfHosted }, ...sinks },
+        EACH_DEPENDENCIES,
+      ),
+    );
+    assert.equal(statusOf(resumed.outcome), "verified");
+    assert.deepEqual(polls, [`${selfHosted}/v2/verify/${otherJob}`]);
+  });
+});
+
+/** The `status` of a result, or a failed assertion for anything else. */
+function statusOf(outcome: unknown): unknown {
+  assert.ok(
+    typeof outcome === "object" && outcome !== null && "status" in outcome,
+    String(outcome),
+  );
+  return outcome.status;
+}
+
+/** A verifyEach() run on Sourcify and Etherscan whose onSubmitted fails with the Etherscan key. */
+async function eachFailureCase(
+  t: TestContext,
+  onSubmitted: VerifyOptions["onSubmitted"],
+): Promise<void> {
+  const fetch = byHost({
+    "sourcify.dev": [sourcifyNotVerified, SOURCIFY_ACCEPTED, SOURCIFY_EXACT_JOB],
+    "api.etherscan.io": [
+      ETHERSCAN_NOT_VERIFIED,
+      ETHERSCAN_SUBMITTED,
+      ETHERSCAN_FAIL,
+      ETHERSCAN_NOT_VERIFIED,
+    ],
+  });
+  const r = await eachOn(t, fetch, { onSubmitted });
+  assert.ok(typeof r.outcome === "object" && r.outcome !== null && "outcomes" in r.outcome);
+  const { outcomes } = r.outcome;
+  assert.ok(Array.isArray(outcomes));
+  assert.deepEqual(
+    outcomes.map((outcome: unknown) =>
+      typeof outcome === "object" && outcome !== null && "ok" in outcome ? outcome.ok : null,
+    ),
+    [true, false],
+  );
+  const warnings = r.lines.filter((line) => line.message === SUBMITTED_FAILED);
+  assert.deepEqual(warnings.map((line) => String(line.fields?.["backend"])).toSorted(), [
+    "etherscan-v2",
+    "sourcify",
+  ]);
+  const text = JSON.stringify([r.lines, r.events, r.outcome]);
+  assert.ok(!text.includes(ETHERSCAN_KEY), text);
+}
+
+// --- the handle has keys removed (R-SEC-1) ------------------------------------------------------
+
+/** A fake Etherscan that answers by `action`; the submit answers with `guid`. */
+function etherscanBy(guid: string): { fetch: typeof fetch; polls: string[] } {
+  const polls: string[] = [];
+  const fake = async (request: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = new URL(
+      typeof request === "string" ? request : request instanceof URL ? request.href : request.url,
+    );
+    const body = init?.body;
+    const form = new URLSearchParams(
+      typeof body === "string" ? body : body instanceof URLSearchParams ? body.toString() : "",
+    );
+    const action = url.searchParams.get("action") ?? form.get("action");
+    if (action === "getsourcecode") {
+      return await Promise.resolve(ETHERSCAN_NOT_VERIFIED());
+    }
+    if (action === "verifysourcecode") {
+      return json(200, { status: "1", message: "OK", result: guid });
+    }
+    if (action === "checkverifystatus") {
+      polls.push(url.searchParams.get("guid") ?? form.get("guid") ?? "");
+      return ETHERSCAN_FAIL();
+    }
+    throw new Error(`unexpected request ${url.href}`);
+  };
+  return { fetch: fake, polls };
+}
+
+/** Etherscan's options with the dummy key. */
+const ETHERSCAN_OPTIONS: VerifyOptions = {
+  route: { backend: "etherscan-v2" },
+  apiKeys: { "etherscan-v2": ETHERSCAN_KEY },
+};
+
+/**
+ * Runs verify() on Etherscan, which answers the submit with `guid`, and aborts from onSubmitted.
+ * Returns the handle onSubmitted got and the handle of the verify.submitted event.
+ */
+async function submitOnEtherscan(
+  t: TestContext,
+  guid: string,
+): Promise<{ given: HandleString | undefined; event: HandleString | undefined }> {
+  const controller = new AbortController();
+  const reason = new Error("stop");
+  let given: HandleString | undefined;
+  const { fetch } = etherscanBy(guid);
+  const r = await settle(t, (sinks) =>
+    runVerify(
+      input(),
+      {
+        fetch,
+        ...sinks,
+        ...ETHERSCAN_OPTIONS,
+        signal: controller.signal,
+        onSubmitted: (handle) => {
+          given = handle;
+          controller.abort(reason);
+        },
+      },
+      EACH_DEPENDENCIES,
+    ),
+  );
+  assert.equal(r.outcome, reason);
+  const events = r.events.flatMap((each) =>
+    each.type === "verify.submitted" ? [each.handle] : [],
+  );
+  assert.equal(events.length, 1);
+  return { given, event: events[0] };
+}
+
+describe("onSubmitted: the handle has keys removed, as the event's (R-SEC-1)", () => {
+  const prefix = `ev1:etherscan-v2:${String(SEPOLIA)}:${GREETER}:`;
+
+  it("R-SEC-1: a job id equal to the API key reaches onSubmitted redacted, identical to the event's handle", async (t) => {
+    const { given, event } = await submitOnEtherscan(t, ETHERSCAN_KEY);
+    assert.equal(given, `${prefix}[redacted]`);
+    assert.equal(given, event);
+  });
+
+  it("R-SEC-1, R-FLOW-5: a key-shaped job id that is not the key reaches onSubmitted unchanged, and resumes", async (t) => {
+    // An Etherscan guid can be 34 upper-case letters and digits, the shape of a bare key.
+    const guid = "QWERTYUIOPASDFGHJKLZXCVBNM12345678";
+    const { given, event } = await submitOnEtherscan(t, guid);
+    assert.equal(given, `${prefix}${guid}`);
+    assert.equal(given, event);
+    assert.ok(given !== undefined);
+    const { fetch, polls } = etherscanBy(guid);
+    const resumed = await settle(t, (sinks) =>
+      runCheckStatus(given, { fetch, ...sinks, ...ETHERSCAN_OPTIONS }, EACH_DEPENDENCIES),
+    );
+    assert.equal(statusOf(resumed.outcome), "failed");
+    assert.deepEqual(polls, [guid]);
   });
 });

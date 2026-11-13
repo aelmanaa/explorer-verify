@@ -432,7 +432,9 @@ handle that `onSubmitted` receives, then resume with `checkStatus()`:
 [Abort and resume](../advanced/abort-and-resume.md).
 
 `onSubmitted` runs once per accepted submission, before the first poll, with
-the one-line handle. `verifyEach()` calls it once per backend that submitted.
+the one-line handle. Its second argument, a `Submission`, holds `backend`.
+`verifyEach()` calls it once per entry that submitted, and adds `entry`, the
+index of that entry in `backends`.
 It does not run when the lookup finds a match or the explorer refuses the
 submit. An exception it throws is logged once at `warn` and ignored, as for
 `onEvent`.

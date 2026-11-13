@@ -16,7 +16,12 @@ await verify(input, {
 });
 ```
 
-- `verifyEach()` calls it once per backend that accepted a submission.
+- Its second argument, the new `Submission` type, holds `backend`. `verifyEach()` calls it once
+  per entry that accepted a submission and adds `entry`, the index of that entry in `backends`.
+  Resume each handle with that entry's route: two entries can name the same backend on
+  different hosts.
+- The handle has keys removed, as in the `verify.submitted` event. A job id shaped like a key
+  but not equal to one stays, so the handle still resumes.
 - It is not called when the lookup finds a match or the explorer refuses the submit.
 - An exception it throws, or a rejected promise it returns, is logged once at `warn` with keys
   removed. The outcome does not change.

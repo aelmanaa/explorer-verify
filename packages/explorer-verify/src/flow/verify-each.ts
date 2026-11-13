@@ -136,7 +136,7 @@ export async function runVerifyEach(
     const everySecret = [...secrets, ...settings.rpcSecrets];
     checkRuns(runs, settings, checked.address, chainId, everySecret);
     const shared: Settings = { ...settings, keySecrets: () => secrets };
-    const { onEvent } = settings;
+    const { onEvent, onSubmitted } = settings;
     const settled = await Promise.allSettled(
       runs.map(async ({ entry, route }, index): Promise<BackendOutcome> => {
         const own: Settings = {
@@ -144,6 +144,10 @@ export async function runVerifyEach(
           route: entry,
           onEvent:
             onEvent === undefined ? undefined : (event) => onEvent({ ...event, entry: index }),
+          onSubmitted:
+            onSubmitted === undefined
+              ? undefined
+              : (handle, submission) => onSubmitted(handle, { ...submission, entry: index }),
         };
         createObserver({
           logger: settings.logger,

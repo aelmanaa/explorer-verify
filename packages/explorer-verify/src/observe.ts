@@ -8,7 +8,7 @@
 import type { BackendName } from "./backend-names.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { redact, redactingLogger } from "./redact.ts";
-import type { HandleString, Logger, VerifyEvent } from "./types.ts";
+import type { HandleString, Logger, VerifyEvent, VerifyOptions } from "./types.ts";
 
 /**
  * Where a call sends its log lines and events. `VerifyOptions` fits it once `secrets` is added.
@@ -139,8 +139,9 @@ const SUBMITTED_FAILED =
 /**
  * Passes the handle of an accepted submission to the caller's `onSubmitted`, with the job id
  * redacted by the rule of the `verify.submitted` event, so a job id shaped like a key still
- * resumes. An exception it throws, or a rejection of a promise it returns, is logged at `warn`
- * through `log` and ignored. A call submits once, so the warning is logged at most once.
+ * resumes, and `{ backend }` as the second argument. An exception it throws, or a rejection of a
+ * promise it returns, is logged at `warn` through `log` and ignored. A call submits once, so the
+ * warning is logged at most once.
  *
  * @param onSubmitted - The caller's callback, or `undefined`.
  * @param handle - The one-line handle, as `formatHandle` writes it.
@@ -153,7 +154,7 @@ const SUBMITTED_FAILED =
  * ```
  */
 export function notifySubmitted(
-  onSubmitted: ((handle: HandleString) => void | Promise<void>) | undefined,
+  onSubmitted: VerifyOptions["onSubmitted"],
   handle: HandleString,
   backend: BackendName,
   secrets: readonly string[],
@@ -164,7 +165,7 @@ export function notifySubmitted(
   }
   const safe = redactHandle(handle, backend, secrets);
   callGuarded(
-    () => onSubmitted(safe),
+    () => onSubmitted(safe, { backend }),
     (error) => {
       try {
         log.warn(SUBMITTED_FAILED, { backend, error: describe(error) });

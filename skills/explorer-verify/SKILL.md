@@ -125,6 +125,11 @@ way back to the job after an abort, a crash or a timeout. `verify()` does not wa
 that `onSubmitted` returns, so write the handle synchronously. If the handle cannot be stored,
 stop and give it to the person.
 
+With `verifyEach()`, the second argument of `onSubmitted` holds `entry`, the index of the entry in
+`backends`. Store the entry with the handle, and resume each handle with `checkStatus()` and that
+entry's route: two entries can name the same backend on different hosts. A submit still in flight
+at an abort may have been accepted with no handle returned.
+
 Before you call `verify()`, look for a stored handle. If there is one, an earlier run submitted
 already: call `checkStatus()` with it, not `verify()`. After a final outcome, delete the stored
 handle. This script does both, so you can run it again after any stop:
