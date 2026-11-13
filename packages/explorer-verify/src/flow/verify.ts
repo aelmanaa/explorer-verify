@@ -73,20 +73,20 @@ export const MIN_POLL_INTERVAL_MS = 1_000;
  */
 export function verifyOptionKeys(): readonly string[] {
   return Object.keys({
-    fetch: true,
-    handlerUrl: true,
-    signal: true,
-    timeoutMs: true,
-    pollIntervalMs: true,
-    indexWaitMs: true,
-    logger: true,
-    onEvent: true,
-    route: true,
-    allowSourcifyFallback: true,
-    apiKeys: true,
-    rpcUrl: true,
-    submitOverPartial: true,
-  } satisfies Record<keyof VerifyOptions, true>);
+    fetch: null,
+    handlerUrl: null,
+    signal: null,
+    timeoutMs: null,
+    pollIntervalMs: null,
+    indexWaitMs: null,
+    logger: null,
+    onEvent: null,
+    route: null,
+    allowSourcifyFallback: null,
+    apiKeys: null,
+    rpcUrl: null,
+    submitOverPartial: null,
+  } satisfies Record<keyof VerifyOptions, null>);
 }
 /**
  * How many status polls in a row may fail with `network`, `rate-limited` or
@@ -795,10 +795,10 @@ export function openContext(
   // Before any request, in every flow, a dry run included: a key bound to a route that goes to
   // the caller's server handler would reach the handler (decision 0046).
   const { handler } = settings;
-  const serverAddsKey = handler?.serves(route) === true;
+  const serverAddsKey = handler !== undefined && handler.serves(route);
   if (serverAddsKey) {
     if (keyFor({ route, apiKeys }, route.backend, route.apiBase) !== undefined) {
-      handler?.refuseKey(secrets);
+      handler.refuseKey(secrets);
     }
   }
   // Before any request: a keyed backend with no key bound to its host (R-AX-7), unless the

@@ -69,21 +69,21 @@ export const MAX_BACKENDS = 16;
  */
 export function eachOptionKeys(): readonly string[] {
   return Object.keys({
-    fetch: true,
-    handlerUrl: true,
-    signal: true,
-    timeoutMs: true,
-    pollIntervalMs: true,
-    indexWaitMs: true,
-    logger: true,
-    onEvent: true,
-    route: true,
-    allowSourcifyFallback: true,
-    apiKeys: true,
-    rpcUrl: true,
-    submitOverPartial: true,
-    backends: true,
-  } satisfies Record<keyof VerifyEachOptions | "route", true>);
+    fetch: null,
+    handlerUrl: null,
+    signal: null,
+    timeoutMs: null,
+    pollIntervalMs: null,
+    indexWaitMs: null,
+    logger: null,
+    onEvent: null,
+    route: null,
+    allowSourcifyFallback: null,
+    apiKeys: null,
+    rpcUrl: null,
+    submitOverPartial: null,
+    backends: null,
+  } satisfies Record<keyof VerifyEachOptions | "route", null>);
 }
 
 const BACKENDS_HINT =
@@ -128,20 +128,21 @@ export async function runVerifyEach(
     // output of one backend shows another's.
     const secrets = [
       ...settings.keySecrets(),
+      // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
       ...runs.flatMap(({ entry }) => (entry.apiKey === undefined ? [] : [entry.apiKey])),
     ];
+    // Stryker disable next-line ArrayDeclaration: equivalent. checkRuns and the verify.validated event name only fields, the chain id and the address, which hold no key.
     const everySecret = [...secrets, ...settings.rpcSecrets];
     checkRuns(runs, settings, checked.address, chainId, everySecret);
     const shared: Settings = { ...settings, keySecrets: () => secrets };
+    const { onEvent } = settings;
     const settled = await Promise.allSettled(
       runs.map(async ({ entry, route }, index): Promise<BackendOutcome> => {
         const own: Settings = {
           ...shared,
           route: entry,
           onEvent:
-            settings.onEvent === undefined
-              ? undefined
-              : (event) => settings.onEvent?.({ ...event, entry: index }),
+            onEvent === undefined ? undefined : (event) => onEvent({ ...event, entry: index }),
         };
         createObserver({
           logger: settings.logger,
@@ -252,7 +253,7 @@ function checkRuns(
  */
 function normalised(apiUrl: string | undefined): string {
   const checked = checkApiUrl(apiUrl);
-  // Stryker disable next-line StringLiteral: equivalent. Every entry without a usable apiUrl gets the same text, whatever it is.
+  // Stryker disable next-line StringLiteral,ConditionalExpression: equivalent. Every entry without a usable apiUrl gets the same text, whatever it is.
   return typeof checked === "string" ? "" : checked.apiBase;
 }
 
@@ -327,6 +328,7 @@ async function runsOf(
   // Every key of the call, every entry's included, and the RPC secrets.
   const secrets = [
     ...settings.keySecrets(),
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. An extra secret of Stryker's placeholder text redacts nothing a caller writes.
     ...entries.flatMap((entry) => (entry.apiKey === undefined ? [] : [entry.apiKey])),
     ...settings.rpcSecrets,
   ];
@@ -364,7 +366,7 @@ function tableFailure(
 
 /** `text` with `route` named after the entry, such as `backends[1].apiUrl`. */
 function renamed(text: string, index: number): string {
-  return text.replaceAll(/\broute\b(?=\.|$)/g, `backends[${String(index)}]`);
+  return text.replaceAll(/\broute\b(?=\.)/g, `backends[${String(index)}]`);
 }
 
 /**
@@ -390,7 +392,11 @@ function checkEntry(
  * `backends[1].apiKey`; any other error unchanged, to be thrown.
  */
 function entryError(error: unknown, override: Entry, index: number): unknown {
-  if (!(error instanceof ExplorerVerifyError) || error.details.code !== "invalid-input") {
+  if (!(error instanceof ExplorerVerifyError)) {
+    return error;
+  }
+  // Stryker disable next-line ConditionalExpression,BlockStatement: equivalent when always false. checkRoute and routeWith throw no other ExplorerVerifyError that reaches here; the check narrows the type.
+  if (error.details.code !== "invalid-input") {
     return error;
   }
   const issues = error.details.issues.map((issue) => ({
@@ -402,7 +408,7 @@ function entryError(error: unknown, override: Entry, index: number): unknown {
     `The backends option is invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
       hint: renamed(error.hint, index),
-      // Stryker disable next-line StringLiteral,ArrayDeclaration: equivalent. The message and the issues name only fields, and the hint is fixed text.
+      // Stryker disable next-line StringLiteral,ArrayDeclaration,ConditionalExpression: equivalent. The message and the issues name only fields, and the hint is fixed text.
       secrets: typeof override.apiKey === "string" ? [override.apiKey] : [],
     },
   );
@@ -468,7 +474,11 @@ function everyListed(
   const keyed: BackendName[] = [];
   for (const entry of row.backends) {
     const name = toBackendName(entry.backend);
-    if (name !== undefined && dependencies.backends[name] !== undefined && !names.includes(name)) {
+    // Stryker disable next-line ConditionalExpression,BlockStatement: equivalent when always false. dependencies.backends has no client named undefined, so the check below skips the entry; this one narrows the type.
+    if (name === undefined) {
+      continue;
+    }
+    if (dependencies.backends[name] !== undefined && !names.includes(name)) {
       names.push(name);
       if (tableTarget(chainId, entry)?.needsKey === true) {
         keyed.push(name);

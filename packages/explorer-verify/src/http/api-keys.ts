@@ -301,8 +301,9 @@ function plainEntries(value: unknown): [string, unknown][] | undefined {
     }
     return Object.entries(value);
   } catch {
-    return undefined;
+    // A Proxy trap or getter threw: the error is dropped.
   }
+  return undefined;
 }
 
 /**
@@ -384,8 +385,9 @@ function originOf(url: string): string | undefined {
   try {
     return new URL(url).origin;
   } catch {
-    return undefined;
+    // Not a URL: no origin.
   }
+  return undefined;
 }
 
 // References: R-SEC-1.

@@ -127,6 +127,7 @@ function readRequest(ctx: Context, target: LinkTarget, answer: Answer): LinkStep
   if (
     status === 200 &&
     fields?.get("status") === "1" &&
+    // Stryker disable next-line ConditionalExpression: equivalent when always true. The uid pattern starts with the proxy's 40 hex digits, which the text undefined does not hold.
     result !== undefined &&
     acceptsJobId(result, target)
   ) {

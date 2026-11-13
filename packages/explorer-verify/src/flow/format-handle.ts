@@ -56,6 +56,7 @@ export function splitHandle(value: unknown): SplitHandle | undefined {
   // even one with a `:`. parseHandle, which decides what a valid handle is, demands five parts.
   const fields = value.split(":");
   const [version, name, chain] = fields;
+  // Stryker disable next-line StringLiteral: equivalent. The address is missing only for four parts or fewer, which the length check refuses first.
   const address = fields[3] ?? "";
   const backend = toBackendName(name);
   const chainId = Number(chain);

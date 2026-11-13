@@ -103,7 +103,7 @@ export async function send(ctx: Context, req: HttpRequest): Promise<Answer> {
   try {
     parsed = JSON.parse(text);
   } catch {
-    parsed = undefined;
+    // Not JSON: parsed stays undefined, so the answer has no fields.
   }
   return { status: response.status, text, fields: readFields(parsed) };
 }

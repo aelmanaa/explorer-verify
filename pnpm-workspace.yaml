@@ -30,6 +30,9 @@ overrides:
 # 2026-11-02; Dependabot moves them from here.
 catalog:
   "@arethetypeswrong/cli": "0.18.5"
+  # The parser of scripts/mutation-shards.ts. Same version as the one Stryker installs through
+  # @babel/core, so the lockfile gains no package and the shards cut where Stryker reads nodes.
+  "@babel/parser": "8.0.7"
   "@changesets/changelog-github": "1.0.1"
   "@changesets/cli": "3.0.3"
   "@changesets/parse": "1.0.0"

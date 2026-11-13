@@ -414,8 +414,10 @@ the three scripts that use them), the docs site scripts (`scripts/site-docs.ts`,
 local server), `scripts/random-order.ts`, the size check
 (`scripts/bundle.ts`, `scripts/size-budget.ts` and `scripts/check-size.ts`), the per-name size
 check (`scripts/name-size.ts`, `scripts/name-bundle.ts` and `scripts/check-names.ts`), the release
-scripts ([releasing.md](releasing.md)) and the mutation score check
-(`scripts/mutation-score.ts` and `scripts/check-mutation-score.ts`) with a 95% floor per file on lines, branches, functions and
+scripts ([releasing.md](releasing.md)), the mutation score check
+(`scripts/mutation-score.ts` and `scripts/check-mutation-score.ts`) and the mutation shards
+(`scripts/mutation-shards.ts`, `scripts/plan-mutation-shards.ts`, `scripts/mutation-merge.ts` and
+`scripts/merge-mutation-reports.ts`) with a 95% floor per file on lines, branches, functions and
 statements. The release script tests create temporary git repositories, and the tag test signs
 tags with keys it makes in a throwaway `GNUPGHOME`, so they need `git` and `gpg` on the `PATH`.
 `scripts/browser-smoke.ts` needs a browser and
@@ -449,12 +451,16 @@ report; this section covers the setup.
   holds every mutant at once. Such a test is skipped when the file it reads contains
   `stryMutAct_`, the name of Stryker's instrumentation call. One test in `verify.test.ts` does
   this.
-- `concurrency` is 4: four test processes at a time, the core count of GitHub's standard runner,
-  which also keeps a local run from taking over a shared machine.
-- `timeoutFactor` is 3 and `timeoutMS` is 15000; Stryker's defaults are 1.5 and 5000. A mutant
+- `concurrency` is 4: four test processes at a time, which keeps a local run from taking over a
+  shared machine. The `Mutation` workflow passes `--concurrency "$(nproc)"`, one process per core
+  of the runner.
+- `timeoutFactor` is 2 and `timeoutMS` is 15000; Stryker's defaults are 1.5 and 5000. A mutant
   times out when its tests run longer than their time in the dry run, times the factor, plus
-  `timeoutMS` and Stryker's overhead. With the defaults, a mutant that only slowed a test down counted as a timeout
-  (detected) on a loaded machine and survived on an idle one.
+  `timeoutMS` and Stryker's overhead. With the defaults, a mutant that only slowed a test down
+  counted as a timeout (detected) on a loaded machine and survived on an idle one. The tap runner
+  runs every test file that covers a mutant in one timed run, so a mutant that hangs costs the
+  factor times the dry-run time of all those files: on 0.2.0, with a factor of 3, eight
+  `build.ts` mutants each took 30 minutes. A factor of 2 cuts that by a third.
 - `scripts/check-mutation-score.ts` reads `reports/mutation/mutation.json`, prints one Markdown row
   per file and exits 1 when a file is below its floor in `mutation-floors.json`, when a mutated
   file has no floor, or when a file with a floor is missing from the report. Stryker's own

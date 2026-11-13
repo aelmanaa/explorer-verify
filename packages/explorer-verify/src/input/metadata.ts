@@ -76,8 +76,9 @@ export function readMetadata(value: unknown): Map<string, unknown> | undefined {
     const parsed: unknown = JSON.parse(value);
     return readFields(parsed);
   } catch {
-    return undefined;
+    // Not JSON: no fields.
   }
+  return undefined;
 }
 
 /**

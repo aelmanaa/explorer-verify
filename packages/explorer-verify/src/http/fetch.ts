@@ -852,8 +852,9 @@ function sameOrigin(response: Response, url: string): boolean {
   try {
     return new URL(response.url).origin === new URL(url).origin;
   } catch {
-    return false;
+    // A URL that does not parse has no origin to compare.
   }
+  return false;
 }
 
 /** Cancels a body that will not be read, so the connection is released. Never throws. */
@@ -903,7 +904,7 @@ function isDuplicate(body: string): boolean {
   try {
     parsed = JSON.parse(body);
   } catch {
-    return false;
+    // Not JSON: parsed stays undefined, which the check below refuses.
   }
   return (
     typeof parsed === "object" &&
@@ -921,6 +922,7 @@ function isDuplicate(body: string): boolean {
 function retryAfter(response: Response, fallback: string | undefined): number | undefined {
   const { headers } = response;
   const header =
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. No response has a header named undefined.
     headers.get("retry-after") ?? (fallback === undefined ? null : headers.get(fallback));
   // Stryker disable next-line StringLiteral: equivalent. Neither form below matches the text that stands in for a missing header.
   const value = header?.trim() ?? "";

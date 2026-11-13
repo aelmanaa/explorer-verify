@@ -456,8 +456,9 @@ function stringsOf(value: unknown): string[] | undefined {
     }
     return strings;
   } catch {
-    return undefined;
+    // A Proxy or getter threw: no strings.
   }
+  return undefined;
 }
 
 /**
@@ -476,6 +477,7 @@ function secretsOf(options: unknown): readonly string[] {
     const names = unknown.map((issue) => issue.field).join(", ");
     throw invalid(unknown, `The options are invalid: ${names}.`, BAD_OPTIONS_HINT);
   }
+  // Stryker disable next-line ConditionalExpression: equivalent when always false. readFields gives undefined for every value whose keys cannot be listed.
   const fields = keys === undefined ? undefined : readFields(options);
   if (fields === undefined) {
     throw invalid(
@@ -645,10 +647,12 @@ function errorReader(outcome: unknown): { read: () => unknown; foreign: boolean 
       };
     }
     // A branded value claims to be an error: refuse it as one, so the message names its toJSON().
+    // Stryker disable next-line ObjectLiteral,BooleanLiteral: equivalent. Either way the read gives no object, so copyError names the same toJSON() issue before it reads foreign.
     return branded ? { read: (): unknown => undefined, foreign: true } : undefined;
   } catch {
-    return undefined;
+    // A Proxy trap threw: not an error object.
   }
+  return undefined;
 }
 
 /**
@@ -664,7 +668,7 @@ function copyError(
   try {
     source = read();
   } catch {
-    source = undefined;
+    // toJSON() threw: source stays undefined, and the check below refuses it.
   }
   const fields = readFields(source);
   if (fields === undefined) {
@@ -767,7 +771,7 @@ function handlesOf(
       items = [...list];
     }
   } catch {
-    items = undefined;
+    // A Proxy trap threw: items stays undefined.
   }
   if (items === undefined || items.length === 0) {
     return undefined;
@@ -816,7 +820,7 @@ function copyOutcomes(value: unknown, secrets: readonly string[]): BackendOutcom
       items = [...list];
     }
   } catch {
-    items = undefined;
+    // A Proxy trap threw: items stays undefined.
   }
   if (items === undefined || items.length === 0) {
     throw invalid([{ field: "outcome.outcomes", message: "must be a non-empty array" }]);
@@ -1023,9 +1027,6 @@ export function toEnvelope(
     return { schemaVersion: 1, ok: false, error: read.error };
   }
   const { result } = read;
-  if (result.status === "dry-run") {
-    return { schemaVersion: 1, ok: true, result };
-  }
   return result.status === "failed" ||
     result.status === "mismatch" ||
     result.status === "not-linked"

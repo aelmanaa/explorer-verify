@@ -51,7 +51,7 @@
   },
   "coverageAnalysis": "perTest",
   "incremental": true,
-  "timeoutFactor": 3,
+  "timeoutFactor": 2,
   "timeoutMS": 15000,
   "checkers": [],
   "inPlace": true,
