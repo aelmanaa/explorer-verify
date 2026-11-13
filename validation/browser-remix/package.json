@@ -9,7 +9,7 @@
     "@remixproject/plugin": "0.3.38",
     "@remixproject/plugin-webview": "0.3.38",
     "esbuild": "0.28.2",
-    "playwright": "1.64.1",
+    "playwright": "1.65.0",
     "solc": "0.8.24"
   }
 }
