@@ -1,5 +1,44 @@
 # explorer-verify
 
+## 0.4.0
+
+### Minor Changes
+
+- [#411](https://github.com/aelmanaa/explorer-verify/pull/411) [`7587efa`](https://github.com/aelmanaa/explorer-verify/commit/7587efaafe578be779e1f91cf15d7b3d22731028) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `buildVerifyInputFromSources`, from the new `explorer-verify/sources` entry, builds the verification input from Solidity sources, the compiler settings and the remappings of a build. Use it for a package that ships sources and bytecode but no build-info, Standard JSON input or metadata. It follows the contract's imports as solc resolves them and puts only the files the contract reaches in the input. Pass the sources as an object or as a function that returns each file. An import the sources lack throws `incomplete-input` with the missing names in `details.candidates`. It never compiles, and the default entry does not grow.
+  
+  The guide "Verify contracts from a package that ships only sources" shows how to read the settings, build the input, compare it with the package's bytecode and ship it.
+  
+  https://github.com/aelmanaa/explorer-verify/issues/283
+
+- [#410](https://github.com/aelmanaa/explorer-verify/pull/410) [`6a86c54`](https://github.com/aelmanaa/explorer-verify/commit/6a86c5408981428eebb30b14a356599071b5e626) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `verify()` and `verifyEach()` take `onSubmitted`. It receives the one-line handle once the
+  explorer accepts the submission, before the first poll. Keep it to resume the job with
+  `checkStatus()` after an abort, which rejects with `signal.reason` and carries no handle.
+  
+  ```ts
+  let handle: string | undefined;
+  await verify(input, {
+    signal: controller.signal,
+    onSubmitted: (line) => {
+      handle = line;
+    },
+  });
+  ```
+  
+  - Its second argument, the new `Submission` type, holds `backend`. `verifyEach()` calls it once
+    per entry that accepted a submission and adds `entry`, the index of that entry in `backends`.
+    Resume each handle with that entry's route: two entries can name the same backend on
+    different hosts.
+  - The handle has keys removed, as in the `verify.submitted` event. A job id shaped like a key
+    but not equal to one stays, so the handle still resumes.
+  - It is not called when the lookup finds a match or the explorer refuses the submit.
+  - An exception it throws, or a rejected promise it returns, is logged once at `warn` with keys
+    removed. The outcome does not change.
+  - A value that is not a function throws `invalid-input`.
+  
+  The abort behaviour does not change. The `verify.submitted` event still carries the handle.
+  
+  [#290](https://github.com/aelmanaa/explorer-verify/issues/290)
+
 ## 0.3.0
 
 ### Minor Changes
