@@ -74,8 +74,8 @@ ending or a formatter changed it.
 
 A package that ships only Solidity sources, settings and bytecode, with no build-info or metadata,
 needs `buildVerifyInputFromSources()` from `explorer-verify/sources`. It follows the contract's
-imports through the remappings and returns the same fields. Pass the settings the package was
-built with; compile the result once and compare the bytecode before you rely on it
+imports through the remappings and resolves to the same fields, so `await` it. Pass the settings
+the package was built with; compile the result once and compare the bytecode before you rely on it
 ([guide](../../docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md)).
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:

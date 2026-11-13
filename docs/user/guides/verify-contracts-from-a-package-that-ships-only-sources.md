@@ -30,9 +30,11 @@ with `bytecode_hash = "none"` has no hash, so only this page applies.
 
 ## Install
 
-Install the core, and solc-js at the contracts' compiler version for the check:
+Install the core, and solc-js at the contracts' compiler version for the check. The scripts on
+this page use `import` and top-level `await`, so set the project to ES modules:
 
 ```bash
+npm pkg set type=module
 npm install explorer-verify
 npm install --save-dev solc@0.8.24
 ```
@@ -72,7 +74,8 @@ It resolves each import as solc does: a path that starts with `./` or `../` agai
 file's folder, then the longest matching remapping. Only the files the contract reaches go in the
 input, each byte for byte.
 
-Run this script in your SDK's repository. It writes the input and a manifest:
+Save this script as `build-input.ts` in your SDK's repository, replace `some-contracts` with the
+name of the contracts package, and run `node build-input.ts`. It writes the input and a manifest:
 
 ```ts [build-input.ts]
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -145,7 +148,9 @@ the reachable files, the settings and the remappings in one Standard JSON input.
 ## Check the input against the package's bytecode
 
 The explorer compiles the input and compares the result with the deployed code. Do the same once,
-before you ship. A wrong setting shows up here, not after a deploy:
+before you ship. A wrong setting shows up here, not after a deploy. Save this script as
+`check-bytecode.ts`, set `bytecode/Vault.json` to the file the package ships the bytecode in, and
+run `node check-bytecode.ts`:
 
 ```ts [check-bytecode.ts]
 import { readFile } from "node:fs/promises";
@@ -200,7 +205,8 @@ It prints:
 Vault: the input compiles to the package's bytecode
 ```
 
-When the bytecode differs, compare the settings again: the optimizer runs, `viaIR`, the EVM
+When the bytecode differs, it prints `Vault: the bytecode differs; check the settings` and exits 1.
+Compare the settings again: the optimizer runs, `viaIR`, the EVM
 version and the metadata settings are the usual causes. Two parts of a package's bytecode can
 differ for other reasons:
 
