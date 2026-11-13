@@ -171,6 +171,9 @@ catalogs:
     '@arethetypeswrong/cli':
       specifier: 0.18.5
       version: 0.18.5
+    '@babel/parser':
+      specifier: 8.0.7
+      version: 8.0.7
     '@changesets/changelog-github':
       specifier: 1.0.1
       version: 1.0.1
@@ -255,6 +258,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.5
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 8.0.7
       '@changesets/changelog-github':
         specifier: 'catalog:'
         version: 1.0.1

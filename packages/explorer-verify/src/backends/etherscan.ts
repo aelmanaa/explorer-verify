@@ -602,6 +602,7 @@ function form(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     retry,
     rateLimited,
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The HTTP layer reads a retryAfterHeader that is undefined as one that is absent.
     ...(retryAfterHeader === undefined ? {} : { retryAfterHeader }),
   });
 }

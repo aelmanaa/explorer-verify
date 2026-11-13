@@ -278,16 +278,16 @@ export type VerifyHandler = (request: Request) => Promise<Response>;
 /** The keys of {@link VerifyHandlerOptions}, in documentation order. */
 function handlerOptionKeys(): readonly string[] {
   return Object.keys({
-    apiKey: true,
-    chains: true,
-    deployers: true,
-    allowProxyLink: true,
-    rateLimit: true,
-    maxBodyBytes: true,
-    timeoutMs: true,
-    fetch: true,
-    logger: true,
-  } satisfies Record<keyof VerifyHandlerOptions, true>);
+    apiKey: null,
+    chains: null,
+    deployers: null,
+    allowProxyLink: null,
+    rateLimit: null,
+    maxBodyBytes: null,
+    timeoutMs: null,
+    fetch: null,
+    logger: null,
+  } satisfies Record<keyof VerifyHandlerOptions, null>);
 }
 
 /** The checked options. The key sits behind a function, so printing the settings shows none. */
@@ -354,10 +354,13 @@ const ETHERSCAN_ROUTE: Route = Object.freeze({
   requestUrl: (path: string): string => `${ETHERSCAN_BASE}${path}`,
   explorerUrl: undefined,
   apiKey: (): undefined => undefined,
+  // Stryker disable next-line BooleanLiteral: equivalent. onTableHost allows an overridden etherscan-v2 route, and this route is etherscan-v2.
   overridden: false,
   tableHost: ETHERSCAN_HOST,
   // The handler's own route: no event carries these.
+  // Stryker disable next-line StringLiteral: equivalent. The handler's route emits no routed event, so nothing reads routedBy.
   routedBy: "api-url",
+  // Stryker disable next-line ArrayDeclaration: equivalent. The handler's route emits no routed event, so nothing reads skipped.
   skipped: [],
 });
 
@@ -479,7 +482,7 @@ async function handle(settings: Settings, incoming: Request): Promise<Response> 
     maxResponseBytes: MAX_UPSTREAM_BYTES,
     budget: { deadline, timeoutMs: settings.timeoutMs },
     maxAttempts: UPSTREAM_ATTEMPTS,
-    ...(settings.fetch === undefined ? {} : { fetch: settings.fetch }),
+    fetch: settings.fetch,
   };
   const keyed: KeyContext = { route: ETHERSCAN_ROUTE, apiKeys: () => ({ [BACKEND]: key }) };
 
@@ -626,7 +629,7 @@ async function upstream(
   try {
     parsed = JSON.parse(text);
   } catch {
-    parsed = undefined;
+    // Not JSON: parsed stays undefined, and the check below refuses it.
   }
   const json = readFields(parsed);
   if (json === undefined) {
@@ -926,6 +929,7 @@ function parse(settings: Settings, query: URLSearchParams, form: URLSearchParams
       body.set(name, value);
     }
   }
+  // Stryker disable next-line ConditionalExpression,OptionalChaining: equivalent. fields has no key undefined, and the address field was checked present above.
   const contract = address === undefined ? undefined : fields.get(address)?.toLowerCase();
   return { action, chainId, address: contract, body };
 }
@@ -961,6 +965,7 @@ function readSettings(options: VerifyHandlerOptions): Settings {
   const read = readOptions(options);
   const issues: InputIssue[] = [];
   const rawKey: unknown = read.apiKey;
+  // Stryker disable next-line ArrayDeclaration: untestable sentinel. A key that is not text gives a message that names only the field, never Stryker's placeholder text.
   const secrets = typeof rawKey === "string" ? [rawKey] : [];
   const checked = checkKey(rawKey);
   if (typeof checked === "string") {
@@ -1044,6 +1049,7 @@ function readOptions(options: VerifyHandlerOptions): {
     throw notPlain;
   }
   if (unknown.length > 0) {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. The issues name only option keys that pass the name pattern, which Stryker's placeholder text does not.
     throw invalidOptions(unknown, []);
   }
   try {

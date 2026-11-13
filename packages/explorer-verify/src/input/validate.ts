@@ -333,8 +333,11 @@ function checkStandardJson(
   const paths = checked?.paths;
   if (
     extras === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     language === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     sources === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     settings === undefined
   ) {
     return { paths };
@@ -542,6 +545,7 @@ function checkLibraries(
     }
   }
   // Object.fromEntries defines each key as an own property, so a key named __proto__ stays a key.
+  // Stryker disable next-line ConditionalExpression: equivalent when always true. A bad library added an issue, and validateInput fails the input on any issue.
   return good.length === entries.size ? { value: Object.fromEntries(good) } : undefined;
 }
 
@@ -690,17 +694,27 @@ export function validateInput(input: unknown): VerifyInput {
   const creationBytecode = checkCreationBytecode(fields.get("creationBytecode"), problems);
   const libraries = checkLibraries(fields.get("libraries"), compiler?.input, paths, problems);
 
-  // Every check that adds an issue returns undefined, so these checks cover every issue.
-  if (
+  // Every check that adds an issue returns undefined, so these checks cover every issue. The
+  // issues check below fails the same input, so each of them, one at a time, only narrows a type.
+  const missing =
+    // Stryker disable next-line ConditionalExpression,LogicalOperator: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     libraries === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     chainId === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     address === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     compiler === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     contractName === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     constructorArgs === undefined ||
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     creationTxHash === undefined ||
-    creationBytecode === undefined
-  ) {
+    // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
+    creationBytecode === undefined;
+  // Stryker disable next-line ConditionalExpression,BlockStatement: equivalent when always false. The issues check below throws the same error.
+  if (missing) {
     throw invalid(problems);
   }
   // Defence in depth: a later check that adds an issue but forgets to return undefined still
@@ -732,7 +746,12 @@ export function validateInput(input: unknown): VerifyInput {
  */
 function invalid({ issues, hints }: Problems): ExplorerVerifyError {
   const [first, ...others] = issues;
-  const head = first === undefined ? "" : `${first.field} ${first.message}`;
+  // Stryker disable next-line StringLiteral: equivalent. invalid() always gets an issue, so the next line replaces this text.
+  let head = "";
+  // Stryker disable next-line ConditionalExpression: equivalent when always true. invalid() always gets an issue.
+  if (first !== undefined) {
+    head = `${first.field} ${first.message}`;
+  }
   const rest = others.length === 0 ? "" : `; also ${others.map((issue) => issue.field).join(", ")}`;
   const [hint] = hints;
   const more =

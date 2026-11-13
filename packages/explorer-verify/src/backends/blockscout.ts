@@ -464,6 +464,7 @@ export function refusal(
 ): AnyExplorerVerifyError | undefined {
   const { status, fields } = answer;
   const raw = fields?.get("error");
+  // Stryker disable next-line StringLiteral: untestable sentinel. Stryker's placeholder text is neither "network not supported" nor holds the plan text.
   const text = typeof raw === "string" ? raw.toLowerCase() : "";
   const { secrets } = ctx.http;
   const backend = HOSTED;
@@ -471,6 +472,7 @@ export function refusal(
     return newError(
       { code: "unsupported-chain", backend, chainId },
       `Blockscout's hosted API does not serve chain ${String(chainId)}.`,
+      // Stryker disable next-line ObjectLiteral: equivalent. The message holds only the chain id, so there is nothing to redact.
       { secrets },
     );
   }
@@ -486,6 +488,7 @@ export function refusal(
     ? newError(
         { code: "missing-api-key", backend },
         `Blockscout's hosted API answered that the API key is missing.`,
+        // Stryker disable next-line ObjectLiteral: equivalent. The message is fixed text, so there is nothing to redact.
         { secrets },
       )
     : undefined;

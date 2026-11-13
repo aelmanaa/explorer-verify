@@ -151,6 +151,7 @@ class Findings {
   readonly rebuildable: SolidityMetadata[] = [];
   /** Whether a build-info output without its input was seen. */
   output = false;
+  // Stryker disable next-line BooleanLiteral: equivalent. Only artifacts and build-info outputs reach the check, and an output sets output, so the flag adds nothing; it stays as defence in depth.
   plainArtifact = false;
   /** 1-based positions of documents that match no shape. */
   readonly unknown: number[] = [];
@@ -277,6 +278,7 @@ function readBuildInfo(
     }
   }
   for (const [user, inputName] of fieldsOf(fields.get("userSourceNameMap"))) {
+    // Stryker disable next-line ConditionalExpression: equivalent when always true. sourceKey finds a mapped name only when it is a source key, which a value that is not a string never is.
     if (typeof inputName === "string") {
       findings.userSourceNames.set(user, inputName);
     }
@@ -879,10 +881,10 @@ const BUILD_OPTIONS_HINT = "Pass only contract, compilerVersion and sources as o
 /** The keys of {@link BuildVerifyInputOptions}, in documentation order. */
 function buildOptionKeys(): readonly string[] {
   return Object.keys({
-    contract: true,
-    compilerVersion: true,
-    sources: true,
-  } satisfies Record<keyof BuildVerifyInputOptions, true>);
+    contract: null,
+    compilerVersion: null,
+    sources: null,
+  } satisfies Record<keyof BuildVerifyInputOptions, null>);
 }
 
 // References: R-IN-6.
@@ -898,9 +900,11 @@ function readOptions(options: unknown): ReadOptions {
     throw newError(
       { code: "invalid-input", issues: unknown },
       `The input is invalid: ${unknown.map((issue) => issue.field).join(", ")}.`,
+      // Stryker disable next-line ArrayDeclaration: untestable sentinel. The message names only option keys that pass the name pattern, which Stryker's placeholder text does not.
       { hint: BUILD_OPTIONS_HINT, secrets: [] },
     );
   }
+  // Stryker disable next-line ConditionalExpression: equivalent when always false. readFields gives undefined for every value whose keys cannot be listed.
   const fields = keys === undefined ? undefined : readFields(options);
   if (fields === undefined) {
     throw invalid("options", "must be an object");
@@ -924,8 +928,9 @@ function serialise(value: unknown): string | undefined {
     const text: string | undefined = JSON.stringify(value);
     return text;
   } catch {
-    return undefined;
+    // A cycle, a BigInt or a throwing toJSON(): no text.
   }
+  return undefined;
 }
 
 /** The documents as a new array, or `undefined` when they are not a readable array. */
@@ -933,8 +938,9 @@ function readDocuments(documents: unknown): unknown[] | undefined {
   try {
     return Array.isArray(documents) ? Array.from<unknown>(documents) : undefined;
   } catch {
-    return undefined;
+    // A Proxy trap threw: not a readable array.
   }
+  return undefined;
 }
 
 // References: R-IN-7.

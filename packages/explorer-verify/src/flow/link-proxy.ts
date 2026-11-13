@@ -145,15 +145,14 @@ export async function runLinkProxy(
   // load rejects with signal.reason. Most routes with route.apiUrl load no table (decision 0040).
   return await abortWins(read.signal, async () => {
     const budget = startBudget(read);
+    const { onEvent } = read;
     const observed: Settings =
-      read.onEvent === undefined
+      onEvent === undefined
         ? read
         : {
             ...read,
             onEvent: (event) =>
-              read.onEvent?.(
-                event.type === "verify.retry" ? { ...event, type: "proxy.retry" } : event,
-              ),
+              onEvent(event.type === "verify.retry" ? { ...event, type: "proxy.retry" } : event),
           };
     const settings = await withHandler(
       observed,

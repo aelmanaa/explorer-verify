@@ -91,8 +91,9 @@ export function jsonFields(text: string): Map<string, unknown> | undefined {
     const parsed: unknown = JSON.parse(text);
     return readFields(parsed);
   } catch {
-    return undefined;
+    // Not JSON: no fields.
   }
+  return undefined;
 }
 
 /**

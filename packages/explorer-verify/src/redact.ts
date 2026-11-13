@@ -219,6 +219,7 @@ function secretPattern(secrets: readonly string[], upper: string): RegExp | unde
  * // "GET https://api.example.org/api?module=contract&apikey=[redacted]"
  * ```
  */
+// Stryker disable next-line ArrayDeclaration: untestable sentinel. Only a call that redacts Stryker's own placeholder text could tell; such a test checks nothing real.
 export function redact(text: string, secrets: readonly string[] = []): string {
   const known = secretPattern(secrets, text.toUpperCase());
   const result = known === undefined ? text : text.replace(known, REDACTED);
@@ -416,6 +417,7 @@ const KEY_NAME_FIELD = new RegExp(`^(?:${API_KEY_NAME}|${KEY_LIKE_NAME})$`, "i")
  * // prints request { url: 'https://api.example.org/api?apikey=[redacted]' }
  * ```
  */
+// Stryker disable next-line ArrayDeclaration: untestable sentinel. Only a logger that logs Stryker's own placeholder text could tell; such a test checks nothing real.
 export function redactingLogger(logger: Logger, secrets: readonly string[] = []): Logger {
   const wrap =
     (method: keyof Logger) =>

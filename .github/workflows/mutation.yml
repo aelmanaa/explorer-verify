@@ -1,35 +1,54 @@
 name: Mutation
 
-# Mutation testing with StrykerJS (docs/contributor/testing.md#mutation-testing). The full run is
-# slow, so it runs weekly and on manual dispatch, not on every push. A pull request that changes a
-# mutated file, the unit tests or the mutation setup gets an incremental run: it restores the
-# incremental file of the last full run and tests only the mutants and tests that changed. The
-# incremental run does not see changes to files that are neither mutated nor unit test files
-# (helpers, fixtures, schemas, other src files, dependencies); only the full run catches those.
-# Neither job is a required check. After this workflow first lands, dispatch one full run on main
-# to seed the cache that pull requests start from.
+# Mutation testing with StrykerJS (docs/contributor/testing.md#mutation-testing).
+#
+# Every run is split into shards that run in parallel: the plan job cuts the `mutate` list into
+# shards of about the same weight, each shard job runs Stryker on its share, and the merge job
+# joins their reports and checks the per-file floors on the merged report
+# (scripts/plan-mutation-shards.ts, scripts/merge-mutation-reports.ts).
+#
+# - Full run, weekly, on manual dispatch and before each release: every mutant (--force). No merge
+#   waits for it.
+# - Incremental run, on a pull request and on each push to main: each shard restores the baseline,
+#   the merged incremental file of the latest run on main, and tests only the mutants whose code or
+#   covering test files changed. A run on main saves its merged file as the new baseline, so the
+#   next pull request starts from main's head. The incremental run does not see changes to files
+#   that are neither mutated nor unit test files (helpers, fixtures, schemas, dependencies); only
+#   the full run catches those.
+#
+# No job here is a required check.
 on:
   schedule:
     # Mondays at 04:17 UTC.
     - cron: "17 4 * * 1"
   workflow_dispatch:
-  pull_request:
+  push:
+    branches: [main]
     paths:
-      - "packages/explorer-verify/src/backends/sourcify.ts"
-      - "packages/explorer-verify/src/backends/common.ts"
-      - "packages/explorer-verify/src/flow/verify.ts"
-      - "packages/explorer-verify/src/flow/status.ts"
-      - "packages/explorer-verify/src/redact.ts"
-      - "packages/explorer-verify/src/errors.ts"
-      - "packages/explorer-verify/src/observe.ts"
-      - "packages/explorer-verify/src/http/fetch.ts"
-      - "packages/explorer-verify/src/http/api-keys.ts"
-      - "packages/explorer-verify/src/routing/resolve.ts"
+      - "packages/explorer-verify/src/**"
       - "packages/explorer-verify/test/**"
       - "packages/explorer-verify/stryker.config.json"
       - "packages/explorer-verify/mutation-floors.json"
       - "scripts/check-mutation-score.ts"
       - "scripts/mutation-score.ts"
+      - "scripts/mutation-shards.ts"
+      - "scripts/mutation-merge.ts"
+      - "scripts/plan-mutation-shards.ts"
+      - "scripts/merge-mutation-reports.ts"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/mutation.yml"
+  pull_request:
+    paths:
+      - "packages/explorer-verify/src/**"
+      - "packages/explorer-verify/test/**"
+      - "packages/explorer-verify/stryker.config.json"
+      - "packages/explorer-verify/mutation-floors.json"
+      - "scripts/check-mutation-score.ts"
+      - "scripts/mutation-score.ts"
+      - "scripts/mutation-shards.ts"
+      - "scripts/mutation-merge.ts"
+      - "scripts/plan-mutation-shards.ts"
+      - "scripts/merge-mutation-reports.ts"
       - "pnpm-workspace.yaml"
       - ".github/workflows/mutation.yml"
 
@@ -41,13 +60,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  mutation:
-    name: Mutation (${{ github.event_name == 'pull_request' && 'incremental' || 'full' }})
+  plan:
+    name: Mutation (plan)
     runs-on: ubuntu-26.04
-    # A full run takes over an hour on 8 cores (docs/contributor/research/2026-11-03-mutation-testing.md)
-    # and the runner has 4. An incremental run can be as long as a full one when a pull request
-    # changes a test file that reaches most mutants, so both get the same limit.
-    timeout-minutes: 300
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,49 +76,139 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      # A pull request starts from the incremental file of the latest full run on main. Caches
-      # saved on the default branch are readable from pull requests; a pull request saves none.
-      # Each save has a unique key, so `key` never matches: the `restore-keys` prefix, which picks
-      # the newest saved file, is the path that restores it.
-      - name: Restore the incremental file of the last full run
-        if: github.event_name == 'pull_request'
+      # The time each mutant took in the baseline weighs the shards. Caches saved on the default
+      # branch are readable from pull requests; a pull request saves none. Each save has a unique
+      # key, so `key` never matches: the `restore-keys` prefix, which picks the newest saved file,
+      # is the path that restores it. Without that file, the plan weighs each file by its length.
+      - name: Restore the baseline
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: packages/explorer-verify/reports/stryker-incremental.json
           key: stryker-incremental-none
           restore-keys: stryker-incremental-
+      # Eight shards of four cores each: the full run on 0.2.0, about 7 hours in one job, takes
+      # about 53 minutes in its slowest shard (docs/contributor/testing.md#in-ci).
+      - name: Plan the shards
+        id: plan
+        run: |
+          matrix=$(node scripts/plan-mutation-shards.ts packages/explorer-verify 8 \
+            packages/explorer-verify/reports/stryker-incremental.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  shard:
+    name: Mutation (${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'incremental' || 'full' }}, shard ${{ matrix.shard }})
+    needs: plan
+    runs-on: ubuntu-26.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      INCREMENTAL: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Restore the baseline
+        if: env.INCREMENTAL == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: packages/explorer-verify/reports/stryker-incremental.json
+          key: stryker-incremental-none
+          restore-keys: stryker-incremental-
+      - run: pnpm --filter explorer-verify run build
+      # The shard's files and line ranges, one Stryker process per core of the runner. A full run
+      # tests every mutant; an incremental run reuses the baseline's results where nothing changed,
+      # and writes the other files' baseline results too, which the last command drops.
+      - name: Run the shard's mutants
+        working-directory: packages/explorer-verify
+        env:
+          MUTATE: ${{ matrix.mutate }}
+        run: |
+          if [ "$INCREMENTAL" = "true" ]; then
+            pnpm exec stryker run --concurrency "$(nproc)" --mutate "$MUTATE"
+          else
+            pnpm exec stryker run --force --concurrency "$(nproc)" --mutate "$MUTATE"
+          fi
+          node ../../scripts/merge-mutation-reports.ts --only "$MUTATE" \
+            reports/mutation/mutation.json reports/mutation/mutation.json
+          node ../../scripts/merge-mutation-reports.ts --only "$MUTATE" \
+            reports/stryker-incremental.json reports/stryker-incremental.json
+      - name: Upload the shard's report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            packages/explorer-verify/reports/mutation/
+            packages/explorer-verify/reports/stryker-incremental.json
+          if-no-files-found: error
+          retention-days: 30
+
+  merge:
+    name: Mutation (${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'incremental' || 'full' }})
+    needs: [plan, shard]
+    # Runs after a failed shard too, so the reports of the other shards are merged and kept.
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The merge and floor scripts import only Node.js built-ins, so no install.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Download the shards' reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutation-shard-*-${{ github.run_id }}
+          path: shards
       # The summary step reads the report even when the floor check fails, so the step's exit code
       # is kept and checked last.
-      - name: Run mutation testing and check the floors
+      - name: Merge the reports and check the floors
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            script=test:mutation:incremental
-          else
-            script=test:mutation
-          fi
+          node scripts/merge-mutation-reports.ts packages/explorer-verify/reports/mutation/mutation.json shards/*/mutation/mutation.json
+          node scripts/merge-mutation-reports.ts packages/explorer-verify/reports/stryker-incremental.json shards/*/stryker-incremental.json
           set +e
-          pnpm run "$script" | tee mutation-output.txt
+          (cd packages/explorer-verify && node ../../scripts/check-mutation-score.ts mutation-floors.json reports/mutation/mutation.json) | tee mutation-output.txt
           status=${PIPESTATUS[0]}
           {
-            echo "## Mutation score ($script)"
+            echo "## Mutation score ($GITHUB_EVENT_NAME)"
             echo
             sed -n '/^| File | Score/,$p' mutation-output.txt
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
-      - name: Upload the mutation report
+      - name: Upload the merged report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutation-report-${{ github.run_id }}
           path: |
-            packages/explorer-verify/reports/mutation/
+            packages/explorer-verify/reports/mutation/mutation.json
             packages/explorer-verify/reports/stryker-incremental.json
           if-no-files-found: warn
           retention-days: 30
-      # Only a full run on main updates the file that pull requests start from.
-      - name: Save the incremental file
-        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      # A run on main whose shards all finished, full or incremental, saves the baseline that the
+      # next pull request starts from, keyed to main's head.
+      - name: Save the baseline
+        if: always() && needs.shard.result == 'success' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: packages/explorer-verify/reports/stryker-incremental.json
           key: stryker-incremental-${{ github.sha }}-${{ github.run_id }}
+      # A file cut into ranges stays in the merged report when one of its shards failed, with only
+      # part of its mutants, so a failed shard fails the run here.
+      - name: Fail when a shard did not finish
+        if: always() && needs.shard.result != 'success'
+        env:
+          RESULT: ${{ needs.shard.result }}
+        run: |
+          echo "::error::A shard ended with '$RESULT': the merged report is incomplete."
+          exit 1

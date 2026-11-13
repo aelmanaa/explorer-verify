@@ -309,6 +309,7 @@ export const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
  * const keys = {...settings.apiKeys(), "etherscan-v2": HANDLER_KEY };
  * ```
  */
+// Stryker disable next-line StringLiteral: equivalent. The value only marks etherscan-v2 as keyed for the choice: it is read with !== undefined and never sent.
 export const HANDLER_KEY = "";
 
 const SOURCIFY_REPO_URL = "https://repo.sourcify.dev";
@@ -323,15 +324,13 @@ const BLOCKSCOUT_API = /^https:\/\/[^/]+\/api$/;
  * bundle that does not resolve routes, such as the server handler's, drops it.
  */
 function fixedHost(backend: BackendName): string | undefined {
-  return backend === "sourcify"
-    ? new URL(SOURCIFY_API_URL).host
-    : backend === "etherscan-v2"
-      ? new URL(ETHERSCAN_API_URL).host
-      : backend === "routescan"
-        ? ROUTESCAN_HOST
-        : backend === "blockscout-hosted"
-          ? HOSTED_BLOCKSCOUT_HOST
-          : undefined;
+  const hosts: Partial<Record<BackendName, string>> = {
+    sourcify: new URL(SOURCIFY_API_URL).host,
+    "etherscan-v2": new URL(ETHERSCAN_API_URL).host,
+    routescan: ROUTESCAN_HOST,
+    "blockscout-hosted": HOSTED_BLOCKSCOUT_HOST,
+  };
+  return hosts[backend];
 }
 // Hostnames as `URL` reports them: lowercase, IPv4 normalised, IPv6 compressed in brackets.
 const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
@@ -446,11 +445,11 @@ export function tableTarget(chainId: number, entry: TableEntry): TableTarget | u
 /** The keys of a route override, in documentation order. */
 export function routeKeys(): readonly string[] {
   return Object.keys({
-    backend: true,
-    apiUrl: true,
-    apiKey: true,
-    explorerUrl: true,
-  } satisfies Record<keyof RouteOverride, true>);
+    backend: null,
+    apiUrl: null,
+    apiKey: null,
+    explorerUrl: null,
+  } satisfies Record<keyof RouteOverride, null>);
 }
 
 /**
@@ -482,6 +481,7 @@ function readOverride(value: unknown):
       readonly explorerUrl?: unknown;
     } = value;
     return {
+      // Stryker disable next-line StringLiteral: equivalent. "route.".slice(0, -1) is already "route", so unknownKeys never uses the last argument.
       unknown: unknownKeys(Object.keys(value), routeKeys(), "route.", "route"),
       backend: readOwn(fields, "backend"),
       apiUrl: readOwn(fields, "apiUrl"),
@@ -490,8 +490,8 @@ function readOverride(value: unknown):
     };
   } catch {
     // A Proxy whose traps throw. The raw error is dropped: it may repeat a caller value.
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -719,6 +719,7 @@ export function checkRoute(
   }
 
   if (issues.length > 0) {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. A key that is not text gives a message that names only fields, never Stryker's placeholder text.
     throw invalid(issues, "The route is invalid", hint, typeof rawKey === "string" ? [rawKey] : []);
   }
   return { named, target, apiKey, page };
@@ -824,6 +825,7 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
   if (
     target === undefined &&
     apiKey !== undefined &&
+    // Stryker disable next-line ConditionalExpression: equivalent when always true. Without apiUrl, checkRouteKey refuses a key for any other backend first.
     named === "etherscan-compatible" &&
     standalone !== undefined &&
     standalone.needsKey !== true
@@ -832,6 +834,7 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
       [{ field: "route.apiKey", message: "is not accepted: this explorer takes no API key" }],
       "The route is invalid",
       "The routing table's explorer for this chain takes no key, so leave out route.apiKey.",
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message, the issue and the hint hold no key, so redaction finds nothing.
       [apiKey],
     );
   }
@@ -1016,14 +1019,15 @@ export async function routesWith(
       ? [{ field: "options", message: "must be a plain object" }]
       : unknownKeys(
           keys,
-          Object.keys({ apiKeys: true, allowSourcifyFallback: true } satisfies Record<
+          Object.keys({ apiKeys: null, allowSourcifyFallback: null } satisfies Record<
             keyof RoutesForOptions,
-            true
+            null
           >),
           "",
           "options",
         );
   if (issues.length > 0) {
+    // Stryker disable next-line ArrayDeclaration: untestable sentinel. The issues name only option keys that pass the name pattern, which Stryker's placeholder text does not.
     throw invalid(issues, "The options are invalid", undefined, []);
   }
   const table = await load();
