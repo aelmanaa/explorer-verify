@@ -243,10 +243,16 @@ try {
   await frame.goto(origin + "/plugin.html");
   await frame.waitForFunction(() => window.resumeValidation);
   result.scenarios.push(await frame.evaluate(() => window.resumeValidation()));
+  const delivered = (await page.evaluate(() => window.transport)).filter(
+    (m) => m.action === "notification" && m.key === "compilationFinished",
+  ).length;
+  // Close the page before counting, so a submission still in flight cannot land after the count.
+  await page.close();
   const posts = requests.filter((r) => r.method === "POST");
   result.scenarios.push({
     name: "resume-never-resubmits",
-    success: posts.length === postsBefore && posts.length === 3,
+    success: delivered === 1 && posts.length === postsBefore && posts.length === 3,
+    detail: { compilationNotifications: delivered, postsBefore, postsAfter: posts.length },
   });
   result.scenarios.push({
     name: "submission-preserves-source-and-target",
