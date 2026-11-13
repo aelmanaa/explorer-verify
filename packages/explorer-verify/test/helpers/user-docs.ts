@@ -17,7 +17,16 @@
  * defining them. On every other page an example defines all it uses but the keys, the deployer
  * address and the request.
  */
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +70,22 @@ const WORKSPACE_PACKAGES = {
   "@explorer-verify/foundry": "foundry",
   "@explorer-verify/hardhat": "hardhat",
 };
+/** The contracts package that ships only sources, settings and bytecode. */
+const SOURCES_PACKAGE = path.join(PACKAGES_DIR, "explorer-verify/test/fixtures/sources-package");
+/** The files of {@link SOURCES_PACKAGE} in the import closure of `src/Vault.sol:Vault`. */
+const VAULT_CLOSURE = [
+  "lib/acl/src/Context.sol",
+  "lib/acl/src/Ownable.sol",
+  "src/Events.sol",
+  "src/Vault.sol",
+  "src/VaultMath.sol",
+];
+/** Where solc-js, a devDependency of the core package, is installed. */
+const SOLC_DIR = path.dirname(
+  createRequire(path.join(PACKAGES_DIR, "explorer-verify/package.json")).resolve(
+    "solc/package.json",
+  ),
+);
 
 /** One `ts` block of a user page. */
 export interface DocExample {
@@ -224,7 +249,59 @@ export type DocSetup =
   | "hardhat-2"
   | "shipped-contracts"
   | "without-explorer-verify"
-  | "linked-library";
+  | "linked-library"
+  | "sources-package"
+  | "sources-input";
+
+/**
+ * The files the guide "Verify contracts from a package that ships only sources" writes for the
+ * fixture's Vault: the Standard JSON input of its import closure, built by hand and passed through
+ * the built `buildVerifyInput`, and a manifest of `contractName` and `compiler.version`.
+ * `sources-solc.test.ts` checks that `buildVerifyInputFromSources` gives the same closure.
+ */
+export function vaultVerificationFiles(): Record<string, string> {
+  const sources = Object.fromEntries(
+    VAULT_CLOSURE.map((name) => [
+      name,
+      { content: readFileSync(path.join(SOURCES_PACKAGE, name), "utf8") },
+    ]),
+  );
+  const built = buildVerifyInput(
+    [
+      {
+        language: "Solidity",
+        sources,
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          evmVersion: "paris",
+          metadata: { bytecodeHash: "none" },
+          remappings: ["@acl/=lib/acl/src/"],
+          outputSelection: {
+            "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "metadata"] },
+          },
+        },
+      },
+    ],
+    { contract: "src/Vault.sol:Vault", compilerVersion: "0.8.24+commit.e11b9ed9" },
+  );
+  const manifest = { contract: built.contractName, compilerVersion: built.compiler.version };
+  return {
+    "verification/Vault.input.json": JSON.stringify(built.compiler.input),
+    "verification/Vault.manifest.json": JSON.stringify(manifest),
+  };
+}
+
+/**
+ * Copies the sources-only fixture to `node_modules/some-contracts`, as an installed package with
+ * its sources, `foundry.toml`, `remappings.txt` and bytecode, and no build output.
+ */
+function writeSourcesPackage(dir: string): void {
+  const target = "node_modules/some-contracts";
+  for (const name of ["src", "lib", "bytecode", "foundry.toml", "remappings.txt"]) {
+    copy(dir, path.join(SOURCES_PACKAGE, name), `${target}/${name}`);
+  }
+  writeFileSync(path.join(dir, target, "package.json"), '{ "name": "some-contracts" }\n');
+}
 
 /**
  * The files a package ships to verify its Greeter, written as the guide "Verify contracts your
@@ -321,6 +398,8 @@ export function createDocsProject(setup: DocSetup, legacy = true): string {
   const dir = createProject({ bare: true, dom: true, workspacePackages: WORKSPACE_PACKAGES });
   writePinoStub(dir);
   writeUndiciStub(dir);
+  // solc-js, for the examples that compile an input to compare its bytecode.
+  symlinkSync(SOLC_DIR, path.join(dir, "node_modules/solc"), "dir");
   writeFileSync(path.join(dir, "doc-globals.d.ts"), globalsModule(legacy));
   copy(dir, path.join(USER_DOCS_DIR, "start/greeter-sepolia.json"), "greeter-sepolia.json");
   const foundry = path.join(PACKAGES_DIR, "foundry/test/fixtures");
@@ -376,6 +455,14 @@ export function createDocsProject(setup: DocSetup, legacy = true): string {
       // The Standard JSON input of a contract that calls an external library, for the verify()
       // reference's linked-libraries example.
       copy(dir, path.join(BUILD_FORMATS, "solc-0.8.24-library/input.json"), "counter-input.json");
+      break;
+    case "sources-package":
+      writeSourcesPackage(dir);
+      break;
+    case "sources-input":
+      // The package, and the files the guide's build step writes, for its bytecode check.
+      writeSourcesPackage(dir);
+      writeFiles(dir, vaultVerificationFiles());
       break;
     case "without-explorer-verify":
       // A user of a wrapper that declares explorer-verify an optional peer and did not install it.

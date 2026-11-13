@@ -62,6 +62,8 @@ compiler JSON of unknown origin is in
 [docs/user/guides/verify-a-contract-from-an-npm-package.md](docs/user/guides/verify-a-contract-from-an-npm-package.md),
 shipping the input in a package that deploys its own contracts in
 [docs/user/guides/verify-contracts-your-package-ships.md](docs/user/guides/verify-contracts-your-package-ships.md),
+building it from the sources of a package that ships no build output in
+[docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md](docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md),
 from a Foundry project in
 [docs/user/guides/verify-from-a-foundry-project.md](docs/user/guides/verify-from-a-foundry-project.md),
 and from a Hardhat project in
@@ -132,6 +134,7 @@ natively. The published packages declare 22.12.0, tested by the `node-floor` CI 
 | `packages/explorer-verify/src/core`, `src/clients` | `explorer-verify/core`, `explorer-verify/clients/<name>`, `explorer-verify/table` ([docs](docs/user/reference/core.md))                                          |
 | `packages/explorer-verify/src/entries`             | `explorer-verify/handle`, `/errors`, `/backends` and `/envelope`: small entries that never reach the flow (decision 0055)                                        |
 | `packages/explorer-verify/src/input/resolvers`     | `explorer-verify/resolve`: `buildVerifyInputFromBytecode` ([guide](docs/user/guides/verify-from-deployed-bytecode.md))                                           |
+| `packages/explorer-verify/src/input/sources.ts`    | `explorer-verify/sources`: `buildVerifyInputFromSources` ([guide](docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md))                  |
 | `packages/explorer-verify/test/unit/`              | Unit tests, `*.test.ts`                                                                                                                                          |
 | `packages/foundry/`                                | `@explorer-verify/foundry`: finds a contract's build files in a Foundry project. Node only (decision 0008)                                                       |
 | `packages/hardhat/`                                | `@explorer-verify/hardhat`: finds a Hardhat 2 or 3 contract's build files (Node only, decision 0018); [guide](docs/user/guides/verify-from-a-hardhat-project.md) |

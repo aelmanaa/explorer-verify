@@ -108,6 +108,7 @@ describe("apiEntryPoints on this repository", () => {
         ["explorer-verify/envelope", "packages/explorer-verify/src/entries/envelope.ts"],
         ["explorer-verify/server", "packages/explorer-verify/src/server/handler.ts"],
         ["explorer-verify/resolve", "packages/explorer-verify/src/input/resolvers/bytecode.ts"],
+        ["explorer-verify/sources", "packages/explorer-verify/src/input/sources.ts"],
         ["explorer-verify/core", "packages/explorer-verify/src/core/index.ts"],
         ["explorer-verify/table", "packages/explorer-verify/src/core/table.ts"],
         ["explorer-verify/clients/sourcify", "packages/explorer-verify/src/clients/sourcify.ts"],

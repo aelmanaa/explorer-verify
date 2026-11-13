@@ -11,6 +11,7 @@
         "src/index.ts",
         "src/server/handler.ts",
         "src/input/resolvers/bytecode.ts",
+        "src/input/sources.ts",
         "src/core/index.ts",
         "src/core/table.ts",
         "src/entries/*.ts",

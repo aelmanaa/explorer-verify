@@ -451,6 +451,17 @@ function expected(): unknown {
       exitCode: 0,
       envelopeOk: true,
     },
+    // buildVerifyInputFromSources from explorer-verify/sources (R-IN-7, R-RUN-1): the import
+    // closure only, and the missing files of a project that lacks them.
+    sources: {
+      names: ["lib/acl/src/Ownable.sol", "src/Math.sol", "src/Vault.sol"],
+      contractName: "src/Vault.sol:Vault",
+      remappings: ["@acl/=lib/acl/src/"],
+      missing: {
+        code: "incomplete-input",
+        candidates: ["lib/acl/src/Ownable.sol", "src/Math.sol"],
+      },
+    },
   };
 }
 

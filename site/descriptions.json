@@ -11,6 +11,7 @@
   "guides/using-from-an-agent.md": "For coding agents: which explorer-verify calls are safe to run alone, which one publishes source for good, and when to ask the person.",
   "guides/verify-a-contract-from-an-npm-package.md": "Build the verification input for a contract an SDK ships compiled, from build-info, artifacts or metadata of unknown origin.",
   "guides/verify-a-proxy.md": "Verify an ERC-1967, UUPS or transparent proxy and its implementation, then link them with linkProxy() so the explorer shows its functions.",
+  "guides/verify-contracts-from-a-package-that-ships-only-sources.md": "Build the verification input from a package's Solidity sources, settings and remappings, then check it against the bytecode.",
   "guides/verify-contracts-your-package-ships.md": "Ship the Standard JSON input and a manifest in your npm package, so each contract it deploys can be verified right after deployment.",
   "guides/verify-from-a-browser.md": "Call verify() from a web page with a bundler or a CDN: a dry run first, then a submit, and the handle kept across a page reload.",
   "guides/verify-from-a-foundry-project.md": "Find a contract's build files under a Foundry project's out/ folder and build the input for verify() from TypeScript code.",

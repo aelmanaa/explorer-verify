@@ -13,8 +13,12 @@ deploys. A dry run needs no API key.
 The package ships two JSON files per contract: the Standard JSON input of the compile, and a
 manifest with the contract name and the full compiler version. After a deployment, the package
 loads both, builds the input and calls `verify()`. An application that never verifies never loads
-them. For build files of unknown origin, see
-[Verify a contract shipped in an npm package](verify-a-contract-from-an-npm-package.md).
+them.
+
+For build files of unknown origin, see
+[Verify a contract shipped in an npm package](verify-a-contract-from-an-npm-package.md). For
+another team's package that ships only sources, see
+[Verify contracts from a package that ships only sources](verify-contracts-from-a-package-that-ships-only-sources.md).
 
 ## Install
 

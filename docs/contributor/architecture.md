@@ -16,6 +16,7 @@ also carries the server handler, and scoped add-ons for Node-only code.
 | `explorer-verify`          | `explorer-verify`          | Types, input validation, routing table, backend clients, flow engine                                            | Any (browser, Node, edge)                    |
 | `explorer-verify`          | `explorer-verify/server`   | `createVerifyHandler`: the self-hosted handler that holds the Etherscan key. Uses only `Request` and `Response` | Node, edge runtimes and serverless platforms |
 | `explorer-verify`          | `explorer-verify/resolve`  | Input resolvers: `buildVerifyInputFromBytecode` (decision 0026)                                                 | Any (browser, Node, edge)                    |
+| `explorer-verify`          | `explorer-verify/sources`  | `buildVerifyInputFromSources`: the input from Solidity sources, settings and remappings (decision 0074)         | Any (browser, Node, edge)                    |
 | `@explorer-verify/cli`     | The `explorer-verify` bin  | The command-line interface                                                                                      | Node                                         |
 | `@explorer-verify/foundry` | `@explorer-verify/foundry` | Build helper that reads Foundry build-info and emits `VerifyInput` parts                                        | Node                                         |
 | `@explorer-verify/hardhat` | `@explorer-verify/hardhat` | Build helper that reads Hardhat 2 and 3 build-info and emits `VerifyInput` parts (decision 0018)                | Node                                         |
@@ -23,7 +24,7 @@ also carries the server handler, and scoped add-ons for Node-only code.
 The core has no runtime dependencies. Third-party code is vendored under `src/internal/vendor/` with
 its licence notice (R-RUN-4). The `verify` entry has a size ceiling checked in CI (R-RUN-3), and
 optional features stay out of it (R-RUN-5). `explorer-verify`, `@explorer-verify/foundry` and
-`@explorer-verify/hardhat` exist today, and the core has its `/server` and `/resolve` subpaths. The other add-ons arrive in M4.
+`@explorer-verify/hardhat` exist today, and the core has its `/server`, `/resolve` and `/sources` subpaths. The other add-ons arrive in M4.
 
 The core also has `explorer-verify/core`, `explorer-verify/clients/<name>` and
 `explorer-verify/table`: the flow functions, the explorer clients and the routing table, for a

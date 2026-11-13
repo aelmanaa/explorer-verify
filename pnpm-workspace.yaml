@@ -53,6 +53,8 @@ catalog:
   # The Rollup build of scripts/check-names.ts. Same version as the one VitePress installs through
   # Vite, so the lockfile gains no package.
   "rollup": "4.68.0"
+  # solc-js, to compile the sources fixture in tests only. The version of the fixture's build.
+  "solc": "0.8.24"
   "typescript": "7.0.2"
   "typedoc": "0.28.20"
   "typedoc-plugin-markdown": "4.14.1"

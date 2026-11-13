@@ -67,8 +67,9 @@ each task.
   [the server handler](guides/run-the-server-handler.md).
 - Guides by task: [a proxy](guides/verify-a-proxy.md),
   [from deployed bytecode](guides/verify-from-deployed-bytecode.md),
-  [a contract from an npm package](guides/verify-a-contract-from-an-npm-package.md) and
-  [contracts your package ships](guides/verify-contracts-your-package-ships.md).
+  [a contract from an npm package](guides/verify-a-contract-from-an-npm-package.md),
+  [contracts your package ships](guides/verify-contracts-your-package-ships.md) and
+  [contracts from a package that ships only sources](guides/verify-contracts-from-a-package-that-ships-only-sources.md).
 - Advanced: [wrap it in your tool](guides/wrap-explorer-verify-in-your-tool.md),
   [use it from an agent](guides/using-from-an-agent.md), [the core entry](reference/core.md),
   [bundle size](advanced/bundle-size.md),

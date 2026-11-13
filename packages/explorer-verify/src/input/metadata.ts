@@ -12,7 +12,7 @@ import { keccak256 } from "../internal/keccak.ts";
 import { readFields } from "../internal/read-fields.ts";
 
 /** The output the rebuilt input asks for: what explorers read back from a compilation. */
-const OUTPUT_SELECTION = {
+export const OUTPUT_SELECTION = {
   "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "metadata"] },
 } as const;
 // solc 0.8.2, 0.8.3 and 0.8.4, with or without a leading v.
