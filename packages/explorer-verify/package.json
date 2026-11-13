@@ -1,6 +1,6 @@
 {
   "name": "explorer-verify",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Verify deployed smart-contract source on Etherscan, Blockscout, Sourcify and Routescan from a browser, a backend or a CLI, with one API.",
   "keywords": [
     "ethereum",

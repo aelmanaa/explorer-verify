@@ -1,6 +1,6 @@
 # Verify a contract from a Foundry project
 
-Version: explorer-verify 0.2.1
+Version: explorer-verify 0.3.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 

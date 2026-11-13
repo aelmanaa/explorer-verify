@@ -3,7 +3,7 @@
 Verify one contract on several explorers in one call, with one outcome per
 explorer.
 
-Version: explorer-verify 0.2.1
+Version: explorer-verify 0.3.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
