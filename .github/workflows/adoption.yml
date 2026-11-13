@@ -64,9 +64,13 @@ jobs:
         with:
           version: v1.8.1
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # The validation project pins its own playwright, so its Chromium build can differ from the root's.
       - name: Browser runtime
         if: matrix.project == 'browser-remix'
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        working-directory: validation/browser-remix
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx --no-install playwright install --with-deps --only-shell chromium
       - name: Run the independent consumer
         run: node validation/run.mjs --project '${{ matrix.project }}' --output "$RUNNER_TEMP/adoption"
       - name: Preserve evidence and logs
