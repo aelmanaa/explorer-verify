@@ -1,6 +1,6 @@
 # Verify contracts from a package that ships only sources
 
-Version: explorer-verify 0.3.0
+Version: explorer-verify 0.4.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
