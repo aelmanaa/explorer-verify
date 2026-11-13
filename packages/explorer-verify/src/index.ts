@@ -56,6 +56,7 @@ export type {
   SolcCompiler,
   SolidityStandardJsonInput,
   StoredContract,
+  Submission,
   VerifyEachOptions,
   VerifyEachResult,
   VerifyEvent,

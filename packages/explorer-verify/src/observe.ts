@@ -5,9 +5,10 @@
  * logger or a callback that throws is caught.
  * Without a logger and a callback, nothing is written anywhere.
  */
+import type { BackendName } from "./backend-names.ts";
 import { redactSplitHandle, splitHandle } from "./flow/format-handle.ts";
 import { redact, redactingLogger } from "./redact.ts";
-import type { Logger, VerifyEvent } from "./types.ts";
+import type { HandleString, Logger, VerifyEvent, VerifyOptions } from "./types.ts";
 
 /**
  * Where a call sends its log lines and events. `VerifyOptions` fits it once `secrets` is added.
@@ -98,26 +99,98 @@ export function createObserver(options: ObserverOptions): Observer {
   const emit = (event: VerifyEvent): void => {
     const safe = Object.freeze(redactEvent(event, secrets));
     const type = safe.type;
-    let returned: unknown;
-    try {
-      returned = onEvent(safe);
-    } catch (error: unknown) {
-      failed(type, error);
-      return;
-    }
-    // Stryker disable next-line ConditionalExpression: equivalent when always true. A promise resolved with undefined never rejects.
-    if (returned !== undefined) {
-      // Not awaited: a slow callback must not hold the call. A value that is not a promise
-      // resolves at once. `resolve` calls a thenable's `then` in a later job, never here, so a
-      // `then` that throws becomes a rejection instead of an exception in this call.
-      void new Promise<unknown>((resolve) => {
-        resolve(returned);
-      }).catch((error: unknown) => {
+    callGuarded(
+      () => onEvent(safe),
+      (error) => {
         failed(type, error);
-      });
-    }
+      },
+    );
   };
   return { log, emit };
+}
+
+/**
+ * Runs a caller's callback so that it cannot break the call: an exception it throws, or a
+ * rejection of a promise it returns, goes to `failed`. A returned promise is not awaited.
+ */
+function callGuarded(callback: () => unknown, failed: (error: unknown) => void): void {
+  let returned: unknown;
+  try {
+    returned = callback();
+  } catch (error: unknown) {
+    failed(error);
+    return;
+  }
+  // Stryker disable next-line ConditionalExpression: equivalent when always true. A promise resolved with undefined never rejects.
+  if (returned !== undefined) {
+    // Not awaited: a slow callback must not hold the call. A value that is not a promise
+    // resolves at once. `resolve` calls a thenable's `then` in a later job, never here, so a
+    // `then` that throws becomes a rejection instead of an exception in this call.
+    void new Promise<unknown>((resolve) => {
+      resolve(returned);
+    }).catch(failed);
+  }
+}
+
+const SUBMITTED_FAILED =
+  "The onSubmitted callback threw. The error is ignored and the call goes on.";
+
+// References: R-FLOW-5, R-FLOW-6, R-SEC-1.
+/**
+ * Passes the handle of an accepted submission to the caller's `onSubmitted`, with the job id
+ * redacted by the rule of the `verify.submitted` event, so a job id shaped like a key still
+ * resumes, and `{ backend }` as the second argument. An exception it throws, or a rejection of a
+ * promise it returns, is logged at `warn` through `log` and ignored. A call submits once, so the
+ * warning is logged at most once.
+ *
+ * @param onSubmitted - The caller's callback, or `undefined`.
+ * @param handle - The one-line handle, as `formatHandle` writes it.
+ * @param backend - The backend that accepted the submission.
+ * @param secrets - Key values to remove.
+ * @param log - The call's redacting logger.
+ * @example
+ * ```ts
+ * notifySubmitted(options.onSubmitted, formatHandle(handle), "sourcify", [], observer.log);
+ * ```
+ */
+export function notifySubmitted(
+  onSubmitted: VerifyOptions["onSubmitted"],
+  handle: HandleString,
+  backend: BackendName,
+  secrets: readonly string[],
+  log: Logger,
+): void {
+  if (onSubmitted === undefined) {
+    return;
+  }
+  const safe = redactHandle(handle, backend, secrets);
+  callGuarded(
+    () => onSubmitted(safe, { backend }),
+    (error) => {
+      try {
+        log.warn(SUBMITTED_FAILED, { backend, error: describe(error) });
+      } catch {
+        // The error could not be read as text, for example a getter on `message` threw.
+        log.warn(SUBMITTED_FAILED, { backend, error: "[unloggable]" });
+      }
+    },
+  );
+}
+
+/**
+ * A one-line handle with its job id redacted. Only code that bypasses the types passes text that
+ * is not a one-line handle. It keeps the type: the text, redacted whole, stands in for the job id
+ * after a chain id of 0.
+ */
+function redactHandle(
+  handle: string,
+  backend: BackendName,
+  secrets: readonly string[],
+): HandleString {
+  return redactSplitHandle(
+    splitHandle(handle) ?? { prefix: `ev1:${backend}:0:0x:`, jobId: redact(handle, secrets) },
+    secrets,
+  );
 }
 
 // References: R-SEC-1.
@@ -179,15 +252,7 @@ function redactStage(event: VerifyEvent, secrets: readonly string[]): VerifyEven
       return {
         type: event.type,
         backend: event.backend,
-        // Only code that bypasses the types passes text that is not a one-line handle. It keeps
-        // the type: the text, redacted whole, stands in for the job id after a chain id of 0.
-        handle: redactSplitHandle(
-          splitHandle(event.handle) ?? {
-            prefix: `ev1:${event.backend}:0:0x:`,
-            jobId: redact(event.handle, secrets),
-          },
-          secrets,
-        ),
+        handle: redactHandle(event.handle, event.backend, secrets),
       };
     // Stryker disable next-line ConditionalExpression: equivalent. Removing this body falls through to verify.poll, which copies the same fields. Separate cases preserve the type/state correlation.
     case "proxy.poll":

@@ -954,7 +954,7 @@ describe("the hints and names of explorer-verify/core (decision 0052)", () => {
 
   it("the default entry's hint names explorer-verify/core for clients or table alone, and only then", async () => {
     const base =
-      "Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.";
+      "Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs as positive numbers of milliseconds, signal as an AbortSignal, fetch, onEvent and onSubmitted as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.";
     const clientsOnly = await errorOf(untyped(mainVerify, input(), { clients: [sourcify()] }));
     assert.equal(clientsOnly.hint, `${base} Use explorer-verify/core for clients and table.`);
     const tableOnly = await errorOf(

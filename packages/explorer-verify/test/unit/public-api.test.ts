@@ -36,6 +36,7 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   rpcUrl: true,
   handlerUrl: true,
   submitOverPartial: true,
+  onSubmitted: true,
 };
 const routeKeys: Record<keyof RouteOverride, true> = {
   backend: true,
@@ -64,7 +65,7 @@ describe("public types", () => {
     assert.equal(versionIsOne, true);
   });
 
-  it("VerifyOptions has the M1 fields, indexWaitMs, apiKeys, allowSourcifyFallback, rpcUrl, handlerUrl and submitOverPartial (decisions 0009, 0010, 0016, 0046, 0066 and 0067, R-RT-3, R-IN-3)", () => {
+  it("VerifyOptions has the M1 fields, indexWaitMs, apiKeys, allowSourcifyFallback, rpcUrl, handlerUrl, submitOverPartial and onSubmitted (decisions 0009, 0010, 0016, 0046, 0066 and 0067, R-RT-3, R-IN-3, R-FLOW-5)", () => {
     assert.deepEqual(Object.keys(optionKeys), [
       "fetch",
       "signal",
@@ -79,6 +80,7 @@ describe("public types", () => {
       "rpcUrl",
       "handlerUrl",
       "submitOverPartial",
+      "onSubmitted",
     ]);
   });
 

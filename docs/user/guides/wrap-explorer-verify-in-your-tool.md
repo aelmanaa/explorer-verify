@@ -72,18 +72,18 @@ mapping:
 3. `toReport` maps a `VerifyResult` onto the tool's report.
 4. `toDeployKitError` maps an error onto the tool's error class.
 
-At the core of `verifyContract`, the wrapper keeps the handle from the `verify.submitted` event,
-because an abort rejects with `signal.reason`, which carries no handle:
+At the core of `verifyContract`, the wrapper keeps the handle that `onSubmitted` receives, because
+an abort rejects with `signal.reason`, which carries no handle:
 
 <!-- fragment: an excerpt of deploykit.ts below, which runs in full. -->
 
 ```ts fragment
 let handle: string | undefined;
-const onEvent = (event: VerifyEvent): void => {
-  if (event.type === "verify.submitted") handle = event.handle;
+const onSubmitted = (line: string): void => {
+  handle = line;
 };
 try {
-  const options = { ...toOptions(settings), onEvent };
+  const options = { ...toOptions(settings), onSubmitted };
   return toReport(await verify(toInput(params), options));
 } catch (error) {
   throw toDeployKitError(error, settings.signal, handle);
@@ -112,7 +112,6 @@ import type {
   ErrorCode,
   Hex,
   SolidityStandardJsonInput,
-  VerifyEvent,
   VerifyInput,
   VerifyOptions,
   VerifyResult,
@@ -271,14 +270,12 @@ async function verifyContract(
   settings: VerifyContractSettings = {},
 ): Promise<VerifyReport> {
   let handle: string | undefined;
-  const onEvent = (event: VerifyEvent): void => {
-    if (event.type === "verify.submitted") {
-      handle = event.handle;
-      settings.onSubmitted?.(event.handle);
-    }
+  const onSubmitted = (line: string): void => {
+    handle = line;
+    settings.onSubmitted?.(line);
   };
   try {
-    const options = { ...toOptions(settings), onEvent };
+    const options = { ...toOptions(settings), onSubmitted };
     return toReport(await verify(toInput(params), options));
   } catch (error) {
     throw toDeployKitError(error, settings.signal, handle);
@@ -373,7 +370,7 @@ queue](../advanced/resume-from-a-job-queue.md) polls it later.
 | `etherscanApiKey`    | `apiKeys["etherscan-v2"]` | Sent only to Etherscan's host. Without it, Sourcify                                                  |
 | `waitTimeoutSeconds` | `timeoutMs`               | The budget for the whole call, polls included                                                        |
 | `signal`             | `signal`                  | An abort rejects with `signal.reason` unchanged                                                      |
-| `onSubmitted`        | `onEvent`                 | Read the handle from `verify.submitted`                                                              |
+| `onSubmitted`        | `onSubmitted`             | Gets the one-line handle once the explorer accepts, before the first poll                            |
 | A `fetch`            | `fetch`                   | Every request goes through it. It must not redirect. It gets no `cache` field, so it handles caching |
 | A fixed explorer     | `route`                   | See [Routing](../reference/routing.md#route)                                                         |
 | A logger             | `logger`, `onEvent`       | See [Logging](../reference/logging-and-events.md)                                                    |

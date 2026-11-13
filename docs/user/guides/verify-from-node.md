@@ -205,7 +205,7 @@ manager, or a request handler behind a proxy, a budget shorter than their own li
 
 To stop a call early, such as on shutdown, pass an `AbortSignal` in `signal`. The call rejects with
 the signal's reason. When a crash between submit and result must not lose the job, save the handle
-from the `verify.submitted` event ([Abort and resume](../reference/verify.md#abort-and-resume)).
+that `onSubmitted` receives ([Abort and resume](../reference/verify.md#abort-and-resume)).
 
 ## Set the User-Agent and send requests through a proxy
 

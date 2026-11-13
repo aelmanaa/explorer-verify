@@ -23,7 +23,7 @@ import type { withDerivedArgs as WithDerivedArgs } from "../input/constructor-ar
 import { validateInput } from "../input/validate.ts";
 import { budgetText } from "../internal/duration.ts";
 import { unknownKeys } from "../internal/known-keys.ts";
-import { createObserver } from "../observe.ts";
+import { createObserver, notifySubmitted } from "../observe.ts";
 import type { Observer } from "../observe.ts";
 import {
   checkApiUrl,
@@ -86,6 +86,7 @@ export function verifyOptionKeys(): readonly string[] {
     apiKeys: null,
     rpcUrl: null,
     submitOverPartial: null,
+    onSubmitted: null,
   } satisfies Record<keyof VerifyOptions, null>);
 }
 /**
@@ -391,6 +392,9 @@ export interface Settings {
   readonly indexWaitMs: number | undefined;
   readonly logger: Logger | undefined;
   readonly onEvent: VerifyOptions["onEvent"];
+  // References: R-FLOW-5.
+  /** The caller's `onSubmitted`, given the handle of an accepted submission. */
+  readonly onSubmitted: VerifyOptions["onSubmitted"];
   readonly route: RouteOverride | undefined;
   // References: R-RT-3.
   /** Whether a chain missing from the routing table falls back to Sourcify. */
@@ -629,6 +633,8 @@ export async function verifyOnRoute(
       handle: logged,
     },
   );
+  // Before the first poll, so a caller that aborts from here on still holds the handle.
+  notifySubmitted(settings.onSubmitted, line, backend.name, secrets, log);
 
   return await settle(active, handle, settings.pollIntervalMs);
 }
@@ -966,7 +972,8 @@ function rejectedOver(call: Call, reason: string, after: string): void {
  *   {@link MIN_POLL_INTERVAL_MS} and {@link MAX_TIMER_MS}.
  * - `indexWaitMs` must be a positive number; one above {@link MAX_TIMER_MS}, `Infinity` included,
  *   is clamped to it.
- * - `signal` must be an `AbortSignal`, `fetch` and `onEvent` functions, and `logger` an object.
+ * - `signal` must be an `AbortSignal`, `fetch`, `onEvent` and `onSubmitted` functions, and
+ *   `logger` an object.
  */
 export function settingsOf(
   options: VerifyOptions | undefined,
@@ -981,6 +988,7 @@ export function settingsOf(
       indexWaitMs: undefined,
       logger: undefined,
       onEvent: undefined,
+      onSubmitted: undefined,
       route: undefined,
       allowSourcifyFallback: undefined,
       submitOverPartial: undefined,
@@ -1016,6 +1024,7 @@ export function settingsOf(
       fetch: fetchOption,
       logger,
       onEvent,
+      onSubmitted: own(options, "onSubmitted"),
       route: own(options, "route"),
       // Checked by withHandler(), which loads the check only when the option is set.
       handlerUrl: own(options, "handlerUrl"),
@@ -1077,8 +1086,8 @@ function own<K extends keyof VerifyOptions>(
 }
 
 /**
- * Adds an issue for each of `signal`, `fetch`, `logger`, `onEvent`, `allowSourcifyFallback` and
- * `submitOverPartial` of the wrong kind.
+ * Adds an issue for each of `signal`, `fetch`, `logger`, `onEvent`, `onSubmitted`,
+ * `allowSourcifyFallback` and `submitOverPartial` of the wrong kind.
  */
 function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
   const signal: unknown = settings.signal;
@@ -1098,6 +1107,7 @@ function checkKinds(settings: ReadSettings, issues: InputIssue[]): void {
     ["fetch", settings.fetch, ["function"]],
     ["logger", settings.logger, ["object", "function"]],
     ["onEvent", settings.onEvent, ["function"]],
+    ["onSubmitted", settings.onSubmitted, ["function"]],
   ];
   for (const [field, value, kinds] of checks) {
     if (value !== undefined && (value === null || !kinds.includes(typeof value))) {
@@ -1151,7 +1161,7 @@ function invalidOptions(
     { code: "invalid-input", issues },
     `The options are invalid: ${issues.map((issue) => issue.field).join(", ")}.`,
     {
-      hint: `Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs as positive numbers of milliseconds, signal as an AbortSignal, fetch and onEvent as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.${issues.some(({ field }) => field === "clients" || field === "table") ? " Use explorer-verify/core for clients and table." : ""}`,
+      hint: `Pass options as a plain object: timeoutMs, pollIntervalMs and indexWaitMs as positive numbers of milliseconds, signal as an AbortSignal, fetch, onEvent and onSubmitted as functions, logger as an object, apiKeys as an object of key strings by backend name. Leave out any you do not need.${issues.some(({ field }) => field === "clients" || field === "table") ? " Use explorer-verify/core for clients and table." : ""}`,
       secrets,
     },
   );

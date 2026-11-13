@@ -31,11 +31,9 @@ const handles: string[] = [];
 try {
   await verify(input, {
     signal: controller.signal,
-    onEvent: (event) => {
-      if (event.type === "verify.submitted") {
-        handles.push(event.handle); // the one-line form
-        controller.abort(); // here: stop right after the submit
-      }
+    onSubmitted: (handle) => {
+      handles.push(handle); // the one-line form
+      controller.abort(); // here: stop right after the submit
     },
   });
 } catch (error) {
@@ -68,14 +66,15 @@ An aborted call rejects with `signal.reason`, unchanged, at its next wait or
 request. The rejection carries no handle, and the job keeps running on the
 explorer.
 
-To resume, keep the handle from the `verify.submitted` event. `verify()`
-emits it, and logs it at `info`, as soon as the explorer accepts the
-submission. [Logging and events](../reference/logging-and-events.md#events)
-lists every event.
+To resume, keep the handle that `onSubmitted` receives. `verify()` calls it
+once, as soon as the explorer accepts the submission and before the first
+poll. It also emits the handle in the `verify.submitted` event and logs it at
+`info`. [Logging and events](../reference/logging-and-events.md#events) lists
+every event.
 
 ## Store the handle
 
-The event's `handle` is the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
+The handle is the one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`.
 Store that string where the next run can read it:
 
 | Where the call runs | Where to keep the handle                                                |
@@ -129,9 +128,46 @@ lists the other errors.
 
 ## Several backends
 
-`verifyEach()` takes the same `signal`. An abort rejects the whole call.
-Every submission made before it has emitted its own `verify.submitted`
-event, with its `backend`, so each pending job can be resumed on its own.
+`verifyEach()` takes the same `signal` and `onSubmitted`. An abort rejects
+the whole call. `onSubmitted` has received the handle of every submission
+the explorer answered before the abort. A submit still in flight at the
+abort may have been accepted with no handle returned.
+
+The second argument of `onSubmitted` holds `entry`, the index of the entry
+in `backends`. Two entries can name the same backend on different hosts, so
+keep the entry with the handle:
+
+<!-- no-run: the second entry is a placeholder self-hosted Sourcify server. -->
+
+```ts no-run [resume-each.ts]
+import { checkStatus, verifyEach } from "explorer-verify";
+import type { BackendEntry, HandleString, VerifyInput } from "explorer-verify";
+
+declare const input: VerifyInput;
+const backends: BackendEntry[] = [
+  "sourcify",
+  { backend: "sourcify", apiUrl: "https://sourcify.example.org/server" },
+];
+const controller = new AbortController();
+const pending = new Map<number, HandleString>();
+
+await verifyEach(input, {
+  backends,
+  signal: controller.signal,
+  onSubmitted: (handle, { entry }) => {
+    if (entry !== undefined) pending.set(entry, handle);
+  },
+}).catch(() => undefined);
+
+for (const [entry, handle] of pending) {
+  const chosen = backends[entry];
+  const route = typeof chosen === "string" ? { backend: chosen } : chosen;
+  const result = await checkStatus(handle, { route });
+  console.log(entry, result.status);
+}
+```
+
+Pass `apiKeys` to `checkStatus()` too when the entry's backend needs a key.
 See [Verify on several explorers](verify-on-several-explorers.md).
 
 ## Next steps

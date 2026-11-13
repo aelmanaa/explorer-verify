@@ -84,6 +84,7 @@ Every field is optional. A field set to `undefined` counts as absent.
 | `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                                                    |
 | `handlerUrl`            | none               | Your [server handler](api-keys.md#a-server-adds-the-key), which adds the key                                                             |
 | `submitOverPartial`     | `false`            | Submits over a [partial match](#submit-over-a-partial-match) of this source                                                              |
+| `onSubmitted`           | none               | Receives the one-line handle once the explorer accepts the submission: [Abort and resume](#abort-and-resume)                             |
 
 [Option checks](#option-checks) lists the values each option accepts.
 
@@ -94,11 +95,11 @@ Each options type lists only what its function reads. All share
 
 | Function        | Options type         | Besides `CallOptions`                                                                        |
 | --------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`                               |
+| `verify()`      | `VerifyOptions`      | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`, `onSubmitted`                |
 | `dryRun()`      | `DryRunOptions`      | `rpcUrl`, checked but sent no request                                                        |
 | `checkStatus()` | `CheckStatusOptions` | `pollIntervalMs`                                                                             |
 | `linkProxy()`   | `LinkProxyOptions`   | `pollIntervalMs`, `resumeJobId` ([guide](../guides/verify-a-proxy.md#resume-a-pending-link)) |
-| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`, `backends`                   |
+| `verifyEach()`  | `VerifyEachOptions`  | `pollIntervalMs`, `indexWaitMs`, `rpcUrl`, `submitOverPartial`, `onSubmitted`, `backends`    |
 
 At run time each function accepts every key of `VerifyOptions`, so one
 object typed `VerifyOptions` can go to all of them, as in the dry run.
@@ -324,7 +325,8 @@ code 0.
   capped at 2147483647. `timeoutMs` and `indexWaitMs` also take `Infinity`.
   `indexWaitMs` never extends `timeoutMs`.
 - `pollIntervalMs` is finite, and raised to at least 1000.
-- `signal` is an `AbortSignal`, and `fetch` and `onEvent` are functions.
+- `signal` is an `AbortSignal`.
+- `fetch`, `onEvent` and `onSubmitted` are functions.
 - `apiKeys` is a plain object of strings.
 - `allowSourcifyFallback` and `submitOverPartial` are booleans.
 
@@ -426,8 +428,16 @@ outcome per backend. See
 ## Abort and resume
 
 An aborted call rejects with `signal.reason` and carries no handle. Keep the
-handle from the `verify.submitted` event, then resume with `checkStatus()`:
+handle that `onSubmitted` receives, then resume with `checkStatus()`:
 [Abort and resume](../advanced/abort-and-resume.md).
+
+`onSubmitted` runs once per accepted submission, before the first poll, with
+the one-line handle. Its second argument, a `Submission`, holds `backend`.
+`verifyEach()` calls it once per entry that submitted, and adds `entry`, the
+index of that entry in `backends`.
+It does not run when the lookup finds a match or the explorer refuses the
+submit. An exception it throws is logged once at `warn` and ignored, as for
+`onEvent`.
 
 ## Sources
 
