@@ -12,7 +12,7 @@ import type { AnyExplorerVerifyError, ExplorerVerifyError } from "../errors.ts";
 import type { HttpRequest } from "../http/fetch.ts";
 import { readFields } from "../internal/read-fields.ts";
 import { redactExcerpt } from "../redact.ts";
-import type { Handle } from "../types.ts";
+import type { FailureReasonCode, Handle } from "../types.ts";
 import type {
   Backend,
   Context,
@@ -63,6 +63,33 @@ export const DEFINITIVE_CODES: readonly string[] = [
   "onchain_bytecode_is_zero",
   "extra_file_input_bug",
 ];
+
+// References: R-FLOW-4, decision 0073.
+/**
+ * The reason code of each definitive job error code that names a cause. Sourcify's
+ * `extra_file_input_bug` says the deployed build used more files than the input has. A
+ * `compiler_error` whose message says solc found no source is `missing-source`. Any other code is
+ * `unknown`.
+ */
+const REASON_CODES: Readonly<Record<string, FailureReasonCode>> = {
+  no_match: "bytecode-mismatch",
+  bytecode_length_mismatch: "bytecode-mismatch",
+  missing_source: "missing-source",
+  missing_or_invalid_source: "missing-source",
+  extra_file_input_bug: "missing-source",
+  compiler_error: "compiler",
+  invalid_compiler_version: "compiler",
+  unsupported_compiler_version: "compiler",
+  invalid_language: "compiler",
+  unsupported_language: "compiler",
+  invalid_compilation_target: "contract-name",
+  contract_not_found_in_compiler_output: "contract-name",
+  runtime_bytecode_not_found_in_compiler_output: "contract-name",
+  compiled_bytecode_is_zero: "contract-name",
+};
+
+// solc's text for an import it could not find, such as `Source "a.sol" not found: File not found.`
+const MISSING = /Source "[^"]*" not found/i;
 
 /**
  * Job error codes that may clear up when the same input is submitted again later: a server
@@ -265,7 +292,14 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
     REASON_LENGTH,
   );
   if (DEFINITIVE_CODES.includes(code)) {
-    return { state: "failed", reason };
+    return {
+      state: "failed",
+      reason,
+      reasonCode:
+        code === "compiler_error" && typeof message === "string" && MISSING.test(message)
+          ? "missing-source"
+          : (REASON_CODES[code] ?? "unknown"),
+    };
   }
   if (TRANSIENT_CODES.includes(code)) {
     throw newError(

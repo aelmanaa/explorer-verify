@@ -258,7 +258,7 @@ describe("R-FLOW-4, R-FLOW-7: checkStatus() resumes a submit over a partial matc
       log.seen.find(([level]) => level === "warn"),
       [
         "warn",
-        "blockscout rejected the submit over the partial match (Fail - Unable to verify); the partial match stays.",
+        "Blockscout rejected the submit over the partial match (Fail - Unable to verify); the partial match stays.",
         { backend: "blockscout" },
       ],
     );
@@ -273,6 +273,7 @@ describe("R-FLOW-4, R-FLOW-7: checkStatus() resumes a submit over a partial matc
       status: "failed",
       backend: "blockscout",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
   });
 
@@ -345,7 +346,7 @@ describe("R-FLOW-4, R-FLOW-7: checkStatus() resumes a submit over a partial matc
         ([level, message]) =>
           level === "warn" &&
           message ===
-            `etherscan-v2 rejected the submit over the partial match (${FAIL_TEXT}); the partial match stays.`,
+            `Etherscan rejected the submit over the partial match (${FAIL_TEXT}); the partial match stays.`,
       ),
     );
   });
@@ -409,7 +410,7 @@ describe("R-FLOW-7: the Etherscan family over a partial match (decision 0067)", 
       log.seen.find(([level]) => level === "warn"),
       [
         "warn",
-        `etherscan-v2 rejected the submit over the partial match (${FAIL_TEXT}); the partial match stays.`,
+        `Etherscan rejected the submit over the partial match (${FAIL_TEXT}); the partial match stays.`,
         { backend: "etherscan-v2" },
       ],
     );
@@ -427,12 +428,17 @@ describe("R-FLOW-7: the Etherscan family over a partial match (decision 0067)", 
       ...similarOptions(log.logger),
       fetch: fake.fetch,
     });
-    assert.deepEqual(result, { status: "failed", backend: "etherscan-v2", reason: FAIL_TEXT });
+    assert.deepEqual(result, {
+      status: "failed",
+      backend: "etherscan-v2",
+      reason: FAIL_TEXT,
+      reasonCode: "bytecode-mismatch",
+    });
     assert.deepEqual(
       log.seen.find(([level]) => level === "warn"),
       [
         "warn",
-        `etherscan-v2 rejected the submit over the partial match (${FAIL_TEXT}), and a lookup then found the contract not verified.`,
+        `Etherscan rejected the submit over the partial match (${FAIL_TEXT}), and a lookup then found the contract not verified.`,
         { backend: "etherscan-v2" },
       ],
     );
@@ -489,11 +495,11 @@ describe("R-AX-8: dryRun() with submitOverPartial says the call would submit ove
     for (const [submitOverPartial, expected] of [
       [
         true,
-        "Dry run: blockscout holds a partial match of this source, so a verification with submitOverPartial would submit over it. Nothing was submitted.",
+        "Dry run: Blockscout holds a partial match of this source, so a verification with submitOverPartial would submit over it. Nothing was submitted.",
       ],
       [
         undefined,
-        "Dry run: blockscout already holds the contract (partial match), so a verification would not submit unless submitOverPartial is set.",
+        "Dry run: Blockscout already holds the contract (partial match), so a verification would not submit unless submitOverPartial is set.",
       ],
     ] as const) {
       const fake = replay(recorded("blockscout", "lookup-probe-partial"));
@@ -535,7 +541,7 @@ describe("R-AX-8: dryRun() with submitOverPartial says the call would submit ove
         ([level, message]) =>
           level === "info" &&
           message ===
-            "Dry run: blockscout already holds the contract (exact match), so a verification would not submit.",
+            "Dry run: Blockscout already holds the contract (exact match), so a verification would not submit.",
       ),
       JSON.stringify(log.seen),
     );

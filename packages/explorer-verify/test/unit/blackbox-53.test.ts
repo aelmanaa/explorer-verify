@@ -631,6 +631,7 @@ describe("#53 doc examples", () => {
           case "verify.validated":
           case "verify.routed":
           case "verify.lookup":
+          case "verify.stored":
           case "verify.poll":
           case "proxy.routed":
           case "proxy.poll":

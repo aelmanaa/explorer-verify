@@ -10,7 +10,7 @@ import type { ApiKeysReader } from "../http/api-keys.ts";
 import type { HttpContext } from "../http/fetch.ts";
 import type { ResolvedHandler } from "../http/handler-url.ts";
 import type { Route } from "../routing/resolve.ts";
-import type { Handle, Hex, VerifyInput } from "../types.ts";
+import type { FailureReasonCode, Handle, Hex, VerifyInput } from "../types.ts";
 
 /**
  * How well the explorer matched the source: `exact` when the metadata hash matches too,
@@ -144,7 +144,7 @@ export type SubmitOutcome =
  * - `already-verified`: the job found the contract already verified at this grade or better.
  *   `match` is absent when the explorer did not say which; the flow then looks it up.
  * - `failed`: the explorer definitively rejected the source. `reason` is the explorer's code and
- *   message.
+ *   message, and `reasonCode` what the client reads from it.
  */
 export type PollOutcome =
   | { readonly state: "pending" }
@@ -161,6 +161,9 @@ export type PollOutcome =
   | {
       readonly state: "failed";
       readonly reason: string;
+      // References: R-FLOW-4, decision 0073.
+      /** Why, as far as the answer tells. */
+      readonly reasonCode: FailureReasonCode;
       /** A lookup after the rejection found the contract not verified. */
       readonly notVerified?: true;
     };

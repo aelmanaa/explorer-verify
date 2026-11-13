@@ -88,6 +88,7 @@ const FAILED: VerifyResult = {
   status: "failed",
   backend: "etherscan-v2",
   reason: "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match",
+  reasonCode: "bytecode-mismatch",
 };
 
 // One result per status, and the exit code R-AX-7 gives it. A status missing here fails to compile.
@@ -353,7 +354,12 @@ describe("toEnvelope output is deterministic (R-AX-12)", () => {
 
 describe("toEnvelope never outputs a key (R-AX-9, R-SEC-1)", () => {
   it("redacts a key-like URL parameter in a result's reason and explorerUrl", () => {
-    const failed: VerifyResult = { status: "failed", backend: "etherscan-v2", reason: LEAKY_URL };
+    const failed: VerifyResult = {
+      status: "failed",
+      backend: "etherscan-v2",
+      reason: LEAKY_URL,
+      reasonCode: "unknown",
+    };
     const verified: VerifyResult = {
       status: "verified",
       backend: "etherscan-v2",
@@ -372,6 +378,7 @@ describe("toEnvelope never outputs a key (R-AX-9, R-SEC-1)", () => {
       status: "failed",
       backend: "etherscan-v2",
       reason: `rejected for ${DUMMY_KEY}`,
+      reasonCode: "unknown",
     };
     const json = JSON.stringify(envelope(result, { secrets: [DUMMY_KEY] }));
     assert.ok(!json.includes(DUMMY_KEY), json);
@@ -414,7 +421,7 @@ describe("toEnvelope never outputs a key (R-AX-9, R-SEC-1)", () => {
         match: "partial",
         explorerUrl: DUMMY_KEY,
       },
-      { status: "failed", backend: "blockscout", reason: DUMMY_KEY },
+      { status: "failed", backend: "blockscout", reason: DUMMY_KEY, reasonCode: "unknown" },
     ];
     for (const outcome of outcomes) {
       const json = JSON.stringify(envelope(outcome, { secrets: [DUMMY_KEY] }));

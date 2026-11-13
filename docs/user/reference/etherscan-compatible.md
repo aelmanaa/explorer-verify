@@ -151,7 +151,9 @@ requests past the cache.
 ## How answers are read
 
 The client reads each answer as the [Etherscan](etherscan.md#how-answers-are-read) client does,
-and names `etherscan-compatible` in `details.backend`. One more answer means "not verified": a
+and names `etherscan-compatible` in `details.backend`. A `failed` result's `reasonCode` comes from
+the text as for [Etherscan](etherscan.md#how-answers-are-read). Messages name the explorer
+`Etherscan-compatible explorer`: the routing table gives a standalone explorer no name. One more answer means "not verified": a
 lookup with `"status":"1"` and an empty `result` list, as Bitlayer answers for an address with no
 verified source.
 

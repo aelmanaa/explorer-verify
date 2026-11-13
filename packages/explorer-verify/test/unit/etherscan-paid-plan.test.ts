@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { BACKEND_LABELS } from "../../src/backend-names.ts";
 import type { BackendName } from "../../src/backend-names.ts";
 import type { Context } from "../../src/backends/backend.ts";
 import { etherscan } from "../../src/backends/etherscan.ts";
@@ -100,7 +101,7 @@ function assertPaidPlan(error: ExplorerVerifyError | undefined): void {
   assert.deepEqual(error.details, { code: "api-key-rejected", backend: "etherscan-v2" });
   assert.equal(
     error.message,
-    "etherscan-v2 answered that the API key's plan does not cover this chain.",
+    "Etherscan answered that the API key's plan does not cover this chain.",
   );
   assert.equal(error.hint, HINT);
   assert.equal(error.retryable, false);
@@ -200,7 +201,7 @@ describe("a free-plan key on a paid-plan chain: the refusal (#135, R-AX-7, R-SEC
       assert.deepEqual(error.details, { code: "api-key-rejected", backend });
       assert.equal(
         error.message,
-        `${backend} answered that the API key's plan does not cover this chain.`,
+        `${BACKEND_LABELS[backend]} answered that the API key's plan does not cover this chain.`,
       );
       assert.notEqual(error.hint, HINT, backend);
       assert.ok(!error.hint.includes("Etherscan"), backend);

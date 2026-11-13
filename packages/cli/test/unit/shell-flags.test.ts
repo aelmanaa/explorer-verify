@@ -301,7 +301,7 @@ describe("a text dry run prints the routed line and stdout, not the library's lo
     assert.doesNotMatch(plain.stderr, /Dry run: /);
     assert.match(plain.stderr, /^Routed to sourcify/m);
     const verbose = await run(t, [...argv, "--verbose"], "verified");
-    assert.match(verbose.stderr, /^debug: Dry run: sourcify already holds the contract/m);
+    assert.match(verbose.stderr, /^debug: Dry run: Sourcify already holds the contract/m);
   });
 });
 
@@ -598,7 +598,7 @@ describe("one stderr line per event at the default level (R-AX-14, #225)", () =>
       "sourcify",
       "--verbose",
     ]);
-    assert.match(verbose.stderr, /^debug: sourcify accepted the submission/m);
+    assert.match(verbose.stderr, /^debug: Sourcify accepted the submission/m);
     const json = await run(t, [
       "verify",
       ADDRESS,

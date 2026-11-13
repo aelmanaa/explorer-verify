@@ -22,6 +22,7 @@ import { MAX_TIMER_MS, REQUEST_TIMEOUT_MS, request as send, sleep } from "../../
 import type { HttpContext } from "../../src/http/fetch.ts";
 import { verify } from "../../src/index.ts";
 import type {
+  FailureReasonCode,
   LogFields,
   Logger,
   VerifyEvent,
@@ -242,6 +243,23 @@ async function run(t: TestContext, steps: readonly Step[], use: RunOptions = {})
   return { outcome, events, lines, sent, elapsed: Date.now() };
 }
 
+const REASON_CODES: readonly FailureReasonCode[] = [
+  "bytecode-mismatch",
+  "missing-source",
+  "compiler",
+  "contract-name",
+  "constructor-args",
+  "libraries",
+  "unknown",
+];
+
+/** `value` as a reason code; fails the test for any other string. */
+function codeOf(value: string): FailureReasonCode {
+  const code = REASON_CODES.find((each) => each === value);
+  assert.ok(code !== undefined, `reasonCode ${value}`);
+  return code;
+}
+
 function resultOf(outcome: unknown): VerifyResult {
   assert.ok(
     typeof outcome === "object" && outcome !== null,
@@ -251,11 +269,13 @@ function resultOf(outcome: unknown): VerifyResult {
   const status = fields.get("status");
   const match = fields.get("match");
   const reason = fields.get("reason");
+  const reasonCode = fields.get("reasonCode");
   const explorerUrl = fields.get("explorerUrl");
   assert.equal(fields.get("backend"), "sourcify");
   if (status === "failed") {
     assert.ok(typeof reason === "string");
-    return { status, backend: "sourcify", reason };
+    assert.ok(typeof reasonCode === "string");
+    return { status, backend: "sourcify", reason, reasonCode: codeOf(reasonCode) };
   }
   assert.ok(status === "verified" || status === "already-verified", `status ${String(status)}`);
   assert.ok(match === "exact" || match === "partial");
@@ -544,6 +564,7 @@ describe("verify(): job outcomes (R-FLOW-3, R-FLOW-4)", () => {
         status: "failed",
         backend: "sourcify",
         reason: "no_match: The deployed and recompiled bytecode don't match.",
+        reasonCode: "bytecode-mismatch",
       },
       1,
     );

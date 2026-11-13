@@ -294,7 +294,12 @@ function client(name: Name): Backend {
         return { state: "verified", ...found };
       }
     } else if (result === FAIL) {
-      return { state: "failed", reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH) };
+      // References: decision 0073. The text names no cause.
+      return {
+        state: "failed",
+        reason: redactExcerpt(result, ctx.http.secrets, REASON_LENGTH),
+        reasonCode: "unknown",
+      };
     } else if (result === UNKNOWN_UID) {
       throw newError(
         { code: "job-not-found", handle },
@@ -473,14 +478,14 @@ export function refusal(
   if (status === 401 || (status === 402 && (keyed || text.includes(PLAN_NEEDED)))) {
     return newError(
       { code: "api-key-rejected", backend },
-      `${backend} refused the API key, or its plan or credits for this request.`,
+      `Blockscout's hosted API refused the API key, or its plan or credits for this request.`,
       { hint: PLAN_HINT, secrets },
     );
   }
   return status === 402
     ? newError(
         { code: "missing-api-key", backend },
-        `${backend} answered that the API key is missing.`,
+        `Blockscout's hosted API answered that the API key is missing.`,
         { secrets },
       )
     : undefined;

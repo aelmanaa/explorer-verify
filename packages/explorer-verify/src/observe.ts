@@ -164,6 +164,17 @@ function redactStage(event: VerifyEvent, secrets: readonly string[]): VerifyEven
       };
     case "verify.lookup":
       return { type: event.type, backend: event.backend, lookup: event.lookup };
+    case "verify.stored":
+      // Explorer text: the client cut it and redacted the call's keys; redacted again here, as
+      // every free-text field is.
+      return {
+        type: event.type,
+        backend: event.backend,
+        ...(event.name === undefined ? {} : { name: redact(event.name, secrets) }),
+        ...(event.compilerVersion === undefined
+          ? {}
+          : { compilerVersion: redact(event.compilerVersion, secrets) }),
+      };
     case "verify.submitted":
       return {
         type: event.type,

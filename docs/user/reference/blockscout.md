@@ -123,7 +123,7 @@ job it does not know.
 | Submit | Anything else                                             | [`unexpected-response`](errors/unexpected-response.md)                                                                                           |
 | Status | `Pending in queue`                                        | Still pending                                                                                                                                    |
 | Status | `Pass - Verified`                                         | `verified`, with the match a lookup reads; [`unknown-state`](errors/unknown-state.md) when that lookup finds it not verified                     |
-| Status | `Fail - Unable to verify`                                 | `failed`, with the text as `reason`                                                                                                              |
+| Status | `Fail - Unable to verify`                                 | `failed`, `reasonCode` `unknown` (the text names no cause), with the text as `reason`                                                            |
 | Status | `Unknown UID`                                             | [`job-not-found`](errors/job-not-found.md); `verify()` looks the contract up once first                                                          |
 | Status | Any other text                                            | [`unknown-state`](errors/unknown-state.md)                                                                                                       |
 

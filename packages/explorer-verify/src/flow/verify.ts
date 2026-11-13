@@ -4,7 +4,7 @@
  * outcome to one of three results or a typed error. It never branches on the backend: every
  * explorer call goes through the {@link Backend} interface.
  */
-import { BACKEND_NAMES } from "../backend-names.ts";
+import { BACKEND_LABELS, BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Found, PollOutcome, Target } from "../backends/backend.ts";
 import { kindCheck } from "../compiler-kinds.ts";
@@ -37,6 +37,7 @@ import {
 } from "../routing/resolve.ts";
 import type { CheckedRoute, Route, RoutingTable, TableLoader } from "../routing/resolve.ts";
 import type {
+  FailureReasonCode,
   Handle,
   Logger,
   RouteOverride,
@@ -558,7 +559,7 @@ export async function verifyOnRoute(
           ? first
           : undefined;
       if (other !== undefined) {
-        log.warn(`${heldText(backend.name, other)}, not this one.`, fields);
+        log.warn(`${heldText(BACKEND_LABELS[backend.name], other)}, not this one.`, fields);
         if (!named) {
           // References: issue #356. The answer named nothing, so the contract comes from the first
           // lookup, which an explorer can serve from a cache: Sourcify's for up to an hour.
@@ -568,7 +569,10 @@ export async function verifyOnRoute(
           );
         }
       } else if (!named && status === "already-verified") {
-        log.info(`${backend.name} names no contract; the match is taken as this source.`, fields);
+        log.info(
+          `${BACKEND_LABELS[backend.name]} names no contract; the match is taken as this source.`,
+          fields,
+        );
       }
       return other;
     },
@@ -592,11 +596,13 @@ export async function verifyOnRoute(
       over = true;
       active = { ...call, partial: found };
       log.info(
-        `${backend.name} holds a partial match of this source; submitting over it (submitOverPartial).`,
+        `${BACKEND_LABELS[backend.name]} holds a partial match of this source; submitting over it (submitOverPartial).`,
         fields,
       );
     } else {
-      log.info(`${heldText(backend.name, first)}; submitting this source.`, fields);
+      // References: decision 0073. Before the submit, so a caller can say which contract it is.
+      emit({ type: "verify.stored", backend: backend.name, ...first });
+      log.info(`${heldText(BACKEND_LABELS[backend.name], first)}; submitting this source.`, fields);
     }
   }
 
@@ -616,10 +622,13 @@ export async function verifyOnRoute(
   emit({ type: "verify.submitted", backend: backend.name, handle: line });
   // The same rule as the event: a job id shaped like a key stays, so the line still resumes.
   const logged = redactHandleLine(line, secrets);
-  log.info(`${backend.name} accepted the submission. Resume it with this handle: ${logged}`, {
-    backend: backend.name,
-    handle: logged,
-  });
+  log.info(
+    `${BACKEND_LABELS[backend.name]} accepted the submission. Resume it with this handle: ${logged}`,
+    {
+      backend: backend.name,
+      handle: logged,
+    },
+  );
 
   return await settle(active, handle, settings.pollIntervalMs);
 }
@@ -925,7 +934,7 @@ export async function settle(
     rejectedOver(call, reason, "; the partial match stays");
     return finish(call, "already-verified", partial);
   }
-  return failed(call, reason);
+  return failed(call, reason, outcome.reasonCode);
 }
 
 // References: R-FLOW-7, decision 0067.
@@ -936,7 +945,7 @@ export async function settle(
 function rejectedOver(call: Call, reason: string, after: string): void {
   if (call.partial !== undefined) {
     call.observer.log.warn(
-      `${call.backend.name} rejected the submit over the partial match (${reason})${after}.`,
+      `${BACKEND_LABELS[call.backend.name]} rejected the submit over the partial match (${reason})${after}.`,
       { backend: call.backend.name },
     );
   }
@@ -1534,7 +1543,7 @@ async function pollUntilDone(call: Call, handle: Handle, firstWaitMs: number): P
       failures += 1;
       cause = error;
       observer.log.warn(
-        `${backend.name} status poll ${String(attempt)} for job ${handle.jobId} failed (${error.code}); ${failures < MAX_POLL_FAILURES ? "polling again" : "giving up polling"}`,
+        `${BACKEND_LABELS[backend.name]} status poll ${String(attempt)} for job ${handle.jobId} failed (${error.code}); ${failures < MAX_POLL_FAILURES ? "polling again" : "giving up polling"}`,
         { backend: backend.name, attempt, code: error.code, failures },
       );
       if (failures >= MAX_POLL_FAILURES) {
@@ -1548,10 +1557,13 @@ async function pollUntilDone(call: Call, handle: Handle, firstWaitMs: number): P
       return { kind: "done", outcome };
     }
     observer.emit({ type: "verify.poll", backend: backend.name, attempt, state: "pending" });
-    observer.log.debug(`${backend.name} job ${handle.jobId} is pending (poll ${String(attempt)})`, {
-      backend: backend.name,
-      attempt,
-    });
+    observer.log.debug(
+      `${BACKEND_LABELS[backend.name]} job ${handle.jobId} is pending (poll ${String(attempt)})`,
+      {
+        backend: backend.name,
+        attempt,
+      },
+    );
   }
 }
 
@@ -1568,7 +1580,7 @@ async function lastLookup(
 ): Promise<VerifyResult> {
   const { backend, settings, observer } = call;
   observer.log.debug(
-    `Polling ${backend.name} job ${handle.jobId} stopped (${stopped.why}); looking the contract up once more`,
+    `Polling ${BACKEND_LABELS[backend.name]} job ${handle.jobId} stopped (${stopped.why}); looking the contract up once more`,
     { backend: backend.name },
   );
   let found: Found | undefined;
@@ -1622,7 +1634,7 @@ async function forgottenJob(
 ): Promise<VerifyResult> {
   const { backend, settings, observer, ctx } = call;
   observer.log.debug(
-    `${backend.name} does not know job ${handle.jobId}; looking the contract up instead`,
+    `${BACKEND_LABELS[backend.name]} does not know job ${handle.jobId}; looking the contract up instead`,
     { backend: backend.name },
   );
   let found: Found | undefined;
@@ -1634,7 +1646,7 @@ async function forgottenJob(
     }
     throw newError(
       { code: "job-not-found", handle },
-      `${backend.name} does not know job ${handle.jobId}, and the lookup of the contract failed.`,
+      `${BACKEND_LABELS[backend.name]} does not know job ${handle.jobId}, and the lookup of the contract failed.`,
       { secrets: ctx.http.secrets, cause: error },
     );
   }
@@ -1644,7 +1656,7 @@ async function forgottenJob(
   }
   throw newError(
     { code: "job-not-found", handle },
-    `${backend.name} does not know job ${handle.jobId}, and a lookup ${confirming}.`,
+    `${BACKEND_LABELS[backend.name]} does not know job ${handle.jobId}, and a lookup ${confirming}.`,
     {
       hint: "Call verify() again: the job is gone and the contract is not verified, so a new submission is needed.",
       secrets: ctx.http.secrets,
@@ -1683,7 +1695,7 @@ async function gradeOf(call: Call, handle: Handle): Promise<Found> {
       : "the lookup to read its match failed";
   throw newError(
     { code: "unknown-state", handle, excerpt },
-    `${backend.name} job ${handle.jobId} found the contract already verified, but ${what}; the match is not known.`,
+    `${BACKEND_LABELS[backend.name]} job ${handle.jobId} found the contract already verified, but ${what}; the match is not known.`,
     cause === undefined ? { secrets: ctx.http.secrets } : { secrets: ctx.http.secrets, cause },
   );
 }
@@ -1726,7 +1738,7 @@ function notConfirmed(
     why === "budget"
       ? `the ${budgetText(settings.timeoutMs)} budget ran out`
       : `${String(MAX_POLL_FAILURES)} status polls in a row failed`;
-  const message = `The verification of job ${handle.jobId} on ${backend.name} is not confirmed: ${reason} before the job ended, and a last lookup ${lookup}.`;
+  const message = `The verification of job ${handle.jobId} on ${BACKEND_LABELS[backend.name]} is not confirmed: ${reason} before the job ended, and a last lookup ${lookup}.`;
   return newError(
     { code: "not-confirmed", handle },
     message,
@@ -1770,19 +1782,19 @@ function finish(call: Call, status: "verified" | "already-verified", found: Foun
 
 /**
  * A `failed` result. `reason` comes from the client, already redacted with the call's keys and cut
- * to 300 characters. Emits `verify.result`.
+ * to 300 characters, and `reasonCode` is what the client read from it. Emits `verify.result`.
  */
-function failed(call: Call, reason: string): VerifyResult {
+function failed(call: Call, reason: string, reasonCode: FailureReasonCode): VerifyResult {
   const { backend, observer } = call;
   report(observer, { type: "verify.result", backend: backend.name, status: "failed" });
-  return { status: "failed", backend: backend.name, reason };
+  return { status: "failed", backend: backend.name, reason, reasonCode };
 }
 
 /** Emits the result event and logs it at `info`. */
 function report(observer: Observer, event: Extract<VerifyEvent, { type: "verify.result" }>): void {
   observer.emit(event);
   observer.log.info(
-    `Result: ${event.status}${event.status === "failed" ? "" : ` (${event.match})`} on ${event.backend}`,
+    `Result: ${event.status}${event.status === "failed" ? "" : ` (${event.match})`} on ${BACKEND_LABELS[event.backend]}`,
     { backend: event.backend, status: event.status },
   );
 }

@@ -237,8 +237,9 @@ state always throws; it never comes back as a result.
 
 - `result.status` is `verified`, `already-verified` or `failed`. The first two carry
   `result.match` (`exact` or `partial`) and, for a public explorer, `result.explorerUrl`. `failed`
-  carries `result.reason`: the explorer rejected the source, for example because the bytecode
-  differs.
+  carries `result.reason`, the explorer's text, and `result.reasonCode`: why the explorer rejected
+  the source, such as `bytecode-mismatch`, `missing-source` or `unknown`. Read `reasonCode`, not
+  the text.
 - `result.storedContract` on `already-verified` means the explorer holds another contract's source
   for the address, with that `name` and `compilerVersion`: `verify()` submitted and the explorer
   refused. Tell the person; the explorer page shows the other contract, not theirs. The CLI exits
@@ -469,7 +470,7 @@ An agent that retries without a limit can submit twice or poll for hours. Keep t
   command again at most once.
 - After `job-not-found`, ask the person first, then call `verify()` at most once.
 - Then stop, and report the handle, the error code and the hint to the person.
-- After exit code 1, report `result.reason` for `failed`. For `already-verified` with
+- After exit code 1, report `result.reason` and `result.reasonCode` for `failed`. For `already-verified` with
   `storedContract`, which exits 1 under `--require-own-source`, report its `name` and
   `compilerVersion`: the source was not rejected, so do not edit it. Either way, do not change the
   sources or the settings and submit again unless the person asks.

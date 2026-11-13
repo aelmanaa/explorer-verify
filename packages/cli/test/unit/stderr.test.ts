@@ -186,10 +186,10 @@ describe("text lines", () => {
   // R-SEC-1, decision 0063: a log message can hold explorer text, such as a stored contract name.
   it("shows control characters in a message as escapes, so none reaches the terminal", () => {
     const { stderr, text } = writer({ format: "text", level: "debug" });
-    stderr.logger.warn("sourcify holds another contract's source (A\r\u001b[2KB)");
+    stderr.logger.warn("Sourcify holds another contract's source (A\r\u001b[2KB)");
     assert.equal(
       text(),
-      "warning: sourcify holds another contract's source (A\\u000d\\u001b[2KB)\n",
+      "warning: Sourcify holds another contract's source (A\\u000d\\u001b[2KB)\n",
     );
   });
 
@@ -266,21 +266,21 @@ describe("one line per fact in text at info (R-AX-14, #225)", () => {
   const RESULT = EVENTS[6];
   assert.ok(SUBMITTED !== undefined && RESULT !== undefined);
   // The library's own wording, as flow/verify.ts and flow/dry-run.ts write it.
-  const ACCEPTED = `sourcify accepted the submission. Resume it with this handle: ${HANDLE}`;
-  const DRY_RUN = "Dry run: sourcify holds no match, so a verification would submit the source.";
+  const ACCEPTED = `Sourcify accepted the submission. Resume it with this handle: ${HANDLE}`;
+  const DRY_RUN = "Dry run: Sourcify holds no match, so a verification would submit the source.";
 
   it("shows the event, and the core's info line that repeats it only at debug", () => {
     for (const level of ["info", "debug"] as const) {
       const { stderr, text } = writer({ format: "text", level });
       stderr.onEvent(SUBMITTED);
       // A line of another backend in between changes nothing: the match reads each line alone.
-      stderr.logger.info("routescan accepted the submission. Resume it with this handle: h", {
+      stderr.logger.info("Routescan accepted the submission. Resume it with this handle: h", {
         backend: "routescan",
         handle: "h",
       });
       stderr.logger.info(ACCEPTED, { backend: "sourcify", handle: HANDLE });
       stderr.onEvent(RESULT);
-      stderr.logger.info("Result: verified (exact) on sourcify", {
+      stderr.logger.info("Result: verified (exact) on Sourcify", {
         backend: "sourcify",
         status: "verified",
       });
@@ -293,8 +293,8 @@ describe("one line per fact in text at info (R-AX-14, #225)", () => {
         ]);
       } else {
         assert.equal(lines.length, 6);
-        assert.match(lines[1] ?? "", /^debug: routescan accepted the submission\./);
-        assert.match(lines[2] ?? "", /^debug: sourcify accepted the submission\./);
+        assert.match(lines[1] ?? "", /^debug: Routescan accepted the submission\./);
+        assert.match(lines[2] ?? "", /^debug: Sourcify accepted the submission\./);
         assert.match(lines[4] ?? "", /^debug: Result: verified/);
         assert.match(lines[5] ?? "", /^debug: Dry run: /);
       }

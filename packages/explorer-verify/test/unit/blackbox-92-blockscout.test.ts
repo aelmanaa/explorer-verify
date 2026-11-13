@@ -673,6 +673,7 @@ describe("blackbox #92: status answers", () => {
       status: "failed",
       backend: "blockscout",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
     const final = run.events.at(-1);
     assert.ok(final?.type === "verify.result");
@@ -1120,6 +1121,7 @@ describe("blackbox #92: checkStatus", () => {
       status: "failed",
       backend: "blockscout",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
   });
 

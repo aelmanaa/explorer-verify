@@ -15,7 +15,7 @@
  * {@link readsTable} tells which routes need it: a call whose `route.apiUrl` cannot be a URL the
  * table lists does not load it.
  */
-import { BACKEND_NAMES, toBackendName } from "../backend-names.ts";
+import { BACKEND_LABELS, BACKEND_NAMES, toBackendName } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import { newError } from "../error-hints.ts";
 import type { ExplorerVerifyError, InputIssue } from "../errors.ts";
@@ -173,10 +173,11 @@ export interface Route {
    */
   readonly requestUrl: (path: string) => string;
   /**
-   * The page that shows a verified contract at `address`, derived from the table entry, or
-   * `undefined` when the table knows no page for the backend and chain. Also
-   * `undefined` when `route.apiUrl` moved the API to a server other than the table's: the
-   * explorer's page shows only contracts verified through the table's API.
+   * The page that shows a verified contract at `address`: under the caller's
+   * `route.explorerUrl` when set, else derived from the table entry, or `undefined` when the table
+   * knows no page for the backend and chain. Without `route.explorerUrl`, also `undefined` when
+   * `route.apiUrl` moved the API to a server other than the table's: the explorer's page shows
+   * only contracts verified through the table's API.
    */
   readonly explorerUrl: ((address: Hex) => string) | undefined;
   /**
@@ -268,6 +269,9 @@ export interface CheckedRoute {
   readonly target: { readonly apiBase: string; readonly search: string } | undefined;
   /** `route.apiKey`, when the caller set one. */
   readonly apiKey: string | undefined;
+  // References: R-FLOW-3, decision 0073.
+  /** `route.explorerUrl` without trailing slashes, when the caller set one. */
+  readonly page?: string | undefined;
 }
 
 /**
@@ -339,8 +343,41 @@ const ROUTE_HINT =
   "Pass route as a plain object with backend, apiUrl and apiKey fields, or leave it out.";
 const API_KEY_HINT =
   "Pass route.apiKey as 8 to 1024 letters, digits, '.', '_', '~' or '-', next to route.apiUrl or with route.backend etherscan-compatible, and only for a backend that takes a key, or leave it out.";
+const EXPLORER_URL_HINT =
+  "Pass the explorer's page base as an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password, query or fragment.";
 const API_URL_HINT =
   "Pass an absolute https URL, or an http URL on localhost, 127.0.0.1 or [::1], with no user name, password or fragment.";
+
+// References: R-FLOW-3, decision 0073.
+/**
+ * The contract page under a caller's `route.explorerUrl`, built as the routing table builds its
+ * pages: `<base>/<chainId>/<address>` for `sourcify`, `<base>/address/<address>?tab=contract` for
+ * both Blockscout backends, and `<base>/address/<address>#code` for the Etherscan-style ones.
+ *
+ * @param base - The checked page base, with no query and no trailing slash.
+ * @param backend - The route's backend.
+ * @param chainId - The call's chain.
+ * @returns The page of the contract at an address.
+ * @example
+ * ```ts
+ * pageAt("https://sepolia.etherscan.io", "etherscan-v2", 11155111)("0xab");
+ * // "https://sepolia.etherscan.io/address/0xab#code"
+ * ```
+ */
+export function pageAt(
+  base: string,
+  backend: BackendName,
+  chainId: number,
+): (address: Hex) => string {
+  const tail =
+    backend === "sourcify"
+      ? ""
+      : backend === "blockscout" || backend === "blockscout-hosted"
+        ? "?tab=contract"
+        : "#code";
+  const prefix = backend === "sourcify" ? `${base}/${String(chainId)}/` : `${base}/address/`;
+  return (address) => `${prefix}${encodeURIComponent(address)}${tail}`;
+}
 
 // References: decision 0024.
 /**
@@ -412,11 +449,12 @@ export function routeKeys(): readonly string[] {
     backend: true,
     apiUrl: true,
     apiKey: true,
+    explorerUrl: true,
   } satisfies Record<keyof RouteOverride, true>);
 }
 
 /**
- * The three override fields and an issue for each other own enumerable key, or `undefined` when
+ * The four override fields and an issue for each other own enumerable key, or `undefined` when
  * `value` is not a plain object (prototype `Object.prototype` or `null`) whose fields can be read.
  * Each field is read once; a getter on an unknown key never runs.
  */
@@ -425,6 +463,7 @@ function readOverride(value: unknown):
       backend: unknown;
       apiUrl: unknown;
       apiKey: unknown;
+      explorerUrl: unknown;
       unknown: readonly InputIssue[];
     }
   | undefined {
@@ -440,12 +479,14 @@ function readOverride(value: unknown):
       readonly backend?: unknown;
       readonly apiUrl?: unknown;
       readonly apiKey?: unknown;
+      readonly explorerUrl?: unknown;
     } = value;
     return {
       unknown: unknownKeys(Object.keys(value), routeKeys(), "route.", "route"),
       backend: readOwn(fields, "backend"),
       apiUrl: readOwn(fields, "apiUrl"),
       apiKey: readOwn(fields, "apiKey"),
+      explorerUrl: readOwn(fields, "explorerUrl"),
     };
   } catch {
     // A Proxy whose traps throw. The raw error is dropped: it may repeat a caller value.
@@ -517,8 +558,11 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  * `apiKeys` never goes to it, only `override.apiKey` does. Its explorer page is the row's when
  * `override.apiUrl` is the row's own API URL for the backend, and `undefined` otherwise.
  *
+ * `override.explorerUrl`, for any route, replaces the page: see {@link pageAt}. It follows the
+ * rules of `override.apiUrl` below and must not hold a query string.
+ *
  * `override` must be a plain object: its prototype is `Object.prototype` or `null`. Only its own
- * `backend`, `apiUrl` and `apiKey` properties are read, each once; inherited ones are ignored, and
+ * `backend`, `apiUrl`, `apiKey` and `explorerUrl` properties are read, each once; inherited ones are ignored, and
  * so are other fields.
  *
  * `override.apiUrl` must be a primitive string of at most 8192 characters that parses as an
@@ -539,7 +583,7 @@ export function checkApiUrl(value: unknown): { apiBase: string; search: string }
  * @param choice - The caller's keys, the fallback option, the backends with a client, the table.
  * @returns A frozen plain object. Later changes to `override` do not affect it.
  * @throws ExplorerVerifyError with code `invalid-input`, listing `chainId`, `route`,
- *   `route.backend`, `route.apiUrl` or `route.apiKey` in `details.issues`; `unsupported-chain`
+ *   `route.backend`, `route.apiUrl`, `route.apiKey` or `route.explorerUrl` in `details.issues`; `unsupported-chain`
  *   as described above.
  * @example
  * ```ts
@@ -592,6 +636,7 @@ export function checkRoute(
   let named: BackendName | undefined;
   let target: { apiBase: string; search: string } | undefined;
   let apiKey: string | undefined;
+  let page: string | undefined;
   let rawKey: unknown;
   const raw: unknown = override;
   if (raw !== undefined) {
@@ -644,6 +689,19 @@ export function checkRoute(
           target = checked;
         }
       }
+      if (fields.explorerUrl !== undefined) {
+        // The same rules as route.apiUrl, and no query: the client appends the contract's path.
+        const checked = checkApiUrl(fields.explorerUrl);
+        if (typeof checked === "string" || checked.search !== "") {
+          issues.push({
+            field: "route.explorerUrl",
+            message: typeof checked === "string" ? checked : "must not contain a query string",
+          });
+          hint ??= EXPLORER_URL_HINT;
+        } else {
+          page = checked.apiBase;
+        }
+      }
       rawKey = fields.apiKey;
       // A standalone explorer's key may also go to the host the table lists for the chain
       // (decision 0039): the row is checked below, and a chain without one throws.
@@ -663,7 +721,7 @@ export function checkRoute(
   if (issues.length > 0) {
     throw invalid(issues, "The route is invalid", hint, typeof rawKey === "string" ? [rawKey] : []);
   }
-  return { named, target, apiKey };
+  return { named, target, apiKey, page };
 }
 
 // References: decision 0052.
@@ -743,7 +801,7 @@ export function readsTable(checked: CheckedRoute): boolean {
  * ```
  */
 export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteChoice): Route {
-  const { named, target, apiKey } = checked;
+  const { named, target, apiKey, page } = checked;
   const targets = (entries: readonly TableEntry[]): TableTarget[] =>
     entries.flatMap((each) => tableTarget(chainId, each) ?? []);
   const { table } = choice;
@@ -879,7 +937,12 @@ export function routeFrom(chainId: number, checked: CheckedRoute, choice: RouteC
       }
       return `${apiBase}${path}${query}`;
     },
-    explorerUrl: entry?.apiUrl === apiBase ? entry.explorerUrl : undefined,
+    explorerUrl:
+      page === undefined
+        ? entry?.apiUrl === apiBase
+          ? entry.explorerUrl
+          : undefined
+        : pageAt(page, backend, chainId),
     apiKey: () => apiKey,
     overridden: target !== undefined,
     tableHost,
@@ -1008,7 +1071,7 @@ export function unsupported(
     why === "row"
       ? `The routing table has no row for ${chain}.`
       : why === "listed"
-        ? `The routing table lists no ${backend} API for ${chain}.`
+        ? `The routing table lists no ${BACKEND_LABELS[backend]} API for ${chain}.`
         : `This version has no ${backend} client, the routing table's choice for ${chain}.`,
     {
       hint:

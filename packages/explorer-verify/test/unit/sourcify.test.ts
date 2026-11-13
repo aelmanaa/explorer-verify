@@ -19,6 +19,7 @@ import { createObserver } from "../../src/observe.ts";
 import type { Handle, Logger, RouteOverride, VerifyInput } from "../../src/types.ts";
 import { loadFixture, replay, responseOf } from "../helpers/fake-fetch.ts";
 import type { Fixture, Step } from "../helpers/fake-fetch.ts";
+import { sourcifyReasonCode } from "../helpers/reason-codes.ts";
 import { resolveRoute } from "../helpers/route.ts";
 
 const API = "https://sourcify.dev/server";
@@ -836,6 +837,7 @@ describe("sourcify backend", () => {
       assert.deepEqual(await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx), {
         state: "failed",
         reason: "no_match: The deployed and recompiled bytecode don't match.",
+        reasonCode: "bytecode-mismatch",
       });
     });
 
@@ -851,6 +853,7 @@ describe("sourcify backend", () => {
       assert.deepEqual(await sourcify.poll(job, ctx), {
         state: "failed",
         reason: "contract_not_found_in_compiler_output: Contract not found in compiler output.",
+        reasonCode: "contract-name",
       });
     });
 
@@ -913,6 +916,7 @@ describe("sourcify backend", () => {
         assert.deepEqual(await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx), {
           state: "failed",
           reason: `${code}: m`,
+          reasonCode: sourcifyReasonCode(code),
         });
       });
     }
@@ -943,6 +947,30 @@ describe("sourcify backend", () => {
       });
     }
 
+    // References: decision 0073.
+    it("gives missing-source for a compiler_error whose message says solc found no source", async () => {
+      const response = edited("job-no-match", (b) => {
+        b.error = {
+          customCode: "compiler_error",
+          message: 'Compiler error: ParserError: Source "lib/A.sol" not found: File not found.',
+        };
+      });
+      const { ctx } = setup([response]);
+      const outcome = await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx);
+      assert.ok(outcome.state === "failed");
+      assert.equal(outcome.reasonCode, "missing-source");
+    });
+
+    it("gives compiler for a compiler_error without a message", async () => {
+      const response = edited("job-no-match", (b) => {
+        b.error = { customCode: "compiler_error" };
+      });
+      const { ctx } = setup([response]);
+      const outcome = await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx);
+      assert.ok(outcome.state === "failed");
+      assert.equal(outcome.reasonCode, "compiler");
+    });
+
     it("uses the code alone as the reason when the message is not a string (R-FLOW-4)", async () => {
       const response = edited("job-no-match", (b) => {
         b.error = { customCode: "no_match" };
@@ -951,6 +979,7 @@ describe("sourcify backend", () => {
       assert.deepEqual(await sourcify.poll(handle(NO_MATCH_JOB, OTHER), ctx), {
         state: "failed",
         reason: "no_match",
+        reasonCode: "bytecode-mismatch",
       });
     });
 

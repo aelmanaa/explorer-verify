@@ -313,7 +313,7 @@ describe("a standalone entry that needs a key (#170, decision 0039)", () => {
     assert.deepEqual(error.details, { code: "missing-api-key", backend: "etherscan-compatible" });
     assert.equal(
       error.message,
-      "etherscan-compatible needs an API key and none is set for openapi.example.org: set route.apiKey.",
+      "Etherscan-compatible explorer needs an API key and none is set for openapi.example.org: set route.apiKey.",
     );
     // Through verify(), with the default fetch: no request goes out.
     const fetch = t.mock.method(globalThis, "fetch", async () => new Response("{}"));

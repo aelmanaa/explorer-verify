@@ -448,7 +448,11 @@ describe("R-IN-6: builders, the envelope and the handler refuse unknown options"
     for (const run of [
       (options: object) => buildVerifyInput([input().compiler.input], options),
       (options: object) =>
-        untyped(toEnvelope, { status: "failed", backend: "sourcify", reason: "x" }, options),
+        untyped(
+          toEnvelope,
+          { status: "failed", backend: "sourcify", reason: "x", reasonCode: "unknown" },
+          options,
+        ),
     ]) {
       let ran = false;
       const options = {};
@@ -499,7 +503,7 @@ describe("R-IN-6: builders, the envelope and the handler refuse unknown options"
     const error = thrown(() =>
       untyped(
         toEnvelope,
-        { status: "failed", backend: "sourcify", reason: "x" },
+        { status: "failed", backend: "sourcify", reason: "x", reasonCode: "unknown" },
         {
           secret: [DUMMY_KEY],
         },
@@ -511,7 +515,7 @@ describe("R-IN-6: builders, the envelope and the handler refuse unknown options"
     assert.equal(error.message, "The options are invalid: secret.");
     assert.ok(!shows(error, DUMMY_KEY));
     const envelope = toEnvelope(
-      { status: "failed", backend: "sourcify", reason: "x" },
+      { status: "failed", backend: "sourcify", reason: "x", reasonCode: "unknown" },
       { secrets: undefined },
     );
     assert.equal(envelope.ok, false);

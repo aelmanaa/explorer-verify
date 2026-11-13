@@ -48,20 +48,20 @@ export function otherContract(stored: Stored, input: VerifyInput): StoredContrac
 }
 
 /**
- * The start of a message about another contract's source: the backend, and the stored contract's
- * name and compiler version, those the explorer gives.
+ * The start of a message about another contract's source: the explorer, and the stored
+ * contract's name and compiler version, those the explorer gives.
  *
- * @param backend - The backend's name.
+ * @param label - The explorer's label, from `BACKEND_LABELS`.
  * @param other - The stored contract.
  * @returns The text, such as
- *   `sourcify holds another contract's source (SimpleStorage, 0.8.33+commit.64118f21)`.
+ *   `Sourcify holds another contract's source (SimpleStorage, 0.8.33+commit.64118f21)`.
  * @example
  * ```ts
- * log.info(`${heldText("sourcify", other)}; submitting this source.`);
+ * log.info(`${heldText("Sourcify", other)}; submitting this source.`);
  * ```
  */
-export function heldText(backend: string, other: StoredContract): string {
-  return `${backend} holds another contract's source (${Object.values(other).join(", ")})`;
+export function heldText(label: string, other: StoredContract): string {
+  return `${label} holds another contract's source (${Object.values(other).join(", ")})`;
 }
 
 /** Two compiler versions as the same release: see {@link otherContract}. */

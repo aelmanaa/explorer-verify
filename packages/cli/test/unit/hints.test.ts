@@ -688,7 +688,7 @@ describe("the CLI's own hints (R-AX-10, D3)", () => {
       ...sampleError("missing-api-key"),
       code: "missing-api-key",
       message:
-        "etherscan-v2 needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
+        "Etherscan needs an API key and none is set for api.etherscan.io: set apiKeys.etherscan-v2, or handlerUrl.",
       details: { code: "missing-api-key", backend: "etherscan-v2" },
     };
     assert.equal(cliErrorJson(json).message, "etherscan-v2 needs an API key and none is set.");
@@ -698,7 +698,7 @@ describe("the CLI's own hints (R-AX-10, D3)", () => {
     ]) {
       const routed: ErrorJson = {
         ...json,
-        message: `etherscan-v2 needs an API key and none is set for x.example: ${reason}.`,
+        message: `Etherscan needs an API key and none is set for x.example: ${reason}.`,
       };
       assert.equal(
         cliErrorJson(routed).message,
@@ -708,7 +708,7 @@ describe("the CLI's own hints (R-AX-10, D3)", () => {
     const standalone: ErrorJson = {
       ...json,
       message:
-        "etherscan-compatible needs an API key and none is set for x.example: set route.apiKey.",
+        "Etherscan-compatible explorer needs an API key and none is set for x.example: set route.apiKey.",
     };
     assert.equal(
       cliErrorJson(standalone).message,

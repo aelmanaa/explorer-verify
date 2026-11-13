@@ -103,14 +103,14 @@ describe("keyErrorOf: messages and secrets (#158, R-SEC-1)", () => {
       { status: "0", message: "NOTOK", result: "Missing/Invalid API Key" },
       [],
     );
-    assert.equal(missing?.message, "etherscan-v2 answered that the API key is missing.");
+    assert.equal(missing?.message, "Etherscan answered that the API key is missing.");
     const spent = keyErrorOf(
       "routescan",
       { status: "0", message: "NOTOK", result: "Max daily rate limit reached" },
       [],
     );
     assert.equal(spent?.code, "quota-exceeded");
-    assert.equal(spent?.message, "routescan answered that the API key's daily limit is spent.");
+    assert.equal(spent?.message, "Routescan answered that the API key's daily limit is spent.");
   });
 
   it("removes the call's secrets from the error", () => {
@@ -118,7 +118,7 @@ describe("keyErrorOf: messages and secrets (#158, R-SEC-1)", () => {
     const error = keyErrorOf(
       "etherscan-v2",
       { status: "0", message: "NOTOK", result: "Missing/Invalid API Key" },
-      ["etherscan-v2"],
+      ["Etherscan"],
     );
     assert.equal(error?.message, `${REDACTED} answered that the API key is missing.`);
   });
@@ -138,12 +138,12 @@ describe("requireKey: secrets (#158, R-SEC-1)", () => {
       routedBy: "api-url",
       skipped: [],
     };
-    // A secret equal to the backend name shows that the secrets reach the error.
+    // A secret equal to the backend's label shows that the secrets reach the error.
     const error = thrown(() => {
-      requireKey({ route }, false, ["etherscan-v2"]);
+      requireKey({ route }, false, ["Etherscan"]);
     });
     assert.equal(error.code, "missing-api-key");
-    assert.ok(!error.message.includes("etherscan-v2"), error.message);
+    assert.ok(!error.message.includes("Etherscan"), error.message);
     assert.ok(error.message.startsWith(`${REDACTED} needs an API key`), error.message);
   });
 });

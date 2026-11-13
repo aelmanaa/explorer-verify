@@ -774,6 +774,7 @@ describe("blockscout poll (R-BE-3, R-FLOW-2, R-FLOW-4)", () => {
     assert.deepEqual(await blockscout.poll(handle(), s.ctx), {
       state: "failed",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
     assert.equal(s.calls.length, 1);
     assert.ok("Fail - Unable to verify".length <= REASON_LENGTH);
@@ -1031,6 +1032,7 @@ describe("verify() with the Blockscout client (R-FLOW-1, R-FLOW-2, R-FLOW-7, R-D
       status: "failed",
       backend: "blockscout",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
   });
 

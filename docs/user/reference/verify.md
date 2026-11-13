@@ -78,7 +78,7 @@ Every field is optional. A field set to `undefined` counts as absent.
 | `indexWaitMs`           | none, 10 submits   | How long to resubmit while the explorer finds no contract code: [Etherscan](etherscan.md#how-answers-are-read)                           |
 | `logger`                | none               | Receives [log lines](logging-and-events.md), keys removed                                                                                |
 | `onEvent`               | none               | Receives the [stage events](logging-and-events.md#events)                                                                                |
-| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey? }`, see [Routing](routing.md#route)                                                                        |
+| `route`                 | the routing table  | `{ backend?, apiUrl?, apiKey?, explorerUrl? }`, see [Routing](routing.md#route)                                                          |
 | `allowSourcifyFallback` | `false`            | Sends a chain the table does not list to public Sourcify                                                                                 |
 | `apiKeys`               | none               | Keys by backend, each sent only to its host: [API keys](api-keys.md)                                                                     |
 | `rpcUrl`                | none               | JSON-RPC endpoint for [constructor arguments](#constructor-arguments)                                                                    |
@@ -109,11 +109,57 @@ object typed `VerifyOptions` can go to all of them, as in the dry run.
 | ------------------ | -------------------------------------------- | --------------------------------------------------- | --------- |
 | `already-verified` | The explorer had the contract verified       | `backend`, `match`, `explorerUrl`, `storedContract` | 0         |
 | `verified`         | This call's submission verified the contract | `backend`, `match`, `explorerUrl`                   | 0         |
-| `failed`           | The explorer rejected the source             | `backend`, `reason`                                 | 1         |
+| `failed`           | The explorer rejected the source             | `backend`, `reason`, `reasonCode`                   | 1         |
 
 `match` is `exact` or `partial` ([Match types](../explanation/match-types.md)).
-`explorerUrl` is absent when `route` points at another server. `reason` is
-the explorer's message, keys removed, at most 300 characters.
+`explorerUrl` is absent when `route` points at another server, unless
+`route.explorerUrl` gives its page ([Routing](routing.md#the-explorer-page)).
+`reason` is the explorer's message, keys removed, at most 300 characters.
+
+### Why a submission failed
+
+`reasonCode` says why the explorer rejected the source, as far as its answer
+tells. Switch on it, not on `reason`, whose text is the explorer's:
+
+| `reasonCode`        | The explorer's answer says                                                     |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `bytecode-mismatch` | The source compiled, but its bytecode or metadata hash differs from deployment |
+| `missing-source`    | The compiler needed a source the input lacks, or the build used more files     |
+| `compiler`          | The compiler rejected the input, or the explorer lacks its version or language |
+| `contract-name`     | The compiler output has no deployable contract under `contractName`            |
+| `constructor-args`  | The constructor arguments do not match the deployment                          |
+| `libraries`         | A linked library is missing or does not match                                  |
+| `unknown`           | Nothing more; Blockscout's `Fail - Unable to verify` names no cause            |
+
+A build tool that sends a reduced input first can retry with the full input
+on `missing-source`. A later release may add values, so keep a default
+branch. Each client's page says which answers give which value:
+[Sourcify](sourcify.md), [Etherscan](etherscan.md), [Routescan](routescan.md),
+[Blockscout](blockscout.md) and
+[Etherscan-compatible explorers](etherscan-compatible.md).
+
+This check decides the retry:
+
+```ts [retry-full-input.ts]
+import type { VerifyResult } from "explorer-verify";
+
+// Your code: retry with the full input when the reduced one lacked a source.
+function retryWithFullInput(result: VerifyResult): boolean {
+  return result.status === "failed" && result.reasonCode === "missing-source";
+}
+console.log(
+  retryWithFullInput({
+    status: "failed",
+    backend: "sourcify",
+    reason: "missing_source: x",
+    reasonCode: "missing-source",
+  }),
+);
+```
+
+```text
+true
+```
 
 `storedContract` is present when the explorer holds another contract's
 source for the address. Your source is then not on the explorer, yet the
@@ -184,7 +230,7 @@ reads the contract name and the compiler version the explorer stores, and
 | Versions                    | Compared without a leading `v`, in lower case; only the release when one side has no `+commit.` |
 | zksolc input                | Its `solcVersion` is compared                                                                   |
 | Answer names neither field  | The match counts as this source; an `info` line says the answer names no contract               |
-| Either field differs        | `verify()` submits the source                                                                   |
+| Either field differs        | `verify()` emits `verify.stored` with both fields, then submits the source                      |
 | Explorer refuses the submit | `already-verified`, `partial`, with `storedContract`, and a `warn` line                         |
 | Stored text                 | Cut to 300 characters, control characters replaced, your keys removed                           |
 

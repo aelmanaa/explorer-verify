@@ -74,7 +74,7 @@ describe("--require-own-source walks the exit-code table (R-AX-5, R-AX-7)", () =
       [{ status: "verified", backend: "sourcify", match: "exact" }, 0],
       [OWN, 0],
       [OTHER, 1],
-      [{ status: "failed", backend: "sourcify", reason: "no match" }, 1],
+      [{ status: "failed", backend: "sourcify", reason: "no match", reasonCode: "unknown" }, 1],
     ];
     for (const [result, code] of rows) {
       assert.equal(gated(result), code, JSON.stringify(result));
@@ -115,7 +115,7 @@ describe("--require-own-source walks the exit-code table (R-AX-5, R-AX-7)", () =
       [[OTHER, errorOf({ code: "not-confirmed", handle: HANDLE })], 4],
       [[OTHER, errorOf({ code: "unknown-state", handle: HANDLE, excerpt: "x" })], 6],
       [[OTHER, errorOf({ code: "network", backend: "sourcify", attempts: 3 })], 5],
-      [[OTHER, { status: "failed", backend: "sourcify", reason: "no" }], 1],
+      [[OTHER, { status: "failed", backend: "sourcify", reason: "no", reasonCode: "unknown" }], 1],
     ];
     for (const [values, code] of cases) {
       const outcomes = values.map((value, index) =>

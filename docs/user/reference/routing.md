@@ -71,7 +71,7 @@ Sourcify API. It defaults to `false` and has no effect on a listed chain. From t
 
 ## `route`
 
-`VerifyOptions.route` is `{ backend?, apiUrl?, apiKey? }`:
+`VerifyOptions.route` is `{ backend?, apiUrl?, apiKey?, explorerUrl? }`:
 
 - `backend` without `apiUrl` picks a backend from the chain's row.
 - `apiUrl` sends the call to another server, such as a self-hosted Sourcify or a local fake. It
@@ -79,9 +79,48 @@ Sourcify API. It defaults to `false` and has no effect on a listed chain. From t
   name, password or fragment.
 - `apiKey` is the key for the server at `apiUrl`, and needs `apiUrl` next to it. The exception is a
   [standalone entry with `needsKey`](#standalone-etherscan-compatible-entries).
+- `explorerUrl` is the explorer's page base, such as `https://sepolia.etherscan.io`. The result's
+  `explorerUrl` is built from it. See [The explorer page](#the-explorer-page).
 
-A query in `apiUrl` is sent with every request and logged as `?REDACTED`. A result has no
-`explorerUrl` unless `apiUrl` is the row's own API URL, such as `https://api.etherscan.io/v2/api`.
+A query in `apiUrl` is sent with every request and logged as `?REDACTED`. Without
+`route.explorerUrl`, a result has no `explorerUrl` unless `apiUrl` is the row's own API URL, such as
+`https://api.etherscan.io/v2/api`.
+
+### The explorer page
+
+`route.explorerUrl` gives a route its explorer page. It replaces the row's page, and gives a route
+with `apiUrl` a page it otherwise lacks. No request goes to it. The contract's page is built as the
+table builds its pages:
+
+| Backend                                             | Page                                           |
+| --------------------------------------------------- | ---------------------------------------------- |
+| `etherscan-v2`, `etherscan-compatible`, `routescan` | `<explorerUrl>/address/<address>#code`         |
+| `blockscout`, `blockscout-hosted`                   | `<explorerUrl>/address/<address>?tab=contract` |
+| `sourcify`                                          | `<explorerUrl>/<chainId>/<address>`            |
+
+It follows the rules of `apiUrl`, and must not hold a query string. Trailing slashes are removed.
+Any other value throws [`invalid-input`](errors/invalid-input.md) naming `route.explorerUrl`.
+
+This route sends the call to a local Blockscout and links its own page:
+
+```ts [explorer-url.ts]
+import type { VerifyOptions } from "explorer-verify";
+
+const options: VerifyOptions = {
+  route: {
+    backend: "blockscout",
+    apiUrl: "http://127.0.0.1:4000/api",
+    explorerUrl: "http://localhost:4000",
+  },
+};
+// A verified contract's result.explorerUrl is
+// http://localhost:4000/address/<address>?tab=contract
+console.log(options.route?.explorerUrl);
+```
+
+```text
+http://localhost:4000
+```
 
 `route: { backend: "blockscout-hosted" }` is the one backend no row lists. It goes to
 `https://api.blockscout.com/<chainId>/api` for any chain, with `apiKeys["blockscout-hosted"]`

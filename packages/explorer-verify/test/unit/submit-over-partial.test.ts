@@ -141,7 +141,7 @@ describe("R-FLOW-1: submitOverPartial submits over a partial match of this sourc
         ([level, message]) =>
           level === "info" &&
           message ===
-            "sourcify holds a partial match of this source; submitting over it (submitOverPartial).",
+            "Sourcify holds a partial match of this source; submitting over it (submitOverPartial).",
       ),
     );
     // The lookup event reports the grade the lookup found, as without the option.
@@ -278,7 +278,7 @@ describe("R-FLOW-7: a refused submit over a partial match keeps already-verified
     const warn = log.seen.find(([level]) => level === "warn");
     assert.deepEqual(warn, [
       "warn",
-      "blockscout rejected the submit over the partial match (Fail - Unable to verify); the partial match stays.",
+      "Blockscout rejected the submit over the partial match (Fail - Unable to verify); the partial match stays.",
       { backend: "blockscout" },
     ]);
   });
@@ -298,6 +298,7 @@ describe("R-FLOW-7: a refused submit over a partial match keeps already-verified
       status: "failed",
       backend: "blockscout",
       reason: "Fail - Unable to verify",
+      reasonCode: "unknown",
     });
   });
 

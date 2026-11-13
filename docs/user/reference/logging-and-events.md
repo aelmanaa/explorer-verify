@@ -72,6 +72,9 @@ that reads only the message also fits. When a line has no fields, the method get
 The first line is `Verifying <address> on chain <id>`, with `backend`, `chainId` and `api`. `api`
 is the API URL with its query replaced by `?REDACTED`.
 
+Messages name the explorer by its label, such as `Etherscan` or `Sourcify`, from `BACKEND_LABELS`
+in `explorer-verify/backends`. The `backend` field holds the id, such as `etherscan-v2`.
+
 A failure that ends the call is thrown as an `ExplorerVerifyError`, which carries the message. It
 is not also logged at `error`, so a program that logs the thrown error shows each failure once.
 
@@ -118,6 +121,7 @@ the verification goes on.
 | `verify.validated` | The input passed validation                        | `chainId`, `address`                                                     |
 | `verify.routed`    | The route is resolved                              | `backend`, `apiHost` (the host only), `routedBy`, `skipped`              |
 | `verify.lookup`    | The already-verified check finished or was skipped | `backend`, `lookup`: `exact`, `partial`, `none` or `skipped`             |
+| `verify.stored`    | That check found another contract's source         | `backend`, and `name` and `compilerVersion` when the explorer gives them |
 | `verify.submitted` | The explorer accepted the submission               | `backend`, `handle` in its one-line form                                 |
 | `verify.poll`      | One poll returned a state that is not final        | `backend`, `attempt`, `state`: `pending`, `queued`, `completed`          |
 | `verify.retry`     | A request is retried after a transient failure     | `backend`, `attempt`, `reason`, `delayMs`                                |
@@ -175,6 +179,12 @@ Its retries are logged at `warn`, with `label` set to `rpc`.
   states and compares no names: it can say `exact` for another contract's match. The final
   result compares them and carries `storedContract`
   ([Another contract's source](verify.md#another-contracts-source)).
+- `verify.stored` arrives after `verify.lookup` and before the submit, when the explorer holds
+  another contract's source at the address: another contract name or compiler version than the
+  input's. `name` and `compilerVersion` are the explorer's text, as in `result.storedContract`, so
+  a tool can show which contract the explorer holds before `verify()` submits over it
+  ([Another contract's source](verify.md#another-contracts-source)). A match of this source, or an
+  answer that names no contract, emits none. `dryRun()` and `checkStatus()` never emit it.
 - `verify.submitted` arrives as soon as the explorer accepts the submission. Store its `handle`:
   if the call is aborted or the process stops, the handle resumes the verification. `verify()`
   also logs the handle at `info`.
@@ -203,6 +213,7 @@ function onEvent(event: VerifyEvent): void {
     case "verify.validated":
     case "verify.routed":
     case "verify.lookup":
+    case "verify.stored":
     case "verify.poll":
     case "proxy.routed":
     case "proxy.poll":
@@ -280,6 +291,9 @@ for errors and results:
 A handle's job id keeps the shape of a key, so a valid handle still resumes. It is redacted only
 when it equals a key the call knows. See [Errors](errors/index.md#api-keys-in-errors) for the same
 rules on thrown errors.
+
+`verify.stored` carries the explorer's text in `name` and `compilerVersion`. The client cuts each
+to 300 characters and redacts the call's keys from it, and the event is redacted again.
 
 These event fields have a fixed set of values and are copied as they are:
 

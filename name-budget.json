@@ -1,6 +1,6 @@
 {
-  "$comment": "Per-name size ceilings (R-RUN-3, decisions 0014, 0042 and 0063). `pnpm run size` runs scripts/check-names.ts, which lists the value exports of every code entry in each package's package.json `exports` from the built package and bundles each name three ways: esbuild with splitting, esbuild as one file, and Rollup with each chunk minified by esbuild, as Vite builds. Each mode records the initial load (the entry file and the files it imports statically, minified, and each gzipped on its own at level 6) and the number of JavaScript files emitted. ceilingBytes is gzipBytes plus 20%, rounded up, and applies to the gzipped initial load. An exported name with no row fails, and so does a row whose name is gone; `node scripts/check-names.ts name-budget.json --add-missing` adds a row for each new name and never changes one that exists. `packages` gives each package's bundler platform; a Node package keeps its dependencies and peer dependencies external. `light` lists subpaths whose names must emit at most maxFiles files under esbuild splitting, and names that must stay under maxMinBytes minified in every mode; while a subpath is missing from `exports` the rule is pending and does not fail. `model` lists names reported beside the size-budget.json model; those lines never fail. Raise a ceiling only in a pull request that says why (decision 0008).",
-  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047). The isHandleString and tryParseHandle rows were measured on 2026-11-06 on main 919359e plus #218 (decision 0050). The esbuild split and one-file rows of verify and dryRun from explorer-verify were measured on 2026-11-10 on main acd9ffd plus #293 (decision 0063). The explorer-verify/handle, /errors, /backends and /envelope rows were measured on 2026-11-06 on main a8f5f1b plus #219 (decision 0055). The two hintFor rows were measured on 2026-11-10 on main 9d55a2a plus #286 and #298 (decision 0061). The esbuild one-file rows of checkStatus and verifyEach, the esbuild split rows of linkProxy and verifyEach, and the Rollup rows of verify and dryRun from explorer-verify were measured on 2026-11-11 on 23a2cd0, the head of #327, plus #297 (decision 0066). The esbuild split rows of BACKEND_NAMES, ExplorerVerifyError, checkStatus, formatHandle, parseHandle and toBackendName from explorer-verify were measured on 2026-11-11 on main 1ef1660 plus #294 (decision 0067). The esbuild split row of ERROR_CODES and the Rollup row of linkProxy from explorer-verify were measured on 2026-11-11 on d638b33, the head of #348, plus #349, #353, #354, #356 and #357 (decision 0066, amendment of 2026-11-11).",
+  "$comment": "Per-name size ceilings (R-RUN-3, decisions 0014, 0042, 0063 and 0073). `pnpm run size` runs scripts/check-names.ts, which lists the value exports of every code entry in each package's package.json `exports` from the built package and bundles each name three ways: esbuild with splitting, esbuild as one file, and Rollup with each chunk minified by esbuild, as Vite builds. Each mode records the initial load (the entry file and the files it imports statically, minified, and each gzipped on its own at level 6) and the number of JavaScript files emitted. ceilingBytes is gzipBytes plus 20%, rounded up, and applies to the gzipped initial load. An exported name with no row fails, and so does a row whose name is gone; `node scripts/check-names.ts name-budget.json --add-missing` adds a row for each new name and never changes one that exists. `packages` gives each package's bundler platform; a Node package keeps its dependencies and peer dependencies external. `light` lists subpaths whose names must emit at most maxFiles files under esbuild splitting, and names that must stay under maxMinBytes minified in every mode; while a subpath is missing from `exports` the rule is pending and does not fail. `model` lists names reported beside the size-budget.json model; those lines never fail. Raise a ceiling only in a pull request that says why (decision 0008).",
+  "measured": "Every row was measured on 2026-11-05 on main d82957d with esbuild 0.28.2, Rollup 4.67.4 and Node.js 24.21.0 zlib, except the ERROR_HINTS row and the esbuild one-file and Rollup rows of ExplorerVerifyError, measured on main 0ad78f1 plus #213 (decision 0044), when the hint text left the class. The findHardhatBuild, buildVerifyInputFromHardhat, findFoundryBuild and buildVerifyInputFromFoundry rows were measured on 2026-11-06 on main 1a4510c plus #216 (decision 0047). The isHandleString and tryParseHandle rows were measured on 2026-11-06 on main 919359e plus #218 (decision 0050). The esbuild split and one-file rows of verify and dryRun from explorer-verify were measured on 2026-11-10 on main acd9ffd plus #293 (decision 0063). The explorer-verify/handle, /errors, /backends and /envelope rows were measured on 2026-11-06 on main a8f5f1b plus #219 (decision 0055). The two hintFor rows were measured on 2026-11-10 on main 9d55a2a plus #286 and #298 (decision 0061). The esbuild one-file rows of checkStatus and verifyEach, the esbuild split rows of linkProxy and verifyEach, and the Rollup rows of verify and dryRun from explorer-verify were measured on 2026-11-11 on 23a2cd0, the head of #327, plus #297 (decision 0066). The esbuild split rows of BACKEND_NAMES, ExplorerVerifyError, checkStatus, formatHandle, parseHandle and toBackendName from explorer-verify were measured on 2026-11-11 on main 1ef1660 plus #294 (decision 0067). The esbuild split row of ERROR_CODES and the Rollup row of linkProxy from explorer-verify were measured on 2026-11-11 on d638b33, the head of #348, plus #349, #353, #354, #356 and #357 (decision 0066, amendment of 2026-11-11). The Rollup row of checkStatus, the esbuild one-file row of linkProxy and the two BACKEND_LABELS rows were measured on 2026-11-12 on main 26e1458 plus #389, #390, #391 and #392 (decision 0073).",
   "packages": {
     "explorer-verify": "browser",
     "@explorer-verify/hardhat": "node",
@@ -145,10 +145,10 @@
         "ceilingBytes": 36590
       },
       "rollup": {
-        "minBytes": 46795,
-        "gzipBytes": 15867,
-        "files": 9,
-        "ceilingBytes": 19041
+        "minBytes": 57129,
+        "gzipBytes": 19283,
+        "files": 10,
+        "ceilingBytes": 23140
       }
     },
     {
@@ -227,10 +227,10 @@
         "ceilingBytes": 24263
       },
       "esbuildOneFile": {
-        "minBytes": 93756,
-        "gzipBytes": 25902,
+        "minBytes": 108448,
+        "gzipBytes": 31116,
         "files": 1,
-        "ceilingBytes": 31083
+        "ceilingBytes": 37340
       },
       "rollup": {
         "minBytes": 52967,
@@ -1315,6 +1315,50 @@
         "gzipBytes": 1941,
         "files": 1,
         "ceilingBytes": 2330
+      }
+    },
+    {
+      "entry": "explorer-verify",
+      "name": "BACKEND_LABELS",
+      "esbuildSplit": {
+        "minBytes": 15134,
+        "gzipBytes": 5846,
+        "files": 21,
+        "ceilingBytes": 7016
+      },
+      "esbuildOneFile": {
+        "minBytes": 323,
+        "gzipBytes": 232,
+        "files": 1,
+        "ceilingBytes": 279
+      },
+      "rollup": {
+        "minBytes": 220,
+        "gzipBytes": 158,
+        "files": 1,
+        "ceilingBytes": 190
+      }
+    },
+    {
+      "entry": "explorer-verify/backends",
+      "name": "BACKEND_LABELS",
+      "esbuildSplit": {
+        "minBytes": 218,
+        "gzipBytes": 157,
+        "files": 1,
+        "ceilingBytes": 189
+      },
+      "esbuildOneFile": {
+        "minBytes": 218,
+        "gzipBytes": 157,
+        "files": 1,
+        "ceilingBytes": 189
+      },
+      "rollup": {
+        "minBytes": 220,
+        "gzipBytes": 158,
+        "files": 1,
+        "ceilingBytes": 190
       }
     }
   ]

@@ -71,6 +71,12 @@ function everyEvent(): VerifyEvent[] {
     { type: "verify.lookup", backend: "sourcify", lookup: "none" },
     { type: "verify.lookup", backend: "sourcify", lookup: "skipped" },
     {
+      type: "verify.stored",
+      backend: "sourcify",
+      name: `Box ${DUMMY_KEY}`,
+      compilerVersion: `v0.8.30 ${DUMMY_KEY}`,
+    },
+    {
       type: "verify.submitted",
       backend: "etherscan-v2",
       handle: `ev1:etherscan-v2:1:${ADDRESS}:${DUMMY_KEY}`,
@@ -195,6 +201,7 @@ describe("Logger and VerifyEvent types (R-DX-5, R-DX-6)", () => {
       "verify.validated": true,
       "verify.routed": true,
       "verify.lookup": true,
+      "verify.stored": true,
       "verify.submitted": true,
       "verify.poll": true,
       "verify.retry": true,
@@ -354,7 +361,7 @@ describe("event.schema.json (R-DX-6, R-AX-16)", () => {
     for (const event of everyEvent()) {
       for (const name of Object.keys(event)) {
         if (
-          ["entry", "explorerUrl", "implementation"].includes(name) &&
+          ["entry", "explorerUrl", "implementation", "name", "compilerVersion"].includes(name) &&
           (name !== "implementation" || ("status" in event && event.status === "mismatch"))
         )
           continue;
@@ -619,16 +626,22 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       apiHost: "[redacted].example.org",
     };
     expected[4] = {
+      type: "verify.stored",
+      backend: "sourcify",
+      name: "Box [redacted]",
+      compilerVersion: "v0.8.30 [redacted]",
+    };
+    expected[5] = {
       type: "verify.submitted",
       backend: "etherscan-v2",
       handle: `ev1:etherscan-v2:1:${ADDRESS}:[redacted]`,
     };
-    expected[16] = {
+    expected[17] = {
       type: "proxy.routed",
       backend: "blockscout",
       apiHost: "[redacted].example.org",
     };
-    expected[19] = {
+    expected[20] = {
       type: "proxy.result",
       backend: "blockscout",
       status: "linked",
@@ -636,14 +649,14 @@ describe("createObserver: events (R-DX-6, R-SEC-1)", () => {
       implementationVerified: true,
       explorerUrl: "https://example.org/[redacted]",
     };
-    expected[23] = {
+    expected[24] = {
       type: "proxy.result",
       backend: "blockscout",
       status: "not-linked",
       reason: "[redacted]",
     };
     assert.deepEqual(seen, expected);
-    assert.equal(seen.length, 24);
+    assert.equal(seen.length, 25);
     for (const event of seen) {
       assertValidEvent(event);
     }

@@ -329,7 +329,16 @@ describe("checkStatus(): resume a job (R-FLOW-5)", () => {
     assert.equal(result.status, "failed");
     assert.ok("reason" in result && typeof result.reason === "string");
     assert.ok(result.reason.startsWith("no_match"));
-    assertResult(result, { status: "failed", backend: "sourcify", reason: result.reason }, 1);
+    assertResult(
+      result,
+      {
+        status: "failed",
+        backend: "sourcify",
+        reason: result.reason,
+        reasonCode: "bytecode-mismatch",
+      },
+      1,
+    );
     assert.deepEqual(r.events.at(-1), {
       type: "verify.result",
       backend: "sourcify",
@@ -509,7 +518,7 @@ describe("checkStatus(): a job the explorer no longer knows (R-FLOW-5)", () => {
     );
     assert.equal(
       error.message,
-      `sourcify does not know job ${GREETER_JOB}, and a lookup found the contract not verified.`,
+      `Sourcify does not know job ${GREETER_JOB}, and a lookup found the contract not verified.`,
     );
     assert.equal(error.cause instanceof Error && Reflect.get(error.cause, "code"), "job-not-found");
     assertErrorEnvelope(error, 6);
@@ -986,7 +995,7 @@ describe("killers #18", () => {
         (line) =>
           line.level === "debug" &&
           line.message ===
-            `sourcify does not know job ${GREETER_JOB}; looking the contract up instead`,
+            `Sourcify does not know job ${GREETER_JOB}; looking the contract up instead`,
       ),
     );
   });

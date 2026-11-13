@@ -86,8 +86,9 @@ The submit fields:
 
 A call that submits sends one lookup, one submit (more while Etherscan has not
 [indexed the contract](#a-contract-etherscan-has-not-indexed)) and one status request per poll,
-plus any retries. A status answer
-of `Fail - Unable to verify` costs one more request: a `getsourcecode` lookup, sent before the call
+plus any retries.
+
+A status answer of `Fail - Unable to verify` costs one more request: a `getsourcecode` lookup, sent before the call
 reports its outcome
 ([decision 0067](../../contributor/decisions/0067-submit-over-a-partial-match.md)). Count it when
 you plan for a key's rate limit. Routescan and the Etherscan-compatible explorers do the same.
@@ -127,7 +128,23 @@ The rate-limit answer comes with HTTP 200, not 429. It is retried as a 429 is: t
 attempt limit and time budget, and a `verify.retry` event with `reason` `rate-limited`
 ([Logging and events](logging-and-events.md)).
 
-A `failed` reason is redacted with the call's keys and cut to 300 characters.
+A `failed` reason is redacted with the call's keys and cut to 300 characters. Its `reasonCode`
+([Why a submission failed](verify.md#why-a-submission-failed)) comes from the whole text, read in
+lower case. The phrases are those of Etherscan's documented verification errors; only the bytecode
+mismatch has been recorded live:
+
+| The text holds                                          | `reasonCode`        |
+| ------------------------------------------------------- | ------------------- |
+| `Source "<path>" not found`                             | `missing-source`    |
+| `constructor argument`                                  | `constructor-args`  |
+| `Library was required`                                  | `libraries`         |
+| `Unable to locate ContractName`                         | `contract-name`     |
+| `bytecode does NOT match` or `bytecodehash`             | `bytecode-mismatch` |
+| `Compilation Error` or `solc version`                   | `compiler`          |
+| None of these, such as a bare `Fail - Unable to verify` | `unknown`           |
+
+The first row that matches wins, so a compilation error about a missing source is
+`missing-source`.
 
 ## A contract Etherscan has not indexed
 
@@ -175,7 +192,9 @@ there.
 
 A submit may reach Etherscan without explorer-verify learning the job id: no response, a 500, 502
 or 504, or a 200 whose body failed, stalled or is not JSON. explorer-verify does not send such a
-submit again blindly. It looks the contract up first: a match ends the submit as
+submit again blindly.
+
+It looks the contract up first: a match ends the submit as
 `already-verified`; no match sends it once more. If the second submit also gets no clear answer,
 the call throws that error.
 

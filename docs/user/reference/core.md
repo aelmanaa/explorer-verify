@@ -102,6 +102,8 @@ Hint: Add table from explorer-verify/table, or set route.apiUrl.
 Without the table, no row is read:
 
 - A result has no explorer page from a row. Etherscan's page, for instance, comes from the row.
+  Set `route.explorerUrl`, such as `https://sepolia.etherscan.io`, to give the result its page
+  without the table ([Routing](routing.md#the-explorer-page)).
 - A standalone Etherscan-compatible explorer's row says whether it needs a key. Without it, the
   early `missing-api-key` check does not apply, and the explorer refuses a keyless request itself.
 - Requests go only to the hosts of the backends with one public host, or of your `route.apiUrl`.

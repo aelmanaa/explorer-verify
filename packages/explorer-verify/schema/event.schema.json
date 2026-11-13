@@ -97,6 +97,32 @@
       "required": ["type", "backend", "lookup"]
     },
     {
+      "description": "The already-verified check found another contract's source; verify() submits this source next.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "verify.stored"
+        },
+        "backend": {
+          "$ref": "#/$defs/backend"
+        },
+        "entry": {
+          "description": "Zero-based index into verifyEach backends. Absent for other calls.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "description": "The stored contract's name as the explorer gives it: Name, or path:Name on Sourcify.",
+          "type": "string"
+        },
+        "compilerVersion": {
+          "description": "The stored contract's compiler version as the explorer gives it.",
+          "type": "string"
+        }
+      },
+      "required": ["type", "backend"]
+    },
+    {
       "description": "The explorer accepted the submission. The handle resumes the verification later (R-FLOW-5).",
       "type": "object",
       "properties": {

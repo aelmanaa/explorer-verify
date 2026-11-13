@@ -460,6 +460,7 @@ describe("checkStatus(): outcomes", () => {
       status: "failed",
       backend: "sourcify",
       reason: "no_match: The deployed and recompiled bytecode don't match.",
+      reasonCode: "bytecode-mismatch",
     });
     assert.equal(exitCodeOf(result), 1);
   });
@@ -1272,6 +1273,7 @@ describe("doc examples", () => {
         case "verify.validated":
         case "verify.routed":
         case "verify.lookup":
+        case "verify.stored":
         case "verify.poll":
         case "proxy.routed":
         case "proxy.poll":

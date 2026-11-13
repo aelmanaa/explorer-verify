@@ -9,7 +9,7 @@ import { inspect } from "node:util";
 
 import type { Context, Target } from "../../src/backends/backend.ts";
 import { REASON_LENGTH } from "../../src/backends/common.ts";
-import { MAX_NOT_INDEXED_TRIES, etherscan } from "../../src/backends/etherscan.ts";
+import { MAX_NOT_INDEXED_TRIES, etherscan, reasonCodeOf } from "../../src/backends/etherscan.ts";
 import { ERROR_EXIT_CODES } from "../../src/envelope.ts";
 import { ERROR_HINTS } from "../../src/error-hints.ts";
 import { ExplorerVerifyError } from "../../src/errors.ts";
@@ -20,6 +20,7 @@ import { createObserver } from "../../src/observe.ts";
 import type { RoutingTable } from "../../src/routing/resolve.ts";
 import { createVerifyHandler } from "../../src/server/handler.ts";
 import type {
+  FailureReasonCode,
   Handle,
   RouteOverride,
   VerifyEvent,
@@ -856,6 +857,7 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
       state: "failed",
       reason:
         "Fail - Unable to verify. Compiled contract runtime bytecode does NOT match the on-chain runtime bytecode.",
+      reasonCode: "bytecode-mismatch",
       notVerified: true,
     });
   });
@@ -869,6 +871,7 @@ describe("etherscan poll (R-BE-1, R-FLOW-2, R-FLOW-4)", () => {
       state: "failed",
       reason:
         "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode.",
+      reasonCode: "bytecode-mismatch",
       notVerified: true,
     });
   });
@@ -1188,5 +1191,68 @@ describe("the Etherscan client through createVerifyHandler (R-SRV-5, R-SEC-1)", 
       explorerUrl: `https://sepolia.arbiscan.io/address/${D1.toLowerCase()}#code`,
     });
     assertKeyOnlyInBodies(upstream.calls);
+  });
+});
+
+// References: R-FLOW-4, decision 0073.
+describe("Etherscan: the reason code of a rejected job", () => {
+  // The recorded mismatch, then the texts of Etherscan's documented verification errors
+  // (docs.etherscan.io, Common Verification Errors, read 2026-11-12), each after the Fail prefix.
+  const cases: readonly (readonly [string, FailureReasonCode])[] = [
+    [
+      "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode.",
+      "bytecode-mismatch",
+    ],
+    [
+      'Fail - Unable to verify. Source "@openzeppelin/contracts/ERC20.sol" not found: File import callback not supported',
+      "missing-source",
+    ],
+    [
+      'Fail - Unable to verify. Solidity Compilation Error: Source "lib/A.sol" not found: File not found.',
+      "missing-source",
+    ],
+    [
+      "Fail - Unable to verify. Please check if the correct constructor argument was entered",
+      "constructor-args",
+    ],
+    ["Fail - Unable to verify. Library was required but suitable match not found", "libraries"],
+    [
+      "Fail - Unable to verify. Unable to locate ContractName , did you specify the correct Contract Name ?",
+      "contract-name",
+    ],
+    [
+      "Fail - Unable to verify. Please check if the correct bytecodehash was specified via standard-json verification.",
+      "bytecode-mismatch",
+    ],
+    [
+      "Fail - Unable to verify. Solidity Compilation Error: Identifier not found or not unique",
+      "compiler",
+    ],
+    [
+      "Fail - Unable to verify. Invalid or not supported solc version, see https://etherscan.io/solcversions for list",
+      "compiler",
+    ],
+    ["Fail - Unable to verify", "unknown"],
+  ];
+  for (const [result, reasonCode] of cases) {
+    it(`${reasonCode}: ${result.slice(24, 80)}`, async () => {
+      const s = setup([
+        answer("2026-11-04-checkverifystatus-fail-bytecode-mismatch", (body) => {
+          body.result = result;
+        }),
+        NOT_VERIFIED(),
+      ]);
+      assert.deepEqual(await etherscan.poll(handle(), s.ctx), {
+        state: "failed",
+        reason: result,
+        reasonCode,
+        notVerified: true,
+      });
+    });
+  }
+
+  it("reads the cause from the whole text, before the reason is cut to its length", () => {
+    const long = `${"x".repeat(REASON_LENGTH)} Source "a.sol" not found`;
+    assert.equal(reasonCodeOf(long), "missing-source");
   });
 });

@@ -37,7 +37,12 @@ const optionKeys: Record<keyof VerifyOptions, true> = {
   handlerUrl: true,
   submitOverPartial: true,
 };
-const routeKeys: Record<keyof RouteOverride, true> = { backend: true, apiUrl: true, apiKey: true };
+const routeKeys: Record<keyof RouteOverride, true> = {
+  backend: true,
+  apiUrl: true,
+  apiKey: true,
+  explorerUrl: true,
+};
 const emptyRoute: RouteOverride = {};
 // A success without an explorer link must compile: a self-hosted Sourcify server has no public page.
 const successesWithoutLink: VerifyResult[] = [
@@ -84,15 +89,16 @@ describe("public types", () => {
     );
   });
 
-  it("RouteOverride has backend, apiUrl and apiKey, all optional (decisions 0009 and 0016)", () => {
-    assert.deepEqual(Object.keys(routeKeys), ["backend", "apiUrl", "apiKey"]);
+  it("RouteOverride has backend, apiUrl, apiKey and explorerUrl, all optional (decisions 0009, 0016 and 0073)", () => {
+    assert.deepEqual(Object.keys(routeKeys), ["backend", "apiUrl", "apiKey", "explorerUrl"]);
     assert.deepEqual(emptyRoute, {});
   });
 });
 
 describe("public entry point", () => {
-  it("exports exactly the decided runtime values (decisions 0009, 0043, 0044, 0050, 0055 and 0061, R-AX-5, R-RT-4)", () => {
+  it("exports exactly the decided runtime values (decisions 0009, 0043, 0044, 0050, 0055, 0061 and 0073, R-AX-5, R-RT-4)", () => {
     assert.deepEqual(Object.keys(api).toSorted(), [
+      "BACKEND_LABELS",
       "BACKEND_NAMES",
       "ERROR_CODES",
       "ERROR_HINTS",

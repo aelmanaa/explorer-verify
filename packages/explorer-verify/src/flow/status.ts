@@ -4,6 +4,7 @@
  * and result steps of `verify()` through the same helpers, so a resumed job ends as it would have
  * in `verify()`.
  */
+import { BACKEND_LABELS } from "../backend-names.ts";
 import type { Target } from "../backends/backend.ts";
 import { newError } from "../error-hints.ts";
 import type { Route } from "../routing/resolve.ts";
@@ -70,7 +71,7 @@ export async function runCheckStatus(
         : opened;
     announceRoute(
       call,
-      `Resuming ${call.backend.name} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,
+      `Resuming ${BACKEND_LABELS[call.backend.name]} job ${handle.jobId} for ${target.address} on chain ${String(target.chainId)}`,
     );
     // settle() looks the contract up for a job the explorer no longer knows, as in verify().
     return await settle(call, handle, 0);

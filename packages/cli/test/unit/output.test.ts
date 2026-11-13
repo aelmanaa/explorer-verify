@@ -119,7 +119,12 @@ describe("stdoutText", () => {
   it("summarises a failure with its reason", () => {
     assert.equal(
       stdoutText(
-        toEnvelope({ status: "failed", backend: "sourcify", reason: "Bytecode differs." }),
+        toEnvelope({
+          status: "failed",
+          backend: "sourcify",
+          reason: "Bytecode differs.",
+          reasonCode: "bytecode-mismatch",
+        }),
         false,
         false,
       ),

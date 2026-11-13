@@ -321,6 +321,18 @@
         "reason": {
           "description": "Why the explorer rejected the submission, with API keys removed.",
           "type": "string"
+        },
+        "reasonCode": {
+          "description": "The cause the explorer's answer names. Absent from the results of versions before it was added; a reader takes a missing value as unknown.",
+          "enum": [
+            "bytecode-mismatch",
+            "missing-source",
+            "compiler",
+            "contract-name",
+            "constructor-args",
+            "libraries",
+            "unknown"
+          ]
         }
       },
       "required": ["status", "backend", "reason"]
