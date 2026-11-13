@@ -40,6 +40,7 @@ const verifyOptionKeys: Equals<
   | "rpcUrl"
   | "handlerUrl"
   | "submitOverPartial"
+  | "onSubmitted"
 > = true;
 const verifyOptionsAllOptional: Equals<Required<VerifyOptions>, VerifyOptions> = false;
 const verifyOptionsEmptyOk: Partial<VerifyOptions> extends VerifyOptions ? true : false = true;

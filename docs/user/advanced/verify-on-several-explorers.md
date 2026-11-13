@@ -106,9 +106,9 @@ A `not-confirmed` outcome keeps its handle in `error.details.handle`. Pass it
 to [checkStatus()](../reference/check-status.md), with that entry's route as
 `route`, to resume that backend alone.
 
-An abort rejects the whole call with `signal.reason`. Every submission made
-before it has emitted its `verify.submitted` event, so each pending job can
-still be resumed ([Abort and resume](abort-and-resume.md)).
+An abort rejects the whole call with `signal.reason`. `onSubmitted` has
+received the handle of every submission made before it, so each pending job
+can still be resumed ([Abort and resume](abort-and-resume.md)).
 
 ## Keys
 

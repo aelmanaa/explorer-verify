@@ -974,6 +974,30 @@ export interface VerifyOptions extends CallOptions {
    * ```
    */
   submitOverPartial?: boolean | undefined;
+  // References: R-FLOW-5, R-FLOW-6, R-SEC-1.
+  /**
+   * Receives the one-line handle once the explorer accepts the submission, before the first
+   * poll, with keys removed as in the `verify.submitted` event. Keep it to resume the job with
+   * `checkStatus()` when the call is aborted: an abort rejects with `signal.reason`, which carries
+   * no handle. Not called when the explorer refuses the submit or the lookup finds a match.
+   * `verifyEach()` calls it once per backend that accepted a submission. An exception it throws,
+   * or a rejection of a promise it returns, is logged once at `warn` and does not change the
+   * outcome. A returned promise is not awaited. A value that is not a function throws
+   * `invalid-input`.
+   *
+   * @example
+   * ```ts
+   * import type { HandleString, VerifyOptions } from "explorer-verify";
+   *
+   * let handle: HandleString | undefined;
+   * const options: VerifyOptions = {
+   *   onSubmitted: (line) => {
+   *     handle = line;
+   *   },
+   * };
+   * ```
+   */
+  onSubmitted?: ((handle: HandleString) => void | Promise<void>) | undefined;
 }
 
 /**

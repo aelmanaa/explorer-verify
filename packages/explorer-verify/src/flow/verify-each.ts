@@ -82,6 +82,7 @@ export function eachOptionKeys(): readonly string[] {
     apiKeys: null,
     rpcUrl: null,
     submitOverPartial: null,
+    onSubmitted: null,
     backends: null,
   } satisfies Record<keyof VerifyEachOptions | "route", null>);
 }

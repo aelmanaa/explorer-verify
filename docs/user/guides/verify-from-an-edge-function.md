@@ -325,8 +325,8 @@ caller's own storage, in a Workers KV namespace, or in a database. `checkStatus(
 so a repeated status request is safe. Each one costs a few subrequests: one per poll, plus retries.
 
 When the client disconnects, `request.signal` aborts the call, which rejects with no handle. If
-the submit was accepted by then, the caller never sees its handle. To keep it, save the handle from
-the `verify.submitted` event in an `onEvent` callback, keyed by chain and address
+the submit was accepted by then, the caller never sees its handle. To keep it, save the handle that
+`onSubmitted` receives, keyed by chain and address
 ([Abort and resume](../reference/verify.md#abort-and-resume)).
 
 Pass the same `apiKeys` and `route` in both routes. A Sourcify handle polled with a route that

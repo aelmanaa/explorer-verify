@@ -118,12 +118,12 @@ covers every build format.
 ## 2. Verify, or resume a stored handle
 
 `verify()` looks the contract up, submits it when the explorer lacks it, and polls the job. As
-soon as the explorer accepts the submission, it emits the `verify.submitted` event with the handle
-in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, which ends with
+soon as the explorer accepts the submission, before the first poll, it calls `onSubmitted` with
+the handle in its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, which ends with
 `:over-partial` after a submit over a partial match. Store it whole, at once: it is the only
 way back to the job after an abort, a crash or a timeout. `verify()` does not wait for a promise
-that `onEvent` returns, so write the handle synchronously. If the handle cannot be stored, stop
-and give it to the person.
+that `onSubmitted` returns, so write the handle synchronously. If the handle cannot be stored,
+stop and give it to the person.
 
 Before you call `verify()`, look for a stored handle. If there is one, an earlier run submitted
 already: call `checkStatus()` with it, not `verify()`. After a final outcome, delete the stored
@@ -162,11 +162,7 @@ process.once("SIGINT", () => controller.abort());
 const options: VerifyOptions = {
   signal: controller.signal,
   timeoutMs: 120_000,
-  onEvent: (event) => {
-    if (event.type === "verify.submitted") {
-      storeHandle(event.handle);
-    }
-  },
+  onSubmitted: storeHandle,
 };
 
 // A stored handle means an earlier run submitted: resume it, never submit

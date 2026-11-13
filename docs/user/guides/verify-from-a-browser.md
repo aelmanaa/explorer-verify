@@ -70,11 +70,9 @@ export async function verifyFromPage(input: VerifyInput): Promise<string> {
   const { ExplorerVerifyError, verify } = await import("explorer-verify");
   try {
     const result = await verify(input, {
-      onEvent: (event) => {
-        if (event.type === "verify.submitted") {
-          // Saved before the first poll, so a reload can resume the job.
-          localStorage.setItem(PENDING_KEY, event.handle);
-        }
+      // Saved before the first poll, so a reload can resume the job.
+      onSubmitted: (handle) => {
+        localStorage.setItem(PENDING_KEY, handle);
       },
     });
     localStorage.removeItem(PENDING_KEY);

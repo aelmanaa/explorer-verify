@@ -225,7 +225,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 - **R-FLOW-5** Resumable: the submission returns a handle; `checkStatus(handle)` continues polling
   later, from another process or after a page reload. The handle is plain JSON with a version field
   and no URLs. Its one-line form, `ev1:<backend>:<chainId>:<address>:<jobId>`, is the form to store;
-  `checkStatus` also reads the handle object (decision 0050).
+  `checkStatus` also reads the handle object (decision 0050). `verify()` and `verifyEach()` pass
+  each accepted submission's handle to `onSubmitted` before the first poll, so a caller that
+  aborts still holds it.
 - **R-FLOW-6** Cancellation through `AbortSignal`, and retries with backoff on rate limits and
   transient errors.
 - **R-FLOW-7** Known explorer behaviour is handled, not reported as failure: Blockscout's partial

@@ -221,7 +221,7 @@ Submitted to sourcify. Handle: ev1:sourcify:11155111:0x8275d36f64f047d2d8a1f42c7
 Store the handle at once: it is the only way back to the job after a timeout, a cancel or a crash.
 With `--log-format json`, the line is a JSON object whose `type` is `verify.submitted`, with the
 handle in its `handle` field. `--quiet` hides the line, so do not pass it to a run that may submit.
-In the library, the handle comes in the `verify.submitted` event.
+In the library, `onSubmitted` receives the handle.
 
 ## Act on the exit code
 

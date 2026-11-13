@@ -62,12 +62,12 @@ interface Logger {
 that reads only the message also fits. When a line has no fields, the method gets one argument, so
 `console` prints no `undefined`.
 
-| Level   | What the library logs there                                                                        |
-| ------- | -------------------------------------------------------------------------------------------------- |
-| `debug` | The first line, each request, and each pending poll                                                |
-| `info`  | The handle once the explorer accepts the submission, and the result                                |
-| `warn`  | A retry, with the reason and the wait; a status poll that failed; an `onEvent` callback that threw |
-| `error` | A failure the library recovers from. Never a failure it throws to you                              |
+| Level   | What the library logs there                                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `debug` | The first line, each request, and each pending poll                                                                 |
+| `info`  | The handle once the explorer accepts the submission, and the result                                                 |
+| `warn`  | A retry, with the reason and the wait; a status poll that failed; an `onEvent` or `onSubmitted` callback that threw |
+| `error` | A failure the library recovers from. Never a failure it throws to you                                               |
 
 The first line is `Verifying <address> on chain <id>`, with `backend`, `chainId` and `api`. `api`
 is the API URL with its query replaced by `?REDACTED`.
@@ -241,6 +241,10 @@ one warning per call.
 `onEvent` may be `async`: its type is `(event: VerifyEvent) => void | Promise<void>`. If it returns
 a promise, the library attaches a `.catch` and does not wait for it. A slow
 callback does not slow the verification, and a rejection is handled like a thrown exception.
+
+`onSubmitted` fails the same way. The library logs its exception at `warn`, with the backend and
+the error message, and the outcome does not change
+([Abort and resume](verify.md#abort-and-resume)).
 
 ### Several backends
 
