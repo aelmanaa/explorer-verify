@@ -52,7 +52,7 @@ catalog:
   "publint": "0.3.25"
   # The Rollup build of scripts/check-names.ts. Same version as the one VitePress installs through
   # Vite, so the lockfile gains no package.
-  "rollup": "4.67.4"
+  "rollup": "4.68.0"
   "typescript": "7.0.2"
   "typedoc": "0.28.20"
   "typedoc-plugin-markdown": "4.14.1"
