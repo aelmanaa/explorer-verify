@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import solc from "solc";
 
 import type { BuiltVerifyInput } from "../../src/input/build.ts";
+import { importPaths, parseRemapping, resolveImport } from "../../src/input/imports.ts";
 import { buildVerifyInputFromSources } from "../../src/input/sources.ts";
 import { readFields } from "../../src/internal/read-fields.ts";
 import { vaultVerificationFiles } from "../helpers/user-docs.ts";
@@ -115,4 +116,72 @@ describe("buildVerifyInputFromSources on a package that ships only sources", () 
       assert.equal(compile(built), await committed(file), file);
     }
   });
+});
+
+/**
+ * The source unit names solc-js asks its import callback for when it compiles one file named
+ * `importer` with `content` and `remapped`, sorted.
+ */
+function solcImports(importer: string, content: string, remapped: readonly string[]): string[] {
+  const asked: string[] = [];
+  const input = {
+    language: "Solidity",
+    sources: { [importer]: { content } },
+    settings: { remappings: remapped, outputSelection: {} },
+  };
+  solc.compile(JSON.stringify(input), {
+    import: (name) => {
+      asked.push(name);
+      return { contents: "" };
+    },
+  });
+  return asked.toSorted();
+}
+
+/** The source unit names the builder's scanner and resolver give for the same file, sorted. */
+function ownImports(importer: string, content: string, remapped: readonly string[]): string[] {
+  const parsed = remapped.flatMap((text) => parseRemapping(text) ?? []);
+  const names = importPaths(content).map((found) => resolveImport(found, importer, parsed));
+  return [...new Set(names)].toSorted();
+}
+
+describe("import scanning and resolution against solc-js 0.8.24", () => {
+  const cases: readonly { importer: string; content: string; remappings?: string[] }[] = [
+    { importer: "a//b/c.sol", content: 'import "../d.sol";' },
+    { importer: "a/b//c.sol", content: 'import "../d.sol";' },
+    { importer: "a/b//c.sol", content: 'import "../../d.sol";' },
+    { importer: "a///c.sol", content: 'import "../d.sol";' },
+    { importer: "a/b//", content: 'import "./c.sol";' },
+    { importer: "lib/x//b.sol", content: 'import "./c.sol"; import "../e.sol";' },
+    { importer: "src/A.sol", content: 'import "../../B.sol"; import "./x/./../C.sol";' },
+    { importer: "src/A.sol", content: 'import ".//B.sol"; import "./a//b.sol"; import "./x/";' },
+    { importer: "src/A.sol", content: 'import "../x//../y.sol"; import "x/../z.sol";' },
+    { importer: "src/A.sol", content: 'import "@x/b.sol";', remappings: ["@x=lib/x/"] },
+    {
+      importer: "src/A.sol",
+      content: 'import "@a/b/X.sol"; import "@a/Y.sol";',
+      remappings: ["@a/b/=lib/ab/", "@a/=lib/a/"],
+    },
+    {
+      importer: "lib/a/A.sol",
+      content: 'import "@x/y/X.sol";',
+      remappings: ["lib/:@x/y/=lib/one/", "lib/a/:@x/=lib/two/"],
+    },
+    { importer: "src/A.sol", content: '// note\rimport "./b.sol";' },
+    { importer: "src/A.sol", content: '/* import "./no.sol"; */ import "./yes.sol";' },
+    { importer: "src/A.sol", content: 'import "a\\\nb.sol"; import "c\\\r\nd.sol";' },
+    { importer: "src/A.sol", content: 'import "\\xc3\\xa9.sol"; import "\\u2603.sol";' },
+    {
+      importer: "src/A.sol",
+      content: "import * as E from './e.sol'; import {F as G} from \"f.sol\";",
+    },
+  ];
+  for (const { importer, content, remappings: remapped = [] } of cases) {
+    it(`asks for the same files as solc: ${JSON.stringify(content)} in ${importer}`, () => {
+      assert.deepEqual(
+        ownImports(importer, content, remapped),
+        solcImports(importer, content, remapped),
+      );
+    });
+  }
 });

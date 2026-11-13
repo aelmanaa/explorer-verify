@@ -3,7 +3,10 @@ declare module "solc" {
   /** The solc-js wrapper around one compiler build. */
   interface Solc {
     /** Compiles a Standard JSON input, given as text, and returns the Standard JSON output as text. */
-    compile(input: string): string;
+    compile(
+      input: string,
+      callbacks?: { import(path: string): { contents: string } | { error: string } },
+    ): string;
     /** The full version of the bundled compiler, such as `0.8.24+commit.e11b9ed9.Emscripten.clang`. */
     version(): string;
   }

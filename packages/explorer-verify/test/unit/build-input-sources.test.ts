@@ -149,6 +149,21 @@ describe("buildVerifyInputFromSources", () => {
     assert.match(error.hint, /details\.candidates/);
   });
 
+  it("sorts the missing names and lists a file two files import once", async () => {
+    const error = await rejection({
+      ...BASE,
+      remappings: undefined,
+      sources: {
+        // Found in the order z, m, a; z.sol is imported twice.
+        "src/Vault.sol": 'import "./z.sol";\nimport "./B.sol";\nimport "./m.sol";\n',
+        "src/B.sol": 'import "./z.sol";\nimport "./a.sol";\n',
+      },
+    });
+    assert.ok(ExplorerVerifyError.is(error, "incomplete-input"));
+    assert.deepEqual(error.details.candidates, ["src/a.sol", "src/m.sol", "src/z.sol"]);
+    assert.equal(error.message, "The sources lack 3 of the files the contract imports.");
+  });
+
   it("lists the contract's own file when the sources lack it", async () => {
     const error = await rejection({ ...BASE, sources: () => undefined });
     assert.ok(ExplorerVerifyError.is(error, "incomplete-input"));

@@ -68,6 +68,33 @@ describe("importPaths", () => {
     );
   });
 
+  it("reads \\x escapes as bytes and decodes the path as UTF-8", () => {
+    assert.deepEqual(
+      importPaths('import "\\xc3\\xa9.sol"; import "\\u00e9t\\u00e9.sol"; import "\\x4.sol";'),
+      ["é.sol", "été.sol", "x4.sol"],
+    );
+    assert.deepEqual(importPaths('import "é/😀.sol"; import "\\u2603.sol";'), [
+      "é/😀.sol",
+      "☃.sol",
+    ]);
+  });
+
+  it("reads a backslash before LF, CR or CRLF as a line continuation", () => {
+    assert.deepEqual(
+      importPaths('import "a\\\nb.sol"; import "c\\\rd.sol"; import "e\\\r\nf.sol";'),
+      ["ab.sol", "cd.sol", "ef.sol"],
+    );
+  });
+
+  it("ends a line comment at CR as well as at LF", () => {
+    assert.deepEqual(importPaths('// note\rimport "./b.sol";'), ["./b.sol"]);
+    assert.deepEqual(importPaths('// note\r\nimport "./c.sol";'), ["./c.sol"]);
+  });
+
+  it("ends a string at CR", () => {
+    assert.deepEqual(importPaths('string s = "open\rimport "./Next.sol";'), ["./Next.sol"]);
+  });
+
   it("gives no path for a directive without a string, and stops at the end of the text", () => {
     assert.deepEqual(importPaths("import {A} from B;"), []);
     assert.deepEqual(importPaths('import "./Open.sol"'), ["./Open.sol"]);
@@ -122,6 +149,24 @@ describe("resolveImport", () => {
     assert.equal(resolveImport("../../B.sol", "src/A.sol", []), "B.sol");
   });
 
+  it("drops empty segments of the importer's directory, as solc's Boost paths do", () => {
+    assert.equal(resolveImport("../d.sol", "a//b/c.sol", []), "a/d.sol");
+    assert.equal(resolveImport("../d.sol", "a/b//c.sol", []), "a/d.sol");
+    assert.equal(resolveImport("../../d.sol", "a/b//c.sol", []), "d.sol");
+    assert.equal(resolveImport("../d.sol", "a///c.sol", []), "d.sol");
+    assert.equal(resolveImport("./c.sol", "a/b/", []), "a/b/c.sol");
+    assert.equal(resolveImport("./c.sol", "a/b//", []), "a/b/c.sol");
+    assert.equal(resolveImport("../x//../y.sol", "src/A.sol", []), "y.sol");
+  });
+
+  it("resolves a relative import inside a remapped file with an empty segment", () => {
+    const list = remappings("@x=lib/x/");
+    const remapped = resolveImport("@x/b.sol", "src/A.sol", list);
+    assert.equal(remapped, "lib/x//b.sol");
+    assert.equal(resolveImport("./c.sol", remapped, list), "lib/x/c.sol");
+    assert.equal(resolveImport("../c.sol", remapped, list), "lib/c.sol");
+  });
+
   it("keeps a direct import as it is", () => {
     assert.equal(resolveImport("src/B.sol", "lib/A.sol", []), "src/B.sol");
     assert.equal(resolveImport(".hidden/B.sol", "src/A.sol", []), ".hidden/B.sol");
@@ -162,5 +207,11 @@ describe("resolveImport", () => {
   it("takes the last of two remappings with the same context and prefix", () => {
     const list = remappings("@x/=lib/first/", "@x/=lib/last/");
     assert.equal(resolveImport("@x/X.sol", "src/A.sol", list), "lib/last/X.sol");
+  });
+
+  it("keeps a longer prefix listed before a shorter one", () => {
+    const list = remappings("@a/b/=lib/ab/", "@a/=lib/a/");
+    assert.equal(resolveImport("@a/b/X.sol", "src/A.sol", list), "lib/ab/X.sol");
+    assert.equal(resolveImport("@a/X.sol", "src/A.sol", list), "lib/a/X.sol");
   });
 });

@@ -94,7 +94,11 @@ const built = await buildVerifyInputFromSources({
     evmVersion: "paris",
     metadata: { bytecodeHash: "none" },
   },
-  remappings: text.split("\n").filter((line) => line.trim() !== ""),
+  // One remapping per line; trim handles CRLF line endings.
+  remappings: text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== ""),
   // Returns undefined for a file the package lacks.
   sources: async (name) =>
     await readFile(path.join(pkg, name), "utf8").catch(() => undefined),

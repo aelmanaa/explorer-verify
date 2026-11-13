@@ -15,12 +15,15 @@ const IDENTIFIER_START = /[A-Za-z_$]/;
 const IDENTIFIER_PART = /[A-Za-z0-9_$]/;
 const HEX_DIGITS = /^[0-9a-fA-F]+$/;
 const SIMPLE_ESCAPES: Readonly<Record<string, string>> = { n: "\n", r: "\r", t: "\t" };
+const LINE_END = /[\n\r]/;
+const UTF8 = new TextEncoder();
 
 /** The index after the comment that starts at `at`, or `at` when none starts there. */
 function skipComment(text: string, at: number): number {
   if (text.startsWith("//", at)) {
-    const end = text.indexOf("\n", at);
-    return end === -1 ? text.length : end + 1;
+    // solc's scanner ends a line comment at LF or at CR.
+    const rest = text.slice(at).search(LINE_END);
+    return rest === -1 ? text.length : at + rest + 1;
   }
   if (text.startsWith("/*", at)) {
     const end = text.indexOf("*/", at + 2);
@@ -29,42 +32,69 @@ function skipComment(text: string, at: number): number {
   return at;
 }
 
-/** The character a `\x..` or `\u....` escape gives, or `undefined` when its digits are not hex. */
-function hexEscape(digits: string): string | undefined {
-  return HEX_DIGITS.test(digits) ? String.fromCharCode(Number.parseInt(digits, 16)) : undefined;
+/** The value of `width` hex digits at `at`, or `undefined` when they are not all hex digits. */
+function hexValue(text: string, at: number, width: number): number | undefined {
+  const digits = text.slice(at, at + width);
+  return digits.length === width && HEX_DIGITS.test(digits)
+    ? Number.parseInt(digits, 16)
+    : undefined;
 }
 
 /**
- * Reads the string literal whose opening quote is at `at`. The value has its escapes decoded; a
- * literal cut off by a line break or the end of the text ends there.
+ * The bytes one escape adds, from the backslash at `at`, and the escape's length. As in solc
+ * 0.8.24: `\xNN` is one byte, `\uNNNN` the UTF-8 of the code point, a backslash before a line
+ * break (LF, CR or CRLF) adds nothing, and any other character stands for itself.
+ */
+function readEscape(text: string, at: number): { bytes: Uint8Array; length: number } {
+  const next = text.charAt(at + 1);
+  if (next === "\r") {
+    return { bytes: new Uint8Array(), length: text.startsWith("\n", at + 2) ? 3 : 2 };
+  }
+  if (next === "\n") {
+    return { bytes: new Uint8Array(), length: 2 };
+  }
+  if (next === "x" || next === "u") {
+    const width = next === "x" ? 2 : 4;
+    const value = hexValue(text, at + 2, width);
+    if (value !== undefined) {
+      const bytes = next === "x" ? Uint8Array.of(value) : UTF8.encode(String.fromCodePoint(value));
+      return { bytes, length: 2 + width };
+    }
+  }
+  return { bytes: UTF8.encode(SIMPLE_ESCAPES[next] ?? next), length: 2 };
+}
+
+/**
+ * Reads the string literal whose opening quote is at `at`. The value has its escapes decoded and
+ * its bytes read as UTF-8; a literal cut off by a line break or the end of the text ends there.
  */
 function readString(text: string, at: number): { value: string; end: number } {
   const quote = text.charAt(at);
-  let value = "";
+  const bytes: number[] = [];
   let index = at + 1;
+  let end = text.length;
   while (index < text.length) {
     const char = text.charAt(index);
     if (char === quote) {
-      return { value, end: index + 1 };
+      end = index + 1;
+      break;
     }
-    if (char === "\n") {
+    if (LINE_END.test(char)) {
+      end = index;
       break;
     }
     if (char === "\\") {
-      const next = text.charAt(index + 1);
-      const width = next === "x" ? 2 : next === "u" ? 4 : 0;
-      const decoded =
-        width > 0
-          ? hexEscape(text.slice(index + 2, index + 2 + width))
-          : (SIMPLE_ESCAPES[next] ?? next);
-      value += decoded ?? next;
-      index += decoded === undefined ? 2 : 2 + width;
+      const escape = readEscape(text, index);
+      bytes.push(...escape.bytes);
+      index += escape.length;
       continue;
     }
-    value += char;
-    index++;
+    // One code point at a time, so a surrogate pair stays whole.
+    const point = String.fromCodePoint(text.codePointAt(index) ?? 0);
+    bytes.push(...UTF8.encode(point));
+    index += point.length;
   }
-  return { value, end: index };
+  return { value: new TextDecoder().decode(Uint8Array.from(bytes)), end };
 }
 
 /**
@@ -164,15 +194,21 @@ export function parseRemapping(remapping: string): Remapping | undefined {
 
 /**
  * The source unit name of `path` when it is relative (starts with `.` or `..` as its first
- * segment), against the directory of `importer`, as solc resolves it: each `.` is skipped and
- * each `..` removes the last segment, never above the root. Any other path is returned as it is.
+ * segment), against the directory of `importer`, as solc's `util::absolutePath` resolves it with
+ * Boost paths: empty segments of the importer's directory and of the path are dropped, each `.`
+ * is skipped and each `..` removes the last segment, never above the root. Any other path is
+ * returned as it is.
  */
 function absolutePath(path: string, importer: string): string {
   const segments = path.split("/");
   if (segments[0] !== "." && segments[0] !== "..") {
     return path;
   }
-  const result = importer.split("/").slice(0, -1);
+  // The importer without its file name, which is empty when the importer ends in `/`.
+  const result = importer
+    .split("/")
+    .slice(0, -1)
+    .filter((segment) => segment !== "");
   for (const segment of segments) {
     if (segment === "..") {
       result.pop();
