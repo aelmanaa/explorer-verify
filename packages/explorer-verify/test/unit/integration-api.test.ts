@@ -16,6 +16,7 @@ import type {
   VerifyOptions,
   VerifyResult,
 } from "../../src/index.ts";
+import { redactEvent } from "../../src/observe.ts";
 import { pageAt } from "../../src/routing/resolve.ts";
 import { runVerify as runWith } from "../helpers/defaults.ts";
 import { loadFixture, replay } from "../helpers/fake-fetch.ts";
@@ -225,5 +226,35 @@ describe("reasonCode in the envelope (#390, decision 0073)", () => {
     const newer = { ...failed };
     Reflect.set(newer, "reasonCode", "some-later-code");
     assert.deepEqual(toEnvelope(newer).result, { ...failed, reasonCode: "unknown" });
+  });
+});
+
+describe("verify.stored after redaction (#391, decision 0073)", () => {
+  const secret = "0123456789abcdef0123456789abcdef";
+
+  it("leaves out name and compilerVersion when the explorer gave none", () => {
+    const event = redactEvent({ type: "verify.stored", backend: "sourcify" }, [secret]);
+    assert.deepEqual(event, { type: "verify.stored", backend: "sourcify" });
+    assert.equal("name" in event, false);
+    assert.equal("compilerVersion" in event, false);
+  });
+
+  it("keeps name and compilerVersion, each redacted", () => {
+    const event = redactEvent(
+      {
+        type: "verify.stored",
+        backend: "blockscout",
+        name: `Vault ${secret}`,
+        compilerVersion: `0.8.26 ${secret}`,
+      },
+      [secret],
+    );
+    assert.equal(event.type, "verify.stored");
+    assert.ok("name" in event && typeof event.name === "string" && !event.name.includes(secret));
+    assert.ok(
+      "compilerVersion" in event &&
+        typeof event.compilerVersion === "string" &&
+        !event.compilerVersion.includes(secret),
+    );
   });
 });
