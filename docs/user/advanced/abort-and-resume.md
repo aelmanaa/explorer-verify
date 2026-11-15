@@ -3,7 +3,7 @@
 Stop a running `verify()` call, and resume its job later without a new
 submission.
 
-Version: explorer-verify 0.3.0
+Version: explorer-verify 0.4.0
 
 Agents: [llms.txt](../../../llms.txt) lists every page of these docs.
 
