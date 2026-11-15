@@ -147,3 +147,6 @@ It sets no backend, so the routing table picks one.
   `docs/user/README.md`, which the site serves at `/overview`.
 - The API reference on the site is generated from TSDoc. It is not in `docs/user/` or the package;
   the `.d.ts` files of an installed package carry the same comments.
+- TSDoc links to a user page with an `@see` tag and the page's absolute site URL, without `.md`:
+  `@see The guide [Verify from deployed bytecode](https://aelmanaa.github.io/explorer-verify/guides/verify-from-deployed-bytecode).`
+  A relative link breaks in the `.d.ts` files that editors show on hover.

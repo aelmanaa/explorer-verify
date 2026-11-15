@@ -781,6 +781,8 @@ async function fetchSources(
  * const built = await buildVerifyInputFromBytecode(target, { rpcUrl: "https://sepolia.base.org" });
  * const result = await verify({...target,...built });
  * ```
+ * @see The guide
+ *   [Verify from deployed bytecode](https://aelmanaa.github.io/explorer-verify/guides/verify-from-deployed-bytecode).
  * @experimental
  */
 export async function buildVerifyInputFromBytecode(
