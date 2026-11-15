@@ -343,6 +343,8 @@ async function collect(
  * console.log(Object.keys(built.compiler.input.sources));
  * // ["lib/acl/src/Ownable.sol", "src/Vault.sol"]
  * ```
+ * @see The guide
+ *   [Verify contracts from a package that ships only sources](https://aelmanaa.github.io/explorer-verify/guides/verify-contracts-from-a-package-that-ships-only-sources).
  * @experimental
  */
 export async function buildVerifyInputFromSources(
