@@ -22,33 +22,37 @@ backend each.
 1. `VerifyInput.compiler` is `SolcCompiler | ZksolcCompiler | VyperCompiler`. The Vyper member is
    `{ kind: "vyper"; version; input: VyperStandardJsonInput }`. `VyperStandardJsonInput` is a
    separate type: `{ language: "Vyper"; sources; interfaces?; settings }`, where a source is
-   `{ content; keccak256? }` and an interface is `{ content }` or `{ abi }`. `settings` is required.
+   `{ content; keccak256? }` and an interface is `{ content }`, or `{ abi }` without `content`.
+   `settings` is required.
    `SolidityStandardJsonInput` does not change. Both new types are exported.
 2. `compiler.version` is the long form, `x.y.z+commit.<8 hex>`, with one leading `v` stripped, as
-   for solc. Each client formats it for its explorer. A 7-character commit is `invalid-input` on
-   `compiler.version`, with a hint that names the release asset form. The solc "short version"
-   message does not apply to Vyper.
+   for solc. Each client formats it for its explorer. A 7-character commit, or a part with a
+   leading zero such as `0.03.10`, is `invalid-input` on `compiler.version`, with a hint that names
+   the release asset form. The solc "short version" message does not apply to Vyper.
 3. Vyper 0.3.10 and later releases are accepted. A release before 0.3.10, or a prerelease (`rcN`,
    `bN`, `aN`, or Blockscout's `-rcN`), throws `unsupported-compiler` on `compiler.version`.
    `validateInput` throws it before any `invalid-input`, because fixing the other fields would not
    make the input verifiable.
 4. `contractName` for Vyper is `path:Name`, where the path is a key of `sources` that ends in
-   `.vy`, and `Name` is the file name without `.vy`. Anything else is `invalid-input` on
-   `contractName`.
+   `.vy`, and `Name` is the file name without `.vy`, which must be an identifier. Anything else is
+   `invalid-input` on `contractName`, with a Vyper message and hint.
 5. Vyper has no linked libraries. `libraries` on Vyper input is `invalid-input` on `libraries`, a
    library placeholder in `creationBytecode` is `invalid-input` on `creationBytecode`, and
    `linkLibraries` throws `invalid-input` on `compiler.kind`. The zksolc fields `solcVersion` and
    `solcFork` are refused on a Vyper compiler, as on solc.
-6. `validateInput` refuses, for Vyper input only, a key of `sources` or `interfaces`, and an entry of
-   `settings.search_paths`, that holds a local path. That includes keys that start with `0/`, the
-   index form `vyper -f solc_json` writes for each `..` of a path. The issue names the field and the
+6. `validateInput` refuses, for Vyper input only, a key of `sources`, `interfaces` or
+   `settings.outputSelection`, and an entry of `settings.search_paths`, that holds a local path.
+   That includes paths that start with `0/`, after any spaces and `./` segments: the index form
+   `vyper -f solc_json` writes for each `..` of a path. `settings.search_paths` must be an array of
+   strings. The issue names the field and the
    position, never the path. Solidity validation does not change. The builder (#425) will rewrite
    such keys; until then the hint says how to rename them.
 7. Etherscan's `Pass - Verified` with an empty `SimilarMatch` still reads `exact`, and every
    Routescan match still reads `partial`, for Vyper as for solc
    ([match types](../../user/explanation/match-types.md), decision 0063).
-8. `compiler-kinds.ts` holds one list per kind other than solc. Each entry is a backend and either
-   the chains it maps or `{ except: [...] }`, every chain but those. The Vyper list is empty in this
+8. `compiler-kinds.ts` holds one list per kind other than solc. Each entry is a backend and the
+   chains it maps. A form for "every chain except" waits for the Blockscout mapping (#428), which
+   needs it. The Vyper list is empty in this
    release, so `kindCheck` refuses Vyper input on every chain with `unsupported-compiler` on
    `compiler.kind`, before any request, in `verify()`, `dryRun()` and `verifyEach()` of both
    entries. Each client will format the version and the fields behind `kind === "vyper"`; the shared
@@ -69,20 +73,29 @@ backend each.
   mistake visible, as the zksolc kind refuses fields that do not apply.
 - A `0/1/…/` key publishes the absolute path of the caller's Python environment, home directory
   included, with the source.
-- One list per kind keeps the route choice before a client loads (decisions 0031 and 0057). The
-  `except` form fits Vyper, which every Blockscout instance but ZKsync's offers.
+- One list per kind keeps the route choice before a client loads (decisions 0031 and 0057).
 
 ## Consequences
 
 - A switch on `compiler.kind` that is exhaustive on solc and zksolc no longer compiles without a
   `vyper` case. Code that reads `input.compiler.input` as `SolidityStandardJsonInput` narrows on
   `kind` first. This is a breaking type change, released as a minor version under 1.0.
-- `FlowDependencies.zksolc` is now `compilers`, a list per kind. It is internal.
-- The default hint of `unsupported-compiler` says that no backend verifies Vyper in this release.
+- `FlowDependencies.zksolc` is now `compilers`, a list per kind, where a kind left out keeps its
+  shipped list. It is internal.
+- The default hint of `unsupported-compiler` names Vyper among the compilers to verify with their
+  own tooling.
+- The CLI's `verify` without a target refuses Vyper input with `unsupported-compiler` before it
+  asks for `--backend` or `route.backend`, since no backend would take it.
 - `buildVerifyInput` and the build helpers still refuse Vyper documents (#425, #426).
-- The Vyper rules of `validateInput` ship in every entry that validates input. Measured with
-  esbuild 0.28.2 on 2026-11-16, main `7142817` against this change: `verify` grows from 19162 to
-  20398 bytes gzip, `verifyEach` from 20976 to 22250, `buildVerifyInputFromBytecode` from 24384 to
-  25597, and the `validateInput` name, esbuild split, from 9368 to 10539. Five entries of
-  `size-budget.json` and 19 rows of `name-budget.json` passed their ceilings. Each such ceiling is
-  reset to the new measured size plus 20%, as decision 0014 sets.
+- The Vyper rules of `validateInput` ship in every entry that validates input. They stay in the
+  shared validator because Vyper becomes a supported kind on the default `verify` path in 0.5.0
+  (#423, #424). A lazy split was measured: `verify` was 19639 bytes gzip against about 20400, but
+  the esbuild split rows of `checkStatus` and `linkProxy` grew by up to 1.6 KB, and the size script
+  needed a change, so it was not taken.
+- Measured with esbuild 0.28.2 on 2026-11-16, main `7142817` against this change: `verify` grows
+  from 19162 to 20243 bytes gzip, `verifyEach` from 20976 to 22083, `buildVerifyInputFromBytecode`
+  from 24384 to 25441, and the `validateInput` name, esbuild split, from 9368 to 10417.
+  `validate.ts` alone, minified, grows from 9267 to 12142 bytes (3531 to 4573 gzip). Four entries
+  of `size-budget.json` (`verify`, `verify (one file)`, `verify (core, Sourcify, one file)` and
+  `buildVerifyInputFromBytecode`) and 18 rows of `name-budget.json` passed their ceilings. Each such
+  ceiling is reset to the new measured size plus 20%, as decision 0014 sets.

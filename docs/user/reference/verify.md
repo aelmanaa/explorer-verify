@@ -366,7 +366,9 @@ before any request. `validateInput` checks the input already:
 - `contractName` is the `.vy` path and the file name, such as
   `src/Counter.vy:Counter`.
 - `libraries` is refused: Vyper has no linked libraries.
-- A source or interface key, or a `settings.search_paths` entry, that holds a
+- `settings.search_paths` is an array of strings.
+- A key of `sources`, `interfaces` or `settings.outputSelection`, or a
+  `settings.search_paths` entry, that holds a
   local path is refused. That includes the `0/1/…/` keys that
   `vyper -f solc_json` writes for a module from a Python environment.
 

@@ -33,28 +33,20 @@ const MAX_PATH = 1024;
 const FORMAT_CHARACTER = /\p{Cf}/u;
 const MAX_DEPTH = 64;
 const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "settings"];
-const VYPER_JSON_FIELDS: readonly string[] = [...STANDARD_JSON_FIELDS, "interfaces"];
 // References: decision 0075.
-// Groups 1 to 3 are the major, minor and patch numbers, group 4 a prerelease tag (`rc1`, `b2`,
-// `a1`, or `-rc6` as Blockscout lists it), group 5 the commit. A 7-character commit is matched so
-// that it gets its own message.
+// Groups 1 to 3 are the major, minor and patch numbers, without leading zeros; group 4 a
+// prerelease tag (`rc1`, `b2`, `a1`, or `-rc6` as Blockscout lists it).
 const VYPER_VERSION =
-  /^v?(\d{1,4})\.(\d{1,4})\.(\d{1,4})(-?(?:a|b|rc)\d{1,4})?\+commit\.([0-9a-f]{7,8})$/;
-// The first release whose bytecode trailer every explorer was seen to read: 0.3.10.
-const VYPER_FLOOR = [0, 3, 10] as const;
-// `vyper -f solc_json` turns each `..` of a path into its index: `0/1/2/<absolute path>`.
-const INDEXED_PATH = /^0[/\\]/;
+  /^v?(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})(-?(?:a|b|rc)\d{1,4})?\+commit\.[0-9a-f]{8}$/;
+// `vyper -f solc_json` turns each `..` of a path into its index: `0/1/2/<absolute path>`. Leading
+// spaces and `./` segments are skipped, as ABSOLUTE_PATH in paths.ts skips spaces.
+const INDEXED_PATH = /^\s*(?:\.[/\\])*0[/\\]/;
 
 const SHORT_VERSION_HINT =
   "Pass the full compiler version with its commit, such as 0.8.24+commit.e11b9ed9.";
 const ZKVM_HINT =
   "Pass only the revision: for zkVM-0.8.24-1.0.2, set solcFork to 1.0.2 and solcVersion to 0.8.24 with its commit.";
 const KIND_HINT = 'Set compiler.kind to "solc", "zksolc" or "vyper".';
-const VYPER_VERSION_HINT =
-  "Pass the version with the 8-character commit of its Vyper release asset, such as 0.4.3+commit.bff19ea2. PyPI wheels of Vyper 0.3.x print 7 characters.";
-const VYPER_NAME_HINT = "Name a Vyper contract after its file, such as src/Counter.vy:Counter.";
-const VYPER_PATH_HINT =
-  'Rename each such key to its path in the project or package, such as snekmate/auth/ownable.vy, and set settings.search_paths to ["."].';
 const VYPER_LIBRARIES_HINT = "Vyper has no linked libraries: remove them.";
 const LIBRARY_KEY_HINT =
   "Key each entry of libraries by the path of a file in compiler.input.sources, a colon and the library's name, such as src/Lib.sol:Lib.";
@@ -133,8 +125,8 @@ function count(amount: number, noun: string): string {
 class Problems {
   readonly issues: InputIssue[] = [];
   readonly hints: string[] = [];
-  /** A well-formed compiler version that this release does not support, with its hint. */
-  unsupported: { message: string; hint: string } | undefined;
+  /** Whether `compiler.version` is a well-formed Vyper version this release does not support. */
+  unsupported = false;
 
   add(field: string, message: string, hint?: string): undefined {
     this.issues.push({ field, message });
@@ -167,42 +159,22 @@ function checkKind(
 
 // References: decision 0075.
 /**
- * A Vyper `compiler.version` without the leading `v`: a release from 0.3.10 on, with its
- * 8-character commit. A well-formed prerelease or an older release is recorded as unsupported.
+ * A Vyper `compiler.version` without the leading `v`, with its 8-character commit. A well-formed
+ * prerelease, or a release before 0.3.10, sets `problems.unsupported`.
  */
 function checkVyperVersion(value: unknown, problems: Problems): string | undefined {
-  const field = "compiler.version";
   const parts = typeof value === "string" ? VYPER_VERSION.exec(value) : null;
   if (parts === null) {
     return problems.add(
-      field,
-      "must be a full Vyper version with its commit, such as 0.4.3+commit.bff19ea2",
-      VYPER_VERSION_HINT,
+      "compiler.version",
+      "must be a Vyper version with its 8-character commit, such as 0.4.3+commit.bff19ea2",
+      "Take the 8-character commit from the name of the Vyper release asset.",
     );
   }
-  const [version, major, minor, patch, prerelease, commit] = parts;
-  if (commit?.length !== 8) {
-    return problems.add(
-      field,
-      "has a 7-character commit hash; pass the 8-character hash, such as 0.4.3+commit.bff19ea2",
-      VYPER_VERSION_HINT,
-    );
-  }
-  const below =
-    Number(major) === VYPER_FLOOR[0] &&
-    (Number(minor) < VYPER_FLOOR[1] ||
-      (Number(minor) === VYPER_FLOOR[1] && Number(patch) < VYPER_FLOOR[2]));
-  if (prerelease !== undefined) {
-    problems.unsupported = {
-      message: "Vyper prereleases are not supported in this release: compiler.version.",
-      hint: "Use a Vyper release, such as 0.4.3.",
-    };
-  } else if (below) {
-    problems.unsupported = {
-      message: "Vyper versions before 0.3.10 are not supported in this release: compiler.version.",
-      hint: "Use Vyper 0.3.10 or later.",
-    };
-  }
+  const [version, major, minor, patch, prerelease] = parts;
+  // Below 0.3.10: major 0, and minor and patch together below 3 and 10.
+  problems.unsupported =
+    prerelease !== undefined || (major === "0" && Number(minor) * 1e4 + Number(patch) < 30_010);
   return version.replace(/^v/, "");
 }
 
@@ -255,110 +227,93 @@ function describePositions(positions: number[], noun: string, what: string): str
 
 // References: decision 0075.
 /**
- * Adds one issue to `field` when any of `paths` is a local path, or starts with the indexes that
- * `vyper -f solc_json` writes for each `..` of a path, such as `0/1/2/`. Such a path holds a
- * location on the build machine, and the explorer would publish it. Positions only, never a path.
+ * Adds an issue on `compiler.input.<field>` when any of `paths` is a local path, or starts with the
+ * indexes that `vyper -f solc_json` writes for each `..` of a path, such as `0/1/2/`. The explorer
+ * would publish the location on the build machine. Positions only, never a path.
  *
  * @returns Whether any path was refused.
  */
 function checkVyperPaths(
-  paths: Iterable<unknown>,
+  paths: Iterable<unknown> | undefined,
   field: string,
-  noun: string,
   problems: Problems,
 ): boolean {
   const local: number[] = [];
   let position = 0;
-  for (const path of paths) {
+  for (const path of paths ?? []) {
     position++;
     if (typeof path === "string" && (isLocalPath(path) || INDEXED_PATH.test(path))) {
       local.push(position);
     }
   }
-  const found = describePositions(local, noun, "naming a local path");
-  if (found !== undefined) {
-    problems.add(field, `has ${found}`, VYPER_PATH_HINT);
+  const found = describePositions(local, "local path", "in its keys or items");
+  return (
+    found !== undefined &&
+    problems.add(
+      `compiler.input.${field}`,
+      `has ${found}`,
+      'Use paths inside the project, such as snekmate/auth/ownable.vy, and search_paths ["."].',
+    ) === undefined
+  );
+}
+
+const NO_CONTENT = "without a string content";
+const NOT_JSON = "that cannot be read as JSON data";
+const TOO_DEEP = "nested more than 64 levels deep";
+
+/** A source with a string `content`, every field kept; Vyper refuses `urls` and a bad `keccak256`. */
+function readSource(fields: Map<string, unknown>, vyper: boolean): { content: string } | string {
+  const content = fields.get("content");
+  const hash = fields.get("keccak256");
+  if (typeof content !== "string") {
+    return NO_CONTENT;
   }
-  return found !== undefined;
+  return vyper && (fields.has("urls") || (hash !== undefined && typeof hash !== "string"))
+    ? "with urls or a bad keccak256"
+    : { ...Object.fromEntries(fields), content };
+}
+
+// References: decision 0075.
+/** A Vyper interface, every field kept: a string `content`, or no `content` and an `abi` array. */
+function readInterface(
+  fields: Map<string, unknown>,
+): { content: string } | { abi: unknown[] } | string {
+  const abi: unknown = fields.get("abi");
+  return fields.has("content") || !Array.isArray(abi)
+    ? readSource(fields, false)
+    : { ...Object.fromEntries(fields), abi };
 }
 
 /**
- * The interfaces of Vyper input, each entry deep-copied with every field kept: a `content` string
- * or an `abi` array. `{}` when absent, `undefined` when invalid. Reported by position, never by
- * path.
+ * The files of `compiler.input.<field>`, each entry deep-copied by `read`, which returns the entry
+ * or why it is refused; and every path. `undefined` when the value is not an object, or is empty
+ * and `empty` is false. Bad entries and bad paths are reported by position, never by path: the
+ * input chose the paths. `files` is `undefined` when any entry or path is bad, while `paths` still
+ * lets `contractName` be checked.
  */
-function checkInterfaces(
+function checkFiles<T extends object>(
   value: unknown,
+  field: string,
+  read: (fields: Map<string, unknown>) => T | string,
   problems: Problems,
-): { value?: NonNullable<VyperStandardJsonInput["interfaces"]> } | undefined {
-  const field = "compiler.input.interfaces";
-  if (value === undefined) {
-    return {};
-  }
-  const entries = readFields(value);
-  if (entries === undefined) {
-    return problems.add(field, "must be an object of interface files by path");
-  }
-  const local = checkVyperPaths(entries.keys(), field, "key", problems);
-  const good: [string, { content: string } | { abi: unknown[] }][] = [];
-  const bad: number[] = [];
-  let position = 0;
-  for (const [path, entry] of entries) {
-    position++;
-    const copy = copyJson(entry);
-    const fields = typeof copy === "object" ? readFields(copy.value) : undefined;
-    const content = fields?.get("content");
-    const abi: unknown = fields?.get("abi");
-    if (fields === undefined || !isSafePath(path)) {
-      bad.push(position);
-    } else if (typeof content === "string") {
-      good.push([path, { ...Object.fromEntries(fields), content }]);
-    } else if (Array.isArray(abi)) {
-      good.push([path, { ...Object.fromEntries(fields), abi }]);
-    } else {
-      bad.push(position);
-    }
-  }
-  const found = describePositions(bad, "file", "without a content or abi, or with a bad path");
-  if (found !== undefined) {
-    return problems.add(field, `has ${found}`);
-  }
-  // Object.fromEntries defines each key as an own property, so a path named __proto__ stays a key.
-  return local ? undefined : { value: Object.fromEntries(good) };
-}
-
-/**
- * The sources, each entry deep-copied with every field kept, and every source path. `undefined`
- * when the sources are not an object or are empty. Bad entries and bad paths are reported by
- * position, never by path: the input chose the paths. `sources` is `undefined` when any entry or
- * path is bad, while `paths` still lets `contractName` be checked.
- */
-function checkSources(
-  value: unknown,
-  vyper: boolean,
-  problems: Problems,
-):
-  | {
-      sources?: SolidityStandardJsonInput["sources"];
-      paths: ReadonlySet<string>;
-    }
-  | undefined {
-  const field = "compiler.input.sources";
+  empty = false,
+): { files?: Record<string, T>; paths: ReadonlySet<string> } | undefined {
+  field = `compiler.input.${field}`;
   const entries = readFields(value);
   if (entries === undefined) {
     return problems.add(field, "must be an object of source files by path");
   }
-  if (entries.size === 0) {
+  if (entries.size === 0 && !empty) {
     return problems.add(field, "must hold at least one source file");
   }
-  const good: [string, { content: string }][] = [];
-  const noContent: number[] = [];
-  const unreadable: number[] = [];
-  const tooDeep: number[] = [];
+  const good: [string, T][] = [];
+  // Each reason with the positions it refused, in the order the message lists them.
+  const bad = new Map<string, number[]>([
+    [NO_CONTENT, []],
+    [NOT_JSON, []],
+    [TOO_DEEP, []],
+  ]);
   const badPaths: number[] = [];
-  // Vyper only: entries with `urls` or a `keccak256` that is not a string.
-  const badFields: number[] = [];
-  const local = vyper && checkVyperPaths(entries.keys(), field, "key", problems);
   let position = 0;
   for (const [path, entry] of entries) {
     position++;
@@ -366,47 +321,32 @@ function checkSources(
       badPaths.push(position);
     }
     // Only an object can hold a content. copyJson reads null as no fields, as it is.
-    if (typeof entry !== "object") {
-      noContent.push(position);
-      continue;
-    }
-    const copy = copyJson(entry);
-    if (copy === "not-json") {
-      unreadable.push(position);
-      continue;
-    }
-    if (copy === "too-deep") {
-      tooDeep.push(position);
-      continue;
-    }
-    const fields = readFields(copy.value) ?? new Map<string, unknown>();
-    const content = fields.get("content");
-    const hash = fields.get("keccak256");
-    if (typeof content !== "string") {
-      noContent.push(position);
-    } else if (vyper && (fields.has("urls") || (hash !== undefined && typeof hash !== "string"))) {
-      badFields.push(position);
+    const copy = typeof entry === "object" ? copyJson(entry) : { value: undefined };
+    const result =
+      copy === "not-json"
+        ? NOT_JSON
+        : copy === "too-deep"
+          ? TOO_DEEP
+          : read(readFields(copy.value) ?? new Map<string, unknown>());
+    if (typeof result === "string") {
+      const positions = bad.get(result) ?? [];
+      positions.push(position);
+      bad.set(result, positions);
     } else {
-      good.push([path, { ...Object.fromEntries(fields), content }]);
+      good.push([path, result]);
     }
   }
   const paths = new Set(entries.keys());
   const parts = [
-    describePositions(noContent, "file", "without a string content"),
-    describePositions(badFields, "file", "with urls or a keccak256 that is not a string"),
-    describePositions(unreadable, "file", "that cannot be read as JSON data"),
-    describePositions(tooDeep, "file", "nested more than 64 levels deep"),
+    ...[...bad].map(([what, positions]) => describePositions(positions, "file", what)),
     describePositions(badPaths, "path", "of more than 1024 characters or with control characters"),
   ].filter((part) => part !== undefined);
   if (parts.length > 0) {
     problems.add(field, `has ${parts.join("; ")}`);
     return { paths };
   }
-  if (local) {
-    return { paths };
-  }
   // Object.fromEntries defines each key as an own property, so a path named __proto__ stays a key.
-  return { sources: Object.fromEntries(good), paths };
+  return { files: Object.fromEntries(good), paths };
 }
 
 function checkSettings(value: unknown, problems: Problems): Record<string, unknown> | undefined {
@@ -482,7 +422,7 @@ function checkStandardJson<L extends "Solidity" | "Vyper">(
   language: L;
   sources: SolidityStandardJsonInput["sources"];
   settings: Record<string, unknown>;
-}> & { fields?: Map<string, unknown> } {
+}> & { fields?: Map<string, unknown>; settings?: Record<string, unknown> | undefined } {
   const fields = readFields(value);
   if (fields === undefined) {
     problems.add("compiler.input", "must be the Standard JSON input object");
@@ -491,23 +431,21 @@ function checkStandardJson<L extends "Solidity" | "Vyper">(
   const vyper = language === "Vyper";
   const extras = checkExtraFields(
     fields,
-    vyper ? VYPER_JSON_FIELDS : STANDARD_JSON_FIELDS,
+    vyper ? [...STANDARD_JSON_FIELDS, "interfaces"] : STANDARD_JSON_FIELDS,
     problems,
   );
   const checkedLanguage = checkLanguage(fields.get("language"), language, problems);
-  const checked = checkSources(fields.get("sources"), vyper, problems);
+  const checked = checkFiles(
+    fields.get("sources"),
+    "sources",
+    (entry) => readSource(entry, vyper),
+    problems,
+  );
   const settings = checkSettings(fields.get("settings"), problems);
-  const sources = checked?.sources;
+  const sources = checked?.files;
   const paths = checked?.paths;
-  // References: decision 0075.
-  const searchPaths: unknown = settings?.["search_paths"];
-  const local =
-    vyper &&
-    Array.isArray(searchPaths) &&
-    checkVyperPaths(searchPaths, "compiler.input.settings.search_paths", "item", problems);
   if (
     extras === undefined ||
-    local ||
     // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     checkedLanguage === undefined ||
     // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
@@ -515,27 +453,59 @@ function checkStandardJson<L extends "Solidity" | "Vyper">(
     // Stryker disable next-line ConditionalExpression: equivalent when always false. The check that leaves it undefined added an issue, and validateInput fails the input on any issue; this only narrows the type.
     settings === undefined
   ) {
-    return { paths, fields };
+    return { paths, fields, settings };
   }
   return {
     value: { language: checkedLanguage, sources, settings, ...Object.fromEntries(extras) },
     paths,
     fields,
+    settings,
   };
 }
 
 // References: decision 0075.
-/** The Vyper Standard JSON input, deep-copied with every field kept, `interfaces` included. */
+/**
+ * The Vyper Standard JSON input, deep-copied with every field kept, `interfaces` included. No
+ * key of `sources`, `interfaces` or `settings.outputSelection`, and no entry of
+ * `settings.search_paths`, may hold a local path.
+ */
 function checkVyperJson(value: unknown, problems: Problems): WithPaths<VyperStandardJsonInput> {
-  const { value: input, paths, fields } = checkStandardJson(value, "Vyper", problems);
-  const interfaces = checkInterfaces(fields?.get("interfaces"), problems);
-  if (input === undefined || interfaces === undefined) {
+  const { value: input, paths, fields, settings } = checkStandardJson(value, "Vyper", problems);
+  const raw = fields?.get("interfaces");
+  const interfaces =
+    raw === undefined
+      ? { paths: new Set<string>() }
+      : checkFiles(raw, "interfaces", readInterface, problems, true);
+  const search: unknown = settings?.["search_paths"];
+  const listed =
+    search === undefined ||
+    (Array.isArray(search) && search.every((path: unknown) => typeof path === "string"));
+  if (!listed) {
+    problems.add("compiler.input.settings.search_paths", "must be an array of strings");
+  }
+  const local = [
+    checkVyperPaths(paths, "sources", problems),
+    checkVyperPaths(interfaces?.paths, "interfaces", problems),
+    checkVyperPaths(listed ? search : undefined, "settings.search_paths", problems),
+    checkVyperPaths(
+      readFields(settings?.["outputSelection"])?.keys(),
+      "settings.outputSelection",
+      problems,
+    ),
+  ];
+  if (
+    input === undefined ||
+    interfaces === undefined ||
+    (raw !== undefined && interfaces.files === undefined) ||
+    !listed ||
+    local.includes(true)
+  ) {
     return { paths };
   }
   return {
     value: {
       ...input,
-      ...(interfaces.value === undefined ? {} : { interfaces: interfaces.value }),
+      ...(interfaces.files === undefined ? {} : { interfaces: interfaces.files }),
     },
     paths,
   };
@@ -662,13 +632,19 @@ function checkContractName(
   vyper: boolean,
   problems: Problems,
 ): string | undefined {
-  const format = "must be path:Name, with a Solidity identifier after the last colon";
+  // References: decision 0075. A Vyper source holds one contract, named after its file.
+  const format = vyper
+    ? "must be a .vy path, a colon and the file name, which must be an identifier"
+    : "must be path:Name, with a Solidity identifier after the last colon";
+  const hint = vyper
+    ? "Name a Vyper contract after its file, such as src/Counter.vy:Counter."
+    : undefined;
   if (typeof value !== "string") {
-    return problems.add("contractName", format);
+    return problems.add("contractName", format, hint);
   }
   const colon = value.lastIndexOf(":");
   if (colon < 1 || !IDENTIFIER.test(value.slice(colon + 1))) {
-    return problems.add("contractName", format);
+    return problems.add("contractName", format, hint);
   }
   const path = value.slice(0, colon);
   if (!isSafePath(path)) {
@@ -681,14 +657,9 @@ function checkContractName(
   if (paths !== undefined && !paths.has(path)) {
     return problems.add("contractName", "must start with a key of compiler.input.sources");
   }
-  // References: decision 0075. A Vyper source holds one contract, named after its file.
   const file = path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
   if (vyper && file !== `${value.slice(colon + 1)}.vy`) {
-    return problems.add(
-      "contractName",
-      "must be the path of a .vy source and the file name without .vy, for Vyper",
-      VYPER_NAME_HINT,
-    );
+    return problems.add("contractName", format, hint);
   }
   return value;
 }
@@ -873,12 +844,13 @@ function checkCreationBytecode(
  * revision of ZKsync's solc fork, `x.y.z` such as `1.0.2`. Each comes back without a leading `v`.
  *
  * For Vyper, `compiler.version` is `x.y.z+commit.<8 hex>`, such as
- * `0.4.3+commit.bff19ea2`, and comes back without a leading `v`; a 7-character commit is rejected.
+ * `0.4.3+commit.bff19ea2`, and comes back without a leading `v`; a 7-character commit or a leading zero is rejected.
  * `compiler.input.language` is `"Vyper"`, and the optional `compiler.input.interfaces` is kept.
  * A source with `urls` is rejected. `contractName` is the path of a `.vy` source and the file name
  * without `.vy`, such as `src/Counter.vy:Counter`. `libraries` and library placeholders in
- * `creationBytecode` are rejected: Vyper has none. A key of `sources` or `interfaces`, or an entry
- * of `settings.search_paths`, that holds a local path is rejected, including the `0/1/…/` form that
+ * `creationBytecode` are rejected: Vyper has none. `settings.search_paths` is an array of strings.
+ * A key of `sources`, `interfaces` or `settings.outputSelection`, or an entry of
+ * `settings.search_paths`, that holds a local path is rejected, including the `0/1/…/` form that
  * `vyper -f solc_json` writes. A prerelease, or a release before 0.3.10, throws
  * `unsupported-compiler` on `compiler.version` before any `invalid-input`.
  *
@@ -958,12 +930,12 @@ export function validateInput(input: unknown): VerifyInput {
   );
   // A well-formed version that this release does not support ends the check: fixing the other
   // fields would not make the input verifiable.
-  if (problems.unsupported !== undefined) {
+  if (problems.unsupported) {
     throw newError(
       { code: "unsupported-compiler", field: "compiler.version" },
-      problems.unsupported.message,
+      "Vyper before 0.3.10 and prereleases are not supported: compiler.version.",
       // Stryker disable next-line ArrayDeclaration: equivalent. The message names only a field, never a key.
-      { hint: problems.unsupported.hint, secrets: [] },
+      { hint: "Use Vyper 0.3.10 or a later release.", secrets: [] },
     );
   }
 

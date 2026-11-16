@@ -19,7 +19,7 @@ The build helpers still refuse zksolc and Vyper build documents; extract the inp
 with the compiler's tooling. Use the compiler's own verification tooling for other compilers.
 
 From the CLI: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia
-(300). No backend verifies Vyper in this release. Verify other compilers with their own tooling.
+(300). Verify Vyper and other compilers with their own tooling.
 
 ## Facts
 
@@ -30,8 +30,7 @@ Exit code: 2
 Sent to an explorer: no.
 
 Default hint: Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or
-Sepolia (300). No backend verifies Vyper in this release. Verify other compilers with their own
-tooling.
+Sepolia (300). Verify Vyper and other compilers with their own tooling.
 
 For end users: This contract was built with a compiler or language that cannot be verified here,
 such as Vyper. Use Solidity built with solc, or with zksolc on ZKsync Era or ZKsync Sepolia through

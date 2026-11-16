@@ -116,8 +116,8 @@ verifies it: every route refuses it with `unsupported-compiler` before any reque
   Standard JSON, version format, and for zksolc its own fields (`compiler.solcVersion`,
   `compiler.solcFork`). For Vyper: the long version with an 8-character commit, `language:
   "Vyper"`, a contract name whose path ends in `.vy` and whose name is the file name, no
-  `libraries`, and no source key, interface key or `settings.search_paths` entry that holds a local
-  path, including the `0/1/…/` form of `vyper -f solc_json`. A Vyper prerelease or a version
+  `libraries`, and no key of `sources`, `interfaces` or `settings.outputSelection` and no
+  `settings.search_paths` entry that holds a local path, including the `0/1/…/` form of `vyper -f solc_json`. A Vyper prerelease or a version
   before 0.3.10 throws `unsupported-compiler` on `compiler.version` (decision 0075). Validation
   errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any

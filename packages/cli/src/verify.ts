@@ -514,6 +514,7 @@ async function send(
     return await verifyEach(input, { ...options, backends });
   }
   if (target === undefined && !dry) {
+    await refuseKind(input, options);
     // A submit publishes source and cannot be undone, so the caller names where it goes.
     throw await refusal(input, options, settings.field);
   }
@@ -574,6 +575,32 @@ function targetOf(
   const without = new Map(values);
   without.delete("backend");
   return { values: without, target: table };
+}
+
+// References: decision 0075.
+/**
+ * Throws the library's `unsupported-compiler` when no backend of the chain verifies the input's
+ * compiler kind, such as Vyper input in this release, so a run without a target names that first:
+ * naming a backend would not help. A dry run with a `fetch` that refuses every request finds it:
+ * the library refuses the kind before any request. Any other outcome is dropped. Solc input, which
+ * every backend verifies, is not checked.
+ */
+async function refuseKind(input: VerifyInput, options: VerifyOptions): Promise<void> {
+  if (input.compiler.kind === "solc") {
+    return;
+  }
+  try {
+    await dryRun(input, {
+      ...options,
+      onEvent: undefined,
+      logger: undefined,
+      fetch: async () => await Promise.reject(new Error("no request")),
+    });
+  } catch (error) {
+    if (ExplorerVerifyError.is(error, "unsupported-compiler")) {
+      throw error;
+    }
+  }
 }
 
 /**

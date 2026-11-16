@@ -187,6 +187,10 @@ describe("the VyperCompiler member of VerifyInput (R-EXT-1, R-IN-1, decision 007
   });
 });
 
+const VERSION_MESSAGE =
+  "must be a Vyper version with its 8-character commit, such as 0.4.3+commit.bff19ea2";
+const NAME_MESSAGE = "must be a .vy path, a colon and the file name, which must be an identifier";
+
 describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
   it("D1: compiler.version must be the long form, with a Vyper message", () => {
     for (const version of [
@@ -201,12 +205,8 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       43,
       undefined,
     ]) {
-      const error = assertInvalid(
-        withCompiler({ version }),
-        ["compiler.version"],
-        "must be a full Vyper version with its commit, such as 0.4.3+commit.bff19ea2",
-      );
-      assert.match(error.hint, /8-character commit of its Vyper release asset/);
+      const error = assertInvalid(withCompiler({ version }), ["compiler.version"], VERSION_MESSAGE);
+      assert.match(error.hint, /8-character commit from the name of the Vyper release asset/);
       // The solc short-version message never fires for Vyper.
       assert.doesNotMatch(error.hint, /0\.8\.24/);
     }
@@ -218,36 +218,52 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       "0.3.10+commit.9136169",
       "0.4.0rc6+commit.3371956",
     ]) {
-      const error = assertInvalid(
-        withCompiler({ version }),
-        ["compiler.version"],
-        "has a 7-character commit hash; pass the 8-character hash, such as 0.4.3+commit.bff19ea2",
-      );
+      const error = assertInvalid(withCompiler({ version }), ["compiler.version"], VERSION_MESSAGE);
       assert.match(error.hint, /release asset/);
-      assert.match(error.hint, /7 characters/);
     }
+  });
+
+  it("D1: a part with a leading zero is invalid-input on compiler.version", () => {
+    for (const version of [
+      "00.3.10+commit.91361694",
+      "0.03.10+commit.91361694",
+      "0.3.010+commit.91361694",
+      "0.4.03+commit.bff19ea2",
+    ]) {
+      assertInvalid(withCompiler({ version }), ["compiler.version"], VERSION_MESSAGE);
+    }
+    // The solc rules do not change: a leading zero is still a solc version.
+    assert.equal(
+      validateInput({
+        chainId: 1,
+        address: ADDRESS,
+        compiler: {
+          kind: "solc",
+          version: "0.08.24+commit.e11b9ed9",
+          input: { language: "Solidity", sources: { "A.sol": { content: "" } }, settings: {} },
+        },
+        contractName: "A.sol:A",
+      }).compiler.version,
+      "0.08.24+commit.e11b9ed9",
+    );
   });
 
   it("D2: a release before 0.3.10 is unsupported-compiler on compiler.version", () => {
     for (const version of [
       "0.3.9+commit.66b96705",
       "0.3.7+commit.6020b8bb",
-      "0.2.16+commit.59e1bdd",
       "0.2.16+commit.59e1bdd1",
       "0.1.0+commit.00000000",
     ]) {
-      if (version.endsWith("59e1bdd")) {
-        // A 7-character commit is a format error first.
-        assertInvalid(withCompiler({ version }), ["compiler.version"]);
-        continue;
-      }
       const error = assertUnsupported(rejection(withCompiler({ version })), "compiler.version");
       assert.equal(
         error.message,
-        "Vyper versions before 0.3.10 are not supported in this release: compiler.version.",
+        "Vyper before 0.3.10 and prereleases are not supported: compiler.version.",
       );
-      assert.match(error.hint, /0\.3\.10 or later/);
+      assert.equal(error.hint, "Use Vyper 0.3.10 or a later release.");
     }
+    // A 7-character commit is a format error first.
+    assertInvalid(withCompiler({ version: "0.2.16+commit.59e1bdd" }), ["compiler.version"]);
   });
 
   it("D2: the unsupported version comes before the other problems of the input", () => {
@@ -267,12 +283,7 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       "0.5.0a1+commit.00000000",
       "0.3.1rc1+commit.00000000",
     ]) {
-      const error = assertUnsupported(rejection(withCompiler({ version })), "compiler.version");
-      assert.equal(
-        error.message,
-        "Vyper prereleases are not supported in this release: compiler.version.",
-      );
-      assert.match(error.hint, /Vyper release/);
+      assertUnsupported(rejection(withCompiler({ version })), "compiler.version");
     }
   });
 
@@ -295,7 +306,7 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       assertInvalid(
         withJson({ sources: { "src/Counter.vy": entry } }),
         ["compiler.input.sources"],
-        "has 1 file with urls or a keccak256 that is not a string, at position 1",
+        "has 1 file with urls or a bad keccak256, at position 1",
       );
     }
   });
@@ -306,35 +317,65 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       { "I.vyi": { content: 1 } },
       { "I.json": { abi: {} } },
       { "I.vyi": "text" },
-      { "I.vyi": { content: 1n } },
-      { [`I\u0000.vyi`]: { content: "" } },
     ]) {
-      assertInvalid(withJson({ interfaces }), ["compiler.input.interfaces"]);
+      assertInvalid(
+        withJson({ interfaces }),
+        ["compiler.input.interfaces"],
+        "has 1 file without a string content, at position 1",
+      );
     }
+    assertInvalid(
+      withJson({ interfaces: { "I.vyi": { content: 1n } } }),
+      ["compiler.input.interfaces"],
+      "has 1 file that cannot be read as JSON data, at position 1",
+    );
+    assertInvalid(
+      withJson({ interfaces: { [`I\u0000.vyi`]: { content: "" } } }),
+      ["compiler.input.interfaces"],
+      "has 1 path of more than 1024 characters or with control characters, at position 1",
+    );
     for (const interfaces of [[], "I.vyi", null, 1]) {
       assertInvalid(
         withJson({ interfaces }),
         ["compiler.input.interfaces"],
-        "must be an object of interface files by path",
+        "must be an object of source files by path",
       );
     }
   });
 
+  it("D4: an interface with a non-string content is refused even when it has an abi", () => {
+    for (const content of [1, null, ["x"]]) {
+      assertInvalid(
+        withJson({ interfaces: { "I.json": { content, abi: [] } } }),
+        ["compiler.input.interfaces"],
+        "has 1 file without a string content, at position 1",
+      );
+    }
+    const checked = validateInput(
+      withJson({ interfaces: { "I.json": { content: "[]", abi: [] } } }),
+    );
+    assert.ok(checked.compiler.kind === "vyper");
+    assert.deepEqual(checked.compiler.input.interfaces, { "I.json": { content: "[]", abi: [] } });
+  });
+
   it("D5: contractName is the .vy source path and the file stem", () => {
-    const message = "must be the path of a .vy source and the file name without .vy, for Vyper";
     for (const contractName of [
       "src/Counter.vy:Other",
       "src/Counter.vy:counter",
       "src/Counter.vy:Count",
     ]) {
-      const error = assertInvalid({ ...vyperInput(), contractName }, ["contractName"], message);
+      const error = assertInvalid(
+        { ...vyperInput(), contractName },
+        ["contractName"],
+        NAME_MESSAGE,
+      );
       assert.match(error.hint, /src\/Counter\.vy:Counter/);
     }
     const sol = { "src/Counter.sol": { content: COUNTER } };
     assertInvalid(
       { ...withJson({ sources: sol }), contractName: "src/Counter.sol:Counter" },
       ["contractName"],
-      message,
+      NAME_MESSAGE,
     );
     const flat = { "Counter.vy": { content: COUNTER }, "a\\Token.vy": { content: COUNTER } };
     assert.equal(
@@ -353,6 +394,28 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       ["contractName"],
       "must start with a key of compiler.input.sources",
     );
+  });
+
+  it("D5: a contractName that fails the shape rule gets the Vyper message and hint", () => {
+    const sources = { "src/my-token.vy": { content: COUNTER } };
+    for (const contractName of [
+      "Counter",
+      "src/Counter.vy:",
+      ":Counter",
+      42,
+      "src/my-token.vy:my-token",
+    ]) {
+      const error = assertInvalid(
+        { ...withJson({ sources }), contractName },
+        ["contractName"],
+        NAME_MESSAGE,
+      );
+      assert.match(error.hint, /Name a Vyper contract after its file/);
+      assert.doesNotMatch(
+        error.details.code === "invalid-input" ? (error.details.issues[0]?.message ?? "") : "",
+        /Solidity/,
+      );
+    }
   });
 
   it("D5: contractName is checked against the stem when the sources are invalid", () => {
@@ -403,10 +466,34 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       const error = assertInvalid(
         withJson({ sources }),
         ["compiler.input.sources"],
-        "has 1 key naming a local path, at position 2",
+        "has 1 local path in its keys or items, at position 2",
       );
       assert.match(error.hint, /snekmate\/auth\/ownable\.vy/);
       assertNotShown(error, key);
+    }
+  });
+
+  it("D7: an indexed path after leading spaces or ./ segments is refused in every list", () => {
+    for (const path of [
+      ` 0/1/home/${DUMMY_KEY}/x.vy`,
+      `./0/1/home/${DUMMY_KEY}/x.vy`,
+      `  ././0\\1\\x.vy`,
+    ]) {
+      assertInvalid(
+        withJson({ sources: { "src/Counter.vy": { content: COUNTER }, [path]: { content: "" } } }),
+        ["compiler.input.sources"],
+        "has 1 local path in its keys or items, at position 2",
+      );
+      assertInvalid(
+        withJson({ interfaces: { [path]: { content: "" } } }),
+        ["compiler.input.interfaces"],
+        "has 1 local path in its keys or items, at position 1",
+      );
+      assertInvalid(
+        withJson({ settings: { search_paths: [path] } }),
+        ["compiler.input.settings.search_paths"],
+        "has 1 local path in its keys or items, at position 1",
+      );
     }
   });
 
@@ -415,18 +502,45 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
     assertInvalid(
       withJson({ interfaces: { "src/I.vyi": { content: "" }, [key]: { content: "" } } }),
       ["compiler.input.interfaces"],
-      "has 1 key naming a local path, at position 2",
+      "has 1 local path in its keys or items, at position 2",
     );
-    assertInvalid(
+    const error = assertInvalid(
       withJson({
         settings: { search_paths: [".", `/home/${DUMMY_KEY}/.venv`, `0/1/home/${DUMMY_KEY}`] },
       }),
       ["compiler.input.settings.search_paths"],
-      "has 2 items naming a local path, at positions 2, 3",
+      "has 2 local paths in its keys or items, at positions 2, 3",
     );
+    // The hint fits search_paths entries as well as keys.
+    assert.match(error.hint, /^Use paths inside the project/);
   });
 
-  it("D7: relative keys and search paths, and a non-list search_paths, pass", () => {
+  it("D7: a key of settings.outputSelection that holds a local path is refused", () => {
+    const home = `/home/${DUMMY_KEY}/src/Counter.vy`;
+    for (const key of [home, `0/1/2${home}`]) {
+      assertInvalid(
+        withJson({ settings: { outputSelection: { "src/Counter.vy": ["*"], [key]: ["*"] } } }),
+        ["compiler.input.settings.outputSelection"],
+        "has 1 local path in its keys or items, at position 2",
+      );
+    }
+    const checked = validateInput(
+      withJson({ settings: { outputSelection: { "src/Counter.vy": ["*"] } } }),
+    );
+    assert.equal(checked.compiler.kind, "vyper");
+  });
+
+  it("D7: settings.search_paths must be an array of strings", () => {
+    for (const search_paths of ["/abs", ".", { a: "." }, [".", 1], [null], 7]) {
+      assertInvalid(
+        withJson({ settings: { search_paths } }),
+        ["compiler.input.settings.search_paths"],
+        "must be an array of strings",
+      );
+    }
+  });
+
+  it("D7: relative keys and search paths pass", () => {
     const checked = validateInput(
       withJson({
         sources: {
@@ -434,19 +548,16 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
           "snekmate/auth/ownable.vy": { content: COUNTER },
           "lib/0/x.vy": { content: COUNTER },
           "10/x.vy": { content: COUNTER },
+          "./lib/x.vy": { content: COUNTER },
         },
         interfaces: { "interfaces/IOwnable.vyi": { content: "" } },
-        settings: { search_paths: [".", "lib", 1] },
+        settings: { search_paths: [".", "lib"] },
       }),
     );
     assert.equal(checked.compiler.kind, "vyper");
-    assert.equal(
-      validateInput(withJson({ settings: { search_paths: "/abs" } })).compiler.kind,
-      "vyper",
-    );
   });
 
-  it("D7: Solidity input keeps its rules: a local source key and 0/ keys are not refused here", () => {
+  it("D7: Solidity input keeps its rules: local keys, 0/ keys and any search_paths pass here", () => {
     const sources = {
       "src/Token.sol": { content: "contract Token {}" },
       [`/home/${DUMMY_KEY}/Lib.sol`]: { content: "" },
@@ -461,7 +572,7 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
         input: {
           language: "Solidity",
           sources,
-          settings: { search_paths: ["/abs"] },
+          settings: { search_paths: "/abs", outputSelection: { "/abs/A.sol": {} } },
           interfaces: 1,
         },
       },
@@ -488,9 +599,9 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       [
         "compiler.version",
         "compiler.input.language",
+        "compiler.input.interfaces",
         "compiler.input.sources",
         "compiler.input.settings.search_paths",
-        "compiler.input.interfaces",
         "contractName",
         "libraries",
       ],
@@ -532,26 +643,26 @@ describe("the Vyper capability list (R-EXT-1, decision 0075)", () => {
     }
   });
 
-  it("maps a backend on its listed chains, or on every chain except some", () => {
-    const listed = kindCheck("vyper", 1, { zksolc: [], vyper: [["sourcify", [1]]] });
+  it("maps a backend on its listed chains only", () => {
+    const routes = { vyper: [["sourcify", [1]]] } as const;
+    const listed = kindCheck("vyper", 1, routes);
     assert.equal(listed.verifies("sourcify"), true);
     assert.equal(listed.verifies("blockscout"), false);
     isKindRefusal(listed.refused("blockscout"), 1, "blockscout");
-    const routes = { zksolc: [], vyper: [["blockscout", { except: [324, 300] }]] } as const;
-    assert.equal(kindCheck("vyper", 1, routes).verifies("blockscout"), true);
-    assert.equal(kindCheck("vyper", 1, routes).verifies("sourcify"), false);
-    for (const chainId of [324, 300]) {
-      assert.throws(
-        () => kindCheck("vyper", chainId, routes),
-        (error) => isKindRefusal(error, chainId),
-      );
-    }
-    // The Vyper list does not map zksolc, and the reverse.
     assert.throws(
-      () => kindCheck("zksolc", 1, routes),
-      (error: unknown) => error instanceof ExplorerVerifyError,
+      () => kindCheck("vyper", 324, routes),
+      (error) => isKindRefusal(error, 324),
     );
     assert.equal(kindCheck("solc", 324, routes).verifies("routescan"), true);
+  });
+
+  it("takes the shipped list of each kind the override leaves out (FlowDependencies.compilers)", () => {
+    // Overriding vyper keeps ZKSOLC_ROUTES for zksolc, and the reverse.
+    assert.equal(kindCheck("zksolc", 324, { vyper: [] }).verifies("blockscout"), true);
+    assert.throws(
+      () => kindCheck("vyper", 324, { zksolc: [["blockscout", [324]]] }),
+      (error) => isKindRefusal(error, 324),
+    );
   });
 });
 

@@ -157,8 +157,8 @@ export interface FlowDependencies {
   // References: decisions 0057 and 0075.
   /**
    * The backends whose client maps each compiler kind other than solc, each with its chains.
-   * Absent means `COMPILER_ROUTES`, as both entries leave it; the tests pass lists to reach the
-   * steps of a backend that maps a kind.
+   * A kind left out, or the whole field, means its `COMPILER_ROUTES` list, as both entries leave
+   * it; the tests pass a list to reach the steps of a backend that maps a kind.
    */
   readonly compilers?: CompilerRoutes | undefined;
 }
