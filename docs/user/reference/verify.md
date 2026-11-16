@@ -348,11 +348,27 @@ as `apikey` or `token`, are redacted as keys.
 | --------------- | ---------------------------------------------- | ------------------- |
 | `solc`          | `version`, `input`                             | the EVM             |
 | `zksolc`        | `version`, `solcVersion`, `solcFork?`, `input` | EraVM on ZKsync Era |
+| `vyper`         | `version`, `input`                             | Vyper contracts     |
 
 For zksolc, `version` is zksolc's, such as `1.5.15`. `solcVersion` is the
 full solc version, such as `0.8.24+commit.e11b9ed9`, and `solcFork` ZKsync's
 fork revision, such as `1.0.2`. Blockscout verifies zksolc on ZKsync Era
 (324) and ZKsync Sepolia (300). Pass `constructorArgs` yourself for zksolc.
+
+No backend of this release verifies Vyper: every route refuses `kind: "vyper"`
+before any request. `validateInput` checks the input already:
+
+- `version` is the long form with an 8-character commit, such as
+  `0.4.3+commit.bff19ea2`, from Vyper 0.3.10 on. A prerelease or an older
+  release throws `unsupported-compiler` on `compiler.version`.
+- `input` is Vyper's Standard JSON input, `VyperStandardJsonInput`. It holds
+  `language: "Vyper"`, `sources` and `settings`, and optionally `interfaces`.
+- `contractName` is the `.vy` path and the file name, such as
+  `src/Counter.vy:Counter`.
+- `libraries` is refused: Vyper has no linked libraries.
+- A source or interface key, or a `settings.search_paths` entry, that holds a
+  local path is refused. That includes the `0/1/…/` keys that
+  `vyper -f solc_json` writes for a module from a Python environment.
 
 A route that does not verify the kind throws
 [`unsupported-compiler`](errors/unsupported-compiler.md).

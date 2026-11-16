@@ -321,11 +321,19 @@ describe("blackbox #13: every promised rejection names its field (R-IN-6)", () =
     }
   });
 
-  it("compiler.kind must be solc, and the hint names the supported kind", () => {
-    for (const kind of ["vyper", "solidity", "", undefined]) {
+  it("compiler.kind must be solc, zksolc or vyper, and the hint names the supported kinds", () => {
+    for (const kind of ["Vyper", "solidity", "", undefined]) {
       const error = assertRejectsField(withCompiler({ kind }), "compiler.kind");
       assert.match(error.hint, /solc/);
+      assert.match(error.hint, /vyper/);
     }
+  });
+
+  it("compiler.kind vyper takes Vyper input, so Solidity input under it names the language (decision 0075)", () => {
+    const error = rejectionOf(withCompiler({ kind: "vyper", version: "0.4.3+commit.bff19ea2" }));
+    const fields = issuesOf(error).map((issue) => issue.field);
+    assert.ok(!fields.includes("compiler.kind"), JSON.stringify(fields));
+    assert.ok(fields.includes("compiler.input.language"), JSON.stringify(fields));
   });
 
   it("compiler.version must be the full form", () => {
@@ -447,7 +455,7 @@ describe("blackbox #13: several bad fields are all reported (R-IN-6)", () => {
       chainId: 0,
       address: "nope",
       compiler: {
-        kind: "vyper",
+        kind: "VYPER",
         version: "0.8",
         input: { language: "Yul", sources: {}, settings: {} },
       },

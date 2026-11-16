@@ -82,6 +82,72 @@ export interface ZksolcCompiler {
   input: SolidityStandardJsonInput;
 }
 
+// References: decision 0075.
+/**
+ * The Vyper compiler's Standard JSON input, as `vyper --standard-json` reads it. Only the fields
+ * this library reads are typed; the rest pass through unchanged.
+ *
+ * @experimental
+ */
+export interface VyperStandardJsonInput {
+  /** Always `"Vyper"` for this input kind. */
+  language: "Vyper";
+  /** Source files by path, with their content. Vyper refuses `urls`, and so does this library. */
+  sources: Record<
+    string,
+    {
+      /** The source text, as the compiler read it. */
+      content: string;
+      /** The Keccak-256 hash of `content`, which the compiler checks when it is present. */
+      keccak256?: string;
+    }
+  >;
+  /** Interface files by path: a `.vyi` or JSON interface as text, or an ABI. */
+  interfaces?: Record<
+    string,
+    | {
+        /** The interface text: a `.vyi` file or a JSON ABI file. */
+        content: string;
+      }
+    | {
+        /** The interface as an ABI. */
+        abi: unknown[];
+      }
+  >;
+  /** Compiler settings: EVM version, optimization, search paths and so on. */
+  settings: Record<string, unknown>;
+}
+
+// References: decision 0075.
+/**
+ * The Vyper compiler and its input. Vyper 0.3.10 and later releases are accepted; prereleases are
+ * not.
+ *
+ * No backend of this release verifies Vyper input: every route refuses it with
+ * `unsupported-compiler` before any request.
+ *
+ * @example
+ * ```ts
+ * import type { VyperCompiler } from "explorer-verify";
+ *
+ * declare const standardJson: VyperCompiler["input"];
+ * const compiler: VyperCompiler = {
+ *   kind: "vyper",
+ *   version: "0.4.3+commit.bff19ea2",
+ *   input: standardJson,
+ * };
+ * ```
+ * @experimental
+ */
+export interface VyperCompiler {
+  /** The compiler family. */
+  kind: "vyper";
+  /** Full version with its 8-character commit hash, as `0.4.3+commit.bff19ea2`. */
+  version: string;
+  /** The Standard JSON input used for the deployment. */
+  input: VyperStandardJsonInput;
+}
+
 // References: decision 0004.
 /**
  * What to verify. `compiler` is a discriminated union so other languages (Vyper and others) can
@@ -95,10 +161,13 @@ export interface VerifyInput {
   chainId: number;
   /** The deployed contract address. */
   address: Hex;
-  // References: decision 0057.
-  /** The compiler and its input: solc, or zksolc for EraVM contracts. */
-  compiler: SolcCompiler | ZksolcCompiler;
-  /** Fully qualified contract name, as `src/Token.sol:Token`. */
+  // References: decision 0057, decision 0075.
+  /** The compiler and its input: solc, zksolc for EraVM contracts, or Vyper. */
+  compiler: SolcCompiler | ZksolcCompiler | VyperCompiler;
+  /**
+   * Fully qualified contract name, as `src/Token.sol:Token`. For Vyper, the path ends in `.vy`
+   * and the name is the file's name without that suffix, as `src/Counter.vy:Counter`.
+   */
   contractName: string;
   // References: R-IN-3.
   /**

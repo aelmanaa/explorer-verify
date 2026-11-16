@@ -17,6 +17,10 @@ results and errors:
 
 The difference is where the explorer clients and the routing table come from.
 
+The compiler kind check is the same too: input of a kind the route's backend does not verify, such
+as `kind: "vyper"` on any backend in this release, throws `unsupported-compiler` before any request,
+whichever clients you pass.
+
 ## Why a core entry
 
 The default entry loads each client and the table with a dynamic `import()` when a call needs

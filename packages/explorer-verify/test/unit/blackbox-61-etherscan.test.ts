@@ -361,6 +361,7 @@ describe("blackbox #61: full verify run (R-BE-1, R-DX-6)", () => {
       checkverifystatus: [PASS],
     });
     const base = makeInput();
+    assert.ok(base.compiler.kind === "solc");
     const extended = { ...base.compiler.input, outputSelection: { "*": {} }, remappings: ["a=b"] };
     const input = makeInput({ compiler: { kind: "solc", version: VERSION, input: extended } });
     await drive(verify(input, run.options));
@@ -384,6 +385,7 @@ describe("blackbox #61: full verify run (R-BE-1, R-DX-6)", () => {
       checkverifystatus: [PASS],
     });
     const base = makeInput();
+    assert.ok(base.compiler.kind === "solc");
     const input = makeInput({
       compiler: { kind: "solc", version: `v${VERSION}`, input: base.compiler.input },
     });

@@ -26,6 +26,11 @@ Without `route.apiUrl`, the first rule that applies picks the backend. The `veri
 With `route.apiUrl` (`routedBy: "api-url"`), the call goes to that URL for any chain. The backend
 is `route.backend`, or `sourcify` when you leave it out.
 
+The input's `compiler.kind` is checked first. Every backend verifies `solc`. Rule 2 passes over a
+backend that does not verify the kind on the chain. When no backend does, or the route's backend
+does not, the call throws `unsupported-compiler` on `compiler.kind` before any request. Only
+Blockscout verifies `zksolc`, on chains 324 and 300; no backend verifies `vyper` in this release.
+
 Only `etherscan-v2` needs a key, and a standalone Etherscan-compatible entry when its row says so.
 When no backend in the row works without a key, the call takes the first one and throws
 `missing-api-key` before any request.
@@ -151,12 +156,13 @@ route to another backend than the handle's throws `invalid-input` and sends noth
 
 Each is thrown before any request, except the explorer's own answer:
 
-| Code                | When                                                                     |
-| ------------------- | ------------------------------------------------------------------------ |
-| `unsupported-chain` | No row and no `allowSourcifyFallback`, or `route.backend` not in the row |
-| `unsupported-chain` | The explorer answered that it does not serve the chain                   |
-| `invalid-input`     | A `route` field or `allowSourcifyFallback` is invalid                    |
-| `missing-api-key`   | The route needs a key, none is bound to its host, and no `fetch` is set  |
+| Code                   | When                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `unsupported-chain`    | No row and no `allowSourcifyFallback`, or `route.backend` not in the row |
+| `unsupported-chain`    | The explorer answered that it does not serve the chain                   |
+| `invalid-input`        | A `route` field or `allowSourcifyFallback` is invalid                    |
+| `missing-api-key`      | The route needs a key, none is bound to its host, and no `fetch` is set  |
+| `unsupported-compiler` | The route's backend does not verify `compiler.kind` on the chain         |
 
 `details.backend` names the backend ([unsupported-chain](errors/unsupported-chain.md)).
 

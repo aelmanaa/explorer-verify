@@ -8,7 +8,7 @@ import { BACKEND_LABELS, BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Found, PollOutcome, Target } from "../backends/backend.ts";
 import { kindCheck } from "../compiler-kinds.ts";
-import type { KindCheck, ZksolcRoutes } from "../compiler-kinds.ts";
+import type { CompilerRoutes, KindCheck } from "../compiler-kinds.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
 import type { InputIssue } from "../errors.ts";
@@ -154,13 +154,13 @@ export interface FlowDependencies {
   readonly handler?: HandlerLoader | undefined;
   /** Set by `explorer-verify/core`: the errors for what its caller left out. */
   readonly missing?: Missing | undefined;
-  // References: decision 0057.
+  // References: decisions 0057 and 0075.
   /**
-   * The backends whose client maps zksolc input, each with its chains. Absent
-   * means `ZKSOLC_ROUTES`, as both entries leave it; the tests pass a list to reach the steps of a
-   * backend that maps it.
+   * The backends whose client maps each compiler kind other than solc, each with its chains.
+   * Absent means `COMPILER_ROUTES`, as both entries leave it; the tests pass lists to reach the
+   * steps of a backend that maps a kind.
    */
-  readonly zksolc?: ZksolcRoutes | undefined;
+  readonly compilers?: CompilerRoutes | undefined;
 }
 
 // References: decision 0052.
@@ -1207,12 +1207,12 @@ export async function routeOf(
 
 // References: decision 0057.
 /**
- * The kind check of checked input, with the backends that map zksolc from `dependencies`.
+ * The kind check of checked input, with the backends that map each kind from `dependencies`.
  * `checkStatus()` does not call it, so its bundle does not hold the check. Each
  * flow that takes input calls it before it resolves the route, so no route hint comes first.
  *
  * @param input - The input, as `validateInput` returned it.
- * @param dependencies - The flow dependencies: `zksolc`, when a test sets it.
+ * @param dependencies - The flow dependencies: `compilers`, when a test sets it.
  * @returns The check.
  * @throws ExplorerVerifyError `unsupported-compiler` when no backend verifies the input's kind on
  *   its chain.
@@ -1223,7 +1223,7 @@ export async function routeOf(
  * @internal
  */
 export function kindsOf(input: VerifyInput, dependencies: FlowDependencies): KindCheck {
-  return kindCheck(input.compiler.kind, input.chainId, dependencies.zksolc);
+  return kindCheck(input.compiler.kind, input.chainId, dependencies.compilers);
 }
 
 /**

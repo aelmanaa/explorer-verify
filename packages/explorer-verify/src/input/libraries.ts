@@ -48,11 +48,17 @@ import { validateInput } from "./validate.ts";
  */
 export function linkLibraries(input: VerifyInput): VerifyInput {
   const checked = validateInput(input);
-  const { libraries } = checked;
+  const { compiler, libraries } = checked;
+  // References: decision 0075. validateInput already refuses libraries on Vyper input.
+  if (compiler.kind === "vyper") {
+    throw invalid([
+      { field: "compiler.kind", message: "must not be vyper: Vyper has no linked libraries" },
+    ]);
+  }
   if (libraries === undefined) {
     return checked;
   }
-  const settings = checked.compiler.input.settings;
+  const settings = compiler.input.settings;
   const conflict = "conflicts with compiler.input.settings.libraries";
   // Entries for other paths are copied as they are.
   const merged = readFields(settings["libraries"] ?? {});
@@ -87,9 +93,9 @@ export function linkLibraries(input: VerifyInput): VerifyInput {
   return {
     ...checked,
     compiler: {
-      ...checked.compiler,
+      ...compiler,
       input: {
-        ...checked.compiler.input,
+        ...compiler.input,
         settings: { ...settings, libraries: Object.fromEntries(merged) },
       },
     },

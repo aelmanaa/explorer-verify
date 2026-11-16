@@ -471,9 +471,9 @@ adds the key and forwards it.
 
 ## Extension points
 
-| Extension                | How                                                                                                                                                                                    |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, a loader in `flow/defaults.ts`, a `clients/<name>.ts` module and subpath, a `chunks` ceiling, routing rows |
-| New chain                | A row in `routing/table.json`, or a per-call route override                                                                                                                            |
-| New compiler or language | A new member of the `compiler` union, and its mapping in each backend that accepts it (decision 0004)                                                                                  |
-| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                                                                                                           |
+| Extension                | How                                                                                                                                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New backend              | New `backends/<name>.ts` implementing `Backend`, a name in `BACKEND_NAMES`, a loader in `flow/defaults.ts`, a `clients/<name>.ts` module and subpath, a `chunks` ceiling, routing rows                      |
+| New chain                | A row in `routing/table.json`, or a per-call route override                                                                                                                                                 |
+| New compiler or language | A new member of the `compiler` union, its validation in `validateInput`, a list of backends and chains in `compiler-kinds.ts`, and its mapping in each backend that accepts it (decisions 0004, 0057, 0075) |
+| New input source         | A resolver that returns the `compiler` part of `VerifyInput`                                                                                                                                                |

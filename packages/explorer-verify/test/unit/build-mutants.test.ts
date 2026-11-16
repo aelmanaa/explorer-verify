@@ -207,7 +207,7 @@ describe("buildVerifyInput: messages of the argument checks (#202, R-IN-7)", () 
     );
     assert.equal(
       error.hint,
-      "Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia (300). Verify other compilers with their own tooling.",
+      "Use Solidity compiled with solc, or zksolc through Blockscout on ZKsync Era (324) or Sepolia (300). No backend verifies Vyper in this release. Verify other compilers with their own tooling.",
     );
   });
 });

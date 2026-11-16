@@ -26,6 +26,7 @@ import type {
   VerifyEvent,
   VerifyInput,
   VerifyOptions,
+  VyperCompiler,
   ZksolcCompiler,
 } from "explorer-verify";
 import { toEnvelope } from "explorer-verify/envelope";
@@ -61,6 +62,8 @@ declare const maybe: {
   rateLimit: RateLimit | undefined;
 };
 declare const base: VerifyInput;
+declare const solidity: SolcCompiler["input"];
+declare const vyperJson: VyperCompiler["input"];
 declare const handle: Handle;
 
 const route: RouteOverride = { backend: maybe.backend, apiUrl: env.API_URL, apiKey: env.API_KEY };
@@ -111,10 +114,26 @@ const zksolc: ZksolcCompiler = {
   version: "1.5.15",
   solcVersion: "0.8.24+commit.e11b9ed9",
   solcFork: env.FORK,
-  input: base.compiler.input,
+  input: solidity,
 };
 const solc: SolcCompiler = { kind: "solc", version: "0.8.24+commit.e11b9ed9", input: zksolc.input };
 const zksolcInput: VerifyInput = { ...input, compiler: zksolc };
+// A Vyper input (decision 0075), and a switch on compiler.kind that handles every kind.
+const vyper: VyperCompiler = { kind: "vyper", version: "0.4.3+commit.bff19ea2", input: vyperJson };
+const vyperInput: VerifyInput = { ...base, compiler: vyper, contractName: "src/Counter.vy:Counter" };
+function language(compiler: VerifyInput["compiler"]): string {
+  switch (compiler.kind) {
+    case "solc":
+    case "zksolc":
+      return compiler.input.language;
+    case "vyper":
+      return compiler.input.language;
+    default: {
+      const unknown: never = compiler;
+      return unknown;
+    }
+  }
+}
 const solcInput: VerifyInput = { ...input, compiler: solc };
 const target: LinkProxyTarget = { chainId: 1, address: base.address, expectedImplementation: maybe.hex };
 const build: BuildVerifyInputOptions = {
@@ -176,6 +195,8 @@ export async function run(): Promise<unknown[]> {
     await verify(input, options),
     await verify(zksolcInput, options),
     await dryRun(solcInput, dry),
+    await dryRun(vyperInput, dry),
+    language(vyperInput.compiler),
     await verify(input, { signal: maybe.signal, timeoutMs: maybe.number, rpcUrl: env.RPC_URL }),
     await dryRun(input, dry),
     await checkStatus(handle, status),
@@ -209,9 +230,17 @@ const MISPLACED = [
   "export const b = checkStatus(handle, { rpcUrl });",
   "export const c = linkProxy(target, { rpcUrl });",
   "export const d = verify(input, { timeout: 5 });",
-  'declare const json: VerifyInput["compiler"]["input"];',
+  'declare const json: SolcCompiler["input"];',
   'export const e: ZksolcCompiler = { kind: "zksolc", version: "1.5.15", input: json };',
   'export const f: SolcCompiler = { kind: "solc", version: "x", solcVersion: "x", input: json };',
+  "function never(value: never): never { throw new Error(String(value)); }",
+  'export function g(compiler: VerifyInput["compiler"]): string {',
+  "  switch (compiler.kind) {",
+  '    case "solc": return "solc";',
+  '    case "zksolc": return "zksolc";',
+  "    default: return never(compiler);",
+  "  }",
+  "}",
   "",
 ].join("\n");
 
@@ -247,6 +276,8 @@ describe("the options types under exactOptionalPropertyTypes (R-IN-6, R-DX-4)", 
       "misplaced:10 TS2561 timeout",
       "misplaced:12 TS2741 solcVersion",
       "misplaced:13 TS2353 solcVersion",
+      // A switch on compiler.kind without a vyper case (decision 0075).
+      "misplaced:19 TS2345 VyperCompiler",
     ]);
   });
 });

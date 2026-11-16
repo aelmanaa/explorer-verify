@@ -38,6 +38,19 @@ means one of these:
 - a contract path that is not in the sources;
 - a local path in the compiler input. The issue gives its position, never the path.
 
+For Vyper input (`kind: "vyper"`), these rules also apply. Each issue names its field:
+
+- `compiler.version`: the long form with an 8-character commit, such as `0.4.3+commit.bff19ea2`.
+  A 7-character commit, as the PyPI wheels of Vyper 0.3.x print, is refused; the hint names the
+  release asset form.
+- `compiler.input.language`: `"Vyper"`.
+- `contractName`: the path of a `.vy` source and the file name without `.vy`.
+- `libraries` and a library placeholder in `creationBytecode`: refused, as Vyper has none.
+  `linkLibraries` refuses Vyper input on `compiler.kind`.
+- `compiler.input.sources`, `compiler.input.interfaces` and `compiler.input.settings.search_paths`:
+  a key or entry that holds a local path. That includes the `0/1/…/` keys of `vyper -f solc_json`.
+  The issue gives the position, never the path.
+
 A handle with any field it does not know, a URL included, is rejected: a handle never sets the
 host. All unknown fields are reported as one issue on `handle` that gives their count, not their
 names.

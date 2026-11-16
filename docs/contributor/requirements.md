@@ -45,6 +45,11 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 `unsupported-compiler` before any request
 ([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
 
+A Vyper contract can be described with `kind: "vyper"` (R-EXT-1). No backend of this release
+verifies it: every route refuses it with `unsupported-compiler` before any request, and
+`buildVerifyInput` still refuses Vyper documents. Later issues map one backend each
+([decision 0075](decisions/0075-vyper-compiler-kind.md)).
+
 ## Functional requirements
 
 ### Inputs (R-IN)
@@ -53,7 +58,9 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   (`path:Name`), the compiler version (full form, `0.8.24+commit.e11b9ed9`) and the compiler's
   Standard JSON input. For zksolc, the compiler version is zksolc's (`1.5.15`), and the input also
   names the full version of the solc that zksolc ran and, optionally, the revision of ZKsync's
-  solc fork (`1.0.2`) (decision 0057). Optional fields: the constructor arguments (R-IN-3), the creation
+  solc fork (`1.0.2`) (decision 0057). For Vyper, the version is the long form with an 8-character
+  commit (`0.4.3+commit.bff19ea2`), from 0.3.10 on, and the input is Vyper's Standard JSON input,
+  with optional `interfaces` (decision 0075). Optional fields: the constructor arguments (R-IN-3), the creation
   transaction hash, the compiled creation bytecode, `creationBytecode` (R-IN-3), and the library
   link addresses, `libraries` (R-IN-4).
 - **R-IN-2** The library never compiles. Where the Standard JSON comes from is the caller's concern
@@ -107,7 +114,12 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
   it is not built yet. Resolvers are pluggable (R-EXT-2).
 - **R-IN-6** Input is validated before any request: address format, chain id, name present in the
   Standard JSON, version format, and for zksolc its own fields (`compiler.solcVersion`,
-  `compiler.solcFork`). Validation errors name the field. The address check is format only:
+  `compiler.solcFork`). For Vyper: the long version with an 8-character commit, `language:
+  "Vyper"`, a contract name whose path ends in `.vy` and whose name is the file name, no
+  `libraries`, and no source key, interface key or `settings.search_paths` entry that holds a local
+  path, including the `0/1/…/` form of `vyper -f solc_json`. A Vyper prerelease or a version
+  before 0.3.10 throws `unsupported-compiler` on `compiler.version` (decision 0075). Validation
+  errors name the field. The address check is format only:
   `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any
   case. Options are validated too: a key the function does not read throws `invalid-input` naming
   the key and the closest known name, never its value, and an optional field set to `undefined`
@@ -651,7 +663,11 @@ Measurement:
   over a backend whose client does not map the input's kind, and a route whose backend does not
   map it throws `unsupported-compiler`, naming `compiler.kind`, before any request. No backend
   maps zksolc yet; Blockscout's ZKsync instances come next
-  ([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
+  ([decision 0057](decisions/0057-zksolc-compiler-kind.md)). The third member is
+  `{ kind: "vyper"; version; input }`, with its own input type, `VyperStandardJsonInput`. Each
+  kind other than solc has its own list of backends and chains; the Vyper list is empty in this
+  release, so every route refuses Vyper input
+  ([decision 0075](decisions/0075-vyper-compiler-kind.md)).
 - **R-EXT-2** Input resolvers, backends and the routing table are extension points with documented
   interfaces.
 
