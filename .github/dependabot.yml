@@ -31,6 +31,9 @@ updates:
       # the published floor, 22.12.0 (decision 0071).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # solc-js compiles the sources fixture in tests, and the result must match the fixture's
+      # recorded build from solc 0.8.24 (decision 0074).
+      - dependency-name: solc
     commit-message:
       prefix: chore
       include: scope
