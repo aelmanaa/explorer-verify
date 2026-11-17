@@ -229,8 +229,8 @@ catalogs:
       specifier: 4.68.1
       version: 4.68.1
     solc:
-      specifier: 0.8.24
-      version: 0.8.24
+      specifier: 0.8.38
+      version: 0.8.38
     typedoc:
       specifier: 0.28.20
       version: 0.28.20
@@ -373,7 +373,7 @@ importers:
         version: 12.0.0
       solc:
         specifier: 'catalog:'
-        version: 0.8.24(debug@4.4.3(supports-color@7.2.0))
+        version: 0.8.38(debug@4.4.3(supports-color@7.2.0))
 
   packages/foundry:
     devDependencies:
@@ -3325,10 +3325,6 @@ packages:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
 
-  os-tmpdir@1.0.2:
-    resolution: {integrity: sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==}
-    engines: {node: '>=0.10.0'}
-
   ox@0.14.63:
     resolution: {integrity: sha512-TSKYN151boL1Aq/vsFrd8Buvd7v+oTQr8V7z4f4QQTSMB+ohD8cbNbHCtKRLI0Gs8LuYKirf5qvElTKVIFe2jw==}
     peerDependencies:
@@ -3591,9 +3587,9 @@ packages:
     resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
 
-  solc@0.8.24:
-    resolution: {integrity: sha512-G5yUqjTUPc8Np74sCFwfsevhBPlUifUOfhYrgyu6CmYlC6feSw0YS6eZW47XDT23k3JYdKx5nJ+Q7whCEmNcoA==}
-    engines: {node: '>=10.0.0'}
+  solc@0.8.38:
+    resolution: {integrity: sha512-DsDLa7uACQVVkE0DYNnUGC49b/yuCJ9ymWlcCEwmaJGcETPC6pTC+BXaRK9ADW8YVeMyxEKUtJsUwRAIG28jtQ==}
+    engines: {node: '>=16.0.0'}
     hasBin: true
 
   source-map-js@1.2.2:
@@ -3702,9 +3698,9 @@ packages:
     resolution: {integrity: sha512-jBrmx4lYmaC9k/mgPbylxs7kBUxHtD8256up+HjLaDFfXScKJQyil+SWXSvhAtT7XHo+yTVlpB81PGmHP8oLSQ==}
     engines: {node: ^20.0.0 || >=22.0.0}
 
-  tmp@0.0.33:
-    resolution: {integrity: sha512-jRCJlojKnZ3addtTOjdIqoRuPEKBvNXcGYqzO6zWZX8KfKEpnGY5jfggJQ3EjKuu8D4bJRr0y+cYJFmYbImXGw==}
-    engines: {node: '>=0.6.0'}
+  tmp@0.2.6:
+    resolution: {integrity: sha512-5sJPdPjfI5Kx+qbrDesxkglRBxW//g7hCsqspEjwkewGvBMGIKMOTKzLt1hFVJzyadba3lDUN20O9qhvbQUSTA==}
+    engines: {node: '>=14.14'}
 
   to-valid-identifier@1.0.0:
     resolution: {integrity: sha512-41wJyvKep3yT2tyPqX/4blcfybknGB4D+oETKLs7Q76UiPqRpUJK3hr1nxelyYO0PHKVzJwlu0aCeEAsGI6rpw==}
@@ -6602,8 +6598,6 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  os-tmpdir@1.0.2: {}
-
   ox@0.14.63(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
@@ -6933,7 +6927,7 @@ snapshots:
 
   smol-toml@1.9.1: {}
 
-  solc@0.8.24(debug@4.4.3(supports-color@7.2.0)):
+  solc@0.8.38(debug@4.4.3(supports-color@7.2.0)):
     dependencies:
       command-exists: 1.2.9
       commander: 8.3.0
@@ -6941,7 +6935,7 @@ snapshots:
       js-sha3: 0.8.0
       memorystream: 0.3.1
       semver: 5.7.3
-      tmp: 0.0.33
+      tmp: 0.2.6
     transitivePeerDependencies:
       - debug
 
@@ -7047,9 +7041,7 @@ snapshots:
 
   tinypool@2.2.0: {}
 
-  tmp@0.0.33:
-    dependencies:
-      os-tmpdir: 1.0.2
+  tmp@0.2.6: {}
 
   to-valid-identifier@1.0.0:
     dependencies:
