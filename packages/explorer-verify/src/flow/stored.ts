@@ -16,7 +16,9 @@ import type { StoredContract, VerifyInput } from "../types.ts";
  *   `contractName`; a stored `Name` with the part of `contractName` after its last `:`.
  * - Compiler versions: compared without a leading `v` and in lower case. When one of the two has
  *   no `+commit.` part, only the parts before `+` are compared. A zksolc input compares its
- *   `solcVersion`, which is what Blockscout stores as the compiler version.
+ *   `solcVersion`, which is what Blockscout stores as the compiler version. For a Vyper input,
+ *   a leading `vyper:` on the stored version is dropped first, in any case: Etherscan stores
+ *   `vyper:0.4.3`.
  *
  * @param stored - The stored contract, as a lookup read it.
  * @param input - The checked input.
@@ -35,7 +37,7 @@ export function otherContract(stored: Stored, input: VerifyInput): StoredContrac
       name === (name.includes(":") ? own : own.slice(own.lastIndexOf(":") + 1))) &&
     (compilerVersion === undefined ||
       sameVersion(
-        compilerVersion,
+        compiler.kind === "vyper" ? compilerVersion.replace(VYPER_PREFIX, "") : compilerVersion,
         compiler.kind === "zksolc" ? compiler.solcVersion : compiler.version,
       ))
   ) {
@@ -63,6 +65,9 @@ export function otherContract(stored: Stored, input: VerifyInput): StoredContrac
 export function heldText(label: string, other: StoredContract): string {
   return `${label} holds another contract's source (${Object.values(other).join(", ")})`;
 }
+
+/** The prefix of a Vyper version as Etherscan stores it, such as `vyper:0.4.3`. */
+const VYPER_PREFIX = /^vyper:/i;
 
 /** Two compiler versions as the same release: see {@link otherContract}. */
 function sameVersion(stored: string, own: string): boolean {
