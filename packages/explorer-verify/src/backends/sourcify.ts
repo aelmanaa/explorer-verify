@@ -30,11 +30,12 @@ import {
   foundOf,
   REASON_LENGTH,
   send,
+  standardJsonInput,
   submitOnce,
   UNCONFIRMED_STATUSES,
   unexpected as unexpectedAnswer,
 } from "./common.ts";
-import type { Answer } from "./common.ts";
+import type { Answer, SentStandardJson } from "./common.ts";
 
 export { REASON_LENGTH };
 
@@ -114,11 +115,7 @@ const CODE_LENGTH = 100;
 
 /** The JSON body of a submit. `stdJsonInput` is an object, not a JSON string. */
 interface SubmitBody {
-  stdJsonInput: {
-    language: string;
-    sources: Record<string, unknown>;
-    settings: Record<string, unknown>;
-  };
+  stdJsonInput: SentStandardJson;
   compilerVersion: string;
   contractIdentifier: string;
   creationTransactionHash?: string;
@@ -316,11 +313,10 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
   );
 }
 
-/** The submit body: only `language`, `sources` and `settings` of the input, as an object. */
+/** The submit body: the input as `standardJsonInput` keeps it, as an object. */
 function submitBody(input: ResolvedInput): SubmitBody {
-  const { language, sources, settings } = input.compiler.input;
   const body: SubmitBody = {
-    stdJsonInput: { language, sources, settings },
+    stdJsonInput: standardJsonInput(input.compiler),
     compilerVersion: input.compiler.version,
     contractIdentifier: input.contractName,
   };
