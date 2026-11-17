@@ -55,6 +55,9 @@ const BODY_HEADERS: readonly string[] = ["content-encoding", "content-length", "
 // Case-insensitive on purpose: RFC 9110 dates are case-sensitive, but a recipient may be lenient,
 // and reading `mon, ...` as a date costs nothing.
 const HTTP_DATE_START = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i;
+// The asctime format, `Sun Nov  6 08:49:37 1994`: day name, month, day, time and year. It names no
+// zone, and `Date.parse` would read it as local time, but RFC 9110 says every HTTP date is UTC.
+const ASCTIME = /^([a-z]{3})\s+([a-z]{3})\s+(\d{1,2})\s+(\d\d:\d\d:\d\d)\s+(\d{4})$/i;
 const REDIRECT_MESSAGE = "answered with a redirect, which is not followed";
 
 // References: decision 0035.
@@ -933,9 +936,22 @@ function retryAfter(response: Response, fallback: string | undefined): number | 
   } else if (HTTP_DATE_START.test(value)) {
     // An HTTP date starts with the day name in all three formats of RFC 9110, section 5.6.7. The
     // check keeps `Date.parse` from reading a value such as `1.5` or `-1` as a date.
-    ms = Math.max(0, Date.parse(value) - Date.now());
+    ms = Math.max(0, Date.parse(asUtc(value)) - Date.now());
   }
   return Number.isFinite(ms) ? Math.min(ms, MAX_RETRY_AFTER_MS) : undefined;
+}
+
+/**
+ * An HTTP date in a form `Date.parse` reads as UTC. An asctime date such as
+ * `Sun Nov  6 08:49:37 1994` becomes `Sun, 6 Nov 1994 08:49:37 GMT`, the RFC 2822 form that
+ * JavaScript engines parse. Other values are returned as they are.
+ */
+function asUtc(value: string): string {
+  return value.replace(
+    ASCTIME,
+    (_match, dayName: string, month: string, day: string, time: string, year: string) =>
+      `${dayName}, ${day} ${month} ${year} ${time} GMT`,
+  );
 }
 
 /**
