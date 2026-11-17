@@ -29,6 +29,23 @@ function it(name: string, fn: (t: TestContext) => Promise<void> | void): void {
   void baseIt(name, { timeout: 20_000 }, fn);
 }
 
+/** Runs `fn` with the process time zone set to `zone`, then puts the previous zone back. */
+async function inZone<T>(zone: string, fn: () => Promise<T>): Promise<T> {
+  const previous = process.env["TZ"];
+  process.env["TZ"] = zone;
+  try {
+    // A zone name the runtime does not know falls back to UTC; this catches it.
+    assert.equal(new Date(0).getTimezoneOffset() !== 0, zone !== "UTC");
+    return await fn();
+  } finally {
+    if (previous === undefined) {
+      delete process.env["TZ"];
+    } else {
+      process.env["TZ"] = previous;
+    }
+  }
+}
+
 // A fake key. Never a real one (R-SEC-1).
 const DUMMY_KEY = "DUMMYKEY0123456789ABCDEFGHIJKLMNO";
 const KEYED_URL = `https://api.example.org/v2/api?chainid=1&module=contract&apikey=${DUMMY_KEY}`;
@@ -414,15 +431,31 @@ describe("request: Retry-After (R-FLOW-6)", () => {
     assert.ok(outcome.ok);
   });
 
-  for (const value of [
-    "Thu, 01 Jan 1970 00:00:03 GMT",
-    "Thursday, 01-Jan-70 00:00:03 GMT",
-    "Thu Jan  1 00:00:03 1970",
-  ]) {
-    it(`waits for a Retry-After given as an HTTP date: ${value} (R-FLOW-6)`, async () => {
-      const { fetch } = fakeFetch(json(503, {}, { "retry-after": value }), json(200, {}));
-      const { elapsed } = await drive(request(context({ fetch }), get()));
-      assert.equal(elapsed, 3_000);
+  // Every HTTP date is UTC (RFC 9110, section 5.6.7), so the wait must not depend on the machine's
+  // zone. Node reads `process.env.TZ` again when it is assigned, so each test sets a zone and puts
+  // the old one back. The zones are behind and ahead of UTC.
+  for (const zone of ["UTC", "America/New_York", "Asia/Tokyo"]) {
+    for (const value of [
+      "Thu, 01 Jan 1970 00:00:03 GMT",
+      "Thursday, 01-Jan-70 00:00:03 GMT",
+      "Thu Jan  1 00:00:03 1970",
+      "Thu Jan 01 00:00:03 1970",
+      "thu jan 1 00:00:03 1970",
+    ]) {
+      it(`waits for a Retry-After given as an HTTP date in ${zone}: ${value} (R-FLOW-6)`, async () => {
+        const { fetch } = fakeFetch(json(503, {}, { "retry-after": value }), json(200, {}));
+        const { elapsed } = await inZone(zone, () => drive(request(context({ fetch }), get())));
+        assert.equal(elapsed, 3_000);
+      });
+    }
+
+    it(`ignores an asctime Retry-After with a day out of range in ${zone} (R-FLOW-6)`, async () => {
+      const { fetch } = fakeFetch(
+        json(503, {}, { "retry-after": "Thu Jan 32 00:00:03 1970" }),
+        json(200, {}),
+      );
+      const { elapsed } = await inZone(zone, () => drive(request(context({ fetch }), get())));
+      assert.equal(elapsed, 500);
     });
   }
 
