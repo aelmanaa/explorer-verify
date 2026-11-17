@@ -21,11 +21,16 @@ export type CompilerKind = VerifyInput["compiler"]["kind"];
 /** Backends and the chains on which each one's client maps one compiler kind. */
 export type KindRoutes = readonly (readonly [BackendName, readonly number[]])[];
 
+/** The kinds that have a list of routes: every client maps solc on every chain, so it has none. */
+type ListedKind = Exclude<CompilerKind, "solc">;
+
 /**
- * The routes of each compiler kind other than solc, which every client maps on every chain. A kind
- * left out takes its list from {@link COMPILER_ROUTES}.
+ * The routes of each compiler kind other than solc. A kind left out takes its list from
+ * {@link COMPILER_ROUTES}. Indexed by any kind, it gives `undefined` for solc.
  */
-export type CompilerRoutes = Partial<Readonly<Record<Exclude<CompilerKind, "solc">, KindRoutes>>>;
+export type CompilerRoutes = { readonly [K in ListedKind]?: KindRoutes } & {
+  readonly solc?: never;
+};
 
 // References: decision 0059.
 /**
@@ -43,7 +48,9 @@ export const ZKSOLC_ROUTES: KindRoutes = [["blockscout", [324, 300]]];
 export const VYPER_ROUTES: KindRoutes = [];
 
 /** The routes of every compiler kind other than solc. */
-export const COMPILER_ROUTES: Required<CompilerRoutes> = {
+export const COMPILER_ROUTES: { readonly [K in ListedKind]: KindRoutes } & {
+  readonly solc?: never;
+} = {
   zksolc: ZKSOLC_ROUTES,
   vyper: VYPER_ROUTES,
 };
@@ -79,7 +86,7 @@ export function kindCheck(
   routes: CompilerRoutes = {},
 ): KindCheck {
   const chain = `${kind} input on chain ${String(chainId)}`;
-  const listed = kind === "solc" ? undefined : (routes[kind] ?? COMPILER_ROUTES[kind]);
+  const listed = routes[kind] ?? COMPILER_ROUTES[kind];
   const check: KindCheck = {
     verifies: (backend) =>
       listed === undefined ||

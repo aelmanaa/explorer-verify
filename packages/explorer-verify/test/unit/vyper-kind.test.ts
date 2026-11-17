@@ -531,7 +531,17 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
   });
 
   it("D7: settings.search_paths must be an array of strings", () => {
-    for (const search_paths of ["/abs", ".", { a: "." }, [".", 1], [null], 7]) {
+    for (const search_paths of ["lib", ".", { a: "." }, [".", 1], [null], [["."]], 7, null]) {
+      assertInvalid(
+        withJson({ settings: { search_paths } }),
+        ["compiler.input.settings.search_paths"],
+        "must be an array of strings",
+      );
+    }
+  });
+
+  it("D7: a settings.search_paths that is not an array of strings gets that one issue", () => {
+    for (const search_paths of ["/abs", [1, "/abs"], `0/1/home/${DUMMY_KEY}`]) {
       assertInvalid(
         withJson({ settings: { search_paths } }),
         ["compiler.input.settings.search_paths"],
@@ -579,6 +589,101 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
       contractName: "src/Token.sol:Token",
     });
     assert.equal(Reflect.get(checked.compiler.input, "interfaces"), 1);
+  });
+
+  it("D1: a version that is not a string is refused, even one whose toString is a version", () => {
+    for (const version of [{ toString: () => VERSION }, [VERSION], new Date(0)]) {
+      assertInvalid(withCompiler({ version }), ["compiler.version"], VERSION_MESSAGE);
+    }
+  });
+
+  it("D1: multi-digit parts are accepted and come back without the leading v", () => {
+    for (const [given, expected] of [
+      ["v10.0.0+commit.bff19ea2", "10.0.0+commit.bff19ea2"],
+      ["0.10.0+commit.bff19ea2", "0.10.0+commit.bff19ea2"],
+      ["v0.4.12+commit.bff19ea2", "0.4.12+commit.bff19ea2"],
+      ["1234.5678.9999+commit.bff19ea2", "1234.5678.9999+commit.bff19ea2"],
+    ]) {
+      const checked = validateInput(withCompiler({ version: given }));
+      assert.deepEqual(checked.compiler, { ...vyperInput().compiler, version: expected });
+    }
+    // Five digits in a part is not a version.
+    assertInvalid(withCompiler({ version: "0.12345.0+commit.bff19ea2" }), ["compiler.version"]);
+  });
+
+  it("D3: a prerelease with a multi-digit number is unsupported-compiler on compiler.version", () => {
+    for (const version of [
+      "0.4.1rc10+commit.bff19ea2",
+      "0.5.0b12+commit.bff19ea2",
+      "v0.4.0-rc1234+commit.bff19ea2",
+    ]) {
+      assertUnsupported(rejection(withCompiler({ version })), "compiler.version");
+    }
+    // Five digits in the prerelease number is not a version.
+    assertInvalid(withCompiler({ version: "0.4.1rc12345+commit.bff19ea2" }), ["compiler.version"]);
+  });
+
+  it("D4: an interface with urls or a bad keccak256 is refused, as a source is", () => {
+    for (const entry of [
+      { content: "", urls: ["ipfs://Qm"] },
+      { content: "", keccak256: 1 },
+    ]) {
+      assertInvalid(
+        withJson({ interfaces: { "I.vyi": entry } }),
+        ["compiler.input.interfaces"],
+        "has 1 file with urls or a bad keccak256, at position 1",
+      );
+    }
+  });
+
+  it("D4: an input or settings that cannot be read is reported once, without other Vyper issues", () => {
+    for (const input of [null, "x", []]) {
+      assertInvalid(
+        withCompiler({ input }),
+        ["compiler.input"],
+        "must be the Standard JSON input object",
+      );
+    }
+    for (const settings of [null, "x"]) {
+      assertInvalid(withJson({ settings }), ["compiler.input.settings"], "must be an object");
+    }
+  });
+
+  it("D4: a source that is not an object has no content, and one that is not JSON is unreadable", () => {
+    for (const entry of [1, "x", true, 1n, undefined]) {
+      assertInvalid(
+        withJson({ sources: { "src/Counter.vy": entry } }),
+        ["compiler.input.sources"],
+        "has 1 file without a string content, at position 1",
+      );
+    }
+    assertInvalid(
+      withJson({ sources: { "src/Counter.vy": { content: COUNTER, n: 1n } } }),
+      ["compiler.input.sources"],
+      "has 1 file that cannot be read as JSON data, at position 1",
+    );
+  });
+
+  it("D7: a refused local path still lets contractName be checked against the sources", () => {
+    assertInvalid(
+      {
+        ...withJson({
+          sources: {
+            "src/Counter.vy": { content: COUNTER },
+            [`/home/${DUMMY_KEY}/x.vy`]: { content: "" },
+          },
+        }),
+        contractName: "src/Other.vy:Other",
+      },
+      ["compiler.input.sources", "contractName"],
+    );
+  });
+
+  it("returns the whole Vyper compiler, without interfaces when the input has none", () => {
+    const checked = validateInput(vyperInput());
+    assert.deepEqual(checked.compiler, vyperInput().compiler);
+    assert.ok(checked.compiler.kind === "vyper");
+    assert.equal(Object.hasOwn(checked.compiler.input, "interfaces"), false);
   });
 
   it("reports every Vyper field problem at once, in field order", () => {
