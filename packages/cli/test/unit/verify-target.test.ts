@@ -193,6 +193,53 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
     assert.match(hint, /set route\.backend "auto" for the routing table's pick, which is sourcify/);
   });
 
+  it("refuses Vyper --input-json without route.backend as unsupported-compiler first (decision 0075)", async (t) => {
+    const path = join(DIR, "vyper.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        chainId: 11155111,
+        address: ADDRESS,
+        compiler: {
+          kind: "vyper",
+          version: "0.4.3+commit.bff19ea2",
+          input: {
+            language: "Vyper",
+            sources: { "src/Counter.vy": { content: "# pragma version 0.4.3\n" } },
+            settings: {},
+          },
+        },
+        contractName: "src/Counter.vy:Counter",
+      }),
+    );
+    const result = await run(t, ["verify", "--input-json", path, "--json"]);
+    assert.equal(result.code, 2, result.stdout + result.stderr);
+    assert.deepEqual(result.seen, []);
+    const error = errorOf(result);
+    assert.equal(error["code"], "unsupported-compiler");
+    assert.match(String(error["message"]), /vyper input on chain 11155111/);
+    assert.doesNotMatch(String(error["message"]), /route\.backend/);
+  });
+
+  it("keeps the target refusal for zksolc input on a chain where a backend verifies it", async (t) => {
+    const path = join(DIR, "zksolc.json");
+    const parsed: unknown = JSON.parse(request());
+    assert.ok(typeof parsed === "object" && parsed !== null);
+    const fields = new Map(Object.entries(parsed));
+    const compiler: unknown = fields.get("compiler");
+    assert.ok(typeof compiler === "object" && compiler !== null);
+    fields.set("chainId", 324);
+    fields.set("compiler", {
+      ...compiler,
+      kind: "zksolc",
+      version: "1.5.15",
+      solcVersion: "0.8.24+commit.e11b9ed9",
+    });
+    writeFileSync(path, JSON.stringify(Object.fromEntries(fields)));
+    const { message } = refused(await run(t, ["verify", "--input-json", path, "--json"]));
+    assert.match(message, /route\.backend is needed to submit/);
+  });
+
   it("names route.apiUrl for a chain without a row in --input-json", async (t) => {
     const path = join(DIR, "unlisted.json");
     writeFileSync(path, request().replace('"chainId":11155111', '"chainId":999999'));

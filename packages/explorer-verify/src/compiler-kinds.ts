@@ -1,10 +1,11 @@
-// References: R-EXT-1, decisions 0004.
+// References: R-EXT-1, decisions 0004, 0057 and 0075.
 /**
  * Which backend clients verify which compiler kind, on which chains. Every client maps `solc` on
- * every chain. A client maps `zksolc` only on the chains whose
- * explorer reads the zksolc fields it sends; the routing table passes over any other backend for
- * zksolc input, and the flow engine refuses such input before any request when the route's backend
- * does not map it there. The list is static, so the route is chosen before any client loads.
+ * every chain. Each other kind has its own list: a backend and the chains on which its client maps
+ * the kind. The routing table passes over any other
+ * backend for such input, and the flow engine refuses the input before any request when the
+ * route's backend does not map it there. The lists are static, so the route is chosen before any
+ * client loads.
  *
  * Only the flows that take input import this module: `checkStatus()` and `linkProxy()` do not, so
  * their bundles do not hold it.
@@ -17,8 +18,19 @@ import type { VerifyInput } from "./types.ts";
 /** A `compiler.kind` of {@link VerifyInput}. */
 export type CompilerKind = VerifyInput["compiler"]["kind"];
 
-/** Backends and the chains on which each one's client maps zksolc input. */
-export type ZksolcRoutes = readonly (readonly [BackendName, readonly number[]])[];
+/** Backends and the chains on which each one's client maps one compiler kind. */
+export type KindRoutes = readonly (readonly [BackendName, readonly number[]])[];
+
+/** The kinds that have a list of routes: every client maps solc on every chain, so it has none. */
+type ListedKind = Exclude<CompilerKind, "solc">;
+
+/**
+ * The routes of each compiler kind other than solc. A kind left out takes its list from
+ * {@link COMPILER_ROUTES}. Indexed by any kind, it gives `undefined` for solc.
+ */
+export type CompilerRoutes = { readonly [K in ListedKind]?: KindRoutes } & {
+  readonly solc?: never;
+};
 
 // References: decision 0059.
 /**
@@ -26,7 +38,22 @@ export type ZksolcRoutes = readonly (readonly [BackendName, readonly number[]])[
  * zksolc fields. Blockscout maps the fields on chains 324 and 300. Keyed by chain
  * as well as backend, so that mapping Blockscout cannot send zksolc input to another instance.
  */
-export const ZKSOLC_ROUTES: ZksolcRoutes = [["blockscout", [324, 300]]];
+export const ZKSOLC_ROUTES: KindRoutes = [["blockscout", [324, 300]]];
+
+// References: decision 0075.
+/**
+ * The backends whose client maps Vyper input. Empty in this release: every route refuses Vyper
+ * input before any request. Each backend that maps Vyper later adds its entry here.
+ */
+export const VYPER_ROUTES: KindRoutes = [];
+
+/** The routes of every compiler kind other than solc. */
+export const COMPILER_ROUTES: { readonly [K in ListedKind]: KindRoutes } & {
+  readonly solc?: never;
+} = {
+  zksolc: ZKSOLC_ROUTES,
+  vyper: VYPER_ROUTES,
+};
 
 /** The compiler kind of one call's input, as the routing reads it. */
 export interface KindCheck {
@@ -45,7 +72,7 @@ export interface KindCheck {
  *
  * @param kind - The input's `compiler.kind`.
  * @param chainId - The chain of the call.
- * @param zksolc - The backends and chains that map zksolc; {@link ZKSOLC_ROUTES} by default.
+ * @param routes - Routes that replace those of {@link COMPILER_ROUTES} for the kinds they name.
  * @returns The check.
  * @throws ExplorerVerifyError `unsupported-compiler` when no backend verifies the kind on the chain.
  * @example
@@ -56,13 +83,14 @@ export interface KindCheck {
 export function kindCheck(
   kind: CompilerKind,
   chainId: number,
-  zksolc: ZksolcRoutes = ZKSOLC_ROUTES,
+  routes: CompilerRoutes = {},
 ): KindCheck {
   const chain = `${kind} input on chain ${String(chainId)}`;
+  const listed = routes[kind] ?? COMPILER_ROUTES[kind];
   const check: KindCheck = {
     verifies: (backend) =>
-      kind === "solc" ||
-      zksolc.some(([name, chains]) => name === backend && chains.includes(chainId)),
+      listed === undefined ||
+      listed.some(([name, chains]) => name === backend && chains.includes(chainId)),
     refused: (backend) =>
       newError(
         { code: "unsupported-compiler", field: "compiler.kind" },
@@ -74,7 +102,7 @@ export function kindCheck(
         { secrets: [] },
       ),
   };
-  if (kind !== "solc" && !zksolc.some(([, chains]) => chains.includes(chainId))) {
+  if (listed !== undefined && !listed.some(([, chains]) => chains.includes(chainId))) {
     throw check.refused();
   }
   return check;

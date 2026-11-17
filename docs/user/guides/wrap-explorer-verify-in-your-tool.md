@@ -303,6 +303,9 @@ export const deployKit = {
 // The sample, as deployKit's parameters.
 const json = await readFile("greeter-sepolia.json", "utf8");
 const sample: VerifyInput = JSON.parse(json);
+if (sample.compiler.kind !== "solc") {
+  throw new Error("The sample is a solc build.");
+}
 const params: VerifyContractParams = {
   chainId: sample.chainId,
   address: sample.address,

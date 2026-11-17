@@ -277,11 +277,16 @@ export type ErrorDetails =
       field: "input";
     }
   | {
-      /** The documents come from a compiler other than solc, or a language other than Solidity. */
+      /**
+       * The documents come from a compiler other than solc, or a language other than Solidity; or
+       * the route's backend does not verify the input's compiler kind or version.
+       */
       code: "unsupported-compiler";
       /**
        * The field that names the compiler: `compilerType`, `language`, or the zksolc field that
-       * marked an EraVM build, such as `input.zksolc_version`.
+       * marked an EraVM build, such as `input.zksolc_version`; `compiler.kind` for a kind the
+       * route's backend does not verify; `compiler.version` for a Vyper version this release does
+       * not support.
        */
       field: string;
     }

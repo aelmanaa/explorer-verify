@@ -1,7 +1,7 @@
 // The zksolc compiler kind (R-EXT-1, R-IN-6, R-IN-3, decision 0057): routing by kind, refusals
 // before any request in the default entry and in explorer-verify/core, and no constructor argument
 // derivation for EraVM. No backend of this release maps zksolc, so the tests that reach a backend
-// that does pass `zksolc` in the flow dependencies, as the next mapping will set it.
+// that does pass `compilers` in the flow dependencies, as the next mapping will set it.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -80,7 +80,7 @@ function mapping(seen: string[], submitted: VerifyInput[] = []): FlowDependencie
       sourcify: fakeClient("sourcify", seen),
       blockscout: fakeClient("blockscout", seen, submitted),
     },
-    zksolc: [["blockscout", [324, 300]]],
+    compilers: { zksolc: [["blockscout", [324, 300]]] },
   };
 }
 
@@ -104,29 +104,31 @@ describe("compiler kinds (R-EXT-1, decision 0057)", () => {
   it("maps zksolc only to the ZKsync Blockscout chains", () => {
     assert.deepEqual(ZKSOLC_ROUTES, [["blockscout", [324, 300]]]);
     assert.equal(kindCheck("solc", ZKSYNC).verifies("sourcify"), true);
-    assert.equal(kindCheck("solc", ZKSYNC, []).verifies("routescan"), true);
+    assert.equal(kindCheck("solc", ZKSYNC, { zksolc: [] }).verifies("routescan"), true);
     assert.equal(kindCheck("zksolc", ZKSYNC).verifies("blockscout"), true);
     assert.equal(
-      kindCheck("zksolc", ZKSYNC, [["blockscout", [324, 300]]]).verifies("blockscout"),
+      kindCheck("zksolc", ZKSYNC, { zksolc: [["blockscout", [324, 300]]] }).verifies("blockscout"),
       true,
     );
     assert.equal(
-      kindCheck("zksolc", ZKSYNC, [["blockscout", [324, 300]]]).verifies("sourcify"),
+      kindCheck("zksolc", ZKSYNC, { zksolc: [["blockscout", [324, 300]]] }).verifies("sourcify"),
       false,
     );
   });
 
   it("names the backend, the kind and the chain in the refusal", () => {
     isRefusal(
-      kindCheck("zksolc", ZKSYNC, [["blockscout", [324]]]).refused("routescan"),
+      kindCheck("zksolc", ZKSYNC, { zksolc: [["blockscout", [324]]] }).refused("routescan"),
       "routescan",
     );
   });
   it("limits each compiler mapping to its backend and chains", () => {
-    const routes = [
-      ["blockscout", [324, 300]],
-      ["sourcify", [300]],
-    ] as const;
+    const routes = {
+      zksolc: [
+        ["blockscout", [324, 300]],
+        ["sourcify", [300]],
+      ],
+    } as const;
     assert.equal(kindCheck("zksolc", 300, routes).verifies("blockscout"), true);
     assert.equal(kindCheck("zksolc", 324, routes).verifies("sourcify"), false);
     assert.equal(kindCheck("zksolc", 324, routes).verifies("blockscout"), true);

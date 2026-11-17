@@ -14,7 +14,7 @@ const MESSAGES = {
   chainId: "must be a positive integer",
   address: "must be 0x followed by 40 hex digits",
   compiler: "must be an object with kind, version and input",
-  kind: 'must be "solc" or "zksolc"',
+  kind: 'must be "solc", "zksolc" or "vyper"',
   shortVersion:
     "is a short version; pass the full version with its commit, such as 0.8.24+commit.e11b9ed9",
   version: "must be a full solc version, such as 0.8.24+commit.e11b9ed9",
@@ -278,15 +278,15 @@ describe("rule: address is 0x and 40 hex digits, any case, checksum not checked 
   });
 });
 
-describe("rule: compiler.kind is solc or zksolc (R-IN-6, decisions 0004 and 0057)", () => {
+describe("rule: compiler.kind is solc, zksolc or vyper (R-IN-6, decisions 0004, 0057 and 0075)", () => {
   it("accepts solc (R-IN-6)", () => {
     assert.equal(validateInput(input()).compiler.kind, "solc");
   });
 
   it("rejects any other kind with a hint naming the supported kinds (R-IN-6)", () => {
-    for (const kind of ["vyper", "SOLC", undefined]) {
+    for (const kind of ["Vyper", "SOLC", undefined]) {
       const error = assertIssue(withCompiler({ kind }), "compiler.kind", MESSAGES.kind);
-      assert.equal(error.hint, 'Set compiler.kind to "solc", or "zksolc" for EraVM.');
+      assert.equal(error.hint, 'Set compiler.kind to "solc", "zksolc" or "vyper".');
     }
   });
 
@@ -561,7 +561,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
         chainId: -1,
         address: "",
         compiler: {
-          kind: "vyper",
+          kind: "VYPER",
           version: "0.8.24",
           input: { language: "Yul", sources: {}, settings: null },
         },
@@ -589,7 +589,7 @@ describe("validateInput collects every problem (R-IN-6)", () => {
     const error = rejection({ ...withCompiler({ version: "0.8.24", kind: "x" }), chainId: 0 });
     assert.equal(
       error.hint,
-      'Set compiler.kind to "solc", or "zksolc" for EraVM. Then fix the other fields that the issues list (details.issues).',
+      'Set compiler.kind to "solc", "zksolc" or "vyper". Then fix the other fields that the issues list (details.issues).',
     );
   });
 
@@ -1470,12 +1470,12 @@ describe("rule: a zksolc compiler names zksolc's version, solc's and the fork's 
   });
 
   it("checks the version of a compiler whose kind is invalid as a solc version", () => {
-    assertRejected(withCompiler({ kind: "vyper", version: "1.5.15" }), [
+    assertRejected(withCompiler({ kind: "VYPER", version: "1.5.15" }), [
       "compiler.kind",
       "compiler.version",
     ]);
     assertRejected(withCompiler({ kind: "ZKSOLC", version: VERSION }), ["compiler.kind"]);
-    assertRejected(withCompiler({ kind: "vyper", solcVersion: "1.0.2", solcFork: "1.0.2" }), [
+    assertRejected(withCompiler({ kind: "VYPER", solcVersion: "1.0.2", solcFork: "1.0.2" }), [
       "compiler.kind",
     ]);
   });

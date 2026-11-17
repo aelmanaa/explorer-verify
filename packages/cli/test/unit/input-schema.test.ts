@@ -41,6 +41,16 @@ function withoutRoute(names: readonly string[]): string[] {
   return names.filter((name) => name !== "route");
 }
 
+/** A verify request with a vyper compiler, `input` and any other compiler fields. */
+function vyper(input: Record<string, unknown>, compiler: Record<string, unknown> = {}): unknown {
+  return {
+    chainId: 11155111,
+    address: `0x${"ab".repeat(20)}`,
+    compiler: { kind: "vyper", version: "0.4.3+commit.bff19ea2", input, ...compiler },
+    contractName: "src/Counter.vy:Counter",
+  };
+}
+
 describe("input.schema.json and the CLI's request fields (R-AX-16)", () => {
   it("lists the verify fields the CLI reads, and route", () => {
     assert.deepEqual(withoutRoute(properties(["$defs", "verify"])), VERIFY_REQUEST.fields);
@@ -90,5 +100,40 @@ describe("input.schema.json and the CLI's request fields (R-AX-16)", () => {
     for (const field of ["solcVersion", "solcFork"]) {
       assert.notDeepEqual(inputProblems(request({ kind: "solc", [field]: solcVersion })), []);
     }
+  });
+
+  it("accepts a vyper compiler with Vyper input, and refuses Solidity input under it (decision 0075)", () => {
+    const sources = { "src/Counter.vy": { content: "# pragma version 0.4.3\n" } };
+    const interfaces = {
+      "src/ICounter.vyi": { content: "@external\ndef count() -> uint256: ...\n" },
+      "src/IERC20.json": { abi: [] },
+    };
+    assert.deepEqual(inputProblems(vyper({ language: "Vyper", sources, settings: {} })), []);
+    assert.deepEqual(
+      inputProblems(vyper({ language: "Vyper", sources, interfaces, settings: {} })),
+      [],
+    );
+    assert.notDeepEqual(inputProblems(vyper({ language: "Solidity", sources, settings: {} })), []);
+    assert.notDeepEqual(
+      inputProblems(
+        vyper({ language: "Vyper", sources, interfaces: { "I.vyi": {} }, settings: {} }),
+      ),
+      [],
+    );
+    assert.notDeepEqual(
+      inputProblems(vyper({ language: "Vyper", sources, settings: {} }, { solcVersion: "0.8.24" })),
+      [],
+    );
+    // A solc compiler still needs language Solidity.
+    const vyperInput = { language: "Vyper", sources: { "A.sol": { content: "" } }, settings: {} };
+    assert.notDeepEqual(
+      inputProblems({
+        chainId: 1,
+        address: `0x${"ab".repeat(20)}`,
+        compiler: { kind: "solc", version: "0.8.24+commit.e11b9ed9", input: vyperInput },
+        contractName: "A.sol:A",
+      }),
+      [],
+    );
   });
 });

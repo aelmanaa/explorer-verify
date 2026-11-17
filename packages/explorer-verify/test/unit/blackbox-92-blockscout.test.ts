@@ -463,6 +463,7 @@ describe("blackbox #92: submit, poll and lookup (R-BE-3)", () => {
       checkverifystatus: [PASS],
     });
     const base = makeInput();
+    assert.ok(base.compiler.kind === "solc");
     const withExtra = { ...base.compiler.input, extra: "drop-me" };
     const input: VerifyInput = {
       ...base,

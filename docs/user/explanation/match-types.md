@@ -61,6 +61,20 @@ deployed", which does not depend on a metadata hash.
 Routescan states no grade, so explorer-verify reports every Routescan match as `partial` (decision
 0063): its verified state is not a checked grade.
 
+## Vyper builds
+
+No backend of this release verifies Vyper input. The grades below are what the explorers gave to
+Vyper contracts in probes on 2026-11-15.
+
+Vyper's bytecode has no metadata hash. From Vyper 0.4.1, its trailer holds an integrity hash of the
+sources, so Sourcify and Blockscout graded a 0.4.3 build exact. Vyper 0.3.10 and 0.4.0 builds hold
+nothing derived from the source text, so Sourcify and Blockscout graded them partial, as they grade
+a solc build without a metadata hash.
+
+Etherscan and Routescan gave no grade for Vyper either. explorer-verify reads them as for solc:
+Etherscan's `Pass - Verified` with an empty `SimilarMatch` is `exact`, and every Routescan match
+is `partial`.
+
 ## Linked libraries
 
 Linked libraries can lower the grade too. Take a contract compiled without library addresses and

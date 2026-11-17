@@ -542,6 +542,9 @@ export function withWrongSource(
   edit: { readonly from: string; readonly to: string },
 ): VerifyInput {
   const file = input.contractName.slice(0, input.contractName.lastIndexOf(":"));
+  if (input.compiler.kind === "vyper") {
+    throw new PlanError("wrongEdit applies to Solidity input only");
+  }
   const source = input.compiler.input.sources[file];
   if (source === undefined || !source.content.includes(edit.from)) {
     throw new PlanError(`wrongEdit.from is not in ${file}`);

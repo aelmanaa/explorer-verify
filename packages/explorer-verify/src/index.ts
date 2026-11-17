@@ -63,5 +63,7 @@ export type {
   VerifyInput,
   VerifyOptions,
   VerifyResult,
+  VyperCompiler,
+  VyperStandardJsonInput,
   ZksolcCompiler,
 } from "./types.ts";

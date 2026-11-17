@@ -642,6 +642,7 @@ describe("the comparison rule (decision 0063)", () => {
 
   it("compares a zksolc input's solcVersion, as Blockscout stores it", () => {
     const solcInput = solc(VERSION);
+    assert.ok(solcInput.compiler.kind === "solc");
     const compiler: SolcCompiler | ZksolcCompiler = {
       kind: "zksolc",
       version: "1.5.15",
