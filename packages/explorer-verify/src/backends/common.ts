@@ -327,10 +327,42 @@ export async function waitToResubmit(
   await sleep(delayMs, signal);
 }
 
+/** The Standard JSON input a client sends: see {@link standardJsonInput}. */
+export interface SentStandardJson {
+  readonly language: string;
+  readonly sources: Record<string, unknown>;
+  readonly interfaces?: Record<string, unknown>;
+  readonly settings: Record<string, unknown>;
+}
+
+// References: R-BE-6, decision 0075.
+/**
+ * The part of a Standard JSON input a client sends, in this key order: `language`, `sources`,
+ * for Vyper input `interfaces` when the input has it, and `settings`. Any other key of the input
+ * is left out.
+ *
+ * @param compiler - The checked input's compiler.
+ * @returns The input to send.
+ * @example
+ * ```ts
+ * const sourceCode = JSON.stringify(standardJsonInput(input.compiler));
+ * ```
+ */
+export function standardJsonInput(compiler: ResolvedInput["compiler"]): SentStandardJson {
+  if (compiler.kind === "vyper") {
+    const { language, sources, interfaces, settings } = compiler.input;
+    return interfaces === undefined
+      ? { language, sources, settings }
+      : { language, sources, interfaces, settings };
+  }
+  const { language, sources, settings } = compiler.input;
+  return { language, sources, settings };
+}
+
 // References: decision 0059.
 /**
  * The `verifysourcecode` fields of an Etherscan-style API for a Standard JSON input, without the
- * constructor arguments: `sourceCode` holds only `language`, `sources` and `settings`, and
+ * constructor arguments: `sourceCode` holds the input as {@link standardJsonInput} keeps it, and
  * `compilerversion` has one leading `v`.
  *
  * For zksolc, `compilerversion` is the upstream solc long version and `zksolcVersion` is the
@@ -346,12 +378,11 @@ export async function waitToResubmit(
  */
 export function standardJsonFields(input: ResolvedInput): Record<string, string> {
   const compiler = input.compiler;
-  const { language, sources, settings } = input.compiler.input;
   const version = compiler.kind === "zksolc" ? compiler.solcVersion : compiler.version;
   return {
     action: "verifysourcecode",
     codeformat: "solidity-standard-json-input",
-    sourceCode: JSON.stringify({ language, sources, settings }),
+    sourceCode: JSON.stringify(standardJsonInput(compiler)),
     contractaddress: input.address,
     contractname: input.contractName,
     // Stryker disable next-line Regex: equivalent. A solc version has a `v` only as its first character, so removing the first `v` removes the same one; validateInput drops it already.

@@ -9,6 +9,7 @@ import type { TestContext } from "node:test";
 import { BACKEND_LABELS } from "../../src/backend-names.ts";
 import type { Context } from "../../src/backends/backend.ts";
 import { foundOf } from "../../src/backends/common.ts";
+import { etherscan as etherscanBackend } from "../../src/backends/etherscan.ts";
 import { sourcify as sourcifyClient } from "../../src/clients/sourcify.ts";
 import { verify as coreVerify } from "../../src/core/index.ts";
 import { routingTable } from "../../src/core/table.ts";
@@ -935,5 +936,116 @@ describe("the job's lookup and nameless answers (R-FLOW-4, decision 0063)", () =
       ["GET", "POST", "GET", "POST"],
     );
     assert.ok(result.status === "already-verified" && result.storedContract !== undefined);
+  });
+});
+
+// #422, R-FLOW-1: Etherscan stores a Vyper version as `vyper:0.4.3` (observed 2026-11-15,
+// docs/contributor/research/2026-11-15-vyper-support.md).
+const VYPER = "0.4.3+commit.bff19ea2";
+
+/** A Vyper input for the counter at BOX, built with `version`. */
+function vyper(version: string): VerifyInput {
+  return {
+    chainId: SEPOLIA,
+    address: BOX,
+    compiler: {
+      kind: "vyper",
+      version,
+      input: {
+        language: "Vyper",
+        sources: { "src/Counter.vy": { content: "count: public(uint256)\n" } },
+        settings: {},
+      },
+    },
+    contractName: "src/Counter.vy:Counter",
+  };
+}
+
+describe("a stored Vyper version (#422, decision 0063)", () => {
+  const A: Hex = "0x1111111111111111111111111111111111111111";
+
+  it("reads Etherscan's vyper: form, in any case, as the same release", () => {
+    assert.equal(otherContract({ compilerVersion: "vyper:0.4.3" }, vyper(VYPER)), undefined);
+    assert.equal(otherContract({ compilerVersion: "VYPER:0.4.3" }, vyper(VYPER)), undefined);
+    assert.equal(otherContract({ compilerVersion: "Vyper:v0.4.3" }, vyper(VYPER)), undefined);
+    assert.equal(
+      otherContract({ name: "Counter", compilerVersion: "vyper:0.4.3" }, vyper(VYPER)),
+      undefined,
+    );
+  });
+
+  it("reads another release in the vyper: form as another contract's source", () => {
+    assert.deepEqual(otherContract({ compilerVersion: "vyper:0.4.0" }, vyper(VYPER)), {
+      compilerVersion: "vyper:0.4.0",
+    });
+  });
+
+  it("strips vyper: only at the start", () => {
+    assert.deepEqual(otherContract({ compilerVersion: "0.4vyper:.3" }, vyper("0.4.3")), {
+      compilerVersion: "0.4vyper:.3",
+    });
+  });
+
+  it("keeps the Blockscout and Routescan forms as before", () => {
+    assert.equal(
+      otherContract({ compilerVersion: "v0.4.3+commit.bff19ea2" }, vyper(VYPER)),
+      undefined,
+    );
+    assert.equal(
+      otherContract({ compilerVersion: "v0.4.0" }, vyper("0.4.0+commit.e9db8d9f")),
+      undefined,
+    );
+    assert.deepEqual(otherContract({ compilerVersion: "v0.4.0" }, vyper(VYPER)), {
+      compilerVersion: "v0.4.0",
+    });
+  });
+
+  it("does not strip vyper: for a solc input", () => {
+    assert.deepEqual(otherContract({ compilerVersion: "vyper:0.8.24" }, solc("0.8.24")), {
+      compilerVersion: "vyper:0.8.24",
+    });
+    assert.deepEqual(
+      otherContract({ compilerVersion: "vyper:0.8.24" }, solc("0.8.24+commit.e11b9ed9")),
+      { compilerVersion: "vyper:0.8.24" },
+    );
+  });
+
+  // Contract C, built with 0.4.0, matched before its verify from contract A's source, built with
+  // 0.4.3 (observed 2026-11-15). After C was verified, SimilarMatch was empty and the version 0.4.0.
+  it("reads C's stored answer before its verify as A's source, and after it as C's", async () => {
+    const ctx = (fetch: typeof globalThis.fetch): Context => {
+      const apiKeys = { "etherscan-v2": ETHERSCAN_KEY };
+      return {
+        route: resolveRoute(SEPOLIA, { backend: "etherscan-v2" }, { apiKeys }),
+        apiKeys: () => apiKeys,
+        http: { backend: "etherscan-v2", fetch, secrets: [ETHERSCAN_KEY] },
+      };
+    };
+    const own = vyper("0.4.0+commit.e9db8d9f");
+    const before = replay(
+      etherscanLookup({ ContractName: "Counter", CompilerVersion: "vyper:0.4.3", SimilarMatch: A }),
+    );
+    const held = await etherscanBackend.lookup(
+      { chainId: SEPOLIA, address: BOX },
+      ctx(before.fetch),
+    );
+    assert.deepEqual(held, { match: "partial", name: "Counter", compilerVersion: "vyper:0.4.3" });
+    assert.ok(held !== undefined);
+    assert.deepEqual(otherContract(held, own), { name: "Counter", compilerVersion: "vyper:0.4.3" });
+
+    const after = replay(
+      etherscanLookup({
+        ContractName: "Counter",
+        CompilerVersion: "vyper:0.4.0",
+        SimilarMatch: "",
+      }),
+    );
+    const verified = await etherscanBackend.lookup(
+      { chainId: SEPOLIA, address: BOX },
+      ctx(after.fetch),
+    );
+    assert.deepEqual(verified, { match: "exact", name: "Counter", compilerVersion: "vyper:0.4.0" });
+    assert.ok(verified !== undefined);
+    assert.equal(otherContract(verified, own), undefined);
   });
 });
