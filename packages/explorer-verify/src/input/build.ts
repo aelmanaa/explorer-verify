@@ -17,8 +17,9 @@ import {
   sourceFingerprint,
 } from "./metadata.ts";
 import type { RebuiltInput, SolidityMetadata } from "./metadata.ts";
-import { isLocalPath } from "./paths.ts";
-import { isCreationBytecode, validateInput } from "./validate.ts";
+import { isIndexedPath, isLocalPath } from "./paths.ts";
+import { isCreationBytecode, validateInput, VYPER_STORAGE_HINT } from "./validate.ts";
+import { rewriteVyperKey, rewriteVyperSearchPath, vyperLongVersion } from "./vyper.ts";
 
 /**
  * Options for {@link buildVerifyInput}. Every field is optional, and a field set to `undefined`
@@ -43,8 +44,9 @@ export interface BuildVerifyInputOptions {
    */
   contract?: string | undefined;
   /**
-   * The full compiler version, such as `0.8.24+commit.e11b9ed9`. Used only when the documents hold
-   * no full version; when they do, it must be the same version.
+   * The full compiler version, such as `0.8.24+commit.e11b9ed9`, or `0.4.3+commit.bff19ea2` for
+   * Vyper. Used only when the documents hold no full version; when they do, it must be the same
+   * version.
    */
   compilerVersion?: string | undefined;
   /**
@@ -89,6 +91,8 @@ const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_CANDIDATES = 20;
 // The `_format` of a hardhat-zksync artifact.
 const ZKSOLC_ARTIFACT_FORMAT = "hh-zksolc-artifact-1";
+// The `_format` of a Hardhat 2 Vyper artifact (`@nomiclabs/hardhat-vyper`).
+const VYPER_ARTIFACT_FORMAT = "hh-vyper-artifact-1";
 // The fields of a contract's zksolc metadata that name the zksolc version.
 const ZKSOLC_METADATA_FIELDS = ["zk_version", "zksolcVersion"] as const;
 const MAX_POSITIONS = 5;
@@ -121,6 +125,14 @@ const ZKSOLC_HINT =
   "zksolc (EraVM) builds are not supported. A contract compiled with plain solc verifies with the solc build-info; a zksolc contract needs the ZKsync tooling.";
 const ABSOLUTE_HINT =
   "Rebuild with source paths and remappings relative to the project root, so no local path is published.";
+const VYPER_PATH_HINT =
+  "Compile from the project root, so each path is relative to it. Only a module from a Python environment, under site-packages, is moved to its package path.";
+const VYPER_ARTIFACT_HINT =
+  "Pass the output of vyper -f solc_json for the contract, a Foundry build-info (build_info = true), or the Vyper Standard JSON input with the full compiler version (options.compilerVersion) and the contract (options.contract).";
+const VYPER_COMMIT_HINT =
+  "Pass the full Vyper version (options.compilerVersion) with the 8-character commit from the name of the Vyper release asset, such as 0.4.0+commit.e9db8d9f.";
+const VYPER_VERSION_HINT =
+  "Pass the full Vyper version (options.compilerVersion), such as 0.4.3+commit.bff19ea2, with the 8-character commit from the name of the Vyper release asset.";
 
 /** What the documents hold, collected in one pass. */
 class Findings {
@@ -130,8 +142,12 @@ class Findings {
   readonly longVersions = new Set<string>();
   /** Versions from contract metadata. */
   readonly metadataVersions = new Set<string>();
-  /** Whether a short version was seen with no commit. */
-  shortVersion = false;
+  /** `solcLongVersion` values without a commit, such as Foundry's `0.4.3` for Vyper. */
+  readonly shortVersions = new Set<string>();
+  /** `compiler_version` values of bare inputs, as `vyper -f solc_json` writes them. */
+  readonly vyperVersions = new Set<string>();
+  /** Whether a Hardhat 2 Vyper artifact was seen. */
+  vyperArtifact = false;
   /** Fully qualified names listed in build-info output. */
   readonly listed = new Set<string>();
   /** Fully qualified names that artifacts or their metadata point at. */
@@ -274,7 +290,7 @@ function readBuildInfo(
     if (longVersion.includes("+commit.")) {
       findings.longVersions.add(longVersion);
     } else {
-      findings.shortVersion = true;
+      findings.shortVersions.add(longVersion);
     }
   }
   for (const [user, inputName] of fieldsOf(fields.get("userSourceNameMap"))) {
@@ -288,6 +304,9 @@ function readBuildInfo(
 
 function readArtifact(fields: Map<string, unknown>, findings: Findings): void {
   findings.plainArtifact = true;
+  if (fields.get("_format") === VYPER_ARTIFACT_FORMAT) {
+    findings.vyperArtifact = true;
+  }
   readBuildId(fields.get("buildInfoId"), findings);
   const inputSourceName = fields.get("inputSourceName");
   const sourceName = fields.get("sourceName");
@@ -388,6 +407,11 @@ function classify(document: unknown, position: number, findings: Findings): void
     readMetadataFacts(document, findings, true);
   } else if (hasStandardJsonShape(fields)) {
     findings.inputs.push(fields);
+    // `vyper -f solc_json` adds the version, such as v0.4.3+commit.bff19ea2.
+    const version = fields.get("compiler_version");
+    if (typeof version === "string") {
+      findings.vyperVersions.add(version);
+    }
   } else if (fields.has("metadata") || fields.has("rawMetadata")) {
     findings.metadata = true;
     readBuildId(fields.get("buildInfoId"), findings);
@@ -608,6 +632,15 @@ function pickInput(
       METADATA_ONLY_HINT,
     );
   }
+  if (findings.vyperArtifact) {
+    throw newError(
+      // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
+      { code: "insufficient-artifact", field: "input" },
+      "The documents hold no compiler input or settings: a Hardhat 2 Vyper artifact holds only ABI and bytecode.",
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message is fixed text.
+      { hint: VYPER_ARTIFACT_HINT, secrets: [] },
+    );
+  }
   if (findings.plainArtifact && !findings.output) {
     throw newError(
       // Stryker disable next-line StringLiteral: equivalent. The error maps a field outside its list to "input", its first entry.
@@ -722,7 +755,7 @@ function pickVersion(findings: Findings, option: string | undefined): string {
     }
     throw incomplete(
       "compilerVersion",
-      findings.shortVersion
+      findings.shortVersions.size > 0
         ? "The documents hold only the short compiler version, without its commit."
         : "The documents hold no compiler version.",
       VERSION_HINT,
@@ -825,7 +858,8 @@ function pickContract(
       ? `The documents hold ${String(candidates.length)} contracts and none was chosen.`
       : "The documents name no contract.",
     candidates.length > 0 ? CONTRACT_HINT : CONTRACT_PATH_HINT,
-    candidates,
+    // An artifact's own source name may be a path on the build machine: such a name is not listed.
+    candidates.filter((name) => !isLocalPath(name) && !isIndexedPath(name)),
   );
 }
 
@@ -943,6 +977,238 @@ function readDocuments(documents: unknown): unknown[] | undefined {
   return undefined;
 }
 
+/** Throws `invalid-input` on `field` when `at` lists any position, never naming a path. */
+function rejectVyperPaths(at: readonly number[], field: string): void {
+  if (at.length > 0) {
+    throw invalid(field, `has a local path at ${positions(at)}`, VYPER_PATH_HINT);
+  }
+}
+
+// References: R-IN-7, decisions 0075 and 0076.
+/**
+ * The entries of `files` under their rewritten keys (see `rewriteVyperKey`), each renamed key
+ * recorded in `renamed`. Throws `invalid-input` on `field`, naming positions only, for a key that
+ * cannot be rewritten, or for two keys that become one.
+ */
+function rewriteVyperFiles(
+  files: Map<string, unknown>,
+  field: string,
+  renamed = new Map<string, string>(),
+): Map<string, unknown> {
+  const result = new Map<string, unknown>();
+  const local: number[] = [];
+  const twice: number[] = [];
+  let position = 0;
+  for (const [path, entry] of files) {
+    position++;
+    const key = rewriteVyperKey(path);
+    if (key === undefined) {
+      local.push(position);
+    } else if (result.has(key)) {
+      twice.push(position);
+    } else {
+      result.set(key, entry);
+      renamed.set(path, key);
+    }
+  }
+  rejectVyperPaths(local, field);
+  if (twice.length > 0) {
+    throw invalid(field, `names one file twice at ${positions(twice)}`, VYPER_PATH_HINT);
+  }
+  return result;
+}
+
+/**
+ * `settings.search_paths` with each entry rewritten (see `rewriteVyperSearchPath`) and each
+ * repeated entry dropped. An entry that is not a string is kept, so `validateInput` reports it.
+ */
+function rewriteSearchPaths(value: unknown): unknown[] {
+  const field = "compiler.input.settings.search_paths";
+  const result: unknown[] = [];
+  const local: number[] = [];
+  readList(value, field).forEach((entry, index) => {
+    const path = typeof entry === "string" ? rewriteVyperSearchPath(entry) : entry;
+    if (typeof entry === "string" && path === undefined) {
+      local.push(index + 1);
+    } else if (!result.includes(path)) {
+      result.push(path);
+    }
+  });
+  rejectVyperPaths(local, field);
+  return result;
+}
+
+/**
+ * One interface cut down to `content`, or to `abi` when it has no `content`. An entry that is not
+ * an object is kept as it is, so `validateInput` reports it.
+ */
+function copyInterface(entry: unknown): unknown {
+  const fields = readFields(entry);
+  if (fields === undefined) {
+    return entry;
+  }
+  return fields.has("content") || !fields.has("abi")
+    ? { content: fields.get("content") }
+    : { abi: fields.get("abi") };
+}
+
+/** Each interface cut down by {@link copyInterface}. */
+function copyInterfaces(interfaces: Map<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries([...interfaces].map(([path, entry]) => [path, copyInterface(entry)]));
+}
+
+/**
+ * Whether `partial`, a Vyper version as `x.y.z` or with a 7- or 8-character commit, names the
+ * same release as `full`.
+ */
+function sameVyperRelease(partial: string, full: string): boolean {
+  const given = bare(partial);
+  return `${bare(full)}+`.startsWith(given.includes("+") ? given : `${given}+`);
+}
+
+/** The message for a Vyper version that the release table cannot complete. */
+function partialVersionMessage(where: string, version: string): string {
+  const what = version.includes("+")
+    ? "a Vyper version with a 7-character commit"
+    : "only the short Vyper version";
+  return `${where} ${what}, and this version of explorer-verify lists no commit for that Vyper version.`;
+}
+
+/**
+ * The Vyper version: the input's version (`compiler_version`, or a build-info's
+ * `solcLongVersion`), else `option`. A version as `x.y.z` or with a 7-character commit is
+ * completed from the release table (see `vyperLongVersion`). The documents hold one input, so at
+ * most one version.
+ */
+function pickVyperVersion(findings: Findings, option: string | undefined): string {
+  const [raw] = [...findings.longVersions, ...findings.vyperVersions, ...findings.shortVersions];
+  // Stryker disable next-line ConditionalExpression: equivalent. vyperLongVersion reads undefined as the text "undefined", which it returns unchanged: undefined again.
+  const found = raw === undefined ? undefined : vyperLongVersion(raw);
+  if (found === null) {
+    throw invalid(
+      "documents",
+      "hold a Vyper version whose 7-character commit is not the commit of that release",
+      VYPER_COMMIT_HINT,
+    );
+  }
+  // Stryker disable next-line ConditionalExpression: equivalent. vyperLongVersion reads undefined as the text "undefined", which it returns unchanged: undefined again.
+  const given = option === undefined ? undefined : vyperLongVersion(option);
+  if (given === null) {
+    throw invalid(
+      "compilerVersion",
+      "has a 7-character commit that is not the commit of that Vyper release",
+      VYPER_COMMIT_HINT,
+    );
+  }
+  if (found !== undefined) {
+    if (option !== undefined && !sameVyperRelease(option, found)) {
+      throw invalid("compilerVersion", "differs from the compiler version in the documents");
+    }
+    return bare(found);
+  }
+  if (given === undefined) {
+    throw incomplete(
+      "compilerVersion",
+      raw !== undefined
+        ? partialVersionMessage("The documents hold", raw)
+        : option !== undefined
+          ? partialVersionMessage("The compiler version passed is", option)
+          : "The documents hold no compiler version.",
+      VYPER_VERSION_HINT,
+    );
+  }
+  if (raw !== undefined && !sameVyperRelease(raw, given)) {
+    throw invalid("compilerVersion", "differs from the compiler version in the documents");
+  }
+  return given;
+}
+
+/** The built parts, before `validateInput` checks them. */
+interface BuiltParts {
+  compiler: { kind: "solc" | "vyper"; version: string; input: Record<string, unknown> };
+  contractName: string;
+  // validateInput reads an undefined creationBytecode as an absent one.
+  creationBytecode: string | undefined;
+}
+
+/**
+ * The parts of a Vyper build: the input with only `language`, `sources`, `interfaces` and
+ * `settings`, the keys of a module from a Python environment rewritten, the version and the
+ * contract name.
+ */
+function buildVyper(
+  input: Map<string, unknown>,
+  findings: Findings,
+  contract: string | undefined,
+  compilerVersion: string | undefined,
+): BuiltParts {
+  // `vyper -f solc_json --storage-layout-file` writes it, and the compiler reads it: dropping it
+  // would give other bytecode.
+  if (input.has("storage_layout_overrides")) {
+    throw invalid(
+      "compiler.input.storage_layout_overrides",
+      "is not supported",
+      VYPER_STORAGE_HINT,
+    );
+  }
+  const sourceFields = readFields(input.get("sources"));
+  if (sourceFields === undefined) {
+    throw invalid("compiler.input.sources", "must be an object of source files by path");
+  }
+  const renamed = new Map<string, string>();
+  const sourceMap = rewriteVyperFiles(sourceFields, "compiler.input.sources", renamed);
+  // An interfaces or settings value that is not an object is kept, so validateInput reports it.
+  const rawInterfaces = input.get("interfaces");
+  const interfaceFields = readFields(rawInterfaces);
+  const interfaces =
+    interfaceFields === undefined
+      ? rawInterfaces
+      : copyInterfaces(rewriteVyperFiles(interfaceFields, "compiler.input.interfaces"));
+  const rawSettings = input.get("settings");
+  const settingsFields = readFields(rawSettings);
+  let targets = new Map<string, unknown>();
+  if (settingsFields !== undefined) {
+    const selection = readFields(settingsFields.get("outputSelection"));
+    if (selection !== undefined) {
+      targets = rewriteVyperFiles(selection, "compiler.input.settings.outputSelection");
+      settingsFields.set("outputSelection", Object.fromEntries(targets));
+    }
+    const search = settingsFields.get("search_paths");
+    if (Array.isArray(search)) {
+      settingsFields.set("search_paths", rewriteSearchPaths(search));
+    }
+  }
+  const settings = settingsFields === undefined ? rawSettings : Object.fromEntries(settingsFields);
+  const version = pickVyperVersion(findings, compilerVersion);
+  const keys = new Set(sourceMap.keys());
+  for (const [from, to] of renamed) {
+    findings.userSourceNames.set(from, to);
+  }
+  // A Vyper contract is named after its file, so each `.vy` target of outputSelection names one.
+  for (const target of targets.keys()) {
+    const file = target.slice(Math.max(target.lastIndexOf("/"), target.lastIndexOf("\\")) + 1);
+    if (keys.has(target) && file.endsWith(".vy")) {
+      findings.listed.add(`${target}:${file.slice(0, -".vy".length)}`);
+    }
+  }
+  const contractName = pickContract(findings, keys, contract);
+  return {
+    compiler: {
+      kind: "vyper",
+      version,
+      input: {
+        language: "Vyper",
+        sources: copySources(sourceMap),
+        // validateInput drops an interfaces key whose value is undefined.
+        interfaces,
+        settings,
+      },
+    },
+    contractName,
+    creationBytecode: bytecodeOf(findings, keys, contractName),
+  };
+}
+
 // References: R-IN-7.
 /**
  * Builds the `compiler` part of `VerifyInput` and the fully qualified contract name from compiler
@@ -991,6 +1257,28 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  * Hardhat 3 user source name, such as `contracts/Greeter.sol`, is mapped to its input source name
  * through `userSourceNameMap`. A bare Standard JSON input needs `options.contract` as `path:Name`.
  *
+ * A compiler input with `language: "Vyper"` (a bare Vyper Standard JSON, the output of
+ * `vyper -f solc_json`, or a Foundry Vyper build-info) gives `compiler.kind: "vyper"`. Its input
+ * holds only `language`, `sources`, `interfaces` and `settings`: `compiler_version` and
+ * `integrity` are dropped, each source keeps only `content` and `keccak256`, and each interface
+ * only `content`, or `abi` when it has no `content`. An input with `storage_layout_overrides`
+ * throws `invalid-input`. `vyper -f solc_json` keys a module found in a Python environment by the
+ * environment's path: after an index run, such as
+ * `0/1/2/home/user/.venv/lib/python3.12/site-packages/snekmate/auth/ownable.vy`, or relative to a
+ * project-local `.venv`. Such a key becomes the path after its last `site-packages/`
+ * (`snekmate/auth/ownable.vy`), in `sources`, `interfaces` and `settings.outputSelection`, and a
+ * `settings.search_paths` entry that ends in `site-packages` becomes `.`. Any other indexed,
+ * absolute or climbing path is rejected, with `.`, empty and `name/..` segments read as the
+ * compiler reads them. The version is `compiler_version` without its `v`, else the build-info's
+ * `solcLongVersion`, else `options.compilerVersion`. Foundry writes `solcLongVersion` without a
+ * commit, such as `0.4.3`; a table of the stable releases from 0.3.10 turns it into
+ * `0.4.3+commit.bff19ea2`. The table also completes the 7-character commit that the PyPI wheels
+ * print, such as `0.4.0+commit.e9db8d9`. The name is `options.contract`, else the one contract an
+ * artifact points at, else the one `.vy` target of `settings.outputSelection` or of the
+ * build-info output, named after its file. A Hardhat 2 Vyper artifact on its own holds no input
+ * and throws `insufficient-artifact`. No backend verifies Vyper yet: `verify()` refuses a
+ * `kind: "vyper"` input with `unsupported-compiler`.
+ *
  * The order of `documents` does not change the result. The result is a deep copy that has passed
  * `validateInput`, so it shares no object with the documents. It sends nothing.
  *
@@ -1003,11 +1291,10 @@ function readDocuments(documents: unknown): unknown[] | undefined {
  *   `sources` with every missing source path in `details.candidates`); `source-mismatch` for a
  *   source whose keccak-256 differs from the metadata, with the path and both hashes in `details`;
  *   `insufficient-artifact` for ABI and bytecode only; `unsupported-compiler` for a compiler other
- *   than solc, zksolc (EraVM) included; `invalid-input` for documents of no known shape, documents
- * of different builds or
- *   versions, metadata whose `compilationTarget` does not name exactly one contract, a path not in
- *   the sources, a local path, or an input that `validateInput` rejects. Messages never repeat a
- *   value or a path.
+ *   than solc or Vyper, zksolc (EraVM) included; `invalid-input` for documents of no known shape,
+ *   documents of different builds or versions, metadata whose `compilationTarget` does not name
+ *   exactly one contract, a path not in the sources, a local path, Vyper storage layout
+ *   overrides, or an input that `validateInput` rejects. Messages never repeat a value or a path.
  * @example
  * ```ts
  * import { buildVerifyInput, validateInput } from "explorer-verify";
@@ -1077,6 +1364,9 @@ export function buildVerifyInput(
   }
   const { input, rebuilt } = pickInput(findings, contract, provided);
   const language = input.get("language");
+  if (language === "Vyper" && rebuilt === undefined) {
+    return checkBuilt(buildVyper(input, findings, contract, compilerVersion));
+  }
   if (typeof language === "string" && language !== "Solidity") {
     throw unsupportedCompiler("language");
   }
@@ -1106,14 +1396,22 @@ export function buildVerifyInput(
   const version = pickVersion(findings, compilerVersion);
   const keys = new Set(sourceFields.keys());
   const contractName = pickContract(findings, keys, contract);
-  const creationBytecode = bytecodeOf(findings, keys, contractName);
+  return checkBuilt({
+    compiler: { kind: "solc", version, input: { language, sources, settings } },
+    contractName,
+    creationBytecode: bytecodeOf(findings, keys, contractName),
+  });
+}
+
+/**
+ * The built parts, checked by `validateInput` and deep-copied, with `creationBytecode` only when
+ * the documents hold it.
+ */
+function checkBuilt(parts: BuiltParts): BuiltVerifyInput {
   const checked = validateInput({
     chainId: PLACEHOLDER_CHAIN_ID,
     address: PLACEHOLDER_ADDRESS,
-    compiler: { kind: "solc", version, input: { language, sources, settings } },
-    contractName,
-    // validateInput reads an undefined creationBytecode as an absent one.
-    creationBytecode,
+    ...parts,
   });
   const built: BuiltVerifyInput = {
     compiler: checked.compiler,

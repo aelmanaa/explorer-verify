@@ -281,7 +281,10 @@ time budget, and the run prints one envelope with one outcome per backend in `re
 
 - a build-info and the contract's artifact, from Foundry or Hardhat;
 - a Standard JSON input, with `--contract path:Name` and `--compiler-version`;
-- Solidity metadata with its sources embedded. The CLI does not read `.sol` files.
+- Solidity metadata with its sources embedded. The CLI does not read `.sol` files;
+- the output of `vyper -f solc_json`, a Foundry Vyper build-info, or a Vyper Standard JSON input
+  with `--compiler-version`. No backend verifies Vyper yet, so `verify` exits 2 with
+  `unsupported-compiler`.
 
 A shell glob such as `--input out/*.json` that expands to two files exits 2: repeat `--input` for
 each. An input error exits 2 before any request, and names the option, never a path or a value.

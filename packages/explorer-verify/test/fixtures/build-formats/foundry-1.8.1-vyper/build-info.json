@@ -1,0 +1,145 @@
+{
+  "id": "2b57f28ffb434b9c",
+  "source_id_to_path": {
+    "0": "src/Counter.vy",
+    "2": "src/lib/owned.vy"
+  },
+  "language": "vyper",
+  "_format": "ethers-rs-sol-build-info-1",
+  "input": {
+    "language": "Vyper",
+    "sources": {
+      "src/Counter.vy": {
+        "content": "# pragma version ~=0.4.0\n\nfrom .interfaces import ICounter\nfrom .lib import owned\n\nimplements: ICounter\n\ninitializes: owned\n\nexports: owned.owner\n\ncount: public(uint256)\nstep: public(immutable(uint256))\n\n\n@deploy\ndef __init__(step_: uint256):\n    owned.__init__()\n    step = step_\n\n\n@external\ndef increment():\n    owned.check_owner()\n    self.count += step\n"
+      },
+      "src/lib/owned.vy": {
+        "content": "# pragma version ~=0.4.0\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef check_owner():\n    assert msg.sender == self.owner, \"owned: caller is not the owner\"\n"
+      }
+    },
+    "interfaces": {
+      "src/interfaces/ICounter.vyi": {
+        "content": "@external\ndef increment(): ...\n\n\n@view\n@external\ndef count() -> uint256: ...\n"
+      }
+    },
+    "settings": {
+      "evmVersion": "prague",
+      "outputSelection": {
+        "src/Counter.vy": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+        },
+        "src/lib/owned.vy": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+        }
+      },
+      "search_paths": ["", "src"]
+    }
+  },
+  "output": {
+    "contracts": {
+      "src/Counter.vy": {
+        "Counter": {
+          "abi": [
+            {
+              "type": "constructor",
+              "inputs": [
+                {
+                  "name": "step_",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "count",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "increment",
+              "inputs": [],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "step",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view"
+            }
+          ],
+          "evm": {
+            "bytecode": {
+              "object": "61012e51503461003557610011610030565b602061019e5f395f5161012e5261012e6100396100003961014e610000f35b335f55565b5f80fd5f3560e01c60026003820660011b61012801601e395f51565b638da5cb5b81186100335734610124575f5460405260206040f35b63e25fe17581186100a4573461012457602061012e60403960206040f35b63d09de08a81186100a45734610124576100696100a8565b600154602061012e5f395f518082018281106101245790509050600155005b6306661abd81186100a457346101245760015460405260206040f35b5f5ffd5b5f543318156101225760208060a052601e6040527f6f776e65643a2063616c6c6572206973206e6f7420746865206f776e6572000060605260408160a001603e82825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b565b5f80fd001800510088855820cecad113f8822ab897e6cb30e33e2b3d4d8bfae0e6b770ea9af1881797aa3c7219012e81061820a1657679706572830004030037"
+            }
+          }
+        }
+      },
+      "src/lib/owned.vy": {
+        "owned": {
+          "abi": [
+            {
+              "type": "constructor",
+              "inputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view"
+            }
+          ],
+          "evm": {
+            "bytecode": {
+              "object": "3461001757335f5561002761001b6019396100276019f35b5f80fd5f3560e01c638da5cb5b811861001f5734610023575f5460405260206040f35b5f5ffd5b5f80fd8558202b99f22858f0f8707d3fc1c1b21ba4176b36b7c189a3d267d75dcdd69c6448c718278000a1657679706572830004030034"
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "src/Counter.vy": {
+        "id": 0,
+        "ast": {}
+      },
+      "src/lib/owned.vy": {
+        "id": 2,
+        "ast": {}
+      }
+    }
+  },
+  "solcLongVersion": "0.4.3",
+  "solcVersion": "0.4.3"
+}

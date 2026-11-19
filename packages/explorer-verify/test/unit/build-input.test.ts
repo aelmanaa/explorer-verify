@@ -464,9 +464,9 @@ describe("buildVerifyInput: failures (R-IN-7, R-DX-3)", () => {
     assertFails([buildInfo, hardhat3.artifact()], "unsupported-compiler", "compilerType");
   });
 
-  it("fails on a language other than Solidity with unsupported-compiler", () => {
+  it("fails on a language other than Solidity or Vyper with unsupported-compiler", () => {
     const json = standardJson(hardhat2.buildInfo());
-    json.language = "Vyper";
+    json.language = "Yul";
     assertFails([json], "unsupported-compiler", "language", {
       contract: "contracts/Greeter.sol:Greeter",
       compilerVersion: LONG_VERSION,

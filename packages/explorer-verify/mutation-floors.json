@@ -176,6 +176,11 @@
       "maxUndetected": 1
     },
     {
+      "file": "src/input/vyper.ts",
+      "measured": 100.0,
+      "maxUndetected": 1
+    },
+    {
       "file": "src/core/options.ts",
       "measured": 100.0,
       "floor": 98

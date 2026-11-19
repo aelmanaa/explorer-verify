@@ -37,6 +37,7 @@
     "src/input/metadata.ts",
     "src/input/libraries.ts",
     "src/input/paths.ts",
+    "src/input/vyper.ts",
     "src/flow/check-handle.ts",
     "src/core/options.ts",
     "src/core/parts.ts",

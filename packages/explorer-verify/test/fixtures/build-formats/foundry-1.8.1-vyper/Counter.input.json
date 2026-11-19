@@ -1,0 +1,28 @@
+{
+  "language": "Vyper",
+  "sources": {
+    "src/Counter.vy": {
+      "content": "# pragma version ~=0.4.0\n\nfrom .interfaces import ICounter\nfrom .lib import owned\n\nimplements: ICounter\n\ninitializes: owned\n\nexports: owned.owner\n\ncount: public(uint256)\nstep: public(immutable(uint256))\n\n\n@deploy\ndef __init__(step_: uint256):\n    owned.__init__()\n    step = step_\n\n\n@external\ndef increment():\n    owned.check_owner()\n    self.count += step\n"
+    },
+    "src/lib/owned.vy": {
+      "content": "# pragma version ~=0.4.0\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef check_owner():\n    assert msg.sender == self.owner, \"owned: caller is not the owner\"\n"
+    }
+  },
+  "settings": {
+    "evmVersion": "prague",
+    "outputSelection": {
+      "src/Counter.vy": {
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+      },
+      "src/lib/owned.vy": {
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+      }
+    },
+    "search_paths": ["", "src"]
+  },
+  "interfaces": {
+    "src/interfaces/ICounter.vyi": {
+      "content": "@external\ndef increment(): ...\n\n\n@view\n@external\ndef count() -> uint256: ...\n"
+    }
+  }
+}

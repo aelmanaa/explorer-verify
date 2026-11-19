@@ -42,6 +42,14 @@ Cause: the documents passed to `buildVerifyInput` hold only ABI and bytecode, wi
 input, settings or metadata. The explorer needs the sources and the exact settings, and these
 files do not have them. `details.field` is `input`.
 
+A Hardhat 2 Vyper artifact (`_format: "hh-vyper-artifact-1"`) on its own gives this error with
+its own hint. Vyper writes no metadata to rebuild the input from, so the routes are the Vyper
+build files:
+
+- the output of `vyper -f solc_json` for the contract;
+- a Foundry build-info, written with `build_info = true`;
+- the Vyper Standard JSON input, with `options.compilerVersion` and `options.contract`.
+
 ## In code
 
 Check the code, then ask for the build-info or the metadata:
@@ -53,7 +61,10 @@ import { ExplorerVerifyError } from "explorer-verify/errors";
 
 export function onError(error: unknown): void {
   if (ExplorerVerifyError.is(error, "insufficient-artifact")) {
-    console.error("Ask for the build-info or the Solidity metadata.");
+    console.error(
+      "Ask for the build-info, the Solidity metadata " +
+        "or the Vyper Standard JSON input.",
+    );
   }
 }
 ```

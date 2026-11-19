@@ -78,9 +78,11 @@ imports through the remappings and resolves to the same fields, so `await` it. P
 the package was built with; compile the result once and compare the bytecode before you rely on it
 ([guide](../../docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md)).
 
-Vyper is refused in this release. `validateInput()` checks `kind: "vyper"` input, but every route
-refuses it with `unsupported-compiler` before any request, and `buildVerifyInput()` refuses Vyper
-build files. Do not retry with another backend; tell the person to use the explorer's own tools.
+No explorer verifies Vyper in this release. `buildVerifyInput()` builds `kind: "vyper"` input
+from the output of `vyper -f solc_json`, a Foundry Vyper build-info or a Vyper Standard JSON
+input, and `validateInput()` checks it, but every route refuses it with `unsupported-compiler`
+before any request. Do not retry with another backend; tell the person to use the explorer's own
+tools.
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:
 
