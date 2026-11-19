@@ -142,6 +142,14 @@ export interface Dialect {
    * Etherscan, whose answer was checked live on 2026-11-03 and 2026-11-04.
    */
   readonly creation?: boolean;
+  // References: R-EXT-1, decision 0078.
+  /**
+   * Whether the client sends Vyper input in Etherscan's Vyper form: `codeformat` `vyper-json`
+   * and `compilerversion` `vyper:` followed by the version before `+`, such as `vyper:0.4.3`.
+   * Set for Etherscan, whose answers were checked live on 2026-11-15 and 2026-11-19. Without it
+   * the flow refuses Vyper input before the client loads (`VYPER_ROUTES`).
+   */
+  readonly vyper?: boolean;
   /**
    * Status texts, besides `Fail - Unable to verify`, that reject the submitted source. Each is a
    * prefix of `result`. A match gives `failed` with the text as the reason, without a lookup.
@@ -251,6 +259,15 @@ export function etherscanStyle(dialect: Dialect): Backend {
    */
   async function submit(input: ResolvedInput, ctx: Context): Promise<SubmitOutcome> {
     const fields = standardJsonFields(input);
+    const { compiler } = input;
+    if (dialect.vyper === true && compiler.kind === "vyper") {
+      // validateInput gives the long form, x.y.z+commit.<8 hex>; Etherscan refuses it. Etherscan
+      // also refuses a Vyper submit without optimizationUsed: `Missing OptimizationUsed`.
+      const optimize = compiler.input.settings["optimize"];
+      fields["codeformat"] = "vyper-json";
+      fields["compilerversion"] = `vyper:${compiler.version.replace(/\+.*/, "")}`;
+      fields["optimizationUsed"] = optimize === "none" || optimize === false ? "0" : "1";
+    }
     // validateInput gives 0x and an even number of hex digits: the digits follow the 0x.
     const args = input.constructorArgs?.slice(2) ?? "";
     if (args !== "") {
@@ -496,6 +513,7 @@ export const etherscan: Backend = /* @__PURE__ */ etherscanStyle({
   label: "Etherscan",
   read: post,
   creation: true,
+  vyper: true,
 });
 
 /**

@@ -226,14 +226,15 @@ reads the contract name and the compiler version the explorer stores, and
 | Etherscan-compatible explorers | `ContractName`, as for Etherscan, when the answer has it          | `CompilerVersion`             |
 | Blockscout                     | `name` with the part of `contractName` after its last `:`         | `compiler_version`            |
 
-| Rule                        | What happens                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------- |
-| Versions                    | Compared without a leading `v`, in lower case; only the release when one side has no `+commit.` |
-| zksolc input                | Its `solcVersion` is compared                                                                   |
-| Answer names neither field  | The match counts as this source; an `info` line says the answer names no contract               |
-| Either field differs        | `verify()` emits `verify.stored` with both fields, then submits the source                      |
-| Explorer refuses the submit | `already-verified`, `partial`, with `storedContract`, and a `warn` line                         |
-| Stored text                 | Cut to 300 characters, control characters replaced, your keys removed                           |
+| Rule                        | What happens                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Versions                    | Compared without a leading `v`, in lower case; only the release when one side has no `+commit.`                            |
+| zksolc input                | Its `solcVersion` is compared                                                                                              |
+| Vyper input                 | A leading `vyper:` on the stored version, as Etherscan stores `vyper:0.4.3`, is dropped before the comparison, in any case |
+| Answer names neither field  | The match counts as this source; an `info` line says the answer names no contract                                          |
+| Either field differs        | `verify()` emits `verify.stored` with both fields, then submits the source                                                 |
+| Explorer refuses the submit | `already-verified`, `partial`, with `storedContract`, and a `warn` line                                                    |
+| Stored text                 | Cut to 300 characters, control characters replaced, your keys removed                                                      |
 
 No `verify()` path returns `verified` or `exact` for a match whose stored
 name or version differs from the input. `verifyEach()` and
@@ -355,9 +356,14 @@ full solc version, such as `0.8.24+commit.e11b9ed9`, and `solcFork` ZKsync's
 fork revision, such as `1.0.2`. Blockscout verifies zksolc on ZKsync Era
 (324) and ZKsync Sepolia (300). Pass `constructorArgs` yourself for zksolc.
 
-Sourcify verifies Vyper on every chain it serves; every other backend refuses
-`kind: "vyper"` before any request. Sourcify gets the interfaces in `sources`
-([Sourcify](sourcify.md#vyper)). `validateInput` checks the input:
+Sourcify and Etherscan v2 verify Vyper, each on every chain it serves; every
+other backend refuses `kind: "vyper"` before any request. The routing table
+picks between the two as it does for solc. Sourcify gets the interfaces in
+`sources` ([Sourcify](sourcify.md#vyper)); Etherscan v2 gets them as they are
+([Etherscan](etherscan.md#vyper-input)), also through a
+[server handler](server-handler.md). Derived
+[constructor arguments](#constructor-arguments) work as for solc.
+`validateInput` checks the input:
 
 - `version` is the long form with an 8-character commit, such as
   `0.4.3+commit.bff19ea2`, from Vyper 0.3.10 on. A prerelease or an older
@@ -368,6 +374,8 @@ Sourcify verifies Vyper on every chain it serves; every other backend refuses
   `src/Counter.vy:Counter`.
 - `libraries` is refused: Vyper has no linked libraries.
 - `settings.search_paths` is an array of strings.
+- `settings.optimize`, when present, is a level (none, gas or codesize) or a
+  boolean, as Vyper 0.3.10 and later read it.
 - A key of `sources`, `interfaces` or `settings.outputSelection`, or a
   `settings.search_paths` entry, that holds a
   local path is refused. That includes the `0/1/…/` keys that

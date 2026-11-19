@@ -118,14 +118,15 @@ export interface VyperStandardJsonInput {
   settings: Record<string, unknown>;
 }
 
-// References: decision 0075.
+// References: decisions 0075, 0077 and 0078.
 /**
  * The Vyper compiler and its input. Vyper 0.3.10 and later releases are accepted; prereleases are
  * not.
  *
- * In this release only Sourcify verifies Vyper input, on every chain whose routing row lists it,
- * except input before Vyper 0.4.0 that has `interfaces`. Every other backend, and Sourcify for
- * that input, refuses it with `unsupported-compiler` before any request.
+ * In this release Sourcify and Etherscan v2 verify Vyper input, each on every chain whose routing
+ * row lists it. Sourcify does not take input before Vyper 0.4.0 that has `interfaces`; Etherscan
+ * v2 does. Every other backend, and Sourcify for that input, refuses it with
+ * `unsupported-compiler` before any request.
  *
  * @example
  * ```ts

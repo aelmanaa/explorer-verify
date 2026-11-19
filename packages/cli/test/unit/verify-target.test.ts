@@ -218,7 +218,7 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
     assert.match(message, /route\.backend is needed to submit/);
   });
 
-  it("refuses Vyper --input-json on a backend other than Sourcify as unsupported-compiler (decision 0075)", async (t) => {
+  it("refuses Vyper --input-json on a backend other than Sourcify and Etherscan v2 as unsupported-compiler (decisions 0075 and 0078)", async (t) => {
     const path = join(DIR, "vyper-blockscout.json");
     const parsed: unknown = JSON.parse(readFileSync(join(DIR, "vyper.json"), "utf8"));
     assert.ok(typeof parsed === "object" && parsed !== null);

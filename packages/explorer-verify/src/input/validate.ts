@@ -471,6 +471,21 @@ function checkStandardJson<L extends "Solidity" | "Vyper">(
   };
 }
 
+// References: decision 0078.
+/**
+ * The values Vyper 0.3.10 to 0.4.3 read in `settings.optimize`: a level, a boolean, which they
+ * read as `"gas"` or `"none"`, or nothing.
+ */
+const VYPER_OPTIMIZE: readonly unknown[] = [
+  undefined,
+  null,
+  "none",
+  "gas",
+  "codesize",
+  true,
+  false,
+];
+
 // References: decision 0075.
 /**
  * The Vyper Standard JSON input, deep-copied with every field kept, `interfaces` included. No
@@ -505,6 +520,14 @@ function checkVyperJson(value: unknown, problems: Problems): WithPaths<VyperStan
     "settings.outputSelection",
     problems,
   );
+  // References: decision 0078. Etherscan reads optimizationUsed from this setting, so a typo would
+  // be sent as an optimized build.
+  if (!VYPER_OPTIMIZE.includes(settings?.["optimize"])) {
+    problems.add(
+      "compiler.input.settings.optimize",
+      'must be "none", "gas", "codesize", true or false',
+    );
+  }
   // Any issue this input added, an unread interfaces object included, leaves the value out.
   // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: equivalent for the false variant: each issue counted here is already in problems, and validateInput fails the input on any issue; input undefined comes with an issue too. The true variant rejects valid input, which other tests catch.
   if (input === undefined || problems.issues.length > before) {
@@ -848,6 +871,8 @@ function checkCreationBytecode(
  * A source with `urls` is rejected. `contractName` is the path of a `.vy` source and the file name
  * without `.vy`, such as `src/Counter.vy:Counter`. `libraries` and library placeholders in
  * `creationBytecode` are rejected: Vyper has none. `settings.search_paths` is an array of strings.
+ * `settings.optimize`, when present and not `null`, is `"none"`, `"gas"`, `"codesize"`, `true`
+ * or `false`.
  * A key of `sources`, `interfaces` or `settings.outputSelection`, or an entry of
  * `settings.search_paths`, that holds a local path is rejected, including the `0/1/…/` form that
  * `vyper -f solc_json` writes. A `compiler.input.storage_layout_overrides` is rejected: storage

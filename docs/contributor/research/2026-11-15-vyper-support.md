@@ -90,6 +90,27 @@ input was written by hand. Its bytecode equals `vyper -f bytecode` (observed).
   version `vyper:0.4.0` (observed). The client's rule, a non-empty `SimilarMatch` is a partial
   match, holds for Vyper.
 
+#### Addendum, 2026-11-19: optimizationUsed, rejections and Similar Match
+
+Three contracts with one body, `src/Tally{A,B,C}.vy`, Vyper `0.4.3+commit.bff19ea2`, constructor
+arguments `(uint256, string)`, were deployed on Ethereum Sepolia and sent to Etherscan before any
+other explorer. Addresses and transactions are in
+[decision 0078](../decisions/0078-vyper-on-etherscan.md#live-run-2026-11-19).
+
+- A submit in the Vyper form without `optimizationUsed` got
+  `{"status":"0","message":"NOTOK","result":"Missing OptimizationUsed"}`, before any job. The long
+  version form without it got the same answer; with `optimizationUsed=1`, it got
+  `Invalid compiler version` (observed).
+- A source changed to compile to other bytecode was accepted at submit, and its job answered
+  `Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction
+  deployment bytecode.` (observed).
+- Seconds after a deployment, the submit got `Unable to locate ContractCode at …`; the next one got
+  a job id, polled `Pending in queue` twice, then `Pass - Verified` (observed).
+- After TallyA was verified, the lookup of TallyB, with the same bytecode, returned TallyA's source
+  with `SimilarMatch` set to TallyA's address (observed).
+- `verify()` derived TallyA's constructor arguments from `getcontractcreation` by removing the
+  compiled creation code, as for solc (observed).
+
 ### Blockscout
 
 The Etherscan-style `/api` does not carry Vyper Standard JSON:
@@ -547,7 +568,10 @@ creation transaction in slice 3 or 5 would confirm it.
    Where does per-backend formatting go, given that `standardJsonFields` serves four clients?
 6. Etherscan: does it read `optimizationUsed` for `vyper-json`? What does a failed Vyper verify
    answer at the poll? Which spelling does it take for a prerelease, `vyper:0.4.1rc3` or the
-   `vyper:v0.5.0b1` form?
+   `vyper:v0.5.0b1` form? Partly answered on 2026-11-19 (see the Etherscan addendum and
+   [decision 0078](../decisions/0078-vyper-on-etherscan.md)): a submit without `optimizationUsed`
+   is refused, and a rejected source answers the solc bytecode mismatch text. Whether the value of
+   `optimizationUsed` changes the result, and the prerelease spelling, are still open.
 7. Blockscout: a failed `vyper-standard-input` verify has no job to poll. How does a client tell a
    failure from a pending job? Does an explicit `prague` EVM version work, given that the config
    list lacks it?
@@ -562,7 +586,8 @@ creation transaction in slice 3 or 5 would confirm it.
 14. Should the library bundle a Vyper release list (Blockscout's has hashes) or query GitHub?
 15. How many verified Vyper contracts exist per version? No public count was found.
 16. Is a server-handler change for Vyper limited to the version pattern, or does it need fields it
-    does not forward? A new field changes R-SRV-3.
+    does not forward? A new field changes R-SRV-3. Answered on 2026-11-19: it needs the version
+    pattern and `optimizationUsed` ([decision 0078](../decisions/0078-vyper-on-etherscan.md)).
 
 ## Sources
 

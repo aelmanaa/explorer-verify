@@ -102,6 +102,18 @@ describe("input.schema.json and the CLI's request fields (R-AX-16)", () => {
     }
   });
 
+  it("takes the Vyper settings.optimize values validateInput takes, and refuses others (decision 0078)", () => {
+    const sources = { "src/A.vy": { content: "" } };
+    for (const optimize of ["none", "gas", "codesize", true, false, null]) {
+      const settings = { optimize };
+      assert.deepEqual(inputProblems(vyper({ language: "Vyper", sources, settings })), []);
+    }
+    for (const optimize of ["Gas", "", 1, {}]) {
+      const settings = { optimize };
+      assert.notDeepEqual(inputProblems(vyper({ language: "Vyper", sources, settings })), []);
+    }
+  });
+
   it("accepts a vyper compiler with Vyper input, and refuses Solidity input under it (decision 0075)", () => {
     const sources = { "src/Counter.vy": { content: "# pragma version 0.4.3\n" } };
     const interfaces = {

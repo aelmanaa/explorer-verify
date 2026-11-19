@@ -1,6 +1,6 @@
 // The Vyper compiler kind (R-EXT-1, R-IN-1, R-IN-6, decision 0075): the field rules of
-// validateInput, the Vyper capability list, which maps Sourcify only, and the refusal of Vyper
-// input on every other backend before any request, in verify(), dryRun() and verifyEach() of the
+// validateInput, the Vyper capability list, which maps Sourcify and Etherscan v2, and the refusal
+// of Vyper input on every other backend before any request, in verify(), dryRun() and verifyEach() of the
 // default entry and of explorer-verify/core.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -684,6 +684,23 @@ describe("validateInput rules for Vyper (R-IN-6, decision 0075)", () => {
     );
   });
 
+  it("takes settings.optimize as Vyper 0.3.10 to 0.4.3 read it, and refuses any other value (decision 0078)", () => {
+    // Vyper reads a level, a boolean (true as gas, false as none) or nothing; null reads as nothing.
+    for (const optimize of [undefined, null, "none", "gas", "codesize", true, false]) {
+      const settings = optimize === undefined ? {} : { optimize };
+      const checked = validateInput(withJson({ settings }));
+      assert.ok(checked.compiler.kind === "vyper");
+      assert.deepEqual(checked.compiler.input.settings, settings);
+    }
+    for (const optimize of ["Gas", "", "speed", 0, 1, {}, [], "true"]) {
+      assertInvalid(
+        withJson({ settings: { optimize } }),
+        ["compiler.input.settings.optimize"],
+        'must be "none", "gas", "codesize", true or false',
+      );
+    }
+  });
+
   it("returns the whole Vyper compiler, without interfaces when the input has none", () => {
     const checked = validateInput(vyperInput());
     assert.deepEqual(checked.compiler, vyperInput().compiler);
@@ -741,13 +758,17 @@ describe("linkLibraries refuses Vyper input (R-IN-4, decision 0075)", () => {
   });
 });
 
-describe("the Vyper capability list (R-EXT-1, decisions 0075 and 0077)", () => {
-  it("maps Sourcify on every chain, so the kind check refuses only the other backends", () => {
-    assert.deepEqual(VYPER_ROUTES, [["sourcify", "every"]]);
+describe("the Vyper capability list (R-EXT-1, decisions 0075, 0077 and 0078)", () => {
+  it("maps Sourcify and Etherscan v2 on every chain, so the kind check refuses only the other backends", () => {
+    assert.deepEqual(VYPER_ROUTES, [
+      ["sourcify", "every"],
+      ["etherscan-v2", "every"],
+    ]);
     assert.equal(COMPILER_ROUTES.vyper, VYPER_ROUTES);
     for (const chainId of CHAINS) {
       const check = kindCheck("vyper", chainId);
       assert.equal(check.verifies("sourcify"), true);
+      assert.equal(check.verifies("etherscan-v2"), true);
       assert.equal(check.verifies("blockscout"), false);
       isKindRefusal(check.refused("blockscout"), chainId, "blockscout");
     }
@@ -785,13 +806,9 @@ describe("the Vyper capability list (R-EXT-1, decisions 0075 and 0077)", () => {
   });
 });
 
-describe("Vyper input is refused before any request on a backend other than Sourcify (R-EXT-1, decision 0057 point 4, decision 0075)", () => {
+describe("Vyper input is refused before any request on a backend other than Sourcify and Etherscan v2 (R-EXT-1, decision 0057 point 4, decisions 0075 and 0078)", () => {
   const routes: [BackendName, RouteOverride][] = [
     ["blockscout-hosted", { backend: "blockscout-hosted" }],
-    [
-      "etherscan-v2",
-      { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api", apiKey: DUMMY_KEY },
-    ],
     [
       "routescan",
       {
@@ -823,7 +840,7 @@ describe("Vyper input is refused before any request on a backend other than Sour
     }
   });
 
-  it("by verify() with handlerUrl and the Etherscan backend named", async () => {
+  it("by verify() with handlerUrl and the Routescan backend named", async () => {
     const fake = replay();
     await assert.rejects(
       verify(
@@ -831,10 +848,10 @@ describe("Vyper input is refused before any request on a backend other than Sour
         {
           fetch: fake.fetch,
           handlerUrl: "https://handler.example/verify",
-          route: { backend: "etherscan-v2" },
+          route: { backend: "routescan" },
         },
       ),
-      (error) => isKindRefusal(error, 11155111, "etherscan-v2"),
+      (error) => isKindRefusal(error, 11155111, "routescan"),
     );
     assert.deepEqual(fake.calls, []);
   });

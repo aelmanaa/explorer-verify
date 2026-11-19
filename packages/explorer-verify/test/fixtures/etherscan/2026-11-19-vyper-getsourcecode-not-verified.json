@@ -1,0 +1,49 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:55:58.465Z: getsourcecode for TallyA at 0xb723519c03d0529dde21b1cd3dd255e83ab0f32b, a Vyper 0.4.3 contract deployed in transaction 0x0d2cfb55d2c96b579ebf2ae0a6013addc1400d7ddbdd5926788a8369a0b69a7d, before any verification, sent by verify(). Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "",
+          "ABI": "Contract source code not verified",
+          "ContractName": "",
+          "CompilerVersion": "",
+          "CompilerType": "",
+          "OptimizationUsed": "",
+          "Runs": "",
+          "ConstructorArguments": "",
+          "EVMVersion": "Default",
+          "Library": "",
+          "ContractFileName": "",
+          "LicenseType": "Unknown",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": ""
+        }
+      ]
+    }
+  }
+}

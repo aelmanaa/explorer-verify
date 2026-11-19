@@ -78,12 +78,13 @@ imports through the remappings and resolves to the same fields, so `await` it. P
 the package was built with; compile the result once and compare the bytecode before you rely on it
 ([guide](../../docs/user/guides/verify-contracts-from-a-package-that-ships-only-sources.md)).
 
-Vyper verifies on Sourcify only. `buildVerifyInput()` builds `kind: "vyper"` input from the
-output of `vyper -f solc_json`, a Foundry Vyper build-info or a Vyper Standard JSON input, and
-`validateInput()` checks it. The routing table picks Sourcify for it. Any other backend refuses it
-with `unsupported-compiler` before any request, so do not retry there. A build before Vyper 0.4.1
-verifies `partial` at best. Vyper 0.3.x input with `interfaces` is refused on
-`compiler.input.interfaces`: inline each interface into the source.
+Vyper verifies on Sourcify and on Etherscan v2. `buildVerifyInput()` builds `kind: "vyper"` input
+from the output of `vyper -f solc_json`, a Foundry Vyper build-info or a Vyper Standard JSON input,
+and `validateInput()` checks it. The routing table picks Sourcify or Etherscan v2 for it, as for
+solc; Etherscan v2 needs its key or `handlerUrl`. Any other backend refuses it with
+`unsupported-compiler` before any request, so do not retry there. A build before Vyper 0.4.1
+verifies `partial` at best on Sourcify. Sourcify refuses Vyper 0.3.x input with `interfaces` on
+`compiler.input.interfaces`: verify it on Etherscan v2, or inline each interface into the source.
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:
 

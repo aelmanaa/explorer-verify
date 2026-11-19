@@ -195,7 +195,7 @@ const EXPECTED: Record<ErrorCode, { hint: string; retryable: boolean; exitCode: 
     exitCode: 2,
   },
   "unsupported-compiler": {
-    hint: "Use Solidity compiled with solc, zksolc through Blockscout on ZKsync Era (324) or Sepolia (300), or Vyper through Sourcify. Verify other compilers with their own tooling.",
+    hint: "Use Solidity compiled with solc, zksolc through Blockscout on ZKsync Era (324) or Sepolia (300), or Vyper through Sourcify or Etherscan v2. Verify other compilers with their own tooling.",
     retryable: false,
     exitCode: 2,
   },

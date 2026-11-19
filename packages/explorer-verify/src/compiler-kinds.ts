@@ -43,13 +43,18 @@ export type CompilerRoutes = { readonly [K in ListedKind]?: KindRoutes } & {
  */
 export const ZKSOLC_ROUTES: KindRoutes = [["blockscout", [324, 300]]];
 
-// References: decision 0075, issue #423.
+// References: decisions 0075, 0077 and 0078.
 /**
  * The backends whose client maps Vyper input. Sourcify verifies Vyper on every chain it serves,
- * through the request it takes for solc. Every other backend refuses Vyper input before any
- * request; each one that maps Vyper later adds its entry here.
+ * through the request it takes for solc. Etherscan v2 verifies it on every chain it serves, with
+ * `codeformat=vyper-json`. Every other backend refuses Vyper input before any request; each one
+ * that maps Vyper later adds its entry here. The order does not choose the route: on each chain,
+ * the routing table's row order and the keys set do, as for solc.
  */
-export const VYPER_ROUTES: KindRoutes = [["sourcify", "every"]];
+export const VYPER_ROUTES: KindRoutes = [
+  ["sourcify", "every"],
+  ["etherscan-v2", "every"],
+];
 
 /** The routes of every compiler kind other than solc. */
 export const COMPILER_ROUTES: { readonly [K in ListedKind]: KindRoutes } & {
@@ -117,12 +122,14 @@ function covers(chains: KindChains, chainId: number): boolean {
   return chains === "every" || chains.includes(chainId);
 }
 
-// References: R-EXT-1, decision 0077.
+// References: R-EXT-1, decisions 0077 and 0078.
 /**
  * The kind check of one input: {@link kindCheck}, less the backends that map the kind but not
  * this input. Sourcify does not verify Vyper input before 0.4.0 that has interfaces: it refuses a
  * top-level `interfaces` field, and before 0.4.0 Vyper compiles every file of `sources` and cannot
- * read an interface from there. Throws when no backend is left, before any route is chosen.
+ * read an interface from there. Etherscan v2 takes the `interfaces` field, so the routing table
+ * picks it for such input where the chain's row lists it. Throws when no backend is left, before
+ * any route is chosen.
  *
  * @param input - The checked input.
  * @param routes - Routes that replace those of {@link COMPILER_ROUTES} for the kinds they name.
@@ -150,7 +157,7 @@ export function inputCheck(input: VerifyInput, routes: CompilerRoutes = {}): Kin
     {
       // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the checked compiler version.
       secrets: [],
-      hint: "Inline each interface into the contract source, or build the contract with Vyper 0.4.0 or later, then verify again.",
+      hint: 'Verify on Etherscan v2 (route.backend "etherscan-v2"), or inline each interface into the contract source, or build the contract with Vyper 0.4.0 or later.',
     },
   );
   const verifies = (backend: BackendName): boolean =>

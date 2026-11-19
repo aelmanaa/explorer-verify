@@ -54,7 +54,7 @@ export const ERROR_HINTS: Readonly<Record<ErrorCode, string>> = {
   "insufficient-artifact":
     "ABI and bytecode are not enough to verify. Routes left: (1) ask the publisher to ship build-info or metadata; (2) the bytecode-metadata resolver, when the bytecode carries a metadata hash and the metadata is published; (3) the explorer's own matching (Etherscan Similar Match, Sourcify similarity), when an identical contract is already verified.",
   "unsupported-compiler":
-    "Use Solidity compiled with solc, zksolc through Blockscout on ZKsync Era (324) or Sepolia (300), or Vyper through Sourcify. Verify other compilers with their own tooling.",
+    "Use Solidity compiled with solc, zksolc through Blockscout on ZKsync Era (324) or Sepolia (300), or Vyper through Sourcify or Etherscan v2. Verify other compilers with their own tooling.",
   "verification-inconclusive":
     "Wait a minute, then call verify() again: it looks the contract up first and submits only when the contract is not verified.",
   "source-mismatch":

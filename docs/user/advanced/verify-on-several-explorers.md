@@ -75,6 +75,16 @@ example uses the docs' [sample request](../start/greeter-sepolia.json).
 it. With `handlerUrl`, `etherscan-v2` stays, and its requests go to your
 [server handler](../reference/api-keys.md#a-server-adds-the-key).
 
+For input of a compiler kind that not every backend verifies, `"all"` keeps
+only the backends that verify it on the chain. For Vyper input, those are
+Sourcify and Etherscan v2. Without an Etherscan key, Sourcify runs alone.
+
+When no backend that needs no key is left, `etherscan-v2` stays, so the run
+reports a `missing-api-key` outcome for it. That happens for Vyper 0.3.x
+input with `interfaces`, which Sourcify does not take. On a row where no
+backend verifies the kind, each backend's outcome is `unsupported-compiler`,
+and no request is sent.
+
 An entry with any other field throws `invalid-input` naming it. So do two
 entries with the same backend and API URL, compared once normalised:
 `"sourcify"` and `{ backend: "sourcify", apiUrl: "https://sourcify.dev/server/" }`
