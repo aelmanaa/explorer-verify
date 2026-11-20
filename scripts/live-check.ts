@@ -5,7 +5,8 @@
 // - looks the contract up and expects the recorded match;
 // - looks up an address with no code and expects "not verified";
 // - with `cors`, checks that the lookup's GET answered `access-control-allow-origin: *`;
-// - with `submitInput`, submits that recorded source and expects `already-verified`.
+// - with `submitInput`, submits that recorded source and expects `already-verified`, from the
+//   submit or from the job it starts.
 //
 // With `vyperReleases` in the targets file, it also compares the builder's Vyper release table
 // (`VYPER_RELEASES`) with the GitHub releases API: each listed version must name the commit of its
@@ -74,6 +75,14 @@ export const CALL_TIMEOUT_MS = 60_000;
 export const MAX_ISSUE_PAGES = 10;
 /** The longest excerpt of an error a check reports. */
 export const EXCERPT_LENGTH = 500;
+/** The time between two polls of a job that a recorded submit started, in milliseconds. */
+export const POLL_INTERVAL_MS = 3000;
+/**
+ * The most polls of that job before the check reports it as `pending`. The submit and its polls
+ * share one {@link CALL_TIMEOUT_MS} budget, so the waits take at most half of it and the requests
+ * keep the other half: 10 polls, 30 seconds of waits.
+ */
+export const MAX_POLLS: number = Math.floor(CALL_TIMEOUT_MS / 2 / POLL_INTERVAL_MS);
 
 /** One contract the check asks about. */
 export interface LiveTarget {
@@ -405,12 +414,18 @@ async function lookup(
  * the lookup before it: `verify()` would find the contract verified and never send the submit
  * that R-QA-4 asks for. So this one check opens a call the way `verify()` does and calls the
  * client's `submit` directly. Every request still goes through the library's HTTP layer.
+ *
+ * A submit that starts a job is polled until the job ends, and the job's state is returned.
+ * Sourcify answers `already_verified` at submit only when the creation and runtime code both
+ * match exactly; a Vyper contract's runtime code is a plain match, so its resubmit starts a job
+ * that ends with `already_verified` (observed 2026-11-19).
  */
 async function submitRecorded(
   target: LiveTarget,
   source: unknown,
   key: string | undefined,
   fetchFn: typeof fetch,
+  wait: Environment["wait"],
 ): Promise<string> {
   const input = validateInput(source);
   const settings = settingsOf(optionsFor(target, key, fetchFn));
@@ -419,7 +434,18 @@ async function submitRecorded(
   const dependencies = await withClient(route, DEFAULT_DEPENDENCIES, settings, budget);
   const contract = { chainId: input.chainId, address: input.address };
   const call = openCall(settings, route, contract, dependencies, true, budget);
-  return (await call.backend.submit(input, call.ctx)).state;
+  const outcome = await call.backend.submit(input, call.ctx);
+  if (outcome.state !== "submitted") {
+    return outcome.state;
+  }
+  for (let poll = 0; poll < MAX_POLLS; poll += 1) {
+    await wait(POLL_INTERVAL_MS);
+    const state = await call.backend.poll(outcome.handle, call.ctx);
+    if (state.state !== "pending") {
+      return state.state;
+    }
+  }
+  return "pending";
 }
 
 /** What a failed call reports: the error code and its message, with the explorer's excerpt. */
@@ -513,7 +539,13 @@ async function checkTarget(
         { ...base, check: "submit", address: target.address, expected: "already-verified" },
         secrets,
         async () =>
-          await submitRecorded(target, JSON.parse(readFileSync(file, "utf8")), key, fetchFn),
+          await submitRecorded(
+            target,
+            JSON.parse(readFileSync(file, "utf8")),
+            key,
+            fetchFn,
+            environment.wait,
+          ),
       ),
     );
   }

@@ -1,0 +1,29 @@
+{
+  "chainId": 11155111,
+  "address": "0xf3dc8196fd8dfdacc30040c47f383212c0581caa",
+  "creationTxHash": "0x9b089c4b1decaba76ef49ddaf96986ef0ec1ff80b7b846aff17d3552a3afd5ad",
+  "compiler": {
+    "kind": "vyper",
+    "version": "0.4.3+commit.bff19ea2",
+    "input": {
+      "language": "Vyper",
+      "sources": {
+        "src/Scoreboard.vy": {
+          "content": "# pragma version 0.4.3\n# A score that only its deployer can raise.\nimport IScore\n\nimplements: IScore\n\nowner: public(immutable(address))\nlabel: public(String[32])\n_score: uint256\n\nevent Bumped:\n    by: uint256\n    score: uint256\n\n\n@deploy\ndef __init__(initial: uint256, label_: String[32]):\n    owner = msg.sender\n    self.label = label_\n    self._score = initial\n\n\n@external\n@view\ndef score() -> uint256:\n    return self._score\n\n\n@external\ndef bump(by: uint256):\n    assert msg.sender == owner, \"not owner\"\n    self._score += by\n    log Bumped(by=by, score=self._score)\n"
+        }
+      },
+      "interfaces": {
+        "src/IScore.vyi": {
+          "content": "@external\n@view\ndef score() -> uint256:\n    ...\n\n@external\ndef bump(by: uint256):\n    ...\n"
+        }
+      },
+      "settings": {
+        "outputSelection": {
+          "src/Scoreboard.vy": ["*"]
+        },
+        "search_paths": ["."]
+      }
+    }
+  },
+  "contractName": "src/Scoreboard.vy:Scoreboard"
+}

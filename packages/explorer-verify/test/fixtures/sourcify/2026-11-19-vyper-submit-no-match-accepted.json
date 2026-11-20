@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:56:37.425Z. The submit sent a source that compiles to other bytecode.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0xf3dc8196fd8dfdacc30040c47f383212c0581caa"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"39-cle5Uchib3LCworasT3WB4QxejM\""
+    },
+    "body": {
+      "verificationId": "e3039747-34ec-4a9b-83f5-dce2b1f1237f"
+    }
+  }
+}

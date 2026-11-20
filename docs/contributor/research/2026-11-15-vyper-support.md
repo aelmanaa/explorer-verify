@@ -177,6 +177,41 @@ hash, which it checks for the `VYPER` auxdata style at 0.4.1 and later. Any olde
 The runtime code has no trailer from 0.3.10 on, so `runtimeMatch` is `match`, and `match` follows
 the creation match (source; observed above).
 
+#### Addendum, 2026-11-19: interfaces and resubmits
+
+Contracts A, B and C had no `interfaces` field. On 2026-11-19 a contract with one was deployed on
+Ethereum Sepolia: `src/Scoreboard.vy`, Vyper `0.4.3+commit.bff19ea2`, importing the interface
+`src/IScore.vyi`, at `0xf3dc8196fd8dfdacc30040c47f383212c0581caa`, creation transaction
+`0x9b089c4b1decaba76ef49ddaf96986ef0ec1ff80b7b846aff17d3552a3afd5ad`, constructor arguments
+`(uint256 423, string "ev-vyper-sourcify")`. Sourcify server 4.4.0, commit `d7642636`.
+
+- A submit with `interfaces` at the top level of `stdJsonInput` got 400:
+  `{"customCode":"invalid_parameter","message":"Standard JSON input contains unsupported top-level field(s): interfaces. Only the following top-level fields are supported: language, sources, settings, storage_layout_overrides."}`
+  (observed). The check is deliberate: a field Sourcify does not store could change the output
+  (`services/server/src/server/apiv2/middlewares.ts`, sourcify `d7642636`, source).
+- The same input with `src/IScore.vyi` moved into `sources` verified: job `exact_match`, with
+  `creationMatch` `exact_match` and `runtimeMatch` `match` (observed). `vyper -f solc_json` also
+  writes a `.vyi` file into `sources` (observed: local run of vyper 0.4.3 on `src/Scoreboard.vy`,
+  2026-11-19).
+- Vyper 0.4.3 reads `sources` and `interfaces` into one bundle (`vyper/cli/vyper_json.py`,
+  `get_inputs`, source). An `abi` interface becomes the text `json.dumps(entry)`. Moved into
+  `sources` with that text as `content`, it gave the same bytecode; with the compact JSON of
+  JavaScript's `JSON.stringify`, other bytecode, because the integrity hash covers the text
+  (local runs with `vyper-json`).
+- A second submit of the verified source got 202, not 409, and its job ended with
+  `already_verified`: `The contract is already verified and the job didn't yield a better match.`
+  (observed). Sourcify answers 409 only when creation and runtime both match exactly (observed:
+  the solc resubmits of 2026-11-02 and 2026-11-11 got 409 with both exact; this Vyper resubmit,
+  with `runtimeMatch` `match`, got 202).
+- A source with a syntax error ended its job with `compiler_error`, and a source that compiles to
+  other bytecode with `no_match` (observed).
+- Sourcify forwarded the contract to Etherscan and Blockscout (`externalVerifications`, observed).
+- Before Vyper 0.4.0, `vyper_json` keeps interfaces in a separate map keyed without the extension,
+  and `compile_from_input_dict` compiles every entry of `sources`, while Sourcify's
+  `outputSelection` names only the target. A `.vy` or `.vyi` interface moved into `sources` then
+  fails with a `KeyError`, and a `.json` one with `Cannot locate interface` (vyper 0.3.10 source,
+  read in review of #423; not probed live).
+
 ### Routescan
 
 | Field                 | Value                                                                                                                                                                                       | Source                   |

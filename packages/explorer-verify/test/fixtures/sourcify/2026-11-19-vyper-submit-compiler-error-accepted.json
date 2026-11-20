@@ -1,0 +1,18 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:56:32.716Z. The submit sent a source with a syntax error.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0xf3dc8196fd8dfdacc30040c47f383212c0581caa"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"39-zk0dDhko8MDevUBEhmN5uhO3Km0\""
+    },
+    "body": {
+      "verificationId": "97697180-7ef3-480e-ae5c-00a7d8920aec"
+    }
+  }
+}

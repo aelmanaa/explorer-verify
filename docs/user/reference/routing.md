@@ -28,8 +28,12 @@ is `route.backend`, or `sourcify` when you leave it out.
 
 The input's `compiler.kind` is checked first. Every backend verifies `solc`. Rule 2 passes over a
 backend that does not verify the kind on the chain. When no backend does, or the route's backend
-does not, the call throws `unsupported-compiler` on `compiler.kind` before any request. Only
-Blockscout verifies `zksolc`, on chains 324 and 300; no backend verifies `vyper` in this release.
+does not, the call throws `unsupported-compiler` on `compiler.kind` before any request.
+
+Only Blockscout verifies `zksolc`, on chains 324 and 300. Sourcify verifies `vyper`, on every
+chain whose row lists Sourcify, so rule 2 picks Sourcify for Vyper input even where the row lists
+Etherscan first. On a row without Sourcify, Vyper input is refused, naming the row's first
+backend.
 
 Only `etherscan-v2` needs a key, and a standalone Etherscan-compatible entry when its row says so.
 When no backend in the row works without a key, the call takes the first one and throws

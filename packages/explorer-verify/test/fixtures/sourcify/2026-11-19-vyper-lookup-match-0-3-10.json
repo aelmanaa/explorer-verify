@@ -1,0 +1,33 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:57:08.273Z. Contract B of the 2026-11-15 Vyper research, built with 0.3.10.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xb0de5e59ce0236e6a4b51de0ceb6b20c90dfdd36?fields=compilation"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"177-d+IdpolHI6BXDZAPzg8TIuvhD/I\"",
+      "cache-control": "public,max-age=3600"
+    },
+    "body": {
+      "compilation": {
+        "language": "Vyper",
+        "compiler": "vyper",
+        "compilerVersion": "0.3.10+commit.91361694",
+        "compilerSettings": {},
+        "name": "Greeter",
+        "fullyQualifiedName": "Greeter.vy:Greeter"
+      },
+      "matchId": "59286138",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-15T00:49:50Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0xb0De5E59Ce0236E6a4b51dE0CEb6b20C90DfDD36"
+    }
+  }
+}

@@ -18,8 +18,11 @@ import type { VerifyInput } from "./types.ts";
 /** A `compiler.kind` of {@link VerifyInput}. */
 export type CompilerKind = VerifyInput["compiler"]["kind"];
 
+/** The chains of one backend for one compiler kind: a list of chain ids, or `"every"` chain. */
+type KindChains = readonly number[] | "every";
+
 /** Backends and the chains on which each one's client maps one compiler kind. */
-export type KindRoutes = readonly (readonly [BackendName, readonly number[]])[];
+export type KindRoutes = readonly (readonly [BackendName, KindChains])[];
 
 /** The kinds that have a list of routes: every client maps solc on every chain, so it has none. */
 type ListedKind = Exclude<CompilerKind, "solc">;
@@ -40,12 +43,13 @@ export type CompilerRoutes = { readonly [K in ListedKind]?: KindRoutes } & {
  */
 export const ZKSOLC_ROUTES: KindRoutes = [["blockscout", [324, 300]]];
 
-// References: decision 0075.
+// References: decision 0075, issue #423.
 /**
- * The backends whose client maps Vyper input. Empty in this release: every route refuses Vyper
- * input before any request. Each backend that maps Vyper later adds its entry here.
+ * The backends whose client maps Vyper input. Sourcify verifies Vyper on every chain it serves,
+ * through the request it takes for solc. Every other backend refuses Vyper input before any
+ * request; each one that maps Vyper later adds its entry here.
  */
-export const VYPER_ROUTES: KindRoutes = [];
+export const VYPER_ROUTES: KindRoutes = [["sourcify", "every"]];
 
 /** The routes of every compiler kind other than solc. */
 export const COMPILER_ROUTES: { readonly [K in ListedKind]: KindRoutes } & {
@@ -90,7 +94,7 @@ export function kindCheck(
   const check: KindCheck = {
     verifies: (backend) =>
       listed === undefined ||
-      listed.some(([name, chains]) => name === backend && chains.includes(chainId)),
+      listed.some(([name, chains]) => name === backend && covers(chains, chainId)),
     refused: (backend) =>
       newError(
         { code: "unsupported-compiler", field: "compiler.kind" },
@@ -102,8 +106,60 @@ export function kindCheck(
         { secrets: [] },
       ),
   };
-  if (listed !== undefined && !listed.some(([, chains]) => chains.includes(chainId))) {
+  if (listed !== undefined && !listed.some(([, chains]) => covers(chains, chainId))) {
     throw check.refused();
   }
   return check;
+}
+
+/** Whether `chains` holds `chainId`. */
+function covers(chains: KindChains, chainId: number): boolean {
+  return chains === "every" || chains.includes(chainId);
+}
+
+// References: R-EXT-1, decision 0077.
+/**
+ * The kind check of one input: {@link kindCheck}, less the backends that map the kind but not
+ * this input. Sourcify does not verify Vyper input before 0.4.0 that has interfaces: it refuses a
+ * top-level `interfaces` field, and before 0.4.0 Vyper compiles every file of `sources` and cannot
+ * read an interface from there. Throws when no backend is left, before any route is chosen.
+ *
+ * @param input - The checked input.
+ * @param routes - Routes that replace those of {@link COMPILER_ROUTES} for the kinds they name.
+ * @returns The check.
+ * @throws ExplorerVerifyError `unsupported-compiler` when no backend verifies the input on its
+ *   chain.
+ * @example
+ * ```ts
+ * const kinds = inputCheck(checked);
+ * ```
+ */
+export function inputCheck(input: VerifyInput, routes: CompilerRoutes = {}): KindCheck {
+  const { compiler, chainId } = input;
+  const check = kindCheck(compiler.kind, chainId, routes);
+  if (
+    compiler.kind !== "vyper" ||
+    !compiler.version.startsWith("0.3.") ||
+    Object.keys(compiler.input.interfaces ?? {}).length === 0
+  ) {
+    return check;
+  }
+  const refusal = newError(
+    { code: "unsupported-compiler", field: "compiler.input.interfaces" },
+    `Sourcify does not verify Vyper ${compiler.version} input with interfaces: before Vyper 0.4.0 the compiler cannot read an interface from sources, and Sourcify refuses a top-level interfaces field.`,
+    {
+      // Stryker disable next-line ArrayDeclaration: equivalent. The message holds only the checked compiler version.
+      secrets: [],
+      hint: "Inline each interface into the contract source, or build the contract with Vyper 0.4.0 or later, then verify again.",
+    },
+  );
+  const verifies = (backend: BackendName): boolean =>
+    backend !== "sourcify" && check.verifies(backend);
+  if (!(routes.vyper ?? VYPER_ROUTES).some(([name]) => verifies(name))) {
+    throw refusal;
+  }
+  return {
+    verifies,
+    refused: (backend) => (backend === "sourcify" ? refusal : check.refused(backend)),
+  };
 }

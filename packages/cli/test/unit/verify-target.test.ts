@@ -193,7 +193,7 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
     assert.match(hint, /set route\.backend "auto" for the routing table's pick, which is sourcify/);
   });
 
-  it("refuses Vyper --input-json without route.backend as unsupported-compiler first (decision 0075)", async (t) => {
+  it("keeps the target refusal for Vyper --input-json, which Sourcify verifies (decision 0075)", async (t) => {
     const path = join(DIR, "vyper.json");
     writeFileSync(
       path,
@@ -213,12 +213,25 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
       }),
     );
     const result = await run(t, ["verify", "--input-json", path, "--json"]);
+    assert.deepEqual(result.seen, []);
+    const { message } = refused(result);
+    assert.match(message, /route\.backend is needed to submit/);
+  });
+
+  it("refuses Vyper --input-json on a backend other than Sourcify as unsupported-compiler (decision 0075)", async (t) => {
+    const path = join(DIR, "vyper-blockscout.json");
+    const parsed: unknown = JSON.parse(readFileSync(join(DIR, "vyper.json"), "utf8"));
+    assert.ok(typeof parsed === "object" && parsed !== null);
+    writeFileSync(path, JSON.stringify({ ...parsed, route: { backend: "blockscout" } }));
+    const result = await run(t, ["verify", "--input-json", path, "--json"]);
     assert.equal(result.code, 2, result.stdout + result.stderr);
     assert.deepEqual(result.seen, []);
     const error = errorOf(result);
     assert.equal(error["code"], "unsupported-compiler");
-    assert.match(String(error["message"]), /vyper input on chain 11155111/);
-    assert.doesNotMatch(String(error["message"]), /route\.backend/);
+    assert.match(
+      String(error["message"]),
+      /blockscout backend does not verify vyper input on chain 11155111/,
+    );
   });
 
   it("keeps the target refusal for zksolc input on a chain where a backend verifies it", async (t) => {

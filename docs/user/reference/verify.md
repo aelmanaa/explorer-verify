@@ -355,8 +355,9 @@ full solc version, such as `0.8.24+commit.e11b9ed9`, and `solcFork` ZKsync's
 fork revision, such as `1.0.2`. Blockscout verifies zksolc on ZKsync Era
 (324) and ZKsync Sepolia (300). Pass `constructorArgs` yourself for zksolc.
 
-No backend of this release verifies Vyper: every route refuses `kind: "vyper"`
-before any request. `validateInput` checks the input already:
+Sourcify verifies Vyper on every chain it serves; every other backend refuses
+`kind: "vyper"` before any request. Sourcify gets the interfaces in `sources`
+([Sourcify](sourcify.md#vyper)). `validateInput` checks the input:
 
 - `version` is the long form with an 8-character commit, such as
   `0.4.3+commit.bff19ea2`, from Vyper 0.3.10 on. A prerelease or an older

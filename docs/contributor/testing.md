@@ -278,14 +278,22 @@ Unit tests replay recorded answers, so they cannot see an explorer change its AP
 string, a host or a CORS header. `.github/workflows/live.yml` asks the real explorers once a week
 (R-QA-4). `scripts/live-check.ts` reads `test/live/targets.json`: contracts the live matrix of
 2026-11-04 ([#66](https://github.com/aelmanaa/explorer-verify/issues/66)) deployed and verified on
-Sepolia, Arbitrum Sepolia and Avalanche Fuji. For each target it:
+Sepolia, Arbitrum Sepolia and Avalanche Fuji, and a Vyper 0.4.3 contract deployed on Sepolia and
+verified on Sourcify on 2026-11-19 ([#423](https://github.com/aelmanaa/explorer-verify/issues/423)).
+For each target it:
 
 - looks the contract up and expects the recorded match;
 - looks up an address with no code and expects "not verified";
 - with `cors`, checks that the lookup's GET answered `access-control-allow-origin: *`; Sourcify,
   Routescan and Blockscout have one such target each;
-- with `submitInput`, submits the recorded source, `test/live/sourcify-sepolia-input.json`, to
-  Sourcify and expects `already-verified`. This is the only submit; nothing new is verified.
+- with `submitInput`, submits the recorded source to Sourcify and expects `already-verified`:
+  `test/live/sourcify-sepolia-input.json` for Solidity and
+  `test/live/sourcify-sepolia-vyper-input.json` for Vyper. These are the only submits; nothing new
+  is verified. Sourcify answers the Solidity submit with 409. The Vyper submit starts a job, because
+  a Vyper contract's runtime code is only a plain match. The script polls the job every 3 seconds
+  until it ends with `already_verified`. The submit and its polls share the 60-second budget of one
+  call, so it polls at most 10 times; a job still pending then fails the check as `pending`, and a
+  slow explorer can end it sooner with `timeout`.
 
 The targets file also names `vyperReleases`, the GitHub releases API of Vyper. The check compares
 it with the builder's Vyper release table (`VYPER_RELEASES` in
@@ -814,8 +822,10 @@ comments in source order. After adding or removing one, run
 | `packages/explorer-verify/src/backends/proxy-etherscan.ts`  | OptionalChaining                                       | equivalent. knownAnswer gives a result only for an answer with fields.                                                                                                                                                                    |
 | `packages/explorer-verify/src/backends/proxy-etherscan.ts`  | StringLiteral                                          | equivalent. The catch block below logs only the code of this error, never its message.                                                                                                                                                    |
 | `packages/explorer-verify/src/backends/sourcify.ts`         | ConditionalExpression                                  | equivalent when always true. JSON.stringify drops a field whose value is undefined.                                                                                                                                                       |
+| `packages/explorer-verify/src/backends/sourcify.ts`         | OptionalChaining                                       | equivalent. validateInput keeps only interfaces that are objects, so readFields never gives undefined here.                                                                                                                               |
 | `packages/explorer-verify/src/backends/sourcify.ts`         | OptionalChaining                                       | equivalent. A 202 without a JSON body is unconfirmed, so readSubmit never gets one.                                                                                                                                                       |
 | `packages/explorer-verify/src/compiler-kinds.ts`            | ObjectLiteral, ArrayDeclaration                        | equivalent. The message holds only the backend, the kind and the chain id.                                                                                                                                                                |
+| `packages/explorer-verify/src/compiler-kinds.ts`            | ArrayDeclaration                                       | equivalent. The message holds only the checked compiler version.                                                                                                                                                                          |
 | `packages/explorer-verify/src/core/options.ts`              | BooleanLiteral                                         | equivalent. Object.keys reads only the keys, never the values.                                                                                                                                                                            |
 | `packages/explorer-verify/src/core/options.ts`              | OptionalChaining                                       | equivalent. The engine asks only for a route the table chose, so rows is set.                                                                                                                                                             |
 | `packages/explorer-verify/src/core/options.ts`              | OptionalChaining, ArrayDeclaration                     | equivalent. A chain the table chose for has a row.                                                                                                                                                                                        |

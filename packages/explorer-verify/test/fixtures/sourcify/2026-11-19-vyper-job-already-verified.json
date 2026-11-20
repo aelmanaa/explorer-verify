@@ -1,0 +1,33 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:59:07.037983Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/32fb7b68-6554-4524-8d20-f43d0c3b5c75"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1dc-0ebelndzlD7OsKN0orreC/XqLE0\""
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "32fb7b68-6554-4524-8d20-f43d0c3b5c75",
+      "jobStartTime": "2026-11-19T05:57:11Z",
+      "jobFinishTime": "2026-11-19T05:57:13Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+      },
+      "error": {
+        "customCode": "already_verified",
+        "message": "The contract is already verified and the job didn't yield a better match.",
+        "errorId": "3646f95f-9254-41e1-b8e0-46c50b98a8bf"
+      }
+    }
+  }
+}
