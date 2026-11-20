@@ -452,6 +452,7 @@ export const SIDEBAR: readonly SidebarEntry[] = [
     collapsed: false,
     items: [
       { text: "Proxy", page: "guides/verify-a-proxy.md" },
+      { text: "Vyper contract", page: "guides/verify-a-vyper-contract.md" },
       { text: "From deployed bytecode", page: "guides/verify-from-deployed-bytecode.md" },
       { text: "From an npm package", page: "guides/verify-a-contract-from-an-npm-package.md" },
       {

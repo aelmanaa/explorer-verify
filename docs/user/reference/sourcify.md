@@ -43,7 +43,8 @@ Constructor arguments are never sent: Sourcify reads them from the creation code
 ## Vyper
 
 Sourcify verifies `kind: "vyper"` input on every chain it serves, through the same three requests.
-No other backend of this release verifies Vyper, so the routing table picks Sourcify for it.
+Etherscan v2 verifies it too, and the routing table picks between them as for solc
+([Routing](routing.md)).
 
 | Field                | Value for Vyper                                                       |
 | -------------------- | --------------------------------------------------------------------- |

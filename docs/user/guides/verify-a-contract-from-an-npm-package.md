@@ -114,8 +114,9 @@ The options:
 
 An input with `language: "Vyper"` gives `compiler.kind: "vyper"`. The builder keeps `language`,
 `sources`, `interfaces` and `settings`. It drops `compiler_version`, `integrity` and each
-source's `sha256sum`. An input with `storage_layout_overrides` fails with `invalid-input`. No
-backend verifies Vyper yet: `verify()` refuses the result with `unsupported-compiler`.
+source's `sha256sum`. An input with `storage_layout_overrides` fails with `invalid-input`.
+Sourcify and Etherscan v2 verify the result; see
+[Verify a Vyper contract](verify-a-vyper-contract.md).
 
 The version:
 

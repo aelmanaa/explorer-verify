@@ -207,6 +207,8 @@ hint says to run `forge build --build-info`. It never rebuilds a Vyper input fro
 files. Sourcify and Etherscan verify Vyper; other backends refuse it with `unsupported-compiler`.
 
 On the command line, pass the same contract: `--foundry . --contract src/Counter.vy:Counter`.
+[Verify a Vyper contract](verify-a-vyper-contract.md) covers the versions, the explorers and the
+match grades.
 
 ## What it reads
 
