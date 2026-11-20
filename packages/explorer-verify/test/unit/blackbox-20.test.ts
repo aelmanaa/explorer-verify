@@ -504,9 +504,9 @@ describe("buildVerifyInput: documented failures give the documented code and fie
     assert.equal(exitCodeOf(error), 2);
   });
 
-  it("a language other than Solidity: unsupported-compiler, field language", () => {
+  it("a language other than Solidity or Vyper: unsupported-compiler, field language", () => {
     const bi = rec(hh2.buildInfo());
-    inputOf(bi)["language"] = "Vyper";
+    inputOf(bi)["language"] = "Yul";
     const error = catchError(() => build([bi, hh2.artifact()]));
     assert.equal(error.code, "unsupported-compiler");
     assert.equal(fieldOf(error), "language");

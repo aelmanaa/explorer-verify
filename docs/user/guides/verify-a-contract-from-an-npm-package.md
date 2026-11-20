@@ -86,16 +86,19 @@ sends nothing, so it also runs in a browser on JSON your dapp bundles.
 
 ## What to pass
 
-| You have                                         | Pass                             | Options needed                                   |
-| ------------------------------------------------ | -------------------------------- | ------------------------------------------------ |
-| Hardhat 3 build-info and the contract's artifact | Both files                       | None                                             |
-| Hardhat 3 build-info and its `.output.json`      | Both files                       | `contract`, unless one contract is built         |
-| Hardhat 2 build-info                             | The build-info, and the artifact | `contract` when no artifact is passed            |
-| Foundry build-info (built with `--build-info`)   | The build-info, and the artifact | `contract` when no artifact is passed            |
-| A Standard JSON input file                       | The file                         | `contract` as `path:Name`, and `compilerVersion` |
-| A Foundry artifact, no build-info                | The artifact                     | `sources`, unless the metadata embeds them       |
-| Solidity metadata, as an object or a string      | The metadata                     | `sources`, unless the metadata embeds them       |
-| Only artifacts with ABI and bytecode             | Not enough: see below            |                                                  |
+| You have                                         | Pass                             | Options needed                                      |
+| ------------------------------------------------ | -------------------------------- | --------------------------------------------------- |
+| Hardhat 3 build-info and the contract's artifact | Both files                       | None                                                |
+| Hardhat 3 build-info and its `.output.json`      | Both files                       | `contract`, unless one contract is built            |
+| Hardhat 2 build-info                             | The build-info, and the artifact | `contract` when no artifact is passed               |
+| Foundry build-info (built with `--build-info`)   | The build-info, and the artifact | `contract` when no artifact is passed               |
+| A Standard JSON input file                       | The file                         | `contract` as `path:Name`, and `compilerVersion`    |
+| A Foundry artifact, no build-info                | The artifact                     | `sources`, unless the metadata embeds them          |
+| Solidity metadata, as an object or a string      | The metadata                     | `sources`, unless the metadata embeds them          |
+| Output of `vyper -f solc_json`                   | The file                         | None, for one target                                |
+| Foundry Vyper build-info                         | The build-info                   | `contract`, unless one contract is built            |
+| A Vyper Standard JSON input file                 | The file                         | `compilerVersion`, and `contract` unless one target |
+| Only artifacts with ABI and bytecode             | Not enough: see below            |                                                     |
 
 The options:
 
@@ -106,6 +109,42 @@ The options:
   documents hold no full version.
 - `sources`: each source path, as the metadata lists it, mapped to the file's content. Used only
   when the input is rebuilt from metadata.
+
+## Vyper documents
+
+An input with `language: "Vyper"` gives `compiler.kind: "vyper"`. The builder keeps `language`,
+`sources`, `interfaces` and `settings`. It drops `compiler_version`, `integrity` and each
+source's `sha256sum`. An input with `storage_layout_overrides` fails with `invalid-input`. No
+backend verifies Vyper yet: `verify()` refuses the result with `unsupported-compiler`.
+
+The version:
+
+- from `compiler_version` of a `solc_json` output, without its `v`;
+- from a Foundry build-info, whose `0.4.3` has no commit: a table of the stable releases from
+  0.3.10 gives `0.4.3+commit.bff19ea2`;
+- else from `compilerVersion`. A release the table does not list needs it.
+
+The PyPI builds print a 7-character commit, such as `v0.4.0+commit.e9db8d9`. The table completes
+it to `0.4.0+commit.e9db8d9f`. A 7-character commit of an unlisted release needs
+`compilerVersion` with the 8-character commit from the release asset name.
+
+The contract is named after its file, such as `src/Counter.vy:Counter`. Without `contract`, the
+builder takes the one `.vy` target of `settings.outputSelection` or of the build-info output.
+Forge lists an imported module as a contract of its own, so a Foundry project whose contract
+imports a module needs `contract`.
+
+`vyper -f solc_json` keys a module from a Python environment by the environment's path. After an
+index run, it looks like `0/1/2/home/user/.venv/lib/python3.12/site-packages/snekmate/auth/ownable.vy`;
+with a `.venv` inside the project, like `.venv/lib/python3.12/site-packages/snekmate/auth/ownable.vy`.
+The builder rewrites either key to the part after its last `site-packages`,
+`snekmate/auth/ownable.vy`. A `search_paths` entry that ends in `site-packages` becomes `.`.
+In the tests, the rewritten input compiled to the same bytecode.
+
+Any other indexed, absolute or climbing path fails with `invalid-input`. A project folder named
+`0` reads as an index run too, so rename it.
+
+A Hardhat 2 Vyper artifact holds only ABI and bytecode. Next to an input, it gives the contract
+and its creation bytecode; on its own, it fails with `insufficient-artifact`.
 
 ## Rebuild the input from Solidity metadata
 
@@ -199,7 +238,7 @@ The builder throws an `ExplorerVerifyError` that says what is missing.
 | `incomplete-input`      | `details.field` names what is missing: `input`, `compilerVersion`, `contract` or `sources`   |
 | `source-mismatch`       | A source does not match its keccak-256 hash. `details.path` names it                         |
 | `insufficient-artifact` | Only ABI and bytecode: no compiler input or settings                                         |
-| `unsupported-compiler`  | A compiler other than solc, or a language other than Solidity                                |
+| `unsupported-compiler`  | A compiler other than solc or Vyper, or a language other than Solidity or Vyper              |
 | `invalid-input`         | An unknown shape, files of different builds, a local path, or an input that fails validation |
 
 ABI and bytecode alone cannot be verified: the explorer needs the sources and the exact settings.
@@ -231,6 +270,13 @@ output of Foundry 1.8.1, Hardhat 2.29.1 and Hardhat 3.21.2 for one two-file cont
   solc before 0.5.0 is read the same way but is not tested. On 2026-11-03, a contract on Base
   Sepolia was verified on Sourcify from an input rebuilt from its metadata alone, with an exact
   match.
+- Vyper documents: the output of Vyper 0.4.3 (`vyper -f solc_json`, with a module installed in a
+  Python environment, outside the project and in its `.venv`), the output of the Vyper 0.4.0 PyPI
+  build, a Foundry 1.8.1 Vyper build-info and a Vyper 0.3.10 Standard JSON input, built on
+  2026-11-17 and 2026-11-19. Each input the builder returned compiled to the original creation
+  bytecode. The
+  release commits come from the names of the
+  [Vyper release assets](https://github.com/vyperlang/vyper/releases), read 2026-11-15.
 - The test fixtures, with the tool versions and build commands, are in
   `packages/explorer-verify/test/fixtures/build-formats/` in the repository.
 

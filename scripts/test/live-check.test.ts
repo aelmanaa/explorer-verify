@@ -21,7 +21,9 @@ import {
   ISSUE_AUTHOR,
   ISSUE_LABEL,
   ISSUE_TITLE,
+  MAX_RELEASE_PAGES,
   ORIGIN,
+  checkVyperReleases,
   fileIssue,
   issueBody,
   main,
@@ -904,5 +906,206 @@ describe("live-check: the workflow (R-QA-4)", () => {
         24,
       );
     }
+  });
+});
+
+/** A Vyper release as the GitHub API lists it, with the three assets of each build. */
+function release(tag: string, commit: string, extra: Record<string, unknown> = {}): unknown {
+  const version = tag.slice(1);
+  return {
+    tag_name: tag,
+    prerelease: false,
+    draft: false,
+    assets: ["darwin", "linux", "windows.exe"].map((os) => ({
+      name: `vyper.${version}+commit.${commit}.${os}`,
+    })),
+    ...extra,
+  };
+}
+
+/** The URL a fetch call asks for. */
+function urlOf(input: string | URL | Request): string {
+  return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+}
+
+describe("live-check: the Vyper release table (R-IN-7, decisions 0075 and 0076)", () => {
+  const URL_BASE = "https://releases.test/repos/vyperlang/vyper/releases";
+
+  const RELEASED = [
+    release("v0.5.0b2", "e1557a51", { prerelease: true }),
+    release("v0.4.3", "bff19ea2"),
+    release("v0.4.2", "c216787f"),
+    release("v0.4.1", "8a93dd27"),
+    release("v0.4.0", "e9db8d9f"),
+    release("v0.3.10", "91361694"),
+    release("v0.3.9", "66b96705"),
+  ];
+
+  /** An environment whose fetch answers each releases page from `pages`, and records the requests. */
+  function releasesEnvironment(
+    pages: readonly (readonly unknown[] | Response)[],
+    env: Record<string, string | undefined> = {},
+  ): Environment & { requests: { url: string; authorization: string | null }[] } {
+    const requests: { url: string; authorization: string | null }[] = [];
+    return {
+      ...environment(env),
+      requests,
+      fetch: async (input, init) => {
+        const url = urlOf(input);
+        if (!url.startsWith(URL_BASE)) {
+          return await globalThis.fetch(input, init);
+        }
+        requests.push({ url, authorization: new Headers(init?.headers).get("authorization") });
+        const page = Number(new URL(url).searchParams.get("page"));
+        const answer = pages[page - 1] ?? [];
+        return answer instanceof Response ? answer : Response.json(answer);
+      },
+    };
+  }
+
+  it("passes when each listed version names its release assets' commit", async () => {
+    const env = releasesEnvironment([RELEASED]);
+    const checks = await checkVyperReleases(URL_BASE, env, []);
+    assert.deepEqual(
+      checks.map((one) => [one.version, one.ok, one.actual]),
+      [
+        ["0.3.10", true, "91361694"],
+        ["0.4.0", true, "e9db8d9f"],
+        ["0.4.1", true, "8a93dd27"],
+        ["0.4.2", true, "c216787f"],
+        ["0.4.3", true, "bff19ea2"],
+      ],
+    );
+    assert.deepEqual(env.requests, [
+      { url: `${URL_BASE}?per_page=100&page=1`, authorization: `Bearer ${TOKEN}` },
+    ]);
+  });
+
+  it("asks without a token when none is set, and reads the next page after a full one", async () => {
+    const filler = Array.from({ length: 98 }, (_, index) =>
+      release(`v0.2.${String(index)}`, "00000000"),
+    );
+    const first = [...filler, RELEASED[0], RELEASED[1]];
+    const env = releasesEnvironment([first, RELEASED.slice(2)], { GITHUB_TOKEN: "" });
+    const checks = await checkVyperReleases(URL_BASE, env, []);
+    assert.ok(checks.every((one) => one.ok));
+    assert.deepEqual(
+      env.requests.map((one) => one.authorization),
+      [null, null],
+    );
+    assert.equal(env.requests[1]?.url, `${URL_BASE}?per_page=100&page=2`);
+    const unset = releasesEnvironment([RELEASED], { GITHUB_TOKEN: undefined });
+    await checkVyperReleases(URL_BASE, unset, []);
+    assert.equal(unset.requests[0]?.authorization, null);
+  });
+
+  it("fails a changed commit, a missing release, a release without assets and a release the table lacks", async () => {
+    const pages = [
+      [
+        release("v0.4.4", "12345678"),
+        release("v0.4.3", "0badc0de"),
+        release("v0.4.2", "c216787f", { assets: [{ name: "vyper.0.4.20+commit.c216787f.linux" }] }),
+        release("v0.4.1", "8a93dd27", { draft: true }),
+        release("v0.4.0", "e9db8d9f"),
+        release("v0.3.10", "91361694"),
+        { tag_name: 7 },
+        { tag_name: "latest" },
+        release("v1.0.0", "abcdef01", { assets: "none" }),
+      ],
+    ];
+    const checks = await checkVyperReleases(URL_BASE, releasesEnvironment(pages), []);
+    assert.deepEqual(
+      checks.filter((one) => !one.ok).map((one) => [one.version, one.expected, one.actual]),
+      [
+        ["0.4.1", "8a93dd27", "no release"],
+        ["0.4.2", "c216787f", "no asset"],
+        ["0.4.3", "bff19ea2", "0badc0de"],
+        ["0.4.4", "listed", "not listed"],
+        ["1.0.0", "listed", "not listed"],
+      ],
+    );
+  });
+
+  it("reports one failed check, keys removed, when GitHub refuses or answers no list", async () => {
+    const refused = await checkVyperReleases(
+      URL_BASE,
+      releasesEnvironment([new Response(`rate limited for ${TOKEN}`, { status: 403 })]),
+      [TOKEN],
+    );
+    assert.equal(refused.length, 1);
+    assert.equal(refused[0]?.ok, false);
+    assert.equal(refused[0]?.version, "all");
+    assert.equal(refused[0]?.actual, "threw");
+    assert.match(refused[0]?.excerpt ?? "", /GitHub answered 403/);
+    assert.ok(!(refused[0]?.excerpt ?? "").includes(TOKEN));
+    const notList = await checkVyperReleases(
+      URL_BASE,
+      releasesEnvironment([Response.json({ message: "x" })]),
+      [],
+    );
+    assert.match(notList[0]?.excerpt ?? "", /without a list of releases/);
+  });
+
+  it("stops after the last page it may read", async () => {
+    const full = Array.from({ length: 100 }, () => release("v0.2.0", "00000000"));
+    const env = releasesEnvironment(Array.from({ length: MAX_RELEASE_PAGES + 2 }, () => full));
+    await checkVyperReleases(URL_BASE, env, []);
+    assert.equal(env.requests.length, MAX_RELEASE_PAGES);
+  });
+
+  it("runs only when the targets file names vyperReleases and --backends is absent, and fails the run", async () => {
+    const env = releasesEnvironment([[release("v0.4.3", "0badc0de")]]);
+    const targets = readTargets(
+      targetsFile,
+      targetsText({
+        vyperReleases: URL_BASE,
+        targets: [
+          {
+            label: "Bs",
+            backend: "blockscout",
+            chainId: 11155111,
+            address: KNOWN,
+            match: "exact",
+            apiUrl: `${base}/blockscout/api`,
+          },
+        ],
+      }),
+    );
+    assert.equal(targets.vyperReleases, URL_BASE);
+    const all = await runChecks(targets, undefined, env);
+    assert.equal(all.ok, false);
+    assert.equal(all.backends.blockscout?.ok, true);
+    assert.equal(all.vyperReleases?.ok, false);
+    const rows = table(all, true);
+    assert.ok(
+      rows.includes(
+        `| vyper | - | ${codeCell("0.4.3")} | release | **failed** | ${codeCell("bff19ea2")} | ${codeCell("0badc0de")} |  |`,
+      ),
+    );
+    assert.ok(!rows.includes("| blockscout |"));
+    assert.match(table(all, false), /\| blockscout \|/);
+    assert.match(issueBody(all, undefined), /failed on the Vyper release table\./);
+    const filtered = await runChecks(targets, ["blockscout"], env);
+    assert.equal(filtered.vyperReleases, undefined);
+    assert.equal(filtered.ok, true);
+    assert.equal(env.requests.length, 1);
+    const passing = await runChecks(targets, undefined, releasesEnvironment([RELEASED]));
+    assert.equal(passing.ok, true);
+    assert.ok(
+      table(passing, false).includes(`| vyper | - | ${codeCell("0.3.10")} | release | ok |`),
+    );
+    assert.equal(table(passing, true).split("\n").length, 2);
+  });
+
+  it("names a vyperReleases that is not a non-empty string", () => {
+    assert.throws(
+      () => readTargets("t.json", targetsText({ vyperReleases: 1 })),
+      /t\.json: vyperReleases must be a non-empty string/,
+    );
+  });
+
+  it("reads the GitHub releases API of Vyper from the default targets file", () => {
+    const targets = readTargets(DEFAULT_TARGETS, readFileSync(DEFAULT_TARGETS, "utf8"));
+    assert.equal(targets.vyperReleases, "https://api.github.com/repos/vyperlang/vyper/releases");
   });
 });

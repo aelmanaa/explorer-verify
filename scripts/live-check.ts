@@ -7,6 +7,10 @@
 // - with `cors`, checks that the lookup's GET answered `access-control-allow-origin: *`;
 // - with `submitInput`, submits that recorded source and expects `already-verified`.
 //
+// With `vyperReleases` in the targets file, it also compares the builder's Vyper release table
+// (`VYPER_RELEASES`) with the GitHub releases API: each listed version must name the commit of its
+// release assets, and each stable release from 0.3.10 must be listed. `--backends` skips it.
+//
 // It runs the built core package (`pnpm --filter explorer-verify run build` first), as the live
 // matrix does. The lookups go through the public `dryRun()`; only the Sourcify submit uses
 // internals (see submitRecorded). So every request goes through the library's
@@ -48,6 +52,7 @@ import {
   startBudget,
   withClient,
 } from "../packages/explorer-verify/src/flow/verify.ts";
+import { VYPER_RELEASES } from "../packages/explorer-verify/src/input/vyper.ts";
 import { codeCell } from "./github-issue.ts";
 import { errorMessage, isMainModule } from "./release-packages.ts";
 
@@ -98,6 +103,19 @@ export interface Targets {
   readonly targets: readonly LiveTarget[];
   /** The directory `submitInput` paths are relative to. */
   readonly directory: string;
+  /** The GitHub releases API of Vyper, to compare the Vyper release table with. */
+  readonly vyperReleases?: string;
+}
+
+/** One version of the Vyper release table, compared with the GitHub releases. */
+export interface ReleaseCheck {
+  readonly version: string;
+  readonly ok: boolean;
+  /** The table's commit, or `listed` for a release the table lacks. */
+  readonly expected: string;
+  /** The release assets' commit, `no release`, `not listed`, or `threw` for a failed request. */
+  readonly actual: string;
+  readonly excerpt?: string;
 }
 
 /** The kinds of check. */
@@ -130,6 +148,8 @@ export interface Report {
   readonly date: string;
   readonly ok: boolean;
   readonly backends: Partial<Record<BackendName, BackendResult>>;
+  /** The Vyper release table check, when the targets file names `vyperReleases`. */
+  readonly vyperReleases?: { readonly ok: boolean; readonly checks: ReleaseCheck[] };
   issue?: IssueAction;
 }
 
@@ -252,11 +272,13 @@ export function readTargets(file: string, source: string): Targets {
     }
     minIntervalMs[backendName(name, `${file}: minIntervalMs`)] = ms;
   }
+  const vyperReleases = optionalText(field(parsed, "vyperReleases"), `${file}: vyperReleases`);
   return {
     noCodeAddress: address(field(parsed, "noCodeAddress"), `${file}: noCodeAddress`),
     minIntervalMs,
     targets: list.map((value, index) => readTarget(value, index)),
     directory: path.dirname(file),
+    ...(vyperReleases === undefined ? {} : { vyperReleases }),
   };
 }
 
@@ -513,6 +535,108 @@ export function secretsOf(targets: Targets, env: Environment["env"]): string[] {
   });
 }
 
+/** The most pages of Vyper releases read, 100 per page. */
+export const MAX_RELEASE_PAGES = 5;
+// The tag of a stable release, such as v0.4.3, and the name of one of its assets.
+const STABLE_TAG = /^v(\d+)\.(\d+)\.(\d+)$/;
+const ASSET = /^vyper\.(\d+\.\d+\.\d+)\+commit\.([0-9a-f]{8})\./;
+// The oldest release the builder supports, as major, minor and patch.
+const VYPER_FLOOR = [0, 3, 10] as const;
+
+/** A version as one number that sorts as the version does, for parts below 10,000. */
+const rank = (major = 0, minor = 0, patch = 0): number => major * 1e8 + minor * 1e4 + patch;
+
+/** Each stable release from {@link VYPER_FLOOR}, by version, with the commit its assets name. */
+function stableReleases(list: readonly unknown[]): Map<string, string | undefined> {
+  const found = new Map<string, string | undefined>();
+  for (const release of list) {
+    const tag = field(release, "tag_name");
+    if (typeof tag !== "string") {
+      continue;
+    }
+    const parts = STABLE_TAG.exec(tag);
+    if (
+      parts === null ||
+      field(release, "prerelease") === true ||
+      field(release, "draft") === true
+    ) {
+      continue;
+    }
+    const [, major, minor, patch] = parts.map(Number);
+    if (rank(major, minor, patch) < rank(...VYPER_FLOOR)) {
+      continue;
+    }
+    const version = tag.slice(1);
+    const assets: unknown = field(release, "assets");
+    const commit = (Array.isArray(assets) ? Array.from<unknown>(assets) : [])
+      .map((asset) => ASSET.exec(String(field(asset, "name"))))
+      .find((match) => match?.[1] === version)?.[2];
+    found.set(version, commit);
+  }
+  return found;
+}
+
+/**
+ * Compares the Vyper release table with the GitHub releases API: each listed version must name
+ * the commit of its release assets, and each stable release from 0.3.10 must be listed.
+ * @param url The releases API, such as https://api.github.com/repos/vyperlang/vyper/releases.
+ * @param environment Fetch and the environment; `GITHUB_TOKEN`, when set, raises the rate limit.
+ * @param secrets Values removed from an error excerpt.
+ * @returns One check per version.
+ */
+export async function checkVyperReleases(
+  url: string,
+  environment: Environment,
+  secrets: readonly string[],
+): Promise<ReleaseCheck[]> {
+  const token = environment.env["GITHUB_TOKEN"];
+  const list: unknown[] = [];
+  try {
+    for (let page = 1; page <= MAX_RELEASE_PAGES; page += 1) {
+      const response = await environment.fetch(`${url}?per_page=100&page=${String(page)}`, {
+        headers: {
+          accept: "application/vnd.github+json",
+          "user-agent": "explorer-verify-live-check",
+          ...(token === undefined || token === "" ? {} : { authorization: `Bearer ${token}` }),
+        },
+      });
+      const body = await response.text();
+      if (!response.ok) {
+        throw new Error(`GitHub answered ${String(response.status)}: ${body}`);
+      }
+      const items: unknown = JSON.parse(body);
+      if (!Array.isArray(items)) {
+        throw new TypeError("GitHub answered without a list of releases");
+      }
+      list.push(...Array.from<unknown>(items));
+      if (items.length < 100) {
+        break;
+      }
+    }
+  } catch (error: unknown) {
+    return [
+      {
+        version: "all",
+        ok: false,
+        expected: "a list of releases",
+        actual: "threw",
+        excerpt: redact(errorMessage(error), secrets).slice(0, EXCERPT_LENGTH),
+      },
+    ];
+  }
+  const releases = stableReleases(list);
+  const checks: ReleaseCheck[] = [...VYPER_RELEASES].map(([version, commit]) => {
+    const actual = releases.has(version) ? (releases.get(version) ?? "no asset") : "no release";
+    return { version, ok: actual === commit, expected: commit, actual };
+  });
+  for (const version of releases.keys()) {
+    if (!VYPER_RELEASES.has(version)) {
+      checks.push({ version, ok: false, expected: "listed", actual: "not listed" });
+    }
+  }
+  return checks;
+}
+
 /**
  * Runs the checks.
  * @param targets The targets.
@@ -555,11 +679,18 @@ export async function runChecks(
     result[target.backend] = { ok: entry.checks.every((one) => one.ok), checks: entry.checks };
   }
   const values = Object.values(result);
+  const releases =
+    targets.vyperReleases === undefined || backends !== undefined
+      ? undefined
+      : await checkVyperReleases(targets.vyperReleases, environment, secrets);
+  const vyperReleases =
+    releases === undefined ? undefined : { ok: releases.every((one) => one.ok), checks: releases };
   return {
     schemaVersion: 1,
     date,
-    ok: values.length > 0 && values.every((one) => one.ok),
+    ok: values.length > 0 && values.every((one) => one.ok) && vyperReleases?.ok !== false,
     backends: result,
+    ...(vyperReleases === undefined ? {} : { vyperReleases }),
   };
 }
 
@@ -577,6 +708,13 @@ export function table(report: Report, onlyFailed: boolean): string {
       (one) =>
         `| ${one.backend} | ${String(one.chainId)} | ${one.label} | ${one.check} | ${one.ok ? "ok" : "**failed**"} | ${codeCell(one.expected)} | ${codeCell(one.actual)} | ${codeCell(one.excerpt ?? "")} |`,
     );
+  for (const one of report.vyperReleases?.checks ?? []) {
+    if (!onlyFailed || !one.ok) {
+      rows.push(
+        `| vyper | - | ${codeCell(one.version)} | release | ${one.ok ? "ok" : "**failed**"} | ${codeCell(one.expected)} | ${codeCell(one.actual)} | ${codeCell(one.excerpt ?? "")} |`,
+      );
+    }
+  }
   return [
     "| Backend | Chain | Target | Check | Result | Expected | Actual | Excerpt |",
     "| ------- | ----- | ------ | ----- | ------ | -------- | ------ | ------- |",
@@ -591,10 +729,12 @@ export function table(report: Report, onlyFailed: boolean): string {
  * @returns Markdown.
  */
 export function issueBody(report: Report, runUrl: string | undefined): string {
-  const failed = Object.entries(report.backends)
-    .filter(([, backend]) => !backend.ok)
-    .map(([name]) => `\`${name}\``)
-    .join(", ");
+  const failed = [
+    ...Object.entries(report.backends)
+      .filter(([, backend]) => !backend.ok)
+      .map(([name]) => `\`${name}\``),
+    ...(report.vyperReleases?.ok === false ? ["the Vyper release table"] : []),
+  ].join(", ");
   return [
     `The live check of ${report.date} failed on ${failed === "" ? "no backend" : failed}.`,
     ...(runUrl === undefined ? [] : [`Run: ${runUrl}`]),

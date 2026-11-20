@@ -1,0 +1,25 @@
+{
+  "language": "Vyper",
+  "sources": {
+    "src/interfaces/ICounter.vyi": {
+      "content": "@external\ndef increment(): ...\n\n\n@view\n@external\ndef count() -> uint256: ...\n",
+      "sha256sum": "c3ae3ca1b9d8c093e5ecf68c074c88906dbd1d34c8f501ea562982c93f1b34d2"
+    },
+    "src/lib/owned.vy": {
+      "content": "# pragma version ~=0.4.0\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef check_owner():\n    assert msg.sender == self.owner, \"owned: caller is not the owner\"\n",
+      "sha256sum": "29fd15f1fa634c6b7739a7a028ee32def26a5f739361977ebdae8bd95fd077aa"
+    },
+    "src/Counter.vy": {
+      "content": "# pragma version ~=0.4.0\n\nfrom .interfaces import ICounter\nfrom .lib import owned\n\nimplements: ICounter\n\ninitializes: owned\n\nexports: owned.owner\n\ncount: public(uint256)\nstep: public(immutable(uint256))\n\n\n@deploy\ndef __init__(step_: uint256):\n    owned.__init__()\n    step = step_\n\n\n@external\ndef increment():\n    owned.check_owner()\n    self.count += step\n",
+      "sha256sum": "0780ba51a16abc4a10f0edc1f3ce9401358cf5f4b57d47d673eef4b9a1427069"
+    }
+  },
+  "settings": {
+    "outputSelection": {
+      "src/Counter.vy": ["*"]
+    },
+    "search_paths": ["."]
+  },
+  "compiler_version": "v0.4.0+commit.e9db8d9",
+  "integrity": "cecad113f8822ab897e6cb30e33e2b3d4d8bfae0e6b770ea9af1881797aa3c72"
+}

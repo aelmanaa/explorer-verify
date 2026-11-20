@@ -47,7 +47,10 @@ Cause: `buildVerifyInput` found no way to build part of the input from the docum
   holds the output but not the input.
 - `compilerVersion`: no document holds the full version with its commit, such as
   `0.8.24+commit.e11b9ed9`. Foundry build-info records only `0.8.24` in `solcLongVersion`; the full
-  version is in each contract's metadata.
+  version is in each contract's metadata. A Foundry Vyper build-info also records the version
+  without its commit, such as `0.4.3`, and holds no metadata. A table of the stable Vyper releases
+  from 0.3.10 gives the commit, and completes the 7-character commit of a PyPI build; a release it
+  does not list needs `options.compilerVersion` with the 8-character commit.
 - `contract`: the documents hold several contracts and none was chosen, or a bare name matches
   more than one. `details.candidates` lists the fully qualified names found, sorted, at most 20.
 - `sources`: the input is rebuilt from Solidity metadata, and some sources it lists have no

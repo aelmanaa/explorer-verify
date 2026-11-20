@@ -7,7 +7,7 @@ import type {
   VerifyInput,
   VyperStandardJsonInput,
 } from "../types.ts";
-import { isLocalPath } from "./paths.ts";
+import { isIndexedPath, isLocalPath } from "./paths.ts";
 
 // Group 1 is the version without the optional `v`. Nightly builds carry `-nightly.YYYY.M.D`,
 // official pre-releases `-pre.N`.
@@ -39,9 +39,6 @@ const STANDARD_JSON_FIELDS: readonly string[] = ["language", "sources", "setting
 // Blockscout lists it).
 const VYPER_VERSION =
   /^v?((0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})(-?(?:a|b|rc)\d{1,4})?\+commit\.[0-9a-f]{8})$/;
-// `vyper -f solc_json` turns each `..` of a path into its index: `0/1/2/<absolute path>`. Leading
-// spaces and `./` segments are skipped, as ABSOLUTE_PATH in paths.ts skips spaces.
-const INDEXED_PATH = /^\s*(?:\.[/\\])*0[/\\]/;
 
 const SHORT_VERSION_HINT =
   "Pass the full compiler version with its commit, such as 0.8.24+commit.e11b9ed9.";
@@ -49,6 +46,10 @@ const ZKVM_HINT =
   "Pass only the revision: for zkVM-0.8.24-1.0.2, set solcFork to 1.0.2 and solcVersion to 0.8.24 with its commit.";
 const KIND_HINT = 'Set compiler.kind to "solc", "zksolc" or "vyper".';
 const VYPER_LIBRARIES_HINT = "Vyper has no linked libraries: remove them.";
+// References: decision 0076. Shared with the builder's refusal of the same field.
+/** The hint for a Vyper input with `storage_layout_overrides`. Internal. */
+export const VYPER_STORAGE_HINT =
+  "Storage layout overrides are not supported: build the input without a storage layout file, or verify with the explorer's own tools.";
 const LIBRARY_KEY_HINT =
   "Key each entry of libraries by the path of a file in compiler.input.sources, a colon and the library's name, such as src/Lib.sol:Lib.";
 const LIBRARY_ADDRESS_HINT =
@@ -245,7 +246,7 @@ function checkVyperPaths(
   let position = 0;
   for (const path of paths) {
     position++;
-    if (isLocalPath(path) || INDEXED_PATH.test(path)) {
+    if (isLocalPath(path) || isIndexedPath(path)) {
       local.push(position);
     }
   }
@@ -479,6 +480,11 @@ function checkStandardJson<L extends "Solidity" | "Vyper">(
 function checkVyperJson(value: unknown, problems: Problems): WithPaths<VyperStandardJsonInput> {
   const before = problems.issues.length;
   const { value: input, paths, fields, settings } = checkStandardJson(value, "Vyper", problems);
+  // References: decision 0076. `vyper -f solc_json --storage-layout-file` writes this field and the
+  // compiler reads it, but no explorer request carries it: the bytecode would differ.
+  if (fields?.has("storage_layout_overrides") === true) {
+    problems.add("compiler.input.storage_layout_overrides", "is not supported", VYPER_STORAGE_HINT);
+  }
   const raw = fields?.get("interfaces");
   const interfaces =
     raw === undefined ? undefined : checkFiles(raw, "interfaces", readInterface, problems, true);
@@ -844,7 +850,8 @@ function checkCreationBytecode(
  * `creationBytecode` are rejected: Vyper has none. `settings.search_paths` is an array of strings.
  * A key of `sources`, `interfaces` or `settings.outputSelection`, or an entry of
  * `settings.search_paths`, that holds a local path is rejected, including the `0/1/…/` form that
- * `vyper -f solc_json` writes. A prerelease, or a release before 0.3.10, throws
+ * `vyper -f solc_json` writes. A `compiler.input.storage_layout_overrides` is rejected: storage
+ * layout overrides are not supported. A prerelease, or a release before 0.3.10, throws
  * `unsupported-compiler` on `compiler.version` before any `invalid-input`.
  *
  * `libraries`  is keyed by `path:Name`. The path must be a key of

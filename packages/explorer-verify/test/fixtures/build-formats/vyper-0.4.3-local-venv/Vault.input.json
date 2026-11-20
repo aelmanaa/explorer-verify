@@ -1,0 +1,17 @@
+{
+  "language": "Vyper",
+  "sources": {
+    "vylib/auth/owned.vy": {
+      "content": "# pragma version ~=0.4.0\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef check_owner():\n    assert msg.sender == self.owner, \"owned: caller is not the owner\"\n"
+    },
+    "src/Vault.vy": {
+      "content": "# pragma version ~=0.4.3\n\nfrom vylib.auth import owned\n\ninitializes: owned\n\nexports: owned.owner\n\nbalance_of: public(HashMap[address, uint256])\n\n\n@deploy\n@payable\ndef __init__():\n    owned.__init__()\n\n\n@external\n@payable\ndef deposit():\n    self.balance_of[msg.sender] += msg.value\n\n\n@external\ndef sweep(to: address):\n    owned.check_owner()\n    send(to, self.balance)\n"
+    }
+  },
+  "settings": {
+    "outputSelection": {
+      "src/Vault.vy": ["*"]
+    },
+    "search_paths": ["."]
+  }
+}

@@ -30,3 +30,23 @@ export function isLocalPath(path: string): boolean {
   }
   return false;
 }
+
+// References: decisions 0075 and 0076.
+/**
+ * Whether `path` starts with the segment `0`, the index that `vyper -f solc_json` writes for the
+ * first `..` of a path, such as `0/1/2/home/user/…`. The path is read with either separator, each
+ * segment without surrounding spaces, `.` and empty segments dropped and each `name/..` folded,
+ * so `./ ./0/1/x` and `src/../0/1/x` count too.
+ */
+export function isIndexedPath(path: string): boolean {
+  const kept: string[] = [];
+  for (const part of path.split(SEGMENT_SEPARATOR)) {
+    const segment = part.trim();
+    if (segment === ".." && kept.length > 0) {
+      kept.pop();
+    } else if (segment !== "" && segment !== ".") {
+      kept.push(segment);
+    }
+  }
+  return kept[0] === "0";
+}

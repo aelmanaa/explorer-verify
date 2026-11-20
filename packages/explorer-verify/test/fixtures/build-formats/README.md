@@ -46,6 +46,58 @@ for Hardhat 3. The library build sets `shanghai` with the optimizer off.
 `solc-0.8.24-library/Counter.json` holds what solc returned for `Counter`: `abi`, `bytecode` and
 `deployedBytecode` (with `0x`), and `metadata`, the metadata string as solc wrote it.
 
+## Vyper
+
+Built on 2026-11-17 and 2026-11-19 for the Vyper builder (#425). Every bytecode below was
+compiled once when the fixture was made; the tests read it and never run a compiler.
+
+| Folder                      | Tool and command                                                                    | Files                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `vyper-0.4.3-solc-json`     | Vyper 0.4.3, `vyper -f solc_json src/Counter.vy`                                    | `Counter.solc_json.json`, `Counter.input.json`, `compiled.json` |
+| `vyper-0.4.0-solc-json`     | Vyper 0.4.0 from PyPI, `vyper -f solc_json src/Counter.vy`                          | `Counter.solc_json.json`, `Counter.input.json`, `compiled.json` |
+| `vyper-0.4.3-site-packages` | Vyper 0.4.3, `vyper -f solc_json src/Vault.vy`, a module from a Python environment  | `Vault.solc_json.json`, `Vault.input.json`, `compiled.json`     |
+| `vyper-0.4.3-local-venv`    | Vyper 0.4.3, `vyper -f solc_json src/Vault.vy`, a module from the project's `.venv` | `Vault.solc_json.json`, `Vault.input.json`, `compiled.json`     |
+| `foundry-1.8.1-vyper`       | Foundry 1.8.1 with Vyper 0.4.3, `forge build`, `build_info = true`                  | `build-info.json`, `Counter.input.json`, `compiled.json`        |
+| `vyper-0.3.10`              | Vyper 0.3.10, `vyper-json input.json`                                               | `input.json`, `Greeter.input.json`, `compiled.json`             |
+| `hardhat-vyper-3.1.2`       | Built to the shape of `@nomiclabs/hardhat-vyper` 3.1.2, see below                   | `Greeter.json`                                                  |
+
+Each `*.input.json` is the input `buildVerifyInput` returned for the fixture, and the tests check
+that the builder still returns it. The 0.4.0 wheel writes `compiler_version` with the 7-character
+commit `e9db8d9`, as the PyPI builds do.
+
+The contracts:
+
+- `src/Counter.vy` imports the module `src/lib/owned.vy` (`initializes: owned`) and implements the
+  interface `src/interfaces/ICounter.vyi`. Its constructor takes a `uint256`. `solc_json` keys
+  the `.vyi` under `sources`; Foundry keys it under `interfaces`.
+- `src/Vault.vy` imports `vylib.auth.owned`, a module of the package `vylib`, installed with pip
+  in the Python environment that ran the compiler. `vylib` holds a copy of `owned.vy` above.
+- `contracts/Greeter.vy` is a Vyper 0.3.10 contract with a `String[64]` constructor argument and
+  an immutable owner, compiled with `evmVersion: shanghai` and `optimize: gas`.
+
+Each `compiled.json` holds the creation bytecode of the original build (`original`) and of the
+`*.input.json` next to it, compiled from an empty directory with the same compiler version
+(`built`, or `rewritten` for the two Vault folders). They are equal in every folder.
+
+Changes from the tool output:
+
+- `vyper-0.4.3-site-packages`: the compiler keyed the module by an index run and the relative
+  path of the build's Python environment, with a matching `search_paths` entry. That prefix is
+  replaced by `0/1/2/3/home/user/.venv/` in both places, so the key has the form a project under a
+  home folder gives. `fakePrefix` in `compiled.json` is the bytecode of the file with that key,
+  compiled where `vylib` is not installed.
+- `vyper-0.4.3-local-venv`: no change. The project's own `.venv` held `vylib`, so the compiler
+  keyed the module as `.venv/lib/python3.12/site-packages/vylib/auth/owned.vy`. `asWritten` in
+  `compiled.json` is the bytecode of that file, compiled where `vylib` is not installed.
+- `foundry-1.8.1-vyper/build-info.json`: each output contract keeps only `abi` and
+  `evm.bytecode.object`; `userdoc`, `devdoc`, `evm.deployedBytecode` and the source maps are
+  removed.
+- `hardhat-vyper-3.1.2/Greeter.json` was not written by Hardhat. It applies
+  `getArtifactFromVyperOutput` of `packages/hardhat-vyper/src/util.ts` (NomicFoundation/hardhat
+  branch `v2` at `1ee26da0`, read 2026-11-17) to the output of
+  `vyper -f combined_json --evm-version shanghai --optimize gas contracts/Greeter.vy`, Vyper
+  0.3.10, as the plugin runs it. Its `bytecode` equals the `original` of `vyper-0.3.10`.
+
 ## Changes from the tool output
 
 - File names: the tools name build-info files by a hash; here they are `build-info.json`.

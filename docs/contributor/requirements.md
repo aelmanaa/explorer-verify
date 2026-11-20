@@ -136,7 +136,20 @@ verifies it: every route refuses it with `unsupported-compiler` before any reque
     `incomplete-input` listing the missing paths, at most 1,000; a source whose hash differs fails with
     `source-mismatch` naming the file and both hashes;
   - an artifact with only ABI and bytecode. That is not enough to verify, and the error says so
-    and names the remaining routes (R-IN-5, explorer similar-match).
+    and names the remaining routes (R-IN-5, explorer similar-match);
+  - a compiler input with `language: "Vyper"`: a bare Vyper Standard JSON, the output of
+    `vyper -f solc_json` or a Foundry Vyper build-info (#425, decisions 0075 and 0076). It returns
+    `kind: "vyper"` with only `language`, `sources`, `interfaces` and `settings`, and only
+    `content` and `keccak256` of each source. The version is `compiler_version` without its `v`,
+    else the build-info's version, else `compilerVersion`. A table of the stable releases from
+    0.3.10 completes a version without a commit or with a 7-character commit; a release the
+    table does not list needs `compilerVersion`, and the weekly live check compares the table
+    with the GitHub releases. A key with a `site-packages` segment becomes the part after the
+    last one, and a `search_paths` entry that ends in `site-packages` becomes `.`. Any other
+    indexed, absolute or climbing path throws `invalid-input` naming no path; a path is indexed
+    when its first segment is `0` after `.`, empty and `name/..` segments are folded. An input
+    with `storage_layout_overrides` throws `invalid-input`. A Hardhat 2 Vyper artifact on its
+    own throws `insufficient-artifact` naming the Vyper routes.
 
   A second builder, `buildVerifyInputFromSources` on `explorer-verify/sources`, takes the Solidity
   sources, the Standard JSON settings and the remappings of a build that has no build output

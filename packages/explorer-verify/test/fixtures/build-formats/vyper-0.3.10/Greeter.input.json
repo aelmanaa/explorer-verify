@@ -1,0 +1,15 @@
+{
+  "language": "Vyper",
+  "sources": {
+    "contracts/Greeter.vy": {
+      "content": "# @version 0.3.10\n\ngreeting: public(String[64])\nowner: public(immutable(address))\n\n\n@external\ndef __init__(greeting_: String[64]):\n    self.greeting = greeting_\n    owner = msg.sender\n\n\n@external\ndef set_greeting(greeting_: String[64]):\n    assert msg.sender == owner, \"Greeter: not the owner\"\n    self.greeting = greeting_\n"
+    }
+  },
+  "settings": {
+    "evmVersion": "shanghai",
+    "optimize": "gas",
+    "outputSelection": {
+      "contracts/Greeter.vy": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+    }
+  }
+}
