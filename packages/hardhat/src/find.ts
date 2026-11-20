@@ -99,6 +99,8 @@ const ARTIFACTS_HINT =
   "Compile the project first, or pass outDir with the artifacts folder of the Hardhat config (paths.artifacts).";
 const ROOT_HINT =
   "Check that the project folder (options.root) exists and can be read. It should hold the Hardhat config.";
+const VYPER_HINT =
+  "Build the Vyper compiler input another way: with vyper -f solc_json, or in a Foundry project with build_info = true. Then pass that file as the build input.";
 const CONTRACT_HINT =
   "Pass the contract (options.contract) as path:Name, such as contracts/Greeter.sol:Greeter, or as a Name that matches one of the candidates (details.candidates).";
 
@@ -121,6 +123,27 @@ function missingInput(message: string): ExplorerVerifyError {
     message,
     { hint: COMPILE_HINT, secrets: [] },
   );
+}
+
+// References: R-DX-2.
+/**
+ * `insufficient-artifact` for a Vyper contract. Hardhat 2's Vyper plugin writes only ABI and
+ * bytecode, with no build-info, and Hardhat 3 has no Vyper plugin yet (hardhat#7296).
+ */
+function vyperRefused(): ExplorerVerifyError {
+  return new ExplorerVerifyError(
+    { code: "insufficient-artifact", field: "input" },
+    "Hardhat writes no build-info for a Vyper contract: its Vyper artifact holds only ABI and bytecode.",
+    { hint: VYPER_HINT, secrets: [] },
+  );
+}
+
+/**
+ * Whether `file`, an artifact path, sits in the folder Hardhat names after a `.vy` source. The
+ * check reads the path only: the helper reads no field of an artifact's format.
+ */
+function isVyperArtifact(file: string): boolean {
+  return path.basename(path.dirname(file)).endsWith(".vy");
 }
 
 /** Whether `error` is a file-system error with one of `codes`. */
@@ -494,7 +517,9 @@ async function readBuildFile(project: Project, file: string, what: string): Prom
  *   path outside the build-info folder; `incomplete-input` with `details.field`
  *   `contract` and the matches in `details.candidates` when a bare name matches several
  *   artifacts, or with `details.field` `input` and the path it looked for in the message when a
- *   build-info file or the `.dbg.json` file is missing.
+ *   build-info file or the `.dbg.json` file is missing; `insufficient-artifact` for a Vyper
+ *   contract, whose artifact is in a folder named after a `.vy` source: Hardhat writes no Vyper
+ *   build-info, so build the input with `vyper -f solc_json` or Foundry instead.
  * @example
  * ```ts
  * import { buildVerifyInput } from "explorer-verify";
@@ -522,12 +547,14 @@ export async function findBuild(
   await checkRoot(checked.root);
   const project = new Project(checked.root, checked.outDir);
   await project.open();
-  const { file: artifactFile, artifact } = await readArtifact(
-    project,
+  const files =
     checked.artifact === undefined
       ? await locateArtifact(project, checked.contract)
-      : namedArtifact(project, checked.contract, checked.artifact),
-  );
+      : namedArtifact(project, checked.contract, checked.artifact);
+  if (isVyperArtifact(files[0])) {
+    throw vyperRefused();
+  }
+  const { file: artifactFile, artifact } = await readArtifact(project, files);
   const contract = contractOf(project, artifactFile);
   const buildInfoDir = path.join(project.artifacts, BUILD_INFO_DIR);
   const buildInfoId = ownField(artifact, "buildInfoId");

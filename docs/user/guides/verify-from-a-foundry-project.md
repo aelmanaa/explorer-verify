@@ -173,6 +173,41 @@ console.log(built.compiler.version);
 The helper then takes the build-info whose metadata for the contract equals that artifact's, so
 the input comes from the same compile.
 
+## A Vyper contract
+
+Foundry compiles `.vy` files with Vyper. A Vyper artifact holds no metadata to rebuild the input
+from, so the helper reads only the build-info, which forge writes when `foundry.toml` sets
+`build_info = true` or you run `forge build --build-info`. Then name the contract by path:
+
+```ts [vyper.ts]
+import { buildVerifyInputFromFoundry } from "@explorer-verify/foundry";
+
+const built = await buildVerifyInputFromFoundry({
+  root: ".",
+  contract: "src/Counter.vy:Counter",
+});
+console.log(built.contractName);
+console.log(built.compiler.kind, built.compiler.version);
+```
+
+```text
+src/Counter.vy:Counter
+vyper 0.4.3+commit.bff19ea2
+```
+
+The helper takes the first build-info that lists `src/Counter.vy` and `Counter` with the
+artifact's creation bytecode. A shorter path such as `Counter.vy:Counter` also works when the
+listed path ends with it; a path the build-info does not list gives `invalid-input` naming the
+listed one. The input holds every module and `.vyi` interface of that compile.
+Foundry records the version as `0.4.3`, and `buildVerifyInput` adds the commit from its table of
+Vyper releases.
+
+With no build-info that lists the contract, the helper throws `insufficient-artifact`, and the
+hint says to run `forge build --build-info`. It never rebuilds a Vyper input from the source
+files. Sourcify and Etherscan verify Vyper; other backends refuse it with `unsupported-compiler`.
+
+On the command line, pass the same contract: `--foundry . --contract src/Counter.vy:Counter`.
+
 ## What it reads
 
 The helper works in four steps:
@@ -185,7 +220,8 @@ The helper works in four steps:
    apart. The search never follows a symbolic link and goes at most 32 folders deep.
 3. **The build-info.** It reads `buildInfoDir` in name order and takes the first file whose
    `output.contracts` lists the contract with the artifact's metadata. A build-info from another
-   build has other metadata and is skipped.
+   build has other metadata and is skipped. For Vyper, the creation bytecode takes the place of
+   the metadata.
 4. **The sources**, only when no build-info lists the contract. It reads each source file the
    metadata lists, from the root, and `buildVerifyInput` rebuilds the input from the metadata.
 
@@ -264,7 +300,7 @@ Every error is an `ExplorerVerifyError` from `explorer-verify`.
 | `invalid-input`         | A bad option or folder; no artifact or several match; a file too large, unreadable or not JSON |
 | `incomplete-input`      | No build-info lists the contract, and a source file is missing. Run `forge build --build-info` |
 | `source-mismatch`       | No build-info lists the contract, and a source file changed since the build                    |
-| `insufficient-artifact` | The artifact holds no metadata, and no build-info lists the contract                           |
+| `insufficient-artifact` | The artifact holds no metadata, as for Vyper, and no build-info lists the contract             |
 
 With several matches, the issue lists each `path:Name` and its file. An `incomplete-input` error
 lists the missing paths in `details.candidates`. A file that cannot be read gives `invalid-input`
@@ -279,6 +315,9 @@ with its path relative to the root, and keeps the Node error as `cause`. Errors 
   `forge build --build-info` and after a default build.
 - A library file built with solc 0.8.20 and 0.8.24 in one build, on 2026-11-03: with `artifact`,
   each version's input equals the one built by hand.
+- Tested with Foundry 1.8.1 and Vyper 0.4.3 on 2026-11-20: a contract that imports a module and
+  implements a `.vyi` interface, built with `build_info = true`. Vyper 0.4.3 compiled the input
+  the helper returns, in an empty folder, to the artifact's bytecode.
 - Linked libraries: in a live test on 2026-11-03, Sourcify gave only a partial match when the
   addresses were added to `settings.libraries`.
 

@@ -245,6 +245,7 @@ export type DocSetup =
   | "npm-package"
   | "foundry"
   | "foundry-multi"
+  | "foundry-vyper"
   | "hardhat-3"
   | "hardhat-2"
   | "shipped-contracts"
@@ -440,6 +441,10 @@ export function createDocsProject(setup: DocSetup, legacy = true): string {
       break;
     case "foundry-multi":
       copy(dir, path.join(foundry, "multi"), ".");
+      break;
+    case "foundry-vyper":
+      // A Vyper project built with Foundry and build_info = true.
+      copy(dir, path.join(foundry, "vyper"), ".");
       break;
     case "hardhat-3":
       copy(dir, path.join(hardhat, "hardhat-3.21.2/artifacts"), "artifacts");

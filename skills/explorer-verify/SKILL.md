@@ -85,6 +85,10 @@ solc; Etherscan v2 needs its key or `handlerUrl`. Any other backend refuses it w
 `unsupported-compiler` before any request, so do not retry there. A build before Vyper 0.4.1
 verifies `partial` at best on Sourcify. Sourcify refuses Vyper 0.3.x input with `interfaces` on
 `compiler.input.interfaces`: verify it on Etherscan v2, or inline each interface into the source.
+In a Foundry project, `--foundry . --contract src/Counter.vy:Counter` and the
+`@explorer-verify/foundry` helper find a Vyper contract's build-info; without one they throw
+`insufficient-artifact` and the hint says to run `forge build --build-info`. The Hardhat helper
+refuses a Vyper contract with `insufficient-artifact`: Hardhat writes no Vyper build-info.
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:
 

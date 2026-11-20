@@ -62,6 +62,10 @@ It exits 0 and prints:
 
 `lookup` is `none` when the explorer does not hold your contract yet: the real run will submit.
 
+A Vyper contract takes the same command with its `.vy` path, such as
+`--contract src/Counter.vy:Counter`. It needs the build-info of step 3, and verifies on Sourcify
+and Etherscan.
+
 ## 5. Verify for real
 
 Drop `--dry-run`:

@@ -37,7 +37,8 @@ export interface FindBuildOptions {
   root: string;
   /**
    * The contract: `path:Name`, with the source path relative to the root as Foundry names it,
-   * such as `src/Greeter.sol:Greeter`, or a bare `Name` that matches one artifact.
+   * such as `src/Greeter.sol:Greeter` or, for Vyper, `src/Counter.vy:Counter`, or a bare `Name`
+   * that matches one artifact.
    */
   contract: string;
   /**
@@ -95,13 +96,15 @@ export type BuildFromProjectOptions = FindBuildOptions & Omit<BuildVerifyInputOp
  */
 export interface ProjectBuild {
   /**
-   * The contract as `path:Name`, read from the artifact's Solidity metadata, or the bare `Name`
-   * when the artifact holds no metadata.
+   * The contract as `path:Name`, read from the artifact's Solidity metadata. When the artifact
+   * holds no metadata, as a Vyper artifact does, the `path:Name` the build-info lists, else the
+   * bare `Name`.
    */
   contract: string;
   /**
    * The parsed artifact, then the parsed build-info file when one lists the contract with the
-   * same metadata. Pass them to `buildVerifyInput` as they are.
+   * same metadata, or for a Vyper contract the same creation bytecode. Pass them to
+   * `buildVerifyInput` as they are.
    */
   documents: unknown[];
   /**
@@ -137,12 +140,17 @@ const MISSING_HINT =
   "Check the contract name and the outDir option, then run forge build so the output directory holds the contract's artifact.";
 const AMBIGUOUS_HINT =
   "Pass contract as path:Name with one of the paths listed, or pass artifact with one of the files listed.";
+const NO_METADATA_HINT =
+  "These artifacts hold no metadata, so the source path cannot tell them apart. Pass artifact with one of the files listed.";
+const LISTED_HINT = "Pass contract as path:Name with the source path the build-info lists.";
 const VERSIONS_HINT =
   "Foundry built this contract with several compiler versions or profiles and wrote one artifact for each; a clean build writes them all again. Pass artifact with the file of the build you deployed, one of the files listed.";
 const ROOT_HINT =
   "Check that the project folder (options.root) exists and can be read. It should hold foundry.toml.";
 const READ_HINT = "Check that the file exists and that this process may read it.";
 const JSON_HINT = "Run forge build again to rewrite the file.";
+const VYPER_HINT =
+  "Run forge build --build-info, or set build_info = true in foundry.toml and run forge build, then call again.";
 const REBUILD_HINT =
   "No build-info file lists the contract, so the input was rebuilt from the artifact's metadata and the source files under root. Run forge build --build-info, then call again. Or restore each listed source file exactly as it was compiled.";
 
@@ -174,6 +182,8 @@ interface ArtifactMatch {
   metadata: Map<string, unknown> | undefined;
   /** The metadata string exactly as solc wrote it. */
   rawMetadata: string | undefined;
+  /** `bytecode.object` in lower case without `0x`, or `undefined` when it is not a string. */
+  bytecode: string | undefined;
 }
 
 /** `invalid-input` with one issue. The message repeats the issue, which holds no secret. */
@@ -204,6 +214,12 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/** A bytecode string in lower case without `0x`, or `undefined` when it is not a string. */
+function bytecodeOf(value: unknown): string | undefined {
+  const object = fieldsOf(value)?.get("object");
+  return typeof object === "string" ? object.replace(/^0x/i, "").toLowerCase() : undefined;
 }
 
 /** `file` relative to `root`, with forward slashes. */
@@ -484,7 +500,14 @@ async function readArtifact(
     return { match: undefined, artifact: true };
   }
   return {
-    match: { file: relative(root, file), document: parsed, target, metadata, rawMetadata: raw },
+    match: {
+      file: relative(root, file),
+      document: parsed,
+      target,
+      metadata,
+      rawMetadata: raw,
+      bytecode: bytecodeOf(fields.get("bytecode")),
+    },
     artifact: true,
   };
 }
@@ -548,10 +571,11 @@ async function pickArtifact(
     const more = matches.length > MAX_LISTED ? ", and more" : "";
     const oneContract =
       match.target !== undefined && others.every(({ target }) => target === match.target);
+    const noMetadata = matches.every(({ target }) => target === undefined);
     throw invalid(
       "contract",
       `matches ${String(matches.length)} artifacts: ${listed.join(", ")}${more}`,
-      oneContract ? VERSIONS_HINT : AMBIGUOUS_HINT,
+      oneContract ? VERSIONS_HINT : noMetadata ? NO_METADATA_HINT : AMBIGUOUS_HINT,
     );
   }
   return match;
@@ -577,13 +601,33 @@ async function readNamedArtifact(
 }
 
 /**
- * The first build-info file, by name, that lists the artifact's contract with the same metadata
- * string. A build-info whose entry or artifact has no metadata string matches on the name alone.
+ * Whether a build-info entry is the artifact's contract. With a metadata string on both sides, the
+ * two must be equal. Else, with a creation bytecode on both sides, as in a Vyper build, the two
+ * must be equal. Else the path and name match alone.
+ */
+function sameContract(artifact: ArtifactMatch, entry: Map<string, unknown>): boolean {
+  const metadata = entry.get("metadata");
+  if (artifact.rawMetadata !== undefined && typeof metadata === "string") {
+    return metadata === artifact.rawMetadata;
+  }
+  const bytecode = bytecodeOf(fieldsOf(entry.get("evm"))?.get("bytecode"));
+  return (
+    artifact.bytecode === undefined || bytecode === undefined || bytecode === artifact.bytecode
+  );
+}
+
+/**
+ * The first build-info file, by name, that lists the artifact's contract (see
+ * {@link sameContract}), with the contract as `path:Name` as that file lists it. With metadata,
+ * the entry must be under the metadata's source path. Without, an entry under the path given in
+ * `contract` comes first, then one under a path that ends with it, as `src/Greeter.sol` ends with
+ * `Greeter.sol`. When only other paths list the contract, it throws `invalid-input` naming them.
+ * Without a path in `contract`, any path matches.
  */
 async function findBuildInfo(
   options: Options,
   artifact: ArtifactMatch,
-): Promise<{ file: string; document: unknown } | undefined> {
+): Promise<{ file: string; document: unknown; contract: string } | undefined> {
   const { root, buildInfoDir, spec } = options;
   if (!(await isDirectory(buildInfoDir))) {
     if (options.buildInfoDirSet) {
@@ -594,10 +638,15 @@ async function findBuildInfo(
   const quoted = JSON.stringify(spec.name);
   const entries = await readDirectory(root, buildInfoDir, "buildInfoDir");
   const names = entries.filter((entry) => entry.isFile && entry.name.endsWith(".json"));
-  const sourcePath =
+  // With metadata, the build-info must list the metadata's path. Without, the path given in
+  // `contract`, else one that ends with it, else any path when none is given.
+  const exact =
     artifact.target === undefined
       ? undefined
       : artifact.target.slice(0, artifact.target.lastIndexOf(":"));
+  const given = artifact.target === undefined ? spec.path : undefined;
+  let bySuffix: { file: string; document: unknown; contract: string } | undefined;
+  const elsewhere = new Set<string>();
   for (const entry of names.map(({ name }) => name).toSorted()) {
     const file = path.join(buildInfoDir, entry);
     const text = await readText(root, file, "buildInfoDir", JSON_LIMIT);
@@ -614,25 +663,40 @@ async function findBuildInfo(
       );
     }
     const output = fieldsOf(fieldsOf(document)?.get("output"));
-    const contracts = fieldsOf(output?.get("contracts"));
-    const byPath =
-      sourcePath === undefined
-        ? [...(contracts ?? new Map<string, unknown>()).values()]
-        : [contracts?.get(sourcePath)];
-    for (const byName of byPath) {
+    const contracts = fieldsOf(output?.get("contracts")) ?? new Map<string, unknown>();
+    const listed = [...contracts].filter(
+      ([listedPath]) => exact === undefined || listedPath === exact,
+    );
+    for (const [listedPath, byName] of listed) {
       const entryFields = fieldsOf(fieldsOf(byName)?.get(spec.name));
-      if (entryFields === undefined) {
+      if (entryFields === undefined || !sameContract(artifact, entryFields)) {
         continue;
       }
-      const metadata = entryFields.get("metadata");
-      if (
-        artifact.rawMetadata === undefined ||
-        typeof metadata !== "string" ||
-        metadata === artifact.rawMetadata
-      ) {
-        return { file: relative(root, file), document };
+      const found = {
+        file: relative(root, file),
+        document,
+        contract: `${listedPath}:${spec.name}`,
+      };
+      if (given === undefined || listedPath === given) {
+        return found;
+      }
+      if (listedPath.endsWith(`/${given}`)) {
+        bySuffix ??= found;
+      } else if (!LOCAL_PATH.test(listedPath)) {
+        elsewhere.add(listedPath);
       }
     }
+  }
+  if (bySuffix !== undefined) {
+    return bySuffix;
+  }
+  if (elsewhere.size > 0) {
+    const paths = [...elsewhere].toSorted().slice(0, MAX_LISTED);
+    throw invalid(
+      "contract",
+      `has a source path that no build-info lists for this contract; the build-info lists it under ${paths.join(", ")}`,
+      LISTED_HINT,
+    );
   }
   return undefined;
 }
@@ -696,12 +760,14 @@ async function readSources(
  *    with the same file name under more of its path, such as `out/b/Token.sol/Token.json`; the
  *    metadata tells the two apart.
  * 2. It reads the build-info files in `buildInfoDir`, in name order, and takes the first whose
- *    `output.contracts` lists the contract with the artifact's exact metadata string. `forge build
- *    --build-info` writes these files; a default `forge build` writes only a stub without the
- *    compiler input, which never lists a contract.
+ *    `output.contracts` lists the contract with the artifact's exact metadata string. A Vyper
+ *    artifact holds no metadata: the build-info must list the source path and name with the
+ *    artifact's creation bytecode. `forge build --build-info` writes these files; a default
+ *    `forge build` writes only a stub without the compiler input, which never lists a contract.
  * 3. When no build-info lists the contract, it reads the source files that the artifact's metadata
  *    names, from the root, so the core can rebuild the input from the metadata. It reads only
- *    regular files of at most 16 MB whose real path, after symbolic links, is under the root.
+ *    regular files of at most 16 MB whose real path, after symbolic links, is under the root. A
+ *    Vyper contract has no metadata to rebuild from, so it throws `insufficient-artifact`.
  *
  * The files under `outDir` and `buildInfoDir` are trusted: they are parsed as they are, up to 256
  * MB
@@ -715,7 +781,11 @@ async function readSources(
  *   a set `buildInfoDir` is not a directory, no artifact matches the contract, more than one does
  *   (each is listed, with its file), the `artifact` file is not the contract's artifact, or a file
  *   is too large, cannot be read or is not JSON. A file-system error is the `cause`; the message
- *   names the file relative to the root.
+ *   names the file relative to the root. `invalid-input` on `contract` also when the artifact holds
+ *   no metadata and a build-info lists the contract only under a source path that neither is nor
+ *   ends with the path given. `insufficient-artifact` when no build-info file lists a
+ *   Vyper contract (its source path, or the directory of its artifact, ends with `.vy`); the hint
+ *   says to run `forge build --build-info`.
  * @example
  * ```ts
  * import { buildVerifyInput } from "explorer-verify";
@@ -732,6 +802,14 @@ async function readSources(
  */
 export async function findFoundryBuild(options: FindBuildOptions): Promise<ProjectBuild> {
   return await findBuild(readOptions(options, findKeys()));
+}
+
+/**
+ * Whether the contract is Vyper: its source path, or else the directory that Foundry names after
+ * the source file, ends with `.vy`.
+ */
+function isVyper(artifactFile: string, spec: ContractSpec): boolean {
+  return (spec.path ?? path.posix.dirname(artifactFile)).endsWith(".vy");
 }
 
 /** {@link findFoundryBuild} on checked options. */
@@ -751,19 +829,25 @@ async function findBuild(checked: Options): Promise<ProjectBuild> {
   } else {
     artifact = await readNamedArtifact(root, checked.artifact, spec);
   }
-  const contract = artifact.target ?? spec.name;
   const buildInfo = await findBuildInfo(checked, artifact);
   if (buildInfo !== undefined) {
     return {
-      contract,
+      contract: artifact.target ?? buildInfo.contract,
       documents: [artifact.document, buildInfo.document],
       sources: {},
       files: [artifact.file, buildInfo.file],
     };
   }
+  if (isVyper(artifact.file, spec)) {
+    throw new ExplorerVerifyError(
+      { code: "insufficient-artifact", field: "input" },
+      "No build-info file lists the Vyper contract with the artifact's creation bytecode, and the artifact holds only ABI and bytecode.",
+      { hint: VYPER_HINT, secrets: [] },
+    );
+  }
   const sources = await readSources(root, artifact.metadata);
   return {
-    contract,
+    contract: artifact.target ?? spec.name,
     documents: [artifact.document],
     sources,
     files: [artifact.file, ...Object.keys(sources)],
