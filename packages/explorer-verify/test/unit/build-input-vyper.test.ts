@@ -88,15 +88,29 @@ function rejection(
   return assert.fail("buildVerifyInput did not throw");
 }
 
-/** Asserts that `text` appears in none of the places an error can be printed from. */
+/**
+ * `printed` without its `at …` stack frames. The frames name the files of this checkout, such as
+ * `/home/runner/…` on CI, and never hold input data.
+ */
+function withoutFrames(printed: string): string {
+  return printed
+    .split("\n")
+    .filter((line) => !/^\s+at /.test(line))
+    .join("\n");
+}
+
+/**
+ * Asserts that `text` appears in none of the places an error can be printed from. The stack and
+ * the inspected form are read without their frames (see {@link withoutFrames}).
+ */
 function assertNotShown(error: ExplorerVerifyError, shown: string): void {
   for (const place of [
     error.message,
     error.hint,
     String(error),
-    error.stack ?? "",
+    withoutFrames(error.stack ?? ""),
     JSON.stringify(error),
-    inspect(error, { depth: Infinity }),
+    withoutFrames(inspect(error, { depth: Infinity })),
   ]) {
     assert.ok(!place.includes(shown), `shown in: ${place.slice(0, 120)}`);
   }
