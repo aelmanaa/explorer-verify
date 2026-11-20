@@ -1,5 +1,25 @@
 # @explorer-verify/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#450](https://github.com/aelmanaa/explorer-verify/pull/450) [`0fea1f3`](https://github.com/aelmanaa/explorer-verify/commit/0fea1f39fd3eab01af7a453b3753d0782a323b08) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `explorer-verify verify --foundry . --contract src/Counter.vy:Counter` verifies a Vyper contract from a Foundry project built with `build_info = true` or `forge build --build-info`, on Sourcify or Etherscan v2. Without a build-info that lists the contract, it exits 2 with `insufficient-artifact`, and the hint says to run `forge build --build-info`. `--hardhat` refuses a Vyper contract with `insufficient-artifact`. The help of `--compiler-version` now says it takes the full solc or Vyper version.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/426
+
+### Patch Changes
+
+- [#436](https://github.com/aelmanaa/explorer-verify/pull/436) [`c22594d`](https://github.com/aelmanaa/explorer-verify/commit/c22594d6529c4df995ab7788148b134bc7bdc3df) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: `VerifyInput.compiler` adds a third member, `VyperCompiler`, with its own input type, `VyperStandardJsonInput`. `validateInput` checks Vyper input, but no backend verifies it in this release: every route refuses it with `unsupported-compiler` before any request. The CLI's `verify` without a target reports that refusal before it asks for a backend.
+  
+  What should I do? An exhaustive `switch` on `compiler.kind` that handles only `solc` and `zksolc` no longer compiles: add a `vyper` case. Code that reads `compiler.input` as `SolidityStandardJsonInput` checks `kind` first.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/420
+- Updated dependencies [[`e3b2bdd`](https://github.com/aelmanaa/explorer-verify/commit/e3b2bdddf9e7073833e2757b0b9b3c293b37ac14), [`df50fe8`](https://github.com/aelmanaa/explorer-verify/commit/df50fe8984fe244ccdafb3b3943048df20d0cc66), [`4da0501`](https://github.com/aelmanaa/explorer-verify/commit/4da0501b3fc20de3119889655ada107b18999ffe), [`020a95a`](https://github.com/aelmanaa/explorer-verify/commit/020a95a1b4bde6c052bfbcd2d6b32f23b9e540ac), [`c1bf45d`](https://github.com/aelmanaa/explorer-verify/commit/c1bf45d72a97d6cdacac67fe2b900ad988ec7a25), [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb), [`0fea1f3`](https://github.com/aelmanaa/explorer-verify/commit/0fea1f39fd3eab01af7a453b3753d0782a323b08), [`93416e1`](https://github.com/aelmanaa/explorer-verify/commit/93416e1a3ef14b81bb8c33baf7a71b88883fa15c), [`0fea1f3`](https://github.com/aelmanaa/explorer-verify/commit/0fea1f39fd3eab01af7a453b3753d0782a323b08), [`c22594d`](https://github.com/aelmanaa/explorer-verify/commit/c22594d6529c4df995ab7788148b134bc7bdc3df), [`2adfc0b`](https://github.com/aelmanaa/explorer-verify/commit/2adfc0b420e55b59b76e7d0414bd0b551d9b0493), [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb)]:
+  - explorer-verify@0.5.0
+  - @explorer-verify/foundry@0.5.0
+  - @explorer-verify/hardhat@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
