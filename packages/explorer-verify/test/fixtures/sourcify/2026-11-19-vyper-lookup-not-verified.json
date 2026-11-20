@@ -1,0 +1,22 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:53:45.096Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xf3dc8196fd8dfdacc30040c47f383212c0581caa?fields=compilation"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"83-CHdNWswp94HOj68u8zqzqrkEko8\""
+    },
+    "body": {
+      "match": null,
+      "creationMatch": null,
+      "runtimeMatch": null,
+      "chainId": "11155111",
+      "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+    }
+  }
+}

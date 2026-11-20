@@ -45,9 +45,10 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 `unsupported-compiler` before any request
 ([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
 
-A Vyper contract can be described with `kind: "vyper"` (R-EXT-1). No backend of this release
-verifies it: every route refuses it with `unsupported-compiler` before any request, and
-`buildVerifyInput` still refuses Vyper documents. Later issues map one backend each
+A Vyper contract can be described with `kind: "vyper"` (R-EXT-1). Sourcify verifies it on every
+chain (R-BE-4, [decision 0077](decisions/0077-vyper-on-sourcify.md)); every other route refuses it
+with `unsupported-compiler` before any request, and `buildVerifyInput` still refuses Vyper
+documents. Later issues map the other backends
 ([decision 0075](decisions/0075-vyper-compiler-kind.md)).
 
 ## Functional requirements
@@ -191,7 +192,8 @@ verifies it: every route refuses it with `unsupported-compiler` before any reque
   `zksolcVersion`, each with one leading `v`. Other backend/chain pairs refuse this kind before
   any request (R-EXT-1). Build helpers and EraVM argument derivation remain separate.
 - **R-BE-4** Sourcify API v2 (`/v2/verify/{chainId}/{address}`, job polling, `/v2/contract/...`
-  lookup). No key.
+  lookup). No key. Verifies `kind: "vyper"` on every chain with the long compiler version, each
+  Vyper interface sent as a source (decision 0077).
 - **R-BE-5** Routescan (Etherscan-compatible host per network).
 - **R-BE-6** Each backend is a separate module with the same interface (architecture.md), so a new
   backend is one new module plus routing-table rows.

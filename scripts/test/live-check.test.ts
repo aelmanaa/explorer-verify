@@ -21,8 +21,10 @@ import {
   ISSUE_AUTHOR,
   ISSUE_LABEL,
   ISSUE_TITLE,
+  MAX_POLLS,
   MAX_RELEASE_PAGES,
   ORIGIN,
+  POLL_INTERVAL_MS,
   checkVyperReleases,
   fileIssue,
   issueBody,
@@ -47,6 +49,9 @@ const KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
 const TOKEN = "ghs_dummyTokenForLiveCheckTests0001";
 const KNOWN = "0x55863fd47cee89a0519985bb4ab3139de69853eb";
 const NO_CODE = "0x000000000000000000000000000000000066e604";
+// The Vyper target, whose resubmit starts a job that ends with already_verified.
+const VYPER = "0xf3dc8196fd8dfdacc30040c47f383212c0581caa";
+const VYPER_JOB = "32fb7b68-6554-4524-8d20-f43d0c3b5c75";
 const REPO = "owner/repo";
 
 /** What the fake does and what it saw. */
@@ -70,6 +75,10 @@ interface FakeState {
   origins: string[];
   /** Answer GitHub with this status. */
   githubStatus: number | undefined;
+  /** Status requests of the Vyper job so far. */
+  jobPolls: number;
+  /** Keep the Vyper job pending on every poll. */
+  jobNeverEnds: boolean;
 }
 
 const state: FakeState = {
@@ -79,6 +88,8 @@ const state: FakeState = {
   filler: 0,
   origins: [],
   githubStatus: undefined,
+  jobPolls: 0,
+  jobNeverEnds: false,
 };
 
 function reset(): void {
@@ -88,6 +99,8 @@ function reset(): void {
   state.filler = 0;
   state.origins = [];
   state.githubStatus = undefined;
+  state.jobPolls = 0;
+  state.jobNeverEnds = false;
 }
 
 async function bodyOf(request: IncomingMessage): Promise<string> {
@@ -218,7 +231,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   }
   if (parts[1] === "sourcify" && parts[3] === "contract") {
     const address = parts[5] ?? "";
-    const known = address === KNOWN;
+    const known = address === KNOWN || address === VYPER;
     send(response, known ? 200 : 404, {
       match: known ? "exact_match" : null,
       chainId: parts[4],
@@ -228,7 +241,30 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   }
   if (parts[1] === "sourcify" && parts[3] === "verify" && request.method === "POST") {
     await bodyOf(request);
+    if (parts[5] === VYPER) {
+      send(response, 202, { verificationId: VYPER_JOB });
+      return;
+    }
     send(response, 409, { customCode: "already_verified", message: "Already verified" });
+    return;
+  }
+  if (parts[1] === "sourcify" && parts[3] === "verify" && parts[4] === VYPER_JOB) {
+    state.jobPolls += 1;
+    const done = !state.jobNeverEnds && state.jobPolls > 1;
+    const contract = { match: null, chainId: "11155111", address: VYPER };
+    send(response, 200, {
+      isJobCompleted: done,
+      verificationId: VYPER_JOB,
+      contract,
+      ...(done
+        ? {
+            error: {
+              customCode: "already_verified",
+              message: "The contract is already verified and the job didn't yield a better match.",
+            },
+          }
+        : {}),
+    });
     return;
   }
   if (parts[1] === "etherscan") {
@@ -347,6 +383,10 @@ before(async () => {
     path.join(directory, "input.json"),
     readFileSync(path.join(root, "test/live/sourcify-sepolia-input.json"), "utf8"),
   );
+  writeFileSync(
+    path.join(directory, "vyper-input.json"),
+    readFileSync(path.join(root, "test/live/sourcify-sepolia-vyper-input.json"), "utf8"),
+  );
 });
 
 after(async () => {
@@ -439,6 +479,35 @@ describe("live-check: the checks (R-QA-4)", () => {
     assert.match(result.stdout, /"actual": "no GET answer"/);
     assert.match(result.stdout, /"actual": "no key: LIVE_UNSET_KEY is not set"/);
     assert.match(result.stdout, /"check": "submit",[^}]*"actual": "threw",\s+"excerpt": "ENOENT/);
+  });
+
+  it("polls the job a Vyper resubmit starts, and passes when it ends with already_verified", async () => {
+    const vyper = {
+      label: "SrcVy",
+      backend: "sourcify",
+      chainId: 11155111,
+      address: VYPER,
+      match: "exact",
+      apiUrl: `${base}/sourcify`,
+      submitInput: "vyper-input.json",
+    };
+    writeFileSync(targetsFile, targetsText({ targets: [vyper] }));
+    const env = environment();
+    const result = await main(["--targets", targetsFile], env);
+    assert.equal(result.code, 0, result.stdout);
+    assert.match(
+      result.stdout,
+      /"check": "submit",[^}]*"ok": true,\s+"expected": "already-verified",\s+"actual": "already-verified"/,
+    );
+    assert.equal(state.jobPolls, 2);
+    assert.deepEqual(env.waits, [POLL_INTERVAL_MS, POLL_INTERVAL_MS]);
+
+    reset();
+    state.jobNeverEnds = true;
+    const pending = await main(["--targets", targetsFile], environment());
+    assert.equal(pending.code, 1);
+    assert.match(pending.stdout, /"check": "submit",[^}]*"ok": false,[^}]*"actual": "pending"/);
+    assert.equal(state.jobPolls, MAX_POLLS);
   });
 
   it("checks only the backends --backends names, and fails a run that checked nothing", async () => {
@@ -772,7 +841,7 @@ describe("live-check: the command line and the targets file", () => {
       targets.targets
         .filter((target) => target.submitInput !== undefined)
         .map((target) => target.backend),
-      ["sourcify"],
+      ["sourcify", "sourcify"],
     );
     assert.deepEqual(
       [

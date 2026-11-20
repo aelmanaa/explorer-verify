@@ -1,0 +1,35 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:57:08.286Z. Contract C of the 2026-11-15 Vyper research, built with 0.4.0.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xc4d2674d90d008bd32a36d438efc4c6f9f2bbb6b?fields=compilation"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"18e-lJIU51SngxldMjTVrg1LhlVg96w\"",
+      "cache-control": "public,max-age=3600"
+    },
+    "body": {
+      "compilation": {
+        "language": "Vyper",
+        "compiler": "vyper",
+        "compilerVersion": "0.4.0+commit.e9db8d9f",
+        "compilerSettings": {
+          "search_paths": ["."]
+        },
+        "name": "Counter",
+        "fullyQualifiedName": "src/Counter.vy:Counter"
+      },
+      "matchId": "59286212",
+      "creationMatch": "match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-15T00:52:05Z",
+      "match": "match",
+      "chainId": "11155111",
+      "address": "0xC4d2674d90D008bD32A36d438eFC4c6F9f2Bbb6b"
+    }
+  }
+}

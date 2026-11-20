@@ -1,7 +1,7 @@
 // The Standard JSON input each client sends for a Vyper input (#421; R-BE-6, R-QA-1, decision
 // 0075): `language`, `sources`, `interfaces` when present, and `settings`, in that order, and no
-// other key. No backend maps Vyper yet, so the clients are called directly, past the flow's kind
-// check. The solc and zksolc forms stay as they were.
+// other key. Sourcify gets the interfaces in `sources` instead (decision 0077). The clients are
+// called directly, past the flow's kind check. The solc and zksolc forms stay as they were.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -80,6 +80,26 @@ interface Client {
   readonly answer: () => Response;
   /** The Standard JSON input text the call sent. */
   readonly sent: (call: Call | undefined) => string;
+  /** The text the client sends, when it is not {@link expected}'s. */
+  readonly expect?: (withInterfaces: boolean) => string;
+}
+
+/** The input Sourcify gets: each interface in `sources`, an ABI one as Python's json.dumps. */
+function sourcifyExpected(withInterfaces: boolean): string {
+  if (!withInterfaces) {
+    return expected(false);
+  }
+  return JSON.stringify({
+    language: "Vyper",
+    sources: {
+      ...SOURCES,
+      "src/IToken.vyi": INTERFACES["src/IToken.vyi"],
+      "src/IOld.json": {
+        content: '{"abi": [{"type": "function", "name": "old", "inputs": [], "outputs": []}]}',
+      },
+    },
+    settings: SETTINGS,
+  });
 }
 
 const formAnswer = (): Response =>
@@ -151,6 +171,7 @@ const CLIENTS: readonly Client[] = [
       assert.ok(typeof body === "object" && body !== null && "stdJsonInput" in body);
       return JSON.stringify(body.stdJsonInput);
     },
+    expect: sourcifyExpected,
   },
 ];
 
@@ -166,8 +187,8 @@ describe("the Vyper input each client sends (#421, R-BE-6)", () => {
         assert.equal(outcome.state, "submitted");
         assert.equal(fake.calls.length, 1);
         const sent = client.sent(fake.calls[0]);
-        assert.equal(sent, expected(withInterfaces));
-        assert.equal(sent.includes('"interfaces"'), withInterfaces);
+        assert.equal(sent, (client.expect ?? expected)(withInterfaces));
+        assert.equal(sent.includes('"interfaces"'), withInterfaces && client.expect === undefined);
       });
     }
   }

@@ -1,0 +1,20 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:53:46.286Z. The submit sent the Vyper input with a top-level interfaces field.",
+  "request": {
+    "method": "POST",
+    "url": "https://sourcify.dev/server/v2/verify/11155111/0xf3dc8196fd8dfdacc30040c47f383212c0581caa"
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"112-eo+pffnDrt1b9T+C0S0xbFl/mM8\""
+    },
+    "body": {
+      "customCode": "invalid_parameter",
+      "message": "Standard JSON input contains unsupported top-level field(s): interfaces. Only the following top-level fields are supported: language, sources, settings, storage_layout_overrides.",
+      "errorId": "bb9ff9b4-e4b0-4ab6-b976-4ab7bdc36810"
+    }
+  }
+}

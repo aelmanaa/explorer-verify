@@ -1,0 +1,35 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:57:07.781Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/contract/11155111/0xf3dc8196fd8dfdacc30040c47f383212c0581caa?fields=compilation"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1a3-+ooJVoTfZ8WI29Qlt0GAk0ybXHA\"",
+      "cache-control": "public,max-age=3600"
+    },
+    "body": {
+      "compilation": {
+        "language": "Vyper",
+        "compiler": "vyper",
+        "compilerVersion": "0.4.3+commit.bff19ea2",
+        "compilerSettings": {
+          "search_paths": ["."]
+        },
+        "name": "Scoreboard",
+        "fullyQualifiedName": "src/Scoreboard.vy:Scoreboard"
+      },
+      "matchId": "59509168",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "match",
+      "verifiedAt": "2026-11-19T05:56:59Z",
+      "match": "exact_match",
+      "chainId": "11155111",
+      "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+    }
+  }
+}

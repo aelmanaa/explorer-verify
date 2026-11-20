@@ -1,0 +1,27 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:56:56.366Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/6d8983b4-4730-4487-bf7e-578c45d39efc"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"105-hSmcPGzVE+2Ybk9Awj6pr/lcSSI\""
+    },
+    "body": {
+      "isJobCompleted": false,
+      "verificationId": "6d8983b4-4730-4487-bf7e-578c45d39efc",
+      "jobStartTime": "2026-11-19T05:56:57Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+      }
+    }
+  }
+}

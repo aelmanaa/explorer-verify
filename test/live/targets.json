@@ -1,5 +1,5 @@
 {
-  "source": "Contracts deployed and verified by the live matrix on 2026-11-04 (issue #66). Public addresses only.",
+  "source": "Contracts deployed and verified by the live matrix on 2026-11-04 (issue #66), and the Vyper contract SrcSepVy1, deployed and verified on 2026-11-19 (issue #423). Public addresses only.",
   "noCodeAddress": "0x000000000000000000000000000000000066e604",
   "vyperReleases": "https://api.github.com/repos/vyperlang/vyper/releases",
   "minIntervalMs": {
@@ -15,6 +15,14 @@
       "match": "exact",
       "cors": true,
       "submitInput": "sourcify-sepolia-input.json"
+    },
+    {
+      "label": "SrcSepVy1",
+      "backend": "sourcify",
+      "chainId": 11155111,
+      "address": "0xf3dc8196fd8dfdacc30040c47f383212c0581caa",
+      "match": "exact",
+      "submitInput": "sourcify-sepolia-vyper-input.json"
     },
     {
       "label": "SrcArb1",

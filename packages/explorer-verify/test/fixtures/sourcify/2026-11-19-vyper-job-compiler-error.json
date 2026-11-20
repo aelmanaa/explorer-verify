@@ -1,0 +1,49 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:56:37.312Z. The submit sent a source with a syntax error.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/97697180-7ef3-480e-ae5c-00a7d8920aec"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"959-hZxcrAGxGqkxoelHprGXfkexkdg\""
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "97697180-7ef3-480e-ae5c-00a7d8920aec",
+      "jobStartTime": "2026-11-19T05:56:36Z",
+      "jobFinishTime": "2026-11-19T05:56:38Z",
+      "contract": {
+        "match": null,
+        "creationMatch": null,
+        "runtimeMatch": null,
+        "chainId": "11155111",
+        "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+      },
+      "error": {
+        "customCode": "compiler_error",
+        "message": "Compiler error. [{\"component\":\"compiler\",\"formattedMessage\":\"invalid syntax (<unknown>, line 32)\\n\\n  contract \\\"src/Scoreboard.vy:32\\\", line 32:23 \\n       31     assert msg.sender == owner, \\\"not owner\\\"\\n  ---> 32     self._score += by +\\n  -------------------------------^\\n       33     log Bumped(by=by, score=self._score)\\n\",\"message\":\"invalid syntax (<unknown>, line 32)\",\"severity\":\"error\",\"sourceLocation\":{\"file\":\"src/Scoreboard.vy\"},\"type\":\"SyntaxException\"}]",
+        "errorId": "3796f2b4-ea7e-4881-adf6-ed24137185e3",
+        "onchainRuntimeCode": "0x5f3560e01c60026005820660011b61018a01601e395f51565b63efedc669811861018257346101865760025460405260206040f35b63b20eb4c48118610182576024361034176101865760206101945f395f513318156100ca5760208060a05260096040527f6e6f74206f776e6572000000000000000000000000000000000000000000000060605260408160a001602982825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b60025460043580820182811061018657905090506002557f9a30493bc7da7f902597774c77fe3b0e241a5f56d75391c35daabef3e5f9a6b760043560405260025460605260406040a1005b638da5cb5b8118610182573461018657602061019460403960206040f35b63cb4774c48118610182573461018657602080604052806040015f54815260015460208201528051806020830101601f825f03163682375050601f19601f825160200101169050810190506040f35b5f5ffd5b5f80fd011501330182003400180000000000000000000000009d087fc03ae39b088326b67fa3c788236645b717",
+        "creationTransactionHash": "0x9b089c4b1decaba76ef49ddaf96986ef0ec1ff80b7b846aff17d3552a3afd5ad",
+        "errorData": {
+          "compilerErrors": [
+            {
+              "component": "compiler",
+              "formattedMessage": "invalid syntax (<unknown>, line 32)\n\n  contract \"src/Scoreboard.vy:32\", line 32:23 \n       31     assert msg.sender == owner, \"not owner\"\n  ---> 32     self._score += by +\n  -------------------------------^\n       33     log Bumped(by=by, score=self._score)\n",
+              "message": "invalid syntax (<unknown>, line 32)",
+              "severity": "error",
+              "sourceLocation": {
+                "file": "src/Scoreboard.vy"
+              },
+              "type": "SyntaxException"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

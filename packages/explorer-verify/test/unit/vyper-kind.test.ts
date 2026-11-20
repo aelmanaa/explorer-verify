@@ -1,6 +1,7 @@
 // The Vyper compiler kind (R-EXT-1, R-IN-1, R-IN-6, decision 0075): the field rules of
-// validateInput, the empty Vyper capability list, and the refusal of Vyper input before any request
-// in verify(), dryRun() and verifyEach() of the default entry and of explorer-verify/core.
+// validateInput, the Vyper capability list, which maps Sourcify only, and the refusal of Vyper
+// input on every other backend before any request, in verify(), dryRun() and verifyEach() of the
+// default entry and of explorer-verify/core.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -79,7 +80,11 @@ function assertNotShown(error: ExplorerVerifyError, text: string): void {
     error.message,
     error.hint,
     String(error),
-    error.stack ?? "",
+    // The stack's `at …` frames name the checkout, which no error controls.
+    (error.stack ?? "")
+      .split("\n")
+      .filter((line) => !/^\s+at /.test(line))
+      .join("\n"),
     JSON.stringify(error),
     JSON.stringify(error.toJSON()),
   ]) {
@@ -736,15 +741,15 @@ describe("linkLibraries refuses Vyper input (R-IN-4, decision 0075)", () => {
   });
 });
 
-describe("the Vyper capability list (R-EXT-1, decision 0075)", () => {
-  it("is empty, so no backend verifies Vyper on any chain", () => {
-    assert.deepEqual(VYPER_ROUTES, []);
+describe("the Vyper capability list (R-EXT-1, decisions 0075 and 0077)", () => {
+  it("maps Sourcify on every chain, so the kind check refuses only the other backends", () => {
+    assert.deepEqual(VYPER_ROUTES, [["sourcify", "every"]]);
     assert.equal(COMPILER_ROUTES.vyper, VYPER_ROUTES);
     for (const chainId of CHAINS) {
-      assert.throws(
-        () => kindCheck("vyper", chainId),
-        (error) => isKindRefusal(error, chainId),
-      );
+      const check = kindCheck("vyper", chainId);
+      assert.equal(check.verifies("sourcify"), true);
+      assert.equal(check.verifies("blockscout"), false);
+      isKindRefusal(check.refused("blockscout"), chainId, "blockscout");
     }
   });
 
@@ -761,41 +766,48 @@ describe("the Vyper capability list (R-EXT-1, decision 0075)", () => {
     assert.equal(kindCheck("solc", 324, routes).verifies("routescan"), true);
   });
 
+  it("refuses the kind on every chain when its list is empty", () => {
+    for (const chainId of CHAINS) {
+      assert.throws(
+        () => kindCheck("vyper", chainId, { vyper: [] }),
+        (error) => isKindRefusal(error, chainId),
+      );
+    }
+  });
+
   it("takes the shipped list of each kind the override leaves out (FlowDependencies.compilers)", () => {
     // Overriding vyper keeps ZKSOLC_ROUTES for zksolc, and the reverse.
     assert.equal(kindCheck("zksolc", 324, { vyper: [] }).verifies("blockscout"), true);
-    assert.throws(
-      () => kindCheck("vyper", 324, { zksolc: [["blockscout", [324]]] }),
-      (error) => isKindRefusal(error, 324),
+    assert.equal(
+      kindCheck("vyper", 324, { zksolc: [["blockscout", [324]]] }).verifies("sourcify"),
+      true,
     );
   });
 });
 
-describe("Vyper input is refused before any request (R-EXT-1, decision 0057 point 4, decision 0075)", () => {
-  const routes: [BackendName | undefined, RouteOverride | undefined][] = [
-    [undefined, undefined],
-    [undefined, { backend: "sourcify" }],
-    [undefined, { backend: "blockscout-hosted" }],
+describe("Vyper input is refused before any request on a backend other than Sourcify (R-EXT-1, decision 0057 point 4, decision 0075)", () => {
+  const routes: [BackendName, RouteOverride][] = [
+    ["blockscout-hosted", { backend: "blockscout-hosted" }],
     [
-      undefined,
+      "etherscan-v2",
       { backend: "etherscan-v2", apiUrl: "https://api.etherscan.io/v2/api", apiKey: DUMMY_KEY },
     ],
     [
-      undefined,
+      "routescan",
       {
         backend: "routescan",
         apiUrl: "https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api",
       },
     ],
     [
-      undefined,
+      "etherscan-compatible",
       { backend: "etherscan-compatible", apiUrl: "https://x.example/api", apiKey: DUMMY_KEY },
     ],
   ];
 
-  it("by verify() and dryRun() of the default entry, on every chain and route", async () => {
+  it("by verify() and dryRun() of the default entry, on every chain and named route", async () => {
     for (const chainId of CHAINS) {
-      for (const [, route] of routes) {
+      for (const [backend, route] of routes) {
         for (const run of [verify, dryRun]) {
           const fake = replay();
           await assert.rejects(
@@ -803,7 +815,7 @@ describe("Vyper input is refused before any request (R-EXT-1, decision 0057 poin
               { ...vyperInput(), chainId },
               { fetch: fake.fetch, route, apiKeys: { "etherscan-v2": DUMMY_KEY } },
             ),
-            (error) => isKindRefusal(error, chainId),
+            (error) => isKindRefusal(error, chainId, backend),
           );
           assert.deepEqual(fake.calls, []);
         }
@@ -811,7 +823,7 @@ describe("Vyper input is refused before any request (R-EXT-1, decision 0057 poin
     }
   });
 
-  it("by verify() with handlerUrl, rpcUrl and allowSourcifyFallback", async () => {
+  it("by verify() with handlerUrl and the Etherscan backend named", async () => {
     const fake = replay();
     await assert.rejects(
       verify(
@@ -819,40 +831,40 @@ describe("Vyper input is refused before any request (R-EXT-1, decision 0057 poin
         {
           fetch: fake.fetch,
           handlerUrl: "https://handler.example/verify",
-          rpcUrl: "https://rpc.example.org",
-          allowSourcifyFallback: true,
+          route: { backend: "etherscan-v2" },
         },
       ),
-      (error) => isKindRefusal(error, 11155111),
+      (error) => isKindRefusal(error, 11155111, "etherscan-v2"),
     );
     assert.deepEqual(fake.calls, []);
   });
 
-  it("by verifyEach() of the default entry", async () => {
-    for (const backends of ["all", ["sourcify", "blockscout"]] as const) {
-      const fake = replay();
-      await assert.rejects(
-        verifyEach({ ...vyperInput(), chainId: 1 }, { fetch: fake.fetch, backends }),
-        (error) => isKindRefusal(error, 1),
-      );
-      assert.deepEqual(fake.calls, []);
-    }
+  it("by verifyEach() of the default entry, for a named backend", async () => {
+    const fake = replay();
+    const { outcomes } = await verifyEach(
+      { ...vyperInput(), chainId: 1 },
+      { fetch: fake.fetch, backends: ["blockscout"] },
+    );
+    assert.equal(outcomes.length, 1);
+    isKindRefusal(outcomes[0]?.error, 1, "blockscout");
+    assert.deepEqual(fake.calls, []);
   });
 
-  it("by verify(), dryRun() and verifyEach() of explorer-verify/core", async () => {
+  it("by verify() and dryRun() of explorer-verify/core, for a named backend", async () => {
     const clients = [sourcify(), blockscout()] as const;
-    for (const chainId of CHAINS) {
+    for (const chainId of [1, 11155111]) {
       const fake = replay();
       const input = { ...vyperInput(), chainId };
       const options = { fetch: fake.fetch, clients, table: routingTable };
-      await assert.rejects(coreVerify(input, options), (error) => isKindRefusal(error, chainId));
-      await assert.rejects(
-        coreDryRun(input, { ...options, route: { backend: "blockscout" } }),
-        (error) => isKindRefusal(error, chainId),
+      const route = { backend: "blockscout" } as const;
+      await assert.rejects(coreVerify(input, { ...options, route }), (error) =>
+        isKindRefusal(error, chainId, "blockscout"),
       );
-      await assert.rejects(coreVerifyEach(input, { ...options, backends: "all" }), (error) =>
-        isKindRefusal(error, chainId),
+      await assert.rejects(coreDryRun(input, { ...options, route }), (error) =>
+        isKindRefusal(error, chainId, "blockscout"),
       );
+      const { outcomes } = await coreVerifyEach(input, { ...options, backends: ["blockscout"] });
+      isKindRefusal(outcomes[0]?.error, chainId, "blockscout");
       assert.deepEqual(fake.calls, []);
     }
   });

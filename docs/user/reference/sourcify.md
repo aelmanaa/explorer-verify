@@ -40,6 +40,49 @@ The submit body is JSON. Each field comes from the [verify input](verify.md):
 
 Constructor arguments are never sent: Sourcify reads them from the creation code.
 
+## Vyper
+
+Sourcify verifies `kind: "vyper"` input on every chain it serves, through the same three requests.
+No other backend of this release verifies Vyper, so the routing table picks Sourcify for it.
+
+| Field                | Value for Vyper                                                       |
+| -------------------- | --------------------------------------------------------------------- |
+| `stdJsonInput`       | `language` `"Vyper"`, `sources` with each interface added, `settings` |
+| `compilerVersion`    | The long version, such as `0.4.3+commit.bff19ea2`                     |
+| `contractIdentifier` | `contractName`, as `src/Counter.vy:Counter`                           |
+
+Sourcify refuses a top-level `interfaces` field with 400 `invalid_parameter`. explorer-verify
+moves each entry of `compiler.input.interfaces` into `sources` under its own path. From Vyper
+0.4.0, the compiler reads an interface there as it reads one in `interfaces`:
+
+- An interface with `content`, such as a `.vyi` file, keeps its text.
+- An `abi` interface gets the text Vyper hashes for it: Python's `json.dumps` of the entry.
+- A source keeps its path over an interface of the same path.
+
+An `abi` interface is sent as Python's `json.dumps` text of its entry. An ABI that holds a number
+that is not an integer, an integer above 2^53, or a key that reads as an integer may then give
+other text, and the match can fail; an ABI the compiler writes holds none of these.
+
+Before Vyper 0.4.0, the compiler compiles every file in `sources` and reads interfaces only from
+`interfaces`, so Sourcify cannot take Vyper 0.3.x input with interfaces. Every flow refuses it
+before any request with [`unsupported-compiler`](errors/unsupported-compiler.md) on
+`compiler.input.interfaces`. Inline each interface into the contract source, or build with Vyper
+0.4.0 or later.
+
+Sourcify publishes the interfaces with the sources.
+
+The grades depend on the Vyper version ([Match types](../explanation/match-types.md#vyper-builds)):
+
+| Vyper            | `match`       | Result                                      |
+| ---------------- | ------------- | ------------------------------------------- |
+| 0.4.1 and later  | `exact_match` | `exact`                                     |
+| 0.3.10 and 0.4.0 | `match`       | `partial`; 0.3.10 only without `interfaces` |
+
+A Vyper contract's runtime code is graded `match` even when its creation code is `exact_match`, so
+Sourcify never answers 409 to a Vyper submit. A second submit of the same source starts a job that
+ends with the code `already_verified`, read as `already-verified`. Job error codes read as for
+solc: a Vyper syntax error is `compiler_error`, `failed` with `reasonCode` `compiler`.
+
 ## How answers are read
 
 An answer that this table does not list throws an error. It never reads as "not verified" or as
@@ -179,3 +222,8 @@ at once, with no lookup.
 - Testnet jobs finishing in about one second: live runs on 2026-11-02.
 - A partial match after adding library addresses to `settings.libraries`: live run on 2026-11-03.
 - Another contract's source held for a new contract on Ethereum Sepolia: live run on 2026-11-10.
+- Vyper: a 0.4.3 contract with a `.vyi` interface, deployed on Ethereum Sepolia and verified
+  `exact_match` on 2026-11-19; the 400 for a top-level `interfaces` field and the
+  `already_verified` job of a second submit, the same day. The check is in Sourcify's
+  [`middlewares.ts`](https://github.com/argotorg/sourcify/blob/d7642636102f77e15c288d707304253f8d8b1de6/services/server/src/server/apiv2/middlewares.ts),
+  server 4.4.0. The 0.3.10 and 0.4.0 grades: [Vyper support](../../contributor/research/2026-11-15-vyper-support.md).

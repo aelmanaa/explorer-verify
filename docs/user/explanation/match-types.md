@@ -63,13 +63,19 @@ Routescan states no grade, so explorer-verify reports every Routescan match as `
 
 ## Vyper builds
 
-No backend of this release verifies Vyper input. The grades below are what the explorers gave to
-Vyper contracts in probes on 2026-11-15.
+Sourcify is the backend of this release that verifies Vyper input. The grades below are what the
+explorers gave to Vyper contracts in probes on 2026-11-15 and 2026-11-19.
 
 Vyper's bytecode has no metadata hash. From Vyper 0.4.1, its trailer holds an integrity hash of the
-sources, so Sourcify and Blockscout graded a 0.4.3 build exact. Vyper 0.3.10 and 0.4.0 builds hold
+sources, so Sourcify and Blockscout graded 0.4.3 builds exact. Vyper 0.3.10 and 0.4.0 builds hold
 nothing derived from the source text, so Sourcify and Blockscout graded them partial, as they grade
-a solc build without a metadata hash.
+a solc build without a metadata hash. A `verify()` of a Vyper contract before 0.4.1 on Sourcify
+returns `partial`, and no submit can raise it to `exact`.
+
+| Vyper            | Sourcify  |
+| ---------------- | --------- |
+| 0.4.1 and later  | `exact`   |
+| 0.3.10 and 0.4.0 | `partial` |
 
 Etherscan and Routescan gave no grade for Vyper either. explorer-verify reads them as for solc:
 Etherscan's `Pass - Verified` with an empty `SimilarMatch` is `exact`, and every Routescan match

@@ -580,7 +580,7 @@ function targetOf(
 // References: decision 0075.
 /**
  * Throws the library's `unsupported-compiler` when no backend of the chain verifies the input's
- * compiler kind, such as Vyper input in this release, so a run without a target names that first:
+ * compiler kind, such as zksolc input off ZKsync, so a run without a target names that first:
  * naming a backend would not help. A dry run with a `fetch` that refuses every request finds it:
  * the library refuses the kind before any request. Any other outcome is dropped. Solc input, which
  * every backend verifies, is not checked.

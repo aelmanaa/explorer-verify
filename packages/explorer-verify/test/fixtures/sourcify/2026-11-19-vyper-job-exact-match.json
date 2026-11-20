@@ -1,0 +1,45 @@
+{
+  "source": "Live response from sourcify.dev, recorded 2026-11-19T05:56:58.482Z.",
+  "request": {
+    "method": "GET",
+    "url": "https://sourcify.dev/server/v2/verify/6d8983b4-4730-4487-bf7e-578c45d39efc"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"565-JlSD13KaS0VngYqJ8GB5pOvaWv8\""
+    },
+    "body": {
+      "isJobCompleted": true,
+      "verificationId": "6d8983b4-4730-4487-bf7e-578c45d39efc",
+      "jobStartTime": "2026-11-19T05:56:57Z",
+      "jobFinishTime": "2026-11-19T05:56:59Z",
+      "compilationTime": "2095",
+      "externalVerifications": {
+        "etherscan": {
+          "verificationId": "7wfuruikwnw4d1rdtwru79a6yinfrnmizcu5q4du7ity9vbx85",
+          "statusUrl": "https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=checkverifystatus&guid=7wfuruikwnw4d1rdtwru79a6yinfrnmizcu5q4du7ity9vbx85",
+          "explorerUrl": "https://sepolia.etherscan.io//address/0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA",
+          "contractApiUrl": "https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=getabi&address=0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+        },
+        "blockscout": {
+          "verificationId": "BLOCKSCOUT_VYPER_SUBMITTED",
+          "statusUrl": "https://eth-sepolia.blockscout.com/api?module=contract&action=checkverifystatus&chainid=11155111&guid=BLOCKSCOUT_VYPER_SUBMITTED",
+          "explorerUrl": "https://eth-sepolia.blockscout.com//address/0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA",
+          "contractApiUrl": "https://eth-sepolia.blockscout.com/api?module=contract&action=getabi&chainid=11155111&address=0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA"
+        }
+      },
+      "contract": {
+        "match": "exact_match",
+        "creationMatch": "exact_match",
+        "runtimeMatch": "match",
+        "chainId": "11155111",
+        "address": "0xf3Dc8196Fd8dFDAcC30040c47F383212c0581cAA",
+        "verifiedAt": "2026-11-19T05:56:59Z",
+        "matchId": "59509168"
+      }
+    }
+  }
+}

@@ -123,8 +123,9 @@ export interface VyperStandardJsonInput {
  * The Vyper compiler and its input. Vyper 0.3.10 and later releases are accepted; prereleases are
  * not.
  *
- * No backend of this release verifies Vyper input: every route refuses it with
- * `unsupported-compiler` before any request.
+ * In this release only Sourcify verifies Vyper input, on every chain whose routing row lists it,
+ * except input before Vyper 0.4.0 that has `interfaces`. Every other backend, and Sourcify for
+ * that input, refuses it with `unsupported-compiler` before any request.
  *
  * @example
  * ```ts

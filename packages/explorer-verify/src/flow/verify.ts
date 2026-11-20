@@ -7,7 +7,7 @@
 import { BACKEND_LABELS, BACKEND_NAMES } from "../backend-names.ts";
 import type { BackendName } from "../backend-names.ts";
 import type { Backend, Context, Found, PollOutcome, Target } from "../backends/backend.ts";
-import { kindCheck } from "../compiler-kinds.ts";
+import { inputCheck } from "../compiler-kinds.ts";
 import type { CompilerRoutes, KindCheck } from "../compiler-kinds.ts";
 import { newError } from "../error-hints.ts";
 import { ExplorerVerifyError } from "../errors.ts";
@@ -1223,7 +1223,7 @@ export async function routeOf(
  * @internal
  */
 export function kindsOf(input: VerifyInput, dependencies: FlowDependencies): KindCheck {
-  return kindCheck(input.compiler.kind, input.chainId, dependencies.compilers);
+  return inputCheck(input, dependencies.compilers);
 }
 
 /**

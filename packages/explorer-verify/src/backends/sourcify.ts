@@ -316,7 +316,9 @@ async function poll(handle: Handle, ctx: Context): Promise<PollOutcome> {
 /** The submit body: the input as `standardJsonInput` keeps it, as an object. */
 function submitBody(input: ResolvedInput): SubmitBody {
   const body: SubmitBody = {
-    stdJsonInput: standardJsonInput(input.compiler),
+    stdJsonInput: interfacesAsSources(standardJsonInput(input.compiler)),
+    // The long version, for Vyper as for solc: `0.4.3+commit.bff19ea2`. Sourcify downloads the
+    // Vyper compiler by it. `validateInput` has already removed a leading `v`.
     compilerVersion: input.compiler.version,
     contractIdentifier: input.contractName,
   };
@@ -326,6 +328,56 @@ function submitBody(input: ResolvedInput): SubmitBody {
     body.creationTransactionHash = input.creationTxHash;
   }
   return body;
+}
+
+// References: R-BE-4, decision 0077.
+/**
+ * The input with each Vyper interface moved into `sources`. Sourcify refuses a Standard JSON input
+ * with a top-level `interfaces` field (400 `invalid_parameter`, observed 2026-11-19). From Vyper
+ * 0.4.0, the compiler reads an interface file in `sources` as it reads one in `interfaces`; before
+ * 0.4.0 it cannot, so the flow refuses such input before any request (`inputCheck`). An interface
+ * with `content` keeps its text. An `abi` interface gets the text Vyper makes of the entry,
+ * Python's `json.dumps`, because Vyper 0.4.1 and later hash that text into the bytecode. A source
+ * keeps its path over an interface of the same path, which Vyper refuses anyway.
+ */
+function interfacesAsSources(sent: SentStandardJson): SentStandardJson {
+  const { language, sources, interfaces, settings } = sent;
+  if (interfaces === undefined) {
+    return sent;
+  }
+  // Built from entries, not by assignment, so a path such as `__proto__` stays a key.
+  const added = Object.entries(interfaces)
+    .filter(([path]) => !Object.hasOwn(sources, path))
+    .map(([path, entry]): [string, unknown] => {
+      // Stryker disable next-line OptionalChaining: equivalent. validateInput keeps only interfaces that are objects, so readFields never gives undefined here.
+      const content = readFields(entry)?.get("content");
+      return [path, { content: typeof content === "string" ? content : pythonJson(entry) }];
+    });
+  return {
+    language,
+    sources: Object.fromEntries([...Object.entries(sources), ...added]),
+    settings,
+  };
+}
+
+/**
+ * `value` as Python's `json.dumps` writes it by default: `", "` between items, `": "` after a
+ * key, and each character outside printable ASCII as a `\u` escape. A JSON number keeps the text
+ * JavaScript gives it; an ABI holds none.
+ */
+function pythonJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => pythonJson(item)).join(", ")}]`;
+  }
+  const fields = readFields(value);
+  if (fields !== undefined) {
+    const items = [...fields].map(([key, item]) => `${pythonJson(key)}: ${pythonJson(item)}`);
+    return `{${items.join(", ")}}`;
+  }
+  return JSON.stringify(value).replace(
+    /[\u007f-\uffff]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
 }
 
 /** Maps a submit answer to its outcome. */
