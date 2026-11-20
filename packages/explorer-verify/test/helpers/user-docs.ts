@@ -70,6 +70,11 @@ const WORKSPACE_PACKAGES = {
   "@explorer-verify/foundry": "foundry",
   "@explorer-verify/hardhat": "hardhat",
 };
+/**
+ * The Standard JSON input of the Vyper 0.4.3 Scoreboard on Sepolia, the live check's Sourcify
+ * target, whose lookup the Sourcify fixtures recorded.
+ */
+const VYPER_LIVE_INPUT = path.join(PACKAGES_DIR, "../test/live/sourcify-sepolia-vyper-input.json");
 /** The contracts package that ships only sources, settings and bytecode. */
 const SOURCES_PACKAGE = path.join(PACKAGES_DIR, "explorer-verify/test/fixtures/sources-package");
 /** The files of {@link SOURCES_PACKAGE} in the import closure of `src/Vault.sol:Vault`. */
@@ -246,6 +251,7 @@ export type DocSetup =
   | "foundry"
   | "foundry-multi"
   | "foundry-vyper"
+  | "vyper"
   | "hardhat-3"
   | "hardhat-2"
   | "shipped-contracts"
@@ -446,6 +452,20 @@ export function createDocsProject(setup: DocSetup, legacy = true): string {
       // A Vyper project built with Foundry and build_info = true.
       copy(dir, path.join(foundry, "vyper"), ".");
       break;
+    case "vyper": {
+      // The Vyper guide's files: the output of `vyper -f solc_json` for a contract that imports a
+      // module from a Python environment, and the Scoreboard's Standard JSON input.
+      copy(
+        dir,
+        path.join(BUILD_FORMATS, "vyper-0.4.3-site-packages/Vault.solc_json.json"),
+        "Vault.solc_json.json",
+      );
+      const live: { compiler: { input: unknown } } = JSON.parse(
+        readFileSync(VYPER_LIVE_INPUT, "utf8"),
+      );
+      writeFileSync(path.join(dir, "Scoreboard.input.json"), JSON.stringify(live.compiler.input));
+      break;
+    }
     case "hardhat-3":
       copy(dir, path.join(hardhat, "hardhat-3.21.2/artifacts"), "artifacts");
       break;

@@ -261,6 +261,20 @@ const RUNS: readonly DocRun[] = [
     setup: "foundry",
   },
   {
+    page: "guides/verify-a-vyper-contract.md",
+    example: 0,
+    what: "buildVerifyInput on vyper -f solc_json output: the site-packages key is rewritten",
+    setup: "vyper",
+  },
+  {
+    // Recorded for the Vyper 0.4.3 Scoreboard on Sepolia, the live check's Sourcify target.
+    page: "guides/verify-a-vyper-contract.md",
+    example: 1,
+    what: "buildVerifyInput on a Vyper Standard JSON input, then a dry run picks Sourcify",
+    setup: "vyper",
+    fixtures: ["2026-11-19-vyper-lookup-exact-match"],
+  },
+  {
     page: "guides/verify-from-a-hardhat-project.md",
     example: 0,
     what: "buildVerifyInputFromHardhat on Hardhat 3, then a dry run",

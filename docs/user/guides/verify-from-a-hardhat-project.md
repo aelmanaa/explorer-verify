@@ -191,7 +191,7 @@ A contract whose artifact folder ends in `.vy`, such as `contracts/Counter.vy:Co
 with `insufficient-artifact`. Build the input another way: write it with `vyper -f solc_json`
 and pass it to `buildVerifyInput`, or build the contract in a Foundry project with
 `build_info = true`. [Verify from a Foundry project](verify-from-a-foundry-project.md#a-vyper-contract)
-shows the second way.
+shows the second way, and [Verify a Vyper contract](verify-a-vyper-contract.md) shows both.
 
 ## Read the files without building the input
 

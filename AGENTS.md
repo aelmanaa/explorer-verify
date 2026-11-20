@@ -72,6 +72,8 @@ and from a deployed contract's bytecode alone in
 [docs/user/guides/verify-from-deployed-bytecode.md](docs/user/guides/verify-from-deployed-bytecode.md).
 Linking a verified proxy to its implementation with `linkProxy()` is in
 [docs/user/guides/verify-a-proxy.md](docs/user/guides/verify-a-proxy.md).
+Verifying a Vyper contract, from its versions and explorers to the match grades, is in
+[docs/user/guides/verify-a-vyper-contract.md](docs/user/guides/verify-a-vyper-contract.md).
 [docs/user/reference/sourcify.md](docs/user/reference/sourcify.md),
 [docs/user/reference/etherscan.md](docs/user/reference/etherscan.md),
 [docs/user/reference/routescan.md](docs/user/reference/routescan.md),

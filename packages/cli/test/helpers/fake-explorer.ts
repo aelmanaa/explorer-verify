@@ -26,6 +26,8 @@ import { readFileSync } from "node:fs";
  * - `other-source`: Sourcify holds another contract's source at the address (recorded on
  *   2026-11-10 for issue #293) and refuses the submit as already verified, so `verify()` returns
  *   `already-verified` with `storedContract`. Etherscan holds the Greeter's own source.
+ * - `vyper`: Sourcify holds the Vyper 0.4.3 Scoreboard on Sepolia with an exact match (recorded on
+ *   2026-11-19 for issue #423), for the Vyper guide's dry run. Other requests answer as in `new`.
  */
 export type Scenario =
   | "verified"
@@ -41,7 +43,8 @@ export type Scenario =
   | "offline"
   | "flaky"
   | "not-indexed"
-  | "other-source";
+  | "other-source"
+  | "vyper";
 
 /** The scenarios, for checking a name read from the environment. */
 export const SCENARIOS: readonly Scenario[] = [
@@ -59,6 +62,7 @@ export const SCENARIOS: readonly Scenario[] = [
   "flaky",
   "not-indexed",
   "other-source",
+  "vyper",
 ];
 
 /** The recorded job answer of each scenario whose job ends with an error. */
@@ -168,6 +172,10 @@ function sourcify(scenario: Scenario, method: string, path: string): Response | 
       chainId: lookup[1],
       address: lookup[2],
     });
+  }
+  if (lookup !== null && scenario === "vyper") {
+    // Recorded for the Scoreboard's chain and address, so it is not moved.
+    return recorded("sourcify/2026-11-19-vyper-lookup-exact-match");
   }
   if (lookup !== null) {
     // The answer, moved to the chain asked for: the library checks that it is about that chain.

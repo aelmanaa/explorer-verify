@@ -66,6 +66,7 @@ each task.
   [Hardhat](guides/verify-from-a-hardhat-project.md) and
   [the server handler](guides/run-the-server-handler.md).
 - Guides by task: [a proxy](guides/verify-a-proxy.md),
+  [a Vyper contract](guides/verify-a-vyper-contract.md),
   [from deployed bytecode](guides/verify-from-deployed-bytecode.md),
   [a contract from an npm package](guides/verify-a-contract-from-an-npm-package.md),
   [contracts your package ships](guides/verify-contracts-your-package-ships.md) and

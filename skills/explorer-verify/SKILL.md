@@ -89,6 +89,7 @@ In a Foundry project, `--foundry . --contract src/Counter.vy:Counter` and the
 `@explorer-verify/foundry` helper find a Vyper contract's build-info; without one they throw
 `insufficient-artifact` and the hint says to run `forge build --build-info`. The Hardhat helper
 refuses a Vyper contract with `insufficient-artifact`: Hardhat writes no Vyper build-info.
+[Verify a Vyper contract](../../docs/user/guides/verify-a-vyper-contract.md) has the steps.
 
 Add the chain ID and the deployed address, then check the whole input with `validateInput()`:
 
