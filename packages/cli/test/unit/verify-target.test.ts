@@ -117,6 +117,24 @@ function refused(result: Run): { message: string; hint: string } {
 
 const submits = (result: Run): number => result.seen.filter((each) => each.submit).length;
 
+/** A Vyper request for `--input-json`, which each test writes to its own file. */
+function vyperRequest(): Record<string, unknown> {
+  return {
+    chainId: 11155111,
+    address: ADDRESS,
+    compiler: {
+      kind: "vyper",
+      version: "0.4.3+commit.bff19ea2",
+      input: {
+        language: "Vyper",
+        sources: { "src/Counter.vy": { content: "# pragma version 0.4.3\n" } },
+        settings: {},
+      },
+    },
+    contractName: "src/Counter.vy:Counter",
+  };
+}
+
 describe("verify without a target exits 2 before any request (R-AX-8)", () => {
   it("is the same with and without a terminal, CI and --json", async (t) => {
     const cases: { json: boolean; tty: boolean; ci: boolean }[] = [];
@@ -195,23 +213,7 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
 
   it("keeps the target refusal for Vyper --input-json, which Sourcify verifies (decision 0075)", async (t) => {
     const path = join(DIR, "vyper.json");
-    writeFileSync(
-      path,
-      JSON.stringify({
-        chainId: 11155111,
-        address: ADDRESS,
-        compiler: {
-          kind: "vyper",
-          version: "0.4.3+commit.bff19ea2",
-          input: {
-            language: "Vyper",
-            sources: { "src/Counter.vy": { content: "# pragma version 0.4.3\n" } },
-            settings: {},
-          },
-        },
-        contractName: "src/Counter.vy:Counter",
-      }),
-    );
+    writeFileSync(path, JSON.stringify(vyperRequest()));
     const result = await run(t, ["verify", "--input-json", path, "--json"]);
     assert.deepEqual(result.seen, []);
     const { message } = refused(result);
@@ -220,9 +222,7 @@ describe("verify without a target exits 2 before any request (R-AX-8)", () => {
 
   it("refuses Vyper --input-json on a backend other than Sourcify and Etherscan v2 as unsupported-compiler (decisions 0075 and 0078)", async (t) => {
     const path = join(DIR, "vyper-blockscout.json");
-    const parsed: unknown = JSON.parse(readFileSync(join(DIR, "vyper.json"), "utf8"));
-    assert.ok(typeof parsed === "object" && parsed !== null);
-    writeFileSync(path, JSON.stringify({ ...parsed, route: { backend: "blockscout" } }));
+    writeFileSync(path, JSON.stringify({ ...vyperRequest(), route: { backend: "blockscout" } }));
     const result = await run(t, ["verify", "--input-json", path, "--json"]);
     assert.equal(result.code, 2, result.stdout + result.stderr);
     assert.deepEqual(result.seen, []);
