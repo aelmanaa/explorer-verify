@@ -32,7 +32,7 @@ features:
     link: /start/quickstart-cli
     linkText: CLI quickstart
   - title: Foundry project
-    details: The CLI reads the build files under out/. The project gains no dependency.
+    details: The CLI reads the build files under out/, Solidity or Vyper. The project gains no dependency.
     link: /start/quickstart-foundry
     linkText: Foundry quickstart
   - title: Hardhat project
