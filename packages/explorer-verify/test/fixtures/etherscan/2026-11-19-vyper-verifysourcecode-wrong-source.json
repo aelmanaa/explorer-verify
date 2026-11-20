@@ -1,0 +1,37 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:55:09.621Z: verifysourcecode for TallyB at 0xbf4ed80f83025577717e4d5ddee115b52495419e, a Vyper 0.4.3 contract deployed in transaction 0x9d63ff4a97ad939458ef3a47d89a06d9f716d8483b2f9a6d10f77a66ee3cbd80, with a source changed so that it compiles to other bytecode. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "vyper-json",
+        "sourceCode": "{\"language\":\"Vyper\",\"sources\":{\"src/TallyB.vy\":{\"content\":\"# pragma version 0.4.3\\n# explorer-verify live probe 2026-11-19: Vyper on Etherscan v2\\n\\nowner: public(immutable(address))\\nlabel: public(String[32])\\ntotal: public(uint256)\\n\\n\\n@deploy\\ndef __init__(start: uint256, label_: String[32]):\\n    owner = msg.sender\\n    self.total = start + 1\\n    self.label = label_\\n\\n\\n@external\\ndef add(amount: uint256) -> uint256:\\n    self.total += amount\\n    return self.total\\n\"}},\"settings\":{\"outputSelection\":{\"src/TallyB.vy\":[\"*\"]},\"search_paths\":[\".\"]}}",
+        "contractaddress": "0xbf4ed80f83025577717e4d5ddee115b52495419e",
+        "contractname": "src/TallyB.vy:TallyB",
+        "compilerversion": "vyper:0.4.3",
+        "optimizationUsed": "1",
+        "constructorArguments": "000000000000000000000000000000000000000000000000000000000000000b0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000e65762d3432342d68616e646c6572000000000000000000000000000000000000",
+        "constructorArguements": "000000000000000000000000000000000000000000000000000000000000000b0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000e65762d3432342d68616e646c6572000000000000000000000000000000000000",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": "pfu6wzmbe1eirddbwg6l9mwhhucdbx1ngxrsh9azjnblbpkhup"
+    }
+  }
+}

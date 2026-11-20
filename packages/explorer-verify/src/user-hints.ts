@@ -36,7 +36,7 @@ const USER_HINTS: Readonly<Record<ErrorCode, string>> = {
   "insufficient-artifact":
     "The build output holds only the ABI and the bytecode, which is not enough for verification. Use the full build output of the compiler.",
   "unsupported-compiler":
-    "This contract was built with a compiler or language that cannot be verified here. Use Solidity built with solc, zksolc on ZKsync Era or ZKsync Sepolia through Blockscout, or Vyper through Sourcify.",
+    "This contract was built with a compiler or language that cannot be verified here. Use Solidity built with solc, zksolc on ZKsync Era or ZKsync Sepolia through Blockscout, or Vyper through Sourcify or Etherscan v2.",
   "verification-inconclusive":
     "The explorer ended the verification without a verdict. Wait a minute, then try again.",
   "source-mismatch":

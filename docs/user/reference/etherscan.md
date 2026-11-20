@@ -84,6 +84,31 @@ The submit fields:
 | `constructorArguments`  | `constructorArgs` without `0x`; absent with no arguments             |
 | `constructorArguements` | The same value; Etherscan reads this misspelled name too             |
 
+### Vyper input
+
+Etherscan v2 verifies Vyper on every chain it serves, as Sourcify does. The other backends
+refuse Vyper input before any request.
+
+For `compiler.kind: "vyper"`, the submit uses the same action. These fields differ from solc, and
+`optimizationUsed` is added:
+
+| Field              | Value for Vyper                                                           |
+| ------------------ | ------------------------------------------------------------------------- |
+| `codeformat`       | `vyper-json`                                                              |
+| `compilerversion`  | `vyper:` and the version before `+`, as `vyper:0.4.3`                     |
+| `optimizationUsed` | `0` when `settings.optimize` is `"none"` or `false`, else `1`             |
+| `sourceCode`       | `language`, `sources`, `interfaces` when the input has it, and `settings` |
+| `contractname`     | `contractName`, as `src/Counter.vy:Counter`                               |
+
+- Etherscan refuses the long version form, `v0.4.3+commit.bff19ea2`, with
+  `Invalid compiler version`.
+- It refuses a Vyper submit without `optimizationUsed` with `Missing OptimizationUsed`.
+- Status texts, lookups, Similar Match and constructor arguments read as for solc.
+- A lookup gives the stored version as `vyper:0.4.3`. `verify()` drops the `vyper:` before it
+  compares the version with the input's ([Verify](verify.md)).
+- Vyper 0.3.x input with `interfaces`, which Sourcify refuses, goes to Etherscan v2 with the
+  `interfaces` field as the compiler reads it. No such input has been submitted live.
+
 A call that submits sends one lookup, one submit (more while Etherscan has not
 [indexed the contract](#a-contract-etherscan-has-not-indexed)) and one status request per poll,
 plus any retries.
@@ -225,6 +250,13 @@ the call throws that error.
   ([Etherscan plans and attribution](../explanation/etherscan-plans-and-attribution.md)).
 
 ## Sources
+
+- Vyper: live runs on 2026-11-15
+  ([research note](../../contributor/research/2026-11-15-vyper-support.md#etherscan-v2)) and
+  2026-11-19 on Ethereum Sepolia: three Vyper 0.4.3 contracts, one verified with `verify()`, one
+  through the server handler, one polled from `Pending in queue`; a changed source answered with the
+  bytecode mismatch text; the long version form and a submit without `optimizationUsed` refused
+  ([decision 0078](../../contributor/decisions/0078-vyper-on-etherscan.md)).
 
 - Constructor arguments omitted or wrong: live run on 2026-11-03,
   [live probes](../../contributor/research/2026-11-03-m2-live-probes.md#a-etherscan-with-constructor-arguments-omitted-or-wrong).

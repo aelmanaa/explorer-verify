@@ -1,0 +1,30 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:55:14.764Z: checkverifystatus for the job of the changed TallyB source at 0xbf4ed80f83025577717e4d5ddee115b52495419e. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "pfu6wzmbe1eirddbwg6l9mwhhucdbx1ngxrsh9azjnblbpkhup",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Fail - Unable to verify. Compiled contract deployment bytecode does NOT match the transaction deployment bytecode."
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:56:10.987Z: getsourcecode for TallyA at 0xb723519c03d0529dde21b1cd3dd255e83ab0f32b, after its verification. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "{{\r\n  \"language\": \"Vyper\",\r\n  \"sources\": {\r\n    \"src/TallyA.vy\": {\r\n      \"content\": \"# pragma version 0.4.3\\n# explorer-verify live probe 2026-11-19: Vyper on Etherscan v2\\n\\nowner: public(immutable(address))\\nlabel: public(String[32])\\ntotal: public(uint256)\\n\\n\\n@deploy\\ndef __init__(start: uint256, label_: String[32]):\\n    owner = msg.sender\\n    self.total = start\\n    self.label = label_\\n\\n\\n@external\\ndef add(amount: uint256) -> uint256:\\n    self.total += amount\\n    return self.total\\n\",\r\n      \"sha256sum\": \"1ae54eecd6278f7349d6138497c8f18cc5ee673fd546f2d91114613d08a9dc49\"\r\n    }\r\n  },\r\n  \"settings\": {\r\n    \"outputSelection\": {\r\n      \"src/TallyA.vy\": [\r\n        \"evm.bytecode\",\r\n        \"evm.deployedBytecode\",\r\n        \"abi\"\r\n      ]\r\n    },\r\n    \"search_paths\": [\r\n      \".\"\r\n    ]\r\n  }\r\n}}",
+          "ABI": "[{\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"add\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"label\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"total\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"start\",\"type\":\"uint256\"},{\"name\":\"label_\",\"type\":\"string\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]",
+          "ContractName": "TallyA",
+          "CompilerVersion": "vyper:0.4.3",
+          "CompilerType": "vyper-j",
+          "OptimizationUsed": "1",
+          "Runs": "0",
+          "ConstructorArguments": "00000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000d65762d3432342d64697265637400000000000000000000000000000000000000",
+          "EVMVersion": "Default",
+          "Library": "",
+          "ContractFileName": "src/TallyA.vy",
+          "LicenseType": "",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": ""
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "source": "Contracts deployed and verified by the live matrix on 2026-11-04 (issue #66), and the Vyper contract SrcSepVy1, deployed and verified on 2026-11-19 (issue #423). Public addresses only.",
+  "source": "Contracts deployed and verified by the live matrix on 2026-11-04 (issue #66), and the Vyper contracts SrcSepVy1 (issue #423) and EthSepVy1 (issue #424), deployed and verified on 2026-11-19. Public addresses only.",
   "noCodeAddress": "0x000000000000000000000000000000000066e604",
   "vyperReleases": "https://api.github.com/repos/vyperlang/vyper/releases",
   "minIntervalMs": {
@@ -44,6 +44,14 @@
       "backend": "etherscan-v2",
       "chainId": 421614,
       "address": "0x8af03aae77366e789075e6ad0829cfea8f36156c",
+      "match": "exact",
+      "keyEnv": "ETHERSCAN_API_KEY"
+    },
+    {
+      "label": "EthSepVy1",
+      "backend": "etherscan-v2",
+      "chainId": 11155111,
+      "address": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
       "match": "exact",
       "keyEnv": "ETHERSCAN_API_KEY"
     },

@@ -1,0 +1,30 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:57:53.792Z: checkverifystatus for the job of TallyC at 0xc47505ea1c43673bede91041749a92fb8ad485ac, sent at once after the submit. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "checkverifystatus",
+        "guid": "uzfmnxmam7f4tasc52xlpphxmnhcw2hhymtnecnviph6n4rt6x",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Pending in queue"
+    }
+  }
+}

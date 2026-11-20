@@ -1276,8 +1276,8 @@ function buildVyper(
  * print, such as `0.4.0+commit.e9db8d9`. The name is `options.contract`, else the one contract an
  * artifact points at, else the one `.vy` target of `settings.outputSelection` or of the
  * build-info output, named after its file. A Hardhat 2 Vyper artifact on its own holds no input
- * and throws `insufficient-artifact`. Only Sourcify verifies Vyper: `verify()` refuses a
- * `kind: "vyper"` input on any other backend with `unsupported-compiler`.
+ * and throws `insufficient-artifact`. Sourcify and Etherscan v2 verify Vyper: `verify()` refuses
+ * a `kind: "vyper"` input on any other backend with `unsupported-compiler`.
  *
  * The order of `documents` does not change the result. The result is a deep copy that has passed
  * `validateInput`, so it shares no object with the documents. It sends nothing.

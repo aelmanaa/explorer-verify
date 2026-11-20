@@ -1,0 +1,40 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:55:58.519Z: getcontractcreation for TallyA at 0xb723519c03d0529dde21b1cd3dd255e83ab0f32b, sent by verify() to derive the constructor arguments (uint256 7, string \"ev-424-direct\") from the creation code. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getcontractcreation",
+        "contractaddresses": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "contractAddress": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
+          "contractCreator": "0x9d087fc03ae39b088326b67fa3c788236645b717",
+          "txHash": "0x0d2cfb55d2c96b579ebf2ae0a6013addc1400d7ddbdd5926788a8369a0b69a7d",
+          "blockNumber": "12166532",
+          "timestamp": "1795067628",
+          "contractFactory": "",
+          "creationBytecode": "0x60e751503461005b57602061019c5f395f5160208161017c015f395f516020811161005b575060408161017c01604039503360e752602061017c5f395f516002556040515f556060516001556100e761005f6000396101076000f35b5f80fd5f3560e01c60026003820660011b6100e101601e395f51565b631003e2d281186100d9576024361034176100dd576002546004358082018281106100dd579050905060025560025460405260206040f35b638da5cb5b811861006e57346100dd5760206100e760403960206040f35b632ddbd13a81186100d957346100dd5760025460405260206040f35b63cb4774c481186100d957346100dd57602080604052806040015f54815260015460208201528051806020830101601f825f03163682375050601f19601f825160200101169050810190506040f35b5f5ffd5b5f80fd0050008a0018855820b249d2afa61d94d544f557e2010a39ec7fb8436e9a9f8ba48711b29f0500070618e781061820a165767970657283000403003600000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000d65762d3432342d64697265637400000000000000000000000000000000000000"
+        }
+      ]
+    }
+  }
+}

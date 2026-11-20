@@ -46,9 +46,10 @@ with `kind: "zksolc"` (R-EXT-1); a backend whose client does not map that kind r
 ([decision 0057](decisions/0057-zksolc-compiler-kind.md)).
 
 A Vyper contract can be described with `kind: "vyper"` (R-EXT-1). Sourcify verifies it on every
-chain (R-BE-4, [decision 0077](decisions/0077-vyper-on-sourcify.md)); every other route refuses it
-with `unsupported-compiler` before any request, and `buildVerifyInput` still refuses Vyper
-documents. Later issues map the other backends
+chain it serves (R-BE-4, [decision 0077](decisions/0077-vyper-on-sourcify.md)), and so does
+Etherscan v2, directly and through the server handler (R-BE-1,
+[decision 0078](decisions/0078-vyper-on-etherscan.md)). Every other route refuses it with
+`unsupported-compiler` before any request. Later issues map the other backends
 ([decision 0075](decisions/0075-vyper-compiler-kind.md)).
 
 ## Functional requirements
@@ -118,11 +119,12 @@ documents. Later issues map the other backends
   `compiler.solcFork`). For Vyper: the long version with an 8-character commit, `language:
   "Vyper"`, a contract name whose path ends in `.vy` and whose name is the file name, no
   `libraries`, and no key of `sources`, `interfaces` or `settings.outputSelection` and no
-  `settings.search_paths` entry that holds a local path, including the `0/1/…/` form of `vyper -f solc_json`. A Vyper prerelease or a version
-  before 0.3.10 throws `unsupported-compiler` on `compiler.version` (decision 0075). Validation
-  errors name the field. The address check is format only:
-  `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers accept any
-  case. Options are validated too: a key the function does not read throws `invalid-input` naming
+  `settings.search_paths` entry that holds a local path, including the `0/1/…/` form of
+  `vyper -f solc_json`. A Vyper `settings.optimize` is absent, `null`, a level or a boolean
+  (decision 0078). A Vyper prerelease or a version before 0.3.10 throws `unsupported-compiler` on
+  `compiler.version` (decision 0075). Validation errors name the field. The address check is
+  format only: `0x` and 40 hex digits, in any case. The EIP-55 checksum is not checked: explorers
+  accept any case. Options are validated too: a key the function does not read throws `invalid-input` naming
   the key and the closest known name, never its value, and an optional field set to `undefined`
   counts as absent (decision 0047).
 - **R-IN-7** A format-detecting input builder takes one or more parsed JSON documents and
@@ -680,9 +682,11 @@ Measurement:
   maps zksolc yet; Blockscout's ZKsync instances come next
   ([decision 0057](decisions/0057-zksolc-compiler-kind.md)). The third member is
   `{ kind: "vyper"; version; input }`, with its own input type, `VyperStandardJsonInput`. Each
-  kind other than solc has its own list of backends and chains; the Vyper list is empty in this
-  release, so every route refuses Vyper input
-  ([decision 0075](decisions/0075-vyper-compiler-kind.md)).
+  kind other than solc has its own list of backends and chains, a chain list or every chain the
+  backend serves. The Vyper list holds Sourcify and Etherscan v2 on every chain, so every other
+  route refuses Vyper input ([decision 0075](decisions/0075-vyper-compiler-kind.md),
+  [decision 0077](decisions/0077-vyper-on-sourcify.md),
+  [decision 0078](decisions/0078-vyper-on-etherscan.md)).
 - **R-EXT-2** Input resolvers, backends and the routing table are extension points with documented
   interfaces.
 

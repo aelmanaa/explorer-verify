@@ -81,7 +81,7 @@ const MAX_UPSTREAM_BYTES = 1024 * 1024;
 // Requests per upstream call: one retry at most, so the handler's retries and the client's do not
 // multiply. The client backs off.
 const UPSTREAM_ATTEMPTS = 2;
-// The most fields a request may hold, query and body together. The largest action takes 11.
+// The most fields a request may hold, query and body together. The largest action takes 12.
 const MAX_FIELDS = 16;
 // The most chains and deployers an allowlist may hold.
 const MAX_LIST_LENGTH = 10_000;
@@ -110,7 +110,8 @@ const ACTIONS: Readonly<
 > = {
   verifysourcecode: {
     required: ["contractaddress", "sourceCode", "contractname", "compilerversion", "codeformat"],
-    optional: ["constructorArguments", "constructorArguements", "licenseType"],
+    // `optimizationUsed`: Etherscan refuses a Vyper submit without it (decision 0078).
+    optional: ["constructorArguments", "constructorArguements", "licenseType", "optimizationUsed"],
     retry: "submit",
     address: "contractaddress",
   },
@@ -165,8 +166,13 @@ const FORBIDDEN_FIELDS: readonly string[] = [
 const CHAIN_ID = /^[1-9][0-9]{0,15}$/;
 const HEX = /^(?:0x)?[0-9a-fA-F]*$/;
 const LICENSE = /^[0-9]{1,2}$/;
-const COMPILER_VERSION = /^v?[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.+-]{0,96}$/;
+// A solc version, with an optional `v` and suffix, or Etherscan's Vyper form, such as
+// `vyper:0.4.3`, with no suffix and each part bounded as validateInput bounds a Vyper version: 0, or
+// 1 to 4 digits without a leading zero (decision 0078). Issue #444 bounds the solc form.
+const COMPILER_VERSION =
+  /^(?:v?[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.+-]{0,96}|vyper:(?:0|[1-9][0-9]{0,3})(?:\.(?:0|[1-9][0-9]{0,3})){2})$/;
 const CODE_FORMAT = /^[a-z][a-z-]{0,63}$/;
+const OPTIMIZATION_USED = /^[01]$/;
 const FORM_TYPE = "application/x-www-form-urlencoded";
 const CHAINS_MESSAGE = "must hold only positive safe integers";
 const DEPLOYERS_MESSAGE = "must hold only addresses: 0x and 40 hex digits";
@@ -946,6 +952,7 @@ const VALUE_CHECKS: readonly (readonly [string, (value: string) => boolean])[] =
   ["constructorArguments", (value) => HEX.test(value)],
   ["constructorArguements", (value) => HEX.test(value)],
   ["licenseType", (value) => LICENSE.test(value)],
+  ["optimizationUsed", (value) => OPTIMIZATION_USED.test(value)],
 ];
 
 /** The names of the fields whose value has the wrong form. */

@@ -1,0 +1,49 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:54:25.817Z: getsourcecode for TallyB at 0xbf4ed80f83025577717e4d5ddee115b52495419e, before any verification and before TallyA was verified. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "getsourcecode",
+        "address": "0xbf4ed80f83025577717e4d5ddee115b52495419e",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "1",
+      "message": "OK",
+      "result": [
+        {
+          "SourceCode": "",
+          "ABI": "Contract source code not verified",
+          "ContractName": "",
+          "CompilerVersion": "",
+          "CompilerType": "",
+          "OptimizationUsed": "",
+          "Runs": "",
+          "ConstructorArguments": "",
+          "EVMVersion": "Default",
+          "Library": "",
+          "ContractFileName": "",
+          "LicenseType": "Unknown",
+          "Proxy": "0",
+          "Implementation": "",
+          "SwarmSource": "",
+          "SimilarMatch": ""
+        }
+      ]
+    }
+  }
+}

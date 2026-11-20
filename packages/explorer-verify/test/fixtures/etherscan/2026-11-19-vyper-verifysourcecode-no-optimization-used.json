@@ -1,0 +1,36 @@
+{
+  "source": "Live response from api.etherscan.io to a request sent with the fetch of Node.js 24.21.0, recorded 2026-11-19T05:54:53.267Z: verifysourcecode for TallyA at 0xb723519c03d0529dde21b1cd3dd255e83ab0f32b, in the Vyper form without optimizationUsed. Ethereum Sepolia. The real key is replaced by [redacted].",
+  "request": {
+    "method": "POST",
+    "url": "https://api.etherscan.io/v2/api?chainid=11155111",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "body": {
+      "encoding": "application/x-www-form-urlencoded",
+      "fields": {
+        "module": "contract",
+        "action": "verifysourcecode",
+        "codeformat": "vyper-json",
+        "sourceCode": "{\"language\":\"Vyper\",\"sources\":{\"src/TallyA.vy\":{\"content\":\"# pragma version 0.4.3\\n# explorer-verify live probe 2026-11-19: Vyper on Etherscan v2\\n\\nowner: public(immutable(address))\\nlabel: public(String[32])\\ntotal: public(uint256)\\n\\n\\n@deploy\\ndef __init__(start: uint256, label_: String[32]):\\n    owner = msg.sender\\n    self.total = start\\n    self.label = label_\\n\\n\\n@external\\ndef add(amount: uint256) -> uint256:\\n    self.total += amount\\n    return self.total\\n\"}},\"settings\":{\"outputSelection\":{\"src/TallyA.vy\":[\"*\"]},\"search_paths\":[\".\"]}}",
+        "contractaddress": "0xb723519c03d0529dde21b1cd3dd255e83ab0f32b",
+        "contractname": "src/TallyA.vy:TallyA",
+        "compilerversion": "vyper:0.4.3",
+        "constructorArguments": "00000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000d65762d3432342d64697265637400000000000000000000000000000000000000",
+        "constructorArguements": "00000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000d65762d3432342d64697265637400000000000000000000000000000000000000",
+        "apikey": "[redacted]"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "status": "0",
+      "message": "NOTOK",
+      "result": "Missing OptimizationUsed"
+    }
+  }
+}

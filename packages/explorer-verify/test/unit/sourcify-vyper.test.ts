@@ -190,21 +190,58 @@ describe("verify() of Vyper input on Sourcify (R-BE-4, R-EXT-1, recorded 2026-11
     assert.ok(r.calls[0]?.url.startsWith("https://sourcify.dev/server/v2/contract/"));
   });
 
-  it("verifyEach() with every backend runs Sourcify only", async (t) => {
+  it("verifyEach() with every backend runs Sourcify only without an Etherscan key", async (t) => {
     const fake = replay(recorded("lookup-exact-match"));
     const results = await drive(
       t,
-      runVerifyEach(
-        scoreboard(),
-        { fetch: fake.fetch, backends: "all", apiKeys: { "etherscan-v2": DUMMY_KEY } },
-        DEPENDENCIES,
-      ),
+      runVerifyEach(scoreboard(), { fetch: fake.fetch, backends: "all" }, DEPENDENCIES),
     );
     assert.deepEqual(
       results.outcomes.map((each) => each.backend),
       ["sourcify"],
     );
     assert.equal(fake.calls.length, 1);
+  });
+
+  it("verifyEach() with every backend and an Etherscan key runs Etherscan v2 and Sourcify", async (t) => {
+    // Etherscan answers with this contract verified: the name and version are the input's.
+    const etherscanAnswer = JSON.stringify({
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          SourceCode: "{{}}",
+          ContractName: "Scoreboard",
+          CompilerVersion: "vyper:0.4.3",
+          SimilarMatch: "",
+        },
+      ],
+    });
+    const sourcifyAnswer = recorded("lookup-exact-match");
+    const urls: string[] = [];
+    const fetchBoth: typeof fetch = async (target, init) => {
+      const url = target instanceof Request ? target.url : String(target);
+      urls.push(url);
+      return url.startsWith("https://api.etherscan.io/")
+        ? new Response(etherscanAnswer)
+        : await replay(sourcifyAnswer).fetch(target, init);
+    };
+    const results = await drive(
+      t,
+      runVerifyEach(
+        scoreboard(),
+        { fetch: fetchBoth, backends: "all", apiKeys: { "etherscan-v2": DUMMY_KEY } },
+        DEPENDENCIES,
+      ),
+    );
+    assert.deepEqual(
+      results.outcomes.map((each) => [each.backend, each.result?.status]),
+      [
+        ["etherscan-v2", "already-verified"],
+        ["sourcify", "already-verified"],
+      ],
+    );
+    assert.equal(urls.length, 2);
   });
 });
 
@@ -494,23 +531,61 @@ function isRefusal(error: unknown): true {
   );
   assert.equal(
     error.hint,
-    "Inline each interface into the contract source, or build the contract with Vyper 0.4.0 or later, then verify again.",
+    'Verify on Etherscan v2 (route.backend "etherscan-v2"), or inline each interface into the contract source, or build the contract with Vyper 0.4.0 or later.',
   );
   return true;
 }
 
-describe("Vyper 0.3.x input with interfaces (decision 0077)", () => {
-  it("is refused by verify(), dryRun() and verifyEach() before any request", async () => {
+describe("Vyper 0.3.x input with interfaces (decisions 0077 and 0078)", () => {
+  it("is refused on Sourcify by verify() and dryRun() before any request", async () => {
     const input = withInterfaces("0.3.10+commit.91361694", INTERFACE);
-    for (const route of [undefined, { backend: "sourcify" } as const]) {
-      const fake = replay();
-      await assert.rejects(runVerify(input, { fetch: fake.fetch, route }, DEPENDENCIES), isRefusal);
-      await assert.rejects(runDryRun(input, { fetch: fake.fetch, route }, DEPENDENCIES), isRefusal);
-      assert.deepEqual(fake.calls, []);
-    }
+    const route = { backend: "sourcify" } as const;
     const fake = replay();
+    await assert.rejects(runVerify(input, { fetch: fake.fetch, route }, DEPENDENCIES), isRefusal);
+    await assert.rejects(runDryRun(input, { fetch: fake.fetch, route }, DEPENDENCIES), isRefusal);
+    assert.deepEqual(fake.calls, []);
+  });
+
+  it("routes to Etherscan v2 where the row lists it, and needs its key", async () => {
+    const input = withInterfaces("0.3.10+commit.91361694", INTERFACE);
+    // Without a key: the table picks Etherscan v2, the one backend left, which asks for its key.
+    const keyless = replay();
+    await assert.rejects(runVerify(input, { fetch: keyless.fetch }, DEPENDENCIES), (error) =>
+      ExplorerVerifyError.is(error, "missing-api-key"),
+    );
+    assert.deepEqual(keyless.calls, []);
+    const etherscanNotVerified = new Response(
+      JSON.stringify({ status: "1", message: "OK", result: [{ SourceCode: "" }] }),
+    );
+    const fake = replay(etherscanNotVerified);
+    const result = await runDryRun(
+      input,
+      { fetch: fake.fetch, apiKeys: { "etherscan-v2": DUMMY_KEY } },
+      DEPENDENCIES,
+    );
+    assert.equal(result.backend, "etherscan-v2");
+    assert.equal(fake.calls.length, 1);
+    assert.ok(fake.calls[0]?.url.startsWith("https://api.etherscan.io/v2/api"));
+  });
+
+  it("verifyEach() with every backend keeps only Etherscan v2", async () => {
+    const input = withInterfaces("0.3.10+commit.91361694", INTERFACE);
+    const fake = replay();
+    const result = await runVerifyEach(input, { fetch: fake.fetch, backends: "all" }, DEPENDENCIES);
+    assert.deepEqual(
+      result.outcomes.map((outcome) => [outcome.backend, outcome.error?.code]),
+      [["etherscan-v2", "missing-api-key"]],
+    );
+    assert.deepEqual(fake.calls, []);
+  });
+
+  it("is refused before any request when Sourcify is the only Vyper route", async () => {
+    const input = withInterfaces("0.3.10+commit.91361694", INTERFACE);
+    const fake = replay();
+    const only = { ...DEPENDENCIES, compilers: { vyper: [["sourcify", "every"]] } } as const;
+    await assert.rejects(runVerify(input, { fetch: fake.fetch }, only), isRefusal);
     await assert.rejects(
-      runVerifyEach(input, { fetch: fake.fetch, backends: "all" }, DEPENDENCIES),
+      runVerifyEach(input, { fetch: fake.fetch, backends: "all" }, only),
       isRefusal,
     );
     assert.deepEqual(fake.calls, []);
@@ -577,14 +652,17 @@ describe("Vyper 0.3.x input with interfaces (decision 0077)", () => {
   });
 });
 
-describe("the Vyper capability list (R-EXT-1, decision 0075)", () => {
-  it("maps Sourcify on every chain and no other backend", () => {
-    assert.deepEqual(VYPER_ROUTES, [["sourcify", "every"]]);
+describe("the Vyper capability list (R-EXT-1, decisions 0075 and 0078)", () => {
+  it("maps Sourcify and Etherscan v2 on every chain and no other backend", () => {
+    assert.deepEqual(VYPER_ROUTES, [
+      ["sourcify", "every"],
+      ["etherscan-v2", "every"],
+    ]);
     for (const chainId of [1, SEPOLIA, 324, 300, 8453, 999999]) {
       const check = kindCheck("vyper", chainId);
       assert.equal(check.verifies("sourcify"), true);
+      assert.equal(check.verifies("etherscan-v2"), true);
       for (const other of [
-        "etherscan-v2",
         "blockscout",
         "blockscout-hosted",
         "routescan",
