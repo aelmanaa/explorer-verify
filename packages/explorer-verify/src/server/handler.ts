@@ -166,11 +166,12 @@ const FORBIDDEN_FIELDS: readonly string[] = [
 const CHAIN_ID = /^[1-9][0-9]{0,15}$/;
 const HEX = /^(?:0x)?[0-9a-fA-F]*$/;
 const LICENSE = /^[0-9]{1,2}$/;
-// A solc version, with an optional `v` and suffix, or Etherscan's Vyper form, such as
-// `vyper:0.4.3`, with no suffix and each part bounded as validateInput bounds a Vyper version: 0, or
-// 1 to 4 digits without a leading zero (decision 0078). Issue #444 bounds the solc form.
+// A solc version, with an optional `v` and a suffix of up to 96 characters that does not start with
+// a digit, or Etherscan's Vyper form, such as `vyper:0.4.3`, with no suffix. Each digit group of
+// either form is 0, or 1 to 4 digits without a leading zero, as validateInput bounds a Vyper
+// version (decision 0078).
 const COMPILER_VERSION =
-  /^(?:v?[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.+-]{0,96}|vyper:(?:0|[1-9][0-9]{0,3})(?:\.(?:0|[1-9][0-9]{0,3})){2})$/;
+  /^(?:v?(?:0|[1-9][0-9]{0,3})(?:\.(?:0|[1-9][0-9]{0,3})){2}(?:[A-Za-z.+-][A-Za-z0-9.+-]{0,95})?|vyper:(?:0|[1-9][0-9]{0,3})(?:\.(?:0|[1-9][0-9]{0,3})){2})$/;
 const CODE_FORMAT = /^[a-z][a-z-]{0,63}$/;
 const OPTIMIZATION_USED = /^[01]$/;
 const FORM_TYPE = "application/x-www-form-urlencoded";

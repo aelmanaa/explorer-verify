@@ -621,6 +621,58 @@ describe("createVerifyHandler checks the form of each submit field (R-SRV-3)", (
   });
 });
 
+describe("createVerifyHandler bounds each digit group of a solc compilerversion (#444, R-SRV-5)", () => {
+  // A made-up lowercase-hex key, the form a key-scanning rule looks for (R-SEC-1).
+  const HEX_KEY = "0123456789abcdef0123456789abcdef";
+
+  it("forwards the solc versions the client sends: releases, nightly and pre-release builds", async () => {
+    for (const compilerversion of [
+      SUBMIT.fields["compilerversion"] ?? "",
+      "v0.4.11+commit.68ef5810",
+      "v0.8.26-nightly.2024.5.1+commit.1f2d3e4a",
+      "v0.8.31-pre.1+commit.b59566f6",
+      "0.8.24+commit.e11b9ed9",
+      "v0.8.24",
+      "v0.0.0",
+      "v9999.9999.9999+commit.e11b9ed9",
+    ]) {
+      const { handler, explorer } = setup([json(OK_GUID)], { apiKey: HEX_KEY });
+      const response = await handler(post({ ...SUBMIT.fields, compilerversion }));
+      assert.equal(response.status, 200, compilerversion);
+      assert.equal(explorer.calls.length, 1, compilerversion);
+      assert.equal(explorer.calls[0]?.form.get("compilerversion"), compilerversion);
+    }
+  });
+
+  it("refuses a group of more than 4 digits or with a leading zero, with 400, no request and no key", async () => {
+    for (const compilerversion of [
+      `v${"1".repeat(5000)}.0.0`,
+      `v0.${"1".repeat(5000)}.0`,
+      `v0.0.${"1".repeat(5000)}`,
+      "v00.8.24",
+      "v0.08.24",
+      "v0.8.024",
+      "v10000.0.0",
+      "v0.10000.0",
+      "v0.8.10000",
+      "v0.8.24000+commit.e11b9ed9",
+      "v0.8",
+    ]) {
+      const { logger, lines } = recorder();
+      const { handler, explorer } = setup([], { apiKey: HEX_KEY, logger });
+      const response = await handler(post({ ...SUBMIT.fields, compilerversion }));
+      const text = await response.text();
+      const label = compilerversion.slice(0, 16);
+      assert.equal(response.status, 400, label);
+      assert.match(text, /Invalid fields: compilerversion\./, label);
+      assert.equal(explorer.calls.length, 0, label);
+      for (const output of [text, ...lines]) {
+        assert.equal(output.includes(HEX_KEY), false, label);
+      }
+    }
+  });
+});
+
 describe("createVerifyHandler reduces a lookup answer (R-SRV-3, decision 0021)", () => {
   it("relays the source marker text", () => {
     assert.equal(SOURCE_MARKER, "[source not relayed by explorer-verify/server]");
