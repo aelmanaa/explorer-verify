@@ -64,7 +64,8 @@ It exits 0 and prints:
 
 A Vyper contract takes the same command with its `.vy` path, such as
 `--contract src/Counter.vy:Counter`. It needs the build-info of step 3, and verifies on Sourcify
-and Etherscan.
+and Etherscan. [Verify a Vyper contract](../guides/verify-a-vyper-contract.md) covers the versions
+and grades.
 
 ## 5. Verify for real
 
@@ -90,4 +91,5 @@ It exits 0 and prints:
 - [Verify a contract from a Foundry project](../guides/verify-from-a-foundry-project.md): the
   library helper and the files it reads.
 - [Verify from CI with the CLI](../guides/verify-from-ci-with-the-cli.md): keys and exit codes.
+- [Verify a Vyper contract](../guides/verify-a-vyper-contract.md): versions, explorers and grades.
 - [CLI reference](../reference/cli.md): every command and option.

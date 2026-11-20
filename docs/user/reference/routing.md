@@ -19,7 +19,8 @@ Without `route.apiUrl`, the first rule that applies picks the backend. The `veri
 1. `caller`: `route.backend` is set and the chain's row lists it. A backend the row does not list
    throws `unsupported-chain`.
 2. `table`: the row's first backend that works with the keys you passed. A backend that needs a
-   key is skipped when `apiKeys` has none for it, and the event's `skipped` lists it.
+   key is skipped when `apiKeys` has none for it, and the event's `skipped` lists it. With
+   `handlerUrl`, `etherscan-v2` counts as having its key.
 3. `fallback`: the chain has no row and `allowSourcifyFallback` is `true`, so the call goes to the
    public Sourcify API. Without the option, the call throws `unsupported-chain`.
 
@@ -32,7 +33,7 @@ does not, the call throws `unsupported-compiler` on `compiler.kind` before any r
 
 Only Blockscout verifies `zksolc`, on chains 324 and 300. Sourcify and Etherscan v2 verify
 `vyper`, each on every chain whose row lists it. So rule 2 picks between them as it does for
-solc: Etherscan v2 when it comes first in the row and its key is set, else Sourcify. On a row with
+solc: Etherscan v2 when it comes first in the row and its key or `handlerUrl` is set, else Sourcify. On a row with
 neither, Vyper input is refused, naming the row's first backend.
 
 Only `etherscan-v2` needs a key, and a standalone Etherscan-compatible entry when its row says so.

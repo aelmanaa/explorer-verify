@@ -16,8 +16,10 @@ serves. Name one with `route: { backend: "sourcify" }` or `route: { backend: "et
 let the routing table pick one. For `compiler.version`, the hint names the Vyper versions this
 release accepts: 0.3.10 and later releases, not prereleases.
 
-The build helpers still refuse zksolc and Vyper build documents; extract the input and versions
-with the compiler's tooling. Use the compiler's own verification tooling for other compilers.
+The build helpers refuse zksolc build documents; extract that input and its versions with the
+compiler's tooling. The Foundry helper reads a Vyper build-info, and the Hardhat helper refuses a
+Vyper contract with `insufficient-artifact`. Use the compiler's own verification tooling for other
+compilers.
 
 From the CLI: Use Solidity compiled with solc, zksolc through Blockscout on ZKsync Era (324) or
 Sepolia (300), or Vyper through Sourcify or Etherscan v2. Verify other compilers with their own
@@ -48,7 +50,7 @@ Cause: the input, or the documents passed to `buildVerifyInput`, come from a com
 release or the route's backend does not verify. `details.field` names what showed it:
 
 - `compilerType`: a Hardhat 3 build-info with a `compilerType` other than `solc`.
-- `language`: a compiler input whose language is not `Solidity`, such as Vyper.
+- `language`: a compiler input whose language is neither `Solidity` nor `Vyper`, such as Yul.
 - A zksolc field: the documents come from zksolc, the compiler for ZKsync Era's EraVM, through
   foundry-zksync or hardhat-zksync. The fields are listed below.
 - `compiler.kind`: a flow function such as `verify()` got input of a kind that the route's
