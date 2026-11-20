@@ -156,19 +156,20 @@ The five required fields of `verifysourcecode`:
 
 The checks of the values, each refused with `bad-request` naming the field:
 
-| Field                                           | Accepted                                                                                                                                                                                       |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compilerversion`                               | A solc version, as `v0.8.24+commit.e11b9ed9`: an optional `v`, `x.y.z` and up to 96 more characters; or `vyper:x.y.z`, as `vyper:0.4.3`, each part `0` or 1 to 4 digits without a leading zero |
-| `contractname`                                  | At most 1024 characters                                                                                                                                                                        |
-| `codeformat`                                    | Lower-case letters and `-`, as `solidity-standard-json-input` or `vyper-json`                                                                                                                  |
-| `optimizationUsed`                              | `0` or `1`. The client sends it for Vyper input only: Etherscan refuses a Vyper submit without it                                                                                              |
-| `constructorArguments`, `constructorArguements` | Hex digits, with an optional `0x`                                                                                                                                                              |
-| `licenseType`                                   | One or two digits                                                                                                                                                                              |
+| Field                                           | Accepted                                                                                                                                                                                                                                       |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `compilerversion`                               | A solc version, as `v0.8.24+commit.e11b9ed9`: an optional `v`, `x.y.z` and up to 96 more characters that do not start with a digit; or `vyper:x.y.z`, as `vyper:0.4.3`. In both forms each part is `0` or 1 to 4 digits without a leading zero |
+| `contractname`                                  | At most 1024 characters                                                                                                                                                                                                                        |
+| `codeformat`                                    | Lower-case letters and `-`, as `solidity-standard-json-input` or `vyper-json`                                                                                                                                                                  |
+| `optimizationUsed`                              | `0` or `1`. The client sends it for Vyper input only: Etherscan refuses a Vyper submit without it                                                                                                                                              |
+| `constructorArguments`, `constructorArguements` | Hex digits, with an optional `0x`                                                                                                                                                                                                              |
+| `licenseType`                                   | One or two digits                                                                                                                                                                                                                              |
 
-A Vyper version with a suffix, such as `vyper:0.4.3+commit.bff19ea2` or `vyper:0.4.3rc1`, a part
-with a leading zero, such as `vyper:00.4.3`, or a part of more than 4 digits is refused. The solc
-form's digit groups are not bounded yet; that bound comes with
-[issue #444](https://github.com/aelmanaa/explorer-verify/issues/444).
+A solc version passes with or without the `v`, and with a nightly or pre-release suffix, such as
+`v0.8.26-nightly.2024.5.1+commit.1f2d3e4a` or `v0.8.31-pre.1+commit.b59566f6`. A part with a
+leading zero, such as `v0.08.24` or `vyper:00.4.3`, or a part of more than 4 digits, such as
+`v10000.0.0`, is refused. So is a Vyper version with a suffix, such as
+`vyper:0.4.3+commit.bff19ea2` or `vyper:0.4.3rc1`.
 
 ### What it forwards
 
