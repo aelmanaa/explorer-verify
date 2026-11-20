@@ -459,6 +459,40 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
     });
     const built = await buildVerifyInputFromFoundry({ root, contract: "Greeter", outDir: FULL });
     assert.deepEqual(built, byHand);
+    // The contract is the path:Name the build-info lists, not the bare name.
+    const build = await findFoundryBuild({ root, contract: "Greeter", outDir: FULL });
+    assert.equal(build.contract, "src/Greeter.sol:Greeter");
+    assert.equal(build.files[1], BUILD_INFO);
+  });
+
+  it("matches a build-info path that ends with the path given when the artifact has no metadata", async () => {
+    const root = copyProject(FULL);
+    const artifact = record(readJson(root, `${FULL}/Greeter.sol/Greeter.json`));
+    write(root, `${FULL}/Greeter.sol/Greeter.json`, {
+      abi: artifact["abi"],
+      bytecode: artifact["bytecode"],
+    });
+    const byHand = buildVerifyInput([readJson(root, BUILD_INFO)], {
+      contract: "src/Greeter.sol:Greeter",
+    });
+    const built = await buildVerifyInputFromFoundry({
+      root,
+      contract: "Greeter.sol:Greeter",
+      outDir: FULL,
+    });
+    assert.deepEqual(built, byHand);
+    const error = await rejection(
+      async () =>
+        await findFoundryBuild({ root, contract: "lib/Greeter.sol:Greeter", outDir: FULL }),
+      "invalid-input",
+    );
+    assert.deepEqual(issuesOf(error), [
+      {
+        field: "contract",
+        message:
+          "has a source path that no build-info lists for this contract; the build-info lists it under src/Greeter.sol",
+      },
+    ]);
   });
 
   it("reads the metadata object when rawMetadata is not JSON", async () => {
@@ -485,6 +519,8 @@ describe("findFoundryBuild picks the contract's artifact (R-DX-2)", () => {
       issuesOf(error)[0]?.message,
       "matches 2 artifacts: a contract without metadata (out/Greeter.sol/Greeter.0.8.24.json), a contract without metadata (out/Greeter.sol/Greeter.json)",
     );
+    // A path cannot tell artifacts without metadata apart: only the artifact option can.
+    assert.match(error.hint, /^These artifacts hold no metadata\b.*Pass artifact with/);
     const build = await findFoundryBuild({ root, contract: "Ping" });
     assert.equal(build.documents.length, 1);
   });

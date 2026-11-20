@@ -1,0 +1,7 @@
+@external
+def increment(): ...
+
+
+@view
+@external
+def count() -> uint256: ...

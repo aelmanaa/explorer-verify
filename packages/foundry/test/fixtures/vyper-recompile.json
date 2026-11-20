@@ -1,0 +1,34 @@
+{
+  "compiler": "0.4.3+commit.bff19ea2",
+  "recordedOn": "2026-11-20",
+  "input": {
+    "language": "Vyper",
+    "sources": {
+      "src/Counter.vy": {
+        "content": "# pragma version ~=0.4.3\n\nfrom .interfaces import ICounter\nfrom . import ownable\n\nimplements: ICounter\n\ninitializes: ownable\n\nexports: ownable.owner\n\ncount: public(uint256)\n\n\n@deploy\ndef __init__(start: uint256):\n    ownable.__init__()\n    self.count = start\n\n\n@external\ndef increment():\n    ownable._check_owner()\n    self.count += 1\n"
+      },
+      "src/ownable.vy": {
+        "content": "# pragma version ~=0.4.3\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef _check_owner():\n    assert msg.sender == self.owner, \"ownable: not owner\"\n"
+      }
+    },
+    "settings": {
+      "evmVersion": "prague",
+      "outputSelection": {
+        "src/Counter.vy": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+        },
+        "src/ownable.vy": {
+          "*": ["abi", "evm.bytecode", "evm.deployedBytecode"]
+        }
+      },
+      "search_paths": ["", "src"]
+    },
+    "interfaces": {
+      "src/interfaces/ICounter.vyi": {
+        "content": "@external\ndef increment(): ...\n\n\n@view\n@external\ndef count() -> uint256: ...\n"
+      }
+    }
+  },
+  "bytecode": "0x3461002f5761000c61002a565b602061016f5f395f5160015561010661003361000039610106610000f35b335f55565b5f80fd5f3560e01c60026003820660011b61010001601e395f51565b638da5cb5b811861007c57346100fc575f5460405260206040f35b63d09de08a811861007c57346100fc5761004b610080565b600154600181018181106100fc579050600155005b6306661abd811861007c57346100fc5760015460405260206040f35b5f5ffd5b5f543318156100fa5760208060a05260126040527f6f776e61626c653a206e6f74206f776e6572000000000000000000000000000060605260408160a001603282825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b565b5f80fd001800330060855820f92ccd23dbc38f0f752507c2d50c6784f2dffeee17e986c34fc7a7cafae18aa7190106810600a1657679706572830004030036",
+  "deployedBytecode": "0x5f3560e01c60026003820660011b61010001601e395f51565b638da5cb5b811861007c57346100fc575f5460405260206040f35b63d09de08a811861007c57346100fc5761004b610080565b600154600181018181106100fc579050600155005b6306661abd811861007c57346100fc5760015460405260206040f35b5f5ffd5b5f543318156100fa5760208060a05260126040527f6f776e61626c653a206e6f74206f776e6572000000000000000000000000000060605260408160a001603282825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b565b5f80fd001800330060"
+}

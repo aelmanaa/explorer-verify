@@ -671,3 +671,54 @@ function optionsOf(value: unknown): FindBuildOptions {
   Reflect.set(box, "options", value);
   return box.options;
 }
+
+/** Checks the refusal of a Vyper contract. */
+function assertRefused(error: ExplorerVerifyError): void {
+  assert.equal(error.code, "insufficient-artifact");
+  assert.deepEqual(error.details, { code: "insufficient-artifact", field: "input" });
+  assert.match(error.message, /^Hardhat writes no build-info for a Vyper contract/);
+  assert.match(error.hint, /vyper -f solc_json/);
+  assert.match(error.hint, /build_info = true/);
+}
+
+// References: R-DX-2, issue #426. Hardhat 2's Vyper plugin writes only ABI and bytecode, and
+// Hardhat 3 has no Vyper plugin yet (NomicFoundation/hardhat#7296).
+describe("R-DX-2: a Vyper contract", () => {
+  /** The ABI-and-bytecode artifact that `@nomiclabs/hardhat-vyper` writes. */
+  const vyperArtifact = {
+    _format: "hh-vyper-artifact-1",
+    contractName: "Vault",
+    abi: [],
+    bytecode: "0x00",
+    deployedBytecode: "0x00",
+    linkReferences: {},
+    deployedLinkReferences: {},
+  };
+
+  it("refuses insufficient-artifact for path:Name with a .vy source, built or not", async () => {
+    await withCopy(HARDHAT_2, async (root) => {
+      const contract = "contracts/Vault.vy:Vault";
+      assertRefused(await rejection(findHardhatBuild({ root, contract })));
+      await writeJson(root, "artifacts/contracts/Vault.vy/Vault.json", vyperArtifact);
+      assertRefused(await rejection(findHardhatBuild({ root, contract })));
+      assertRefused(await rejection(buildVerifyInputFromHardhat({ root, contract })));
+    });
+  });
+
+  it("refuses insufficient-artifact for a bare name and for a Hardhat 3 source name", async () => {
+    await withCopy(HARDHAT_3, async (root) => {
+      await writeJson(root, "artifacts/contracts/Vault.vy/Vault.json", vyperArtifact);
+      for (const contract of ["Vault", "project/contracts/Vault.vy:Vault"]) {
+        assertRefused(await rejection(findHardhatBuild({ root, contract })));
+      }
+    });
+  });
+
+  it("refuses insufficient-artifact for the artifact option in a .vy folder", async () => {
+    await withCopy(HARDHAT_2, async (root) => {
+      const artifact = "artifacts/contracts/Vault.vy/Vault.json";
+      await writeJson(root, artifact, vyperArtifact);
+      assertRefused(await rejection(findHardhatBuild({ root, contract: "Vault", artifact })));
+    });
+  });
+});

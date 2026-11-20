@@ -37,7 +37,32 @@ pins no compiler version. `lib/utils/Context.sol` (`^0.8.20`) is imported by `sr
 - a `Name.metadata.json` file next to each artifact, holding the Solidity metadata only;
 - one build-info file per version in `out/build-info/`.
 
+## A Vyper contract: `vyper/`
+
+A third project, built on 2026-11-20 with Foundry 1.8.1 and `forge build --offline`, with
+`build_info = true` in `foundry.toml` and Vyper 0.4.3 (`0.4.3+commit.bff19ea2`). Forge used the
+default EVM version, `prague`. The sources:
+
+| File                          | What it is                                                          |
+| ----------------------------- | ------------------------------------------------------------------- |
+| `src/Counter.vy`              | `Counter`: imports and initializes `ownable`, implements `ICounter` |
+| `src/ownable.vy`              | A module; forge also writes an artifact for it                      |
+| `src/interfaces/ICounter.vyi` | The interface `Counter` implements                                  |
+
+Forge wrote `out/Counter.vy/Counter.json`, `out/ownable.vy/ownable.json` and one build-info,
+`out/build-info/cb47506b7508bb34.json`. The artifacts hold no metadata. The build-info records
+the version as `0.4.3`, without a commit.
+
+`vyper-recompile.json` holds the input `buildVerifyInputFromFoundry` returns for
+`src/Counter.vy:Counter`, and the bytecode that `vyper-json` 0.4.3 gave for it when run once in an
+empty folder. Both bytecodes equal the artifact's. The tests read this file and run no compiler.
+
+The Vyper files are as forge and Vyper wrote them: nothing was trimmed, and they held no absolute
+path. `cache/` is removed, and the JSON files were formatted with the repository's formatter.
+
 ## Changes from the tool output
+
+These changes apply to `project/` and `multi/`.
 
 - Build-info `output`: each contract keeps only `abi` and `metadata`, and each source only `id`.
   The ASTs, `evm` and docs are removed to keep the files small.

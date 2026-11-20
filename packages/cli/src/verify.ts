@@ -690,7 +690,8 @@ const OPTIONS: OptionSpecs = {
   "compiler-version": {
     type: "string",
     value: "<version>",
-    description: "The full solc version, such as 0.8.24+commit.e11b9ed9, when the files lack it.",
+    description:
+      "The full solc or Vyper version, such as 0.8.24+commit.e11b9ed9 or 0.4.3+commit.bff19ea2, when the files lack it.",
   },
   "constructor-args": {
     type: "string",

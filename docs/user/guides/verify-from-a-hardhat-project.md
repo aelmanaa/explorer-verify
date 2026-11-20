@@ -181,6 +181,18 @@ detected per contract: an artifact with `buildInfoId` is read as Hardhat 3.
 Each file must be a regular file inside the artifacts folder, after symbolic links, and at most
 256 MiB. A Hardhat 2 `buildInfo` path must point into `<outDir>/build-info/`.
 
+## Vyper contracts
+
+The helper does not verify Vyper contracts. Hardhat 2's Vyper plugin writes only the ABI and the
+bytecode, with no build-info, and Hardhat 3 has no Vyper plugin yet
+([NomicFoundation/hardhat#7296](https://github.com/NomicFoundation/hardhat/issues/7296)).
+
+A contract whose artifact folder ends in `.vy`, such as `contracts/Counter.vy:Counter`, fails
+with `insufficient-artifact`. Build the input another way: write it with `vyper -f solc_json`
+and pass it to `buildVerifyInput`, or build the contract in a Foundry project with
+`build_info = true`. [Verify from a Foundry project](verify-from-a-foundry-project.md#a-vyper-contract)
+shows the second way.
+
 ## Read the files without building the input
 
 `findHardhatBuild` takes the same options and returns what it found:
@@ -250,10 +262,11 @@ needs them there, `linkLibraries(input)` adds them. See
 The helper throws an `ExplorerVerifyError`. [Errors](../reference/errors/index.md) describes each
 code.
 
-| Code               | When                                                                                          |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| `invalid-input`    | A bad option or folder; no artifact; a file that is not JSON, too large or outside the folder |
-| `incomplete-input` | A bare name matches several artifacts, or a build-info, output or `.dbg.json` file is missing |
+| Code                    | When                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `invalid-input`         | A bad option or folder; no artifact; a file that is not JSON, too large or outside the folder |
+| `incomplete-input`      | A bare name matches several artifacts, or a build-info, output or `.dbg.json` file is missing |
+| `insufficient-artifact` | A Vyper contract: Hardhat writes no Vyper build-info                                          |
 
 Each `invalid-input` message names the option or the file, for example:
 

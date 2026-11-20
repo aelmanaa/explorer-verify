@@ -1,0 +1,118 @@
+{
+  "id": "cb47506b7508bb34",
+  "source_id_to_path": { "0": "src/Counter.vy", "2": "src/ownable.vy" },
+  "language": "vyper",
+  "_format": "ethers-rs-sol-build-info-1",
+  "input": {
+    "language": "Vyper",
+    "sources": {
+      "src/Counter.vy": {
+        "content": "# pragma version ~=0.4.3\n\nfrom .interfaces import ICounter\nfrom . import ownable\n\nimplements: ICounter\n\ninitializes: ownable\n\nexports: ownable.owner\n\ncount: public(uint256)\n\n\n@deploy\ndef __init__(start: uint256):\n    ownable.__init__()\n    self.count = start\n\n\n@external\ndef increment():\n    ownable._check_owner()\n    self.count += 1\n"
+      },
+      "src/ownable.vy": {
+        "content": "# pragma version ~=0.4.3\n\nowner: public(address)\n\n\n@deploy\ndef __init__():\n    self.owner = msg.sender\n\n\n@internal\ndef _check_owner():\n    assert msg.sender == self.owner, \"ownable: not owner\"\n"
+      }
+    },
+    "interfaces": {
+      "src/interfaces/ICounter.vyi": {
+        "content": "@external\ndef increment(): ...\n\n\n@view\n@external\ndef count() -> uint256: ...\n"
+      }
+    },
+    "settings": {
+      "evmVersion": "prague",
+      "outputSelection": {
+        "src/Counter.vy": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode"] },
+        "src/ownable.vy": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode"] }
+      },
+      "search_paths": ["", "src"]
+    }
+  },
+  "output": {
+    "contracts": {
+      "src/Counter.vy": {
+        "Counter": {
+          "abi": [
+            {
+              "type": "constructor",
+              "inputs": [{ "name": "start", "type": "uint256" }],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "count",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "uint256" }],
+              "stateMutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "increment",
+              "inputs": [],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "address" }],
+              "stateMutability": "view"
+            }
+          ],
+          "userdoc": {},
+          "devdoc": {},
+          "evm": {
+            "bytecode": {
+              "object": "3461002f5761000c61002a565b602061016f5f395f5160015561010661003361000039610106610000f35b335f55565b5f80fd5f3560e01c60026003820660011b61010001601e395f51565b638da5cb5b811861007c57346100fc575f5460405260206040f35b63d09de08a811861007c57346100fc5761004b610080565b600154600181018181106100fc579050600155005b6306661abd811861007c57346100fc5760015460405260206040f35b5f5ffd5b5f543318156100fa5760208060a05260126040527f6f776e61626c653a206e6f74206f776e6572000000000000000000000000000060605260408160a001603282825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b565b5f80fd001800330060855820f92ccd23dbc38f0f752507c2d50c6784f2dffeee17e986c34fc7a7cafae18aa7190106810600a1657679706572830004030036",
+              "opcodes": "CALLVALUE PUSH2 0x002F JUMPI PUSH2 0x000C PUSH2 0x002A JUMP JUMPDEST PUSH1 0x20 PUSH2 0x016F PUSH0 CODECOPY PUSH0 MLOAD PUSH1 0x01 SSTORE PUSH2 0x0106 PUSH2 0x0033 PUSH2 0x0000 CODECOPY PUSH2 0x0106 PUSH2 0x0000 RETURN JUMPDEST CALLER PUSH0 SSTORE JUMP JUMPDEST PUSH0 DUP1 REVERT PUSH0 CALLDATALOAD PUSH1 0xE0 SHR PUSH1 0x02 PUSH1 0x03 DUP3 MOD PUSH1 0x01 SHL PUSH2 0x0100 ADD PUSH1 0x1E CODECOPY PUSH0 MLOAD JUMP JUMPDEST PUSH4 0x8DA5CB5B DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH0 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH4 0xD09DE08A DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH2 0x004B PUSH2 0x0080 JUMP JUMPDEST PUSH1 0x01 SLOAD PUSH1 0x01 DUP2 ADD DUP2 DUP2 LT PUSH2 0x00FC JUMPI SWAP1 POP PUSH1 0x01 SSTORE STOP JUMPDEST PUSH4 0x06661ABD DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH1 0x01 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH0 PUSH0 REVERT JUMPDEST PUSH0 SLOAD CALLER XOR ISZERO PUSH2 0x00FA JUMPI PUSH1 0x20 DUP1 PUSH1 0xA0 MSTORE PUSH1 0x12 PUSH1 0x40 MSTORE PUSH32 0x6F776E61626C653A206E6F74206F776E65720000000000000000000000000000 PUSH1 0x60 MSTORE PUSH1 0x40 DUP2 PUSH1 0xA0 ADD PUSH1 0x32 DUP3 DUP3 MCOPY DUP1 MLOAD DUP1 PUSH1 0x20 DUP4 ADD ADD PUSH1 0x1F DUP3 PUSH0 SUB AND CALLDATASIZE DUP3 CALLDATACOPY POP POP PUSH1 0x1F NOT PUSH1 0x1F DUP3 MLOAD PUSH1 0x20 ADD ADD AND SWAP1 POP SWAP1 POP DUP2 ADD SWAP1 POP PUSH4 0x08C379A0 PUSH1 0x80 MSTORE DUP1 PUSH1 0x04 ADD PUSH1 0x9C REVERT JUMPDEST JUMP JUMPDEST PUSH0 DUP1 REVERT STOP XOR STOP CALLER STOP PUSH1 0x85 PC SHA3 VERBATIM_0xf9 VERBATIM_0x2c VERBATIM_0xcd VERBATIM_0x23 VERBATIM_0xdb VERBATIM_0xc3 DUP16 VERBATIM_0xf PUSH22 0x2507C2D50C6784F2DFFEEE17E986C34FC7A7CAFAE18A VERBATIM_0xa7 NOT ADD MOD DUP2 MOD STOP LOG1 PUSH6 0x767970657283 STOP DIV SUB STOP CALLDATASIZE",
+              "sourceMap": "0:335:0:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;217:18:0;-1:-1:-1;-1:-1:-1;217:18:0:-;217:18:0:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;240:10:0;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;92:10:2;79:10:2;-1:-1:-1;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;26:22:2;-1:-1:-1;26:22:2;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;292:22:0;-1:-1:-1;-1:-1:-1;292:22:0:i;292:22:0:-;319:10:0;-1:-1:-1;-1:-1:-1;333:1:0;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;319:10:0;-1:-1:-1;-1:-1:-1;271:63:0;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;150:22:0;-1:-1:-1;150:22:0;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;160:10:2;146:24:2;146:10:2;146:24:2;146:24:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;139:53:2:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;172:20:2;-1:-1:-1;172:20:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;172:20:2;172:20:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1",
+              "linkReferences": {}
+            },
+            "deployedBytecode": {
+              "object": "5f3560e01c60026003820660011b61010001601e395f51565b638da5cb5b811861007c57346100fc575f5460405260206040f35b63d09de08a811861007c57346100fc5761004b610080565b600154600181018181106100fc579050600155005b6306661abd811861007c57346100fc5760015460405260206040f35b5f5ffd5b5f543318156100fa5760208060a05260126040527f6f776e61626c653a206e6f74206f776e6572000000000000000000000000000060605260408160a001603282825e8051806020830101601f825f03163682375050601f19601f8251602001011690509050810190506308c379a060805280600401609cfd5b565b5f80fd001800330060",
+              "opcodes": "PUSH0 CALLDATALOAD PUSH1 0xE0 SHR PUSH1 0x02 PUSH1 0x03 DUP3 MOD PUSH1 0x01 SHL PUSH2 0x0100 ADD PUSH1 0x1E CODECOPY PUSH0 MLOAD JUMP JUMPDEST PUSH4 0x8DA5CB5B DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH0 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH4 0xD09DE08A DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH2 0x004B PUSH2 0x0080 JUMP JUMPDEST PUSH1 0x01 SLOAD PUSH1 0x01 DUP2 ADD DUP2 DUP2 LT PUSH2 0x00FC JUMPI SWAP1 POP PUSH1 0x01 SSTORE STOP JUMPDEST PUSH4 0x06661ABD DUP2 XOR PUSH2 0x007C JUMPI CALLVALUE PUSH2 0x00FC JUMPI PUSH1 0x01 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH0 PUSH0 REVERT JUMPDEST PUSH0 SLOAD CALLER XOR ISZERO PUSH2 0x00FA JUMPI PUSH1 0x20 DUP1 PUSH1 0xA0 MSTORE PUSH1 0x12 PUSH1 0x40 MSTORE PUSH32 0x6F776E61626C653A206E6F74206F776E65720000000000000000000000000000 PUSH1 0x60 MSTORE PUSH1 0x40 DUP2 PUSH1 0xA0 ADD PUSH1 0x32 DUP3 DUP3 MCOPY DUP1 MLOAD DUP1 PUSH1 0x20 DUP4 ADD ADD PUSH1 0x1F DUP3 PUSH0 SUB AND CALLDATASIZE DUP3 CALLDATACOPY POP POP PUSH1 0x1F NOT PUSH1 0x1F DUP3 MLOAD PUSH1 0x20 ADD ADD AND SWAP1 POP SWAP1 POP DUP2 ADD SWAP1 POP PUSH4 0x08C379A0 PUSH1 0x80 MSTORE DUP1 PUSH1 0x04 ADD PUSH1 0x9C REVERT JUMPDEST JUMP JUMPDEST PUSH0 DUP1 REVERT STOP XOR STOP CALLER STOP PUSH1 0x",
+              "sourceMap": "0:335:0:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;26:22:2;-1:-1:-1;26:22:2;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;292:22:0;-1:-1:-1;-1:-1:-1;292:22:0:i;292:22:0:-;319:10:0;-1:-1:-1;-1:-1:-1;333:1:0;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;319:10:0;-1:-1:-1;-1:-1:-1;271:63:0;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;150:22:0;-1:-1:-1;150:22:0;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;160:10:2;146:24:2;146:10:2;146:24:2;146:24:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;139:53:2:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;172:20:2;-1:-1:-1;172:20:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;172:20:2;172:20:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1",
+              "linkReferences": {}
+            }
+          }
+        }
+      },
+      "src/ownable.vy": {
+        "ownable": {
+          "abi": [
+            { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
+            {
+              "type": "function",
+              "name": "owner",
+              "inputs": [],
+              "outputs": [{ "name": "", "type": "address" }],
+              "stateMutability": "view"
+            }
+          ],
+          "userdoc": {},
+          "devdoc": {},
+          "evm": {
+            "bytecode": {
+              "object": "3461001757335f5561002761001b6019396100276019f35b5f80fd5f3560e01c638da5cb5b811861001f5734610023575f5460405260206040f35b5f5ffd5b5f80fd85582029b8f381a5d8fecc4f6edc5c1c9740959b44c77ce21f79c4c0923d2ce3daaf3018278000a1657679706572830004030034",
+              "opcodes": "CALLVALUE PUSH2 0x0017 JUMPI CALLER PUSH0 SSTORE PUSH2 0x0027 PUSH2 0x001B PUSH1 0x19 CODECOPY PUSH2 0x0027 PUSH1 0x19 RETURN JUMPDEST PUSH0 DUP1 REVERT PUSH0 CALLDATALOAD PUSH1 0xE0 SHR PUSH4 0x8DA5CB5B DUP2 XOR PUSH2 0x001F JUMPI CALLVALUE PUSH2 0x0023 JUMPI PUSH0 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH0 PUSH0 REVERT JUMPDEST PUSH0 DUP1 REVERT DUP6 PC SHA3 VERBATIM_0x29 VERBATIM_0xb8 RETURN DUP2 DEBUG VERBATIM_0xd8 INVALID VERBATIM_0xcc VERBATIM_0x4f PUSH15 0xDC5C1C9740959B44C77CE21F79C4C0 SWAP3 RETURNDATASIZE VERBATIM_0x2c VERBATIM_0xe3 VERBATIM_0xda VERBATIM_0xaf ADDRESS XOR VERBATIM_0x27 DUP1 STOP LOG1 PUSH6 0x767970657283 STOP DIV SUB STOP CALLVALUE",
+              "sourceMap": "0:193:2:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;92:10:2;79:10:2;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;26:22:2;-1:-1:-1;26:22:2;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1",
+              "linkReferences": {}
+            },
+            "deployedBytecode": {
+              "object": "5f3560e01c638da5cb5b811861001f5734610023575f5460405260206040f35b5f5ffd5b5f80fd",
+              "opcodes": "PUSH0 CALLDATALOAD PUSH1 0xE0 SHR PUSH4 0x8DA5CB5B DUP2 XOR PUSH2 0x001F JUMPI CALLVALUE PUSH2 0x0023 JUMPI PUSH0 SLOAD PUSH1 0x40 MSTORE PUSH1 0x20 PUSH1 0x40 RETURN JUMPDEST PUSH0 PUSH0 REVERT JUMPDEST PUSH0 DUP1 REVERT",
+              "sourceMap": "0:193:2:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1;26:22:2;-1:-1:-1;26:22:2;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1;-1:-1:-1:-;-1:-1:-1;-1:-1:-1;-1:-1:-1",
+              "linkReferences": {}
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "src/Counter.vy": { "id": 0, "ast": {} },
+      "src/ownable.vy": { "id": 2, "ast": {} }
+    }
+  },
+  "solcLongVersion": "0.4.3",
+  "solcVersion": "0.4.3"
+}

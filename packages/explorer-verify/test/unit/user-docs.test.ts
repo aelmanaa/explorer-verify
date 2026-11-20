@@ -251,6 +251,12 @@ const RUNS: readonly DocRun[] = [
   {
     page: "guides/verify-from-a-foundry-project.md",
     example: 3,
+    what: "buildVerifyInputFromFoundry on a Vyper contract",
+    setup: "foundry-vyper",
+  },
+  {
+    page: "guides/verify-from-a-foundry-project.md",
+    example: 4,
     what: "findFoundryBuild in a Foundry project",
     setup: "foundry",
   },

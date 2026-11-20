@@ -46,6 +46,15 @@ cpSync(fileURLToPath(new URL("hardhat/test/fixtures/hardhat-3.21.2/", PACKAGES))
   recursive: true,
 });
 
+/**
+ * The Vyper fixture of `@explorer-verify/foundry`: a Foundry 1.8.1 build with Vyper 0.4.3 of
+ * `src/Counter.vy`, which imports a module and implements a `.vyi` interface.
+ */
+const VYPER = join(DIR, "vyper");
+cpSync(fileURLToPath(new URL("foundry/test/fixtures/vyper/", PACKAGES)), VYPER, {
+  recursive: true,
+});
+
 /** The `result` or `error` of the envelope, checked against the shipped schema. */
 function part(stdout: string, name: "result" | "error"): Record<string, unknown> {
   const envelope = oneEnvelope(stdout);
@@ -78,6 +87,126 @@ describe("bin: verify from a project (R-DX-1, R-DX-2)", { concurrency: true }, (
     const dry = part(result.stdout, "result");
     assert.equal(dry["status"], "dry-run");
     assert.equal(dry["backend"], "sourcify");
+  });
+
+  // References: R-DX-2, R-AX-5 to R-AX-12, issue #426.
+  it(
+    "--foundry . finds a Vyper contract's build-info and dry runs on Sourcify",
+    TIMEOUT,
+    async () => {
+      const log = join(DIR, "vyper-requests.jsonl");
+      const result = await runBin(
+        [
+          "verify",
+          ADDRESS,
+          "--chain",
+          "11155111",
+          "--foundry",
+          ".",
+          "--contract",
+          "src/Counter.vy:Counter",
+          "--backend",
+          "sourcify",
+          "--dry-run",
+          "--json",
+        ],
+        { cwd: VYPER, fake: { log } },
+      );
+      assert.equal(result.code, 0, result.stderr);
+      const dry = part(result.stdout, "result");
+      assert.equal(dry["status"], "dry-run");
+      assert.equal(dry["backend"], "sourcify");
+      assert.equal(dry["routedBy"], "caller");
+      // A dry run sends only the lookup, to the fake explorer: never a submission.
+      const requests = readFileSync(log, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line): unknown => JSON.parse(line));
+      assert.ok(requests.length >= 1);
+      for (const request of requests) {
+        assert.ok(typeof request === "object" && request !== null && "submit" in request);
+        assert.equal(request.submit, false);
+      }
+    },
+  );
+
+  it(
+    "--foundry . refuses a Vyper contract on a backend that does not verify Vyper",
+    TIMEOUT,
+    async () => {
+      const result = await runBin(
+        [
+          "verify",
+          ADDRESS,
+          "--chain",
+          "11155111",
+          "--foundry",
+          ".",
+          "--contract",
+          "src/Counter.vy:Counter",
+          "--backend",
+          "blockscout",
+          "--dry-run",
+          "--json",
+        ],
+        { cwd: VYPER, fake: {} },
+      );
+      assert.equal(result.code, 2, result.stdout);
+      assert.equal(part(result.stdout, "error")["code"], "unsupported-compiler");
+    },
+  );
+
+  it(
+    "--foundry . names forge build --build-info for a Vyper contract without build-info",
+    TIMEOUT,
+    async () => {
+      const bare = join(DIR, "vyper-no-build-info");
+      cpSync(VYPER, bare, { recursive: true });
+      rmSync(join(bare, "out/build-info"), { recursive: true });
+      const result = await runBin(
+        [
+          "verify",
+          ADDRESS,
+          "--chain",
+          "11155111",
+          "--foundry",
+          ".",
+          "--contract",
+          "src/Counter.vy:Counter",
+          "--dry-run",
+          "--json",
+        ],
+        { cwd: bare, fake: {} },
+      );
+      assert.equal(result.code, 2, result.stdout);
+      const error = part(result.stdout, "error");
+      assert.equal(error["code"], "insufficient-artifact");
+      assert.match(String(error["hint"]), /^Run forge build --build-info\b/);
+      assert.match(String(error["hint"]), /run the command again\.$/);
+    },
+  );
+
+  it("--hardhat . refuses a Vyper contract with insufficient-artifact", TIMEOUT, async () => {
+    const result = await runBin(
+      [
+        "verify",
+        ADDRESS,
+        "--chain",
+        "11155111",
+        "--hardhat",
+        ".",
+        "--contract",
+        "contracts/Vault.vy:Vault",
+        "--dry-run",
+        "--json",
+      ],
+      { cwd: HARDHAT, fake: {} },
+    );
+    assert.equal(result.code, 2, result.stdout);
+    const error = part(result.stdout, "error");
+    assert.equal(error["code"], "insufficient-artifact");
+    assert.match(String(error["message"]), /^Hardhat writes no build-info for a Vyper contract/);
+    assert.match(String(error["hint"]), /vyper -f solc_json/);
   });
 
   it("--hardhat . reads a Hardhat 3 build and dry runs on Sourcify", TIMEOUT, async () => {
