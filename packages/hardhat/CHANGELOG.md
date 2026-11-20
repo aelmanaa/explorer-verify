@@ -1,5 +1,18 @@
 # @explorer-verify/hardhat
 
+## 0.5.0
+
+### Minor Changes
+
+- [#450](https://github.com/aelmanaa/explorer-verify/pull/450) [`0fea1f3`](https://github.com/aelmanaa/explorer-verify/commit/0fea1f39fd3eab01af7a453b3753d0782a323b08) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `findHardhatBuild` and `buildVerifyInputFromHardhat` refuse a Vyper contract, whose artifact folder ends in `.vy`, with `insufficient-artifact`. Hardhat 2's Vyper plugin writes no build-info, and Hardhat 3 has no Vyper plugin yet (NomicFoundation/hardhat#7296). The hint says to build the input with `vyper -f solc_json`, or in a Foundry project with `build_info = true`.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/426
+
+### Patch Changes
+
+- Updated dependencies [[`e3b2bdd`](https://github.com/aelmanaa/explorer-verify/commit/e3b2bdddf9e7073833e2757b0b9b3c293b37ac14), [`df50fe8`](https://github.com/aelmanaa/explorer-verify/commit/df50fe8984fe244ccdafb3b3943048df20d0cc66), [`4da0501`](https://github.com/aelmanaa/explorer-verify/commit/4da0501b3fc20de3119889655ada107b18999ffe), [`020a95a`](https://github.com/aelmanaa/explorer-verify/commit/020a95a1b4bde6c052bfbcd2d6b32f23b9e540ac), [`c1bf45d`](https://github.com/aelmanaa/explorer-verify/commit/c1bf45d72a97d6cdacac67fe2b900ad988ec7a25), [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb), [`93416e1`](https://github.com/aelmanaa/explorer-verify/commit/93416e1a3ef14b81bb8c33baf7a71b88883fa15c), [`c22594d`](https://github.com/aelmanaa/explorer-verify/commit/c22594d6529c4df995ab7788148b134bc7bdc3df), [`2adfc0b`](https://github.com/aelmanaa/explorer-verify/commit/2adfc0b420e55b59b76e7d0414bd0b551d9b0493), [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb)]:
+  - explorer-verify@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

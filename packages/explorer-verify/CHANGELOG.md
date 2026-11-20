@@ -1,5 +1,64 @@
 # explorer-verify
 
+## 0.5.0
+
+### Minor Changes
+
+- [#443](https://github.com/aelmanaa/explorer-verify/pull/443) [`c1bf45d`](https://github.com/aelmanaa/explorer-verify/commit/c1bf45d72a97d6cdacac67fe2b900ad988ec7a25) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `buildVerifyInput` builds `kind: "vyper"` input from a bare Vyper Standard JSON, the output of `vyper -f solc_json` and a Foundry Vyper build-info. It keeps only `language`, `sources`, `interfaces` and `settings`, and drops `compiler_version`, `integrity` and each source's `sha256sum`. A Foundry build-info names `0.4.3` without a commit, and the PyPI builds print a 7-character commit such as `0.4.0+commit.e9db8d9`; a table of the stable releases from 0.3.10 completes both, and a release it does not list needs `compilerVersion`. A module from a Python environment, keyed after an index run or under the project's `.venv`, is moved to the path after its last `site-packages`, such as `snekmate/auth/ownable.vy`, with the search path `.`. Any other indexed, absolute or climbing path throws `invalid-input`, naming no path, and so does an input with `storage_layout_overrides`. A Hardhat 2 Vyper artifact on its own throws `insufficient-artifact` with the Vyper routes. No backend verifies Vyper yet.
+  
+  `validateInput` now also refuses a Vyper path whose index run is spelled with `.`, empty or `name/..` segments, such as `./ ./0/1/x` or `src/../0/1/x`, and a Vyper input with `storage_layout_overrides`. The `details.candidates` of an `incomplete-input` error on `contract` no longer lists a name whose path is local.
+  
+  What should I do? Nothing for Solidity input. Code that caught `unsupported-compiler` from `buildVerifyInput` for Vyper documents now gets a `kind: "vyper"` result, which `verify()` still refuses.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/425
+
+- [#446](https://github.com/aelmanaa/explorer-verify/pull/446) [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `verify()` verifies Vyper contracts (`kind: "vyper"`) on Etherscan v2, on every chain it serves, directly and through the server handler. The submit sends `codeformat=vyper-json`, `compilerversion=vyper:0.4.3` and `optimizationUsed`, which Etherscan requires for Vyper. Sourcify and Etherscan v2 now both verify Vyper, and the routing table picks between them as for solc: Etherscan v2 where it comes first in the chain's row and its key is set, else Sourcify. Vyper 0.3.x input with `interfaces`, which Sourcify refuses, goes to Etherscan v2. Every other backend still refuses Vyper input with `unsupported-compiler` before any request.
+  
+  `validateInput` now refuses a Vyper `settings.optimize` other than `"none"`, `"gas"`, `"codesize"`, `true`, `false` or `null`, with `invalid-input` on `compiler.input.settings.optimize`.
+  
+  `createVerifyHandler` now forwards `optimizationUsed` (`0` or `1`) and accepts a `compilerversion` of the form `vyper:0.4.3`, each part `0` or 1 to 4 digits without a leading zero.
+  
+  What should I do? To verify Vyper through your own server handler, update the handler to this release with the client: an older handler answers a Vyper submit with `bad-request`. Fix a Vyper `settings.optimize` that `validateInput` now refuses.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/424
+
+- [#436](https://github.com/aelmanaa/explorer-verify/pull/436) [`c22594d`](https://github.com/aelmanaa/explorer-verify/commit/c22594d6529c4df995ab7788148b134bc7bdc3df) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Breaking: `VerifyInput.compiler` adds a third member, `VyperCompiler`, with its own input type, `VyperStandardJsonInput`. `validateInput` checks Vyper input, but no backend verifies it in this release: every route refuses it with `unsupported-compiler` before any request. The CLI's `verify` without a target reports that refusal before it asks for a backend.
+  
+  What should I do? An exhaustive `switch` on `compiler.kind` that handles only `solc` and `zksolc` no longer compiles: add a `vyper` case. Code that reads `compiler.input` as `SolidityStandardJsonInput` checks `kind` first.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/420
+
+- [#445](https://github.com/aelmanaa/explorer-verify/pull/445) [`2adfc0b`](https://github.com/aelmanaa/explorer-verify/commit/2adfc0b420e55b59b76e7d0414bd0b551d9b0493) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Sourcify verifies Vyper contracts. `verify()`, `dryRun()`, `verifyEach()` and `checkStatus()` take `kind: "vyper"` input on every chain Sourcify serves, and the routing table picks Sourcify for it. Sourcify grades a build from Vyper 0.4.1 on `exact` and an older one `partial`. Sourcify refuses a top-level `interfaces` field, so each Vyper interface is sent in `sources`. Every other backend still refuses Vyper input with `unsupported-compiler` before any request, and the hint of that error now names Sourcify for Vyper.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/423
+
+### Patch Changes
+
+- [#416](https://github.com/aelmanaa/explorer-verify/pull/416) [`e3b2bdd`](https://github.com/aelmanaa/explorer-verify/commit/e3b2bdddf9e7073833e2757b0b9b3c293b37ac14) Thanks [@aelmanaa](https://github.com/aelmanaa)! - Docs: the TSDoc of `buildVerifyInputFromSources` and `buildVerifyInputFromBytecode` links to their guides, on the API pages and in the `.d.ts` hover text.
+
+- [#437](https://github.com/aelmanaa/explorer-verify/pull/437) [`df50fe8`](https://github.com/aelmanaa/explorer-verify/commit/df50fe8984fe244ccdafb3b3943048df20d0cc66) Thanks [@aelmanaa](https://github.com/aelmanaa)! - A `Retry-After` date in the asctime form, such as `Sun Nov  6 08:49:37 1994`, is now read as UTC, as RFC 9110 requires, and no longer as the machine's local time.
+
+- [#453](https://github.com/aelmanaa/explorer-verify/pull/453) [`4da0501`](https://github.com/aelmanaa/explorer-verify/commit/4da0501b3fc20de3119889655ada107b18999ffe) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The docs no longer say that the build helpers refuse Vyper build documents or that Vyper is an unsupported `language`, and the match-types page no longer reads as if Blockscout or Routescan results are used for Vyper. Routing rule 2 says that `handlerUrl` counts as the Etherscan key. The Foundry quickstart and the home page link the Vyper guide.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/452
+
+- [#447](https://github.com/aelmanaa/explorer-verify/pull/447) [`020a95a`](https://github.com/aelmanaa/explorer-verify/commit/020a95a1b4bde6c052bfbcd2d6b32f23b9e540ac) Thanks [@aelmanaa](https://github.com/aelmanaa)! - `createVerifyHandler` now bounds each part of a solc `compilerversion`, as it already did for the `vyper:` form: each part is `0` or 1 to 4 digits without a leading zero, and the suffix cannot start with a digit. A version such as `v00.8.24`, `v0.08.24` or `v10000.0.0`, or one with thousands of digits in a part, is refused with `bad-request` before any request to Etherscan. Every solc version the client sends still passes, including nightly and pre-release builds.
+  
+  What should I do? Nothing, unless you pass a solc version with a leading zero in a part, such as `0.08.24+commit.e11b9ed9`. `validateInput` accepts it, but no solc release has that form, and the handler now refuses it. Pass the version as the compiler prints it.
+  
+  Issue: https://github.com/aelmanaa/explorer-verify/issues/444
+
+- [#451](https://github.com/aelmanaa/explorer-verify/pull/451) [`93416e1`](https://github.com/aelmanaa/explorer-verify/commit/93416e1a3ef14b81bb8c33baf7a71b88883fa15c) Thanks [@aelmanaa](https://github.com/aelmanaa)! - The package ships a guide to verify a Vyper contract, `docs/guides/verify-a-vyper-contract.md`:
+  the versions that verify, Sourcify and Etherscan v2 and how routing picks between them, the input
+  from `vyper -f solc_json`, a Foundry build-info or a Standard JSON input, the match grade per
+  explorer, and a dry run from Node.js and from the CLI. The skill links it. The npm package guide no
+  longer says that no backend verifies Vyper, and the Sourcify reference no longer says that only
+  Sourcify does.
+
+- [#446](https://github.com/aelmanaa/explorer-verify/pull/446) [`55bb210`](https://github.com/aelmanaa/explorer-verify/commit/55bb210d61ef18ec0b0e82ebc349894be0e91ceb) Thanks [@aelmanaa](https://github.com/aelmanaa)! - For Vyper input, the check of the contract an explorer already holds drops a leading `vyper:` from the stored compiler version, in any case, before it compares the version: Etherscan stores `vyper:0.4.3`. A Vyper contract that Etherscan verified from this source now reads as this source, not as another contract's. Vyper input also keeps its `interfaces` in the Standard JSON input that a client builds; each explorer that maps Vyper sends them as it takes them.
+  
+  Issues: https://github.com/aelmanaa/explorer-verify/issues/421, https://github.com/aelmanaa/explorer-verify/issues/422
+
 ## 0.4.0
 
 ### Minor Changes
